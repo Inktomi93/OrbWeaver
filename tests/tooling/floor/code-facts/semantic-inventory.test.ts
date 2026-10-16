@@ -164,6 +164,134 @@ function invocationMetadataPartitions(root: string): InventoryPartition[] {
   });
 }
 
+test("materialized reader sources reuse canonical SDK lookup without sharing carrier identities", ({ scratch }) => {
+  initialize(scratch);
+  write(scratch, "tsconfig.b.json", JSON.stringify({ files: ["a.ts", "b.ts"], compilerOptions: { noLib: true, types: [] } }));
+  const alias = join(scratch, "alias-a.ts");
+  write(scratch, "alias-a.ts", "export const a=1;\n");
+  const buildPartition = (request: InventoryBuildRequest): void => {
+    const facts = partition(request);
+    for (const source of facts.sources) {
+      if (source.file === join(scratch, "a.ts")) {
+        source.path = alias;
+      }
+    }
+    using db = openInventoryDatabase(request.destination);
+    publishInventoryGeneration(db, [facts]);
+  };
+  using reader = createSemanticInventory({ root: scratch, buildPartition });
+  using other = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const corpus = reader.sourceCorpus();
+  const file = join(scratch, "a.ts");
+  const lookup = vi.spyOn(Project.prototype, "getSourceFile");
+  try {
+    const source = corpus.getSourceFile(file);
+    expect(source?.getFullText()).toBe("export const a=1;\n");
+    for (const path of ["a.ts", "./a.ts", file, "./nested/../a.ts", alias]) {
+      expect(corpus.getSourceFile(path)).toBe(source);
+    }
+    expect(lookup).toHaveBeenCalledExactlyOnceWith(file);
+    if (source === undefined) {
+      throw new Error("materialized source missing");
+    }
+    const importer = corpus.getSourceFile("b.ts");
+    const joined = reader.exports(source).get("a")?.[0];
+    const single = reader.exports(source, importer).get("a")?.[0];
+    expect(joined?.getText()).toBe("a=1");
+    expect(single?.getText()).toBe("a=1");
+    expect(joined?.getSourceFile()).not.toBe(source);
+    expect(single?.getSourceFile()).not.toBe(joined?.getSourceFile());
+    expect(other.sourceCorpus().getSourceFile(file)).not.toBe(source);
+  } finally {
+    lookup.mockRestore();
+  }
+});
+
+test("materialized source lookup observes removal, external replacement, misses and disposal", ({ scratch }) => {
+  initialize(scratch);
+  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const corpus = reader.sourceCorpus();
+  const file = join(scratch, "a.ts");
+  const source = corpus.getSourceFile(file);
+  if (source === undefined) {
+    throw new Error("materialized lifecycle source missing");
+  }
+  const carrier = source.getProject();
+  source.forget();
+  const recovered = corpus.getSourceFile(file);
+  expect(recovered).not.toBe(source);
+  expect(recovered?.getFullText()).toBe("export const a=1;\n");
+  if (recovered === undefined) {
+    throw new Error("forgotten source was not rematerialized");
+  }
+  expect(carrier.removeSourceFile(recovered)).toBe(true);
+  const replacement = carrier.createSourceFile(file, "export const replacement=2;\n");
+  expect(corpus.getSourceFile(file)).toBe(replacement);
+  expect(corpus.getSourceFile(file)?.getFullText()).toBe("export const replacement=2;\n");
+  expect(() => reader.sameNode(replacement, replacement)).toThrow("source/epoch");
+  replacement.forget();
+  const restored = corpus.getSourceFile(file);
+  expect(restored?.getFullText()).toBe("export const a=1;\n");
+  const absent = join(scratch, "absent.ts");
+  expect(corpus.getSourceFile(absent)).toBeUndefined();
+  const external = carrier.createSourceFile(absent, "export const external=3;");
+  expect(corpus.getSourceFile(absent)).toBe(external);
+  external.forget();
+  expect(corpus.getSourceFile(absent)).toBeUndefined();
+  const read = (): ReturnType<typeof corpus.getSourceFile> => corpus.getSourceFile(file);
+  reader[Symbol.dispose]();
+  expect(restored?.wasForgotten()).toBe(true);
+  expect(() => read()).toThrow("disposed");
+});
+
+test("materialized source lookup follows same-text and changed-text overwrite epochs", ({ scratch }) => {
+  initialize(scratch);
+  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const source = reader.sourceCorpus().getSourceFile("a.ts");
+  if (source === undefined) {
+    throw new Error("overwrite source missing");
+  }
+  const first = reader.exports(source).get("a")?.[0];
+  if (first === undefined) {
+    throw new Error("overwrite declaration missing");
+  }
+  const captured = first.getSourceFile();
+  const epoch = captured.compilerNode;
+  const carrier = captured.getProject();
+  expect(carrier.createSourceFile(captured.getFilePath(), captured.getFullText(), { overwrite: true })).toBe(captured);
+  expect(captured.compilerNode).not.toBe(epoch);
+  expect(first.wasForgotten()).toBe(true);
+  const next = reader.exports(source).get("a")?.[0];
+  expect(next?.getText()).toBe("a=1");
+  expect(next).not.toBe(first);
+  expect(next?.getSourceFile()).toBe(captured);
+  const text = "export const changed=4;\n";
+  expect(source.getProject().createSourceFile(source.getFilePath(), text, { overwrite: true })).toBe(source);
+  expect(reader.sourceCorpus().getSourceFile("a.ts")).toBe(source);
+  expect(source.getFullText()).toBe(text);
+  expect(() => reader.sameNode(source, source)).toThrow("source/epoch");
+});
+
+test("materialized source lookup follows public moves and overwritten destinations", ({ scratch }) => {
+  initialize(scratch);
+  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  const corpus = reader.sourceCorpus();
+  const source = corpus.getSourceFile("a.ts");
+  if (source === undefined) {
+    throw new Error("move source missing");
+  }
+  const moved = join(scratch, "moved.ts");
+  expect(source.move(moved)).toBe(source);
+  const replacement = corpus.getSourceFile("a.ts");
+  expect(replacement).not.toBe(source);
+  expect(replacement?.getFullText()).toBe("export const a=1;\n");
+  expect(corpus.getSourceFile(moved)).toBe(source);
+  expect(replacement?.move(moved, { overwrite: true })).toBe(replacement);
+  expect(source.wasForgotten()).toBe(true);
+  expect(corpus.getSourceFile(moved)).toBe(replacement);
+  expect(corpus.getSourceFile("a.ts")).not.toBe(replacement);
+});
+
 test("pinned invocation metadata retains only demanded row identities and observes mutable caller queries", ({ scratch }) => {
   initialize(scratch);
   const data = invocationMetadataPartitions(scratch);
