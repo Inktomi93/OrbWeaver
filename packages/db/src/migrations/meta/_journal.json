@@ -29,6 +29,13 @@
       "when": 1791962275241,
       "tag": "0003_workload-funder",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792190616872,
+      "tag": "0004_freeze-provenance",
+      "breakpoints": true
     }
   ]
 }

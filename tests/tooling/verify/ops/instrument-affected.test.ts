@@ -146,14 +146,11 @@ test("a source with no proven policy reach keeps the full liveness roster", asyn
   expect(selection.livenessScope).toEqual({ kind: "full", reason: "tooling/src/verify/lib/standalone.ts has no proven policy reach" });
 });
 
-// THE ARM THE MIRROR CANNOT DO, and the reason the ID search exists. `freeze-provenance-write-pairing`'s
-// proofs live in `freeze-provenance-conversion.suite.test.ts`: prefix-swapping the gate's own path yields
-// `tests/tooling/verify/gates/freeze-provenance-write-pairing*.ts`, which does not exist.
-test("a gate whose family test is named after its WAVE is still reached — the mirror alone misses it", () => {
-  const selection = selectAffectedInstrumentTests(ROOT, ["tooling/src/verify/gates/freeze-provenance-write-pairing.ts"]);
-  expect(selection.specs).toContain("tests/tooling/verify/gates/freeze-provenance-conversion.suite.test.ts");
+test("a gate whose test is named after its family is still reached — the mirror alone misses it", () => {
+  const selection = selectAffectedInstrumentTests(ROOT, ["tooling/src/verify/gates/owner-scoped-reads.ts"]);
+  expect(selection.specs).toContain("tests/tooling/verify/gates/tenancy-scope-family.suite.test.ts");
   expect(
-    selection.specs.some((spec) => spec.includes("freeze-provenance-write-pairing")),
+    selection.specs.some((spec) => spec.includes("owner-scoped-reads")),
     "the mirror really does find no file of its own name",
   ).toBe(false);
 });
