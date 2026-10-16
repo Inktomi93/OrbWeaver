@@ -9,6 +9,7 @@ import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
@@ -43,6 +44,7 @@ export function projectCtx(root: string): ProjectContext {
 /** One request ledger is shared by production and the existing isolated proof adapter. */
 export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequest[]) => NativeTypeFactReader): NativeTypeFacts {
   const requests = new Map<string, NativeTypeRequest[]>();
+  const invocationAdmissions = new Map<string, ReadonlyMap<string, ReadonlySet<Node>>>();
   let reader: NativeTypeFactReader | undefined;
   let failure: { readonly error: unknown } | undefined;
   let sealed = false;
@@ -58,6 +60,33 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       throw new Error("native type requests must be sealed before reading");
     }
   };
+  const planKey = (plan: InventoryInvocationPlan): string => invocationQueryKey({ ...plan, node: { file: "", start: 0, end: 0, kind: 0 } });
+  const invocationNodes = (owner: string, plan: InventoryInvocationPlan | undefined): ReadonlySet<Node> => {
+    if (plan === undefined) {
+      return new Set();
+    }
+    const existing = invocationAdmissions.get(owner);
+    if (existing !== undefined) {
+      return existing.get(planKey(plan)) ?? new Set();
+    }
+    const admitted = new Map<string, Set<Node>>();
+    let key: string | undefined;
+    for (const query of (requests.get(owner) ?? []).filter((request) => request.kind === "invocation-evidence")) {
+      // Preserve registered-before-caller refusal order; publish only after every registration validates.
+      const registered = planKey(query.plan);
+      key ??= planKey(plan);
+      const nodes = admitted.get(registered) ?? new Set<Node>();
+      for (const node of query.nodes) {
+        nodes.add(node);
+      }
+      admitted.set(registered, nodes);
+    }
+    if (key === undefined) {
+      return new Set();
+    }
+    invocationAdmissions.set(owner, admitted);
+    return admitted.get(key) ?? new Set();
+  };
   const selected = (
     owner: string,
     kind: NativeTypeRequest["kind"],
@@ -69,20 +98,19 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     },
   ): NativeTypeFactReader => {
     assertReadable();
-    const admitted = new Set<Node>(
-      (requests.get(owner) ?? [])
-        .filter(
-          (query) =>
-            query.kind === kind &&
-            (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
-            (query.kind !== "export-declarations" || query.name === projection?.name) &&
-            (query.kind !== "invocation-evidence" ||
-              (projection?.plan !== undefined &&
-                invocationQueryKey({ ...query.plan, node: { file: "", start: 0, end: 0, kind: 0 } }) ===
-                  invocationQueryKey({ ...projection.plan, node: { file: "", start: 0, end: 0, kind: 0 } }))),
-        )
-        .flatMap((query) => [...query.nodes]),
-    );
+    const admitted =
+      kind === "invocation-evidence"
+        ? invocationNodes(owner, projection?.plan)
+        : new Set<Node>(
+            (requests.get(owner) ?? [])
+              .filter(
+                (query) =>
+                  query.kind === kind &&
+                  (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
+                  (query.kind !== "export-declarations" || query.name === projection?.name),
+              )
+              .flatMap((query) => [...query.nodes]),
+          );
     if (nodes.some((node) => !admitted.has(node))) {
       throw new Error("native type query was not registered by this owner");
     }
@@ -301,6 +329,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     [Symbol.dispose]: (): void => {
       if (open) {
         open = false;
+        invocationAdmissions.clear();
         reader?.[Symbol.dispose]();
         requests.clear();
       }

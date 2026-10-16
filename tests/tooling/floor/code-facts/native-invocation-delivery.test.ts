@@ -105,6 +105,93 @@ function snapshot(node: MorphNode, evidence: NativeInvocationEvidence): object {
   return encodeInvocationEvidence(node, PLAN, { ...evidence, sources: [node.getSourceFile()] }, span);
 }
 
+test("sealed invocation admission indexes private registrations and freshly checks caller plans", () => {
+  const project = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
+  const source = project.createSourceFile("/admission.ts", "one();two();three();four();");
+  const nodes = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const first = nodes[0];
+  const last = nodes[3];
+  if (first === undefined || last === undefined) {
+    throw new Error("invocation admission controls missing");
+  }
+  const acquire = vi.fn((): never => {
+    throw new Error("admitted reader failure");
+  });
+  using session = nativeTypeFactSession(acquire);
+  const plan: InventoryInvocationPlan = { mode: "invocation", facets: ["module"], arguments: [] };
+  const other: InventoryInvocationPlan = { mode: "invocation", facets: ["global"], arguments: [] };
+  for (const node of nodes) {
+    session.request("first", { kind: "invocation-evidence", nodes: [node], plan });
+  }
+  session.request("first", { kind: "invocation-evidence", nodes: [last], plan: other });
+  session.request("second", { kind: "invocation-evidence", nodes: [last], plan });
+  session.request("dropped", { kind: "invocation-evidence", nodes: [first], plan });
+  session.seal(new Set(["first", "second"]));
+  plan.facets.push("binding");
+  const caller: InventoryInvocationPlan = { mode: "invocation", facets: ["module"], arguments: [] };
+  const parses = vi.spyOn(invocationQuerySchema, "parse");
+  try {
+    for (const [index, node] of [...nodes, ...nodes].entries()) {
+      parses.mockClear();
+      expect(() => session.invocationEvidence("first", [node], caller)).toThrow("admitted reader failure");
+      expect(parses).toHaveBeenCalledTimes(index === 0 ? nodes.length + 2 : 1);
+    }
+    expect(() => session.invocationEvidence("first", [first], other)).toThrow("not registered by this owner");
+    expect(() => session.invocationEvidence("first", [last], other)).toThrow("admitted reader failure");
+    expect(() => session.invocationEvidence("second", [first], caller)).toThrow("not registered by this owner");
+    expect(() => session.invocationEvidence("second", [last], caller)).toThrow("admitted reader failure");
+    expect(() => session.invocationEvidence("dropped", [first], caller)).toThrow("not registered by this owner");
+    const foreign = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true }).createSourceFile(source.getFilePath(), source.getFullText());
+    expect(() => session.invocationEvidence("first", [foreign.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression)], caller)).toThrow(
+      "not registered by this owner",
+    );
+    caller.facets.push("undefined");
+    expect(() => session.invocationEvidence("first", [first], caller)).toThrow("not registered by this owner");
+    caller.facets.length = 1;
+    caller.arguments.push({ index: 0, facets: [] }, { index: 0, facets: [] });
+    expect(() => session.invocationEvidence("first", [first], caller)).toThrow("argument projection is ambiguous");
+    caller.arguments.length = 0;
+    expect(() => session.invocationEvidence("first", [first], caller)).toThrow("admitted reader failure");
+    expect(acquire).toHaveBeenCalledTimes(1);
+    session[Symbol.dispose]();
+    expect(() => session.invocationEvidence("first", [first], caller)).toThrow("disposed");
+  } finally {
+    parses.mockRestore();
+  }
+});
+
+test("invocation admission preserves registered versus caller refusal order without publishing partial indexes", () => {
+  const source = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true }).createSourceFile("/refusal.ts", "one();");
+  const node = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const valid: InventoryInvocationPlan = { mode: "invocation", facets: [], arguments: [] };
+  const duplicate: InventoryInvocationPlan = {
+    ...valid,
+    arguments: [
+      { index: 0, facets: [] },
+      { index: 0, facets: [] },
+    ],
+  };
+  const malformed: InventoryInvocationPlan = { ...valid, facets: ["type-projection"] };
+  const acquire = vi.fn((): never => {
+    throw new Error("unexpected reader acquisition");
+  });
+  using session = nativeTypeFactSession(acquire);
+  session.request("mixed", { kind: "invocation-evidence", nodes: [node], plan: valid });
+  session.request("mixed", { kind: "invocation-evidence", nodes: [node], plan: duplicate });
+  session.request("bad-first", { kind: "invocation-evidence", nodes: [node], plan: duplicate });
+  session.request("other-kind", { kind: "global-bindings", nodes: [node] });
+  expect(() => session.seal(new Set(["mixed", "bad-first", "other-kind"]))).not.toThrow();
+  for (let retry = 0; retry < 2; retry++) {
+    expect(() => session.invocationEvidence("mixed", [node], malformed)).toThrow("must name exactly its closed demand");
+    expect(() => session.invocationEvidence("mixed", [node], valid)).toThrow("argument projection is ambiguous");
+    expect(() => session.invocationEvidence("bad-first", [node], malformed)).toThrow("argument projection is ambiguous");
+  }
+  expect(() => session.invocationEvidence("missing", [node], malformed)).toThrow("not registered by this owner");
+  expect(() => session.invocationEvidence("other-kind", [node], malformed)).toThrow("not registered by this owner");
+  expect(session.invocationEvidence("mixed", [], malformed)).toEqual(new Map());
+  expect(acquire).not.toHaveBeenCalled();
+});
+
 test(
   "native value queries distinguish same-span import specifiers and identifiers from their source file",
   ({ scratch, repoRoot }) => {
