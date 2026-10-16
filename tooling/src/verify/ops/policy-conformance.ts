@@ -10,11 +10,14 @@ import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
 import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
+import { readDrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
 import { referenceResolutionServices, resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-alias.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
+import { readSchemaIdentities, schemaIdentityQuery } from "../../floor/code-facts/schema-identity.ts";
+import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -540,7 +543,27 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
     return project.getTypeChecker();
   };
   return nativeTypeFactSession(
-    (): NativeTypeFactReader => ({
+    (queries): NativeTypeFactReader => ({
+      schemaIdentity: (requested): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
+        const checker = checkerFor(requested);
+        return readSchemaIdentities({
+          files: requested,
+          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+          checker: () => checker,
+        });
+      },
+      drizzleEvidence: (nodes, mode): ReturnType<NativeTypeFactReader["drizzleEvidence"]> => {
+        checkerFor(nodes);
+        const requested = [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+        const checker = checkerFor(requested);
+        const fact = readSchemaIdentities({
+          files: requested,
+          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+          checker: () => checker,
+        });
+        const declarations = new Map((fact.status === "ready" ? fact.value.tables : []).map((table) => [schemaDeclarationKey(table.declaration), table]));
+        return new Map(nodes.map((node) => [node, readDrizzleCallEvidence(node, mode, schemaIdentityQuery(fact, declarations))]));
+      },
       exportDeclarations: (requested, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> => {
         checkerFor(requested);
         return new Map(requested.map((source) => [source, source.getExportedDeclarations().get(name) ?? null]));

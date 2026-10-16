@@ -71,7 +71,7 @@ function arrayElements(node: MorphNode, subject: string, active = new Set<object
   return elements;
 }
 
-export function tableFromReference(node: MorphNode, byDeclaration: ReadonlyMap<string, SchemaTable>): ReferenceFact<SchemaTable> {
+export function tableFromReference<Table>(node: MorphNode, byDeclaration: ReadonlyMap<string, Table>): ReferenceFact<Table> {
   if (Node.isVariableDeclaration(node)) {
     const direct = byDeclaration.get(schemaDeclarationKey(node));
     return direct === undefined ? unresolved("missing", node, `${node.getText()} is not a resolved schema table`) : resolved(direct, node, [node]);

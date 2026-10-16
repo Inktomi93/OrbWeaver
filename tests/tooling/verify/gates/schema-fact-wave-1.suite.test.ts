@@ -18,7 +18,7 @@ import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/
 import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // EACH of these tests concentrates a whole family's proof set — every row builds its own in-memory project
@@ -27,8 +27,9 @@ import { scaledBudget } from "../../_load-budget.ts";
 // 4.9 s alone. `scaledBudget` is the house spelling and grows with the box.
 const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 
-// own-tables-only joins this wave (#1934 fix): its conversion consumes the SAME `drizzleSchemaFact` as the
-// rest of the "drizzle-schema" family, but the module previously had NO committed test driving
+// own-tables-only consumes a native identity projection of the SAME complete canonical schema extraction as the
+// rest of the "drizzle-schema" family. These controls drive its isolated proof owner; installed-world controls live in native-drizzle-policy-delivery.int.test.ts.
+// The module previously had NO committed test driving
 // `verifyPolicyProofs` over it — its 12 mustFlag/mustPass rows executed nowhere. Landed here rather than a
 // dedicated file because its own header already documents the family reuse (schema-branding.ts's sibling
 // reasoning: "one computation, several policies"). AUTHORITY ESCALATION: own-tables-only is `authority:
@@ -191,7 +192,15 @@ function consumerPass(policy: GatePolicy, files: Readonly<Record<string, string>
   for (const [path, content] of Object.entries(files)) {
     project.createSourceFile(`${VIRTUAL_ROOT}/${path}`, content);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: VIRTUAL_ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: VIRTUAL_ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 function schemaCorpus(policy: GatePolicy, probe: string): Readonly<Record<string, string>> {

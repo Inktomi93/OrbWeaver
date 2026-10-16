@@ -166,20 +166,23 @@ function buildSchema(
   }
 }
 
+/** Full and explicitly projected schema queries retain the same unavailable-reference refusal. */
+export function unavailableSchemaReference<Value>(schema: SchemaFact<Value>, node: MorphNode): UnresolvedReferenceFact {
+  return unresolved(
+    schema.status === "unresolved" ? "unsupported" : "missing",
+    node,
+    `schema query is ${schema.status}: ${"reason" in schema ? schema.reason : "not ready"}`,
+  );
+}
+
 function queryForSchema(schema: SchemaFact<SchemaModel>): SchemaQuery {
   const tables = schema.status === "ready" ? schema.value.tables : [];
   const byDeclaration = new Map(tables.map((table) => [schemaDeclarationKey(table.declaration), table]));
   const byColumn = new Map(tables.flatMap((table) => table.columns.map((column) => [column.identity.key, column] as const)));
-  const unavailable = (node: MorphNode): UnresolvedReferenceFact =>
-    unresolved(
-      schema.status === "unresolved" ? "unsupported" : "missing",
-      node,
-      `schema query is ${schema.status}: ${"reason" in schema ? schema.reason : "not ready"}`,
-    );
   return Object.freeze({
     schema: () => schema,
-    table: (node: MorphNode) => (schema.status === "ready" ? tableFromReference(node, byDeclaration) : unavailable(node)),
-    column: (node: MorphNode) => (schema.status === "ready" ? columnFromReference(node, byDeclaration, byColumn) : unavailable(node)),
+    table: (node: MorphNode) => (schema.status === "ready" ? tableFromReference(node, byDeclaration) : unavailableSchemaReference(schema, node)),
+    column: (node: MorphNode) => (schema.status === "ready" ? columnFromReference(node, byDeclaration, byColumn) : unavailableSchemaReference(schema, node)),
   });
 }
 

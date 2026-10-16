@@ -2,7 +2,6 @@
 // The independently named survivors prevent a changed permission roster from passing by count alone.
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as assetsSingleWriter } from "../../../../tooling/src/verify/gates/assets-single-writer.ts";
@@ -14,6 +13,7 @@ import { gate as wireSchemaVocabOneHome } from "../../../../tooling/src/verify/g
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -68,12 +68,21 @@ test(
   "every surviving schema/data grant binds once; wrong keys stale, missing findings stale, and duplicate findings are over-broad",
   () => {
     const root = process.cwd();
-    const project = getWorkspace({ root });
+    const context = projectCtx(root);
+    const { project } = context;
     const grants = reviewedGrantsFor(POLICIES);
     expect(grants).toHaveLength(GRANT_COUNT);
     expect(grants.map(({ id }) => id)).toEqual(EXPECTED_GRANT_IDS);
 
-    const dispatched = runPolicyPass({ knownPolicies: POLICIES, policies: POLICIES, root, project, reviewedGrants: [], failOnWarnings: false });
+    const dispatched = runPolicyPass({
+      knownPolicies: POLICIES,
+      policies: POLICIES,
+      root,
+      project,
+      ...nativeTypeFactOptions(context),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
     expect(dispatched.factErrors).toEqual([]);
     expect(dispatched.toolErrors).toEqual([]);
     expect(dispatched.authority.toolErrors).toEqual([]);

@@ -60,7 +60,11 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     owner: string,
     kind: NativeTypeRequest["kind"],
     nodes: readonly Node[],
-    projection?: { readonly name?: string; readonly plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan },
+    projection?: {
+      readonly name?: string;
+      readonly mode?: import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleEvidenceMode;
+      readonly plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan;
+    },
   ): NativeTypeFactReader => {
     assertReadable();
     const admitted = new Set<Node>(
@@ -68,6 +72,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         .filter(
           (query) =>
             query.kind === kind &&
+            (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
             (query.kind !== "export-declarations" || query.name === projection?.name) &&
             (query.kind !== "invocation-evidence" ||
               (projection?.plan !== undefined &&
@@ -99,6 +104,12 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (query.nodes.length > 0) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
+          case "schema-identities":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
+          case "drizzle-identities":
+            rows.push({ kind: query.kind, nodes: [...query.nodes], mode: query.mode });
+            break;
           case "export-declarations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], name: query.name });
             break;
@@ -153,6 +164,24 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
+    },
+    schemaIdentity: (owner, sources): ReturnType<NativeTypeContext["schemaIdentity"]> => {
+      if (sources.length === 0) {
+        assertReadable();
+        throw new Error("native schema identity has no admitted source owner");
+      }
+      const registered = (requests.get(owner) ?? []).filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]);
+      if (new Set(registered).size !== new Set(sources).size) {
+        throw new Error("native schema identity roster is incomplete");
+      }
+      return selected(owner, "schema-identities", sources).schemaIdentity(sources);
+    },
+    drizzleEvidence: (owner, nodes, mode): ReturnType<NativeTypeContext["drizzleEvidence"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "drizzle-identities", nodes, { mode }).drizzleEvidence(nodes, mode);
     },
     invocationEvidence: (owner, nodes, plan): ReturnType<NativeTypeContext["invocationEvidence"]> => {
       if (nodes.length === 0) {
@@ -277,6 +306,9 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         if (query.kind === "shape-relations") {
           return [];
         }
+        if (query.kind === "schema-identities" || query.kind === "drizzle-identities") {
+          return ["drizzle-identities"] as const;
+        }
         if (query.kind === "invocation-evidence") {
           return ["invocation-evidence", "global-origins", "computed-names"] as const;
         }
@@ -289,10 +321,43 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   ];
   const shapes = queries.filter((query) => query.kind === "shape-relations");
   const capturedSources = [...new Set(nodes.map((node) => node.getSourceFile()))];
+  const schemaSources = [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+  const schemaProgram = schemaSources[0] === undefined ? undefined : owner(schemaSources[0]);
+  if (schemaSources.some((source) => owner(source) !== schemaProgram)) {
+    throw new SemanticInventoryError("native schema roster crosses canonical owners");
+  }
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...(families.includes("drizzle-identities")
+      ? {
+          ...(schemaProgram === undefined
+            ? {}
+            : {
+                schemaQuery: {
+                  program: schemaProgram,
+                  sources: schemaSources.map((source) => ({
+                    file: canonicalInventoryPath(source.getFilePath()),
+                    start: source.getStart(),
+                    end: source.getEnd(),
+                    kind: source.getKind(),
+                  })),
+                },
+              }),
+          drizzleQueries: queries
+            .filter((query) => query.kind === "drizzle-identities")
+            .flatMap((query) =>
+              query.nodes.map((node) => ({
+                program: owner(node),
+                query: {
+                  mode: query.mode,
+                  node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+                },
+              })),
+            ),
+        }
+      : {}),
     ...(families.includes("export-declarations")
       ? {
           exportQueries: queries
@@ -380,6 +445,14 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    schemaIdentity: (sources): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
+      if (schemaProgram === undefined) {
+        throw new SemanticInventoryError("native schema roster owner is unavailable");
+      }
+      return inventory.schemaIdentity(sources, schemaProgram);
+    },
+    drizzleEvidence: (subjects, mode): ReturnType<NativeTypeFactReader["drizzleEvidence"]> =>
+      new Map(subjects.map((node) => [node, inventory.drizzleEvidence(node, owner(node), mode)])),
     exportDeclarations: (sources, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> =>
       new Map(sources.map((source) => [source, inventory.exportDeclarations(source, owner(source), name)])),
     invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> =>

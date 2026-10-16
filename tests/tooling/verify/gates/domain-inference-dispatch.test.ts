@@ -10,7 +10,7 @@ import { gate } from "../../../../tooling/src/verify/gates/domain-inference-disp
 import { gate as ownership } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const SUBJECT = "packages/server/src/domain/connection/persistence/__native-ownership.ts";
@@ -51,6 +51,18 @@ async function nativeProgram(
   project.addSourceFileAtPath(join(repoRoot, "reset.d.ts"));
   project.addSourceFileAtPath(join(repoRoot, "platform.d.ts"));
   return { project, source };
+}
+
+function ownershipPass(root: string, project: Project): ReturnType<typeof runPolicyPass> {
+  return runPolicyPass({
+    knownPolicies: [ownership],
+    policies: [ownership],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("inference-origin comparisons retain aliases, near misses and opaque refusal", () => {
@@ -151,7 +163,7 @@ export function tableAlias(db:Db){const table=userSettings;const insert=db.inser
 `,
     { "alias.ts": 'import {userSettings} from "@orb/db"; export const table=userSettings;' },
   );
-  const result = runPolicyPass({ knownPolicies: [ownership], policies: [ownership], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  const result = ownershipPass(repoRoot, project);
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
@@ -159,7 +171,7 @@ export function tableAlias(db:Db){const table=userSettings;const insert=db.inser
   expect(writes.map((finding) => finding.line)).toEqual([2, 3, 4, 5, 6, 7, 10, 11, 12]);
   const original = source.getFullText();
   source.addStatements('export function opaque(db:Db,args:Parameters<Db["insert"]>){return db.insert.apply(db,args);}');
-  const refused = runPolicyPass({ knownPolicies: [ownership], policies: [ownership], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  const refused = ownershipPass(repoRoot, project);
   expect(refused.toolErrors.some((error) => error.message.includes("cannot establish native write arguments"))).toBe(true);
   expect(refused.authority.withheldPolicyIds).toEqual([ownership.id]);
   for (const unsupported of [
@@ -169,14 +181,7 @@ export function tableAlias(db:Db){const table=userSettings;const insert=db.inser
     "export function alternative(db:Db,flag:boolean,opaque:typeof userSettings){return db.insert(flag?userSettings:opaque);}",
   ]) {
     source.replaceWithText(original + unsupported);
-    const unsupportedTable = runPolicyPass({
-      knownPolicies: [ownership],
-      policies: [ownership],
-      root: repoRoot,
-      project,
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
+    const unsupportedTable = ownershipPass(repoRoot, project);
     expect(unsupportedTable.toolErrors.some((error) => error.message.includes("cannot establish"))).toBe(true);
     expect(unsupportedTable.authority.withheldPolicyIds).toEqual([ownership.id]);
   }
@@ -199,7 +204,7 @@ export function promote(db:Db){return db.update(sessionEntries);}
     join(repoRoot, foreign),
     'import {sessionEntries,type Db} from "@orb/db"; export function write(db:Db){return db.insert(sessionEntries);}',
   );
-  const result = runPolicyPass({ knownPolicies: [ownership], policies: [ownership], root: repoRoot, project, reviewedGrants: [], failOnWarnings: false });
+  const result = ownershipPass(repoRoot, project);
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);

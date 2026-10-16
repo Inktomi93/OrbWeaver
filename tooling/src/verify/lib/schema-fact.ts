@@ -1,6 +1,8 @@
 // Verify owns schema population, provider receipt and discovery withholding, not schema extraction.
 import type { CallExpression, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SchemaIdentityModel } from "../../floor/code-facts/schema-identity-contract.ts";
+import type { SchemaFact } from "../../floor/code-facts/schema-model-contract.ts";
 import { queryForCalls, schemaTableCall, unresolvedDiscovery } from "../../floor/code-facts/schema-query.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { SchemaQuery } from "../contract/schema-fact.ts";
@@ -93,6 +95,30 @@ export const drizzleSchemaFact = defineFact({
         const query = discoveryError === undefined ? queryForCalls(ctx, calls) : unresolvedDiscovery(ctx, discoveryError);
         ctx.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: ctx.files.length });
         return query;
+      },
+    };
+  },
+});
+
+/** Type-free consumers retain the complete extractor's census, while its native DB world owns extraction. */
+export const drizzleSchemaIdentityFact = defineFact({
+  id: "drizzle-schema-identities",
+  population: DRIZZLE_SCHEMA_POPULATION,
+  analysis: "types",
+  resources: [],
+  create: (ctx) => {
+    if (ctx.nativeTypes === undefined) {
+      throw new Error("native schema identity context is unavailable");
+    }
+    ctx.nativeTypes.request({ kind: "schema-identities", nodes: ctx.files });
+    return {
+      finish: (): SchemaFact<SchemaIdentityModel> => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native schema identity context is unavailable");
+        }
+        const fact = ctx.nativeTypes.schemaIdentity(ctx.files);
+        ctx.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: ctx.files.length });
+        return fact;
       },
     };
   },

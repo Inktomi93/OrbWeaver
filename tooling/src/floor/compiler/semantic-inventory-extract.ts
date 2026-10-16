@@ -32,8 +32,9 @@ import {
   inventoryFamilies,
   inventoryNodeQueryKey,
 } from "../code-facts/semantic-inventory-contract.ts";
-import { canonicalInventoryPath, descriptorVersion, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
+import { canonicalInventoryPath, descriptorVersion, inputsCurrent, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
+import { extractDrizzleIdentities, inventoryQueryNode } from "./drizzle-inventory-extract.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
 import { extractShape, extractShapePairs } from "./shape-inventory-extract.ts";
@@ -176,6 +177,39 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const spans = inventorySpans(fileSystem);
   const implementationInputs = [
     import.meta.filename,
+    ...(families.includes("drizzle-identities")
+      ? [
+          "./drizzle-inventory-extract.ts",
+          "./drizzle-evidence-encode.ts",
+          "./invocation-evidence-extract.ts",
+          "../code-facts/drizzle-evidence.ts",
+          "../code-facts/drizzle-evidence-contract.ts",
+          "../code-facts/drizzle-evidence-replay.ts",
+          "../code-facts/drizzle-inventory-contract.ts",
+          "../code-facts/drizzle-table-ref.ts",
+          "../code-facts/drizzle-write-chain.ts",
+          "../code-facts/schema-identity.ts",
+          "../code-facts/schema-identity-contract.ts",
+          "../code-facts/schema-model-contract.ts",
+          "../code-facts/schema-query.ts",
+          "../code-facts/schema-read.ts",
+          "../code-facts/schema-object.ts",
+          "../code-facts/schema-resolve.ts",
+          "../code-facts/schema-value.ts",
+          "../code-facts/id-brand.ts",
+          "../code-facts/static-authored-value.ts",
+          "../code-facts/reference-fact-invocation.ts",
+          "../code-facts/reference-fact.ts",
+          "../code-facts/reference-fact-alias.ts",
+          "../code-facts/reference-fact-writes.ts",
+          "../code-facts/reference-fact-contract.ts",
+          "../code-facts/type-member-origin-core.ts",
+          "../code-facts/type-member-origin.ts",
+          "../code-facts/value-carrier.ts",
+          "../code-facts/value-carrier-native.ts",
+          "../code-facts/call-returns.ts",
+        ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
+      : []),
     ...invocationImplementationInputs(families),
     fileURLToPath(new URL("./shape-inventory-extract.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/shape-fields.ts", import.meta.url)),
@@ -188,7 +222,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       : []),
     ...(families.includes("id-brands") ? [fileURLToPath(new URL("../code-facts/id-brand.ts", import.meta.url))] : []),
     ...(families.includes("declaration-outputs") ? [fileURLToPath(new URL("../code-facts/declaration-output.ts", import.meta.url))] : []),
-    ...(families.includes("callable-declarations") || families.includes("computed-names") || families.includes("global-origins")
+    ...(usesReferencePass(families)
       ? [
           "reference-fact.ts",
           "reference-fact-call.ts",
@@ -266,6 +300,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const globalOriginQueries = globalDemandFor(request, families, roots, "globalOriginQueries");
   const globalBindingQueries = globalDemandFor(request, families, roots, "globalBindingQueries");
   const invocationQueries = invocationDemandFor(request, families, roots);
+  assertDrizzleRequest(request, families, roots, fileSystem);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -310,6 +345,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           globalOriginQueries,
           globalBindingQueries,
           invocationQueries,
+          drizzle: request,
         });
   return {
     intent: request.intent ?? "facts",
@@ -332,7 +368,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
       authored: authored(spans.path(sf.getFilePath())),
     })),
     // Metadata also observes membership; capture inputs only after every source decision has been recorded.
-    inputs: [...inputs.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind)),
+    inputs: mergeDependencyInputs(inputs, request),
     ...exportFactProjection(facts, families),
   };
 }
@@ -341,6 +377,41 @@ interface ReferenceDeclaration {
   readonly declaration: InventorySpan;
   readonly name: InventorySpan | undefined;
   readonly query: { readonly file: string; readonly start: number };
+}
+
+function mergeDependencyInputs(inputs: ReadonlyMap<string, InventoryInput>, request: InventoryBuildRequest): InventoryInput[] {
+  const merged = new Map(inputs);
+  for (const input of request.schemaDependency?.inputs ?? []) {
+    const key = `${input.kind}\0${input.path}`;
+    const existing = merged.get(key);
+    if (existing !== undefined && existing.version !== input.version) {
+      throw new Error("native Drizzle catalog and consumer input versions disagree");
+    }
+    merged.set(key, input);
+  }
+  return [...merged.values()].toSorted((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind));
+}
+
+function assertDrizzleRequest(
+  request: InventoryBuildRequest,
+  families: readonly InventoryFamily[],
+  roots: readonly string[],
+  fileSystem: FileSystemHost,
+): void {
+  if (
+    families.includes("drizzle-identities") !== (request.drizzleQueries !== undefined) ||
+    request.drizzleQueries?.some((query) => !roots.includes(query.node.file)) === true ||
+    request.schemaSources?.some((query) => !roots.includes(query.file) || query.kind !== SyntaxKind.SourceFile) === true ||
+    (request.schemaSources !== undefined && !families.includes("drizzle-identities"))
+  ) {
+    throw new Error("native Drizzle identities require closed source/call demand in admitted roots");
+  }
+  if (
+    request.schemaDependency !== undefined &&
+    !inputsCurrent(request.schemaDependency.inputs, { authored: inventoryAuthoredFiles(request.root, request.overlay), fileSystem })
+  ) {
+    throw new Error("native Drizzle catalog dependency inputs are stale");
+  }
 }
 
 function extractTypedFacts(
@@ -357,8 +428,9 @@ function extractTypedFacts(
     readonly globalOriginQueries: readonly InventorySpan[];
     readonly globalBindingQueries: readonly InventorySpan[];
     readonly invocationQueries: readonly InventoryInvocationQuery[];
+    readonly drizzle: InventoryBuildRequest;
   },
-): SourceFactValues & Pick<InventoryPartition, "pairs" | "references"> {
+): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "schemaIdentity" | "drizzleCalls"> {
   const {
     sources,
     authored,
@@ -372,18 +444,27 @@ function extractTypedFacts(
     globalBindingQueries,
     invocationQueries,
   } = input;
-  const invocationProgram = invocationQueries.length === 0 ? undefined : project.getProgram().compilerObject;
-  const invocationSources = invocationQueries.length === 0 ? [] : nativeCompilerSourceFiles(project);
+  const needsProject = invocationQueries.length > 0 || input.drizzle.schemaSources !== undefined || (input.drizzle.drizzleQueries?.length ?? 0) > 0;
+  const invocationProgram = needsProject ? project.getProgram().compilerObject : undefined;
+  const invocationSources = needsProject ? nativeCompilerSourceFiles(project) : [];
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
     throw new Error("native inventory language service has no Program");
   }
-  const callablePass = families.includes("callable-declarations") || families.includes("computed-names") || families.includes("global-origins");
+  const callablePass = usesReferencePass(families);
   if (callablePass) {
     beginReferencePass();
   }
   try {
+    const drizzle = families.includes("drizzle-identities")
+      ? extractDrizzleIdentities(input.drizzle, invocationSources, spans.node, (source) => {
+          if (invocationProgram === undefined) {
+            throw new Error("native Drizzle Project owner is unavailable");
+          }
+          assertInvocationSource(source, invocationProgram);
+        })
+      : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
       spans,
       families: new Set(families),
@@ -398,6 +479,7 @@ function extractTypedFacts(
     });
     const facts = {
       ...sourceFacts,
+      ...drizzle,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
       references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
     };
@@ -1032,13 +1114,7 @@ function assertInvocationSource(source: SourceFile, program: ts.Program): void {
 function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
   const { context, byFile, program } = state;
   const source = byFile.get(query.node.file);
-  const leaf = source?.getDescendantAtPos(query.node.start);
-  const node = [source, leaf, ...(leaf?.getAncestors() ?? [])].find(
-    (candidate) => candidate?.getStart() === query.node.start && candidate.getEnd() === query.node.end && candidate.getKind() === query.node.kind,
-  );
-  if (node === undefined) {
-    throw new Error("native invocation query span is unavailable in its captured native program");
-  }
+  const node = inventoryQueryNode(source, query.node);
   assertInvocationSource(node.getSourceFile(), program);
   const evidence = captureInvocationEvidence(node, query);
   assertInvocationSource(node.getSourceFile(), program);
@@ -1142,8 +1218,17 @@ function invocationDemandFor(
   return invocationQueries;
 }
 
+function usesReferencePass(families: readonly InventoryFamily[]): boolean {
+  return (
+    families.includes("callable-declarations") ||
+    families.includes("computed-names") ||
+    families.includes("global-origins") ||
+    families.includes("drizzle-identities")
+  );
+}
+
 function invocationImplementationInputs(families: readonly InventoryFamily[]): readonly string[] {
-  return families.includes("invocation-evidence")
+  return families.includes("invocation-evidence") || families.includes("drizzle-identities")
     ? [
         "./invocation-evidence-extract.ts",
         "../code-facts/invocation-evidence-replay.ts",

@@ -3,6 +3,7 @@
 import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
+import type { InventoryDrizzleCall, InventoryDrizzleQuery, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import type {
   InventoryExportDeclarationQuery,
   InventoryExportDeclarations,
@@ -21,6 +22,8 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  drizzleQueryKey,
+  drizzleSchemas,
   exportDeclarationsSchema,
   globalOriginSchema,
   INVENTORY_FACTS,
@@ -38,6 +41,7 @@ import {
   spanSchema,
   storedSourceSchema,
 } from "./semantic-inventory-contract.ts";
+import { contentVersion } from "./semantic-inventory-inputs.ts";
 import { inventoryString, inventoryStringSchema, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
 const integer = z.number().int();
@@ -410,6 +414,47 @@ function invocationValue(atoms: readonly InventoryInvocationAtom[]): JsonValue {
     throw new SemanticInventoryError("native invocation atom root is incomplete");
   }
   return rootValue;
+}
+
+function readDrizzleGraph(db: DatabaseSync, id: string, key: string): JsonValue {
+  requireInventoryFamily(db, id, "drizzle-identities");
+  const rows = db.prepare("SELECT ordinal,atomCount FROM inventory_drizzle_evidence WHERE partition=? AND key=?").all(id, inventoryString(key));
+  const row = rows[0];
+  if (rows.length !== 1 || row === undefined) {
+    throw new SemanticInventoryError("native Drizzle demand has no captured fact graph");
+  }
+  const atoms = db
+    .prepare("SELECT ordinal,parent,key,kind,text,number,size FROM inventory_drizzle_atom WHERE partition=? AND owner=? ORDER BY ordinal")
+    .all(id, integer.parse(row["ordinal"]))
+    .map((value) => invocationAtomSchema.extend({ key: inventoryStringSchema }).parse(value));
+  if (atoms.length !== integer.parse(row["atomCount"])) {
+    throw new SemanticInventoryError("native Drizzle fact graph is incomplete");
+  }
+  const decoded = invocationValue(atoms);
+  assertInvocationSpans(db, id, decoded);
+  return decoded;
+}
+
+/** The complete native schema roster remains owned by its catalog partition. */
+export function readInventorySchemaIdentity(db: DatabaseSync, id: string): InventorySchemaIdentityCatalog {
+  const catalog = drizzleSchemas.catalog.parse(readDrizzleGraph(db, id, "catalog"));
+  for (const source of catalog.sources) {
+    const captured = capturedInventorySource(db, id, source.node.file, "schema identity");
+    if (contentVersion(readInventorySourceText(db, id, captured)) !== source.version) {
+      throw new SemanticInventoryError("native schema identity roster source version is stale");
+    }
+  }
+  return catalog;
+}
+
+/** Closed call identity includes its mode and the exact catalog partition used by the worker. */
+export function readInventoryDrizzleCall(db: DatabaseSync, id: string, query: InventoryDrizzleQuery): InventoryDrizzleCall {
+  const key = drizzleQueryKey(query);
+  const fact = drizzleSchemas.call.parse(readDrizzleGraph(db, id, key));
+  if (drizzleQueryKey(fact.query) !== key) {
+    throw new SemanticInventoryError("native Drizzle query identity is foreign");
+  }
+  return fact;
 }
 
 /** One closed query and its related-value graph; absent rows never stand in for empty facts. */

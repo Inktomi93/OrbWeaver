@@ -5,6 +5,7 @@ import { readAuthoredRepositoryInventory } from "../compiler/authored-repository
 import { readCompilerPrograms } from "../compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
+import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import type {
   InventoryBuildRequest,
   InventoryExportDeclarationQuery,
@@ -18,6 +19,7 @@ import type {
   StoredInventoryPartition,
 } from "./semantic-inventory-contract.ts";
 import {
+  drizzleQueryKey,
   exportDeclarationQueryKey,
   inventoryFamilies,
   inventoryNodeQueryKey,
@@ -38,14 +40,17 @@ import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurren
 import {
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
+  readInventoryDrizzleCall,
   readInventoryExportDeclarations,
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
   readInventoryInputs,
   readInventoryInvocationEvidence,
   readInventoryPairs,
+  readInventorySchemaIdentity,
 } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
+import { inventoryStringSchema } from "./semantic-inventory-records.ts";
 
 function authoredVersion(root: string): string {
   return contentVersion(JSON.stringify(readAuthoredRepositoryInventory(root).paths));
@@ -94,8 +99,10 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     assertComputedDemand(options, descriptors, families);
     assertGlobalDemand(options, descriptors, families);
     assertInvocationDemand(options, descriptors, families);
+    assertDrizzleDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
+    assertDrizzleCohort(db, options, partitions);
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
     const samePopulation =
       JSON.stringify(
@@ -189,6 +196,7 @@ function buildPartition(
     }
     assertExportCoverage(staging, candidate, request);
     assertInvocationCoverage(staging, candidate, request);
+    assertDrizzleCoverage(staging, candidate, request, options);
     partition = candidate;
   }
   importInventoryPartition(db, request.destination, partition.id);
@@ -209,8 +217,8 @@ function demandPartitions(
   const authored = inventoryAuthoredFiles(root, overlay);
   const partitions: StoredInventoryPartition[] = [];
   let rebuilt = false;
-  for (const descriptor of descriptors) {
-    const nativeDemand = nativeDemandRequest(options, descriptor.id, inventoryFamilies(options.families));
+  for (const descriptor of catalogFirst(options, descriptors)) {
+    const nativeDemand = withSchemaDependency(db, options, partitions, nativeDemandRequest(options, descriptor.id, inventoryFamilies(options.families)));
     const existing = previous.get(descriptor.id);
     if (
       existing !== undefined &&
@@ -263,6 +271,19 @@ function assertSnapshotCurrent(
   }
 }
 
+function assertDrizzleCohort(
+  db: ReturnType<typeof openInventoryDatabase>,
+  options: SemanticInventoryOptions,
+  partitions: readonly StoredInventoryPartition[],
+): void {
+  for (const partition of partitions) {
+    const demand = withSchemaDependency(db, options, partitions, nativeDemandRequest(options, partition.program, partition.families));
+    if (!coversDrizzleDemand(db, partition, demand)) {
+      throw new Error("native Drizzle catalog/consumer dependency changed before publication");
+    }
+  }
+}
+
 function demandShapePartitions(
   options: SemanticInventoryOptions,
   descriptors: readonly InventoryBuildRequest["descriptor"][],
@@ -284,7 +305,7 @@ function demandShapePartitions(
     families: readonly InventoryFamily[],
     pairRequests: readonly InventoryShapeQuery[],
   ): void => {
-    const nativeDemand = nativeDemandRequest(options, descriptor.id, families);
+    const nativeDemand = withSchemaDependency(db, options, [...partitions.values()], nativeDemandRequest(options, descriptor.id, families));
     const existing = partitions.get(descriptor.id) ?? previous.get(descriptor.id);
     const covered =
       existing !== undefined && pairRequests.length > 0 && existing.families.includes("shape-pairs")
@@ -325,7 +346,7 @@ function demandShapePartitions(
   const shapeOwners = shapeCatalogOwners(options, descriptors, plan.sources, [...partitions.values()]);
   const catalogs = new Set(shapeOwners.values());
   const baseFor = scalarDemand(options, descriptors);
-  for (const descriptor of descriptors) {
+  for (const descriptor of catalogFirst(options, descriptors)) {
     const families = [...new Set([...baseFor(descriptor.id), ...(catalogs.has(descriptor.id) ? (["shape-catalog", "exports"] as const) : [])])].toSorted();
     if (families.length > 0) {
       acquire(descriptor, families, []);
@@ -353,7 +374,49 @@ function demandShapePartitions(
   }
   assertCohortCurrent();
   assertPairCoverage(db, [...partitions.values()], queries);
+  reconcileDrizzleShapeDemand({ options, descriptors, partitions, queries, acquire, assertCurrent: assertCohortCurrent });
   return { partitions: [...partitions.values()], rebuilt };
+}
+
+function reconcileDrizzleShapeDemand(context: {
+  readonly options: SemanticInventoryOptions;
+  readonly descriptors: readonly InventoryBuildRequest["descriptor"][];
+  readonly partitions: ReadonlyMap<string, StoredInventoryPartition>;
+  readonly queries: readonly InventoryShapeQuery[];
+  readonly acquire: (descriptor: InventoryBuildRequest["descriptor"], families: readonly InventoryFamily[], queries: readonly InventoryShapeQuery[]) => void;
+  readonly assertCurrent: () => void;
+}): void {
+  const { options, descriptors, partitions, queries, acquire } = context;
+  if (options.schemaQuery === undefined) {
+    return;
+  }
+  // Pair acquisition may replace the catalog partition; consumers must join that final candidate, not its predecessor.
+  for (const descriptor of catalogFirst(options, descriptors)) {
+    const partition = partitions.get(descriptor.id);
+    if (partition === undefined) {
+      throw new Error("native Drizzle/shape cohort is incomplete");
+    }
+    const selected = queries.filter((query) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file));
+    acquire(descriptor, partition.families, selected);
+  }
+  context.assertCurrent();
+}
+
+function assertDrizzleCoverage(
+  db: ReturnType<typeof openInventoryDatabase>,
+  candidate: StoredInventoryPartition,
+  request: InventoryBuildRequest,
+  options: SemanticInventoryOptions,
+): void {
+  if (!coversDrizzleDemand(db, candidate, request)) {
+    throw new Error(`native inventory worker supplied incomplete Drizzle coverage: ${request.descriptor.id}`);
+  }
+  if (
+    request.schemaDependency !== undefined &&
+    !inputsCurrent(request.schemaDependency.inputs, { authored: inventoryAuthoredFiles(options.root, request.overlay), fileSystem: options.fileSystem })
+  ) {
+    throw new Error("native Drizzle catalog inputs changed before consumer acceptance");
+  }
 }
 
 function shapeCatalogOwners(
@@ -507,9 +570,27 @@ function nativeDemandRequest(
   families: readonly InventoryFamily[],
 ): Pick<
   InventoryBuildRequest,
-  "exportQueries" | "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"
+  | "exportQueries"
+  | "callableQueries"
+  | "computedNameQueries"
+  | "globalOriginQueries"
+  | "globalBindingQueries"
+  | "invocationQueries"
+  | "drizzleQueries"
+  | "schemaSources"
+  | "schemaDependency"
 > {
   return {
+    ...(families.includes("drizzle-identities")
+      ? {
+          drizzleQueries: [
+            ...new Map(
+              (options.drizzleQueries ?? []).filter((entry) => entry.program === program).map(({ query }) => [drizzleQueryKey(query), query]),
+            ).values(),
+          ],
+          ...(options.schemaQuery?.program === program ? { schemaSources: options.schemaQuery.sources } : {}),
+        }
+      : {}),
     ...(families.includes("export-declarations") ? { exportQueries: exportDemand(options, program) } : {}),
     ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
@@ -527,7 +608,15 @@ function coversNativeDemand(
   partition: StoredInventoryPartition,
   demand: Pick<
     InventoryBuildRequest,
-    "exportQueries" | "callableQueries" | "computedNameQueries" | "globalOriginQueries" | "globalBindingQueries" | "invocationQueries"
+    | "exportQueries"
+    | "callableQueries"
+    | "computedNameQueries"
+    | "globalOriginQueries"
+    | "globalBindingQueries"
+    | "invocationQueries"
+    | "drizzleQueries"
+    | "schemaSources"
+    | "schemaDependency"
   >,
 ): boolean {
   return (
@@ -535,8 +624,97 @@ function coversNativeDemand(
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
     coversGlobalDemand(db, partition, demand) &&
-    coversInvocationDemand(db, partition, demand.invocationQueries ?? [])
+    coversInvocationDemand(db, partition, demand.invocationQueries ?? []) &&
+    coversDrizzleDemand(db, partition, demand)
   );
+}
+
+function catalogFirst(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+): readonly InventoryBuildRequest["descriptor"][] {
+  return descriptors.toSorted((left, right) => Number(right.id === options.schemaQuery?.program) - Number(left.id === options.schemaQuery?.program));
+}
+
+function assertDrizzleDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  const enabled = families.includes("drizzle-identities");
+  const schema = options.schemaQuery;
+  if (enabled !== (schema !== undefined) || enabled !== (options.drizzleQueries !== undefined)) {
+    throw new Error("native Drizzle identities require an explicit complete catalog and closed call demand");
+  }
+  if (schema === undefined) {
+    return;
+  }
+  const catalog = descriptors.find(({ id }) => id === schema.program);
+  if (
+    catalog === undefined ||
+    schema.sources.some((node) => !catalog.files.some((file) => canonicalInventoryPath(resolve(options.root, file)) === node.file)) ||
+    (options.drizzleQueries ?? []).some((entry) => entry.program === schema.program || !descriptors.some(({ id }) => id === entry.program))
+  ) {
+    throw new Error("native Drizzle demand has no independent admitted catalog/consumer owner");
+  }
+}
+
+function withSchemaDependency(
+  db: ReturnType<typeof openInventoryDatabase>,
+  options: SemanticInventoryOptions,
+  partitions: readonly StoredInventoryPartition[],
+  demand: ReturnType<typeof nativeDemandRequest>,
+): ReturnType<typeof nativeDemandRequest> {
+  if ((demand.drizzleQueries?.length ?? 0) === 0) {
+    return demand;
+  }
+  const catalog = partitions.find(({ program }) => program === options.schemaQuery?.program);
+  if (catalog === undefined) {
+    throw new Error("native Drizzle catalog must be captured before consumer extraction");
+  }
+  const dependency: InventorySchemaDependency = {
+    program: catalog.program,
+    partition: catalog.id,
+    descriptorVersion: catalog.descriptorVersion,
+    inputs: [...readInventoryInputs(db, catalog.id)],
+    catalog: readInventorySchemaIdentity(db, catalog.id),
+  };
+  return { ...demand, schemaDependency: dependency };
+}
+
+function coversDrizzleDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  demand: Pick<InventoryBuildRequest, "drizzleQueries" | "schemaSources" | "schemaDependency">,
+): boolean {
+  if (demand.drizzleQueries === undefined) {
+    return true;
+  }
+  const expected = [...(demand.schemaSources === undefined ? [] : ["catalog"]), ...demand.drizzleQueries.map(drizzleQueryKey)].toSorted();
+  const recorded = db
+    .prepare("SELECT key FROM inventory_drizzle_evidence WHERE partition=? ORDER BY key")
+    .all(partition.id)
+    .map((row) => inventoryStringSchema.parse(row["key"]))
+    .toSorted();
+  if (JSON.stringify(recorded) !== JSON.stringify(expected)) {
+    return false;
+  }
+  if (demand.schemaSources !== undefined) {
+    const captured = readInventorySchemaIdentity(db, partition.id);
+    if (
+      JSON.stringify(captured.sources.map(({ node }) => inventoryNodeQueryKey(node)).toSorted()) !==
+      JSON.stringify(demand.schemaSources.map(inventoryNodeQueryKey).toSorted())
+    ) {
+      return false;
+    }
+  }
+  for (const query of demand.drizzleQueries) {
+    const call = readInventoryDrizzleCall(db, partition.id, query);
+    if (call.basis.program !== demand.schemaDependency?.program || call.basis.partition !== demand.schemaDependency.partition) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function globalDemand(options: SemanticInventoryOptions, program: string, kind: "globalOriginQueries" | "globalBindingQueries"): readonly InventorySpan[] {
