@@ -20,8 +20,10 @@ import { projectSchemaIdentities, readSchemaIdentities, schemaIdentityQuery } fr
 import type { SchemaColumnIdentity, SchemaFact } from "../../floor/code-facts/schema-model-contract.ts";
 import { readSchemaData } from "../../floor/code-facts/schema-projection.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import { createSchemaQuery } from "../../floor/code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { inventoryQueryNode } from "../../floor/compiler/drizzle-inventory-extract.ts";
 import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyProof, GatePolicyProofExpectation, GatePolicyProofGrant } from "../contract/policy.ts";
@@ -598,7 +600,28 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       },
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
         checkerFor(nodes);
-        return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));
+        if (plan.mode !== "observations") {
+          return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));
+        }
+        const first = nodes[0];
+        const demand = plan.observations;
+        if (first === undefined || demand === undefined) {
+          throw new Error("isolated ordinary cohort has no real source anchor");
+        }
+        const requested = columnSchemaSources(queries);
+        const checker = checkerFor(requested);
+        const query = createSchemaQuery({
+          files: requested,
+          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+          checker: () => checker,
+        });
+        const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node =>
+          inventoryQueryNode(project.getSourceFile(span.file), span);
+        const facts = captureInvocationEvidence(first, plan, {
+          schema: query,
+          demand: { ...demand, roots: demand.roots.map(of), reads: demand.reads.map((read) => ({ ...read, node: of(read.node) })) },
+        });
+        return new Map(nodes.map((node) => [node, facts]));
       },
       globalOrigins: (nodes): ReturnType<NativeTypeFactReader["globalOrigins"]> => {
         checkerFor(nodes);

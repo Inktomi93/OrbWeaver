@@ -1,7 +1,10 @@
 // Shared native reference encoding retains canonical ordered traces and refusal fields.
+
 import type { Node } from "ts-morph";
-import type { ReferenceFact } from "./reference-fact-contract.ts";
-import type { InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
+import { Node as MorphNode } from "ts-morph";
+import type { CallableDeclaration, ReferenceFact } from "./reference-fact-contract.ts";
+import type { InventoryCallableDeclarationValue, InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
+import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 
 /** Preserve ordered native trace/refusal fields across type-free evidence families. */
 export function wireReferenceFact<T, Value>(
@@ -40,4 +43,24 @@ export function replayReferenceFact<T, V>(
         trace,
         ...(fact.capture === undefined ? {} : { capture: fact.capture }),
       };
+}
+
+/** Bodyless declarations are valid only when the captured function really has no authored body. */
+export function replayCallableDeclarationValue(value: InventoryCallableDeclarationValue, replay: (span: InventorySpan) => Node): CallableDeclaration {
+  const declaration = replay(value.declaration);
+  if (
+    !(
+      MorphNode.isFunctionDeclaration(declaration) ||
+      MorphNode.isArrowFunction(declaration) ||
+      MorphNode.isFunctionExpression(declaration) ||
+      MorphNode.isMethodDeclaration(declaration)
+    )
+  ) {
+    throw new SemanticInventoryError("native callable declaration is not a function-like source");
+  }
+  const body = value.body === null ? undefined : replay(value.body);
+  if (body?.compilerNode !== declaration.getBody()?.compilerNode) {
+    throw new SemanticInventoryError("native callable declaration body is incomplete or foreign");
+  }
+  return { declaration, body, sourceFile: declaration.getSourceFile() };
 }

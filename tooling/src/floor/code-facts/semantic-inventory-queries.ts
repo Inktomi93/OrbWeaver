@@ -567,7 +567,12 @@ function invocationSourceBindings(
 }
 
 /** Staging coverage borrows one transaction for this call; it never carries data into an owned reader lease. */
-export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, queries: readonly InventoryInvocationQuery[]): boolean {
+export function hasInventoryInvocationCoverage(
+  db: DatabaseSync,
+  id: string,
+  queries: readonly InventoryInvocationQuery[],
+  observationBasis: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null = null,
+): boolean {
   if (queries.length === 0) {
     return true;
   }
@@ -577,7 +582,10 @@ export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, que
   }
   try {
     const snapshot = invocationSnapshot(db);
-    const covered = queries.every((query) => [...invocationEvidence(db, id, query, snapshot)].length === 1);
+    const covered = queries.every((query) => {
+      const matches = [...invocationEvidence(db, id, query, snapshot)];
+      return matches.length === 1 && (query.mode !== "observations" || JSON.stringify(matches[0]?.observationBasis) === JSON.stringify(observationBasis));
+    });
     if (ownsSnapshot) {
       db.exec("COMMIT");
     }
@@ -696,6 +704,9 @@ function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryI
     if (source.computed.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1)) {
       throw new SemanticInventoryError("native invocation computed-name coverage is incomplete");
     }
+  }
+  if (fact.observations?.keys.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1) === true) {
+    throw new SemanticInventoryError("native ordinary computed-name coverage is incomplete");
   }
   if (fact.profiles.some((profile) => profile.global === true && [...readInventoryGlobalOrigins(db, id, profile.node)].length !== 1)) {
     throw new SemanticInventoryError("native invocation global-origin coverage is incomplete");

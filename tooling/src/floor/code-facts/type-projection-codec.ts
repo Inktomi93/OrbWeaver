@@ -1,12 +1,61 @@
 // Projection replay carries native observations and canonical declaration anchors, never checker objects.
 import type { Node } from "ts-morph";
-import type { InventoryTypeProjection } from "./projection-inventory-contract.ts";
+import type { InventoryTypeProjection, InventoryTypeSelections } from "./projection-inventory-contract.ts";
+import { typeSelectionsSchema } from "./projection-inventory-contract.ts";
 import { replayReferenceFact, wireReferenceFact } from "./projection-reference-codec.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
-import { typeProjectionWireSchema } from "./semantic-inventory-contract.ts";
+import { spanSchema, typeProjectionWireSchema } from "./semantic-inventory-contract.ts";
 import { encodeTypeOriginProjection, replayTypeOriginProjection } from "./type-origin-projection-codec.ts";
-import type { NativeTypeProjection, TypeProjectionPlan } from "./type-projection-contract.ts";
-import { assertTypeProjectionCoverage, canonicalTypeProjectionPlan } from "./type-projection-contract.ts";
+import type { NativeTypeProjection, NativeTypeSelectionPlan, NativeTypeSelections, TypeProjectionPlan } from "./type-projection-contract.ts";
+import { assertTypeProjectionCoverage, assertTypeSelectionCoverage, canonicalTypeProjectionPlan } from "./type-projection-contract.ts";
+
+function encodeTypeDeclarationProjection(facts: NativeTypeProjection, span: (node: Node) => InventorySpan): InventoryTypeProjection["values"] {
+  return {
+    ...(facts["member-declarations"] === undefined
+      ? {}
+      : {
+          "member-declarations": facts["member-declarations"].map((member) => ({
+            name: member.name,
+            origin: wireReferenceFact(member.origin, (nodes) => nodes.map(span), span),
+            raw: member.raw?.map(span) ?? null,
+            nonnullable: member.nonnullable?.map(span) ?? null,
+          })),
+        }),
+    ...(facts.lexical === undefined
+      ? {}
+      : {
+          lexical: {
+            value: wireReferenceFact(facts.lexical.value, span, span),
+            declarations: facts.lexical.declarations?.map(span) ?? null,
+            origins: facts.lexical.origins?.map(span) ?? null,
+          },
+        }),
+  };
+}
+
+function replayTypeDeclarationProjection(values: InventoryTypeProjection["values"], replay: (span: InventorySpan) => Node): NativeTypeProjection {
+  return {
+    ...(values["member-declarations"] === undefined
+      ? {}
+      : {
+          "member-declarations": values["member-declarations"].map((member) => ({
+            name: member.name,
+            origin: replayReferenceFact(member.origin, (nodes) => nodes.map(replay), replay),
+            raw: member.raw?.map(replay) ?? null,
+            nonnullable: member.nonnullable?.map(replay) ?? null,
+          })),
+        }),
+    ...(values.lexical === undefined
+      ? {}
+      : {
+          lexical: {
+            value: replayReferenceFact(values.lexical.value, replay, replay),
+            declarations: values.lexical.declarations?.map(replay) ?? null,
+            origins: values.lexical.origins?.map(replay) ?? null,
+          },
+        }),
+  };
+}
 
 /** Exact facet coverage is checked before encoding; null and false remain delivered native answers. */
 export function encodeTypeProjection(facts: NativeTypeProjection, input: TypeProjectionPlan, span: (node: Node) => InventorySpan): InventoryTypeProjection {
@@ -17,6 +66,7 @@ export function encodeTypeProjection(facts: NativeTypeProjection, input: TypePro
   return typeProjectionWireSchema.parse({
     plan,
     values: {
+      ...encodeTypeDeclarationProjection(facts, span),
       ...(facts.vocabulary === undefined ? {} : { vocabulary: facts.vocabulary }),
       ...(facts["declaration-export"] === undefined ? {} : { "declaration-export": facts["declaration-export"] }),
       ...(facts.origins === undefined ? {} : { origins: encodeTypeOriginProjection(facts.origins, span) }),
@@ -46,6 +96,7 @@ export function replayTypeProjection(wire: InventoryTypeProjection, input: TypeP
   const identity = values["type-identity"];
   const symbol = values["type-symbol"];
   const facts: NativeTypeProjection = {
+    ...replayTypeDeclarationProjection(values, replay),
     ...(values.vocabulary === undefined ? {} : { vocabulary: values.vocabulary }),
     ...(values["declaration-export"] === undefined ? {} : { "declaration-export": values["declaration-export"] }),
     ...(values.origins === undefined ? {} : { origins: replayTypeOriginProjection(values.origins, replay) }),
@@ -67,4 +118,35 @@ export function replayTypeProjection(wire: InventoryTypeProjection, input: TypeP
   };
   assertTypeProjectionCoverage(facts, plan);
   return facts;
+}
+
+function mapTypeSelectionPlan<From, To>(plan: NativeTypeSelectionPlan<From>, anchor: (value: From) => To): NativeTypeSelectionPlan<To> {
+  return {
+    selectors: plan.selectors.map((selector) => ({
+      base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: anchor(selector.base.node) },
+      steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: anchor(step.at) } : step)),
+      displayAt: selector.displayAt === null ? null : anchor(selector.displayAt),
+    })),
+    relations: plan.relations,
+  };
+}
+
+/** Persist only native answers and source selectors; the supplying session owns compiler freshness. */
+export function encodeTypeSelections(facts: NativeTypeSelections, span: (node: Node) => InventorySpan): InventoryTypeSelections {
+  assertTypeSelectionCoverage(facts);
+  return typeSelectionsSchema(spanSchema).parse({ ...facts, plan: mapTypeSelectionPlan(facts.plan, span) });
+}
+
+/** Exact selector coverage precedes replay; no Type is reconstructed from these observations. */
+export function replayTypeSelections(
+  wire: InventoryTypeSelections,
+  plan: NativeTypeSelectionPlan,
+  span: (node: Node) => InventorySpan,
+  replay: (span: InventorySpan) => Node,
+): NativeTypeSelections {
+  const facts = typeSelectionsSchema(spanSchema).parse(wire);
+  if (JSON.stringify(facts.plan) !== JSON.stringify(mapTypeSelectionPlan(plan, span))) {
+    throw new Error("native Type selection plan is foreign");
+  }
+  return { ...facts, plan: mapTypeSelectionPlan(facts.plan, replay) };
 }

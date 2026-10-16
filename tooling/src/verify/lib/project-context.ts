@@ -5,10 +5,12 @@
 import { posix } from "node:path";
 import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { AsExpression, Node, TypeNode } from "ts-morph";
+import { Node as MorphNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
@@ -43,6 +45,7 @@ export function projectCtx(root: string): ProjectContext {
 /** One request ledger is shared by production and the existing isolated proof adapter. */
 export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequest[]) => NativeTypeFactReader): NativeTypeFacts {
   const requests = new Map<string, NativeTypeRequest[]>();
+  const invocationAdmissions = new Map<string, ReadonlyMap<string, ReadonlySet<Node>>>();
   let reader: NativeTypeFactReader | undefined;
   let failure: { readonly error: unknown } | undefined;
   let sealed = false;
@@ -58,6 +61,33 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       throw new Error("native type requests must be sealed before reading");
     }
   };
+  const planKey = (plan: InventoryInvocationPlan): string => invocationQueryKey({ ...plan, node: { file: "", start: 0, end: 0, kind: 0 } });
+  const invocationNodes = (owner: string, plan: InventoryInvocationPlan | undefined): ReadonlySet<Node> => {
+    if (plan === undefined) {
+      return new Set();
+    }
+    const existing = invocationAdmissions.get(owner);
+    if (existing !== undefined) {
+      return existing.get(planKey(plan)) ?? new Set();
+    }
+    const admitted = new Map<string, Set<Node>>();
+    let key: string | undefined;
+    for (const query of (requests.get(owner) ?? []).filter((request) => request.kind === "invocation-evidence")) {
+      // Preserve registered-before-caller refusal order; publish only after every registration validates.
+      const registered = planKey(query.plan);
+      key ??= planKey(plan);
+      const nodes = admitted.get(registered) ?? new Set<Node>();
+      for (const node of query.nodes) {
+        nodes.add(node);
+      }
+      admitted.set(registered, nodes);
+    }
+    if (key === undefined) {
+      return new Set();
+    }
+    invocationAdmissions.set(owner, admitted);
+    return admitted.get(key) ?? new Set();
+  };
   const selected = (
     owner: string,
     kind: NativeTypeRequest["kind"],
@@ -69,20 +99,19 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     },
   ): NativeTypeFactReader => {
     assertReadable();
-    const admitted = new Set<Node>(
-      (requests.get(owner) ?? [])
-        .filter(
-          (query) =>
-            query.kind === kind &&
-            (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
-            (query.kind !== "export-declarations" || query.name === projection?.name) &&
-            (query.kind !== "invocation-evidence" ||
-              (projection?.plan !== undefined &&
-                invocationQueryKey({ ...query.plan, node: { file: "", start: 0, end: 0, kind: 0 } }) ===
-                  invocationQueryKey({ ...projection.plan, node: { file: "", start: 0, end: 0, kind: 0 } }))),
-        )
-        .flatMap((query) => [...query.nodes]),
-    );
+    const admitted =
+      kind === "invocation-evidence"
+        ? invocationNodes(owner, projection?.plan)
+        : new Set<Node>(
+            (requests.get(owner) ?? [])
+              .filter(
+                (query) =>
+                  query.kind === kind &&
+                  (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
+                  (query.kind !== "export-declarations" || query.name === projection?.name),
+              )
+              .flatMap((query) => [...query.nodes]),
+          );
     if (nodes.some((node) => !admitted.has(node))) {
       throw new Error("native type query was not registered by this owner");
     }
@@ -301,6 +330,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     [Symbol.dispose]: (): void => {
       if (open) {
         open = false;
+        invocationAdmissions.clear();
         reader?.[Symbol.dispose]();
         requests.clear();
       }
@@ -330,7 +360,9 @@ export function columnSchemaSources(queries: readonly NativeTypeRequest[]): read
 }
 
 function identitySchemaSources(queries: readonly NativeTypeRequest[]): readonly import("ts-morph").SourceFile[] {
-  return queries.some((query) => query.kind === "drizzle-identities" && query.mode === "column")
+  return queries.some(
+    (query) => (query.kind === "drizzle-identities" && query.mode === "column") || (query.kind === "invocation-evidence" && query.plan.mode === "observations"),
+  )
     ? columnSchemaSources(queries)
     : [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
 }
@@ -371,7 +403,9 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
           return ["drizzle-identities"] as const;
         }
         if (query.kind === "invocation-evidence") {
-          return ["invocation-evidence", "global-origins", "computed-names"] as const;
+          return query.plan.mode === "observations"
+            ? (["invocation-evidence", "global-origins", "computed-names", "drizzle-identities"] as const)
+            : (["invocation-evidence", "global-origins", "computed-names"] as const);
         }
         if (query.kind === "global-bindings") {
           return ["global-origins"] as const;
@@ -443,11 +477,16 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
           invocationQueries: queries
             .filter((query) => query.kind === "invocation-evidence")
             .flatMap((query) =>
-              query.nodes.map((node) => ({
-                program: owner(node),
+              invocationDemandGroups(query.nodes, query.plan, owner).map((group) => ({
+                program: owner(group.anchor),
                 query: {
-                  ...query.plan,
-                  node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+                  ...group.plan,
+                  node: {
+                    file: canonicalInventoryPath(group.anchor.getSourceFile().getFilePath()),
+                    start: group.anchor.getStart(),
+                    end: group.anchor.getEnd(),
+                    kind: group.anchor.getKind(),
+                  },
                 },
               })),
             ),
@@ -529,8 +568,16 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
       new Map(subjects.map((node) => [node, inventory.drizzleEvidence(node, owner(node), mode)])),
     exportDeclarations: (sources, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> =>
       new Map(sources.map((source) => [source, inventory.exportDeclarations(source, owner(source), name)])),
-    invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> =>
-      new Map(subjects.map((node) => [node, inventory.invocationEvidence(node, owner(node), plan)])),
+    invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
+      const result = new Map<Node, import("../../floor/code-facts/semantic-inventory-contract.ts").NativeInvocationEvidence>();
+      for (const group of invocationDemandGroups(subjects, plan, owner)) {
+        const evidence = inventory.invocationEvidence(group.anchor, owner(group.anchor), group.plan);
+        for (const node of group.nodes) {
+          result.set(node, evidence);
+        }
+      }
+      return result;
+    },
     globalOrigins: (subjects): ReturnType<NativeTypeFactReader["globalOrigins"]> =>
       new Map(subjects.map((node) => [node, inventory.globalOrigin(node, owner(node))])),
     globalBindings: (subjects): ReturnType<NativeTypeFactReader["globalBindings"]> =>
@@ -604,4 +651,49 @@ function schemaDataOptions(
           })),
         },
       };
+}
+
+/** Ordinary root order is local to its actual importing owner; one exact graph is stored per request/world. */
+function invocationDemandGroups(
+  nodes: readonly Node[],
+  plan: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
+  owner: (node: Node) => string,
+): readonly { readonly nodes: readonly Node[]; readonly anchor: Node; readonly plan: typeof plan }[] {
+  if (plan.mode !== "observations") {
+    return nodes.map((node) => ({ nodes: [node], anchor: node, plan }));
+  }
+  const demand = plan.observations;
+  if (demand === undefined || nodes.some((node) => !MorphNode.isSourceFile(node))) {
+    throw new SemanticInventoryError("native ordinary cohort requires real source anchors");
+  }
+  const owners = new Map<string, Node[]>();
+  const files = new Map<string, string>();
+  for (const node of nodes) {
+    const program = owner(node);
+    const selected = owners.get(program) ?? [];
+    selected.push(node);
+    owners.set(program, selected);
+    files.set(canonicalInventoryPath(node.getSourceFile().getFilePath()), program);
+  }
+  if ([...demand.roots, ...demand.reads.map((read) => read.node)].some((node) => !files.has(node.file))) {
+    throw new SemanticInventoryError("native ordinary roots/reads are outside their registered source cohort");
+  }
+  return [...owners].map(([program, selected]) => {
+    const anchor = selected[0];
+    if (anchor === undefined) {
+      throw new SemanticInventoryError("native ordinary cohort has no source anchor");
+    }
+    return {
+      nodes: selected,
+      anchor,
+      plan: {
+        ...plan,
+        observations: {
+          ...demand,
+          roots: demand.roots.filter((node) => files.get(node.file) === program),
+          reads: demand.reads.filter((read) => files.get(read.node.file) === program),
+        },
+      },
+    };
+  });
 }

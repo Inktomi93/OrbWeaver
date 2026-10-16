@@ -25,7 +25,7 @@ import {
 } from "./policy-pass-resolve.ts";
 import type { FactControl } from "./policy-pass-types.ts";
 import { ceilMs } from "./policy-pass-types.ts";
-import { createFactRuns, createRuns, walkRuns } from "./policy-pass-walk.ts";
+import { createFactRuns, createRuns, prepareRuns, walkRuns } from "./policy-pass-walk.ts";
 
 /** Run every selected policy with invocation-local state, then coordinate all authority centrally. */
 export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
@@ -69,6 +69,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   beginReferencePass();
   try {
     walkRuns({ runs, factRuns, sourceFiles, errors: toolErrors, factControl });
+    prepareRuns({ runs, factRuns, errors: toolErrors, factControl });
     nativeTypes?.seal(
       new Set([
         ...runs.filter((run) => run.owner.status === "success").map((run) => run.policy.id),

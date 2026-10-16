@@ -11,10 +11,10 @@ import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-
 import { readDrizzleWriteRoots } from "../../floor/code-facts/drizzle-write-chain.ts";
 import { readDrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source.ts";
 import type { DrizzleWriterMember, DrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source-contract.ts";
+import type { SchemaProjectedModel, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import { tableFromReference } from "../../floor/code-facts/schema-resolve.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
-import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
-import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { JsonColumnOriginContext, JsonColumnWriterReaders } from "../contract/json-column-origin.ts";
 import { proveJsonColumnMerge } from "./json-column-merge-proof.ts";
 import { jsonColumnCallContext } from "./json-column-origin-context.ts";
 
@@ -28,15 +28,29 @@ export interface JsonColumnWriter {
 }
 
 /** The bound schema table a fluent write targets; a namespace or alias retains declaration identity. */
-export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
-  const targets = readDrizzleWriteRoots(setCallee, chainVerb);
+export function updatedTable(setCallee: TsNode, schema: SchemaProjectedModel, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
+  const tables = new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate]));
+  return updatedTableWith(
+    setCallee,
+    {
+      member: (node) => staticMemberAccess(node),
+      roots: readDrizzleWriteRoots,
+      source: readDrizzleWriterSource,
+      table: (node) => tableFromReference(node, tables),
+    },
+    chainVerb,
+  );
+}
+
+/** Shared writer traversal retains native table resolution rather than reconstructing declaration meaning. */
+export function updatedTableWith(setCallee: TsNode, readers: JsonColumnWriterReaders, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
+  const targets = readers.roots(setCallee, chainVerb);
   if (targets.kind === "unresolved") {
     throw new Error(`json-column-writes: cannot establish write target: ${targets.detail}`);
   }
-  const tables = new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate]));
   let table: string | undefined;
   for (const target of targets.value) {
-    const bound = tableFromReference(target.table, tables);
+    const bound = readers.table(target.table);
     if (bound.kind === "resolved") {
       table = bound.value.identity.declarationName;
       break;
@@ -49,7 +63,7 @@ export function updatedTable(setCallee: TsNode, schema: SchemaModel, chainVerb: 
 export interface Sink {
   readonly cols: ReadonlySet<string>;
   readonly out: JsonColumnWriter[];
-  readonly table: SchemaTable;
+  readonly table: SchemaProjectedTable;
 }
 
 function appendWriter(node: TsNode, rhs: TsNode | undefined, sink: Sink, context: JsonColumnOriginContext): void {
@@ -92,7 +106,7 @@ function judgeWriterSource(source: DrizzleWriterSource, sink: Sink, context: Jso
 
 /** The consumer retains its one-helper precision while all source/binding extraction has one floor home. */
 export function collectWriters(arg: TsNode | undefined, sink: Sink, context: JsonColumnOriginContext, hop: number): void {
-  judgeWriterSource(readDrizzleWriterSource(arg), sink, context, hop);
+  judgeWriterSource((context.writerReaders?.source ?? readDrizzleWriterSource)(arg), sink, context, hop);
 }
 
 /** The column a collected writer assigns — a `metadata: …` property, or a `set.metadata = …` accumulator
@@ -113,13 +127,13 @@ export function jsonWriterColumn(writer: JsonColumnWriter): string {
 function jsonTableOf(
   call: CallExpression,
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
-  schema: SchemaModel,
+  context: JsonColumnOriginContext,
 ): { readonly table: string; readonly cols: ReadonlySet<string> } | undefined {
-  const callee = staticMemberAccess(call.getExpression());
+  const callee = context.schemaReaders.member(call.getExpression());
   if (callee?.name !== "set") {
     return;
   }
-  const table = updatedTable(callee.receiver, schema);
+  const table = context.writerReaders === undefined ? updatedTable(callee.receiver, context.schema) : updatedTableWith(callee.receiver, context.writerReaders);
   const cols = table === undefined ? undefined : jsonColumns.get(table);
   return table === undefined || cols === undefined ? undefined : { table, cols };
 }
@@ -130,11 +144,21 @@ export function collectJsonWritersByColumn(
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
   context: JsonColumnOriginContext,
 ): Map<string, JsonColumnWriter[]> {
-  const schema = context.schema;
+  return collectJsonWritersByColumnWith(calls, jsonColumns, () => context);
+}
+
+/** Each native importing world supplies its own sealed questions while the writer population/order stays unchanged. */
+export function collectJsonWritersByColumnWith(
+  calls: readonly CallExpression[],
+  jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
+  contextFor: (call: CallExpression) => JsonColumnOriginContext,
+): Map<string, JsonColumnWriter[]> {
   const byColumn = new Map<string, JsonColumnWriter[]>();
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const target = jsonTableOf(call, jsonColumns, schema);
+      const context = contextFor(call);
+      const schema = context.schema;
+      const target = jsonTableOf(call, jsonColumns, context);
       if (target === undefined) {
         continue;
       }

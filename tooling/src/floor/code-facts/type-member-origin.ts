@@ -7,6 +7,7 @@ import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 import type {
   CallMemberDeclarationOrigin,
   ContextualMemberOrigin,
+  DeclaredCallTerminalSelection,
   NativeSubstitutedTypeInput,
   NativeSubstitutedTypeSlot,
   TypeIdentityOrigin,
@@ -268,6 +269,28 @@ function identityChain(first: TypeIdentityOrigin): readonly TypeIdentityOrigin[]
 export function declaredByPackage(declarations: readonly MorphNode[], packageName: string): boolean {
   const home = `/node_modules/${packageName}/`;
   return declarations.length > 0 && declarations.every((declaration) => normalizedPath(declaration).includes(home));
+}
+
+/** A consumer-selected terminal keeps dotted grammar and complete declaration ownership separate from value proof. */
+export function matchesDeclaredCallTerminal(
+  call: CallExpression,
+  origin: ReferenceFact<readonly MorphNode[]>,
+  selection: DeclaredCallTerminalSelection,
+): boolean {
+  const callee = call.getExpression();
+  if (!Node.isPropertyAccessExpression(callee)) {
+    return false;
+  }
+  const name = callee.getName();
+  const home = selection.projectHome;
+  const declarations = origin.kind === "resolved" ? origin.value : [];
+  return (
+    (selection.packageMethods.includes(name) && declaredByPackage(declarations, selection.packageName)) ||
+    (selection.projectMethods.includes(name) &&
+      home !== null &&
+      declarations.length > 0 &&
+      declarations.every((declaration) => normalizedPath(declaration).includes(home)))
+  );
 }
 
 /** Is EVERY declaration in this fact declared by exactly this project source file? The caller obtains the

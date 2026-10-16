@@ -16,6 +16,8 @@ export const TYPE_PROJECTION_FACETS = [
   "origins",
   "declaration-export",
   "vocabulary",
+  "lexical",
+  "member-declarations",
 ] as const;
 export type TypeProjectionFacet = (typeof TYPE_PROJECTION_FACETS)[number];
 
@@ -28,7 +30,10 @@ export const typeProjectionPlanSchema = z
     (plan) => new Set(plan.facets).size === plan.facets.length && new Set(plan.properties).size === plan.properties.length,
     "native type projection demand contains duplicate facets or properties",
   )
-  .refine((plan) => plan.facets.includes("properties") === plan.properties.length > 0, "native type property demand must name its exact properties");
+  .refine(
+    (plan) => (plan.facets.includes("properties") || plan.facets.includes("member-declarations")) === plan.properties.length > 0,
+    "native type property demand must name its exact properties",
+  );
 export type TypeProjectionPlan = z.infer<typeof typeProjectionPlanSchema>;
 
 export interface NativeTypePropertyPresence {
@@ -67,7 +72,22 @@ export const nativeTypeVocabularySchema = z.strictObject({
 });
 export type NativeTypeVocabulary = z.infer<typeof nativeTypeVocabularySchema>;
 
+export interface NativeLexicalTypeProjection {
+  readonly value: ReferenceFact<Node>;
+  readonly declarations: readonly Node[] | null;
+  readonly origins: readonly Node[] | null;
+}
+
+export interface NativeTypeMemberDeclarations {
+  readonly name: string;
+  readonly origin: ReferenceFact<readonly Node[]>;
+  readonly raw: readonly Node[] | null;
+  readonly nonnullable: readonly Node[] | null;
+}
+
 export interface NativeTypeProjectionValues {
+  readonly "member-declarations": readonly NativeTypeMemberDeclarations[];
+  readonly lexical: NativeLexicalTypeProjection;
   readonly vocabulary: NativeTypeVocabulary;
   readonly "declaration-export": boolean;
   readonly origins: NativeTypeOriginProjection;
@@ -99,10 +119,12 @@ export function typeProjectionFacet<Facet extends TypeProjectionFacet>(facts: Na
 }
 
 /** A delivered projection contains exactly the requested facets and property names. */
-export function assertTypeProjectionCoverage<Values extends { readonly properties?: readonly NativeTypePropertyPresence[] | undefined }>(
-  facts: Values,
-  input: TypeProjectionPlan,
-): void {
+export function assertTypeProjectionCoverage<
+  Values extends {
+    readonly properties?: readonly NativeTypePropertyPresence[] | undefined;
+    readonly "member-declarations"?: readonly { readonly name: string }[] | undefined;
+  },
+>(facts: Values, input: TypeProjectionPlan): void {
   const plan = canonicalTypeProjectionPlan(input);
   const actual = Object.keys(facts).toSorted();
   if (
@@ -112,10 +134,216 @@ export function assertTypeProjectionCoverage<Values extends { readonly propertie
   ) {
     throw new Error("native type projection facet coverage is incomplete or foreign");
   }
+  if (plan.facets.includes("member-declarations")) {
+    const members = facts["member-declarations"];
+    if (members === undefined || members.length !== plan.properties.length || members.some(({ name }, index) => name !== plan.properties[index])) {
+      throw new Error("native type member declaration coverage is incomplete or foreign");
+    }
+  }
   if (plan.facets.includes("properties")) {
     const properties = facts.properties;
     if (properties === undefined || properties.length !== plan.properties.length || properties.some(({ name }, index) => name !== plan.properties[index])) {
       throw new Error("native type projection property coverage is incomplete or foreign");
     }
   }
+}
+
+export type NativeTypeSelectionBase<Anchor> =
+  | { readonly kind: "node" | "contextual"; readonly node: Anchor }
+  | { readonly kind: "schema-column"; readonly column: string };
+export type NativeTypeSelectionStep<Anchor> =
+  | { readonly kind: "nonnullable" | "array-element-or-self" }
+  | { readonly kind: "property"; readonly name: string; readonly at: Anchor };
+export interface NativeTypeSelector<Anchor = Node> {
+  readonly base: NativeTypeSelectionBase<Anchor>;
+  readonly steps: readonly NativeTypeSelectionStep<Anchor>[];
+  readonly displayAt: Anchor | null;
+}
+export interface NativeTypeSelectionPlan<Anchor = Node> {
+  readonly selectors: readonly NativeTypeSelector<Anchor>[];
+  readonly relations: readonly { readonly left: number; readonly right: number }[];
+}
+
+export const nativePrimitiveFlagsSchema = z.strictObject({
+  string: z.boolean(),
+  stringLiteral: z.boolean(),
+  number: z.boolean(),
+  numberLiteral: z.boolean(),
+  boolean: z.boolean(),
+  booleanLiteral: z.boolean(),
+  null: z.boolean(),
+  undefined: z.boolean(),
+});
+export type NativePrimitiveFlags = z.infer<typeof nativePrimitiveFlagsSchema>;
+export const nativeSelectedTypeSchema = z.strictObject({
+  any: z.boolean(),
+  unknown: z.boolean(),
+  identity: z.number().int().nonnegative(),
+  display: z.string().nullable(),
+  parts: z
+    .array(
+      z.strictObject({
+        identity: z.number().int().nonnegative().nullable(),
+        aliasName: z.string().nullable(),
+        aliasArguments: z.array(z.number().int().nonnegative().nullable()),
+      }),
+    )
+    .min(1),
+  vocabulary: nativeTypeVocabularySchema,
+  arms: z.array(z.strictObject({ flags: nativePrimitiveFlagsSchema, arrayElement: nativePrimitiveFlagsSchema.nullable() })).min(1),
+});
+export type NativeSelectedType = z.infer<typeof nativeSelectedTypeSchema>;
+export type NativeSelectedTypeRelation =
+  | { readonly kind: "absent" }
+  | { readonly kind: "unavailable"; readonly reason: "primitive-absent" }
+  | { readonly kind: "answer"; readonly value: import("./assignability-contract.ts").TypeRelation };
+export interface NativeTypeSelections<Anchor = Node> {
+  readonly plan: NativeTypeSelectionPlan<Anchor>;
+  readonly values: readonly (NativeSelectedType | null)[];
+  readonly relations: readonly NativeSelectedTypeRelation[];
+}
+
+/** Missing selectors and relations cannot become negative native answers. */
+export function assertTypeSelectionCoverage<Anchor>(facts: NativeTypeSelections<Anchor>): void {
+  const { plan, values, relations } = facts;
+  if (plan.selectors.length === 0 || values.length !== plan.selectors.length || relations.length !== plan.relations.length) {
+    throw new Error("native Type selection coverage is incomplete");
+  }
+  for (const [index, value] of values.entries()) {
+    if (value !== null && (value.display === null) !== (plan.selectors[index]?.displayAt === null)) {
+      throw new Error("native Type display coverage is incomplete or foreign");
+    }
+  }
+  assertSelectedTypeIdentities(values);
+  assertSelectedTypeRelations(plan, values, relations);
+}
+
+function assertSelectedTypeIdentities(values: NativeTypeSelections["values"]): void {
+  for (const [index, value] of values.entries()) {
+    if (value === null) {
+      continue;
+    }
+    const representative = values[value.identity];
+    if (
+      value.identity > index ||
+      representative === undefined ||
+      representative === null ||
+      representative.identity !== value.identity ||
+      value.parts[0]?.identity !== value.identity
+    ) {
+      throw new Error("native Type selection identity is foreign");
+    }
+    for (const identity of value.parts.flatMap((part) => [part.identity, ...part.aliasArguments])) {
+      if (identity !== null && (values[identity] === null || values[identity] === undefined || values[identity].identity !== identity)) {
+        throw new Error("native Type selection related identity is foreign");
+      }
+    }
+  }
+}
+
+function assertSelectedTypeRelations<Anchor>(
+  plan: NativeTypeSelectionPlan<Anchor>,
+  values: NativeTypeSelections["values"],
+  relations: NativeTypeSelections["relations"],
+): void {
+  const pairs = new Set<string>();
+  for (const [index, pair] of plan.relations.entries()) {
+    const key = `${pair.left}:${pair.right}`;
+    if (
+      !(Number.isSafeInteger(pair.left) && Number.isSafeInteger(pair.right)) ||
+      pair.left < 0 ||
+      pair.right < 0 ||
+      pair.left >= values.length ||
+      pair.right >= values.length ||
+      pairs.has(key)
+    ) {
+      throw new Error("native Type relation demand is foreign or ambiguous");
+    }
+    pairs.add(key);
+    const absent = values[pair.left] === null || values[pair.right] === null;
+    if ((relations[index]?.kind === "absent") !== absent) {
+      throw new Error("native Type relation absence disagrees with its selectors");
+    }
+  }
+}
+
+/** Semantic absence stays distinct from an unavailable native comparison. */
+export function selectedTypeRelation(facts: NativeTypeSelections, index: number): import("./assignability-contract.ts").TypeRelation | undefined {
+  const relation = facts.relations[index];
+  if (facts.plan.relations[index] === undefined || relation === undefined) {
+    throw new Error("native Type relation was not captured");
+  }
+  if (relation.kind === "unavailable") {
+    throw new Error(`native Type relation is unavailable: ${relation.reason}`);
+  }
+  return relation.kind === "absent" ? undefined : relation.value;
+}
+
+/** Select only preclosed questions; a missing selector/relation is unavailable evidence, never false. */
+export function typeSelectionIndex<Anchor>(facts: NativeTypeSelections<Anchor>, selector: NativeTypeSelector<Anchor>): number {
+  const equalBase = (left: NativeTypeSelectionBase<Anchor>, right: NativeTypeSelectionBase<Anchor>): boolean =>
+    left.kind === "schema-column"
+      ? right.kind === "schema-column" && left.column === right.column
+      : right.kind !== "schema-column" && left.kind === right.kind && left.node === right.node;
+  const index = facts.plan.selectors.findIndex(
+    (candidate) =>
+      equalBase(candidate.base, selector.base) &&
+      candidate.displayAt === selector.displayAt &&
+      candidate.steps.length === selector.steps.length &&
+      candidate.steps.every((step, at) => {
+        const other = selector.steps[at];
+        return step.kind === "property" ? other?.kind === "property" && step.name === other.name && step.at === other.at : other?.kind === step.kind;
+      }),
+  );
+  if (index < 0) {
+    throw new Error("native Type selector was not captured in this ordinary cohort");
+  }
+  return index;
+}
+
+/** A subset remaps local identity representatives without equating mutually assignable native Types. */
+export function selectTypeSelections<Anchor>(facts: NativeTypeSelections<Anchor>, plan: NativeTypeSelectionPlan<Anchor>): NativeTypeSelections<Anchor> {
+  const indices = plan.selectors.map((selector) => typeSelectionIndex(facts, selector));
+  const identities = new Map<number, number>();
+  for (const [index, master] of indices.entries()) {
+    const value = facts.values[master];
+    if (value !== null && value !== undefined && !identities.has(value.identity)) {
+      identities.set(value.identity, index);
+    }
+  }
+  const values = indices.map((master) => {
+    const value = facts.values[master];
+    if (value === undefined) {
+      throw new Error("native Type selector answer is missing");
+    }
+    if (value === null) {
+      return null;
+    }
+    const identity = identities.get(value.identity);
+    if (identity === undefined) {
+      throw new Error("native Type selector identity is missing");
+    }
+    return {
+      ...value,
+      identity,
+      parts: value.parts.map((part) => ({
+        ...part,
+        identity: part.identity === null ? null : (identities.get(part.identity) ?? null),
+        aliasArguments: part.aliasArguments.map((argument) => (argument === null ? null : (identities.get(argument) ?? null))),
+      })),
+    };
+  });
+  const relations = plan.relations.map((pair) => {
+    const left = indices[pair.left];
+    const right = indices[pair.right];
+    const index = facts.plan.relations.findIndex((candidate) => candidate.left === left && candidate.right === right);
+    const value = facts.relations[index];
+    if (index < 0 || value === undefined) {
+      throw new Error("native Type relation was not captured in this ordinary cohort");
+    }
+    return value;
+  });
+  const result = { plan, values, relations };
+  assertTypeSelectionCoverage(result);
+  return result;
 }

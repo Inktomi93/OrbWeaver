@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/wire-chat-rpg-959
 plan: test-foundation
 ---
 
@@ -40,4 +39,4 @@ Context-utility identity preserves native meaning through sealed global/module a
 
 Native schema, column and configuration facts serve assets, table ownership, vector, enum and nullable policies. Catalog-only and open-JSON policies consume native schema and value facts. Finite native type, origin, export-presence and authored-value facts serve route, Base UI, registry and inference policies. Atomic publication tracks executable helpers and shared codecs. Independent review and ordinary combined-tree controls pass: `reports/review/1027-native-consumers-ordinary.md`.
 
-Native source admission and owned generation-pinned reads preserve metadata, refusals and physical lifetimes. Borrowed readers remain fresh. Ordinary controls pass: `reports/review/1027-native-invocation-cost-observation.md` and `reports/review/1027-program-source-admission-ordinary.md`. JSON consumers, virtual-overlay liveness and actual cost remain open. Root types retain off-owned errors.
+Native source admission and generation-pinned reads retain refusals, physical lifetimes and fresh borrowed reads. JSON read, write and health policies consume exact native cohorts with initial parser membership and atomic catalog identity. Ordinary controls pass. Virtual-overlay liveness, complete delivery and actual cost remain open. Root types retain off-owned errors. Evidence: `reports/review/1027-json-three-ordinary.md`.

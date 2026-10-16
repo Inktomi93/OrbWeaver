@@ -31,3 +31,14 @@ export interface RowOrigin {
   /** A `Pick`/`Omit` projection: members of the row are absent, so a sibling arm may re-supply one. */
   readonly dropsMembers?: boolean | undefined;
 }
+
+export interface RowReadServices {
+  readonly model: (node: Node, path: readonly string[]) => boolean;
+  readonly exactModel: (node: Node) => boolean;
+  readonly identity: typeof import("./type-member-origin.ts").resolveTypeIdentityOrigin;
+  readonly property: typeof import("./type-member-origin-core.ts").resolveTypePropertyOrigin;
+  readonly lexical: typeof import("./reference-fact.ts").resolveLexicalValueDeclaration;
+  readonly target: typeof import("./call-returns.ts").readCallTarget;
+  readonly columnDeclaration: (node: Node) => boolean;
+  readonly columnReference: (node: Node) => boolean;
+}

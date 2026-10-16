@@ -6,12 +6,14 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import type { GateFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/repo";
 
@@ -1690,4 +1692,150 @@ test("a file outside EVERY declared fact's population is refused WITHOUT a fact 
   expect(message).toContain("sourceFile path is absent or outside the effective population: packages/ui/src/elsewhere.ts");
   expect(message).not.toContain("wider-vocabulary");
   expect(message).not.toContain("declarationHome");
+});
+
+test("native prepare closes exact visitor order before one seal and finish/evaluate cannot precede it", () => {
+  const project = projectOf({
+    "packages/client/src/b.ts": "export const b = 2;",
+    "packages/client/src/a.ts": "export const a = 1;",
+  });
+  const events: string[] = [];
+  const roots: string[] = [];
+  const native = isolatedTypeFacts(project);
+  const originalSeal = native.seal;
+  const seal = vi.spyOn(native, "seal").mockImplementation((owners) => {
+    events.push("seal");
+    originalSeal(owners);
+  });
+  const provider = defineFact({
+    id: "prepare-source-fact",
+    population: "@client",
+    analysis: "syntax",
+    resources: [],
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => {
+            events.push("fact:" + node.getText());
+          },
+        },
+      ],
+      prepare: () => {
+        events.push("fact:prepare");
+      },
+      finish: () => {
+        events.push("fact:finish");
+        ctx.receipt({ kind: "population", source: "prepare-source-fact", members: 2 });
+        return true;
+      },
+    }),
+  });
+  const gate = policy("native-prepare-order", {
+    execution: "entire-population",
+    analysis: "types",
+    facts: [provider],
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.VariableDeclaration],
+          visit: (node) => {
+            roots.push(node.getText());
+            events.push("policy:" + node.getText());
+          },
+        },
+      ],
+      prepare: () => {
+        events.push("policy:prepare");
+        expect(roots).toEqual(["a = 1", "b = 2"]);
+        expect(() => ctx.nativeTypes?.globalBindings([])).toThrow("sealed");
+      },
+      evaluate: () => {
+        events.push("policy:evaluate");
+        expect(ctx.nativeTypes?.globalBindings([]).size).toBe(0);
+        expect(ctx.fact(provider)).toBe(true);
+        ctx.receipt({ kind: "population", source: "prepared-roots", members: roots.length });
+      },
+    }),
+  });
+  try {
+    const result = run([gate], project, { nativeTypeFacts: () => native });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(events).toEqual([
+      "policy:a = 1",
+      "fact:a = 1",
+      "policy:b = 2",
+      "fact:b = 2",
+      "fact:prepare",
+      "policy:prepare",
+      "seal",
+      "fact:finish",
+      "policy:evaluate",
+    ]);
+    expect(seal).toHaveBeenCalledTimes(1);
+  } finally {
+    seal.mockRestore();
+  }
+});
+
+test("failed native prepare owners are excluded from the one seal and their dependents cannot mint authority", () => {
+  const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;" });
+  const prepared: string[] = [];
+  const native = isolatedTypeFacts(project);
+  const originalSeal = native.seal;
+  const seal = vi.spyOn(native, "seal").mockImplementation((owners) => {
+    expect([...owners].toSorted()).toEqual(["prepare-survivor"]);
+    originalSeal(owners);
+  });
+  const failed = defineFact({
+    id: "failed-preparation",
+    population: "@client",
+    analysis: "syntax",
+    resources: [],
+    create: () => ({
+      prepare: () => {
+        prepared.push("fact");
+        throw new Error("closed fact preparation failed");
+      },
+      finish: () => {
+        throw new Error("failed fact must not finish");
+      },
+    }),
+  });
+  const dependent = policy("prepare-dependent", {
+    execution: "entire-population",
+    facts: [failed],
+    create: () => ({
+      evaluate: () => {
+        throw new Error("failed dependent must not evaluate");
+      },
+    }),
+  });
+  const bad = policy("prepare-failed-policy", {
+    create: () => ({
+      prepare: () => {
+        prepared.push("policy");
+        throw new Error("closed policy preparation failed");
+      },
+      evaluate: () => {
+        throw new Error("failed policy must not evaluate");
+      },
+    }),
+  });
+  const survivor = nodeReportingPolicy("prepare-survivor");
+  try {
+    const result = run([dependent, bad, survivor], project, { nativeTypeFacts: () => native });
+    expect(prepared).toEqual(["fact", "policy"]);
+    expect(seal).toHaveBeenCalledTimes(1);
+    expect(result.factErrors).toMatchObject([{ factId: failed.id, phase: "visit", message: "closed fact preparation failed" }]);
+    expect(result.toolErrors).toMatchObject([
+      { policyId: dependent.id, phase: "evaluate", message: expect.stringContaining("closed fact preparation failed") },
+      { policyId: bad.id, phase: "visit", message: "closed policy preparation failed" },
+    ]);
+    expect(result.authority.withheldPolicyIds).toEqual([dependent.id, bad.id]);
+    expect(result.authority.effectiveFindings).toMatchObject([{ policyId: survivor.id }]);
+  } finally {
+    seal.mockRestore();
+  }
 });

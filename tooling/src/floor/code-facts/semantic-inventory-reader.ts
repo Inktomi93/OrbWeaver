@@ -10,6 +10,7 @@ import { replayDrizzleCallEvidence, replaySchemaIdentityCatalog } from "./drizzl
 import type { InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import { schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
 import { replayInvocationEvidence } from "./invocation-evidence-replay.ts";
+import { replayCallableDeclarationValue } from "./projection-reference-codec.ts";
 import type { GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 import type { SchemaColumnIdentity } from "./schema-model-contract.ts";
 import type { InventorySchemaProjectedCatalog } from "./schema-projection-inventory-contract.ts";
@@ -408,6 +409,15 @@ function createInventoryReader(
       if (matches.length !== 1 || wire === undefined) {
         throw new SemanticInventoryError("native invocation query is unavailable in its captured native partition");
       }
+      if (wire.query.mode === "observations") {
+        const basis = wire.observationBasis;
+        const catalog = basis === null ? partition : indexes.find((candidate) => candidate.program === basis?.program && candidate.id === basis.partition);
+        if (catalog === undefined || basis === undefined || !catalog.families.includes("schema-data") || !catalog.families.includes("drizzle-identities")) {
+          throw new SemanticInventoryError("native ordinary complete catalog basis is outside the pinned generation");
+        }
+        readInventorySchemaIdentity(db, catalog.id);
+        readInventorySchemaData(db, catalog.id);
+      }
       const replay = replayFor(node, program, partition, "invocation");
       const bindings = invocationBindings(wire, replay, (file) => lease?.bindings(partition.id, file) ?? readInventoryGlobalBindings(db, partition.id, file));
       const computed = invocationComputed(db, partition.id, wire, replay);
@@ -475,23 +485,7 @@ function createInventoryReader(
       if (result.kind === "unresolved") {
         return { kind: result.kind, reason: result.reason, detail: result.detail, node: replay(result.node), trace };
       }
-      const declaration = replay(result.declaration);
-      if (
-        !(
-          TsNode.isFunctionDeclaration(declaration) ||
-          TsNode.isArrowFunction(declaration) ||
-          TsNode.isFunctionExpression(declaration) ||
-          TsNode.isMethodDeclaration(declaration)
-        )
-      ) {
-        throw new SemanticInventoryError("native callable declaration is not a function-like source");
-      }
-      const body = result.body === null ? undefined : replay(result.body);
-      const expectedBody = declaration.getBody();
-      if (body?.compilerNode !== expectedBody?.compilerNode) {
-        throw new SemanticInventoryError("native callable declaration body is incomplete or foreign");
-      }
-      return { kind: "resolved", value: { declaration, body, sourceFile: declaration.getSourceFile() }, trace };
+      return { kind: "resolved", value: replayCallableDeclarationValue(result, replay), trace };
     },
     callMemberOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "type-member-origins");
@@ -776,20 +770,17 @@ function invocationComputed(
   replay: (span: InventorySpan) => Node,
 ): ReadonlyMap<Node, ReferenceFact<string>> {
   const computed = new Map<Node, ReferenceFact<string>>();
-  for (const source of wire.sources) {
-    for (const key of source.computed) {
-      const [fact] = readInventoryComputedNames(db, id, key);
-      if (fact === undefined) {
-        throw new SemanticInventoryError("native invocation computed name is unavailable");
-      }
-      const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
-      computed.set(
-        replay(key),
-        fact.result.kind === "resolved"
-          ? { kind: fact.result.kind, value: fact.result.value, trace }
-          : { ...fact.result, node: replay(fact.result.node), trace },
-      );
+  const keys = [...wire.sources.flatMap((source) => source.computed), ...(wire.observations?.keys ?? [])];
+  for (const key of keys) {
+    const [fact] = readInventoryComputedNames(db, id, key);
+    if (fact === undefined) {
+      throw new SemanticInventoryError("native invocation computed name is unavailable");
     }
+    const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+    computed.set(
+      replay(key),
+      fact.result.kind === "resolved" ? { kind: fact.result.kind, value: fact.result.value, trace } : { ...fact.result, node: replay(fact.result.node), trace },
+    );
   }
   return computed;
 }

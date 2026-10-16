@@ -14,6 +14,7 @@ import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
 import { beginReferencePass, endReferencePass, referenceResolutionServices, resolveGlobalMemberOrigin } from "../code-facts/reference-fact.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../code-facts/runtime-export.ts";
+import type { SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import { schemaDataProjectionSchema } from "../code-facts/schema-projection-contract.ts";
 import type {
   InventoryBuildRequest,
@@ -199,6 +200,17 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           "../code-facts/projection-reference-codec.ts",
           "../code-facts/projection-inventory-contract.ts",
           "./invocation-evidence-extract.ts",
+          "../code-facts/ordinary-observations.ts",
+          "../code-facts/ordinary-observations-contract.ts",
+          "../code-facts/ordinary-observations-codec.ts",
+          "../code-facts/ordinary-observations-inventory.ts",
+          "../code-facts/drizzle-row.ts",
+          "../code-facts/drizzle-writer-source.ts",
+          "../code-facts/drizzle-writer-source-contract.ts",
+          "../code-facts/assignability.ts",
+          "../code-facts/assignability-contract.ts",
+          "../code-facts/shape-facts.ts",
+          "../code-facts/shape-inventory-scope.ts",
           "../code-facts/drizzle-evidence.ts",
           "../code-facts/drizzle-evidence-contract.ts",
           "../code-facts/drizzle-evidence-replay.ts",
@@ -487,13 +499,22 @@ function extractTypedFacts(
     beginReferencePass();
   }
   try {
+    let ordinarySchema: SchemaQuery | undefined;
+    let ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null = null;
     const drizzle =
       families.includes("drizzle-identities") || families.includes("schema-data")
-        ? extractDrizzleIdentities(input.drizzle, invocationSources, spans.node, (source) => {
-            if (invocationProgram === undefined) {
-              throw new Error("native Drizzle Project owner is unavailable");
-            }
-            assertInvocationSource(source, invocationProgram, "drizzle-capture");
+        ? extractDrizzleIdentities(input.drizzle, invocationSources, spans.node, {
+            assertSource: (source) => {
+              if (invocationProgram === undefined) {
+                throw new Error("native Drizzle Project owner is unavailable");
+              }
+              assertInvocationSource(source, invocationProgram, "drizzle-capture");
+            },
+            ordinarySchema: (query) => {
+              ordinarySchema = query;
+              const dependency = input.drizzle.schemaDependency;
+              ordinaryBasis = dependency === undefined ? null : { program: dependency.program, partition: dependency.partition };
+            },
           })
         : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
@@ -507,6 +528,8 @@ function extractTypedFacts(
       invocationQueries,
       invocationSources,
       invocationProgram,
+      ordinarySchema,
+      ordinaryBasis,
     });
     const facts = {
       ...sourceFacts,
@@ -877,6 +900,8 @@ function extractSourceFacts(
     readonly invocationQueries: readonly InventoryInvocationQuery[];
     readonly invocationSources: readonly SourceFile[];
     readonly invocationProgram: ts.Program | undefined;
+    readonly ordinarySchema: SchemaQuery | undefined;
+    readonly ordinaryBasis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   },
 ): SourceFactValues & { referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration> } {
   const { spans } = input;
@@ -916,7 +941,11 @@ function extractSourceFacts(
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
-    collectInvocationFacts(input.invocationQueries, input.invocationSources, context, input.invocationProgram);
+    collectInvocationFacts(input.invocationQueries, input.invocationSources, context, {
+      program: input.invocationProgram,
+      schema: input.ordinarySchema,
+      basis: input.ordinaryBasis,
+    });
     for (const original of sources.files) {
       const sf = sharedSourceFile(program, sources.nativeSources.get(original.getFilePath()), byCompilerSource);
       if (sf === undefined) {
@@ -1098,6 +1127,8 @@ interface InvocationCollection {
   readonly context: SourceFactCollection;
   readonly program: ts.Program;
   readonly byFile: ReadonlyMap<string, SourceFile>;
+  readonly schema: SchemaQuery | undefined;
+  readonly basis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   readonly related: Map<string, InventoryPartition["invocationEvidence"][number]["sources"][number]>;
   readonly bindingKeys: Set<string>;
   readonly computedKeys: Set<string>;
@@ -1109,8 +1140,13 @@ function collectInvocationFacts(
   queries: readonly InventoryInvocationQuery[],
   sources: readonly SourceFile[],
   context: SourceFactCollection,
-  program: ts.Program | undefined,
+  owner: {
+    readonly program: ts.Program | undefined;
+    readonly schema: SchemaQuery | undefined;
+    readonly basis: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
+  },
 ): void {
+  const { program, schema, basis } = owner;
   if (queries.length === 0) {
     return;
   }
@@ -1120,6 +1156,8 @@ function collectInvocationFacts(
   const state: InvocationCollection = {
     context,
     program,
+    schema,
+    basis,
     byFile: new Map(sources.map((source) => [context.spans.path(source.getFilePath()), source])),
     related: new Map(),
     bindingKeys: new Set(),
@@ -1154,10 +1192,36 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
   const source = byFile.get(query.node.file);
   const node = inventoryQueryNode(source, query.node);
   assertInvocationSource(node.getSourceFile(), program, "before-query");
-  const evidence = captureInvocationEvidence(node, query);
+  const ordinary =
+    query.mode !== "observations" || query.observations === undefined
+      ? undefined
+      : {
+          schema: state.schema,
+          basis: state.basis,
+          demand: {
+            ...query.observations,
+            roots: query.observations.roots.map((subject) => inventoryQueryNode(byFile.get(subject.file), subject)),
+            reads: query.observations.reads.map((read) => ({ ...read, node: inventoryQueryNode(byFile.get(read.node.file), read.node) })),
+          },
+        };
+  const evidence = captureInvocationEvidence(node, query, ordinary);
   assertInvocationSource(node.getSourceFile(), program, "after-query");
   const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);
-  const closed = closeInvocationSources(evidence.sources, state);
+  for (const keyNode of evidence.observations?.keys ?? []) {
+    const key = inventoryNodeQueryKey(context.spans.node(keyNode));
+    if (!state.computedKeys.has(key)) {
+      state.computedKeys.add(key);
+      context.computedNameQueries.add(key);
+      collectComputedNameFact(keyNode, context);
+    }
+  }
+  const closed: InvocationCollection["related"] = query.mode === "observations" ? new Map() : closeInvocationSources(evidence.sources, state);
+  for (const related of evidence.sources) {
+    if (!byFile.has(context.spans.path(related.getFilePath()))) {
+      throw new Error("native ordinary source is outside the captured closure");
+    }
+    assertInvocationSource(related, program, "ordinary-related-source");
+  }
   for (const [subject, fact] of evidence.globals) {
     const span = context.spans.node(subject);
     const key = inventoryNodeQueryKey(span);
@@ -1274,6 +1338,17 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
   return families.includes("invocation-evidence") || families.includes("drizzle-identities") || families.includes("schema-data")
     ? [
         "./invocation-evidence-extract.ts",
+        "../code-facts/ordinary-observations.ts",
+        "../code-facts/ordinary-observations-contract.ts",
+        "../code-facts/ordinary-observations-codec.ts",
+        "../code-facts/ordinary-observations-inventory.ts",
+        "../code-facts/drizzle-row.ts",
+        "../code-facts/drizzle-writer-source.ts",
+        "../code-facts/drizzle-writer-source-contract.ts",
+        "../code-facts/assignability.ts",
+        "../code-facts/assignability-contract.ts",
+        "../code-facts/shape-facts.ts",
+        "../code-facts/shape-inventory-scope.ts",
         "../code-facts/invocation-evidence-replay.ts",
         "../code-facts/reference-fact-invocation.ts",
         "../code-facts/call-supplied.ts",

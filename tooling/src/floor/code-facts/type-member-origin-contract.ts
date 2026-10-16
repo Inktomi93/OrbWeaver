@@ -81,3 +81,10 @@ export interface NativeSubstitutedTypeInput {
   readonly program: ts.Program;
   readonly source: ts.SourceFile;
 }
+
+export interface DeclaredCallTerminalSelection {
+  readonly packageName: string;
+  readonly packageMethods: readonly string[];
+  readonly projectHome: string | null;
+  readonly projectMethods: readonly string[];
+}

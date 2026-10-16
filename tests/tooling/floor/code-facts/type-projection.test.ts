@@ -259,3 +259,47 @@ const variable=1;
   expect(replayTypeProjection(typeProjectionWireSchema.parse(JSON.parse(JSON.stringify(wire))), plan, noAnchor)).toEqual({ "declaration-export": false });
   expect(() => replayTypeProjection({ ...wire, values: {} }, plan, noAnchor)).toThrow("facet coverage");
 });
+
+test("native lexical observations distinguish shorthand property symbols from their actual value binding", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile("/home.ts", "export interface Payload{value:number}export const imported=1;");
+  const source = project.createSourceFile(
+    "/lexical.ts",
+    "import type{Payload}from'./home.ts';const value=1;const object={value};declare const opaque:Payload;",
+  );
+  const shorthand = source.getDescendantsOfKind(SyntaxKind.ShorthandPropertyAssignment)[0]?.getNameNode();
+  if (shorthand === undefined) {
+    throw new Error("actual shorthand value control is missing");
+  }
+  const lexical = typeProjectionFacet(captureTypeProjection(shorthand, { facets: ["lexical"], properties: [] }), "lexical");
+  expect(lexical.value.kind).toBe("resolved");
+  if (lexical.value.kind !== "resolved") {
+    throw new Error(lexical.value.detail);
+  }
+  expect(lexical.value.value).toBe(source.getVariableDeclarationOrThrow("value"));
+  expect(lexical.declarations).toEqual(shorthand.getSymbol()?.getDeclarations());
+  expect(lexical.declarations).not.toContain(lexical.value.value);
+  const typeOnly = source.getImportDeclarations()[0]?.getNamedImports()[0]?.getNameNode();
+  if (typeOnly === undefined) {
+    throw new Error("actual type-only import control is missing");
+  }
+  const imported = typeProjectionFacet(captureTypeProjection(typeOnly, { facets: ["lexical"], properties: [] }), "lexical");
+  expect(imported.value.kind).toBe("unresolved");
+  expect(imported.origins).toEqual([project.getSourceFileOrThrow("/home.ts").getInterfaceOrThrow("Payload")]);
+  const nodes = new Map<string, Node>();
+  const span = (node: Node): InventorySpan => {
+    const anchor = { file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() };
+    nodes.set(JSON.stringify(anchor), node);
+    return anchor;
+  };
+  const replay = (anchor: InventorySpan): Node => {
+    const node = nodes.get(JSON.stringify(anchor));
+    if (node === undefined) {
+      throw new Error("unowned lexical projection anchor");
+    }
+    return node;
+  };
+  const plan = canonicalTypeProjectionPlan({ facets: ["lexical"], properties: [] });
+  const facts = captureTypeProjection(shorthand, plan);
+  expect(replayTypeProjection(encodeTypeProjection(facts, plan, span), plan, replay)).toEqual(facts);
+});

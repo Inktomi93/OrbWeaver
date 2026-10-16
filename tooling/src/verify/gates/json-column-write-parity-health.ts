@@ -6,7 +6,7 @@ import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { JSON_SCHEMA_ANCHOR, JSON_UNREADABLE_CONFIG_MESSAGE, JSON_VERSIONED_BLIND_MESSAGE, jsonColumnWriteFact } from "../lib/json-column-write-fact.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 const JSON_BLIND_MESSAGE =
@@ -28,13 +28,13 @@ export const gate = defineGate({
   },
   analysis: "types",
   execution: "entire-population",
-  facts: [jsonColumnWriteFact, drizzleSchemaFact],
+  facts: [jsonColumnWriteFact, drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   create: (ctx) => ({
     evaluate: () => {
       const writerFact = ctx.fact(jsonColumnWriteFact);
-      const schema = ctx.fact(drizzleSchemaFact).schema();
+      const schema = ctx.fact(drizzleSchemaDataFact);
       if (schema.status === "empty") {
         ctx.receipt({ kind: "population", source: schema.receipt.source, members: schema.receipt.members });
         ctx.report.file(JSON_SCHEMA_ANCHOR, { line: 1, column: 1, token: "mode:json", message: JSON_BLIND_MESSAGE });
