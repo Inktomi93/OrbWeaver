@@ -581,11 +581,53 @@ const SETTINGS_TABLE_IMPORT = {
   importNames: ["settings"],
   message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
 };
+const POST_ROW_IDENTITY_NAMES = alternation([
+  "Principal",
+  "Can",
+  "UserRole",
+  "USER_ROLES",
+  "ParticipantRole",
+  "PARTICIPANT_ROLES",
+  "ChatMembership",
+  "ChatResource",
+  "GlobalResource",
+  "ResourceRef",
+]);
 
 const DIRECT_CLASS_LITERAL_TEMPLATE =
   "JSXAttribute[name.name=/^class(Name)?$/] > JSXExpressionContainer > TemplateLiteral[expressions.length=1][expressions.0.type='Literal'][expressions.0.value=type(string)]";
 
+const INFRA_AUTH_RESTRICTIONS = [
+  {
+    id: "infra-auth-no-userid",
+    scope: ["packages/server/src/infra/auth/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(Identifier, JSXIdentifier)[name='userId']",
+        message: "D40: infra/auth verifies pre-row identity; resolve userId through sessions at entry/auth/seam.ts.",
+      },
+    ],
+  },
+  {
+    id: "infra-auth-pre-row-imports",
+    scope: ["packages/server/src/infra/auth/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(ImportDeclaration, ExportNamedDeclaration)[source.value='@orb/contracts/identity'] > :matches(ImportSpecifier[imported.name=${POST_ROW_IDENTITY_NAMES}], ImportSpecifier[imported.value=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.name=${POST_ROW_IDENTITY_NAMES}], ExportSpecifier[local.value=${POST_ROW_IDENTITY_NAMES}], ImportNamespaceSpecifier)`,
+        message: "D1/D40: post-row identity and authorization belong above infra/auth; import only pre-row verification contracts here.",
+      },
+      {
+        selector: "ExportAllDeclaration[source.value='@orb/contracts/identity']",
+        message: "D1/D40: infra/auth cannot reexport post-row identity or authorization through a namespace or star door.",
+      },
+    ],
+  },
+];
+
 const RESTRICTIONS = [
+  ...INFRA_AUTH_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -1531,7 +1573,11 @@ const STANDARD_CONFIG = tseslint.config(
 
 // Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
 export default [
-  ...STANDARD_CONFIG.map((block) => (block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] })),
+  ...STANDARD_CONFIG.map((block) =>
+    block.rules === undefined || INFRA_AUTH_RESTRICTIONS.some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
+      ? block
+      : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
+  ),
   ...[...syntaxBlocks(FORM_SYNTAX_SRC, []), ...syntaxBlocks([CLIENT_SRC, UI_SRC], BROWSER_SYNTAX)].map((block) => ({
     ...block,
     files: block.files.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated])),

@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(336 registered gates)
+(335 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -164,7 +164,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
 | `handle-key-writer` | external-id-single-writer | hard/error | @server | a users write that sets handle… |
 | `home-tile-registry-completeness` | registry-definitions | ordinary/error | @client | a home tile is dishonest: a… |
-| `infra-auth-no-userid` | — | ordinary/error | @server\* | userId is forbidden under… |
 | `injected-op-caller-param` | — | ordinary/error | @server,@kit | a cross-domain op takes an entity id… |
 | `injected-op-caller-param-health` | injected-op-caller-param | hard/error | @server,@kit,@db | either the injected-op-caller-param… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |

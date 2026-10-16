@@ -36,11 +36,9 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { LinkSsoIdentityParams } from "../contract/params.ts";
 import type { UnclaimedLinkOutcome } from "../contract/results.ts";
 import type { AdminService } from "../contract/service.ts";
-import { requireAdmin } from "../guard.ts";
+import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
-
-const OWNER_ROLE = "owner";
 
 /** Map a claim that bound nothing onto this verb's typed refusals. `already-linked` is NOT a refusal — the
  *  row already carries exactly this subject, so the caller proceeds to the same success view it would have
@@ -73,7 +71,7 @@ export function createLinkSsoIdentity(ctx: AdminContext): AdminService["linkSsoI
     }
     // The owner is never admin-linked — its SSO binding is the automatic owner-flip adoption, and choosing
     // the owner's subject here would be box takeover.
-    if (target.role === OWNER_ROLE) {
+    if (isBootstrapOwnerRole(target.role)) {
       throw new DomainOperationError(
         ADMIN_OP_CODES.cannotModifyOwner,
         "the owner's SSO identity cannot be set here — it binds automatically on the owner's first SSO login",

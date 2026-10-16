@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-12
+updated: 2026-10-16
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -36,7 +36,8 @@ Code comments cite the numbered invariants below as "invariant N":
 2. **Resolve once.** Everything below the seam reads `Principal.userId`. Nothing re-resolves or
    re-queries identity.
 3. **`ResolvedIdentity` carries no `userId` and no `role`.** Infra must not know DB row ids; the seam
-   adds them.
+   adds them. `eslint.config.js` owns verification identifier and direct static import restrictions.
+   `tests/server/entry/auth/identity-placement.int.test.ts` exercises the real request seam.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record`; a new
    `AUTH_MODES` member fails `tsc`).
 5. **JWKS/JWT verification fails closed.** Every reject path returns `null` (fallback or 401), never a

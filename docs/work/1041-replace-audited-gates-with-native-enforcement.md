@@ -29,3 +29,5 @@ D321 records the owner rulings. The canonical audit and raw-output crosswalk are
 Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
 
 The assigned SQL delivery passes independent review and ordinary controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Retained schema, clone and compose gaps remain in 1027; they do not block this migration. The foundation plan owns the separate qualification order.
+
+Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Turn identity and typed role gates remain active pending genuine engine API isolation and qualified successors.

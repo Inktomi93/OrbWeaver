@@ -16,6 +16,11 @@ const ROLES_FOR_GLOBAL_ACTION = {
   owner: ["owner"],
 } as const satisfies Record<GlobalAction, readonly UserRole[]>;
 
+/** Target validity for the immutable bootstrap owner, not a caller-privilege decision. */
+export function isBootstrapOwnerRole(role: UserRole): boolean {
+  return ROLES_FOR_GLOBAL_ACTION.owner.includes(role);
+}
+
 /** The GLOBAL-scope decision (the global-role axis). Throws on deny. */
 function decideGlobal(principal: Principal, action: GlobalAction): void {
   if (!ROLES_FOR_GLOBAL_ACTION[action].includes(principal.role)) {

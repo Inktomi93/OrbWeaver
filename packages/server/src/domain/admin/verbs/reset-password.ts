@@ -25,11 +25,9 @@ import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { ResetPasswordParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
-import { requireAdmin } from "../guard.ts";
+import { isBootstrapOwnerRole, isOwner, requireAdmin } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
-
-const OWNER_ROLE = "owner";
 
 export function createResetPassword(ctx: AdminContext): AdminService["resetPassword"] {
   return async (params: ResetPasswordParams) => {
@@ -46,7 +44,7 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
     }
     // Only the owner may reset the owner's credential — a delegated admin resetting it is takeover (D17).
     // Scoped to non-owner callers (not the siblings' blanket block) so the owner keeps self-rotation.
-    if (target.role === OWNER_ROLE && params.principal.role !== OWNER_ROLE) {
+    if (isBootstrapOwnerRole(target.role) && !isOwner(params.principal)) {
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "only the owner can reset the owner's password");
     }
 

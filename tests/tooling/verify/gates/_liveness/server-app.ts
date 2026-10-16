@@ -15,7 +15,6 @@ import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/veri
 import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates/handle-key-writer.ts";
-import { gate as infraAuthNoUserid } from "../../../../../tooling/src/verify/gates/infra-auth-no-userid.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipFanGuard } from "../../../../../tooling/src/verify/gates/membership-fan-guard.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
@@ -122,11 +121,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: firehoseImportAllowlistHealth,
     overlays: [neutralise(`${SERVER}/transport/trpc/chat-events-bus.ts`)],
     messageIncludes: "no longer declared",
-  },
-  {
-    policy: infraAuthNoUserid,
-    overlays: [add(`${SERVER}/infra/auth/modes/liveness-mode.ts`, "export function livenessMode(userId: string): string {\n  return userId;\n}\n")],
-    messageIncludes: "`userId` is forbidden",
   },
   {
     policy: membershipEnforcer,
