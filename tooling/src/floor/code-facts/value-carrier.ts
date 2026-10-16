@@ -496,20 +496,199 @@ function returnedBindingElement(
   value: import("ts-morph").BindingElement,
   path: readonly string[],
   context: ReturnedValueContext,
+  readSite: Identifier,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
   const pattern = value.getParent();
   const parent = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
   const initializer = parent?.getInitializer();
-  if (
-    initializer === undefined ||
-    value.getDotDotDotToken() !== undefined ||
-    value.getInitializer() !== undefined ||
-    !(N.isArrayBindingPattern(pattern) || N.isObjectBindingPattern(pattern))
-  ) {
+  if (initializer === undefined || value.getDotDotDotToken() !== undefined || !(N.isArrayBindingPattern(pattern) || N.isObjectBindingPattern(pattern))) {
     return valueRefusal(value, "unsupported", "the returned destructuring source is opaque");
+  }
+  const fallback = value.getInitializer();
+  if (fallback !== undefined) {
+    return returnedDefaultBinding(value, path, context, readSite);
   }
   const key = N.isArrayBindingPattern(pattern) ? String(pattern.getElements().indexOf(value)) : (value.getPropertyNameNode()?.getText() ?? value.getName());
   return returnedValue(initializer, [key, ...path], context);
+}
+
+function defaultBindingUseRefusal(
+  element: import("ts-morph").BindingElement,
+  readSite: Identifier,
+  fields: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+  context: ReturnedValueContext,
+): UnresolvedReferenceFact | undefined {
+  const initializer = element.getParent().getParentIfKind(SyntaxKind.VariableDeclaration)?.getInitializer();
+  const fallback = element.getInitializer();
+  const unusedFallback = fields.value.length > 0 && fields.value.every((field) => field.present && field.path.length === 0 && definedBindingValue(field.value));
+  const endpoints = new Set(inheritedReceiverEndpoints(initializer ?? readSite, fields));
+  endpoints.add(readSite);
+  for (const declaration of fields.trace.declarations.filter(N.isBindingElement)) {
+    const receiver = declaration.getParent().getParentIfKind(SyntaxKind.VariableDeclaration)?.getInitializer();
+    if (receiver !== undefined) {
+      endpoints.add(receiver);
+    }
+  }
+  for (const field of fields.value) {
+    for (const descriptor of field.selectedDescriptors ?? []) {
+      endpoints.add(descriptor.value);
+    }
+  }
+  const names = [
+    element.getNameNode(),
+    ...fields.trace.declarations
+      .filter((declaration) => N.isVariableDeclaration(declaration) || N.isParameterDeclaration(declaration) || N.isBindingElement(declaration))
+      .map((declaration) => declaration.getNameNode()),
+  ];
+  const seen = new Set<ts.Node>();
+  for (const name of names) {
+    if (!N.isIdentifier(name) || seen.has(name.compilerNode)) {
+      continue;
+    }
+    seen.add(name.compilerNode);
+    const escaped = unprovenReferenceUse(name, (use, binding) => {
+      const value = unwrapTarget(use);
+      if (endpoints.has(value) || (unusedFallback && fallback !== undefined && (value === fallback || value.getAncestors().includes(fallback)))) {
+        return true;
+      }
+      if (N.isIdentifier(value) && context.program !== undefined) {
+        const expected = callableCarrierSymbol(binding);
+        const actual = callableCarrierSymbol(value);
+        return (
+          expected !== undefined &&
+          actual !== undefined &&
+          expected !== actual &&
+          readCallReturnProgram(value, { programs: [context.program] }).kind === "resolved"
+        );
+      }
+      return false;
+    });
+    if (escaped !== undefined) {
+      return valueRefusal(escaped, "unsupported", "a defaulted binding or its supplied receiver has an unclosed use");
+    }
+  }
+  return undefined;
+}
+
+function defaultBindingKey(element: import("ts-morph").BindingElement): ReferenceFact<string> {
+  const property = element.getPropertyNameNode();
+  const name = element.getNameNode();
+  if (!N.isIdentifier(name)) {
+    return valueRefusal(element, "unsupported", "a defaulted binding has no single local name");
+  }
+  if (property === undefined || N.isIdentifier(property)) {
+    return { kind: "resolved", value: property?.getText() ?? name.getText(), trace: { declarations: [], origin: element } };
+  }
+  const key = readStaticAuthoredValue(N.isComputedPropertyName(property) ? property.getExpression() : property);
+  return key.kind === "resolved" && key.value.kind === "scalar" && (typeof key.value.value === "string" || typeof key.value.value === "number")
+    ? { ...key, value: String(key.value.value) }
+    : valueRefusal(property, "unsupported", "a defaulted binding has no actual static property key");
+}
+
+function definedBindingValue(node: Node): boolean {
+  if (N.isObjectLiteralExpression(node) || N.isArrayLiteralExpression(node) || callableValue(node)) {
+    return true;
+  }
+  const actual = readStaticAuthoredValue(node);
+  return actual.kind === "resolved" && actual.value.kind === "scalar";
+}
+
+function defaultBindingAlternative(
+  fallback: Node,
+  source: ReturnedValueSource,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const next = { ...context, bindings: source.bindings };
+  if (!source.present) {
+    if (source.path.length !== 1 || !ordinaryCallableRecord(source.value, undefined, context.program)) {
+      return valueRefusal(source.value, "unsupported", "a defaulted binding has no closed ordinary absent property");
+    }
+    const inherited = nativeInheritedEffects(source.value, next);
+    return inherited.kind === "unresolved" ? inherited : returnedValue(fallback, path, next);
+  }
+  if (source.path.length > 0) {
+    return valueRefusal(source.value, "missing", "a defaulted binding retains an unresolved receiver path");
+  }
+  if (runtimeUndefinedValue(source.value)) {
+    if (N.isVoidExpression(source.value) && readStaticAuthoredValue(source.value.getExpression()).kind === "unresolved") {
+      return valueRefusal(source.value, "unsupported", "a defaulted binding has an effectful undefined producer");
+    }
+    return returnedValue(fallback, path, next);
+  }
+  if (!definedBindingValue(source.value)) {
+    return valueRefusal(source.value, "unsupported", "a defaulted binding has no definite runtime value or undefined branch");
+  }
+  return projectedDefaultBindingValue(source, path, next);
+}
+
+function projectedDefaultBindingValue(
+  source: ReturnedValueSource,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  if (path.length > 0 && (source.nativeIteration !== undefined || source.nativeLookup !== undefined)) {
+    return valueRefusal(source.value, "unsupported", "a defaulted binding has an unclosed native continuation");
+  }
+  const projected =
+    path.length === 0
+      ? { kind: "resolved" as const, value: [source], trace: { declarations: [], origin: source.value } }
+      : returnedValue(source.value, path, context);
+  return projected.kind === "resolved" && source.selectedDescriptors !== undefined && path.length > 0
+    ? {
+        ...projected,
+        value: projected.value.map((actual) => ({
+          ...actual,
+          selectedDescriptors: [...(source.selectedDescriptors ?? []), ...(actual.selectedDescriptors ?? [])],
+        })),
+      }
+    : projected;
+}
+
+function returnedDefaultBinding(
+  element: import("ts-morph").BindingElement,
+  path: readonly string[],
+  context: ReturnedValueContext,
+  readSite: Identifier,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const pattern = element.getParent();
+  const declaration = pattern.getParentIfKind(SyntaxKind.VariableDeclaration);
+  const initializer = declaration?.getInitializer();
+  const fallback = element.getInitializer();
+  const name = element.getNameNode();
+  if (!N.isObjectBindingPattern(pattern) || initializer === undefined || fallback === undefined || !N.isIdentifier(name)) {
+    return valueRefusal(element, "unsupported", "the defaulted destructuring source is not an ordinary object binding");
+  }
+  if (context.program === undefined) {
+    return valueRefusal(element, "missing", "a defaulted binding has no captured native context");
+  }
+  if (declaration?.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() !== VariableDeclarationKind.Const) {
+    return valueRefusal(element, "write", "the defaulted binding is mutable");
+  }
+  const written = inspectReferenceWrites(name);
+  if (written.kind === "unresolved") {
+    return written;
+  }
+  const key = defaultBindingKey(element);
+  if (key.kind === "unresolved") {
+    return key;
+  }
+  const fields =
+    context.callableValues === true
+      ? callableSuppliedLeaves(initializer, [key.value], context.program, { bindings: context.bindings, active: context.active, activeValues: context.active })
+      : returnedValue(initializer, [key.value], context);
+  if (fields.kind === "unresolved") {
+    return fields;
+  }
+  const escaped = defaultBindingUseRefusal(element, readSite, fields, context);
+  if (escaped !== undefined) {
+    return escaped;
+  }
+  const result = valueAlternatives(
+    element,
+    fields.value.map((source) => defaultBindingAlternative(fallback, source, path, context)),
+  );
+  return { ...result, trace: { ...result.trace, declarations: [...fields.trace.declarations, ...result.trace.declarations] } };
 }
 
 function returnedIdentifierValue(
@@ -533,12 +712,16 @@ function returnedIdentifierValue(
   if (stable.kind === "unresolved" && !["dynamic", "missing"].includes(stable.reason)) {
     return returnedCallableTerminal(node, path, context, stable) ?? stable;
   }
+  let result: ReferenceFact<readonly ReturnedValueSource[]>;
   if (N.isBindingElement(value)) {
-    return returnedBindingElement(value, path, context);
+    result = returnedBindingElement(value, path, context, node);
+  } else {
+    result = value.compilerNode === node.compilerNode || N.isParameterDeclaration(value) ? valueLeaf(node, path, context) : returnedValue(value, path, context);
   }
-  const result =
-    value.compilerNode === node.compilerNode || N.isParameterDeclaration(value) ? valueLeaf(node, path, context) : returnedValue(value, path, context);
-  return { ...result, trace: { ...result.trace, declarations: [...stable.trace.declarations, ...result.trace.declarations] } };
+  return {
+    ...result,
+    trace: { ...result.trace, declarations: [...stable.trace.declarations, ...(N.isBindingElement(value) ? [value] : []), ...result.trace.declarations] },
+  };
 }
 
 function returnedBindingKey(

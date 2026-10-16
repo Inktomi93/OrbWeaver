@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
+import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
@@ -16,6 +17,168 @@ import { vi } from "vitest";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-read-parsed.ts";
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+
+test("defaulted object bindings preserve supplied own values without evaluating the fallback", () => {
+  const code = `
+    function unavailable(){throw new Error("the unused default was evaluated");}
+    function createServices(deps){const {authConfig={mode:unavailable()}}=deps;return authConfig.mode;}
+    const first=createServices({authConfig:{mode:"local"}});
+    const second=createServices({authConfig:{mode:"oidc"}});
+  `;
+  expect(runInNewContext(`${code};[first,second];`)).toEqual(["local", "oidc"]);
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/defaulted-binding.ts", code);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const values = ["first", "second"].map((name) => {
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow(name).getNameNode(), [], observed, { terminals: new Set(), bindings: new Map() });
+      return fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : fact.detail;
+    });
+    expect(values).toEqual([['"local"'], ['"oidc"']]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const receiver of [false, true]) {
+  test(`defaulted object binding refuses an escaped ${receiver ? "receiver" : "selected value"}`, () => {
+    const code = receiver
+      ? 'function overwrite(value){value.authConfig.mode="outside";}const input={authConfig:{mode:"local"}};overwrite(input);const {authConfig={mode:"fallback"}}=input;const output=authConfig.mode;'
+      : 'function overwrite(value){value.mode="outside";}const input={authConfig:{mode:"local"}};const {authConfig={mode:"fallback"}}=input;overwrite(authConfig);const output=authConfig.mode;';
+    expect(runInNewContext(`${code};output;`)).toBe("outside");
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/escaped-default.ts", code);
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observed, new Set());
+      expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "unsafe original field survived").toBe("unresolved");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("defaulted object binding refuses mutation through its supplied formal receiver", () => {
+  const code =
+    'function overwrite(value){value.authConfig.mode="outside";}function select(deps){overwrite(deps);const {authConfig={mode:"fallback"}}=deps;return authConfig.mode;}const output=select({authConfig:{mode:"local"}});';
+  expect(runInNewContext(`${code};output;`)).toBe("outside");
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/formal-default.ts", code);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observed, new Set());
+    expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "unsafe supplied formal survived").toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("defaulted object binding closes a destructured receiver origin before accepting its field", () => {
+  const code = 'function overwrite(x){x.mode="outside"}const {input}={input:{mode:"local"}};overwrite(input);const {mode="fallback"}=input;const output=mode;';
+  expect(runInNewContext(`${code};output;`)).toBe("outside");
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/destructured-origin.ts", code);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observed, new Set());
+    expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "mutated destructured origin returned a stale field").toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("defaulted object binding retains safe destructured provenance through actual allocations", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/safe-destructured-origin.ts",
+    'function select(deps){const {input}=deps;const {mode="fallback"}=input;return mode;}const first=select({input:{mode:"local"}});const second=select({input:{mode:"oidc"}});',
+  );
+  const binding = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    for (const [name, expected] of [
+      ["first", '"local"'],
+      ["second", '"oidc"'],
+    ] as const) {
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow(name).getNameNode(), [], observed, new Set());
+      expect(fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : fact.detail).toEqual([expected]);
+      expect(fact.trace.declarations.some((declaration) => declaration.compilerNode === binding.compilerNode)).toBe(true);
+    }
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const scenario of [
+  { name: "own undefined selects its default", input: "{mode:undefined}", expected: ['"fallback"'] },
+  { name: "absent ordinary data selects its default", input: "{}", expected: ['"fallback"'] },
+  { name: "null is not undefined", input: "{mode:null}", expected: ["null"] },
+  { name: "false is not undefined", input: "{mode:false}", expected: ["false"] },
+  { name: "zero is not undefined", input: "{mode:0}", expected: ["0"] },
+  { name: "conditional undefined retains both actual alternatives", input: 'condition?{mode:"local"}:{mode:undefined}', expected: ['"local"', '"fallback"'] },
+  { name: "an accessor is not an own data field", input: '{get mode(){return "outside";}}', expected: undefined },
+  { name: "a custom prototype is not ordinary absence", input: '{__proto__:{mode:"outside"}}', expected: undefined },
+  { name: "an unknown value is not assumed defined", input: "{mode:opaque}", expected: undefined },
+  { name: "effectful void is not ignored", input: "{mode:void mutate()}", expected: undefined },
+] as const) {
+  test(`defaulted object binding: ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/default-alternatives.ts",
+      `declare const condition:boolean;declare const opaque:string|undefined;declare function mutate():void;function select(deps){const {mode="fallback"}=deps;return mode;}const output=select(${scenario.input});`,
+    );
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observed, new Set());
+      expect(fact.kind, fact.kind === "unresolved" ? fact.detail : scenario.name).toBe(scenario.expected === undefined ? "unresolved" : "resolved");
+      expect(fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : undefined).toEqual(scenario.expected);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("defaulted object binding retains native prototype effects only for an absent property", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/default-prototype.ts",
+    'Object.defineProperty(Object.prototype,"mode",{get(){return "outside";}});const {mode:own="fallback"}={mode:undefined};const {mode:missing="fallback"}={};const first=own;const second=missing;',
+  );
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const own = readReturnedValue(source.getVariableDeclarationOrThrow("first").getNameNode(), [], observed, new Set());
+    const missing = readReturnedValue(source.getVariableDeclarationOrThrow("second").getNameNode(), [], observed, new Set());
+    expect(own.kind === "resolved" ? own.value.map((value) => value.value.getText()) : own.detail).toEqual(['"fallback"']);
+    expect(missing.kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("defaulted object binding keeps typed supplied allocations and default cycles separate", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/typed-default.ts",
+    `interface AuthConfig{mode:string}interface Deps{authConfig?:AuthConfig}function createServices(deps:Deps){const {authConfig={mode:createServices(deps)}}=deps;return authConfig.mode;}const first=createServices({authConfig:{mode:"local"}});const second=createServices({});`,
+  );
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const first = readReturnedValue(source.getVariableDeclarationOrThrow("first").getNameNode(), [], observed, new Set());
+    const second = readReturnedValue(source.getVariableDeclarationOrThrow("second").getNameNode(), [], observed, new Set());
+    expect(first.kind === "resolved" ? first.value.map((value) => value.value.getText()) : first.detail).toEqual(['"local"']);
+    expect(second.kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
 
 for (const invocation of ["Object.freeze(actual)", "globalThis.Object['freeze'](actual)", "freeze(actual)"]) {
   test(`native freeze preserves its actual argument identity: ${invocation}`, () => {
