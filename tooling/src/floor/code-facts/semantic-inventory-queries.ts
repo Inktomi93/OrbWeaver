@@ -4,6 +4,8 @@ import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type { InventoryDrizzleCall, InventoryDrizzleQuery, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
+import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY } from "./drizzle-inventory-contract.ts";
+import type { InventorySchemaProjectedCatalog } from "./schema-projection-inventory-contract.ts";
 import type {
   InventoryExportDeclarationQuery,
   InventoryExportDeclarations,
@@ -34,6 +36,7 @@ import {
   memberOriginSchema,
   partitionSchema,
   SemanticInventoryError,
+  schemaDataCatalogSchema,
   shapeCatalogSchema,
   shapePairQuerySchema,
   shapePairResultSchema,
@@ -416,8 +419,8 @@ function invocationValue(atoms: readonly InventoryInvocationAtom[]): JsonValue {
   return rootValue;
 }
 
-function readDrizzleGraph(db: DatabaseSync, id: string, key: string): JsonValue {
-  requireInventoryFamily(db, id, "drizzle-identities");
+function readDrizzleGraph(db: DatabaseSync, id: string, key: string, family: InventoryFamily = "drizzle-identities"): JsonValue {
+  requireInventoryFamily(db, id, family);
   const rows = db.prepare("SELECT ordinal,atomCount FROM inventory_drizzle_evidence WHERE partition=? AND key=?").all(id, inventoryString(key));
   const row = rows[0];
   if (rows.length !== 1 || row === undefined) {
@@ -437,14 +440,25 @@ function readDrizzleGraph(db: DatabaseSync, id: string, key: string): JsonValue 
 
 /** The complete native schema roster remains owned by its catalog partition. */
 export function readInventorySchemaIdentity(db: DatabaseSync, id: string): InventorySchemaIdentityCatalog {
-  const catalog = drizzleSchemas.catalog.parse(readDrizzleGraph(db, id, "catalog"));
-  for (const source of catalog.sources) {
-    const captured = capturedInventorySource(db, id, source.node.file, "schema identity");
+  const catalog = drizzleSchemas.catalog.parse(readDrizzleGraph(db, id, SCHEMA_IDENTITY_CATALOG_KEY));
+  assertSchemaCatalogSources(db, id, catalog.sources, "schema identity");
+  return catalog;
+}
+
+/** A full catalog requires its own opted-in capture; identity-only rows never stand in for complete columns. */
+export function readInventorySchemaData(db: DatabaseSync, id: string): InventorySchemaProjectedCatalog {
+  const catalog = schemaDataCatalogSchema.parse(readDrizzleGraph(db, id, SCHEMA_DATA_CATALOG_KEY, "schema-data"));
+  assertSchemaCatalogSources(db, id, catalog.sources, "full schema data");
+  return catalog;
+}
+
+function assertSchemaCatalogSources(db: DatabaseSync, id: string, sources: InventorySchemaIdentityCatalog["sources"], label: string): void {
+  for (const source of sources) {
+    const captured = capturedInventorySource(db, id, source.node.file, label);
     if (contentVersion(readInventorySourceText(db, id, captured)) !== source.version) {
-      throw new SemanticInventoryError("native schema identity roster source version is stale");
+      throw new SemanticInventoryError(`native ${label} roster source version is stale`);
     }
   }
-  return catalog;
 }
 
 /** Closed call identity includes its mode and the exact catalog partition used by the worker. */

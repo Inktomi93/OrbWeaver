@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
+import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY } from "./drizzle-inventory-contract.ts";
 import type {
   InventoryFactKind,
   InventoryFamily,
@@ -33,6 +34,7 @@ import {
   memberOriginSchema,
   partitionMetadataSchema,
   partitionSchema,
+  schemaDataCatalogSchema,
   shapePairKey,
   shapePairSchema,
   spanSchema,
@@ -297,6 +299,9 @@ export function inventoryTextVersion(parts: Iterable<string>): string {
 }
 
 function hasFamilyEntries(partition: InventoryPartition, family: InventoryFamily): boolean {
+  if (family === "schema-data") {
+    return partition.schemaData !== undefined;
+  }
   return (partition[INVENTORY_FAMILY_FIELDS[family]]?.length ?? 0) > 0;
 }
 
@@ -636,10 +641,16 @@ function writeDrizzleFacts(partition: InventoryPartition, emit: (table: Inventor
   if (partition.schemaIdentity !== undefined && !partition.families.includes("drizzle-identities")) {
     throw new Error("native schema identity catalog has no declared owner");
   }
+  if (partition.schemaData !== undefined && !partition.families.includes("schema-data")) {
+    throw new Error("native full schema catalog has no declared owner");
+  }
   const facts = [
+    ...(partition.schemaData === undefined
+      ? []
+      : [{ key: SCHEMA_DATA_CATALOG_KEY, value: jsonValueSchema.parse(schemaDataCatalogSchema.parse(partition.schemaData)) }]),
     ...(partition.schemaIdentity === undefined
       ? []
-      : [{ key: "catalog", value: jsonValueSchema.parse(drizzleSchemas.catalog.parse(partition.schemaIdentity)) }]),
+      : [{ key: SCHEMA_IDENTITY_CATALOG_KEY, value: jsonValueSchema.parse(drizzleSchemas.catalog.parse(partition.schemaIdentity)) }]),
     ...(partition.drizzleCalls ?? []).map((entry) => ({ key: drizzleQueryKey(entry.query), value: jsonValueSchema.parse(drizzleSchemas.call.parse(entry)) })),
   ];
   facts.forEach(({ key, value }, ordinal) => {

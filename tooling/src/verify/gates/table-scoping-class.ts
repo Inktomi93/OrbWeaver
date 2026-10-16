@@ -28,12 +28,14 @@
 // admits 30 and final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+
+import type { SchemaProjectedModel, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { ReadySchemaFact, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { ReadySchemaFact } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ScopingClass, TableShape } from "../contract/tenancy-scope.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 import { TABLE_SCOPING_ROWS, tableScopingClasses, tableShapeOf } from "../lib/tenancy-scope.ts";
 
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -123,7 +125,7 @@ function stale(name: string): string {
 
 /** Judge one schema table's row against its shape; reports and returns nothing — the caller only needs the
  *  `seen` bookkeeping, which it already has via `table.sqlName`. */
-function judgeTable(ctx: GatePolicyContext, table: SchemaTable): void {
+function judgeTable(ctx: GatePolicyContext, table: SchemaProjectedTable): void {
   const nameArg = table.call.getArguments()[0];
   if (nameArg === undefined) {
     return;
@@ -143,7 +145,7 @@ function judgeTable(ctx: GatePolicyContext, table: SchemaTable): void {
 /** The stale + blindness arms are WHOLE-SCHEMA claims, name-keyed against the LIVE registry: a conformance
  *  mini-project declares one table and would "prove" every other row dead. Guard on the real schema barrel actually
  *  being in the loaded population (own-tables-only's precedent). */
-function reportStaleRows(ctx: GatePolicyContext, schemaFact: ReadySchemaFact<SchemaModel>, seen: ReadonlySet<string>): void {
+function reportStaleRows(ctx: GatePolicyContext, schemaFact: ReadySchemaFact<SchemaProjectedModel>, seen: ReadonlySet<string>): void {
   if (!schemaFact.receipt.paths.includes(SCHEMA_BARREL)) {
     return;
   }
@@ -170,13 +172,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const schemaFact = ctx.fact(drizzleSchemaFact).schema();
+      const schemaFact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, schemaFact);
       const seen = new Set<string>();
       for (const table of schemaFact.value.tables) {

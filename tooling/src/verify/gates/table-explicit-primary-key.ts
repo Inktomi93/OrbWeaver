@@ -1,7 +1,7 @@
 // Every Drizzle table declares a primary key instead of falling back to SQLite's hidden rowid. The shared
 // schema fact owns call identity, imported columns and extras resolution; this policy only judges the fact.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`), which owns
 // Drizzle builder identity and the table/column model for every member.
 // POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH, lossless. The legacy descriptor
 // (8fde8e47768549eb1260f2618bfa15a4d6dcaa70, the parent of the `dd1a045882` conversion) scoped with
@@ -20,7 +20,7 @@
 
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const MESSAGE =
   "a `sqliteTable` has no PRIMARY KEY — SQLite's hidden rowid is unstable across VACUUM, invisible to `$inferSelect`, and cannot participate in the inherited ownership chain. Tier-1-DB.md §Invariants.";
@@ -34,13 +34,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       for (const table of fact.value.tables) {
         const hasPrimaryKey = table.columns.some((column) => column.primaryKey) || table.indexes.some((index) => index.kind === "primary-key");

@@ -239,6 +239,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     relativePath,
     sourceFile,
     nativeTypes: {
+      schemaData: (sources: Parameters<NativeTypeContext["schemaData"]>[0]): ReturnType<NativeTypeContext["schemaData"]> =>
+        nativeFacts(sources).schemaData(input.ownerId, sources),
       schemaIdentity: (sources: Parameters<NativeTypeContext["schemaIdentity"]>[0]): ReturnType<NativeTypeContext["schemaIdentity"]> =>
         nativeFacts(sources).schemaIdentity(input.ownerId, sources),
       drizzleEvidence: (

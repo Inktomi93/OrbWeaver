@@ -3,7 +3,7 @@ import type { Node } from "ts-morph";
 import { resolveDrizzleTableRefs } from "./drizzle-table-ref.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
 import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityQuery, SchemaIdentityTable } from "./schema-identity-contract.ts";
-import type { SchemaFact, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
+import type { SchemaFact, SchemaModel, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
 import { createSchemaQuery, unavailableSchemaReference } from "./schema-query.ts";
 import { tableFromReference } from "./schema-resolve.ts";
 import { schemaDeclarationKey } from "./schema-value.ts";
@@ -14,7 +14,11 @@ function tableIdentity(table: SchemaTable): SchemaIdentityTable {
 
 /** Full FK, index, default and JSON extraction must succeed before the type-free identity projection can be ready. */
 export function readSchemaIdentities(options: SchemaQueryOptions): SchemaFact<SchemaIdentityModel> {
-  const schema = createSchemaQuery(options).schema();
+  return projectSchemaIdentities(createSchemaQuery(options).schema());
+}
+
+/** Identity and full-data demand can share one complete native extraction. */
+export function projectSchemaIdentities(schema: SchemaFact<SchemaModel>): SchemaFact<SchemaIdentityModel> {
   return schema.status === "ready" ? { ...schema, value: { tables: schema.value.tables.map(tableIdentity) } } : schema;
 }
 

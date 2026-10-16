@@ -104,6 +104,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (query.nodes.length > 0) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
+          case "schema-data":
           case "schema-identities":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
@@ -164,6 +165,17 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
+    },
+    schemaData: (owner, sources): ReturnType<NativeTypeContext["schemaData"]> => {
+      if (sources.length === 0) {
+        assertReadable();
+        throw new Error("native full schema data has no admitted source owner");
+      }
+      const registered = (requests.get(owner) ?? []).filter((query) => query.kind === "schema-data").flatMap((query) => [...query.nodes]);
+      if (new Set(registered).size !== new Set(sources).size) {
+        throw new Error("native full schema data roster is incomplete");
+      }
+      return selected(owner, "schema-data", sources).schemaData(sources);
     },
     schemaIdentity: (owner, sources): ReturnType<NativeTypeContext["schemaIdentity"]> => {
       if (sources.length === 0) {
@@ -326,6 +338,11 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   if (schemaSources.some((source) => owner(source) !== schemaProgram)) {
     throw new SemanticInventoryError("native schema roster crosses canonical owners");
   }
+  const schemaDataSources = [...new Set(queries.filter((query) => query.kind === "schema-data").flatMap((query) => [...query.nodes]))];
+  const schemaDataProgram = schemaDataSources[0] === undefined ? undefined : owner(schemaDataSources[0]);
+  if (schemaDataSources.some((source) => owner(source) !== schemaDataProgram)) {
+    throw new SemanticInventoryError("native schema roster crosses canonical owners");
+  }
   // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
   const inventory = createSemanticInventory({
     root,
@@ -358,6 +375,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
             ),
         }
       : {}),
+    ...schemaDataOptions(schemaDataProgram, schemaDataSources),
     ...(families.includes("export-declarations")
       ? {
           exportQueries: queries
@@ -445,6 +463,12 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    schemaData: (sources): ReturnType<NativeTypeFactReader["schemaData"]> => {
+      if (schemaDataProgram === undefined) {
+        throw new SemanticInventoryError("native schema roster owner is unavailable");
+      }
+      return inventory.schemaData(sources, schemaDataProgram);
+    },
     schemaIdentity: (sources): ReturnType<NativeTypeFactReader["schemaIdentity"]> => {
       if (schemaProgram === undefined) {
         throw new SemanticInventoryError("native schema roster owner is unavailable");
@@ -502,4 +526,23 @@ export function nativeTypeFactOptions(
     ...(context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts }),
     ...(context.nativeSourceView === undefined ? {} : { nativeSourceView: context.nativeSourceView }),
   };
+}
+
+function schemaDataOptions(
+  program: string | undefined,
+  sources: readonly import("ts-morph").SourceFile[],
+): Pick<import("../../floor/code-facts/semantic-inventory-contract.ts").SemanticInventoryOptions, "schemaDataQuery"> {
+  return program === undefined
+    ? {}
+    : {
+        schemaDataQuery: {
+          program,
+          sources: sources.map((source) => ({
+            file: canonicalInventoryPath(source.getFilePath()),
+            start: source.getStart(),
+            end: source.getEnd(),
+            kind: source.getKind(),
+          })),
+        },
+      };
 }

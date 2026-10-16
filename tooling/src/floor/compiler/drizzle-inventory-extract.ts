@@ -4,12 +4,15 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { readDrizzleCallEvidence } from "../code-facts/drizzle-evidence.ts";
 import type { InventorySchemaIdentityCatalog, InventorySchemaIdentityTable } from "../code-facts/drizzle-inventory-contract.ts";
-import { readSchemaIdentities, schemaIdentityQuery } from "../code-facts/schema-identity.ts";
+import { projectSchemaIdentities, schemaIdentityQuery } from "../code-facts/schema-identity.ts";
+import { projectSchemaData } from "../code-facts/schema-projection.ts";
+import { createSchemaQuery } from "../code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../code-facts/schema-value.ts";
 import type { InventoryBuildRequest, InventoryPartition, InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { drizzleSchemas, inventoryNodeQueryKey } from "../code-facts/semantic-inventory-contract.ts";
 import { contentVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { encodeDrizzleCallEvidence, encodeSchemaIdentityCatalog } from "./drizzle-evidence-encode.ts";
+import { encodeSchemaDataCatalog } from "./schema-projection-encode.ts";
 
 /** Start/end/kind select the exact authored node even when a parent shares its spelling and span. */
 export function inventoryQueryNode(source: SourceFile | undefined, query: InventorySpan): MorphNode {
@@ -28,12 +31,12 @@ export function extractDrizzleIdentities(
   sources: readonly SourceFile[],
   span: (node: MorphNode) => InventorySpan,
   assertSource: (source: SourceFile) => void,
-): Pick<InventoryPartition, "schemaIdentity" | "drizzleCalls"> {
+): Pick<InventoryPartition, "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const byFile = new Map(sources.map((source) => [span(source).file, source]));
   for (const source of sources) {
     assertSource(source);
   }
-  const selected = request.schemaSources?.map((query) => {
+  const selected = (request.schemaSources ?? request.schemaDataSources)?.map((query) => {
     const node = inventoryQueryNode(byFile.get(query.file), query);
     if (!Node.isSourceFile(node)) {
       throw new Error("native schema roster contains a non-source query");
@@ -41,25 +44,29 @@ export function extractDrizzleIdentities(
     return node;
   });
   const relativePath = (source: SourceFile): string => relative(request.root, source.getFilePath()).replaceAll("\\", "/");
-  const schemaIdentity =
+  assertCatalogRosters(request);
+  const schema =
     selected === undefined
       ? undefined
-      : encodeSchemaIdentityCatalog(
-          selected,
-          readSchemaIdentities({
-            files: selected,
-            relativePath,
-            checker: () => {
-              const source = sources[0];
-              if (source === undefined) {
-                throw new Error("native schema owner has no captured Project");
-              }
-              return source.getProject().getTypeChecker();
-            },
-          }),
-          span,
+      : createSchemaQuery({
+          files: selected,
           relativePath,
-        );
+          checker: () => {
+            const source = sources[0];
+            if (source === undefined) {
+              throw new Error("native schema owner has no captured Project");
+            }
+            return source.getProject().getTypeChecker();
+          },
+        }).schema();
+  const schemaIdentity =
+    request.schemaSources === undefined || selected === undefined || schema === undefined
+      ? undefined
+      : encodeSchemaIdentityCatalog(selected, projectSchemaIdentities(schema), span, relativePath);
+  const schemaData =
+    request.schemaDataSources === undefined || selected === undefined || schema === undefined
+      ? undefined
+      : encodeSchemaDataCatalog(selected, projectSchemaData(schema), span, relativePath);
   const dependency = request.schemaDependency;
   const catalog = dependency === undefined ? undefined : drizzleSchemas.catalog.parse(dependency.catalog);
   const declarations = catalog === undefined ? new Map<string, InventorySchemaIdentityTable>() : catalogDeclarations(catalog, byFile, span);
@@ -77,7 +84,11 @@ export function extractDrizzleIdentities(
   for (const source of sources) {
     assertSource(source);
   }
-  return { ...(schemaIdentity === undefined ? {} : { schemaIdentity }), ...(request.drizzleQueries === undefined ? {} : { drizzleCalls }) };
+  return {
+    ...(schemaData === undefined ? {} : { schemaData }),
+    ...(schemaIdentity === undefined ? {} : { schemaIdentity }),
+    ...(request.drizzleQueries === undefined ? {} : { drizzleCalls }),
+  };
 }
 
 function catalogDeclarations(
@@ -111,4 +122,15 @@ function catalogDeclarations(
     declarations.set(schemaDeclarationKey(declaration), table);
   }
   return declarations;
+}
+
+function assertCatalogRosters(request: InventoryBuildRequest): void {
+  if (
+    request.schemaSources !== undefined &&
+    request.schemaDataSources !== undefined &&
+    JSON.stringify(request.schemaSources.map(inventoryNodeQueryKey).toSorted()) !==
+      JSON.stringify(request.schemaDataSources.map(inventoryNodeQueryKey).toSorted())
+  ) {
+    throw new Error("native schema identity and full-data rosters disagree");
+  }
 }

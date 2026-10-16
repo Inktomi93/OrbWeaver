@@ -1,11 +1,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { SyntaxKind } from "ts-morph";
 import { readAuthoredRepositoryInventory } from "../compiler/authored-repository.ts";
 import { readCompilerPrograms } from "../compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
+import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY } from "./drizzle-inventory-contract.ts";
 import type {
   InventoryBuildRequest,
   InventoryExportDeclarationQuery,
@@ -47,6 +49,7 @@ import {
   readInventoryInputs,
   readInventoryInvocationEvidence,
   readInventoryPairs,
+  readInventorySchemaData,
   readInventorySchemaIdentity,
 } from "./semantic-inventory-queries.ts";
 import { inventoryReader } from "./semantic-inventory-reader.ts";
@@ -387,7 +390,7 @@ function reconcileDrizzleShapeDemand(context: {
   readonly assertCurrent: () => void;
 }): void {
   const { options, descriptors, partitions, queries, acquire } = context;
-  if (options.schemaQuery === undefined) {
+  if (options.schemaQuery === undefined && options.schemaDataQuery === undefined) {
     return;
   }
   // Pair acquisition may replace the catalog partition; consumers must join that final candidate, not its predecessor.
@@ -578,6 +581,7 @@ function nativeDemandRequest(
   | "invocationQueries"
   | "drizzleQueries"
   | "schemaSources"
+  | "schemaDataSources"
   | "schemaDependency"
 > {
   return {
@@ -591,6 +595,7 @@ function nativeDemandRequest(
           ...(options.schemaQuery?.program === program ? { schemaSources: options.schemaQuery.sources } : {}),
         }
       : {}),
+    ...(families.includes("schema-data") && options.schemaDataQuery?.program === program ? { schemaDataSources: options.schemaDataQuery.sources } : {}),
     ...(families.includes("export-declarations") ? { exportQueries: exportDemand(options, program) } : {}),
     ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
@@ -616,6 +621,7 @@ function coversNativeDemand(
     | "invocationQueries"
     | "drizzleQueries"
     | "schemaSources"
+    | "schemaDataSources"
     | "schemaDependency"
   >,
 ): boolean {
@@ -633,7 +639,8 @@ function catalogFirst(
   options: SemanticInventoryOptions,
   descriptors: readonly InventoryBuildRequest["descriptor"][],
 ): readonly InventoryBuildRequest["descriptor"][] {
-  return descriptors.toSorted((left, right) => Number(right.id === options.schemaQuery?.program) - Number(left.id === options.schemaQuery?.program));
+  const rank = (id: string): number => Number(id === options.schemaQuery?.program) * 2 + Number(id === options.schemaDataQuery?.program);
+  return descriptors.toSorted((left, right) => rank(right.id) - rank(left.id));
 }
 
 function assertDrizzleDemand(
@@ -641,6 +648,22 @@ function assertDrizzleDemand(
   descriptors: readonly InventoryBuildRequest["descriptor"][],
   families: readonly InventoryFamily[],
 ): void {
+  const data = options.schemaDataQuery;
+  if (families.includes("schema-data") !== (data !== undefined)) {
+    throw new Error("native full schema data requires an explicit closed source demand");
+  }
+  if (data !== undefined) {
+    const descriptor = descriptors.find(({ id }) => id === data.program);
+    if (
+      descriptor === undefined ||
+      new Set(data.sources.map(inventoryNodeQueryKey)).size !== data.sources.length ||
+      data.sources.some(
+        (node) => node.kind !== SyntaxKind.SourceFile || !descriptor.files.some((file) => canonicalInventoryPath(resolve(options.root, file)) === node.file),
+      )
+    ) {
+      throw new Error("native full schema data has no complete admitted source owner");
+    }
+  }
   const enabled = families.includes("drizzle-identities");
   const schema = options.schemaQuery;
   if (enabled !== (schema !== undefined) || enabled !== (options.drizzleQueries !== undefined)) {
@@ -685,12 +708,16 @@ function withSchemaDependency(
 function coversDrizzleDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  demand: Pick<InventoryBuildRequest, "drizzleQueries" | "schemaSources" | "schemaDependency">,
+  demand: Pick<InventoryBuildRequest, "drizzleQueries" | "schemaSources" | "schemaDataSources" | "schemaDependency">,
 ): boolean {
-  if (demand.drizzleQueries === undefined) {
+  if (demand.drizzleQueries === undefined && demand.schemaDataSources === undefined && !partition.families.includes("schema-data")) {
     return true;
   }
-  const expected = [...(demand.schemaSources === undefined ? [] : ["catalog"]), ...demand.drizzleQueries.map(drizzleQueryKey)].toSorted();
+  const expected = [
+    ...(demand.schemaSources === undefined ? [] : [SCHEMA_IDENTITY_CATALOG_KEY]),
+    ...(demand.schemaDataSources === undefined ? [] : [SCHEMA_DATA_CATALOG_KEY]),
+    ...(demand.drizzleQueries ?? []).map(drizzleQueryKey),
+  ].toSorted();
   const recorded = db
     .prepare("SELECT key FROM inventory_drizzle_evidence WHERE partition=? ORDER BY key")
     .all(partition.id)
@@ -708,7 +735,10 @@ function coversDrizzleDemand(
       return false;
     }
   }
-  for (const query of demand.drizzleQueries) {
+  if (!coversSchemaDataDemand(db, partition, demand.schemaDataSources)) {
+    return false;
+  }
+  for (const query of demand.drizzleQueries ?? []) {
     const call = readInventoryDrizzleCall(db, partition.id, query);
     if (call.basis.program !== demand.schemaDependency?.program || call.basis.partition !== demand.schemaDependency.partition) {
       return false;
@@ -784,4 +814,18 @@ function assertExportCoverage(db: ReturnType<typeof openInventoryDatabase>, cand
   if (!coversExportDemand(db, candidate, request.exportQueries ?? [])) {
     throw new Error(`native inventory worker supplied incomplete export source/name coverage: ${request.descriptor.id}`);
   }
+}
+
+function coversSchemaDataDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  sources: readonly InventorySpan[] | undefined,
+): boolean {
+  if (sources === undefined) {
+    return true;
+  }
+  const captured = readInventorySchemaData(db, partition.id);
+  return (
+    JSON.stringify(captured.sources.map(({ node }) => inventoryNodeQueryKey(node)).toSorted()) === JSON.stringify(sources.map(inventoryNodeQueryKey).toSorted())
+  );
 }

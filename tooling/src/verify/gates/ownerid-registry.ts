@@ -13,7 +13,7 @@
 // the schema BARREL being in the effective population — the §4.5 real-tree-anchor shape, which is NOT any
 // row's own path and therefore still sees a table that was deleted outright.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
+// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaDataFact`), which owns
 // Drizzle builder identity and the table/column model for every member.
 // POPULATION PORT: byte-identical. The legacy descriptor scoped with
 // `scanRoot: (p) => /\/packages\/db\/src\/schema\//u.test(`/${p}`)` and the final declares the PROVIDER'S
@@ -34,10 +34,10 @@
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const OWNER_COLUMN = "ownerId";
 /** The real-tree anchor for the stale arm. Never a classified row's own path (§4.4a): a deleted table's row
@@ -125,8 +125,8 @@ const staleMessage = (table: string): string =>
   `OWNERID_CLASSIFICATIONS names "${table}" but no schema table of that name carries an \`ownerId\` column — the ledger row now classifies nothing, and a classification that outlives its subject is the two-sided rot §4.4 exists to catch. Delete the stale entry (tooling/src/verify/gates/ownerid-registry.ts). See D23.`;
 
 /** Every SQL table name in the ready schema that carries an `ownerId` column. */
-function stampedTables(schema: SchemaModel): ReadonlyMap<string, SchemaModel["tables"][number]["columns"][number]> {
-  const stamped = new Map<string, SchemaModel["tables"][number]["columns"][number]>();
+function stampedTables(schema: SchemaProjectedModel): ReadonlyMap<string, SchemaProjectedModel["tables"][number]["columns"][number]> {
+  const stamped = new Map<string, SchemaProjectedModel["tables"][number]["columns"][number]>();
   for (const table of schema.tables) {
     for (const column of table.columns) {
       if (column.identity.propertyName === OWNER_COLUMN) {
@@ -145,13 +145,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, fact);
       const stamped = stampedTables(fact.value);
       for (const [table, column] of stamped) {
