@@ -24,13 +24,11 @@ Every observed entry has source evidence and a retain, remove, fix or unresolved
 
 ## Evidence
 
-Native `Response.formData` keeps line-local deprecation permissions; native controls reject adjacent calls. Review: `ba07cbab45`.
-
-Tracing uses explicit rejection handlers without a known-safe grant. Runtime controls and independent review confirm operation settlement and reporting failures. Whole-application qualification remains open.
-
-Diagnostics, budgets and verifier environment reads use the existing floor. Scoped controls preserve read timing, ceiling capture, fixture/child overrides and copy isolation. Security-reviewed database and ambient permissions retain product-key and awaited-input authority. Evidence: `0534d11010`, `88fd25fdcc` and `4a2b60faa6`. Changed subjects and configuration liveness remain unresolved.
+Native `Response.formData` permissions reject adjacent calls. Reviewed tracing preserves settlement and reporting failures without a known-safe grant. Diagnostics and environment controls preserve timing, overrides, copy isolation and security authority. Evidence: `ba07cbab45`, `0534d11010`, `88fd25fdcc` and `4a2b60faa6`. Changed subjects and configuration liveness remain unresolved.
 
 CSS/SQL mirror scanners consume quoted and comment spans without complexity exceptions. Native boundary, corrupt-span and differential controls preserve bytes, directive positions and dispatch. Review: `159dd24975`.
+
+Sources `1e387becf6` and `51207ba4a2` restore native backtracking checks for review-mirror and remove an inert setting. Scanners remain unchanged. Native controls, exact lint and Biome pass; Node retains only off-owned errors. Exact exceptions remain; broader helper permissions stay unresolved. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-regexp-disposition.md`.
 
 Reviewed `375e0c81e6` restores native duplicate-dependency errors while preserving peer and development declarations. Native controls pass; integration retains off-owned root diagnostics: `reports/review/ready-train-root-types.log`.
 
