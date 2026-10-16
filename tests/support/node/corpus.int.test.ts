@@ -93,7 +93,7 @@ async function assertNativeSearchReads(caller: Awaited<ReturnType<ServerTestHarn
   expect(await caller.search.spaceStatus(section.reads.status.input)).toEqual(section.reads.status.output);
 }
 
-test("a completed migrated capsule closes its real producers before cloning scrubbed independent DB and CAS bytes", async () => {
+test("a completed migrated capsule closes its real producers before cloning scrubbed independent DB and CAS bytes", { tags: ["slow"] }, async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
@@ -796,4 +796,4 @@ test("a completed migrated capsule closes its real producers before cloning scru
   await access(capsule.layout.root);
   await capsule[Symbol.asyncDispose]();
   await expect(access(capsule.layout.root)).rejects.toMatchObject({ code: "ENOENT" });
-}, 20_000);
+});

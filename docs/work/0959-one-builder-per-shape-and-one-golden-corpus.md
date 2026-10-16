@@ -31,7 +31,7 @@ Reviewed preset and automation wire schemas live in canonical contracts. Public 
 
 Integrated `0f010719c1` publishes native preset list/detail/effective reads, independently captured usage stages and live rules. Security review confirms native clone HTTP equality and ownership/member-splice rejection controls. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/959-preset-publication-independent-security-review.md`.
 
-The combined native capsule passes on `661739bb6e` with its unchanged guard and shared recipe. Evidence: `reports/runs/test/main-3259091-2026-10-15T16-27-16-101Z/test-report.json`. Owner-funded indexing and canonical image tie ordering remain production-owned. This selected case does not establish complete application qualification.
+Reviewed `10505b0a9c` applies the registered slow completion policy to the full native capsule. Its producers and assertions are unchanged; the current ordinary case passes. This is behavioral qualification, not a speedup or stable-timing claim. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-corpus-producer-cost-diagnosis.md`.
 
 Canonical row-builder chains and database fixtures are qualified within their selected cases, not every persistence verb. Evidence: `reports/review/959-table-builder-semantics.json`. Native output boundaries are inventoried; current supplier allocations and limits live in `reports/review/959-mounted-output-uses.json`.
 
@@ -39,4 +39,4 @@ Reviewed suppliers cover each canonical parser-output root in the frozen invento
 
 The committed corpus has lazy defaults, Node replay state and independent writable clones. Selected Node, CT, smoke and stage consumers pass without private selectors. Reviewed `08bdafe2ef` serves CT media through native viewer admission and production blob policy. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-ct-corpus-media-delivery.md` and adjacent security review.
 
-Reviewed plugin stages and injected-clock publication feed default native clones and Extensions. The public default-corpus E2E passes through an independent clone. Additive CI wiring retains ordinary smoke and its reports; actual GitHub qualification remains pending. Evidence: `reports/review/959-injected-clock-integrated-adoption.md`. Stable producer cost, complete adoption, smoke matrix and Snap qualification remain open.
+Reviewed plugin stages and injected-clock publication feed default native clones and Extensions. The public default-corpus E2E passes through an independent clone. Additive CI wiring retains ordinary smoke and its reports; actual GitHub qualification remains pending. Evidence: `reports/review/959-injected-clock-integrated-adoption.md`. Stable timing is unqualified. Complete adoption, smoke matrix and Snap qualification remain open.
