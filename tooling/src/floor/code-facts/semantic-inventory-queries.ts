@@ -61,6 +61,7 @@ const sourceRow = storedSourceSchema.extend({
 });
 const inputRow = inputSchema.extend({ path: inventoryStringSchema, version: inventoryStringSchema });
 const spanRow = spanSchema.extend({ file: inventoryStringSchema });
+const invocationAtomRow = invocationAtomSchema.extend({ key: inventoryStringSchema });
 const textRow = z.object({ ordinal: integer, value: z.string() });
 const factRow = z.object({
   kind: z.enum(INVENTORY_FACTS),
@@ -605,7 +606,7 @@ function* invocationEvidence(
     const atoms = db
       .prepare("SELECT ordinal,parent,key,kind,text,number,size FROM inventory_invocation_atom WHERE partition=? AND owner=? ORDER BY ordinal")
       .all(id, integer.parse(row["ordinal"]))
-      .map((value) => invocationAtomSchema.extend({ key: inventoryStringSchema }).parse(value));
+      .map((value) => invocationAtomRow.parse(value));
     if (atoms.length !== integer.parse(row["atomCount"])) {
       throw new SemanticInventoryError("native invocation fact graph is incomplete");
     }

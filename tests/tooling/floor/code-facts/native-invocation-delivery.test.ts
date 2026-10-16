@@ -10,7 +10,7 @@ import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { DEFAULT_INVENTORY_FAMILIES } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { DEFAULT_INVENTORY_FAMILIES, invocationAtomSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   latestInventoryGeneration,
   openInventoryDatabase,
@@ -845,6 +845,16 @@ test(
       }
       return iterate.apply(this, args);
     });
+    let atomRows = 0;
+    const all = StatementSync.prototype.all;
+    const atoms = vi.spyOn(StatementSync.prototype, "all").mockImplementation(function (this: StatementSync, ...args) {
+      const rows = all.apply(this, args);
+      if (this.sourceSQL.includes("FROM inventory_invocation_atom")) {
+        atomRows += rows.length;
+      }
+      return rows;
+    });
+    const extensions = vi.spyOn(invocationAtomSchema, "extend");
     try {
       for (const inventory of [first, second]) {
         for (const call of [...selected, ...selected]) {
@@ -857,7 +867,11 @@ test(
         borrowed.invocationEvidence(call, descriptor.id, PLAN);
       }
       expect(enumerations).toBeGreaterThan(unique.size * 2);
+      expect(atomRows).toBeGreaterThan(selected.length);
+      expect(extensions).toHaveBeenCalledTimes(0);
     } finally {
+      extensions.mockRestore();
+      atoms.mockRestore();
       observation.mockRestore();
     }
   },
