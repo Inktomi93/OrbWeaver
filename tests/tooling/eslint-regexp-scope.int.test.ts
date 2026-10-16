@@ -5,7 +5,15 @@ import { ESLint, Linter } from "eslint";
 const BACKTRACKING_RULE = "regexp/no-super-linear-backtracking";
 const REJECTED_SOURCE = "export const accepts = (value: string): boolean => /^(?:a+b?)+$/u.test(value);\n";
 const LINEAR_SOURCE = "export const accepts = (value: string): boolean => /^a+$/u.test(value);\n";
-const MIRROR_SUBJECTS = ["tooling/src/review-mirror/lib/strip.ts", "tooling/src/review-mirror/ops/generate.ts", "tooling/src/review-mirror/ops/run.ts"];
+const TOOL_SUBJECTS = [
+  "tooling/src/review-mirror/lib/strip.ts",
+  "tooling/src/review-mirror/ops/generate.ts",
+  "tooling/src/review-mirror/ops/run.ts",
+  "tooling/src/ast/lib/public-markers.ts",
+  "tooling/src/ast/cli.ts",
+  "tooling/src/codemod/lib/relocate-text.ts",
+  "tooling/src/codemod/lib/imports.ts",
+];
 const PACKAGE_SUBJECT = "packages/kit/src/regex/index.ts";
 
 async function regexpMessages(eslint: ESLint, linter: Linter, path: string, source: string): Promise<readonly Linter.LintMessage[]> {
@@ -36,12 +44,12 @@ async function regexpMessages(eslint: ESLint, linter: Linter, path: string, sour
   return messages;
 }
 
-test("review-mirror rejects native backtracking without losing the package boundary or linear expressions", async ({ repoRoot }) => {
+test("maintained tooling rejects native backtracking without losing the package boundary or linear expressions", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   const linter = new Linter({ cwd: repoRoot });
   const packageMessages = await regexpMessages(eslint, linter, PACKAGE_SUBJECT, REJECTED_SOURCE);
   expect(packageMessages.map(({ ruleId }) => ruleId)).toContain(BACKTRACKING_RULE);
-  for (const path of MIRROR_SUBJECTS) {
+  for (const path of TOOL_SUBJECTS) {
     const rejected = await regexpMessages(eslint, linter, path, REJECTED_SOURCE);
     expect(
       rejected.map(({ ruleId }) => ruleId),
