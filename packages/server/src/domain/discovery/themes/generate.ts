@@ -254,9 +254,13 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
 }
 
 // Delete before insert, clusters before assignments (FK order); `ownerId` scopes the delete, omitted/null = delete-ALL.
-// @orb-waive owner-scoped-writes(themeClusters): the un-scoped arm is the DELIBERATE box-wide rebuild (`ownerId` omitted/null — the admin/system regeneration of the whole analytics plane), and the per-owner arm one line down IS the owner predicate. No principal reaches this: `generateThemes` is a workload the enqueue already authorized, and the delete is always paired with the re-insert of what it just recomputed. Ends if a caller-supplied ownerId can ever be null/absent here.
+// @orb-waive owner-scoped-writes(themeClusters): the un-scoped arm is the DELIBERATE box-wide rebuild (`ownerId` omitted/null — the admin/system regeneration of the whole analytics plane), and the per-owner branch carries the owner predicate. No principal reaches this: `generateThemes` is a workload the enqueue already authorized, and the delete is always paired with the re-insert of what it just recomputed. Ends if a caller-supplied ownerId can ever be null/absent here.
 async function replaceAll(db: Db, clusterRows: readonly ClusterRow[], assignRows: readonly AssignRow[], ownerId?: UserId | null): Promise<void> {
-  const del = ownerId === undefined || ownerId === null ? db.delete(themeClusters) : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
+  const del =
+    ownerId === undefined || ownerId === null
+      ? // eslint-disable-next-line drizzle/enforce-delete-with-where -- The every-owner rebuild atomically replaces all clusters and their cascading assignments.
+        db.delete(themeClusters)
+      : db.delete(themeClusters).where(eq(themeClusters.ownerId, ownerId));
   const stmts: BatchStmt[] = [del];
   for (const chunk of chunkRows(clusterRows, rowsPerInsert(CLUSTER_COLS))) {
     stmts.push(db.insert(themeClusters).values(chunk));

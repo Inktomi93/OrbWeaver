@@ -1680,17 +1680,6 @@ function maintainedRulePacks() {
         "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
       },
     },
-    {
-      // The whole-table writes that are the operation, not a missing predicate: the derived analytics tables
-      // (duplicate pairs, theme clusters) are replaced wholesale by their box-wide rebuild, and the vector-table
-      // wipe empties a table by design. Each file's per-owner arm already carries its own `.where`.
-      files: [
-        "packages/server/src/domain/discovery/duplicates/generate.ts",
-        "packages/server/src/domain/discovery/themes/generate.ts",
-        "packages/server/src/domain/embeddings/persistence/clear.ts",
-      ],
-      rules: { "drizzle/enforce-delete-with-where": "off" },
-    },
     ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
       ...surface,
       // The captured DevTools frontend is vendored; its regexes are not ours to rewrite.

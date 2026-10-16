@@ -25,18 +25,23 @@ function assertNever(value: never): never {
 export async function clearVectorTable(db: Db, table: VectorTable): Promise<void> {
   switch (table) {
     case "character_embeddings":
+      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the character vector table.
       await db.delete(characterEmbeddings);
       return;
     case "image_embeddings":
+      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the image vector table.
       await db.delete(imageEmbeddings);
       return;
     case "chat_digests":
+      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the digest vector table.
       await db.delete(chatDigests);
       return;
     case "chat_segments":
+      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the segment vector table.
       await db.delete(chatSegments);
       return;
     case "document_chunks":
+      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the document vector table.
       await db.delete(documentChunks);
       return;
     default:

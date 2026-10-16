@@ -137,7 +137,8 @@ export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps,
 async function replaceAllPairs(db: Db, inserts: readonly DupInsert[], ownerId?: UserId | null): Promise<void> {
   const del =
     ownerId === undefined || ownerId === null
-      ? db.delete(duplicateCharacterPairs)
+      ? // eslint-disable-next-line drizzle/enforce-delete-with-where -- The every-owner rebuild atomically replaces all derived character pairs.
+        db.delete(duplicateCharacterPairs)
       : db
           .delete(duplicateCharacterPairs)
           .where(inArray(duplicateCharacterPairs.characterIdA, db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId))));
@@ -327,7 +328,8 @@ export async function computeChatDuplicatePairs(
 async function replaceAllChatPairs(db: Db, inserts: readonly ChatDupInsert[], ownerId?: UserId | null): Promise<void> {
   const del =
     ownerId === undefined || ownerId === null
-      ? db.delete(duplicateChatPairs)
+      ? // eslint-disable-next-line drizzle/enforce-delete-with-where -- The every-owner rebuild atomically replaces all derived chat pairs.
+        db.delete(duplicateChatPairs)
       : db.delete(duplicateChatPairs).where(
           inArray(
             duplicateChatPairs.chatIdA,
