@@ -1,24 +1,23 @@
 // Canonical identity and authored-value composition for the visitor-fed bus fact collector.
 
-import { readMemberReference, readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
-import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { CallExpression, Node as MorphNode, Symbol as MorphSymbol, Type, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Node as MorphNode, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
-import { readStaticAuthoredScalar, readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
+import type { ObservedReference, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import type {
   BusAnchor,
   BusDeclarationIdentity,
   BusMemberIdentity,
   BusOperationIdentity,
+  BusReadContext,
   BusTypedDiscriminators,
   BusUnresolvedIdentity,
   EmitterSinkKind,
 } from "../contract/bus-fact.ts";
-import type { GateFactContext } from "../contract/fact.ts";
+import { busAuthored, busCallableMember, busMember, busScalar, busStable, busString } from "./bus-native-read.ts";
 import { declarationHome } from "./declaration-home.ts";
-import { resolveCallableMember } from "./gate-contract-origin.ts";
-import { resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 export const BUS_UNION_SUFFIX = "BusEvent";
 /** The one live-fan member name. A candidate FILTER only — every candidate is proven by the declaration
@@ -33,11 +32,11 @@ export const busIdentityKey = ({ path, exportName }: BusDeclarationIdentity): st
  *  because the declarations reaching here come from a property symbol, not from this pass's walk: the
  *  absolute-suffix prefilter this used to carry still let `ctx.relativePath` decide, so a `bus-channel.ts`
  *  sitting in the Project but outside the effective population THREW instead of answering "not our door". */
-function declaredAt(context: GateFactContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
+function declaredAt(context: BusReadContext, sourceFile: import("ts-morph").SourceFile, path: string): boolean {
   return declarationHome(context, sourceFile) === path;
 }
 
-export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor {
+export function busAnchor(context: BusReadContext, node: MorphNode): BusAnchor {
   const at = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
   return { path: context.relativePath(node.getSourceFile()), line: at.line, column: at.column, node };
 }
@@ -47,8 +46,24 @@ export function busAnchor(context: GateFactContext, node: MorphNode): BusAnchor 
  *  key straight out of the population — and `ctx.relativePath` throws there (guide §3). `undefined` is not
  *  the alternative: a foreign alias keeps a real, comparable path, misses `byUnion` exactly as it always did,
  *  and the caller's existing refusal arm reports it. */
-export function busDeclarationIdentity(context: GateFactContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
+export function busDeclarationIdentity(context: BusReadContext, declaration: TypeAliasDeclaration): BusDeclarationIdentity {
   return { path: declarationHome(context, declaration.getSourceFile()), exportName: declaration.getName() };
+}
+
+/** Preserve declaration export-symbol identity, including authored named export lists. */
+export function busAliasExported(context: BusReadContext, alias: TypeAliasDeclaration): boolean {
+  if (alias.hasExportKeyword()) {
+    return true;
+  }
+  const readers = context.types(alias);
+  const symbol = readers.symbol(alias);
+  if (symbol === null) {
+    return false;
+  }
+  const key = readers.symbolData(symbol).key;
+  return readers
+    .exports(alias.getSourceFile())
+    .some((exported) => readers.symbolData(exported).key === key || readers.symbolData(readers.symbolData(exported).canonical).key === key);
 }
 
 /** Every declaration a symbol names, INCLUDING the ones behind an import alias. `getAliasedSymbol()`
@@ -66,9 +81,11 @@ export function busDeclarationIdentity(context: GateFactContext, declaration: Ty
  *  callable a call resolves to. Merging it into this helper would answer the import specifier AND the
  *  function declaration for an imported wrapper, fail its exactly-one test, and silently break relay
  *  propagation. Two readers, two questions; do not consolidate them. */
-function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly MorphNode[] {
+function aliasResolvedDeclarations(symbol: ObservedReference<"symbol"> | null, readers: TypeObservationReader): readonly MorphNode[] {
   const rows: MorphNode[] = [];
-  for (const declaration of [...(symbol?.getDeclarations() ?? []), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])]) {
+  for (const declaration of symbol === null
+    ? []
+    : [...readers.symbolData(symbol).declarations, ...readers.symbolData(readers.symbolData(symbol).canonical).declarations]) {
     if (!rows.some((existing) => existing.compilerNode === declaration.compilerNode)) {
       rows.push(declaration);
     }
@@ -77,13 +94,19 @@ function aliasResolvedDeclarations(symbol: MorphSymbol | undefined): readonly Mo
 }
 
 /** The ONE type-alias declaration a resolved type names, through {@link aliasResolvedDeclarations}. */
-export function canonicalTypeAlias(type: Type): TypeAliasDeclaration | undefined {
-  const declarations = aliasResolvedDeclarations(type.getAliasSymbol() ?? type.getSymbol()).filter(Node.isTypeAliasDeclaration);
+export function canonicalTypeAlias(context: BusReadContext, type: NativeTypeSelector, at: MorphNode): TypeAliasDeclaration | undefined {
+  const readers = context.types(at);
+  const selected = readers.select(type);
+  if (selected === null) {
+    return;
+  }
+  const data = readers.type(selected);
+  const declarations = aliasResolvedDeclarations(data.aliasSymbol ?? data.symbol, readers).filter(Node.isTypeAliasDeclaration);
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
 interface RefusalInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly stage: BusUnresolvedIdentity["stage"];
   readonly reason: ReferenceUnresolvedReason;
   readonly detail: string;
@@ -130,13 +153,13 @@ export function beltUnionNode(declaration: VariableDeclaration): MorphNode | und
 }
 
 export function beltMembers(
-  context: GateFactContext,
+  context: BusReadContext,
   declaration: VariableDeclaration,
   bus: BusDeclarationIdentity,
   unresolved: BusUnresolvedIdentity[],
 ): BusMemberIdentity[] {
   const initializer = declaration.getInitializerOrThrow();
-  const authored = readStaticAuthoredValue(Node.isSatisfiesExpression(initializer) ? initializer.getExpression() : initializer);
+  const authored = busAuthored(context, Node.isSatisfiesExpression(initializer) ? initializer.getExpression() : initializer);
   if (authored.kind === "unresolved") {
     unresolved.push(busRefusal({ context, stage: "member", reason: authored.reason, detail: authored.detail, node: authored.node, expected: bus }));
     return [];
@@ -166,7 +189,7 @@ export function beltMembers(
   return values.map(({ name, node }) => ({ bus, name, anchor: busAnchor(context, node) }));
 }
 
-function staticPropertyName(context: GateFactContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): string | undefined {
+function staticPropertyName(context: BusReadContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): string | undefined {
   if (Node.isIdentifier(node)) {
     return node.getText();
   }
@@ -176,7 +199,7 @@ function staticPropertyName(context: GateFactContext, node: MorphNode, unresolve
   if (!Node.isComputedPropertyName(node)) {
     return;
   }
-  const read = readStaticString(node.getExpression());
+  const read = busString(context, node.getExpression());
   if (read.kind === "unresolved") {
     unresolved.push(busRefusal({ context, stage: "emitter", reason: read.reason, detail: read.detail, node: read.node }));
     return;
@@ -184,8 +207,8 @@ function staticPropertyName(context: GateFactContext, node: MorphNode, unresolve
   return read.value;
 }
 
-function objectOf(context: GateFactContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): import("ts-morph").ObjectLiteralExpression | undefined {
-  const stable = resolveStableExpression(node);
+function objectOf(context: BusReadContext, node: MorphNode, unresolved: BusUnresolvedIdentity[]): import("ts-morph").ObjectLiteralExpression | undefined {
+  const stable = busStable(context, node);
   if (stable.kind === "unresolved") {
     if (!Node.isParameterDeclaration(stable.node)) {
       unresolved.push(busRefusal({ context, stage: "emitter", reason: stable.reason, detail: stable.detail, node: stable.node }));
@@ -196,7 +219,7 @@ function objectOf(context: GateFactContext, node: MorphNode, unresolved: BusUnre
 }
 
 export function authoredProperty(
-  context: GateFactContext,
+  context: BusReadContext,
   object: import("ts-morph").ObjectLiteralExpression,
   wanted: string,
   unresolved: BusUnresolvedIdentity[],
@@ -206,7 +229,7 @@ export function authoredProperty(
     .reduce<MorphNode | undefined>((value, property) => value ?? authoredPropertyEntry(context, property, wanted, unresolved), undefined);
 }
 
-function authoredPropertyEntry(context: GateFactContext, property: MorphNode, wanted: string, unresolved: BusUnresolvedIdentity[]): MorphNode | undefined {
+function authoredPropertyEntry(context: BusReadContext, property: MorphNode, wanted: string, unresolved: BusUnresolvedIdentity[]): MorphNode | undefined {
   if (Node.isSpreadAssignment(property)) {
     const spread = objectOf(context, property.getExpression(), unresolved);
     return spread === undefined ? undefined : authoredProperty(context, spread, wanted, unresolved);
@@ -220,8 +243,8 @@ function authoredPropertyEntry(context: GateFactContext, property: MorphNode, wa
   return Node.isPropertyAssignment(property) ? property.getInitializer() : property.getNameNode();
 }
 
-function parameterDeclaration(node: MorphNode): import("ts-morph").ParameterDeclaration | undefined {
-  const stable = resolveStableExpression(node);
+function parameterDeclaration(context: BusReadContext, node: MorphNode): import("ts-morph").ParameterDeclaration | undefined {
+  const stable = busStable(context, node);
   return stable.kind === "unresolved" && Node.isParameterDeclaration(stable.node) ? stable.node : undefined;
 }
 
@@ -231,12 +254,12 @@ export interface ParameterProjection {
 }
 
 export function parameterProjection(
-  context: GateFactContext,
+  context: BusReadContext,
   node: MorphNode,
   property: string,
   unresolved: BusUnresolvedIdentity[],
 ): ParameterProjection | undefined {
-  const direct = parameterDeclaration(node);
+  const direct = parameterDeclaration(context, node);
   if (direct !== undefined) {
     return { parameter: direct, memberPath: [] };
   }
@@ -245,25 +268,25 @@ export function parameterProjection(
   if (value === undefined) {
     return;
   }
-  const parameter = parameterDeclaration(value);
+  const parameter = parameterDeclaration(context, value);
   if (parameter !== undefined) {
     return { parameter, memberPath: [] };
   }
-  const member = readMemberReference(value);
+  const member = busMember(context, value);
   if (member.kind !== "resolved") {
     return;
   }
-  const receiver = parameterDeclaration(member.value.receiver);
+  const receiver = parameterDeclaration(context, member.value.receiver);
   return receiver === undefined ? undefined : { parameter: receiver, memberPath: [member.value.name] };
 }
 
 export function discriminatorValues(
-  context: GateFactContext,
+  context: BusReadContext,
   node: MorphNode,
   property: string,
   unresolved: BusUnresolvedIdentity[],
 ): readonly { readonly value: string; readonly node: MorphNode }[] {
-  const stable = resolveStableExpression(node);
+  const stable = busStable(context, node);
   if (stable.kind === "unresolved" && Node.isConditionalExpression(stable.node)) {
     return [
       ...discriminatorValues(context, stable.node.getWhenTrue(), property, unresolved),
@@ -280,7 +303,7 @@ export function discriminatorValues(
   if (valueNode === undefined || parameterProjection(context, valueNode, property, []) !== undefined) {
     return [];
   }
-  const value = readStaticAuthoredScalar(valueNode);
+  const value = busScalar(context, valueNode);
   if (value.kind === "unresolved") {
     unresolved.push(busRefusal({ context, stage: "emitter", reason: value.reason, detail: value.detail, node: value.node }));
     return [];
@@ -299,16 +322,23 @@ export function discriminatorValues(
  *  non-literal discriminator are all refusals the caller turns into a `BusUnresolvedIdentity`. The
  *  totality judgement (a set that is the WHOLE declared union proves no single producer) belongs to the
  *  caller, which is the only side that knows the bus's declared members. */
-export function typedDiscriminators(node: MorphNode): BusTypedDiscriminators {
-  const type = node.getType();
-  if (type.isAny() || type.isUnknown() || type.isNever()) {
+export function typedDiscriminators(context: BusReadContext, node: MorphNode): BusTypedDiscriminators {
+  const readers = context.types(node);
+  const selector = nodeTypeSelector(node);
+  const selected = readers.select(selector);
+  if (selected === null) {
+    throw new Error("bus flow Type is absent");
+  }
+  const type = readers.type(selected);
+  if (type.any || type.unknown || type.never) {
     return { kind: "refused", reason: "unsupported", detail: `the checker gives ${node.getKindName()} no readable event type` };
   }
-  const parts = type.isUnion() ? type.getUnionTypes() : [type];
+  const union = readers.unions(selector);
   const values: string[] = [];
-  for (const part of parts) {
-    const literal = part.getProperty("type")?.getTypeAtLocation(node).getLiteralValue();
-    if (typeof literal !== "string") {
+  for (const part of union.length > 0 ? union : [selector]) {
+    const property = { ...part, steps: [...part.steps, { kind: "property" as const, name: "type", at: node }] };
+    const literal = readers.select(property) === null ? null : readers.literal(property);
+    if (literal === null) {
       return { kind: "refused", reason: "unsupported", detail: `an event constituent of ${node.getKindName()} carries no literal type discriminator` };
     }
     values.push(literal);
@@ -323,45 +353,41 @@ export function typedDiscriminators(node: MorphNode): BusTypedDiscriminators {
  *  this shape, and reading the table as a producer is the measured false green the union's own header
  *  records — the table names every member, so the caller must relay the KEY, not harvest the table. This
  *  reader supplies the translation that makes the relayed key an honest emission. */
-export function discriminatorTranslation(receiver: MorphNode): ReadonlyMap<string, string> | undefined {
-  const properties = receiver.getType().getProperties();
+export function discriminatorTranslation(context: BusReadContext, receiver: MorphNode): ReadonlyMap<string, string> | undefined {
+  const readers = context.types(receiver);
+  const properties = readers.properties(nodeTypeSelector(receiver), receiver);
   const translation = new Map<string, string>();
   for (const property of properties) {
-    const literal = property.getTypeAtLocation(receiver).getProperty("type")?.getTypeAtLocation(receiver).getLiteralValue();
-    if (typeof literal !== "string") {
+    const selector = { ...property.selector, steps: [...property.selector.steps, { kind: "property" as const, name: "type", at: receiver }] };
+    const literal = readers.select(selector) === null ? null : readers.literal(selector);
+    if (literal === null) {
       return;
     }
-    translation.set(property.getName(), literal);
+    translation.set(property.name, literal);
   }
   return translation.size === 0 ? undefined : translation;
 }
 
-export function callName(call: CallExpression): string | undefined {
+export function callName(context: BusReadContext, call: CallExpression): string | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  const member = readMemberReference(expression);
+  const member = busMember(context, expression);
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
-export function typeForParameter(context: GateFactContext, call: CallExpression, index: number): Type | undefined {
-  const signature = context.checker().getResolvedSignature(call);
-  const parameter = signature?.getParameters()[index];
-  return parameter === undefined ? undefined : context.checker().getTypeOfSymbolAtLocation(parameter, call);
+export function typeForParameter(context: BusReadContext, call: CallExpression, index: number): NativeTypeSelector | undefined {
+  return context.types(call).callParameters(call)?.[index];
 }
 
 /** The ONE callable a call resolves to. Aliased-PREFERRED and exactly-one on purpose — see the note in
  *  {@link aliasResolvedDeclarations} for why this cannot use the merged helper. */
-export function callableDeclaration(call: CallExpression): MorphNode | undefined {
+export function callableDeclaration(context: BusReadContext, call: CallExpression): MorphNode | undefined {
   const expression = call.getExpression();
-  let symbol: import("ts-morph").Symbol | undefined;
-  if (Node.isIdentifier(expression)) {
-    symbol = expression.getSymbol();
-  } else if (readMemberReference(expression).kind === "resolved") {
-    symbol = expression.getSymbol();
-  }
-  const declarations = symbol?.getAliasedSymbol()?.getDeclarations() ?? symbol?.getDeclarations() ?? [];
+  const readers = context.types(call);
+  const symbol = Node.isIdentifier(expression) || busMember(context, expression).kind === "resolved" ? readers.symbol(expression) : null;
+  const declarations = symbol === null ? [] : readers.symbolData(readers.symbolData(symbol).canonical).declarations;
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
@@ -373,33 +399,36 @@ export function callableDeclaration(call: CallExpression): MorphNode | undefined
  *  channel — firehose or not — inherits that one declaration. */
 const BUS_CHANNEL_HOME = "packages/server/src/transport/trpc/bus-channel.ts";
 
-function busChannelPublisher(context: GateFactContext, receiver: MorphNode, name: string): boolean {
+function busChannelPublisher(context: BusReadContext, receiver: MorphNode, name: string): boolean {
   // Through the shared reader (#2097): this predicate already demanded a NON-EMPTY declaration set, so the
   // unresolved arms ("no property symbol", "a symbol with no declaration") collapse to the empty set and
   // answer false exactly as the open-coded `?? []` did.
-  const origin = resolveTypePropertyOrigin(receiver, name);
-  const declarations = origin.kind === "resolved" ? origin.value : [];
+  const readers = context.types(receiver);
+  const property = readers.properties({ ...nodeTypeSelector(receiver), steps: [{ kind: "nonnullable" }] }, receiver).find((entry) => entry.name === name);
+  const declarations = property === undefined ? [] : readers.symbolData(property.symbol).declarations;
   return declarations.length > 0 && declarations.every((declaration) => declaredAt(context, declaration.getSourceFile(), BUS_CHANNEL_HOME));
 }
 
-function injectedReceiver(receiver: MorphNode): boolean {
+function injectedReceiver(context: BusReadContext, receiver: MorphNode): boolean {
   let root = receiver;
   for (;;) {
-    const member = readMemberReference(root);
+    const member = busMember(context, root);
     if (member.kind !== "resolved") {
       break;
     }
     root = member.value.receiver;
   }
-  const stable = resolveStableExpression(root);
+  const stable = busStable(context, root);
   return stable.kind === "unresolved" && Node.isParameterDeclaration(stable.node);
 }
 
 /** Prove the call reaches an injected callable or the one bus-channel publisher, not a same-typed decoy. */
-export function emitterSink(context: GateFactContext, call: CallExpression): EmitterSinkKind | undefined {
+export function emitterSink(context: BusReadContext, call: CallExpression): EmitterSinkKind | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
-    const declarations = expression.getSymbol()?.getDeclarations() ?? [];
+    const readers = context.types(expression);
+    const symbol = readers.symbol(expression);
+    const declarations = symbol === null ? [] : readers.symbolData(symbol).declarations;
     if (declarations.length === 1 && Node.isParameterDeclaration(declarations[0])) {
       return "injected";
     }
@@ -407,33 +436,32 @@ export function emitterSink(context: GateFactContext, call: CallExpression): Emi
     // later, and `resolveCallableMember` follows an immutable const alias to the member it holds. Stopping
     // here would let a LOCAL NAME decide identity, which is the thing this family exists to refuse.
   }
-  const member = resolveCallableMember(expression);
+  const member = busCallableMember(context, expression);
   if (member === undefined) {
     return;
   }
-  if (injectedReceiver(member.receiver)) {
-    const declarations = member.receiver.getType().getProperty(member.name)?.getDeclarations() ?? [];
+  if (injectedReceiver(context, member.receiver)) {
+    const readers = context.types(member.receiver);
+    const property = readers.properties(nodeTypeSelector(member.receiver), member.receiver).find((entry) => entry.name === member.name);
+    const declarations = property === undefined ? [] : readers.symbolData(property.symbol).declarations;
     return declarations.some((declaration) => Node.isPropertySignature(declaration)) ? "injected" : undefined;
   }
   return member.name === PUBLISH_MEMBER && busChannelPublisher(context, member.receiver, member.name) ? "channel" : undefined;
 }
 
-export function operationIdentity(context: GateFactContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
-  const callable = resolveCallableOrigin(call);
-  if (callable.kind === "resolved" && callable.value.target.kind === "module" && callable.value.target.canonical.kind === "project") {
+export function operationIdentity(context: BusReadContext, call: CallExpression, bus: BusDeclarationIdentity): BusOperationIdentity {
+  const expression = call.getExpression();
+  const member = busMember(context, expression);
+  const wrapper = member.kind === "resolved" && ["call", "apply", "bind"].includes(member.value.name);
+  const callable = context.invocation(expression).modules.get(expression);
+  if (!wrapper && callable?.kind === "resolved" && callable.value.canonical.kind === "project") {
     return {
       kind: "module",
-      module: {
-        // The canonical source of a resolved callable is a RESOLUTION, not a visited node — the sharpest
-        // instance of the class in guide §3, and `ctx.relativePath` throws for the first one that lands
-        // in a dependency `.d.ts`.
-        path: declarationHome(context, callable.value.target.canonical.sourceFile),
-        exportName: callable.value.target.canonical.exportedName,
-      },
-      memberPath: callable.value.target.memberPath,
+      module: { path: declarationHome(context, callable.value.canonical.sourceFile), exportName: callable.value.canonical.exportedName },
+      memberPath: callable.value.memberPath,
     };
   }
-  return { kind: "injected", owner: bus, memberPath: [callName(call) ?? "<call>"] };
+  return { kind: "injected", owner: bus, memberPath: [callName(context, call) ?? "<call>"] };
 }
 
 // biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting typeDiscriminators to a sibling

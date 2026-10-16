@@ -257,8 +257,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
         sources: Parameters<NativeTypeContext["exportDeclarations"]>[0],
         name: string,
       ): ReturnType<NativeTypeContext["exportDeclarations"]> => nativeFacts(sources).exportDeclarations(input.ownerId, sources, name),
-      moduleTargets: (nodes: Parameters<NativeTypeContext["moduleTargets"]>[0]): ReturnType<NativeTypeContext["moduleTargets"]> =>
-        nativeFacts(nodes).moduleTargets(input.ownerId, nodes),
+      moduleTargets: (nodes: Parameters<NativeTypeContext["moduleTargets"]>[0], importer?: SourceFile): ReturnType<NativeTypeContext["moduleTargets"]> =>
+        nativeFacts(importer === undefined ? nodes : [importer]).moduleTargets(input.ownerId, nodes, importer),
       invocationEvidence: (
         nodes: Parameters<NativeTypeContext["invocationEvidence"]>[0],
         plan: Parameters<NativeTypeContext["invocationEvidence"]>[1],
@@ -277,7 +277,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
         nativeFacts(nodes).declarationOutputs(input.ownerId, nodes),
       prepareShapes: (sources: Parameters<NativeTypeContext["prepareShapes"]>[0]): void => nativeFacts(sources).prepareShapes(input.ownerId, sources),
       request: (query: NativeTypeRequest): void => {
-        const facts = nativeFacts(query.kind === "references" ? [query.importer] : query.nodes);
+        const importer = query.kind === "references" || query.kind === "module-targets" ? query.importer : undefined;
+        const facts = nativeFacts(importer === undefined ? query.nodes : [importer]);
         facts.request(input.ownerId, query);
       },
       castRelations: (nodes: Parameters<NativeTypeContext["castRelations"]>[0]): ReturnType<NativeTypeContext["castRelations"]> =>

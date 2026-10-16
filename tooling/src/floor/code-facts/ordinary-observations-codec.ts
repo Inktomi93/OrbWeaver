@@ -330,7 +330,9 @@ export function replayOrdinaryObservations(wire: InventoryOrdinaryObservations, 
               ...types.plan,
               selectors: types.plan.selectors.map((selector) => ({
                 base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: replay(selector.base.node) },
-                steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: replay(step.at) } : step)),
+                steps: selector.steps.map((step) =>
+                  step.kind === "property" || step.kind === "signature-parameter" ? { ...step, at: replay(step.at) } : step,
+                ),
                 displayAt: selector.displayAt === null ? null : replay(selector.displayAt),
               })),
             },

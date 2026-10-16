@@ -4,9 +4,14 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import type { Node } from "ts-morph";
 import { Project } from "ts-morph";
 import { vi } from "vitest";
-import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
+import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { openInventoryDatabase, readInventoryGeneration } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
+import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { nativeTypeFactSession, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -105,4 +110,102 @@ test("module-target requests preserve owner registration, seal and disposal boun
   expect(acquire).not.toHaveBeenCalled();
   session[Symbol.dispose]();
   expect(() => session.moduleTargets("owner", [door])).toThrow("disposed");
+});
+
+const span = (node: Node): InventorySpan => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() });
+
+test(
+  "contextual module requests preserve an explicitly registered non-primary importing world",
+  ({ scratch }) => {
+    fixture(scratch);
+    const workspace = createSemanticWorkspace({ root: scratch });
+    const importer = required(workspace.sourceViews("shared.ts").find((view) => view.program.descriptor.id === "tsconfig.tests-dom.json")).sourceFile;
+    const door = required(importer.getImportDeclarations()[0]);
+    const acquire = projectCtx(scratch).nativeTypeFacts;
+    if (acquire === undefined) {
+      throw new Error("contextual module acquisition missing");
+    }
+    using owner = acquire();
+    owner.request("owner", { kind: "module-targets", nodes: [door], importer });
+    owner.seal(new Set(["owner"]));
+    expect(owner.moduleTargets("owner", [door], importer).get(door)?.getBaseName()).toBe("browser.ts");
+    importer.replaceWithText(importer.getFullText());
+    expect(() => owner.moduleTargets("owner", [door], importer)).toThrow("epoch is stale");
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "contextual module demand captures non-authored imports, keeps prospective closure refusals and refuses missing available rows",
+  ({ scratch }) => {
+    const write = (file: string, text: string): void => {
+      mkdirSync(dirname(join(scratch, file)), { recursive: true });
+      writeFileSync(join(scratch, file), text);
+    };
+    write(".gitignore", ".cache\nnode_modules\n");
+    write("tsconfig.json", JSON.stringify({ compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" }, files: ["root.ts"] }));
+    write("root.ts", 'import "./node_modules/fixture/bridge.ts";export const root=1;');
+    write("node_modules/fixture/bridge.ts", 'import "./leaf.ts";import "./missing.ts";');
+    write("node_modules/fixture/leaf.ts", "export const leaf=1;");
+    write("outside.ts", 'import "./outside-target.ts";');
+    execFixtureGit(scratch, ["init", "-q"]);
+    const workspace = createSemanticWorkspace({ root: scratch });
+    const program = required(workspace.program("tsconfig.json"));
+    const importer = required(program.sourceFile(join(scratch, "root.ts")));
+    const bridge = required(required(importer.getImportDeclarations()[0]).getModuleSpecifierSourceFile());
+    const door = required(bridge.getImportDeclarations()[0]);
+    const absent = required(bridge.getImportDeclarations()[1]);
+    const outside = new Project({ useInMemoryFileSystem: true }).createSourceFile(join(scratch, "outside.ts"), 'import "./outside-target.ts";');
+    const unavailable = required(outside.getImportDeclarations()[0]);
+    const queries = [door, absent, unavailable].map((node) => ({ program: program.descriptor.id, query: { importer: span(importer), node: span(node) } }));
+    let baselineGeneration = 0;
+    {
+      using baseline = createSemanticInventory({ root: scratch, families: ["modules"], programs: [program.descriptor] });
+      baselineGeneration = baseline.generation;
+      expect(baseline.moduleTarget(required(importer.getImportDeclarations()[0]), program.descriptor.id)?.getFilePath()).toBe(bridge.getFilePath());
+      expect(() => baseline.moduleTarget(door, program.descriptor.id)).toThrow("not admitted");
+    }
+    let generation = 0;
+    {
+      using inventory = createSemanticInventory({ root: scratch, families: ["modules"], programs: [program.descriptor], moduleTargetQueries: queries });
+      generation = inventory.generation;
+      expect(generation).toBeGreaterThan(baselineGeneration);
+      expect(inventory.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(join(scratch, "node_modules/fixture/leaf.ts"));
+      expect(inventory.moduleTarget(absent, program.descriptor.id, importer)).toBeUndefined();
+      expect(() => inventory.moduleTarget(unavailable, program.descriptor.id, importer)).toThrow("outside its importing closure");
+      expect(() => inventory.moduleTarget(door, program.descriptor.id, outside)).toThrow("not admitted");
+      const foreignImporter = importer.getProject().createSourceFile(join(scratch, "foreign.ts"), "export const foreign=1;");
+      expect(() => inventory.moduleTarget(door, program.descriptor.id, foreignImporter)).toThrow("not admitted");
+    }
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    using borrowed = inventoryReader(scratch, generation, readInventoryGeneration(db, generation), {
+      db,
+      moduleTargetQueries: queries,
+      dispose: () => undefined,
+    });
+    expect(borrowed.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(join(scratch, "node_modules/fixture/leaf.ts"));
+    db.prepare("DELETE FROM inventory_declaration WHERE kind='modules'").run();
+    db.prepare("DELETE FROM inventory_fact WHERE kind='modules'").run();
+    expect(() => borrowed.moduleTarget(door, program.descriptor.id, importer)).toThrow("coverage is unavailable");
+    borrowed[Symbol.dispose]();
+    expect(() => borrowed.moduleTarget(door, program.descriptor.id, importer)).toThrow("disposed");
+  },
+  scaledBudget(30_000),
+);
+
+test("contextual module registration binds exact importer identities and same-text epochs before acquisition", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const importer = project.createSourceFile("/root.ts", 'import "./target.ts";');
+  const other = project.createSourceFile("/other.ts", 'import "./target.ts";');
+  const door = required(importer.getImportDeclarations()[0]);
+  const acquire = vi.fn(() => {
+    throw new Error("unexpected acquisition");
+  });
+  using owner = nativeTypeFactSession(acquire);
+  owner.request("owner", { kind: "module-targets", nodes: [door], importer });
+  owner.seal(new Set(["owner"]));
+  expect(() => owner.moduleTargets("owner", [door], other)).toThrow("not registered");
+  importer.replaceWithText(importer.getFullText());
+  expect(() => owner.moduleTargets("owner", [door], importer)).toThrow("epoch is stale");
+  expect(acquire).not.toHaveBeenCalled();
 });

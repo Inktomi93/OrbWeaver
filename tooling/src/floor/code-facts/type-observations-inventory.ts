@@ -3,13 +3,28 @@ import { z } from "zod";
 import { scalarTypeSelectionsSchema } from "./projection-inventory-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
 import type { NativeTypeObservation, TypeObservationDemand, TypeObservationValues } from "./type-observations-contract.ts";
-import { TYPE_OBSERVATION_PROFILE } from "./type-observations-contract.ts";
+import { TYPE_OBSERVATION_PROFILE, TYPE_OBSERVATION_QUESTION_KINDS, TYPE_OBSERVATION_VALUE_FACETS } from "./type-observations-contract.ts";
 import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
 
 export type InventoryTypeObservations = TypeObservationValues<InventorySpan>;
 const index = z.number().int().nonnegative();
 export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.ZodType<TypeObservationDemand<Anchor>> {
-  return z.strictObject({ profile: z.literal(TYPE_OBSERVATION_PROFILE), sources: z.array(span), nodes: z.array(span) });
+  return z.strictObject({
+    profile: z.literal(TYPE_OBSERVATION_PROFILE),
+    sources: z.array(span),
+    nodes: z.array(span),
+    questions: z
+      .array(
+        z.strictObject({
+          kind: z.enum(TYPE_OBSERVATION_QUESTION_KINDS),
+          nodes: z.array(span),
+          files: z.array(z.string()).optional(),
+          properties: z.array(z.string()).optional(),
+          valueFacets: z.array(z.enum(TYPE_OBSERVATION_VALUE_FACETS)).optional(),
+        }),
+      )
+      .optional(),
+  });
 }
 function observation<Value>(value: z.ZodType<Value>): z.ZodType<NativeTypeObservation<Value>> {
   return z.discriminatedUnion("kind", [
@@ -19,7 +34,7 @@ function observation<Value>(value: z.ZodType<Value>): z.ZodType<NativeTypeObserv
   ]);
 }
 export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodType<InventoryTypeObservations> {
-  const symbol = z.strictObject({ name: z.string(), declarations: z.array(span), canonical: index });
+  const symbol = z.strictObject({ name: z.string(), declarations: z.array(span), canonical: index, valueDeclaration: span.nullable().optional() });
   const type = z.strictObject({
     symbol: index.nullable(),
     aliasSymbol: index.nullable(),
@@ -27,6 +42,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
     typeParameter: z.boolean(),
     unionCount: index,
     tupleCount: index,
+    stringLiteral: z.string().nullable().optional(),
   });
   return z
     .strictObject({
@@ -40,6 +56,10 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       callReturns: z.array(z.strictObject({ node: span, values: z.array(index) })),
       computedNames: z.array(z.strictObject({ selector: index, values: z.array(z.strictObject({ declaration: span, names: z.array(span) })) })),
       signatures: z.array(z.strictObject({ call: span, fact: observation(z.strictObject({ declaration: span, parameters: z.array(index) })) })),
+      definitions: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
+      callParameters: z.array(z.strictObject({ call: span, parameterCount: index.nullable(), values: z.array(index).nullable() })).optional(),
+      signatureParameters: z.array(z.strictObject({ selector: index, at: span, parameterCounts: z.array(index), values: z.array(z.array(index)) })).optional(),
+      valueProfiles: z.array(z.strictObject({ node: span, facets: z.array(z.enum(TYPE_OBSERVATION_VALUE_FACETS)) })).optional(),
       dependencies: z.array(z.strictObject({ type: index, owner: span, at: span, witness: span.nullable() })),
       localTargets: z.array(z.strictObject({ node: span, symbol: index.nullable() })),
       exports: z.array(z.strictObject({ source: span, symbols: z.array(index), default: index.nullable(), localTargets: z.array(index) })),

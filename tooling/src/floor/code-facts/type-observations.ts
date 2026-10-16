@@ -24,7 +24,7 @@ import { captureScalarTypeSelections, readNativeSignatureSlots, readNativeTypeSe
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 
 /** Native/isolated defaults and persisted capture ask the same finite primitive questions. */
-export function createTypeObservationCapture(owner: TypeObservationCaptureOwner): TypeObservationCapture {
+export function createTypeObservationCapture(owner: TypeObservationCaptureOwner, rawSlots = false): TypeObservationCapture {
   const scope = {};
   let capturedProgram: ts.Program | undefined = owner.anchor.getProject().getProgram().compilerObject;
   const admittedSources = new Map<SourceFile, SourceFile["compilerNode"]>();
@@ -58,7 +58,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
     JSON.stringify({
       ...selector,
       base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: nodeId(selector.base.node) },
-      steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: nodeId(step.at) } : step)),
+      steps: selector.steps.map((step) => (step.kind === "property" || step.kind === "signature-parameter" ? { ...step, at: nodeId(step.at) } : step)),
       displayAt: selector.displayAt === null ? null : nodeId(selector.displayAt),
     });
   const selectors: NativeTypeSelector[] = [];
@@ -66,6 +66,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
   const selectorIds = new Map<string, number>();
   const symbols: NativeObservedSymbol[] = [];
   const symbolIds = new Map<object, number>();
+  const nativeSymbols: MorphSymbol[] = [];
   const symbolKeys: object[] = [];
   const typeKeys = new Map<object, object>();
   const types: (NativeObservedType | null)[] = [];
@@ -88,6 +89,9 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
   const exports = new Map<SourceFile, NativeTypeObservations["exports"][number]>();
   const locals = new Map<MorphNode, number | null>();
   const computed = new Map<number, NativeTypeObservations["computedNames"][number]>();
+  const definitions = new Map<MorphNode, readonly MorphNode[]>();
+  const callParameters = new Map<MorphNode, NonNullable<NativeTypeObservations["callParameters"]>[number]>();
+  const signatureParameters: NonNullable<NativeTypeObservations["signatureParameters"]>[number][] = [];
   const pairs: { left: number; right: number }[] = [];
   const pairIds = new Map<string, number>();
   const typeRef = (index: number): ObservedReference<"type"> => ({ kind: "type", scope, index });
@@ -109,6 +113,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
     }
     const index = symbols.length;
     symbolIds.set(symbol.compilerSymbol, index);
+    nativeSymbols.push(symbol);
     symbolKeys.push({});
     const declarations = symbolDeclarations(symbol);
     declarations.forEach(admit);
@@ -249,6 +254,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
         unionCount: value.getUnionTypes().length,
         tupleCount: value.getTupleElements().length,
         symbol: types[index]?.symbol === null || types[index]?.symbol === undefined ? null : symbolRef(types[index].symbol),
+        aliasSymbol: types[index]?.aliasSymbol === null || types[index]?.aliasSymbol === undefined ? null : symbolRef(types[index].aliasSymbol),
       };
     },
     symbol: (node) => {
@@ -420,11 +426,102 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
       computed.set(index, { selector: index, values });
       return values;
     },
+    definitions: (node) => {
+      admit(node);
+      if (!Node.isIdentifier(node)) {
+        throw new Error("native definition-node query is not an identifier");
+      }
+      let values = definitions.get(node);
+      if (values === undefined) {
+        values = node.getDefinitionNodes();
+        values.forEach(admit);
+        definitions.set(node, values);
+      }
+      return values;
+    },
+    callParameters: (call) => {
+      admit(call);
+      if (!Node.isCallExpression(call)) {
+        throw new Error("native instantiated parameter query is not a call");
+      }
+      if (!callParameters.has(call)) {
+        const signature = call.getProject().getTypeChecker().getResolvedSignature(call);
+        const parameters = signature?.getParameters();
+        callParameters.set(call, {
+          call,
+          parameterCount: parameters?.length ?? null,
+          values:
+            parameters === undefined
+              ? null
+              : parameters.map((_parameter, index) => read({ base: { kind: "call-parameter", node: call, index }, steps: [], displayAt: null })),
+        });
+      }
+      return callParameters.get(call)?.values?.map(selectorAt) ?? null;
+    },
+    signatureParameters: (selector, at) => {
+      const index = read(selector);
+      admit(at);
+      let row = signatureParameters.find((entry) => entry.selector === index && entry.at === at);
+      if (row === undefined) {
+        const parameters = valueAt(index)
+          .getCallSignatures()
+          .map((signature) => signature.getParameters());
+        row = {
+          selector: index,
+          at,
+          parameterCounts: parameters.map((values) => values.length),
+          values: parameters.map((values, signatureIndex) =>
+            values.map((_parameter, parameterIndex) =>
+              read({ ...selector, steps: [...selector.steps, { kind: "signature-parameter", signature: signatureIndex, index: parameterIndex, at }] }),
+            ),
+          ),
+        };
+        signatureParameters.push(row);
+      }
+      return row.values.map((parameters) => parameters.map(selectorAt));
+    },
+    literal: (selector) => {
+      const index = read(selector);
+      const value = types[index];
+      if (!rawSlots || value === undefined || value === null) {
+        throw new Error("native string literal question was not captured");
+      }
+      if (value.stringLiteral === undefined) {
+        const literal = valueAt(index).getLiteralValue();
+        const answer = typeof literal === "string" ? literal : null;
+        types[index] = { ...value, stringLiteral: answer };
+        return answer;
+      }
+      return value.stringLiteral;
+    },
+    valueDeclaration: (reference) => {
+      const index = requireRef(reference, "symbol");
+      const value = symbols[index];
+      const symbol = nativeSymbols[index];
+      if (!rawSlots || value === undefined || symbol === undefined) {
+        throw new Error("native symbol value declaration was not captured");
+      }
+      if (value.valueDeclaration === undefined) {
+        const declaration = symbol.getValueDeclaration() ?? null;
+        if (declaration !== null) {
+          admit(declaration);
+        }
+        symbols[index] = { ...value, valueDeclaration: declaration };
+        return declaration;
+      }
+      return value.valueDeclaration;
+    },
+  };
+  const admitValueProfiles = (values: NativeTypeObservations["valueProfiles"]): void => {
+    for (const value of values ?? []) {
+      admit(value.node);
+    }
   };
   return {
     reader,
-    finish: (demand: TypeObservationDemand): NativeTypeObservations => {
+    finish: (demand: TypeObservationDemand, valueProfiles): NativeTypeObservations => {
       admit(owner.anchor);
+      admitValueProfiles(valueProfiles);
       for (const node of demand.sources) {
         if (!Node.isSourceFile(node)) {
           throw new Error("native type export source is not a SourceFile");
@@ -441,6 +538,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
       const result: NativeTypeObservations = {
         anchor,
         demand,
+        ...(valueProfiles === undefined ? {} : { valueProfiles }),
         assertNode: (node): void => {
           for (const [source, epoch] of epochs) {
             if (source.wasForgotten() || source.compilerNode !== epoch) {
@@ -459,6 +557,13 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
         properties: [...properties.values()],
         callReturns: [...callReturns.values()],
         computedNames: [...computed.values()],
+        ...(rawSlots
+          ? {
+              definitions: [...definitions].map(([node, values]) => ({ node, values })),
+              callParameters: [...callParameters.values()],
+              signatureParameters,
+            }
+          : {}),
         localTargets: [...locals].map(([node, symbol]) => ({ node, symbol })),
         signatures: [...signatures.values()],
         dependencies: [...dependencies.values()],
@@ -468,6 +573,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
       capturedProgram = undefined;
       selected.length = 0;
       symbolIds.clear();
+      nativeSymbols.length = 0;
       typeKeys.clear();
       nativeSignatures.clear();
       propertyTypes.clear();
@@ -479,9 +585,24 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner)
 
 /** One complete fixed profile, captured and checked before the native factory releases its owner. */
 export function captureTypeObservations(demand: TypeObservationDemand, owner: TypeObservationCaptureOwner): NativeTypeObservations {
-  const capture = createTypeObservationCapture(owner);
-  observeAuthoredTypeSlots(demand, capture.reader);
-  const facts = capture.finish(demand);
+  const capture = createTypeObservationCapture(owner, demand.questions !== undefined);
+  const values = new Map<MorphNode, Set<NonNullable<NonNullable<TypeObservationDemand["questions"]>[number]["valueFacets"]>[number]>>();
+  observeAuthoredTypeSlots(demand, capture.reader, (node, facets) => {
+    if (owner.profile === undefined) {
+      throw new Error("native value-profile demand has no captured owner");
+    }
+    owner.admit(node);
+    owner.profile(node, facets);
+    const requested = values.get(node) ?? new Set();
+    for (const facet of facets) {
+      requested.add(facet);
+    }
+    values.set(node, requested);
+  });
+  const facts = capture.finish(
+    demand,
+    demand.questions?.some((q) => q.valueFacets !== undefined) === true ? [...values].map(([node, facets]) => ({ node, facets: [...facets] })) : undefined,
+  );
   assertTypeObservationCoverage(
     facts,
     (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]),

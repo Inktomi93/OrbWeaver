@@ -142,6 +142,8 @@ export function readNativeTypeSelectionStep(type: Type, step: NativeTypeSelector
   switch (step.kind) {
     case "property":
       return type.getProperty(step.name)?.getTypeAtLocation(step.at);
+    case "signature-parameter":
+      return type.getCallSignatures()[step.signature]?.getParameters()[step.index]?.getTypeAtLocation(step.at);
     case "nonnullable":
       return type.getNonNullableType();
     case "array-element-or-self":
@@ -192,6 +194,12 @@ function selectedBase(selector: NativeTypeSelector, schema: SchemaModel | undefi
     }
     return readNativeSignatureSlots(base.node)?.parameters[base.index]?.getType();
   }
+  if (base.kind === "call-parameter") {
+    if (!Node.isCallExpression(base.node)) {
+      throw new Error("native instantiated parameter Type selector is not a call");
+    }
+    return base.node.getProject().getTypeChecker().getResolvedSignature(base.node)?.getParameters()[base.index]?.getTypeAtLocation(base.node);
+  }
   return base.node.getType();
 }
 
@@ -225,7 +233,7 @@ function captureSelections<Value extends NativeScalarSelectedType>(
     ...plan.selectors.flatMap((selector) => [
       ...(selector.base.kind === "schema-column" ? [] : [selector.base.node]),
       ...(selector.displayAt === null ? [] : [selector.displayAt]),
-      ...selector.steps.flatMap((step) => (step.kind === "property" ? [step.at] : [])),
+      ...selector.steps.flatMap((step) => (step.kind === "property" || step.kind === "signature-parameter" ? [step.at] : [])),
     ]),
   ];
   const first = nodes[0];

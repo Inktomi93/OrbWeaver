@@ -1,6 +1,13 @@
-import { readMemberReference, readStaticString, resolveModuleMemberOrigin, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import {
+  readMemberReference,
+  readMemberReferenceWithName,
+  readStaticString,
+  resolveModuleMemberOrigin,
+  resolveStableExpression,
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { BindingElement, Expression, Identifier, Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import type { ModuleOriginServices } from "../contract/origin-verdict.ts";
 
 export interface CallableMember {
   readonly name: string;
@@ -20,25 +27,25 @@ function unwrap(node: MorphNode): MorphNode {
   return current;
 }
 
-function oneDeclaration(identifier: Identifier): MorphNode | undefined {
-  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+function oneDeclaration(identifier: Identifier, services?: ModuleOriginServices): MorphNode | undefined {
+  const declarations = services === undefined ? (identifier.getSymbol()?.getDeclarations() ?? []) : services.declarations(identifier);
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
-function bindingPropertyName(binding: BindingElement): string | undefined {
+function bindingPropertyName(binding: BindingElement, strings: typeof readStaticString = readStaticString): string | undefined {
   const property = binding.getPropertyNameNode() ?? binding.getNameNode();
   if (Node.isIdentifier(property)) {
     return property.getText();
   }
-  const read = readStaticString(Node.isComputedPropertyName(property) ? property.getExpression() : property);
+  const read = strings(Node.isComputedPropertyName(property) ? property.getExpression() : property);
   return read.kind === "resolved" ? read.value : undefined;
 }
 
-function memberFromBinding(binding: BindingElement): CallableMember | undefined {
+function memberFromBinding(binding: BindingElement, strings: typeof readStaticString = readStaticString): CallableMember | undefined {
   const pattern = binding.getParent();
   const variable = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
   const receiver = variable?.getInitializer();
-  const name = bindingPropertyName(binding);
+  const name = bindingPropertyName(binding, strings);
   if (!Node.isObjectBindingPattern(pattern) || variable === undefined || pattern.getParent() !== variable || receiver === undefined || name === undefined) {
     return;
   }
@@ -46,7 +53,12 @@ function memberFromBinding(binding: BindingElement): CallableMember | undefined 
 }
 
 /** Resolve the member ultimately invoked through const aliases, destructuring, and call/apply/bind. */
-export function resolveCallableMember(raw: MorphNode, seen: Set<object> = new Set()): CallableMember | undefined {
+export function resolveCallableMember(
+  raw: MorphNode,
+  seen: Set<object> = new Set(),
+  services?: ModuleOriginServices,
+  strings: typeof readStaticString = readStaticString,
+): CallableMember | undefined {
   const node = unwrap(raw);
   const identity: object = node.compilerNode;
   if (seen.has(identity)) {
@@ -54,26 +66,26 @@ export function resolveCallableMember(raw: MorphNode, seen: Set<object> = new Se
   }
   seen.add(identity);
   if (Node.isCallExpression(node)) {
-    return resolveCallableMember(node.getExpression(), seen);
+    return resolveCallableMember(node.getExpression(), seen, services, strings);
   }
   if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
-    const read = readMemberReference(node);
+    const read = services === undefined ? readMemberReference(node) : readMemberReferenceWithName(node, services.readComputedName);
     if (read.kind === "unresolved") {
       return;
     }
     return INVOCATION_WRAPPERS.has(read.value.name)
-      ? resolveCallableMember(read.value.receiver, seen)
+      ? resolveCallableMember(read.value.receiver, seen, services, strings)
       : { name: read.value.name, receiver: read.value.receiver, nameNode: read.value.nameNode };
   }
   if (!Node.isIdentifier(node)) {
     return;
   }
-  const declaration = oneDeclaration(node);
+  const declaration = oneDeclaration(node, services);
   if (Node.isVariableDeclaration(declaration)) {
     const initializer = declaration.getInitializer();
-    return initializer === undefined ? undefined : resolveCallableMember(initializer, seen);
+    return initializer === undefined ? undefined : resolveCallableMember(initializer, seen, services, strings);
   }
-  return Node.isBindingElement(declaration) ? memberFromBinding(declaration) : undefined;
+  return Node.isBindingElement(declaration) ? memberFromBinding(declaration, strings) : undefined;
 }
 
 /** A `.bind(...)` call only creates a callable; the later invocation is the prohibited operation. */

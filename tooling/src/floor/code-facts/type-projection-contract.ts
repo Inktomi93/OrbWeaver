@@ -150,12 +150,13 @@ export function assertTypeProjectionCoverage<
 
 export type NativeTypeSelectionBase<Anchor> =
   | { readonly kind: "node" | "contextual" | "return"; readonly node: Anchor }
-  | { readonly kind: "resolved-parameter"; readonly node: Anchor; readonly index: number }
+  | { readonly kind: "resolved-parameter" | "call-parameter"; readonly node: Anchor; readonly index: number }
   | { readonly kind: "schema-column"; readonly column: string };
 export type NativeTypeSelectionStep<Anchor> =
   | { readonly kind: "nonnullable" | "array-element-or-self" | "array-element" | "string-index" | "number-index" }
   | { readonly kind: "type-argument" | "call-return" | "tuple-member" | "union-part" | "intersection-part"; readonly index: number }
-  | { readonly kind: "property"; readonly name: string; readonly at: Anchor };
+  | { readonly kind: "property"; readonly name: string; readonly at: Anchor }
+  | { readonly kind: "signature-parameter"; readonly signature: number; readonly index: number; readonly at: Anchor };
 export interface NativeTypeSelector<Anchor = Node> {
   readonly base: NativeTypeSelectionBase<Anchor>;
   readonly steps: readonly NativeTypeSelectionStep<Anchor>[];
@@ -309,7 +310,7 @@ export function typeSelectionIndex<Anchor>(facts: NativeTypeSelections<Anchor>, 
       : right.kind !== "schema-column" &&
         left.kind === right.kind &&
         left.node === right.node &&
-        (left.kind !== "resolved-parameter" || (right.kind === "resolved-parameter" && left.index === right.index));
+        (!("index" in left) || ("index" in right && left.index === right.index));
   const index = facts.plan.selectors.findIndex(
     (candidate) =>
       equalBase(candidate.base, selector.base) &&
@@ -317,9 +318,13 @@ export function typeSelectionIndex<Anchor>(facts: NativeTypeSelections<Anchor>, 
       candidate.steps.length === selector.steps.length &&
       candidate.steps.every((step, at) => {
         const other = selector.steps[at];
-        return step.kind === "property"
-          ? other?.kind === "property" && step.name === other.name && step.at === other.at
-          : other?.kind === step.kind && (!("index" in step) || ("index" in other && step.index === other.index));
+        if (step.kind === "property") {
+          return other?.kind === "property" && step.name === other.name && step.at === other.at;
+        }
+        if (step.kind === "signature-parameter") {
+          return other?.kind === "signature-parameter" && step.signature === other.signature && step.index === other.index && step.at === other.at;
+        }
+        return other?.kind === step.kind && (!("index" in step) || ("index" in other && step.index === other.index));
       }),
   );
   if (index < 0) {
@@ -342,7 +347,7 @@ export function typeSelectorIndex<Anchor>(plan: NativeTypeSelectionPlan<Anchor>)
   const key = (selector: NativeTypeSelector<Anchor>): string =>
     JSON.stringify({
       base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: anchorId(selector.base.node) },
-      steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: anchorId(step.at) } : step)),
+      steps: selector.steps.map((step) => (step.kind === "property" || step.kind === "signature-parameter" ? { ...step, at: anchorId(step.at) } : step)),
       displayAt: selector.displayAt === null ? null : anchorId(selector.displayAt),
     });
   const indices = new Map<string, number>();

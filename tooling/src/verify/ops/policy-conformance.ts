@@ -23,6 +23,7 @@ import type { SchemaProjectedModel } from "../../floor/code-facts/schema-project
 import { createSchemaQuery } from "../../floor/code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
 import { inventoryQueryNode } from "../../floor/compiler/drizzle-inventory-extract.ts";
 import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
 import type { CoordinatedGateFinding, ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -548,9 +549,23 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
         source.compilerNode !== captured.node ||
         source.getFullText() !== captured.text ||
         capturedProgram.getSourceFile(source.getFilePath()) !== source.compilerNode ||
-        !(leaf === node || leaf?.getAncestors().includes(node) === true)
+        !(node === source || leaf === node || leaf?.getAncestors().includes(node) === true)
       ) {
-        throw new Error("isolated type proof query is outside its captured fixture source/epoch/span");
+        throw new Error(
+          "isolated type proof query is outside its captured fixture source/epoch/span: " +
+            JSON.stringify({
+              file: source.getFilePath(),
+              start: node.getStart(),
+              end: node.getEnd(),
+              kind: node.getKindName(),
+              project: node.getProject() === project,
+              captured: captured !== undefined,
+              epoch: source.compilerNode === captured?.node,
+              text: source.getFullText() === captured?.text,
+              programSource: capturedProgram.getSourceFile(source.getFilePath()) === source.compilerNode,
+              leaf: leaf === node || leaf?.getAncestors().includes(node) === true,
+            }),
+        );
       }
     }
     return project.getTypeChecker();
@@ -609,8 +624,11 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
         checkerFor(requested);
         return new Map(requested.map((source) => [source, source.getExportedDeclarations().get(name) ?? null]));
       },
-      moduleTargets: (nodes): ReturnType<NativeTypeFactReader["moduleTargets"]> => {
+      moduleTargets: (nodes, importer): ReturnType<NativeTypeFactReader["moduleTargets"]> => {
         checkerFor(nodes);
+        if (importer !== undefined) {
+          checkerFor([importer]);
+        }
         return new Map(nodes.map((node) => [node, node.getModuleSpecifierSourceFile()]));
       },
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
@@ -621,9 +639,15 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
           if (first === undefined || demand === undefined) {
             throw new Error("isolated type cohort has no real source anchor");
           }
-          const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node =>
-            inventoryQueryNode(project.getSourceFile(span.file), span);
-          const facts = captureInvocationEvidence(first, plan, undefined, { ...demand, sources: demand.sources.map(of), nodes: demand.nodes.map(of) });
+          const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node => {
+            const source = project.getSourceFile(span.file);
+            try {
+              return inventoryQueryNode(source, span);
+            } catch (error) {
+              throw new Error(`isolated type nomination ${JSON.stringify(span)};sourcePresent=${source !== undefined}`, { cause: error });
+            }
+          };
+          const facts = captureInvocationEvidence(first, plan, undefined, mapTypeObservationDemand(demand, of));
           return new Map(nodes.map((node) => [node, facts]));
         }
         if (plan.mode !== "observations") {

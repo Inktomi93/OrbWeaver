@@ -12,7 +12,7 @@
 // shape, on an unresolvable binding, on a composition cycle, and on a spread that resolves to zero members.
 // It is deliberately NOT a general AST-graph helper: interface members and drizzle column objects are
 // different semantics with their own resolvers (tooling/src/verify/gates/GATE-AUTHORING.md §4.6 blindness discipline).
-import type { Node, Project, SourceFile, VariableDeclaration } from "ts-morph";
+import type { ImportDeclaration, Node, Project, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as TsNode } from "ts-morph";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
 
@@ -69,7 +69,11 @@ function tupleArray(decl: VariableDeclaration): Node | undefined {
 
 /** The declaration a spread identifier names: the same file's own const, or the one a named import points
  *  at. Undefined when nothing in reach binds it — the caller turns that into a loud refusal. */
-function spreadSource(owner: SourceFile, localName: string): VariableDeclaration | undefined {
+function spreadSource(
+  owner: SourceFile,
+  localName: string,
+  moduleSource?: (declaration: ImportDeclaration) => SourceFile | undefined,
+): VariableDeclaration | undefined {
   const local = owner.getVariableDeclaration(localName);
   if (local !== undefined) {
     return local;
@@ -78,11 +82,16 @@ function spreadSource(owner: SourceFile, localName: string): VariableDeclaration
     .getImportDeclarations()
     .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
     .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
-  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
+  if (imported === undefined) {
+    return;
+  }
+  const source = moduleSource === undefined ? imported.declaration.getModuleSpecifierSourceFile() : moduleSource(imported.declaration);
+  return source?.getVariableDeclaration(imported.specifier.getName());
 }
 
 /** The mutable accumulator threaded through the recursive resolution. */
 interface Collector {
+  readonly moduleSource?: ((declaration: ImportDeclaration) => SourceFile | undefined) | undefined;
   readonly tupleConst: string;
   readonly members: Set<string>;
   readonly entries: TupleMember[];
@@ -100,7 +109,7 @@ function collectSpread(element: Node, owner: { readonly decl: VariableDeclaratio
   if (!TsNode.isIdentifier(spread)) {
     throw new Error(`tuple-read: unsupported spread in "${out.tupleConst}" at ${key}: ${spread.getText().slice(0, DIAGNOSTIC_PREVIEW_CHARS)}`);
   }
-  const source = spreadSource(owner.decl.getSourceFile(), spread.getText());
+  const source = spreadSource(owner.decl.getSourceFile(), spread.getText(), out.moduleSource);
   if (source === undefined) {
     throw new Error(`tuple-read: "${out.tupleConst}" at ${key} spreads "${spread.getText()}", which no local declaration or named import binds`);
   }
@@ -156,8 +165,14 @@ export function readTupleVocabulary(project: Project, tupleConst: string): Tuple
 
 /** The same resolution rooted at ONE declaration — for a gate that already located the tuple's home by its
  *  own path law and must not widen to a project-wide symbol search. Same sanctioned shapes, same refusals. */
-export function readTupleDeclaration(decl: VariableDeclaration): TupleVocabulary {
-  const out: Collector = { tupleConst: decl.getName(), members: new Set<string>(), entries: [], sources: [] };
+export function readTupleDeclaration(decl: VariableDeclaration, moduleSource?: (declaration: ImportDeclaration) => SourceFile | undefined): TupleVocabulary {
+  const out: Collector = {
+    tupleConst: decl.getName(),
+    members: new Set<string>(),
+    entries: [],
+    sources: [],
+    ...(moduleSource === undefined ? {} : { moduleSource }),
+  };
   collect(decl, out, new Set());
   return { members: out.members, entries: out.entries, sources: out.sources };
 }

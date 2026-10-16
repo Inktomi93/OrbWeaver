@@ -4,11 +4,34 @@ import type { NativeScalarTypeSelections, NativeTypeSelector } from "./type-proj
 
 export const TYPE_OBSERVATION_PROFILE = "authored-type-slots-v1";
 export const ZOD_OUTPUT_PROPERTY = "_output";
+export const TYPE_OBSERVATION_VALUE_FACETS = ["module", "binding", "string", "stable", "authored-value"] as const;
+export const TYPE_OBSERVATION_QUESTION_KINDS = [
+  "node-types",
+  "type-properties",
+  "definition-nodes",
+  "definition-closure",
+  "call-parameters",
+  "signature-parameters",
+  "symbol-values",
+  "value-profiles",
+] as const;
+export interface TypeObservationQuestion<Anchor = Node> {
+  readonly kind: (typeof TYPE_OBSERVATION_QUESTION_KINDS)[number];
+  readonly nodes: readonly Anchor[];
+  readonly files?: readonly string[] | undefined;
+  readonly properties?: readonly string[] | undefined;
+  readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;
+}
 
 export interface TypeObservationDemand<Anchor = Node> {
   readonly profile: typeof TYPE_OBSERVATION_PROFILE;
   readonly sources: readonly Anchor[];
   readonly nodes: readonly Anchor[];
+  readonly questions?: readonly TypeObservationQuestion<Anchor>[] | undefined;
+}
+/** Value questions require the existing binding/computed children in this same native capture. */
+export function hasTypeObservationValueDemand(demand: TypeObservationDemand<object> | undefined): boolean {
+  return demand?.questions?.some((question) => question.valueFacets !== undefined) === true;
 }
 
 /** Numeric references are local to this exact capture/world/generation, never declaration or display substitutes. */
@@ -16,6 +39,7 @@ export interface NativeObservedSymbol<Anchor = Node> {
   readonly name: string;
   readonly declarations: readonly Anchor[];
   readonly canonical: number;
+  readonly valueDeclaration?: Anchor | null | undefined;
 }
 
 export type NativeTypeObservation<Value> = { readonly kind: "unrequested" } | { readonly kind: "absent" } | { readonly kind: "value"; readonly value: Value };
@@ -27,6 +51,7 @@ export interface NativeObservedType {
   readonly typeParameter: boolean;
   readonly unionCount: number;
   readonly tupleCount: number;
+  readonly stringLiteral?: string | null | undefined;
 }
 
 export interface NativeObservedNode<Anchor = Node> {
@@ -66,6 +91,17 @@ export interface TypeObservationValues<Anchor = Node> {
     readonly values: readonly { readonly declaration: Anchor; readonly names: readonly Anchor[] }[];
   }[];
   readonly signatures: readonly NativeObservedSignature<Anchor>[];
+  readonly definitions?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
+  readonly callParameters?: readonly { readonly call: Anchor; readonly parameterCount: number | null; readonly values: readonly number[] | null }[] | undefined;
+  readonly signatureParameters?:
+    | readonly {
+        readonly selector: number;
+        readonly at: Anchor;
+        readonly parameterCounts: readonly number[];
+        readonly values: readonly (readonly number[])[];
+      }[]
+    | undefined;
+  readonly valueProfiles?: readonly { readonly node: Anchor; readonly facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] }[] | undefined;
   readonly dependencies: readonly NativeObservedDependency<Anchor>[];
   readonly localTargets: readonly { readonly node: Anchor; readonly symbol: number | null }[];
   readonly exports: readonly {
@@ -84,6 +120,7 @@ export interface NativeTypeObservations extends TypeObservationValues {
 export interface TypeObservationCaptureOwner {
   readonly anchor: SourceFile;
   readonly admit: (node: Node) => void;
+  readonly profile?: ((node: Node, facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][]) => void) | undefined;
 }
 
 /** Handles are scalar references into an explicit capture, not compiler Type/Symbol facades. */
@@ -108,6 +145,7 @@ export interface ObservedTypeData {
   readonly unionCount: number;
   readonly tupleCount: number;
   readonly symbol: ObservedReference<"symbol"> | null;
+  readonly aliasSymbol: ObservedReference<"symbol"> | null;
 }
 export interface ObservedProperty {
   readonly name: string;
@@ -136,9 +174,14 @@ export interface TypeObservationReader {
   readonly relation: (left: NativeTypeSelector, right: NativeTypeSelector) => import("./assignability-contract.ts").TypeRelation | null;
   readonly display: (selector: NativeTypeSelector, at: Node) => string | null;
   readonly computedNames: (selector: NativeTypeSelector) => readonly { readonly declaration: Node; readonly names: readonly Node[] }[];
+  readonly definitions: (node: Node) => readonly Node[];
+  readonly callParameters: (call: Node) => readonly NativeTypeSelector[] | null;
+  readonly signatureParameters: (selector: NativeTypeSelector, at: Node) => readonly (readonly NativeTypeSelector[])[];
+  readonly literal: (selector: NativeTypeSelector) => string | null;
+  readonly valueDeclaration: (symbol: ObservedReference<"symbol">) => Node | null;
 }
 
 export interface TypeObservationCapture {
   readonly reader: TypeObservationReader;
-  readonly finish: (demand: TypeObservationDemand) => NativeTypeObservations;
+  readonly finish: (demand: TypeObservationDemand, values?: TypeObservationValues["valueProfiles"]) => NativeTypeObservations;
 }

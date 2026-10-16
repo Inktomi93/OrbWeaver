@@ -390,7 +390,11 @@ export function readAuthoredCompositeEffects(terminal: MorphNode, declarations: 
 
 /** Read one literal scalar through immutable aliases; unsupported syntax is always a loud fact. */
 export function readStaticAuthoredScalar(node: MorphNode): ReferenceFact<StaticAuthoredScalar> {
-  const fact = readStaticAuthoredValue(node);
+  return projectAuthoredScalar(readStaticAuthoredValue(node));
+}
+
+/** Scalar projection is identical for native captured and direct authored facts. */
+export function projectAuthoredScalar(fact: ReferenceFact<StaticAuthoredValue>): ReferenceFact<StaticAuthoredScalar> {
   if (fact.kind === "unresolved") {
     return fact;
   }

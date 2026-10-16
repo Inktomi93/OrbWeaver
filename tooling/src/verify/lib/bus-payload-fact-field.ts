@@ -66,7 +66,7 @@ function walkFieldMappedShape(typeNode: MorphNode, frame: WalkFrame): boolean {
   if (!N.isIndexedAccessTypeNode(typeNode)) {
     return false;
   }
-  const read = readIndexedAccess(typeNode, frame.state);
+  const read = readIndexedAccess(typeNode, frame.state, frame.readers);
   if (read.kind === "distributed") {
     frame.state.distributions += 1;
     walkFieldType(read.template, frame);

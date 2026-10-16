@@ -23,6 +23,7 @@ import type {
   InventoryFamily,
   InventoryInput,
   InventoryInvocationQuery,
+  InventoryModuleTargetQuery,
   InventoryPartition,
   InventorySpan,
   InventorySymbols,
@@ -34,10 +35,13 @@ import {
   INVENTORY_REFERENCE_MODES,
   inventoryFamilies,
   inventoryNodeQueryKey,
+  moduleTargetQuerySchema,
   referenceQueryKey,
 } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputsCurrent, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
+import { mapTypeObservationDemand } from "../code-facts/type-observations-codec.ts";
+import { hasTypeObservationValueDemand } from "../code-facts/type-observations-contract.ts";
 import { extractDrizzleIdentities, inventoryQueryNode } from "./drizzle-inventory-extract.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
@@ -112,21 +116,30 @@ function bindingFacts(node: MorphNode, spans: InventorySpans): { lexical: Invent
   };
 }
 
+function moduleFact(
+  node: import("ts-morph").ImportDeclaration | import("ts-morph").ExportDeclaration,
+  spans: InventorySpans,
+): InventoryPartition["modules"][number] | undefined {
+  const literal = node.getModuleSpecifier();
+  if (literal === undefined) {
+    return;
+  }
+  const target = node.getModuleSpecifierSourceFile();
+  return {
+    node: spans.node(node),
+    target: target === undefined ? null : spans.path(target.getFilePath()),
+    declarations: (literal.getSymbol()?.getDeclarations() ?? []).map(spans.node),
+    specifier: literal.getLiteralText(),
+    dynamic: false,
+  };
+}
 function moduleFacts(sf: SourceFile, spans: InventorySpans): InventoryPartition["modules"] {
   const out: InventoryPartition["modules"] = [];
   for (const node of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const literal = node.getModuleSpecifier();
-    if (literal === undefined) {
-      continue;
+    const fact = moduleFact(node, spans);
+    if (fact !== undefined) {
+      out.push(fact);
     }
-    const target = node.getModuleSpecifierSourceFile();
-    out.push({
-      node: spans.node(node),
-      target: target === undefined ? null : spans.path(target.getFilePath()),
-      declarations: (literal.getSymbol()?.getDeclarations() ?? []).map(spans.node),
-      specifier: literal.getLiteralText(),
-      dynamic: false,
-    });
   }
   for (const call of descendantsOfKind(sf, SyntaxKind.CallExpression)) {
     if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
@@ -336,6 +349,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const globalBindingQueries = globalDemandFor(request, families, roots, "globalBindingQueries");
   const invocationQueries = invocationDemandFor(request, families, roots);
   const idBrandQueries = idBrandDemandFor(request, families, roots);
+  const moduleTargetQueries = moduleDemandFor(request, families, roots);
   assertDrizzleRequest(request, families, roots, fileSystem);
   assertReferenceRequest(request, families);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
@@ -383,6 +397,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           globalBindingQueries,
           invocationQueries,
           idBrandQueries,
+          moduleTargetQueries,
           drizzle: request,
         });
   return {
@@ -474,6 +489,7 @@ function extractTypedFacts(
     readonly globalBindingQueries: readonly InventorySpan[];
     readonly invocationQueries: readonly InventoryInvocationQuery[];
     readonly idBrandQueries: readonly InventorySpan[];
+    readonly moduleTargetQueries: readonly InventoryModuleTargetQuery[];
     readonly drizzle: InventoryBuildRequest;
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "referenceQueries" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
@@ -490,6 +506,7 @@ function extractTypedFacts(
     globalBindingQueries,
     invocationQueries,
     idBrandQueries,
+    moduleTargetQueries,
   } = input;
   const needsProject =
     idBrandQueries.length > 0 ||
@@ -539,6 +556,7 @@ function extractTypedFacts(
       globalBindingQueries,
       invocationQueries,
       idBrandQueries,
+      moduleTargetQueries,
       invocationSources,
       invocationProgram,
       ordinarySchema,
@@ -950,6 +968,58 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   collectByKinds([sf], visitors);
 }
 
+function moduleDemandFor(
+  request: InventoryBuildRequest,
+  families: readonly InventoryFamily[],
+  roots: readonly string[],
+): readonly InventoryModuleTargetQuery[] {
+  const queries = (request.moduleTargetQueries ?? []).map((query) => moduleTargetQuerySchema.parse(query));
+  if (queries.some((query) => !roots.includes(query.importer.file)) || (queries.length > 0 && !families.includes("modules"))) {
+    throw new Error("native contextual module query has no admitted importer/family");
+  }
+  return queries;
+}
+function collectModuleDoor(node: MorphNode, file: string, context: SourceFactCollection): void {
+  if (!(Node.isImportDeclaration(node) || Node.isExportDeclaration(node))) {
+    throw new Error("native contextual module query is not an authored import/export door");
+  }
+  if (!context.authored(file)) {
+    const fact = moduleFact(node, context.spans);
+    if (fact === undefined) {
+      throw new Error("native contextual module query has no module specifier");
+    }
+    if (!context.values.modules.some((entry) => inventoryNodeQueryKey(entry.node) === inventoryNodeQueryKey(fact.node))) {
+      context.values.modules.push(fact);
+    }
+  }
+}
+function collectModuleQueries(
+  queries: readonly InventoryModuleTargetQuery[],
+  input: {
+    readonly program: ts.Program;
+    readonly sources: InventorySources;
+    readonly context: SourceFactCollection;
+    readonly byCompilerSource: ReadonlyMap<ts.SourceFile, SourceFile>;
+  },
+): void {
+  const { program, sources, context, byCompilerSource } = input;
+  for (const query of queries) {
+    const source = sources.files.find((file) => context.spans.path(file.getFilePath()) === query.node.file);
+    const importer = sources.files.find((file) => context.spans.path(file.getFilePath()) === query.importer.file);
+    if (importer === undefined) {
+      throw new Error("native contextual module importer is unavailable");
+    }
+    const owner = sharedSourceFile(program, sources.nativeSources.get(importer.getFilePath()), byCompilerSource);
+    inventoryQueryNode(owner, query.importer);
+    // Unavailable prospective doors remain closure refusals, never captured module absences.
+    if (source === undefined) {
+      continue;
+    }
+    const captured = sharedSourceFile(program, sources.nativeSources.get(source.getFilePath()), byCompilerSource);
+    const node = inventoryQueryNode(captured, query.node);
+    collectModuleDoor(node, query.node.file, context);
+  }
+}
 function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
@@ -962,6 +1032,7 @@ function extractSourceFacts(
     readonly globalBindingQueries: readonly InventorySpan[];
     readonly invocationQueries: readonly InventoryInvocationQuery[];
     readonly idBrandQueries: readonly InventorySpan[];
+    readonly moduleTargetQueries: readonly InventoryModuleTargetQuery[];
     readonly invocationSources: readonly SourceFile[];
     readonly invocationProgram: ts.Program | undefined;
     readonly ordinarySchema: SchemaQuery | undefined;
@@ -1007,6 +1078,7 @@ function extractSourceFacts(
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
   try {
     collectIdBrandQueries(input.idBrandQueries, input.invocationSources, input.invocationProgram, context);
+    collectModuleQueries(input.moduleTargetQueries, { program, sources, context, byCompilerSource });
     collectInvocationFacts(input.invocationQueries, input.invocationSources, context, {
       program: input.invocationProgram,
       schema: input.ordinarySchema,
@@ -1328,7 +1400,7 @@ function typeObservationDemand(
     return undefined;
   }
   const node = (span: InventorySpan): MorphNode => inventoryQueryNode(byFile.get(span.file), span);
-  return { ...query.typeObservations, sources: query.typeObservations.sources.map(node), nodes: query.typeObservations.nodes.map(node) };
+  return mapTypeObservationDemand(query.typeObservations, node);
 }
 function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
   const { context, byFile, program } = state;
@@ -1395,7 +1467,9 @@ function invocationRelatedSources(
   sources: readonly SourceFile[],
   state: InvocationCollection,
 ): InvocationCollection["related"] {
-  return query.mode === "observations" || query.mode === "types" ? new Map() : closeInvocationSources(sources, state);
+  return query.mode === "observations" || (query.mode === "types" && !hasTypeObservationValueDemand(query.typeObservations))
+    ? new Map()
+    : closeInvocationSources(sources, state);
 }
 function closeInvocationSources(sources: readonly SourceFile[], state: InvocationCollection): InvocationCollection["related"] {
   const closed: InvocationCollection["related"] = new Map();
@@ -1463,7 +1537,8 @@ function invocationDemandFor(
   if (
     (families.includes("invocation-evidence") &&
       (request.invocationQueries === undefined ||
-        ((invocationQueries.length === 0 || invocationQueries.some((query) => query.mode !== "types")) &&
+        ((invocationQueries.length === 0 ||
+          invocationQueries.some((query) => query.mode !== "types" || hasTypeObservationValueDemand(query.typeObservations))) &&
           !(families.includes("computed-names") && families.includes("global-origins"))))) ||
     invocationQueries.some((query) => !roots.includes(query.node.file)) ||
     (invocationQueries.length > 0 && !families.includes("invocation-evidence"))
@@ -1519,6 +1594,7 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/type-observations-coverage.ts",
         "../code-facts/type-observations-read.ts",
         "../code-facts/type-observation-profile.ts",
+        "../code-facts/type-observation-questions.ts",
         "../code-facts/symbol-identity.ts",
         "../code-facts/type-dependence.ts",
         "../code-facts/type-slot-syntax.ts",

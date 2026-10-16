@@ -29,7 +29,14 @@ import type {
   StoredInventoryPartition,
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
-import { INVENTORY_KEY_SEPARATOR, INVENTORY_REFERENCE_MODES, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import {
+  INVENTORY_KEY_SEPARATOR,
+  INVENTORY_REFERENCE_MODES,
+  moduleTargetQueryKey,
+  moduleTargetQuerySchema,
+  SemanticInventoryError,
+  shapePairKey,
+} from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 
 import {
@@ -335,8 +342,8 @@ function createInventoryReader(
       }
       return nodeOf(value, [program], original ?? captured);
     };
-  const nativeModuleTarget = (node: Node, program: string): SourceFile | undefined => {
-    const { partition, span } = nativeSpan(node, program, "modules");
+  const nativeModuleTarget = (node: Node, program: string, importer?: SourceFile): SourceFile | undefined => {
+    const { partition, span } = importer === undefined ? nativeSpan(node, program, "modules") : contextualModuleSpan(node, program, importer);
     if (!(TsNode.isImportDeclaration(node) || (TsNode.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined))) {
       throw new SemanticInventoryError("native module target requires an authored import or export door");
     }
@@ -385,6 +392,35 @@ function createInventoryReader(
     }
     const replay = replayFor(node, program, partition, "reference");
     return entry.references.map((result) => replay(result.reference));
+  };
+  const contextualModuleSpan = (
+    node: Node,
+    program: string,
+    importer: SourceFile,
+  ): { readonly partition: StoredInventoryPartition; readonly span: InventorySpan } => {
+    const { partition } = nativeSpan(importer, program, "modules");
+    if (node.wasForgotten()) {
+      throw new SemanticInventoryError("native contextual module source epoch was forgotten");
+    }
+    const span = capturedSpan(node);
+    const key = moduleTargetQueryKey({ importer: capturedSpan(importer), node: span });
+    if (
+      storage.moduleTargetQueries?.some((query) => query.program === program && moduleTargetQueryKey(moduleTargetQuerySchema.parse(query.query)) === key) !==
+      true
+    ) {
+      throw new SemanticInventoryError("native contextual module target was not registered for its importer");
+    }
+    const source = node.getSourceFile();
+    const recorded = texts.get(canonicalPath(source.getFilePath()));
+    if (
+      node.wasForgotten() ||
+      recorded === undefined ||
+      inventoryTextVersion(inventoryTextParts(source.getFullText())) !== recorded.source.textVersion ||
+      !hasAvailableSource(partition, span.file)
+    ) {
+      throw new SemanticInventoryError("native contextual module source/epoch is outside its importing closure");
+    }
+    return { partition, span };
   };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
@@ -734,9 +770,12 @@ function createInventoryReader(
       const context = selected.map((partition) => partition.program);
       return new Map(exports.map((entry) => [entry.name, entry.declarations.map((span) => nodeOf(span, context))]));
     },
-    moduleTarget: (node, program) => {
+    moduleTarget: (node, program, importer) => {
       if (program !== undefined) {
-        return nativeModuleTarget(node, program);
+        return nativeModuleTarget(node, program, importer);
+      }
+      if (importer !== undefined) {
+        throw new SemanticInventoryError("native contextual module target requires an explicit program");
       }
       const key = spanKey(capturedSpan(node));
       const selected = worlds(node);

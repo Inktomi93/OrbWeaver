@@ -32,6 +32,8 @@ import { gate as busPayloadAllowlist } from "../../../../tooling/src/verify/gate
 import { gate as busPayloadHealth } from "../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
 const CHAT_BUS = "packages/contracts/src/chat/bus.ts";
@@ -88,10 +90,19 @@ function run(
     policies,
     root,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: grants,
     failOnWarnings: false,
   });
 }
+
+test(
+  "both payload consumers retain every declared policy proof",
+  () => {
+    expect(verifyPolicyProofs([busPayloadAllowlist, busPayloadHealth])).toEqual([]);
+  },
+  scaledBudget(30_000),
+);
 
 // ── §4.3 GRANT IDENTITY — the successor to the legacy SANCTIONED_FIELDS table, in all three directions ──
 
@@ -218,6 +229,7 @@ function runOverReal(overlay: Readonly<Record<string, string>>): ReturnType<type
     policies: [busPayloadAllowlist, busPayloadHealth],
     root: REPO_ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: CREDENTIAL_GRANT,
     failOnWarnings: false,
   });

@@ -10,14 +10,15 @@
 // are a contracts/server question, definitions reach the client too.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import type { BusBeltShape, BusDefinitionFact, BusUnionDefinition } from "../contract/bus-definition-fact.ts";
-import type { BusDeclarationIdentity, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
+import type { BusDeclarationIdentity, BusReadContext, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import {
   BUS_UNION_SUFFIX,
   beltUnionNode,
+  busAliasExported,
   busAnchor,
   busDeclarationIdentity,
   busIdentityKey,
@@ -28,10 +29,12 @@ import {
   NAMED_BUS_UNIONS,
   typeDiscriminators,
 } from "./bus-fact-read.ts";
+import { busAuthored, busNativeRead } from "./bus-native-read.ts";
 
 const DISCRIMINATOR = "type";
 
 interface DefinitionState {
+  readonly bindings: VariableDeclaration[];
   readonly aliases: TypeAliasDeclaration[];
   readonly belts: VariableDeclaration[];
   readonly clientMaps: MorphNode[];
@@ -42,11 +45,11 @@ interface DefinitionState {
 }
 
 function newState(): DefinitionState {
-  return { aliases: [], belts: [], clientMaps: [], neverGuards: [], serverCalls: [], serverImports: new Map() };
+  return { bindings: [], aliases: [], belts: [], clientMaps: [], neverGuards: [], serverCalls: [], serverImports: new Map() };
 }
 
 function isBusUnionAlias(node: TypeAliasDeclaration): boolean {
-  return node.isExported() && (node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName()));
+  return node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName());
 }
 
 /** A CONSUMER-belt candidate: a mapped type or `Record<…>` keyed by some `X["type"]`. The union identity is
@@ -83,7 +86,7 @@ function isNeverGuardParameter(node: MorphNode): boolean {
   return Node.isParameterDeclaration(node) && node.getTypeNode()?.getKind() === SyntaxKind.NeverKeyword;
 }
 
-function collectNode(context: GateFactContext, state: DefinitionState, node: MorphNode, sourceFile: SourceFile): void {
+function collectNode(context: BusReadContext, state: DefinitionState, node: MorphNode, sourceFile: SourceFile): void {
   const path = context.relativePath(sourceFile);
   const inContracts = path.startsWith("packages/contracts/src/");
   if (inContracts && Node.isTypeAliasDeclaration(node) && isBusUnionAlias(node)) {
@@ -108,9 +111,9 @@ function collectNode(context: GateFactContext, state: DefinitionState, node: Mor
   }
 }
 
-function beltShape(context: GateFactContext, declaration: VariableDeclaration, unresolved: BusUnresolvedIdentity[]): BusBeltShape | undefined {
+function beltShape(context: BusReadContext, declaration: VariableDeclaration, unresolved: BusUnresolvedIdentity[]): BusBeltShape | undefined {
   const initializer = declaration.getInitializerOrThrow();
-  const authored = readStaticAuthoredValue(Node.isSatisfiesExpression(initializer) ? initializer.getExpression() : initializer);
+  const authored = busAuthored(context, Node.isSatisfiesExpression(initializer) ? initializer.getExpression() : initializer);
   if (authored.kind === "unresolved") {
     unresolved.push(busRefusal({ context, stage: "belt", reason: authored.reason, detail: authored.detail, node: authored.node }));
     return;
@@ -149,10 +152,10 @@ interface MutableDefinition {
   readonly exhaustiveConsumers: string[];
 }
 
-function unionDefinitions(context: GateFactContext, state: DefinitionState, unresolved: BusUnresolvedIdentity[]): MutableDefinition[] {
+function unionDefinitions(context: BusReadContext, state: DefinitionState, unresolved: BusUnresolvedIdentity[]): MutableDefinition[] {
   const definitions: MutableDefinition[] = [];
-  for (const alias of state.aliases) {
-    const discriminators = [...typeDiscriminators(alias.getType(), alias)].toSorted((left, right) => left.localeCompare(right));
+  for (const alias of state.aliases.filter((candidate) => busAliasExported(context, candidate))) {
+    const discriminators = [...typeDiscriminators(context, nodeTypeSelector(alias), alias)].toSorted((left, right) => left.localeCompare(right));
     if (discriminators.length === 0) {
       unresolved.push(
         busRefusal({ context, stage: "union", reason: "unsupported", detail: `${alias.getName()} resolves no "type" discriminator`, node: alias }),
@@ -173,14 +176,14 @@ function unionDefinitions(context: GateFactContext, state: DefinitionState, unre
 }
 
 function attachBelts(
-  context: GateFactContext,
+  context: BusReadContext,
   state: DefinitionState,
   byUnion: ReadonlyMap<string, MutableDefinition>,
   unresolved: BusUnresolvedIdentity[],
 ): void {
   for (const declaration of state.belts) {
     const unionNode = beltUnionNode(declaration);
-    const alias = unionNode === undefined ? undefined : canonicalTypeAlias(unionNode.getType());
+    const alias = unionNode === undefined ? undefined : canonicalTypeAlias(context, nodeTypeSelector(unionNode), unionNode);
     const definition = alias === undefined ? undefined : byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
     if (definition === undefined) {
       unresolved.push(
@@ -204,10 +207,10 @@ function attachBelts(
   }
 }
 
-function attachClientMaps(context: GateFactContext, state: DefinitionState, byUnion: ReadonlyMap<string, MutableDefinition>): void {
+function attachClientMaps(context: BusReadContext, state: DefinitionState, byUnion: ReadonlyMap<string, MutableDefinition>): void {
   for (const node of state.clientMaps) {
     const subject = clientMapSubject(node);
-    const alias = subject === undefined ? undefined : canonicalTypeAlias(subject.getType());
+    const alias = subject === undefined ? undefined : canonicalTypeAlias(context, nodeTypeSelector(subject), subject);
     const definition = alias === undefined ? undefined : byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
     if (definition !== undefined) {
       definition.clientTotalMaps.push(`${context.relativePath(node.getSourceFile())}:${node.getStartLineNumber()}`);
@@ -260,20 +263,26 @@ function guardBody(declaration: MorphNode | undefined): MorphNode | undefined {
 /** The exhaustively-consumed union at one `never`-argument guard call: the SUBJECT's declared type, which
  *  is the whole union, while the argument's own flow type at the call is `never` — the checker's proof
  *  that every member was handled before it. */
-function exhaustedUnion(call: CallExpression, guards: ReadonlySet<object>): ReadonlySet<string> | undefined {
+function exhaustedUnion(context: BusReadContext, call: CallExpression, guards: ReadonlySet<object>): ReadonlySet<string> | undefined {
   const argument = call.getArguments()[0];
-  if (argument === undefined || !argument.getType().isNever()) {
+  if (argument === undefined) {
     return;
   }
-  const target = guardBody(callableDeclaration(call));
+  const readers = context.types(argument);
+  const selected = readers.select(nodeTypeSelector(argument));
+  if (selected === null || !readers.type(selected).never) {
+    return;
+  }
+  const target = guardBody(callableDeclaration(context, call));
   if (target === undefined || !guards.has(target.compilerNode)) {
     return;
   }
-  const declared = argument.getSymbol()?.getValueDeclaration();
-  return declared === undefined ? undefined : typeDiscriminators(declared.getType(), declared);
+  const symbol = readers.symbol(argument);
+  const declared = symbol === null ? null : readers.valueDeclaration(symbol);
+  return declared === null ? undefined : typeDiscriminators(context, nodeTypeSelector(declared), declared, readers);
 }
 
-function attachExhaustiveConsumers(context: GateFactContext, state: DefinitionState, definitions: readonly MutableDefinition[]): void {
+function attachExhaustiveConsumers(context: BusReadContext, state: DefinitionState, definitions: readonly MutableDefinition[]): void {
   const declarations = guardDeclarations(state);
   const guards = new Set(declarations.map((declaration) => declaration.compilerNode));
   const names = guardNames(state, declarations);
@@ -281,7 +290,7 @@ function attachExhaustiveConsumers(context: GateFactContext, state: DefinitionSt
     return;
   }
   for (const call of state.serverCalls.filter((candidate) => names.has(candidate.getExpression().getText()))) {
-    const subject = exhaustedUnion(call, guards) ?? new Set<string>();
+    const subject = exhaustedUnion(context, call, guards) ?? new Set<string>();
     for (const definition of subject.size === 0 ? [] : definitions) {
       if (subject.size === definition.discriminators.length && definition.discriminators.every((value) => subject.has(value))) {
         definition.exhaustiveConsumers.push(`${context.relativePath(call.getSourceFile())}:${call.getStartLineNumber()}`);
@@ -305,7 +314,7 @@ function attachBeltedRoots(definitions: readonly MutableDefinition[]): void {
   }
 }
 
-function finishDefinitionFact(context: GateFactContext, state: DefinitionState): BusDefinitionFact {
+function finishDefinitionFact(context: BusReadContext, state: DefinitionState): BusDefinitionFact {
   const unresolved: BusUnresolvedIdentity[] = [];
   const definitions = unionDefinitions(context, state, unresolved);
   const byUnion = new Map(definitions.map((definition) => [busIdentityKey(definition.union), definition]));
@@ -349,10 +358,17 @@ function finishDefinitionFact(context: GateFactContext, state: DefinitionState):
  *  reading a `bus-definitions` receipt refusal instead of the disagreement it exists to catch. */
 const PROVIDER_RECEIPT_SOURCE = "bus-definition-sources";
 
-function createDefinitionCollector(context: GateFactContext): GateFactHooks<BusDefinitionFact> {
+function createDefinitionCollector(input: GateFactContext): GateFactHooks<BusDefinitionFact> {
   const state = newState();
+  const native = busNativeRead(
+    input,
+    () => [...state.bindings, ...state.aliases, ...state.belts, ...state.clientMaps, ...state.neverGuards, ...state.serverCalls],
+    "definition",
+  );
+  const context = native.context;
   let finished: BusDefinitionFact | undefined;
   return {
+    prepare: native.prepare,
     visitors: [
       {
         kinds: [
@@ -364,7 +380,12 @@ function createDefinitionCollector(context: GateFactContext): GateFactHooks<BusD
           SyntaxKind.CallExpression,
           SyntaxKind.ImportSpecifier,
         ],
-        visit: (node, sourceFile) => collectNode(context, state, node, sourceFile),
+        visit: (node, sourceFile): void => {
+          if (Node.isVariableDeclaration(node)) {
+            state.bindings.push(node);
+          }
+          collectNode(context, state, node, sourceFile);
+        },
       },
     ],
     finish: (): BusDefinitionFact => {
