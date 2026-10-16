@@ -493,3 +493,95 @@ test("an unsupported future physical schema is refused rather than downgraded", 
   expect(familyDdl(db)).toEqual(oldDdl);
   expect(legacyRows(db)).toEqual(before);
 });
+
+const LIST_LOOKUP = "SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?";
+test.for([11, 12] as const)(
+  "list-value lookup upgrades physical schema %s with complete populated rows and reader snapshots intact",
+  (version, { scratch }) => {
+    const path = join(scratch, "list-lookup.sqlite");
+    createPriorStorage(path, 11);
+    {
+      using seed = new DatabaseSync(path);
+      seed.exec("BEGIN IMMEDIATE");
+      const source = seed.prepare(
+        "INSERT INTO inventory_source SELECT partition,?, ?,?,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND ordinal=0",
+      );
+      const text = seed.prepare("INSERT INTO inventory_text SELECT partition,?,ordinal,value FROM inventory_text WHERE partition=? AND source=0");
+      const available = seed.prepare("INSERT INTO inventory_list(partition,kind,ordinal,value) VALUES(?,'available',?,?)");
+      for (let ordinal = 0; ordinal < 1024; ordinal++) {
+        const file = inventoryString(`/fixture/library-${String(ordinal)}.ts`);
+        source.run(ordinal + 1, file, file, LEGACY_PARTITION);
+        text.run(ordinal + 1, LEGACY_PARTITION);
+        available.run(LEGACY_PARTITION, ordinal, file);
+      }
+      seed.exec("COMMIT");
+    }
+    if (version === 12) {
+      using existing = openInventoryDatabase(path);
+      existing.exec("DROP INDEX IF EXISTS inventory_list_value");
+    }
+    using pinned = new DatabaseSync(path, { readOnly: true });
+    pinned.exec("BEGIN");
+    const before = legacyRows(pinned);
+    const rows = pinned.prepare("SELECT * FROM inventory_list ORDER BY partition,kind,ordinal").all();
+    expect(rows).toHaveLength(1024);
+    using current = openInventoryDatabase(path);
+    const details = current.prepare(`EXPLAIN QUERY PLAN ${LIST_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/library-1023.ts"));
+    expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_list USING INDEX inventory_list_value (partition=? AND kind=? AND value=?)");
+    expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+    expect(legacyRows(current)).toEqual(before);
+    expect(legacyRows(pinned)).toEqual(before);
+    expect(current.prepare("SELECT * FROM inventory_list ORDER BY partition,kind,ordinal").all()).toEqual(rows);
+    expect(pinned.prepare("SELECT name FROM sqlite_schema WHERE name='inventory_list_value'").get()).toBeUndefined();
+    beginInventoryWrite(current);
+    const execute = DatabaseSync.prototype.exec;
+    const lock = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+      if (sql === "BEGIN IMMEDIATE") {
+        throw new Error("indexed list reader attempted a writer lock");
+      }
+      execute.call(this, sql);
+    });
+    try {
+      using ready = openInventoryDatabase(path);
+      expect(ready.prepare("SELECT * FROM inventory_list ORDER BY partition,kind,ordinal").all()).toEqual(rows);
+      expect(legacyRows(ready)).toEqual(before);
+    } finally {
+      lock.mockRestore();
+      current.exec("ROLLBACK");
+      pinned.exec("ROLLBACK");
+    }
+  },
+);
+
+test("list-value lookup preserves duplicate membership, explicit list order and public missing-closure refusal", ({ scratch }) => {
+  using db = openInventoryDatabase(join(scratch, "membership.sqlite"));
+  const facts = brandPartition("tsconfig.list.json");
+  beginInventoryWrite(db);
+  const generation = publishInventoryGeneration(db, [facts]);
+  db.exec("COMMIT");
+  const partition = readInventoryGeneration(db, generation)[0];
+  const capture = facts.exportDeclarations?.[0];
+  if (partition === undefined || capture === undefined) {
+    throw new Error("list membership fixture is missing");
+  }
+  const before = readInventoryGeneration(db, generation);
+  expect(
+    db
+      .prepare("PRAGMA index_list(inventory_list)")
+      .all()
+      .find((row) => row["name"] === "inventory_list_value"),
+  ).toMatchObject({ unique: 0 });
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    db.prepare("INSERT INTO inventory_list(partition,kind,ordinal,value) VALUES(?,'available',1,?)").run(partition.id, inventoryString(capture.query.file));
+    expect(db.prepare(LIST_LOOKUP + " ORDER BY ordinal").all(partition.id, inventoryString(capture.query.file))).toEqual([{ ordinal: 0 }, { ordinal: 1 }]);
+    expect([...readInventoryExportDeclarations(db, partition.id, capture.query)]).toEqual([capture]);
+    expect(db.prepare(LIST_LOOKUP).get(partition.id, inventoryString("/fixture/missing.ts"))).toBeUndefined();
+    db.prepare("DELETE FROM inventory_list WHERE partition=? AND kind='available'").run(partition.id);
+    expect(() => [...readInventoryExportDeclarations(db, partition.id, capture.query)]).toThrow("outside its native closure");
+  } finally {
+    db.exec("ROLLBACK");
+  }
+  expect(readInventoryGeneration(db, generation)).toEqual(before);
+  expect([...readInventoryExportDeclarations(db, partition.id, capture.query)]).toEqual([capture]);
+});
