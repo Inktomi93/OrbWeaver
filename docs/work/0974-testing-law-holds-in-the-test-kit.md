@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-15
+status: doing
+updated: 2026-10-16
 priority: P2
+lane: codex/corpus-row-clocks
 plan: test-foundation
 ---
 

@@ -15,11 +15,11 @@ Item 981 owns UI token-authoring contract homes. Retain their supported D318 pub
 
 ## Population and migration checks
 
-Audit policies declaring `@packages` in `tooling/src/verify/contract/population.ts`: that fixed set omits `@inference`, while `@product` includes it. Each policy must use the population its claim covers; do not widen the fixed set silently. Review remaining Biome nursery rules against maintained ESLint equivalents. Keep release-please and corpus findings visible until completed checks establish a verdict.
+Audit `@packages` policies in `tooling/src/verify/contract/population.ts`: this set omits `@inference`; `@product` includes it. Match each claim to its population. Review remaining Biome nursery rules against native ESLint coverage.
 
-The population workspace reconciliation does not classify the `tests/support` package. Its source still belongs to `@tests`; this failure does not prove those files escape policy admission. Adjudicate package-root identity separately from source coverage; add no exclusion merely to silence the test.
+Workspace reconciliation omits `tests/support` package identity, not its `@tests` source admission. Adjudicate these separately without exclusions.
 
-The typed-lint migration reports legacy-only condition, coercion, sort, and nullish findings. Preserve their regression cases for the rebuild rather than starting another legacy retrofit. The maintained lint population also reports `shell-modal-header` as an unknown class in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate the class against its actual style home.
+Legacy condition, coercion, sort and nullish findings stay with replacement cases. Native lint reports unknown `shell-modal-header` in `packages/client/src/components/content-dialog.tsx` and `packages/client/src/features/app-shell/components/modal-host.tsx`; adjudicate its actual role.
 
 Legacy auth-config CT stubs contain invalid payloads. Boundary parsing owns their source evidence; corpus builders replace the inputs. Preserve cases without weakening parsing.
 
@@ -42,6 +42,8 @@ Legacy export-floor findings concern optional RPG, profile and tag inputs in see
 Compose integration preserves census equality. Reindex/auth classifications remain unproven; literal removals shrink budgets.
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
+
+Default-corpus Snap intake passes; its aggregate remains red on the live `.shell-list-toggle` focus hook. Raw HAR preserves an aborted stream followed by a successful replacement; the latest-per-URL summary disagrees. Adjudicate marker representation and cancellation reporting without changing corpus acceptance. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-completion-boundary-audit.md`.
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
