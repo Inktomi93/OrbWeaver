@@ -42,4 +42,4 @@ Native schema, column and configuration facts serve assets, table ownership, vec
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Native Zod, body-cap, selected origin, ID, reference and bus consumers pass ordinary qualification and independent review. Bus populations and authority remain separate; raw parameter completeness and selector locations refuse malformed evidence. Failure tracing, retained origin branches and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md`.
+Native Zod, body-cap, selected origin, ID, reference, bus and failure consumers pass ordinary qualification and independent review. Policy populations and authority remain separate. Missing native evidence refuses. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.

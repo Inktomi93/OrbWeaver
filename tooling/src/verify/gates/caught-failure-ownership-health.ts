@@ -22,13 +22,15 @@
 // The VERDICT and REASON columns. Whether a marker waives a site is the central ordinary-waiver engine's
 // answer, which a policy context deliberately cannot run; `ledgers:fresh` re-derives the whole census with
 // that engine and reds on a changed verdict or reason. This policy owns membership only.
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
-import { CAUGHT_FAILURE_POPULATION, catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
+import { CAUGHT_FAILURE_POPULATION, caughtFailureSite } from "../lib/caught-failure.ts";
 import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
+import { nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -104,6 +106,8 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const sitesByPath = new Map<string, CaughtFailureSite[]>();
+    const nominees: Node[] = [];
+    const native = nativeFailureRead(ctx, () => nominees);
     const collect = (path: string, site: CaughtFailureSite | undefined): void => {
       if (site !== undefined) {
         sitesByPath.set(path, [...(sitesByPath.get(path) ?? []), site]);
@@ -112,15 +116,18 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.CatchClause],
-          visit: (node, sourceFile) => collect(ctx.relativePath(sourceFile), catchClauseSite(node.asKindOrThrow(SyntaxKind.CatchClause))),
-        },
-        {
-          kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile) => collect(ctx.relativePath(sourceFile), promiseAbsorberSite(node.asKindOrThrow(SyntaxKind.CallExpression))),
+          kinds: [SyntaxKind.CatchClause, SyntaxKind.CallExpression],
+          visit: (node): void => {
+            nominees.push(node);
+          },
         },
       ],
+      prepare: native.prepare,
       evaluate: () => {
+        for (const node of nominees) {
+          const reads = native.at(node.getSourceFile());
+          collect(ctx.relativePath(node.getSourceFile()), caughtFailureSite(node, reads));
+        }
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         if (read.ok) {
           join(

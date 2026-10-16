@@ -52,6 +52,7 @@
 // inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import { defineGate } from "../contract/policy.ts";
+import { nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { deriveRootSpanOpeners, TRACING_MODULE } from "../lib/detached-work.ts";
 
 const OTEL_ROOT_OPENER = "startActiveSpan";
@@ -85,19 +86,24 @@ export const gate = defineGate({
   resources: [],
   message: BLIND,
   fix: FIX,
-  create: (ctx) => ({
-    evaluate: (): void => {
-      const source = ctx.files.find((sourceFile) => sourceFile.getFilePath().includes(TRACING_MODULE));
-      if (source === undefined) {
-        throw new Error(
-          `detached-work-traced-health cannot render a verdict: its derivation source ${TRACING_MODULE} is not in the effective population, so "zero openers" is unmeasurable rather than false (tooling/src/verify/gates/detached-work-traced-health.ts)`,
-        );
-      }
-      if (deriveRootSpanOpeners(ctx.files).size === 0) {
-        ctx.report.file(ctx.relativePath(source), { message: BLIND, fix: FIX });
-      }
-    },
-  }),
+  create: (ctx) => {
+    const tracing = ctx.files.filter((source) => source.getFilePath().includes(TRACING_MODULE));
+    const native = nativeFailureRead(ctx, () => [], tracing);
+    return {
+      prepare: native.prepare,
+      evaluate: (): void => {
+        const source = ctx.files.find((sourceFile) => sourceFile.getFilePath().includes(TRACING_MODULE));
+        if (source === undefined) {
+          throw new Error(
+            `detached-work-traced-health cannot render a verdict: its derivation source ${TRACING_MODULE} is not in the effective population, so "zero openers" is unmeasurable rather than false (tooling/src/verify/gates/detached-work-traced-health.ts)`,
+          );
+        }
+        if (deriveRootSpanOpeners(tracing, native.at(source)).size === 0) {
+          ctx.report.file(ctx.relativePath(source), { message: BLIND, fix: FIX });
+        }
+      },
+    };
+  },
   mustFlag: [
     {
       mode: "types",

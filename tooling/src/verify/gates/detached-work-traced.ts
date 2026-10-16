@@ -121,6 +121,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeFailureRead } from "../lib/caught-failure-native.ts";
 import type { DetachedWorkSite } from "../lib/detached-work.ts";
 import { blindedRejectionSite, deriveRootSpanOpeners, swallowingCatchSite, TRACING_MODULE, untracedDispatchSite } from "../lib/detached-work.ts";
 
@@ -177,27 +178,30 @@ export const gate = defineGate({
     const statements: Node[] = [];
     const clauses: Node[] = [];
     const calls: Node[] = [];
+    const tracing = ctx.files.filter((source) => source.getFilePath().includes(TRACING_MODULE));
+    const native = nativeFailureRead(ctx, () => [...statements, ...clauses, ...calls], tracing);
     return {
+      prepare: native.prepare,
       visitors: [
         { kinds: [SyntaxKind.ExpressionStatement], visit: (node): void => void statements.push(node) },
         { kinds: [SyntaxKind.CatchClause], visit: (node): void => void clauses.push(node) },
         { kinds: [SyntaxKind.CallExpression], visit: (node): void => void calls.push(node) },
       ],
       evaluate: (): void => {
-        const openers = deriveRootSpanOpeners(ctx.files);
+        const openers = deriveRootSpanOpeners(tracing, tracing[0] === undefined ? undefined : native.at(tracing[0]));
         if (openers.size === 0) {
           // The vocabulary is empty, which is the `-health` sibling's finding and speaks for the whole run;
           // per-file findings derived from an empty vocabulary would be noise on top of it.
           return;
         }
         for (const statement of statements) {
-          reportSite(ctx, untracedDispatchSite(statement, openers));
+          reportSite(ctx, untracedDispatchSite(statement, openers, native.at(statement.getSourceFile())));
         }
         for (const clause of clauses) {
-          reportSite(ctx, swallowingCatchSite(clause, openers));
+          reportSite(ctx, swallowingCatchSite(clause, openers, native.at(clause.getSourceFile())));
         }
         for (const call of calls) {
-          reportSite(ctx, blindedRejectionSite(call, openers));
+          reportSite(ctx, blindedRejectionSite(call, openers, native.at(call.getSourceFile())));
         }
       },
     };

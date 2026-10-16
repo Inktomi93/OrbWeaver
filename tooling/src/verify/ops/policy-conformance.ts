@@ -278,7 +278,7 @@ function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<Exam
         : {}),
       parseSource: (path, text) => parser.createSourceFile(`${root}/${path}`, text, { overwrite: true }),
     };
-    yield* runPasses({ policy, root, project, resourceOptions }, grantSets);
+    yield* runPasses({ policy, root, project, resourceOptions, nativeTypeFacts: () => isolatedTypeFacts(project) }, grantSets);
   } catch (error) {
     yield { thrown: messageOf(error), root };
   } finally {
@@ -570,19 +570,20 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
     }
     return project.getTypeChecker();
   };
+  const readReferences: NativeTypeFactReader["references"] = (nodes, importer) => {
+    checkerFor([importer, ...nodes]);
+    return new Map(
+      nodes.map((node) => {
+        if (!TsNode.isReferenceFindable(node)) {
+          throw new Error("isolated reference query is not reference-findable");
+        }
+        return [node, node.findReferencesAsNodes()] as const;
+      }),
+    );
+  };
   return nativeTypeFactSession(
     (queries): NativeTypeFactReader => ({
-      references: (nodes, importer): ReturnType<NativeTypeFactReader["references"]> => {
-        checkerFor([importer, ...nodes]);
-        return new Map(
-          nodes.map((node) => {
-            if (!TsNode.isReferenceFindable(node)) {
-              throw new Error("isolated reference query is not reference-findable");
-            }
-            return [node, node.findReferencesAsNodes()] as const;
-          }),
-        );
-      },
+      references: readReferences,
       schemaData: (requested, projection): ReturnType<NativeTypeFactReader["schemaData"]> => {
         const checker = checkerFor(requested);
         return readSchemaData(
@@ -647,7 +648,20 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
               throw new Error(`isolated type nomination ${JSON.stringify(span)};sourcePresent=${source !== undefined}`, { cause: error });
             }
           };
-          const facts = captureInvocationEvidence(first, plan, undefined, mapTypeObservationDemand(demand, of));
+          const facts = captureInvocationEvidence(first, plan, undefined, {
+            demand: mapTypeObservationDemand(demand, of),
+            references: (node) => {
+              const importer = node.getSourceFile();
+              if (!queries.some((request) => request.kind === "references" && request.importer === importer && request.nodes.includes(node))) {
+                throw new Error("isolated raw reference closure has no registered strict importer/query");
+              }
+              const value = readReferences([node], importer).get(node);
+              if (value === undefined) {
+                throw new Error("isolated raw reference closure answer is unavailable");
+              }
+              return value;
+            },
+          });
           return new Map(nodes.map((node) => [node, facts]));
         }
         if (plan.mode !== "observations") {

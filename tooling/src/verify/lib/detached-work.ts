@@ -29,10 +29,12 @@
 // both — `entry.promise` under each, never `entry.promise` there and a bare `promise` here.
 import type { Block, CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import type { DetachedWorkArm } from "../contract/detached-work.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { CaughtFailureAnchor } from "./caught-failure.ts";
 import { calleeAnchorCandidates, catchAnchor, firstAnchor } from "./caught-failure.ts";
+import { failureLiteralValue, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 export const TRACING_MODULE = "packages/server/src/foundation/observability/tracing.ts";
 const OTEL_ROOT_OPENER = "startActiveSpan";
@@ -50,7 +52,7 @@ const DISCARD_BODIES: ReadonlySet<string> = new Set(["undefined", "null", "void 
 /** A property read spelled EITHER way — `p.catch` and `p["catch"]` are the same read. Bracket access with a
  *  statically-resolvable string key is not a different language feature, and a dot-only reader is a silent
  *  laundering path (the family would go green on `void p['catch'](() => undefined)`). */
-function literalMember(node: Node): { readonly name: string; readonly receiver: Node } | undefined {
+function literalMember(node: Node, reads?: CaughtFailureReadServices): { readonly name: string; readonly receiver: Node } | undefined {
   const member = unwrapExpression(node);
   if (member.isKind(SyntaxKind.PropertyAccessExpression)) {
     return { name: member.getName(), receiver: unwrapExpression(member.getExpression()) };
@@ -59,15 +61,15 @@ function literalMember(node: Node): { readonly name: string; readonly receiver: 
     return;
   }
   const key = member.getArgumentExpression();
-  const name = key === undefined ? undefined : staticStringValue(key);
+  const name = key === undefined ? undefined : staticStringValue(key, reads);
   return name === undefined ? undefined : { name, receiver: unwrapExpression(member.getExpression()) };
 }
 
 /** The ORDERED runtime value of a statically-knowable string expression: literal, parenthesized,
  *  literal-typed, `+`-concatenated, or a same-file `const` one hop away. Anything the reader cannot prove
  *  returns undefined — a DYNAMIC key is a declared limit, never a guess. */
-function staticStringValue(node: Node): string | undefined {
-  const typedLiteral = node.getType().getLiteralValue();
+function staticStringValue(node: Node, reads?: CaughtFailureReadServices): string | undefined {
+  const typedLiteral = failureLiteralValue(node, reads);
   if (typeof typedLiteral === "string") {
     return typedLiteral;
   }
@@ -76,28 +78,28 @@ function staticStringValue(node: Node): string | undefined {
     return value.getLiteralValue();
   }
   if (value.isKind(SyntaxKind.BinaryExpression) && value.getOperatorToken().getText() === "+") {
-    const left = staticStringValue(value.getLeft());
-    const right = staticStringValue(value.getRight());
+    const left = staticStringValue(value.getLeft(), reads);
+    const right = staticStringValue(value.getRight(), reads);
     return left === undefined || right === undefined ? undefined : left + right;
   }
-  const literal = value.getType().getLiteralValue();
+  const literal = failureLiteralValue(value, reads);
   if (typeof literal === "string") {
     return literal;
   }
   if (!value.isKind(SyntaxKind.Identifier)) {
     return;
   }
-  const declaration = value.getSymbol()?.getDeclarations()[0];
+  const declaration = rawFailureDeclarations(value, reads)[0];
   if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
     return;
   }
   const initializer = declaration.getInitializer();
-  return initializer === undefined ? undefined : staticStringValue(initializer);
+  return initializer === undefined ? undefined : staticStringValue(initializer, reads);
 }
 
-function calleeName(call: CallExpression): string | undefined {
+function calleeName(call: CallExpression, reads?: CaughtFailureReadServices): string | undefined {
   const callee = unwrapExpression(call.getExpression());
-  const member = literalMember(callee);
+  const member = literalMember(callee, reads);
   if (member !== undefined) {
     return member.name;
   }
@@ -106,9 +108,9 @@ function calleeName(call: CallExpression): string | undefined {
 
 /** True for a call to OTel's `startActiveSpan` carrying `root: true` — the DETACH, which is the whole point:
  *  a parented span dispatched from inside the request it outlives never seals its bucket. */
-function opensDetachedRoot(call: CallExpression): boolean {
+function opensDetachedRoot(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
   const callee = unwrapExpression(call.getExpression());
-  const member = literalMember(callee);
+  const member = literalMember(callee, reads);
   const name = member === undefined ? callee.getText() : member.name;
   if (name !== OTEL_ROOT_OPENER) {
     return false;
@@ -127,14 +129,14 @@ function opensDetachedRoot(call: CallExpression): boolean {
  *  one-hop wrappers such as `superviseDetached` part of the vocabulary while preserving the `root: true`
  *  mechanical anchor. A rename keeps the family honest and a deleted detach empties the vocabulary, which
  *  is what the health tripwire reports. */
-export function deriveRootSpanOpeners(sourceFiles: readonly SourceFile[]): ReadonlySet<string> {
+export function deriveRootSpanOpeners(sourceFiles: readonly SourceFile[], reads?: CaughtFailureReadServices): ReadonlySet<string> {
   const out = new Set<string>();
   const exported = sourceFiles
     .filter((sf) => sf.getFilePath().includes(TRACING_MODULE))
     .flatMap((sf) => sf.getFunctions())
-    .filter((fn) => fn.isExported() && fn.getName() !== undefined);
+    .filter((fn) => (reads === undefined ? fn.isExported() : reads.types.functionExport(fn)) && fn.getName() !== undefined);
   for (const fn of exported) {
-    if (fn.getDescendantsOfKind(SyntaxKind.CallExpression).some(opensDetachedRoot)) {
+    if (fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => opensDetachedRoot(call, reads))) {
       out.add(fn.getNameOrThrow());
     }
   }
@@ -147,7 +149,7 @@ export function deriveRootSpanOpeners(sourceFiles: readonly SourceFile[]): Reado
         continue;
       }
       const wrapsBoundary = fn.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-        const called = calleeName(call);
+        const called = calleeName(call, reads);
         return called !== undefined && out.has(called);
       });
       if (wrapsBoundary) {
@@ -181,11 +183,11 @@ function rejectionHandlerOf(call: CallExpression, linkName: string): Node | unde
 /** The `.catch(<discard>)` / `.then(_, <discard>)` link of a promise chain, or undefined when the chain never
  *  absorbs its rejection. Walks INWARD through `then`/`catch`/`finally` links only — a non-link callee ends
  *  the chain. */
-function absorbingLink(expr: Node): CallExpression | undefined {
+function absorbingLink(expr: Node, reads?: CaughtFailureReadServices): CallExpression | undefined {
   let cur: Node = expr;
   let found: CallExpression | undefined;
   while (found === undefined && cur.isKind(SyntaxKind.CallExpression)) {
-    const member = literalMember(cur.getExpression());
+    const member = literalMember(cur.getExpression(), reads);
     if (member === undefined) {
       break;
     }
@@ -205,14 +207,14 @@ function absorbingLink(expr: Node): CallExpression | undefined {
  *  `evicted.then(dispose).catch(h)` anchors on `evicted`, and `a.save().catch(h)` on the whole `a.save`
  *  chain. Candidate order is WIDEST identity first, matching `lib/caught-failure.ts`, so a site governed by
  *  both policies reports the same position under both. */
-function workAnchorCandidates(absorber: CallExpression): readonly Node[] {
+function workAnchorCandidates(absorber: CallExpression, reads?: CaughtFailureReadServices): readonly Node[] {
   let cursor: Node = absorber;
   for (;;) {
     if (!cursor.isKind(SyntaxKind.CallExpression)) {
-      const member = literalMember(cursor);
+      const member = literalMember(cursor, reads);
       return member === undefined ? [cursor] : [cursor, member.receiver];
     }
-    const link = literalMember(cursor.getExpression());
+    const link = literalMember(cursor.getExpression(), reads);
     if (link === undefined || !PROMISE_LINKS.has(link.name)) {
       return calleeAnchorCandidates(cursor);
     }
@@ -253,11 +255,11 @@ function rethrows(block: Block): boolean {
 }
 
 /** The innermost derived-opener call this node sits inside an ARGUMENT of, or undefined. */
-function enclosingOpenerCall(node: Node, openers: ReadonlySet<string>): string | undefined {
+function enclosingOpenerCall(node: Node, openers: ReadonlySet<string>, reads?: CaughtFailureReadServices): string | undefined {
   let cur: Node | undefined = node.getParent();
   let found: string | undefined;
   while (found === undefined && cur !== undefined) {
-    const name = cur.isKind(SyntaxKind.CallExpression) ? calleeName(cur) : undefined;
+    const name = cur.isKind(SyntaxKind.CallExpression) ? calleeName(cur, reads) : undefined;
     if (name !== undefined && openers.has(name)) {
       found = name;
     }
@@ -268,9 +270,9 @@ function enclosingOpenerCall(node: Node, openers: ReadonlySet<string>): string |
 
 /** Does this statement call a derived span opener ANYWHERE? Deliberately permissive: proving the opener
  *  wraps THE work needs types a syntactic reader does not have. */
-function callsOpener(node: Node, openers: ReadonlySet<string>): boolean {
+function callsOpener(node: Node, openers: ReadonlySet<string>, reads?: CaughtFailureReadServices): boolean {
   return node.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-    const name = calleeName(call);
+    const name = calleeName(call, reads);
     return name !== undefined && openers.has(name);
   });
 }
@@ -286,24 +288,24 @@ export interface DetachedWorkSite {
 /** A1 — statement-position fire-and-forget that absorbs its own rejection and opens no root. The request
  *  root has already sealed by the time this work runs, so the failure reaches no log, no trace and no
  *  caller: invisible by construction. */
-export function untracedDispatchSite(statement: Node, openers: ReadonlySet<string>): DetachedWorkSite | undefined {
+export function untracedDispatchSite(statement: Node, openers: ReadonlySet<string>, reads?: CaughtFailureReadServices): DetachedWorkSite | undefined {
   if (!statement.isKind(SyntaxKind.ExpressionStatement)) {
     return;
   }
   const raw = unwrapExpression(statement.getExpression());
   const expr = raw.isKind(SyntaxKind.VoidExpression) ? unwrapExpression(raw.getExpression()) : raw;
-  const absorber = absorbingLink(expr);
+  const absorber = absorbingLink(expr, reads);
   // Already traced (the statement opens its own root), or already INSIDE one — the latter is the
   // blinded-rejection arm's territory, and judging it here too would double-report one absorber.
-  if (absorber === undefined || callsOpener(statement, openers) || enclosingOpenerCall(statement, openers) !== undefined) {
+  if (absorber === undefined || callsOpener(statement, openers, reads) || enclosingOpenerCall(statement, openers, reads) !== undefined) {
     return;
   }
-  return { arm: "untraced", node: statement, anchor: firstAnchor(statement, workAnchorCandidates(absorber)) };
+  return { arm: "untraced", node: statement, anchor: firstAnchor(statement, workAnchorCandidates(absorber, reads)) };
 }
 
 /** A2a — a catch INSIDE an opener callback that does not rethrow, so the root seals `ok` on failure. */
-export function swallowingCatchSite(clause: Node, openers: ReadonlySet<string>): DetachedWorkSite | undefined {
-  if (!clause.isKind(SyntaxKind.CatchClause) || enclosingOpenerCall(clause, openers) === undefined || rethrows(clause.getBlock())) {
+export function swallowingCatchSite(clause: Node, openers: ReadonlySet<string>, reads?: CaughtFailureReadServices): DetachedWorkSite | undefined {
+  if (!clause.isKind(SyntaxKind.CatchClause) || enclosingOpenerCall(clause, openers, reads) === undefined || rethrows(clause.getBlock())) {
     return;
   }
   return { arm: "swallowed-catch", node: clause, anchor: catchAnchor(clause) };
@@ -312,13 +314,13 @@ export function swallowingCatchSite(clause: Node, openers: ReadonlySet<string>):
 /** A2b — a DISCARDING `.catch(…)` NESTED INSIDE an opener callback: it blinds the span exactly as a
  *  non-rethrowing catch does. (The same absorber attached OUTSIDE the opener call is the CORRECT shape — it
  *  is not a descendant of the call, so it is never seen here.) */
-export function blindedRejectionSite(call: Node, openers: ReadonlySet<string>): DetachedWorkSite | undefined {
+export function blindedRejectionSite(call: Node, openers: ReadonlySet<string>, reads?: CaughtFailureReadServices): DetachedWorkSite | undefined {
   if (!call.isKind(SyntaxKind.CallExpression)) {
     return;
   }
   // Judge each chain only at its OWN absorbing link, never at an enclosing one (no double-report).
-  if (absorbingLink(call) !== call || enclosingOpenerCall(call, openers) === undefined) {
+  if (absorbingLink(call, reads) !== call || enclosingOpenerCall(call, openers, reads) === undefined) {
     return;
   }
-  return { arm: "blinded-rejection", node: call, anchor: firstAnchor(call, workAnchorCandidates(call)) };
+  return { arm: "blinded-rejection", node: call, anchor: firstAnchor(call, workAnchorCandidates(call, reads)) };
 }

@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-14
+updated: 2026-10-16
 priority: P1
 plan: test-foundation
 ---
@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Native analysis retains TypeScript programs across worlds. Measure the actual hosted-runner budget and completed tool peaks before attributing failures to duplication or contention. Measure peak memory of pnpm check, the structure stage and each pnpm ast verb against the hosted runner's memory, find what loads a program more than once, and fix it in the design: the code-facts engine (items 953 to 957) becomes one persisted, incrementally updated fact store that every gate, verb and codemod queries, so no caller loads its own program. The measurement is the evidence; there is no cap.
+Measure checker and pnpm ast peaks against the hosted-runner budget. Diagnose repeated native-program loads. Shared persisted facts serve gates, verbs and codemods without private programs.
 
 ## Why
 
@@ -37,3 +37,5 @@ This locates the custom sequence's aborting operation, not its allocation cause 
 The corrected frozen replay reaches its fixed deadline in the tests-DOM native world, without an OOM or source-identity diagnostic. Prior worlds finish staging and parent import; remaining worlds and collectors do not run. Generation stays zero. The terminal report records per-process RSS, swap and exact scope: `/tmp/ast-native-full-current-1002/result-summary.md`. Profile the failed world before another complete replay; staged input currency remains unqualified.
 
 Reviewed `49d607fd3c` removes repeated path resolution and native import-map construction. Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world replay, collector equivalence, concurrent reuse and hosted measurements remain open.
+
+Iso corpus imports reach Node router types. Repair contract derivation while keeping router conformance in Node. World closure totals remain unverified. Declaration bridges need freshness and closure qualification; complete inventory retains legacy evidence. Evidence: `.claude/worktrees/codex-native-reference-reuse-1002/reports/review/1002-world-closure-adjudication.md`.

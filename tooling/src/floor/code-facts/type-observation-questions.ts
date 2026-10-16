@@ -1,6 +1,6 @@
 // Explicit raw questions retain their nominated locations and one importing capture.
 import type { Node as MorphNode } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { TypeObservationCaptureOwner, TypeObservationDemand, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
@@ -92,10 +92,116 @@ function valueSlot(readers: TypeObservationReader, node: MorphNode, names: reado
     nodeSlots(readers, declaration, names);
   }
 }
+function executableDeclaration(declaration: MorphNode): readonly MorphNode[] {
+  if (Node.isVariableDeclaration(declaration)) {
+    return declaration.getInitializer() === undefined ? [] : [declaration];
+  }
+  if (Node.isBindingElement(declaration)) {
+    const owner = declaration.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+    return owner === undefined ? [] : [owner];
+  }
+  return Node.isFunctionDeclaration(declaration) && declaration.getBody() !== undefined ? [declaration] : [];
+}
+function symbolBodies(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  const symbol = readers.symbol(node);
+  return symbol === null
+    ? []
+    : [symbol, readers.symbolData(symbol).canonical].flatMap((target) => readers.symbolData(target).declarations.flatMap(executableDeclaration));
+}
+function sourceWriteIdentifiers(source: import("ts-morph").SourceFile): readonly MorphNode[] {
+  const writes: MorphNode[] = source.getDescendantsOfKind(SyntaxKind.BinaryExpression).map((node) => node.getLeft());
+  writes.push(...source.getDescendantsOfKind(SyntaxKind.ForOfStatement).map((node) => node.getInitializer()));
+  writes.push(...source.getDescendantsOfKind(SyntaxKind.ForInStatement).map((node) => node.getInitializer()));
+  return writes.flatMap((write) => [write, ...write.getDescendants()].filter(Node.isIdentifier));
+}
+function observeClosureNode(node: MorphNode, question: TypeObservationQuestion, readers: TypeObservationReader): readonly MorphNode[] {
+  if (Node.isIdentifier(node)) {
+    readers.definitions(node);
+  }
+  if (!(Node.isExpression(node) || Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node))) {
+    return [];
+  }
+  const bodies = symbolBodies(node, readers);
+  questions["type-details"]({ ...question, kind: "type-details", nodes: [node] }, readers);
+  return bodies;
+}
+function symbolClosure(question: TypeObservationQuestion, readers: TypeObservationReader): void {
+  const seen = new Set<MorphNode>();
+  const sources = new Set<MorphNode>();
+  const pending = [...question.nodes];
+  for (const root of pending) {
+    const source = root.getSourceFile();
+    if (!sources.has(source)) {
+      sources.add(source);
+      pending.push(...sourceWriteIdentifiers(source));
+    }
+    for (const node of [root, ...root.getDescendants()]) {
+      if (seen.has(node) || Node.isOmittedExpression(node)) {
+        continue;
+      }
+      seen.add(node);
+      pending.push(...observeClosureNode(node, question, readers));
+    }
+  }
+}
+function rawPropertyLiterals(readers: TypeObservationReader, selector: NativeTypeSelector, at: MorphNode, names: readonly string[]): void {
+  for (const name of names) {
+    const property = { ...selector, steps: [...selector.steps, { kind: "property" as const, name, at }] };
+    if (readers.select(property) !== null) {
+      readers.literalValue(property);
+      for (const part of readers.unions(property)) {
+        readers.literalValue(part);
+      }
+    }
+  }
+}
 const questions: Record<
   TypeObservationQuestion["kind"],
-  (question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]) => void
+  (
+    question: TypeObservationQuestion,
+    readers: TypeObservationReader,
+    profile?: TypeObservationCaptureOwner["profile"],
+    references?: TypeObservationCaptureOwner["references"],
+  ) => void
 > = {
+  "reference-closure": (question, readers, _profile, references): void => {
+    if (references === undefined) {
+      throw new Error("native raw reference closure has no strict reference owner");
+    }
+    for (const node of question.nodes) {
+      symbolClosure({ ...question, nodes: [node, ...references(node)] }, readers);
+    }
+  },
+  "symbol-closure": symbolClosure,
+  "type-details": (question, readers): void => {
+    const details = (selector: NativeTypeSelector, at: MorphNode): void => {
+      if (readers.select(selector) === null) {
+        return;
+      }
+      readers.defaultDisplay(selector);
+      readers.literalValue(selector);
+      for (const argument of readers.typeArguments(selector)) {
+        const selected = readers.select(argument);
+        if (selected !== null) {
+          readers.type(selected);
+        }
+      }
+      rawPropertyLiterals(readers, selector, at, question.properties ?? []);
+    };
+    for (const node of question.nodes) {
+      readers.symbol(node);
+      const selector = nodeTypeSelector(node);
+      details(selector, node);
+      for (const part of readers.unions(selector)) {
+        details(part, node);
+      }
+    }
+  },
+  "function-exports": (question, readers): void => {
+    for (const node of question.nodes) {
+      readers.functionExport(node);
+    }
+  },
   "node-types": (question, readers): void => {
     for (const node of question.nodes) {
       nodeSlots(readers, node, question.properties ?? []);
@@ -136,8 +242,13 @@ const questions: Record<
   },
 };
 /** Capture and replay execute the same closed primitive questions. */
-export function observeRawQuestions(demand: TypeObservationDemand, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+export function observeRawQuestions(
+  demand: TypeObservationDemand,
+  readers: TypeObservationReader,
+  profile?: TypeObservationCaptureOwner["profile"],
+  references?: TypeObservationCaptureOwner["references"],
+): void {
   for (const question of demand.questions ?? []) {
-    questions[question.kind](question, readers, profile);
+    questions[question.kind](question, readers, profile, references);
   }
 }

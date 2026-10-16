@@ -7,7 +7,7 @@ import { Project } from "ts-morph";
 import { gate as censusRow } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/census-row";
 const CENSUS = "tooling/src/verify/gates/caught-failure-ownership.population.json";
@@ -30,11 +30,13 @@ function narrowed(rows: readonly string[], requestedPaths: readonly string[]): r
     policies: [censusRow],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     requestedPaths,
     resourceOptions: { overlay: { [CENSUS]: census(...rows) } },
     reviewedGrants: [],
     failOnWarnings: false,
   });
+  expect(result.toolErrors).toEqual([]);
   return result.policies.flatMap((owner) => owner.findings.map((finding) => finding.message ?? ""));
 }
 

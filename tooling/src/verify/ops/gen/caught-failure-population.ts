@@ -25,7 +25,14 @@ import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { SourceFile } from "ts-morph";
-import type { CaughtFailureArm, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureVerdict } from "../../contract/caught-failure.ts";
+import { SyntaxKind } from "ts-morph";
+import type {
+  CaughtFailureArm,
+  CaughtFailurePopulation,
+  CaughtFailureReadServices,
+  CaughtFailureRow,
+  CaughtFailureVerdict,
+} from "../../contract/caught-failure.ts";
 import { CAUGHT_FAILURE_ARMS } from "../../contract/caught-failure.ts";
 import type { CoordinatedGateFinding } from "../../contract/gate-authority.ts";
 import type { OrdinaryWaiverSource } from "../../contract/ordinary-waiver-source.ts";
@@ -33,6 +40,7 @@ import { JSON_RESOURCE_PATHS } from "../../contract/resource-json.ts";
 import { gate } from "../../gates/caught-failure-ownership.ts";
 import { caughtFailureReviewSites } from "../../lib/caught-failure.ts";
 import { keyCaughtFailureSites } from "../../lib/caught-failure-identity.ts";
+import { nativeFailureRead } from "../../lib/caught-failure-native.ts";
 import { createOrdinaryWaiverEngine } from "../../lib/ordinary-waiver.ts";
 import { compilePopulation } from "../../lib/population-resolver.ts";
 // NOT `harness.ts`'s `getProject` — MEASURED 2026-08-28: its fileset is deliberately narrower than
@@ -59,9 +67,9 @@ interface DerivedSite {
 /** Every site in one file, keyed and already carrying the EXACT coordinates and token the policy reports —
  *  which is also the position a `@orb-waive` marker must name. A site whose anchor is underivable REFUSES
  *  loudly: a census row naming no position would read exactly like a waivable site that nobody waived. */
-function derivedSites(sf: SourceFile, path: string): readonly DerivedSite[] {
+function derivedSites(sf: SourceFile, path: string, reads: CaughtFailureReadServices): readonly DerivedSite[] {
   const lines = sf.getFullText().split(/\r?\n/u);
-  return keyCaughtFailureSites(path, caughtFailureReviewSites(sf)).map(({ site, siteId, ordinal }) => {
+  return keyCaughtFailureSites(path, caughtFailureReviewSites(sf, reads)).map(({ site, siteId, ordinal }) => {
     if (site.anchor === undefined || siteId === undefined) {
       throw new Error(
         `caught-failure-population: the site at ${path}:${site.node.getStartLineNumber()} has no derivable waiver position. ` +
@@ -138,13 +146,37 @@ function waiverReason(sf: SourceFile, markerLine: number): string {
 /** Every live site with its coordinates, read from the tree NOW — the read-time half of the census. */
 export function deriveCaughtFailureSites(root: string, includesSubject: (path: string) => boolean = () => true): readonly CaughtFailureRow[] {
   const includes = compilePopulation(gate.population);
-  const files = projectCtx(root)
-    .files.map((sf) => ({ sf, path: repoRel(root, sf.getFilePath()) }))
+  const context = projectCtx(root);
+  const files = context.files
+    .map((sf) => ({ sf, path: repoRel(root, sf.getFilePath()) }))
     .filter(({ path }) => includes(path) && includesSubject(path))
     .toSorted((left, right) => left.path.localeCompare(right.path));
   const sources: OrdinaryWaiverSource[] = files.map(({ sf, path }) => ({ kind: "typescript", path, sourceFile: sf }));
   const byPath = new Map(files.map(({ sf, path }) => [path, sf]));
-  const sites = files.flatMap(({ sf, path }) => derivedSites(sf, path));
+  const facts = context.nativeTypeFacts?.();
+  if (facts === undefined) {
+    throw new Error("native caught-failure population facts are unavailable");
+  }
+  const owner = "caught-failure-population";
+  let sites: readonly DerivedSite[];
+  try {
+    const native = nativeFailureRead(
+      {
+        files: files.map(({ sf }) => sf),
+        nativeTypes: {
+          request: (query) => facts.request(owner, query),
+          invocationEvidence: (nodes, plan) => facts.invocationEvidence(owner, nodes, plan),
+          references: (nodes, importer) => facts.references(owner, nodes, importer),
+        },
+      },
+      () => files.flatMap(({ sf }) => [...sf.getDescendantsOfKind(SyntaxKind.CatchClause), ...sf.getDescendantsOfKind(SyntaxKind.CallExpression)]),
+    );
+    native.prepare();
+    facts.seal(new Set([owner]));
+    sites = files.flatMap(({ sf, path }) => derivedSites(sf, path, native.at(sf)));
+  } finally {
+    facts[Symbol.dispose]();
+  }
   const findings: CoordinatedGateFinding[] = sites.map((site) => ({
     file: site.path,
     line: site.line,

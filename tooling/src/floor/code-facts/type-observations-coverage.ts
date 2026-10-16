@@ -38,8 +38,11 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
       facts.callParameters !== undefined ||
       facts.signatureParameters !== undefined ||
       facts.valueProfiles !== undefined ||
+      facts.functionExports !== undefined ||
       facts.symbols.some((row) => row.valueDeclaration !== undefined) ||
-      facts.types.some((row) => row?.stringLiteral !== undefined)
+      facts.types.some(
+        (row) => row?.stringLiteral !== undefined || row?.defaultDisplay !== undefined || row?.literalValue !== undefined || row?.typeArguments !== undefined,
+      )
     ) {
       throw new Error("native raw questions are foreign to the registered demand");
     }
@@ -49,6 +52,18 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
     throw new Error("native raw question tables are missing");
   }
   assertRawNominations(facts, key);
+  assertTypeArgumentCoverage(facts, key);
+  const functions = facts.demand.questions
+    .filter((q) => q.kind === "function-exports")
+    .flatMap((q) => q.nodes)
+    .map(key);
+  if (
+    functions.length > 0 !== (facts.functionExports !== undefined && facts.functionExports.length > 0) ||
+    JSON.stringify(functions) !== JSON.stringify((facts.functionExports ?? []).map((row) => key(row.node))) ||
+    facts.functionExports?.some((row) => kind(row.node) !== SyntaxKind.FunctionDeclaration) === true
+  ) {
+    throw new Error("native function export coverage is missing or foreign");
+  }
   const valueDemand = facts.demand.questions.some((q) => q.valueFacets !== undefined);
   if (valueDemand !== (facts.valueProfiles !== undefined)) {
     throw new Error("native value-profile table is missing or unrequested");
@@ -63,6 +78,51 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   assertRawParameterCoverage(facts, key, kind);
   if (facts.definitions.some((row) => kind(row.node) !== SyntaxKind.Identifier)) {
     throw new Error("native definition-node query is not an identifier");
+  }
+}
+
+export function assertTypeArgumentCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const remaining = new Set(
+    (facts.selections?.plan.selectors ?? []).flatMap((selector, index) => (selector.steps.at(-1)?.kind === "type-argument" ? [index] : [])),
+  );
+  for (const [index, row] of facts.types.entries()) {
+    if (row === null || row.typeArguments === undefined) {
+      continue;
+    }
+    if (row.typeArgumentCount !== row.typeArguments.length) {
+      throw new Error("native Type argument coverage is incomplete");
+    }
+    const parent = facts.selections?.plan.selectors[index];
+    if (parent === undefined) {
+      throw new Error("native Type argument owner is unavailable");
+    }
+    for (const [ordinal, child] of row.typeArguments.entries()) {
+      assertTypeArgumentIdentity(facts, parent, key, { ordinal, child });
+      if (!remaining.delete(child)) {
+        throw new Error("native Type argument selector coverage is ambiguous");
+      }
+    }
+  }
+  if (remaining.size > 0) {
+    throw new Error("native Type argument selector coverage is incomplete");
+  }
+}
+function assertTypeArgumentIdentity<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  parent: import("./type-projection-contract.ts").NativeTypeSelector<Anchor>,
+  key: (node: Anchor) => string,
+  entry: { readonly ordinal: number; readonly child: number },
+): void {
+  const { ordinal, child } = entry;
+  const selector = facts.selections?.plan.selectors[child];
+  const step = selector?.steps.at(-1);
+  if (
+    selector === undefined ||
+    step?.kind !== "type-argument" ||
+    step.index !== ordinal ||
+    rawSelectorKey({ ...selector, steps: selector.steps.slice(0, -1) }, key) !== rawSelectorKey(parent, key)
+  ) {
+    throw new Error("native Type argument identity is foreign");
   }
 }
 function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
@@ -306,6 +366,7 @@ function assertBaseIndices<Anchor>(facts: TypeObservationValues<Anchor>, indices
     if (entry !== null) {
       symbol(entry.symbol);
       symbol(entry.aliasSymbol);
+      entry.typeArguments?.forEach(presentType);
     }
   }
   for (const entry of facts.nodes) {

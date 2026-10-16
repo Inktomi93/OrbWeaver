@@ -3,12 +3,14 @@
 // whose site is gone is whole-corpus knowledge and stays with `caught-failure-ownership-health`.
 // FAMILY: caught-failure-ownership, the site classifier and identity readers its siblings share.
 // POPULATION: the sibling's, so a narrowed structure check still judges each selected file's sites.
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
-import { CAUGHT_FAILURE_POPULATION, catchClauseSite, promiseAbsorberSite } from "../lib/caught-failure.ts";
+import { CAUGHT_FAILURE_POPULATION, caughtFailureSite } from "../lib/caught-failure.ts";
 import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
+import { nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -43,6 +45,8 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const sitesByPath = new Map<string, CaughtFailureSite[]>();
+    const nominees: Node[] = [];
+    const native = nativeFailureRead(ctx, () => nominees);
     const collect = (path: string, site: CaughtFailureSite | undefined): void => {
       if (site !== undefined) {
         sitesByPath.set(path, [...(sitesByPath.get(path) ?? []), site]);
@@ -51,15 +55,18 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.CatchClause],
-          visit: (node, sourceFile) => collect(ctx.relativePath(sourceFile), catchClauseSite(node.asKindOrThrow(SyntaxKind.CatchClause))),
-        },
-        {
-          kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile) => collect(ctx.relativePath(sourceFile), promiseAbsorberSite(node.asKindOrThrow(SyntaxKind.CallExpression))),
+          kinds: [SyntaxKind.CatchClause, SyntaxKind.CallExpression],
+          visit: (node): void => {
+            nominees.push(node);
+          },
         },
       ],
+      prepare: native.prepare,
       evaluate: () => {
+        for (const node of nominees) {
+          const reads = native.at(node.getSourceFile());
+          collect(ctx.relativePath(node.getSourceFile()), caughtFailureSite(node, reads));
+        }
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         // A census that is not a census is `caught-failure-ownership-health`'s finding; this arm cannot join against it.
         if (!read.ok) {

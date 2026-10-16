@@ -1,12 +1,12 @@
 // Delivered selectors answer only one closed capture; scalar identity never grants another world's meaning.
 import type { Node, SourceFile } from "ts-morph";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
-import type { NativeTypeObservations, ObservedReference, TypeObservationReader } from "./type-observations-contract.ts";
-import { assertRawParameterCoverage } from "./type-observations-coverage.ts";
+import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
+import { assertRawParameterCoverage, assertTypeArgumentCoverage } from "./type-observations-coverage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
-export function readTypeObservations(facts: NativeTypeObservations): TypeObservationReader {
+export function readTypeObservations(facts: NativeTypeObservations, references?: TypeObservationCaptureOwner["references"]): TypeObservationReader {
   const scope = {};
   const selectedIndex = facts.selections === null ? undefined : typeSelectorIndex(facts.selections.plan);
   const typeKeys = new Map<number, object>();
@@ -77,6 +77,39 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
     return value;
   };
   const reader: TypeObservationReader = {
+    defaultDisplay: (selector) => {
+      const value = facts.types[indexOf(selector)]?.defaultDisplay;
+      if (value === undefined) {
+        throw new Error("native default Type display was not captured");
+      }
+      return value;
+    },
+    literalValue: (selector) => {
+      const value = facts.types[indexOf(selector)]?.literalValue;
+      if (value === undefined || value.kind === "unrequested") {
+        throw new Error("native literal value was not captured");
+      }
+      return value.kind === "absent" ? undefined : value.value;
+    },
+    typeArguments: (selector) => {
+      const metadata = facts.types[indexOf(selector)];
+      const value = metadata?.typeArguments;
+      if (value === undefined) {
+        throw new Error("native Type arguments were not captured");
+      }
+      if (metadata?.typeArgumentCount !== value.length) {
+        throw new Error("native Type argument coverage is incomplete");
+      }
+      return value.map(selectorAt);
+    },
+    functionExport: (node) => {
+      facts.assertNode(node);
+      const row = facts.functionExports?.find((entry) => entry.node === node);
+      if (row === undefined) {
+        throw new Error("native function export was not captured");
+      }
+      return row.value;
+    },
     select: (selector) => {
       const index = indexOf(selector);
       const value = selections().values[index];
@@ -245,9 +278,12 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
     },
   };
   if (facts.definitions === undefined) {
-    observeAuthoredTypeSlots(facts.demand, reader);
+    observeAuthoredTypeSlots(facts.demand, reader, undefined, references);
   } else {
     const usedDefinitions = new Set<Node>();
+    const displays = new Set<number>();
+    const literals = new Set<number>();
+    const argumentsUsed = new Set<number>();
     const values = new Map<Node, Set<string>>();
     observeAuthoredTypeSlots(
       facts.demand,
@@ -256,6 +292,18 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
         definitions: (node) => {
           usedDefinitions.add(node);
           return reader.definitions(node);
+        },
+        defaultDisplay: (selector) => {
+          displays.add(indexOf(selector));
+          return reader.defaultDisplay(selector);
+        },
+        literalValue: (selector) => {
+          literals.add(indexOf(selector));
+          return reader.literalValue(selector);
+        },
+        typeArguments: (selector) => {
+          argumentsUsed.add(indexOf(selector));
+          return reader.typeArguments(selector);
         },
       },
       (node, facets) => {
@@ -266,7 +314,10 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
         }
         values.set(node, requested);
       },
+      references,
     );
+    assertDetailCoverage(facts, displays, literals, argumentsUsed);
+    assertTypeArgumentCoverage(facts, (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]));
     if (facts.definitions.some((row) => !usedDefinitions.has(row.node))) {
       throw new Error("native definition-node question is foreign to the registered closure");
     }
@@ -287,4 +338,24 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
     );
   }
   return reader;
+}
+
+function assertDetailCoverage(
+  facts: NativeTypeObservations,
+  displays: ReadonlySet<number>,
+  literals: ReadonlySet<number>,
+  argumentsUsed: ReadonlySet<number>,
+): void {
+  if (
+    facts.types.some(
+      (row, index) =>
+        row !== null &&
+        ((row.defaultDisplay !== undefined) !== displays.has(index) ||
+          (row.literalValue !== undefined) !== literals.has(index) ||
+          (row.typeArguments !== undefined) !== argumentsUsed.has(index) ||
+          (row.typeArgumentCount !== undefined) !== argumentsUsed.has(index)),
+    )
+  ) {
+    throw new Error("native Type detail coverage is missing or foreign");
+  }
 }

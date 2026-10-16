@@ -4,7 +4,9 @@
 // live here — every function is a pure syntactic reader with no domain vocabulary.
 import type { BindingElement, CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { CaughtFailureReadServices, CaughtFailureTraversal } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { failureDefinitionNodes, failureLiteralValue, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 const NOOP_TEXT: ReadonlySet<string> = new Set(["undefined", "null", "false", "true", "0", "-1", '""', "''", "void 0"]);
 export const FUNCTION_KINDS: ReadonlySet<SyntaxKind> = new Set([
@@ -22,7 +24,7 @@ export const REJECTION_HANDLER_INDEX: ReadonlyMap<string, number> = new Map([
   ["then", 1],
 ]);
 
-export function literalMember(node: Node): { readonly name: string; readonly receiver: Node } | undefined {
+export function literalMember(node: Node, reads?: CaughtFailureReadServices): { readonly name: string; readonly receiver: Node } | undefined {
   const member = unwrapExpression(node);
   if (member.isKind(SyntaxKind.PropertyAccessExpression)) {
     return { name: member.getName(), receiver: unwrapExpression(member.getExpression()) };
@@ -31,12 +33,12 @@ export function literalMember(node: Node): { readonly name: string; readonly rec
     return;
   }
   const key = member.getArgumentExpression();
-  const name = key === undefined ? undefined : staticStringValue(key);
+  const name = key === undefined ? undefined : staticStringValue(key, reads);
   return name === undefined ? undefined : { name, receiver: unwrapExpression(member.getExpression()) };
 }
 
-export function staticStringValue(node: Node): string | undefined {
-  const typedLiteral = node.getType().getLiteralValue();
+export function staticStringValue(node: Node, reads?: CaughtFailureReadServices): string | undefined {
+  const typedLiteral = failureLiteralValue(node, reads);
   if (typeof typedLiteral === "string") {
     return typedLiteral;
   }
@@ -45,28 +47,28 @@ export function staticStringValue(node: Node): string | undefined {
     return value.getLiteralValue();
   }
   if (value.isKind(SyntaxKind.BinaryExpression) && value.getOperatorToken().getText() === "+") {
-    const left = staticStringValue(value.getLeft());
-    const right = staticStringValue(value.getRight());
+    const left = staticStringValue(value.getLeft(), reads);
+    const right = staticStringValue(value.getRight(), reads);
     return left === undefined || right === undefined ? undefined : left + right;
   }
-  const literal = value.getType().getLiteralValue();
+  const literal = failureLiteralValue(value, reads);
   if (typeof literal === "string") {
     return literal;
   }
   if (!value.isKind(SyntaxKind.Identifier)) {
     return;
   }
-  const declaration = value.getSymbol()?.getDeclarations()[0];
+  const declaration = rawFailureDeclarations(value, reads)[0];
   if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
     return;
   }
   const initializer = declaration.getInitializer();
-  return initializer === undefined ? undefined : staticStringValue(initializer);
+  return initializer === undefined ? undefined : staticStringValue(initializer, reads);
 }
 
-export function calleeName(call: CallExpression): string | undefined {
+export function calleeName(call: CallExpression, reads?: CaughtFailureReadServices): string | undefined {
   const callee = unwrapExpression(call.getExpression());
-  const member = literalMember(callee);
+  const member = literalMember(callee, reads);
   if (member !== undefined) {
     return member.name;
   }
@@ -84,9 +86,9 @@ export function isFallback(node: Node): boolean {
   return value.isKind(SyntaxKind.ObjectLiteralExpression) && value.getProperties().length === 0;
 }
 
-export function referencesBinding(node: Node, binding: Node): boolean {
-  const symbol = binding.getSymbol();
-  if (symbol === undefined) {
+export function referencesBinding(node: Node, binding: Node, reads?: CaughtFailureReadServices): boolean {
+  const symbol = reads === undefined ? binding.getSymbol() : reads.types.symbol(binding);
+  if (symbol === undefined || symbol === null) {
     return false;
   }
   const declaration = binding.getParent();
@@ -98,24 +100,20 @@ export function referencesBinding(node: Node, binding: Node): boolean {
     candidate.getStart() === declaration.getStart() &&
     candidate.getKind() === declaration.getKind();
   const identifierMatches = (identifier: Node): boolean =>
-    identifier.isKind(SyntaxKind.Identifier) &&
-    identifier.getDefinitions().some((definition) => {
-      const candidate = definition.getDeclarationNode();
-      return candidate !== undefined && matches(candidate);
-    });
+    identifier.isKind(SyntaxKind.Identifier) && failureDefinitionNodes(identifier, reads).some((candidate) => matches(candidate));
   return (node.isKind(SyntaxKind.Identifier) && identifierMatches(node)) || node.getDescendantsOfKind(SyntaxKind.Identifier).some(identifierMatches);
 }
 
-export function directlyCarriesBinding(node: Node, binding: Node): boolean {
+export function directlyCarriesBinding(node: Node, binding: Node, reads?: CaughtFailureReadServices): boolean {
   const value = unwrapExpression(node);
-  return value.isKind(SyntaxKind.Identifier) && referencesBinding(value, binding);
+  return value.isKind(SyntaxKind.Identifier) && referencesBinding(value, binding, reads);
 }
 
-export function ambientIdentifier(node: Node, name: string, importModules: ReadonlySet<string>): boolean {
+export function ambientIdentifier(node: Node, name: string, importModules: ReadonlySet<string>, reads?: CaughtFailureReadServices): boolean {
   if (!node.isKind(SyntaxKind.Identifier) || node.getText() !== name) {
     return false;
   }
-  const declarations = node.getSymbol()?.getDeclarations() ?? [];
+  const declarations = rawFailureDeclarations(node, reads);
   return declarations.every((declaration) => {
     if (declaration.getSourceFile() !== node.getSourceFile() || declaration.getSourceFile().isDeclarationFile()) {
       return true;
@@ -125,13 +123,13 @@ export function ambientIdentifier(node: Node, name: string, importModules: Reado
   });
 }
 
-export function importedName(node: Node, modules: ReadonlySet<string>): string | undefined {
+export function importedName(node: Node, modules: ReadonlySet<string>, reads?: CaughtFailureReadServices): string | undefined {
   const value = unwrapExpression(node);
   if (!value.isKind(SyntaxKind.Identifier)) {
     return;
   }
   let imported: string | undefined;
-  const declarations = value.getSymbol()?.getDeclarations() ?? [];
+  const declarations = rawFailureDeclarations(value, reads);
   for (const declaration of value.getSourceFile().getImportDeclarations()) {
     if (!modules.has(declaration.getModuleSpecifierValue())) {
       continue;
@@ -145,26 +143,24 @@ export function importedName(node: Node, modules: ReadonlySet<string>): string |
   return imported;
 }
 
-export function declarationsOf(node: Node): readonly Node[] {
+export function declarationsOf(node: Node, reads?: CaughtFailureReadServices): readonly Node[] {
   const value = unwrapExpression(node);
   if (!value.isKind(SyntaxKind.Identifier)) {
     return [];
   }
-  const symbol = value.getSymbol();
-  return symbol?.getAliasedSymbol()?.getDeclarations() ?? symbol?.getDeclarations() ?? [];
+  return rawFailureDeclarations(value, reads, true);
 }
 
-export function hasInterveningWrite(use: Node, declaration: Node): boolean {
+export function hasInterveningWrite(use: Node, declaration: Node, reads?: CaughtFailureReadServices): boolean {
   const source = use.getSourceFile();
   const assignmentOperators = new Set(["=", "&&=", "||=", "??=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^="]);
   const writesDeclaration = (target: Node): boolean => {
     const left = unwrapExpression(target);
     const identifiers = left.isKind(SyntaxKind.Identifier) ? [left] : left.getDescendantsOfKind(SyntaxKind.Identifier);
     return identifiers.some((identifier) =>
-      identifier.getDefinitions().some((definition) => {
-        const candidate = definition.getDeclarationNode();
-        return candidate !== undefined && candidate.getSourceFile() === declaration.getSourceFile() && candidate.getStart() === declaration.getStart();
-      }),
+      failureDefinitionNodes(identifier, reads).some(
+        (candidate) => candidate.getSourceFile() === declaration.getSourceFile() && candidate.getStart() === declaration.getStart(),
+      ),
     );
   };
   const binaryWrite = source.getDescendantsOfKind(SyntaxKind.BinaryExpression).some((assignment) => {
@@ -240,7 +236,12 @@ function bindingElementIsSetterSlot(element: BindingElement, modules: ReadonlySe
  *  failure-outcome vocabulary): both the governed-sink recognizers (`caught-failure-outcome.ts`, a React
  *  setter fed a failure) and the framework-ownership walk (`caught-failure-scope.ts`, a TanStack query/form
  *  hook) share this exact provenance shape, so it lives here rather than owing a choice between them. */
-export function originatesFromFactory(node: Node, modules: ReadonlySet<string>, factories: ReadonlySet<string>, seen: ReadonlySet<Node> = new Set()): boolean {
+export function originatesFromFactory(node: Node, modules: ReadonlySet<string>, factories: ReadonlySet<string>, reads?: CaughtFailureReadServices): boolean {
+  return factoryOrigin(node, modules, factories, { seen: new Set(), reads });
+}
+
+function factoryOrigin(node: Node, modules: ReadonlySet<string>, factories: ReadonlySet<string>, context: CaughtFailureTraversal): boolean {
+  const { seen, reads } = context;
   const value = unwrapExpression(node);
   if (seen.has(value)) {
     return false;
@@ -248,14 +249,14 @@ export function originatesFromFactory(node: Node, modules: ReadonlySet<string>, 
   const nextSeen = new Set(seen).add(value);
   if (value.isKind(SyntaxKind.CallExpression)) {
     const callee = unwrapExpression(value.getExpression());
-    const imported = importedName(callee, modules);
+    const imported = importedName(callee, modules, reads);
     return imported !== undefined && factories.has(imported);
   }
   if (!value.isKind(SyntaxKind.Identifier)) {
     return false;
   }
-  const valueDeclaration = value.getSymbol()?.getDeclarations()[0];
-  if (valueDeclaration !== undefined && hasInterveningWrite(value, valueDeclaration)) {
+  const valueDeclaration = rawFailureDeclarations(value, reads)[0];
+  if (valueDeclaration !== undefined && hasInterveningWrite(value, valueDeclaration, reads)) {
     return false;
   }
   if (valueDeclaration?.isKind(SyntaxKind.Parameter) === true) {
@@ -266,12 +267,12 @@ export function originatesFromFactory(node: Node, modules: ReadonlySet<string>, 
       return false;
     }
     const initializer = valueDeclaration.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-    return initializer !== undefined && originatesFromFactory(initializer, modules, factories, nextSeen);
+    return initializer !== undefined && factoryOrigin(initializer, modules, factories, { seen: nextSeen, reads });
   }
   if (valueDeclaration?.isKind(SyntaxKind.VariableDeclaration) === true) {
     const initializer = valueDeclaration.getInitializer();
-    return initializer !== undefined && originatesFromFactory(initializer, modules, factories, nextSeen);
+    return initializer !== undefined && factoryOrigin(initializer, modules, factories, { seen: nextSeen, reads });
   }
   const initializer = nearestPrecedingInitializer(value);
-  return initializer !== undefined && originatesFromFactory(initializer, modules, factories, nextSeen);
+  return initializer !== undefined && factoryOrigin(initializer, modules, factories, { seen: nextSeen, reads });
 }
