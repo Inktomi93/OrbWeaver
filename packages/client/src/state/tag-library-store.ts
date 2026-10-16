@@ -8,7 +8,7 @@
 // is a browse posture, the same class as `character-library`'s sort/view chips and `config-group-open`'s
 // disclosure. "I'm scanning alphabetically right now on the laptop" is not a preference a user expects to
 // follow them to another machine, and it writes on every dropdown change — traffic the synced blob should
-// not carry. Registered as device-local in tooling/src/verify/gates/persistence-boundary.ts.
+// not carry. Registered as device-local in packages/client/src/state/device-local-registry.ts.
 
 import type { TagSortMode } from "#lib";
 import { DEFAULT_TAG_SORT_MODE, TAG_SORT_MODES } from "#lib";

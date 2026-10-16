@@ -113,6 +113,33 @@ module.exports = {
 
   forbidden: [
     {
+      name: "client-persisted-store-implementation",
+      severity: "error",
+      comment: "Production persistence names enter through the typed factory; raw names belong only to the private legacy seam (D321).",
+      from: { pathNot: "^packages/client/src/state/(create-persisted-store\\.ts|legacy-test-factories/index\\.ts)$" },
+      to: { path: "^packages/client/src/state/persisted-store-implementation\\.ts$" },
+    },
+    {
+      name: "client-persisted-draft-implementation",
+      severity: "error",
+      comment: "Production draft names enter through the typed factory; raw names belong only to the private legacy seam (D321).",
+      from: { pathNot: "^packages/client/src/state/(create-entity-draft-store\\.ts|legacy-test-factories/index\\.ts)$" },
+      to: { path: "^packages/client/src/state/entity-draft-store-implementation\\.ts$" },
+    },
+    {
+      name: "client-persisted-legacy-only",
+      severity: "error",
+      comment: "Existing legacy fixtures preserve arbitrary storage keys without exposing a production or new-test factory bypass (D318, D321).",
+      from: {
+        pathNot: [
+          "^tests/legacy/client/state/(create-persisted-store|create-entity-draft-store|durable-local)\\.test\\.ts$",
+          "^tests/legacy/client/forms/entity-form-base\\.test\\.ts$",
+          "^tests/legacy/client/forms/editor/_(ct-stories|draft-completion-stories)\\.tsx$",
+        ],
+      },
+      to: { path: "^packages/client/src/state/legacy-test-factories/index\\.ts$" },
+    },
+    {
       name: "browser-tests-no-server-runtime",
       comment:
         "Browser-world stories, fixtures and support cannot execute server modules. The AppRouter type-only bridge remains legal; Node helper worlds retain their production doors. (Spine-Testing §2 and §10.)",

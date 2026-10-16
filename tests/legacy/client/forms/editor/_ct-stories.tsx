@@ -8,13 +8,13 @@
 // edit re-renders the observed DOM, sibling so a buggy self-re-render loop can't spin.
 
 import { hashServerBaseline } from "@orb/client/forms";
-import { createEntityDraftStore } from "@orb/client/state";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { z } from "zod";
 import type { AutosaveSession, AutosaveStatusProps } from "#client/forms/editor/index.ts";
 import { AutosaveStatus, createAutosaveEntityForm, createSavedEntityForm } from "#client/forms/editor/index.ts";
+import { createEntityDraftStore } from "../../../../../packages/client/src/state/legacy-test-factories/index.ts";
 
 // ---------------------------------------------------------------------------------------------
 // AutosaveStatusStory — drives the shared AutosaveStatus affordance (north-star §7 / D66 A4) through

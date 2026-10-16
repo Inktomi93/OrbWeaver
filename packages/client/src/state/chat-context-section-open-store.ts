@@ -12,7 +12,7 @@
 // WHY PER DEVICE: "World books open, Host controls closed" is a working posture on THIS screen, not a
 // preference that should follow a user to a phone whose fold is 300px shorter — the `config-group-open` /
 // `character-library` browse-prefs precedent (§12.1). Registered as device-local in
-// tooling/src/verify/gates/persistence-boundary.ts.
+// packages/client/src/state/device-local-registry.ts.
 //
 // THE STORED SHAPE IS A SPARSE Record<string, boolean>, NOT a list of open ids: sections do not share ONE
 // default (Field overrides and Injections open, the racks and the host band closed), so "absent from the
