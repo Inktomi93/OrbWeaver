@@ -1,7 +1,9 @@
 // The fixed authored-slot profile closes raw questions, never schema ownership or parity verdicts.
+
 import type { Expression, Node as MorphNode, PropertyDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { TypeObservationDemand, TypeObservationReader } from "./type-observations-contract.ts";
+import { observeRawQuestions } from "./type-observation-questions.ts";
+import type { TypeObservationCaptureOwner, TypeObservationDemand, TypeObservationReader } from "./type-observations-contract.ts";
 import { ZOD_OUTPUT_PROPERTY } from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector, typeArgumentSelector } from "./type-projection-contract.ts";
@@ -9,7 +11,15 @@ import { memberTypeAtPath } from "./type-slot-path.ts";
 import { aggregateCallPath, contextualExpressions, ownReturnExpressions, unwrapTypeExpression } from "./type-slot-syntax.ts";
 
 /** The same deterministic profile runs against capture and delivered evidence, so truncated questions refuse. */
-export function observeAuthoredTypeSlots(demand: TypeObservationDemand, readers: TypeObservationReader): void {
+export function observeAuthoredTypeSlots(
+  demand: TypeObservationDemand,
+  readers: TypeObservationReader,
+  profile?: TypeObservationCaptureOwner["profile"],
+): void {
+  if (demand.questions !== undefined) {
+    observeRawQuestions(demand, readers, profile);
+    return;
+  }
   const seen = new Set<MorphNode>();
   const pairs = new Map<MorphNode, Set<MorphNode>>();
   const pending: MorphNode[] = [...demand.nodes];

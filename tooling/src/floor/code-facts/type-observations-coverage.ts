@@ -16,6 +16,232 @@ export function assertTypeObservationCoverage<Anchor>(
   assertContextualSlots(facts, key);
   assertTypeObservationRows(facts, key);
   assertRootSlots(facts, key, kind);
+  assertRawQuestions(facts, key, kind);
+}
+function rawSelectorKey<Anchor>(selector: import("./type-projection-contract.ts").NativeTypeSelector<Anchor>, key: (node: Anchor) => string): string {
+  return JSON.stringify({
+    ...selector,
+    base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: key(selector.base.node) },
+    steps: selector.steps.map((step) => ("at" in step ? { ...step, at: key(step.at) } : step)),
+    displayAt: selector.displayAt === null ? null : key(selector.displayAt),
+  });
+}
+function uniqueRawKeys(keys: readonly string[]): void {
+  if (new Set(keys).size !== keys.length) {
+    throw new Error("native raw question identity is ambiguous");
+  }
+}
+function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
+  if (facts.demand.questions === undefined) {
+    if (
+      facts.definitions !== undefined ||
+      facts.callParameters !== undefined ||
+      facts.signatureParameters !== undefined ||
+      facts.valueProfiles !== undefined ||
+      facts.symbols.some((row) => row.valueDeclaration !== undefined) ||
+      facts.types.some((row) => row?.stringLiteral !== undefined)
+    ) {
+      throw new Error("native raw questions are foreign to the registered demand");
+    }
+    return;
+  }
+  if (facts.definitions === undefined || facts.callParameters === undefined || facts.signatureParameters === undefined) {
+    throw new Error("native raw question tables are missing");
+  }
+  assertRawNominations(facts, key);
+  const valueDemand = facts.demand.questions.some((q) => q.valueFacets !== undefined);
+  if (valueDemand !== (facts.valueProfiles !== undefined)) {
+    throw new Error("native value-profile table is missing or unrequested");
+  }
+  uniqueRawKeys((facts.valueProfiles ?? []).map((row) => key(row.node)));
+  for (const row of facts.valueProfiles ?? []) {
+    uniqueRawKeys(row.facets);
+  }
+  uniqueRawKeys(facts.definitions.map((row) => key(row.node)));
+  uniqueRawKeys(facts.callParameters.map((row) => key(row.call)));
+  uniqueRawKeys(facts.signatureParameters.map((row) => `${row.selector}:${key(row.at)}`));
+  assertRawParameterCoverage(facts, key, kind);
+  if (facts.definitions.some((row) => kind(row.node) !== SyntaxKind.Identifier)) {
+    throw new Error("native definition-node query is not an identifier");
+  }
+}
+function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const questions = facts.demand.questions ?? [];
+  if (questions.some((q) => (q.kind === "value-profiles" ? q.valueFacets === undefined : q.kind !== "definition-closure" && q.valueFacets !== undefined))) {
+    throw new Error("native value facets have no closed nomination");
+  }
+  for (const q of questions) {
+    if (q.valueFacets !== undefined) {
+      uniqueRawKeys(q.valueFacets);
+    }
+  }
+  if (questions.some((q) => (q.kind === "definition-closure" ? q.files === undefined || new Set(q.files).size !== q.files.length : q.files !== undefined))) {
+    throw new Error("native raw question source roster is missing or foreign");
+  }
+  if (questions.some((q) => q.properties !== undefined && new Set(q.properties).size !== q.properties.length)) {
+    throw new Error("native raw property nomination is ambiguous");
+  }
+  uniqueRawKeys(questions.map((q) => q.kind));
+  for (const q of questions) {
+    uniqueRawKeys(q.nodes.map(key));
+    for (const node of q.nodes) {
+      assertRawNominationNode(facts, q, node, key);
+    }
+  }
+  const calls = questions
+    .filter((q) => q.kind === "call-parameters")
+    .flatMap((q) => q.nodes)
+    .map(key);
+  if (JSON.stringify(calls) !== JSON.stringify(facts.callParameters?.map((row) => key(row.call)))) {
+    throw new Error("native call parameter coverage is foreign");
+  }
+}
+function assertRawNominationNode<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  question: import("./type-observations-contract.ts").TypeObservationQuestion<Anchor>,
+  node: Anchor,
+  key: (node: Anchor) => string,
+): void {
+  if (
+    (question.kind === "definition-nodes" || question.kind === "definition-closure") &&
+    facts.definitions?.some((row) => key(row.node) === key(node)) !== true
+  ) {
+    throw new Error("native definition-node coverage is missing");
+  }
+  if (question.kind === "call-parameters" && facts.callParameters?.some((row) => key(row.call) === key(node)) !== true) {
+    throw new Error("native call parameter coverage is missing");
+  }
+}
+/** Serialized and direct replay validate native arities against the retained ordered selectors. */
+export function assertRawParameterCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
+  const remaining = new Set(
+    (facts.selections?.plan.selectors ?? []).flatMap((selector, index) =>
+      (selector.base.kind === "call-parameter" && selector.steps.length === 0 && selector.displayAt === null) ||
+      selector.steps.at(-1)?.kind === "signature-parameter"
+        ? [index]
+        : [],
+    ),
+  );
+  assertCallParameterRows(facts, key, kind, remaining);
+  assertSignatureParameterRows(facts, key, remaining);
+  if (remaining.size > 0) {
+    throw new Error("native parameter selector coverage is incomplete");
+  }
+}
+function consumeParameter(remaining: Set<number>, parameter: number): void {
+  if (!remaining.delete(parameter)) {
+    throw new Error("native parameter selector coverage is incomplete or ambiguous");
+  }
+}
+function assertCallParameterShape<Anchor>(row: NonNullable<TypeObservationValues<Anchor>["callParameters"]>[number]): void {
+  if (row.parameterCount === null) {
+    if (row.values !== null) {
+      throw new Error("native call parameter coverage is incomplete");
+    }
+    return;
+  }
+  if (!Number.isSafeInteger(row.parameterCount) || row.parameterCount < 0 || row.values === null || row.values.length !== row.parameterCount) {
+    throw new Error("native call parameter coverage is incomplete");
+  }
+}
+function assertSignatureParameterShape<Anchor>(row: NonNullable<TypeObservationValues<Anchor>["signatureParameters"]>[number]): void {
+  if (row.parameterCounts.length !== row.values.length) {
+    throw new Error("native signature parameter coverage is incomplete");
+  }
+  for (const [signature, count] of row.parameterCounts.entries()) {
+    if (!Number.isSafeInteger(count) || count < 0 || row.values[signature]?.length !== count) {
+      throw new Error("native signature parameter coverage is incomplete");
+    }
+  }
+}
+function assertCallParameterRows<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  key: (node: Anchor) => string,
+  kind: (node: Anchor) => number,
+  remaining: Set<number>,
+): void {
+  const indices = observationIndices(facts);
+  for (const row of facts.callParameters ?? []) {
+    if (kind(row.call) !== SyntaxKind.CallExpression) {
+      throw new Error("native parameter table is not a call");
+    }
+    assertCallParameterShape(row);
+    for (const [index, parameter] of (row.values ?? []).entries()) {
+      indices.presentType(parameter);
+      const selector = facts.selections?.plan.selectors[parameter];
+      if (
+        selector?.base.kind !== "call-parameter" ||
+        key(selector.base.node) !== key(row.call) ||
+        selector.base.index !== index ||
+        selector.steps.length > 0 ||
+        selector.displayAt !== null
+      ) {
+        throw new Error("native call parameter identity is foreign");
+      }
+      consumeParameter(remaining, parameter);
+    }
+  }
+}
+function assertSignatureParameterRows<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, remaining: Set<number>): void {
+  const indices = observationIndices(facts);
+  const expected = (facts.demand.questions ?? [])
+    .filter((q) => q.kind === "signature-parameters")
+    .flatMap((q) => q.nodes)
+    .map(key);
+  if (JSON.stringify(expected) !== JSON.stringify(facts.signatureParameters?.map((row) => key(row.at)))) {
+    throw new Error("native signature parameter coverage is missing or foreign");
+  }
+  for (const row of facts.signatureParameters ?? []) {
+    indices.presentType(row.selector);
+    const parent = facts.selections?.plan.selectors[row.selector];
+    if (
+      parent?.base.kind !== "node" ||
+      key(parent.base.node) !== key(row.at) ||
+      parent.steps.length !== 1 ||
+      parent.steps[0]?.kind !== "nonnullable" ||
+      parent.displayAt !== null
+    ) {
+      throw new Error("native signature parameter owner is foreign");
+    }
+    assertSignatureParameterShape(row);
+    for (const [signature, parameters] of row.values.entries()) {
+      for (const [index, parameter] of parameters.entries()) {
+        indices.presentType(parameter);
+        assertSignatureParameterIdentity({ facts, parameter, parent, signature, index, at: row.at, key });
+        consumeParameter(remaining, parameter);
+      }
+    }
+  }
+}
+function assertSignatureParameterIdentity<Anchor>({
+  facts,
+  parameter,
+  parent,
+  signature,
+  index,
+  at,
+  key,
+}: {
+  readonly facts: TypeObservationValues<Anchor>;
+  readonly parameter: number;
+  readonly parent: import("./type-projection-contract.ts").NativeTypeSelector<Anchor>;
+  readonly signature: number;
+  readonly index: number;
+  readonly at: Anchor;
+  readonly key: (node: Anchor) => string;
+}): void {
+  const selector = facts.selections?.plan.selectors[parameter];
+  const step = selector?.steps.at(-1);
+  if (
+    selector === undefined ||
+    step?.kind !== "signature-parameter" ||
+    step.signature !== signature ||
+    step.index !== index ||
+    key(step.at) !== key(at) ||
+    rawSelectorKey({ ...selector, steps: selector.steps.slice(0, -1) }, key) !== rawSelectorKey(parent, key)
+  ) {
+    throw new Error("native signature parameter identity is foreign");
+  }
 }
 function assertObservationDemand<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
   const nodes = new Map(facts.nodes.map((entry) => [key(entry.node), entry]));

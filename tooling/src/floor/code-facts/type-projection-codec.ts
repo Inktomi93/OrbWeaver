@@ -125,7 +125,7 @@ export function mapTypeSelectionPlan<From, To>(plan: NativeTypeSelectionPlan<Fro
   return {
     selectors: plan.selectors.map((selector) => ({
       base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: anchor(selector.base.node) },
-      steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: anchor(step.at) } : step)),
+      steps: selector.steps.map((step) => (step.kind === "property" || step.kind === "signature-parameter" ? { ...step, at: anchor(step.at) } : step)),
       displayAt: selector.displayAt === null ? null : anchor(selector.displayAt),
     })),
     relations: plan.relations,

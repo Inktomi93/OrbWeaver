@@ -16,7 +16,7 @@ import { gate as busConsumerBelt } from "../../../../tooling/src/verify/gates/bu
 import { gate as busDefinitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bus-pair";
@@ -34,7 +34,15 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test(

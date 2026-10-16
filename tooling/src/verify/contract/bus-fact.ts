@@ -1,8 +1,11 @@
 // Invocation-local semantic identities returned by the shared bus fact reader.
+
 import type { Node } from "ts-morph";
 import type { ReferenceUnresolvedReason } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { GateFactContext } from "./fact.ts";
 import type { GatePolicyContext } from "./policy.ts";
-
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `BusFactStatus` union — the
  *  ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the
  *  re-spell `no-inline-union-redecl` exists to stop. */
@@ -114,3 +117,15 @@ export type BusTypedDiscriminators =
 
 /** Which proven sink an emitter call reaches: the one bus-channel publisher, or an injected callable. */
 export type EmitterSinkKind = "channel" | "injected";
+
+export const BUS_PROVIDER_KINDS = ["producer", "definition", "payload"] as const;
+export type BusProviderKind = (typeof BUS_PROVIDER_KINDS)[number];
+export interface BusNativeRead {
+  readonly context: BusReadContext;
+  readonly prepare: () => void;
+}
+export interface BusReadContext extends GateFactContext {
+  readonly types: (node: import("ts-morph").Node) => TypeObservationReader;
+  readonly invocation: (node: import("ts-morph").Node, reader?: TypeObservationReader) => NativeInvocationEvidence;
+  readonly moduleSource: (importer: import("ts-morph").SourceFile, door: import("ts-morph").ImportDeclaration) => import("ts-morph").SourceFile | undefined;
+}

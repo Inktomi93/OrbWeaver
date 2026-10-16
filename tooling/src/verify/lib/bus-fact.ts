@@ -5,8 +5,8 @@
 // finish stay here.
 import type { CallExpression, Node as MorphNode, SourceFile, TypeAliasDeclaration, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
-import type { BusFact, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import type { BusFact, BusReadContext, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import { CHAT_BUS, directEmitters, emitterDoorNames, isProducerPath, propagateRelays } from "./bus-fact-emission.ts";
@@ -17,6 +17,7 @@ import {
   BUS_UNION_SUFFIX,
   beltMembers,
   beltUnionNode,
+  busAliasExported,
   busAnchor,
   busDeclarationIdentity,
   busIdentityKey,
@@ -27,8 +28,10 @@ import {
   NAMED_BUS_UNIONS,
   typeDiscriminators,
 } from "./bus-fact-read.ts";
+import { busNativeRead, busReadAt, busScalar } from "./bus-native-read.ts";
 
 interface QueryState {
+  readonly bindings: VariableDeclaration[];
   readonly aliases: TypeAliasDeclaration[];
   readonly belts: VariableDeclaration[];
   readonly serverCalls: CallExpression[];
@@ -59,6 +62,7 @@ const PROVIDER_RECEIPT_SOURCE = "bus-producer-sources";
 
 function newState(): QueryState {
   return {
+    bindings: [],
     aliases: [],
     belts: [],
     serverCalls: [],
@@ -73,9 +77,12 @@ function collectCall(state: QueryState, call: CallExpression, path: string): voi
   }
 }
 
-function collectNode(context: GateFactContext, state: QueryState, node: MorphNode, sourceFile: SourceFile): void {
+function collectNode(context: BusReadContext, state: QueryState, node: MorphNode, sourceFile: SourceFile): void {
   const path = context.relativePath(sourceFile);
-  if (Node.isTypeAliasDeclaration(node) && node.isExported() && (node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName()))) {
+  if (Node.isVariableDeclaration(node)) {
+    state.bindings.push(node);
+  }
+  if (Node.isTypeAliasDeclaration(node) && (node.getName().endsWith(BUS_UNION_SUFFIX) || NAMED_BUS_UNIONS.has(node.getName()))) {
     state.aliases.push(node);
   }
   if (
@@ -102,21 +109,21 @@ function collectNode(context: GateFactContext, state: QueryState, node: MorphNod
 }
 
 function parentResolver(
-  context: GateFactContext,
+  context: BusReadContext,
   buses: readonly MutableBusRecord[],
   byUnion: ReadonlyMap<string, MutableBusRecord>,
-): (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined {
+): (type: import("../../floor/code-facts/type-projection-contract.ts").NativeTypeSelector, at: MorphNode) => MutableBusRecord | undefined {
   const members = new Map(buses.map((record) => [record, new Set(record.declaredMembers.map(({ name }) => name))]));
-  const deliveredFiles = new Set(context.files.map((sourceFile) => sourceFile.compilerNode));
+  const deliveredFiles = new Set(context.files.map((sourceFile) => sourceFile.getFilePath()));
   return (type, at) => {
-    const alias = canonicalTypeAlias(type);
-    if (alias !== undefined && deliveredFiles.has(alias.getSourceFile().compilerNode)) {
+    const alias = canonicalTypeAlias(context, type, at);
+    if (alias !== undefined && deliveredFiles.has(alias.getSourceFile().getFilePath())) {
       const exact = byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
       if (exact?.belt !== null) {
         return exact;
       }
     }
-    const values = typeDiscriminators(type, at);
+    const values = typeDiscriminators(context, type, at);
     const candidates = buses.filter((record) => {
       const names = members.get(record);
       return record.belt !== null && names !== undefined && values.size > 0 && [...values].every((value) => names.has(value));
@@ -126,7 +133,7 @@ function parentResolver(
 }
 
 interface YieldedValueInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly statement: import("ts-morph").YieldExpression;
   readonly record: MutableBusRecord;
   readonly value: { readonly value: string; readonly node: MorphNode };
@@ -158,11 +165,12 @@ function appendYieldedValue({ context, statement, record, value, unresolved }: Y
 }
 
 function attachYieldEmitter(
-  context: GateFactContext,
+  inputContext: BusReadContext,
   statement: import("ts-morph").YieldExpression,
   record: MutableBusRecord,
   unresolved: BusUnresolvedIdentity[],
 ): void {
+  const context = busReadAt(inputContext, statement);
   if (!isProducerPath(record, context.relativePath(statement.getSourceFile()))) {
     return;
   }
@@ -171,7 +179,7 @@ function attachYieldEmitter(
     return;
   }
   const channel = authoredProperty(context, expression, "channel", unresolved);
-  const channelValue = channel === undefined ? undefined : readStaticAuthoredScalar(channel);
+  const channelValue = channel === undefined ? undefined : busScalar(context, channel);
   const event = authoredProperty(context, expression, "event", unresolved);
   if (channelValue?.kind !== "resolved" || channelValue.value !== "chat" || event === undefined) {
     return;
@@ -182,7 +190,7 @@ function attachYieldEmitter(
 }
 
 function attachYieldEmitters(
-  context: GateFactContext,
+  context: BusReadContext,
   yields: readonly import("ts-morph").YieldExpression[],
   byUnion: ReadonlyMap<string, MutableBusRecord>,
   unresolved: BusUnresolvedIdentity[],
@@ -195,18 +203,20 @@ function attachYieldEmitters(
   }
 }
 
-function finishFact(context: GateFactContext, state: QueryState): BusFact {
+function finishFact(context: BusReadContext, state: QueryState): BusFact {
   const unresolved: BusUnresolvedIdentity[] = [];
-  const mutable: MutableBusRecord[] = state.aliases.map((alias) => ({
-    union: { ...busDeclarationIdentity(context, alias), anchor: busAnchor(context, alias) },
-    belt: null,
-    declaredMembers: [],
-    emitters: [],
-  }));
+  const mutable: MutableBusRecord[] = state.aliases
+    .filter((alias) => busAliasExported(context, alias))
+    .map((alias) => ({
+      union: { ...busDeclarationIdentity(context, alias), anchor: busAnchor(context, alias) },
+      belt: null,
+      declaredMembers: [],
+      emitters: [],
+    }));
   const byUnion = new Map(mutable.map((record) => [busIdentityKey(record.union), record]));
   for (const declaration of state.belts) {
     const unionNode = beltUnionNode(declaration);
-    const alias = unionNode === undefined ? undefined : canonicalTypeAlias(unionNode.getType());
+    const alias = unionNode === undefined ? undefined : canonicalTypeAlias(context, nodeTypeSelector(unionNode), unionNode);
     const record = alias === undefined ? undefined : byUnion.get(busIdentityKey(busDeclarationIdentity(context, alias)));
     if (unionNode === undefined || alias === undefined || record === undefined) {
       unresolved.push(
@@ -245,8 +255,14 @@ function finishFact(context: GateFactContext, state: QueryState): BusFact {
   return finishBusFact(mutable, unresolved);
 }
 
-function createBusFactCollector(context: GateFactContext): GateFactHooks<BusFact> {
+function createBusFactCollector(input: GateFactContext): GateFactHooks<BusFact> {
   const state = newState();
+  const native = busNativeRead(
+    input,
+    () => [...state.bindings, ...state.aliases, ...state.belts, ...state.serverCalls, ...state.emitterDoors, ...state.yields],
+    "producer",
+  );
+  const context = native.context;
   let finished: BusFact | undefined;
   let failure: unknown;
   const visit = (node: MorphNode, sourceFile: SourceFile): void => {
@@ -258,6 +274,7 @@ function createBusFactCollector(context: GateFactContext): GateFactHooks<BusFact
     }
   };
   return {
+    prepare: native.prepare,
     visitors: [
       {
         kinds: [

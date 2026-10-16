@@ -3,10 +3,11 @@
 // the totality tripwire), emitter-door discovery, and relay propagation through wrapper functions. Split out
 // of `bus-fact.ts` at the size cap (2026-09-18); the collector, the belt census, the yield-frame emitters and
 // the finish stay there and call in. One-way: this module imports nothing from `bus-fact.ts`.
+
 import type { CallExpression, FunctionDeclaration, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { BusUnresolvedIdentity } from "../contract/bus-fact.ts";
-import type { GateFactContext } from "../contract/fact.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import type { BusReadContext, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { MutableBusRecord } from "./bus-fact-output.ts";
 import type { ParameterProjection } from "./bus-fact-read.ts";
 import {
@@ -24,7 +25,7 @@ import {
   typedDiscriminators,
   typeForParameter,
 } from "./bus-fact-read.ts";
-import { resolveCallableMember } from "./gate-contract-origin.ts";
+import { busCallableMember, busReadAt } from "./bus-native-read.ts";
 
 interface Relay {
   readonly declaration: FunctionDeclaration;
@@ -79,7 +80,7 @@ function addRelay(relays: Relay[], relay: Relay): boolean {
 }
 
 interface AppendEmissionInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly record: MutableBusRecord;
   readonly call: CallExpression;
   readonly values: readonly { readonly value: string; readonly node: MorphNode }[];
@@ -133,19 +134,19 @@ function relayOf(projection: ParameterProjection | undefined, bus: MutableBusRec
   return parameterIndex < 0 ? undefined : { declaration, parameterIndex, memberPath: projection.memberPath, bus, translate };
 }
 
-function relayFromArgument(context: GateFactContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
+function relayFromArgument(context: BusReadContext, argument: MorphNode, property: string, bus: MutableBusRecord): Relay | undefined {
   return relayOf(parameterProjection(context, argument, property, []), bus, null);
 }
 
 /** `TABLE[<projection of a wrapper parameter>]` — the coarse republish. The argument's own flow type is the
  *  WHOLE table (every declared member), so harvesting it would mark every member produced; what is actually
  *  produced is the translated form of whatever the CALLER passed, which is a relay of that parameter. */
-function republishRelayFromArgument(context: GateFactContext, argument: MorphNode, bus: MutableBusRecord): Relay | undefined {
+function republishRelayFromArgument(context: BusReadContext, argument: MorphNode, bus: MutableBusRecord): Relay | undefined {
   if (!Node.isElementAccessExpression(argument)) {
     return;
   }
   const key = argument.getArgumentExpression();
-  const translate = key === undefined ? undefined : discriminatorTranslation(argument.getExpression());
+  const translate = key === undefined ? undefined : discriminatorTranslation(context, argument.getExpression());
   if (key === undefined || translate === undefined) {
     return;
   }
@@ -161,7 +162,7 @@ type ArgumentEmission =
   | { readonly kind: "refused"; readonly refusals: readonly BusUnresolvedIdentity[] };
 
 interface ArgumentEmissionInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly argument: MorphNode;
   readonly property: string;
   readonly record: MutableBusRecord;
@@ -188,7 +189,7 @@ function argumentEmission({ context, argument, property, record }: ArgumentEmiss
   if (authoredRefusals.length === 0) {
     return { kind: "forward" };
   }
-  const typed = typedDiscriminators(argument);
+  const typed = typedDiscriminators(context, argument);
   if (typed.kind === "resolved") {
     const declared = new Set(record.declaredMembers.map(({ name }) => name));
     if (declared.size > 1 && typed.values.length === declared.size && typed.values.every((value) => declared.has(value))) {
@@ -211,12 +212,12 @@ function argumentEmission({ context, argument, property, record }: ArgumentEmiss
 }
 
 interface DirectArgumentInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly call: CallExpression;
   readonly index: number;
   readonly argument: MorphNode;
   readonly path: string;
-  readonly parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined;
+  readonly parentFor: (type: import("../../floor/code-facts/type-projection-contract.ts").NativeTypeSelector, at: MorphNode) => MutableBusRecord | undefined;
   readonly unresolved: BusUnresolvedIdentity[];
   readonly relays: Relay[];
 }
@@ -238,24 +239,19 @@ function collectDirectArgument({ context, call, index, argument, path, parentFor
 }
 
 export function emitterDoorNames(
-  context: GateFactContext,
+  context: BusReadContext,
   declarations: readonly MorphNode[],
-  parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined,
+  parentFor: (type: import("../../floor/code-facts/type-projection-contract.ts").NativeTypeSelector, at: MorphNode) => MutableBusRecord | undefined,
 ): ReadonlySet<string> {
   const names = new Set<string>();
   for (const declaration of declarations) {
     if (!(Node.isParameterDeclaration(declaration) || Node.isPropertySignature(declaration) || Node.isMethodSignature(declaration))) {
       continue;
     }
-    const ownsBusParameter = declaration
-      .getType()
-      .getNonNullableType()
-      .getCallSignatures()
-      .some((signature) =>
-        signature
-          .getParameters()
-          .some((parameter) => parentFor(context.checker().getTypeOfSymbolAtLocation(parameter, declaration), declaration) !== undefined),
-      );
+    const ownsBusParameter = context
+      .types(declaration)
+      .signatureParameters({ ...nodeTypeSelector(declaration), steps: [{ kind: "nonnullable" }] }, declaration)
+      .some((parameters) => parameters.some((parameter) => parentFor(parameter, declaration) !== undefined));
     if (ownsBusParameter) {
       names.add(declaration.getName());
     }
@@ -263,33 +259,34 @@ export function emitterDoorNames(
   return names;
 }
 
-function hasEmitterDoor(call: CallExpression, names: ReadonlySet<string>): boolean {
+function hasEmitterDoor(context: BusReadContext, call: CallExpression, names: ReadonlySet<string>): boolean {
   if (call.getArguments().some((argument) => Node.isObjectLiteralExpression(argument) && argument.getProperty("type") !== undefined)) {
     return true;
   }
-  const name = callName(call);
+  const name = callName(context, call);
   if (name === "publish" || (name !== undefined && names.has(name))) {
     return true;
   }
   const expression = call.getExpression();
-  const member = Node.isIdentifier(expression) ? resolveCallableMember(expression) : undefined;
+  const member = Node.isIdentifier(expression) ? busCallableMember(context, expression) : undefined;
   // The alias candidate is admitted on the MEMBER the binding holds, never on the local name it was given.
   return member !== undefined && (member.name === PUBLISH_MEMBER || names.has(member.name));
 }
 
 interface DirectEmittersInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly calls: readonly CallExpression[];
   readonly emitterNames: ReadonlySet<string>;
-  readonly parentFor: (type: import("ts-morph").Type, at: MorphNode) => MutableBusRecord | undefined;
+  readonly parentFor: (type: import("../../floor/code-facts/type-projection-contract.ts").NativeTypeSelector, at: MorphNode) => MutableBusRecord | undefined;
   readonly unresolved: BusUnresolvedIdentity[];
 }
 
-export function directEmitters({ context, calls, emitterNames, parentFor, unresolved }: DirectEmittersInput): Relay[] {
+export function directEmitters({ context: inputContext, calls, emitterNames, parentFor, unresolved }: DirectEmittersInput): Relay[] {
   const relays: Relay[] = [];
   for (const call of calls) {
+    const context = busReadAt(inputContext, call);
     const path = context.relativePath(call.getSourceFile());
-    if (call.getArguments().length === 0 || !hasEmitterDoor(call, emitterNames) || emitterSink(context, call) === undefined) {
+    if (call.getArguments().length === 0 || !hasEmitterDoor(context, call, emitterNames) || emitterSink(context, call) === undefined) {
       continue;
     }
     for (const [index, argument] of call.getArguments().entries()) {
@@ -300,7 +297,7 @@ export function directEmitters({ context, calls, emitterNames, parentFor, unreso
 }
 
 interface PropagateRelayInput {
-  readonly context: GateFactContext;
+  readonly context: BusReadContext;
   readonly call: CallExpression;
   readonly relay: Relay;
   readonly relays: Relay[];
@@ -308,7 +305,8 @@ interface PropagateRelayInput {
   readonly visited: Set<string>;
 }
 
-function propagateRelay({ context, call, relay, relays, unresolved, visited }: PropagateRelayInput): boolean {
+function propagateRelay({ context: inputContext, call, relay, relays, unresolved, visited }: PropagateRelayInput): boolean {
+  const context = busReadAt(inputContext, call);
   const key = `${call.getSourceFile().getFilePath()}\0${call.getStart()}\0${relay.parameterIndex}\0${busIdentityKey(relay.bus.union)}`;
   if (visited.has(key)) {
     return false;
@@ -344,10 +342,10 @@ function propagateRelay({ context, call, relay, relays, unresolved, visited }: P
   return addRelay(relays, { ...emission.relay, translate: emission.relay.translate ?? relay.translate });
 }
 
-function callsByName(calls: readonly CallExpression[]): ReadonlyMap<string, readonly CallExpression[]> {
+function callsByName(context: BusReadContext, calls: readonly CallExpression[]): ReadonlyMap<string, readonly CallExpression[]> {
   const indexed = new Map<string, CallExpression[]>();
   for (const call of calls) {
-    const name = callName(call);
+    const name = callName(context, call);
     if (name !== undefined) {
       const existing = indexed.get(name);
       if (existing === undefined) {
@@ -367,7 +365,7 @@ function propagateRelayPass(
   for (const relay of [...input.relays]) {
     const name = relay.declaration.getName();
     for (const call of name === undefined ? [] : (input.callIndex.get(name) ?? [])) {
-      if (callableDeclaration(call)?.compilerNode !== relay.declaration.compilerNode) {
+      if (callableDeclaration(input.context, call)?.compilerNode !== relay.declaration.compilerNode) {
         continue;
       }
       changed = propagateRelay({ ...input, call, relay }) || changed;
@@ -376,9 +374,9 @@ function propagateRelayPass(
   return changed;
 }
 
-export function propagateRelays(context: GateFactContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
+export function propagateRelays(context: BusReadContext, calls: readonly CallExpression[], relays: Relay[], unresolved: BusUnresolvedIdentity[]): void {
   const visited = new Set<string>();
-  const callIndex = callsByName(calls);
+  const callIndex = callsByName(context, calls);
   while (propagateRelayPass({ context, callIndex, relays, unresolved, visited })) {
     // A newly discovered wrapper parameter may expose another caller on the next pass.
   }

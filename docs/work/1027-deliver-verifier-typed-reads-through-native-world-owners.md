@@ -42,4 +42,4 @@ Native schema, column and configuration facts serve assets, table ownership, vec
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Zod, body-cap, selected origins and ID matchers use native facts. Strict references preserve importing-world meaning, explicit zero, demanded-owner publication and pinned migrations. Independent review and combined ordinary controls pass. Bus, retained origin branches and cost stay open. Evidence: `reports/review/1027-native-strict-references-ordinary.md`.
+Native Zod, body-cap, selected origin, ID, reference and bus consumers pass ordinary qualification and independent review. Bus populations and authority remain separate; raw parameter completeness and selector locations refuse malformed evidence. Failure tracing, retained origin branches and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md`.

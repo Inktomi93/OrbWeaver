@@ -147,6 +147,7 @@ export function captureInvocationEvidence(
           admit: (subject): void => {
             related(subject);
           },
+          profile: (subject, facets) => capture(subject, [...facets]),
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {

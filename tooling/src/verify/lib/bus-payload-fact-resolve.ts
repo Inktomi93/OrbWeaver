@@ -1,8 +1,19 @@
 // Low-level AST-resolution helpers for the bus-payload-shape reader, extracted from bus-payload-fact.ts
 // (tooling-size, #1584 residue). Pure name/alias/union resolution over CollectorState — no walk*/scan*
 // dispatch, which stays in the front door. The front door imports these; this leaf imports nothing back.
-import type { IndexedAccessTypeNode, Node as MorphNode, TypeAliasDeclaration, TypeReferenceNode, UnionTypeNode, VariableDeclaration } from "ts-morph";
+
+import type {
+  ImportDeclaration,
+  IndexedAccessTypeNode,
+  Node as MorphNode,
+  SourceFile,
+  TypeAliasDeclaration,
+  TypeReferenceNode,
+  UnionTypeNode,
+  VariableDeclaration,
+} from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import type { IndexedRead, NamedTypeDecl } from "../contract/bus-payload-fact.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
@@ -47,7 +58,9 @@ export interface CollectorState {
   readonly refusals: BusShapeRefusal[];
   readonly resolvedRoots: Set<string>;
   readonly emptyRoots: BusEmptyRoot[];
-  readonly walkedDecls: Set<string>;
+  readonly walkedDecls: Map<TypeObservationReader, Set<string>>;
+  readonly moduleSources: Map<TypeObservationReader, (door: ImportDeclaration) => SourceFile | undefined>;
+  readonly computedNames: Map<TypeObservationReader, (node: MorphNode) => import("../../floor/code-facts/reference-fact-contract.ts").ReferenceFact<string>>;
   readonly seenMembers: Set<string>;
   readonly carriers: Set<string>;
   events: number;
@@ -119,8 +132,8 @@ export function countReferencedPayload(prop: MorphNode, state: CollectorState): 
  *  declared twice and `getDefinitionNodes()` returns both. A `find()` walked one of them and the members of
  *  the other — which are on the wire exactly the same — were never scanned. `walkedDecls` already dedupes,
  *  so walking every declaration costs one visit each. */
-export function resolveNamedTypes(nameNode: MorphNode, state: CollectorState): readonly NamedTypeDecl[] {
-  const definitions = N.isIdentifier(nameNode) ? nameNode.getDefinitionNodes() : [];
+export function resolveNamedTypes(nameNode: MorphNode, state: CollectorState, readers: TypeObservationReader): readonly NamedTypeDecl[] {
+  const definitions = N.isIdentifier(nameNode) ? readers.definitions(nameNode) : [];
   return definitions.filter(
     (def): def is NamedTypeDecl => (N.isInterfaceDeclaration(def) || N.isTypeAliasDeclaration(def)) && state.admitted.has(def.getSourceFile().getFilePath()),
   );
@@ -139,10 +152,10 @@ function unwrapType(typeNode: MorphNode): MorphNode {
 /** The tuple's members, or an EMPTY set when `tuple-read` refuses it. Its THROW becomes the family's own
  *  loud refusal (the caller refuses on a zero-member vocabulary) rather than an exit-2 tool error: under D16
  *  a wire shape the reader cannot establish IS the violation, not a broken checker. */
-function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
+function tupleMembersOrEmpty(decl: VariableDeclaration, moduleSource: (door: ImportDeclaration) => SourceFile | undefined): ReadonlySet<string> {
   // @orb-waive caught-failure-ownership(catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.
   try {
-    return readTupleDeclaration(decl).members;
+    return readTupleDeclaration(decl, moduleSource).members;
   } catch {
     return new Set<string>();
   }
@@ -151,7 +164,7 @@ function tupleMembersOrEmpty(decl: VariableDeclaration): ReadonlySet<string> {
 /** `(typeof <TUPLE>)[number]` — the house spelling of a vocabulary union (§5.5). Resolved through
  *  `tuple-read.ts`, the ONE home for "which string members does this `as const` tuple actually have" (#942),
  *  so a member that moved behind a spread is still counted. */
-function tupleUnionMembers(node: IndexedAccessTypeNode, state: CollectorState): ReadonlySet<string> | undefined {
+function tupleUnionMembers(node: IndexedAccessTypeNode, state: CollectorState, readers: TypeObservationReader): ReadonlySet<string> | undefined {
   if (node.getIndexTypeNode().getKind() !== SyntaxKind.NumberKeyword) {
     return;
   }
@@ -163,8 +176,8 @@ function tupleUnionMembers(node: IndexedAccessTypeNode, state: CollectorState): 
   if (!N.isIdentifier(name)) {
     return;
   }
-  const decl = name
-    .getDefinitionNodes()
+  const decl = readers
+    .definitions(name)
     .find(
       (def): def is VariableDeclaration =>
         N.isVariableDeclaration(def) && state.admitted.has(def.getSourceFile().getFilePath()) && def.getInitializer() !== undefined,
@@ -172,16 +185,20 @@ function tupleUnionMembers(node: IndexedAccessTypeNode, state: CollectorState): 
   if (decl === undefined) {
     return;
   }
-  const members = tupleMembersOrEmpty(decl);
+  const moduleSource = state.moduleSources.get(readers);
+  if (moduleSource === undefined) {
+    throw new Error("bus tuple has no registered importing owner");
+  }
+  const members = tupleMembersOrEmpty(decl, moduleSource);
   return members.size > 0 ? members : undefined;
 }
 
 /** Every arm of a union position, merged — undefined the moment ONE arm is unreadable, because a
  *  partially-read vocabulary is a smaller denominator wearing a resolved answer's clothes. */
-function unionMembers(node: UnionTypeNode, state: CollectorState, hops: number): ReadonlySet<string> | undefined {
+function unionMembers(node: UnionTypeNode, state: CollectorState, hops: number, readers: TypeObservationReader): ReadonlySet<string> | undefined {
   const members = new Set<string>();
   for (const part of node.getTypeNodes()) {
-    const partMembers = literalUnionMembers(part, state, hops + 1);
+    const partMembers = literalUnionMembers(part, state, hops + 1, readers);
     if (partMembers === undefined) {
       return;
     }
@@ -195,8 +212,8 @@ function unionMembers(node: UnionTypeNode, state: CollectorState, hops: number):
 /** The alias a NAME resolves to, when it resolves to exactly ONE type alias in the population. One or
  *  nothing: two same-named declarations is the ambiguity a reader must not silently pick from (#1030 F2, in
  *  the direction where a wrong guess WIDENS the green). */
-function soleAliasFor(node: TypeReferenceNode, state: CollectorState): TypeAliasDeclaration | undefined {
-  const decls = resolveNamedTypes(node.getTypeName(), state);
+function soleAliasFor(node: TypeReferenceNode, state: CollectorState, readers: TypeObservationReader): TypeAliasDeclaration | undefined {
+  const decls = resolveNamedTypes(node.getTypeName(), state, readers);
   const [only] = decls;
   return decls.length === 1 && only !== undefined && N.isTypeAliasDeclaration(only) ? only : undefined;
 }
@@ -204,7 +221,12 @@ function soleAliasFor(node: TypeReferenceNode, state: CollectorState): TypeAlias
 /** The FINITE set of string members a type position enumerates, or undefined when this reader cannot
  *  establish it. Sanctioned spellings and no others: an inline string-literal union, an alias chain of them,
  *  and `(typeof <TUPLE>)[number]`. */
-function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorState, hops: number): ReadonlySet<string> | undefined {
+function literalUnionMembers(
+  typeNode: MorphNode | undefined,
+  state: CollectorState,
+  hops: number,
+  readers: TypeObservationReader,
+): ReadonlySet<string> | undefined {
   if (typeNode === undefined || hops > CONSTRAINT_HOPS) {
     return;
   }
@@ -214,12 +236,12 @@ function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorSt
     return N.isStringLiteral(literal) ? new Set([literal.getLiteralText()]) : undefined;
   }
   if (N.isUnionTypeNode(node)) {
-    return unionMembers(node, state, hops);
+    return unionMembers(node, state, hops, readers);
   }
   if (N.isIndexedAccessTypeNode(node)) {
-    return tupleUnionMembers(node, state);
+    return tupleUnionMembers(node, state, readers);
   }
-  return N.isTypeReference(node) ? literalUnionMembers(soleAliasFor(node, state)?.getTypeNode(), state, hops + 1) : undefined;
+  return N.isTypeReference(node) ? literalUnionMembers(soleAliasFor(node, state, readers)?.getTypeNode(), state, hops + 1, readers) : undefined;
 }
 
 /** Read the §5.5 MAPPED-TYPE DISTRIBUTION. It distributes only when BOTH the constraint and the index
@@ -230,7 +252,7 @@ function literalUnionMembers(typeNode: MorphNode | undefined, state: CollectorSt
  *  whose FIELD NAMES vary per arm, which is exactly what makes reading the template once sound; the identity
  *  walker would refuse it by kind, but the FIELD walker is permissive about unmodelled type nodes, so the
  *  only place the refusal holds for BOTH positions is the decision to distribute at all. */
-export function readIndexedAccess(node: IndexedAccessTypeNode, state: CollectorState): IndexedRead {
+export function readIndexedAccess(node: IndexedAccessTypeNode, state: CollectorState, readers: TypeObservationReader): IndexedRead {
   const object = unwrapType(node.getObjectTypeNode());
   if (!N.isMappedTypeNode(object)) {
     return { kind: "referenced" };
@@ -239,8 +261,8 @@ export function readIndexedAccess(node: IndexedAccessTypeNode, state: CollectorS
   if (template === undefined || object.getNameTypeNode() !== undefined || N.isConditionalTypeNode(unwrapType(template))) {
     return { kind: "unprovable" };
   }
-  const constraint = literalUnionMembers(object.getTypeParameter().getConstraint(), state, 0);
-  const index = literalUnionMembers(node.getIndexTypeNode(), state, 0);
+  const constraint = literalUnionMembers(object.getTypeParameter().getConstraint(), state, 0, readers);
+  const index = literalUnionMembers(node.getIndexTypeNode(), state, 0, readers);
   if (constraint === undefined || index === undefined || index.size === 0) {
     return { kind: "unprovable" };
   }
@@ -276,6 +298,7 @@ export const MEMBERLESS_KINDS: ReadonlySet<SyntaxKind> = new Set([
 ]);
 
 export interface WalkFrame {
+  readonly readers: TypeObservationReader;
   readonly state: CollectorState;
   /** `local` = spelled inside the named event; `inherited` = reached through a base/constituent/alias. */
   readonly origin: "local" | "inherited";

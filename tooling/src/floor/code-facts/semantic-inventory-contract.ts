@@ -377,6 +377,35 @@ export function assertInvocationEvidence(entry: InventoryInvocationEvidence): vo
     assertCanonicalVariableProfile(profile);
   }
 }
+function assertTypeValueProfiles(
+  entry: InventoryInvocationEvidence,
+  facts: NonNullable<InventoryInvocationEvidence["typeObservations"]>,
+  requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
+): void {
+  if (facts.valueProfiles === undefined && (entry.profiles.length > 0 || entry.sources.length > 0)) {
+    throw new SemanticInventoryError("unrequested native type value profiles");
+  }
+  for (const value of facts.valueProfiles ?? []) {
+    requireFacets(value.node, [...value.facets]);
+  }
+  for (const profile of entry.profiles) {
+    const allowed = facts.valueProfiles?.find((value) => inventoryNodeQueryKey(value.node) === inventoryNodeQueryKey(profile.node));
+    for (const facet of INVOCATION_VALUE_FACETS) {
+      if (
+        profile[facet] !== undefined &&
+        allowed?.facets.some((value) => value === facet) !== true &&
+        !(
+          facet === "module" &&
+          entry.profiles.some(
+            (other) => other.binding?.kind === "resolved" && inventoryNodeQueryKey(other.binding.value.callee) === inventoryNodeQueryKey(profile.node),
+          )
+        )
+      ) {
+        throw new SemanticInventoryError("unrequested native type value facet");
+      }
+    }
+  }
+}
 function assertInvocationProjection(
   entry: InventoryInvocationEvidence,
   requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
@@ -388,8 +417,6 @@ function assertInvocationProjection(
       facts === undefined ||
       entry.invocation !== null ||
       entry.callee !== null ||
-      entry.profiles.length > 0 ||
-      entry.sources.length > 0 ||
       entry.observations !== undefined ||
       entry.observationBasis !== undefined ||
       JSON.stringify(facts.demand) !== JSON.stringify(plan.typeObservations) ||
@@ -398,6 +425,7 @@ function assertInvocationProjection(
       throw new SemanticInventoryError("native type observation profile is missing or foreign");
     }
     assertTypeObservationCoverage(facts, inventoryNodeQueryKey, (node) => node.kind);
+    assertTypeValueProfiles(entry, facts, requireFacets);
     return;
   }
   if (entry.typeObservations !== undefined) {
@@ -463,6 +491,19 @@ function assertCanonicalVariableProfile(profile: InventoryInvocationEvidence["pr
 export interface InventoryNativeQuery {
   readonly program: string;
   readonly node: InventorySpan;
+}
+export const moduleTargetQuerySchema = z.strictObject({
+  importer: spanSchema.refine((node) => node.kind === SyntaxKind.SourceFile),
+  node: spanSchema.refine((node) => node.kind === SyntaxKind.ImportDeclaration || node.kind === SyntaxKind.ExportDeclaration),
+});
+export type InventoryModuleTargetQuery = z.infer<typeof moduleTargetQuerySchema>;
+export interface InventoryNativeModuleTargetQuery {
+  readonly program: string;
+  readonly query: InventoryModuleTargetQuery;
+}
+/** Importer admission remains distinct from a related module's physical source. */
+export function moduleTargetQueryKey(query: InventoryModuleTargetQuery): string {
+  return JSON.stringify(moduleTargetQuerySchema.parse(query));
 }
 
 /** Closed demand compares physical spans, never a replay node's compiler meaning. */
@@ -722,6 +763,7 @@ export interface InventoryOverlay {
 export interface InventoryBuildRequest {
   readonly idBrandQueries?: readonly InventorySpan[];
   readonly referenceDemand?: InventoryReferenceDemand<InventoryReferencePair>;
+  readonly moduleTargetQueries?: readonly InventoryModuleTargetQuery[];
   readonly schemaSources?: readonly InventorySpan[];
   readonly schemaDataSources?: readonly InventorySpan[];
   readonly schemaDataProjection?: SchemaDataProjection;
@@ -745,6 +787,7 @@ export interface InventoryBuildRequest {
 export interface SemanticInventoryOptions {
   readonly idBrandQueries?: readonly InventoryNativeQuery[];
   readonly referenceDemand?: InventoryReferenceDemand<InventoryNativeReferenceQuery>;
+  readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
   readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[]; readonly projection?: SchemaDataProjection };
   readonly drizzleQueries?: readonly { readonly program: string; readonly query: InventoryDrizzleQuery }[];
@@ -798,7 +841,7 @@ export interface SemanticInventory extends Disposable {
   readonly bindingUsage: (source: SourceFile) => SourceBindingUsage;
   readonly sourceCorpus: () => InventorySourceCorpus;
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
-  readonly moduleTarget: (node: Node, program?: string) => SourceFile | undefined;
+  readonly moduleTarget: (node: Node, program?: string, importer?: SourceFile) => SourceFile | undefined;
   readonly symbols: (node: Node) => InventorySymbols;
   readonly references: (node: Node, program?: string, importer?: SourceFile) => readonly Node[];
   readonly witnessOrigins: (node: Node) => readonly Node[];
@@ -818,6 +861,7 @@ export interface InventoryReadLease extends Disposable {
 }
 
 export interface InventoryReaderStorage {
+  readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly shapeCohort?: boolean;
   readonly shapeOwners?: ReadonlyMap<SourceFile, string>;
   readonly db: DatabaseSync;

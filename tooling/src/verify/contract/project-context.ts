@@ -30,7 +30,7 @@ export type NativeTypeRequest =
   | { readonly kind: "schema-identities"; readonly nodes: readonly SourceFile[] }
   | { readonly kind: "drizzle-identities"; readonly nodes: readonly Node[]; readonly mode: DrizzleEvidenceMode }
   | { readonly kind: "export-declarations"; readonly nodes: readonly SourceFile[]; readonly name: string }
-  | { readonly kind: "module-targets"; readonly nodes: readonly (ImportDeclaration | ExportDeclaration)[] }
+  | { readonly kind: "module-targets"; readonly nodes: readonly (ImportDeclaration | ExportDeclaration)[]; readonly importer?: SourceFile }
   | { readonly kind: "invocation-evidence"; readonly nodes: readonly Node[]; readonly plan: InventoryInvocationPlan }
   | { readonly kind: "global-origins"; readonly nodes: readonly Node[] }
   | { readonly kind: "global-bindings"; readonly nodes: readonly Node[] }
@@ -50,7 +50,7 @@ export interface NativeTypeFactReader extends Disposable {
   readonly schemaIdentity: (sources: readonly SourceFile[]) => SchemaFact<SchemaIdentityModel>;
   readonly drizzleEvidence: (nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReadonlyMap<Node, DrizzleCallEvidence>;
   readonly exportDeclarations: (sources: readonly SourceFile[], name: string) => ReadonlyMap<SourceFile, readonly Node[] | null>;
-  readonly moduleTargets: (nodes: readonly (ImportDeclaration | ExportDeclaration)[]) => ReadonlyMap<Node, SourceFile | undefined>;
+  readonly moduleTargets: (nodes: readonly (ImportDeclaration | ExportDeclaration)[], importer?: SourceFile) => ReadonlyMap<Node, SourceFile | undefined>;
   readonly invocationEvidence: (nodes: readonly Node[], plan: InventoryInvocationPlan) => ReadonlyMap<Node, NativeInvocationEvidence>;
   readonly globalOrigins: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
   readonly globalBindings: (nodes: readonly Node[]) => ReadonlyMap<Node, readonly Node[]>;
@@ -92,7 +92,11 @@ export interface NativeTypeFacts extends Disposable {
   readonly schemaIdentity: (owner: string, sources: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["schemaIdentity"]>;
   readonly drizzleEvidence: (owner: string, nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReturnType<NativeTypeFactReader["drizzleEvidence"]>;
   readonly exportDeclarations: (owner: string, sources: readonly SourceFile[], name: string) => ReturnType<NativeTypeFactReader["exportDeclarations"]>;
-  readonly moduleTargets: (owner: string, nodes: Parameters<NativeTypeFactReader["moduleTargets"]>[0]) => ReturnType<NativeTypeFactReader["moduleTargets"]>;
+  readonly moduleTargets: (
+    owner: string,
+    nodes: Parameters<NativeTypeFactReader["moduleTargets"]>[0],
+    importer?: SourceFile,
+  ) => ReturnType<NativeTypeFactReader["moduleTargets"]>;
   readonly invocationEvidence: (owner: string, nodes: readonly Node[], plan: InventoryInvocationPlan) => ReturnType<NativeTypeFactReader["invocationEvidence"]>;
   readonly globalOrigins: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalOrigins"]>;
   readonly globalBindings: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalBindings"]>;

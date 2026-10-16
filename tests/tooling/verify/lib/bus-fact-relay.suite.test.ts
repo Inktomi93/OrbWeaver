@@ -14,6 +14,7 @@ import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { busDefinitionFact } from "../../../../tooling/src/verify/lib/bus-definition-fact.ts";
 import { busProducerFact } from "../../../../tooling/src/verify/lib/bus-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/bus-fact-relay";
 
@@ -189,7 +190,15 @@ function runFact(files: Readonly<Record<string, string>>): FactRun {
     captured = fact;
   });
   const project = projectOf(files);
-  const result = runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   if (captured === undefined) {
     throw new Error(`the bus fact was never delivered: ${JSON.stringify(result.factErrors)} ${JSON.stringify(result.toolErrors)}`);
   }
@@ -412,6 +421,7 @@ test("a provider that can look at NOTHING still refuses — and withholds only I
     policies: [producerProbe, defProbe],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });

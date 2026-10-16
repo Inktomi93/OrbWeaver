@@ -72,10 +72,13 @@
 // (`lib/policy-pass-context.ts`), so a member declared outside it could not be REPORTED at all — the
 // alternative to the fence is a runtime throw on a wire shape nobody can read, which is the same verdict
 // said less usefully.
-import type { IndexedAccessTypeNode, Node as MorphNode, SourceFile } from "ts-morph";
+
+import type { IndexedAccessTypeNode, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import type { NamedTypeDecl } from "../contract/bus-payload-fact.ts";
 import { defineFact } from "../contract/fact.ts";
+import { busNativeRead } from "./bus-native-read.ts";
 import { walkMembers } from "./bus-payload-fact-field.ts";
 import type { BusEmptyRoot, BusPayloadField, BusShapeRefusal, CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
 import {
@@ -189,19 +192,19 @@ const PROVIDER_RECEIPT_SOURCE = "bus-payload-shape";
 /** Follow one reference in the named event's IDENTITY position (a heritage base, an intersection
  *  constituent, an aliased union arm). A reference to another NAMED root is skipped — that root is walked
  *  from its own declaration, so following it here would only double-count. */
-function followIdentityRef(nameNode: MorphNode, at: MorphNode, state: CollectorState): void {
+function followIdentityRef(nameNode: MorphNode, at: MorphNode, state: CollectorState, readers: TypeObservationReader): void {
   const name = nameNode.getText();
   if (BUS_DECL_NAMES.has(name)) {
     state.namedArms += 1;
     return;
   }
-  const decls = resolveNamedTypes(nameNode, state);
+  const decls = resolveNamedTypes(nameNode, state, readers);
   if (decls.length === 0) {
     refuse(state, at, `${UNRESOLVED_TOKEN}${name}`);
     return;
   }
   for (const decl of decls) {
-    walkDecl(decl, "inherited", state);
+    walkDecl(decl, "inherited", state, readers);
   }
 }
 
@@ -226,7 +229,7 @@ function walkTypeNode(typeNode: MorphNode | undefined, frame: WalkFrame): void {
     return;
   }
   if (N.isTypeReference(typeNode)) {
-    followIdentityRef(typeNode.getTypeName(), typeNode, frame.state);
+    followIdentityRef(typeNode.getTypeName(), typeNode, frame.state, frame.readers);
     return;
   }
   if (N.isIndexedAccessTypeNode(typeNode)) {
@@ -244,7 +247,7 @@ function walkTypeNode(typeNode: MorphNode | undefined, frame: WalkFrame): void {
  *  cause: `MappedType` for a key space this reader cannot enumerate, `IndexedAccessType` for an indexed
  *  NAMED shape (no mapped type to enumerate — the union arm should be spelled out). */
 function walkDistributionNode(typeNode: IndexedAccessTypeNode, frame: WalkFrame): void {
-  const read = readIndexedAccess(typeNode, frame.state);
+  const read = readIndexedAccess(typeNode, frame.state, frame.readers);
   if (read.kind === "distributed") {
     frame.state.distributions += 1;
     walkTypeNode(read.template, frame);
@@ -254,14 +257,19 @@ function walkDistributionNode(typeNode: IndexedAccessTypeNode, frame: WalkFrame)
 }
 
 /** Walk one declaration's members + its identity references. Deduped so a shared carrier is walked once. */
-function walkDecl(decl: NamedTypeDecl, origin: "local" | "inherited", state: CollectorState): void {
+function walkDecl(decl: NamedTypeDecl, origin: "local" | "inherited", state: CollectorState, readers: TypeObservationReader): void {
   const key = nodeKey(decl);
-  if (state.walkedDecls.has(key)) {
+  let walked = state.walkedDecls.get(readers);
+  if (walked === undefined) {
+    walked = new Set();
+    state.walkedDecls.set(readers, walked);
+  }
+  if (walked.has(key)) {
     state.revisits += 1;
     return;
   }
-  state.walkedDecls.add(key);
-  const frame: WalkFrame = { state, origin, owner: decl };
+  walked.add(key);
+  const frame: WalkFrame = { state, origin, owner: decl, readers };
   if (N.isTypeAliasDeclaration(decl)) {
     walkTypeNode(decl.getTypeNode(), frame);
     return;
@@ -269,38 +277,37 @@ function walkDecl(decl: NamedTypeDecl, origin: "local" | "inherited", state: Col
   walkMembers(decl.getMembers(), frame);
   for (const clause of decl.getHeritageClauses()) {
     for (const base of clause.getTypeNodes()) {
-      followIdentityRef(base.getExpression(), base, state);
+      followIdentityRef(base.getExpression(), base, state, readers);
     }
   }
 }
 
 /** Scan a NAMED bus root (`type ChatBusEvent = …` / `interface CharacterUpdatedEvent { … }`). */
-function scanBusDecl(decl: NamedTypeDecl, state: CollectorState): void {
+function scanBusDecl(decl: NamedTypeDecl, state: CollectorState, readers: TypeObservationReader): void {
   const name = decl.getName();
   state.resolvedRoots.add(name);
   state.events += 1;
   const before = contributionMark(state);
-  walkDecl(decl, "local", state);
+  walkDecl(decl, "local", state, readers);
   if (contributionMark(state) === before) {
     state.emptyRoots.push({ name, node: decl.getNameNode() });
   }
 }
 
-function collectNode(state: CollectorState, node: MorphNode, relativePath: string): void {
+function payloadRoot(node: MorphNode, relativePath: string): NamedTypeDecl | VariableDeclaration | undefined {
   if (!BUS_FILES.has(relativePath)) {
     return;
   }
   if (N.isTypeAliasDeclaration(node) || N.isInterfaceDeclaration(node)) {
-    if (BUS_DECL_NAMES.has(node.getName())) {
-      scanBusDecl(node, state);
-    }
-    return;
+    return BUS_DECL_NAMES.has(node.getName()) ? node : undefined;
   }
-  if (N.isVariableDeclaration(node) && node.getName() === NOTIFICATION_SCHEMA_NAME) {
-    const init = node.getInitializer();
-    if (init !== undefined) {
-      scanNotificationSchema(node, init, state);
-    }
+  return N.isVariableDeclaration(node) && node.getName() === NOTIFICATION_SCHEMA_NAME && node.getInitializer() !== undefined ? node : undefined;
+}
+function collectRoot(state: CollectorState, node: NamedTypeDecl | VariableDeclaration, readers: TypeObservationReader): void {
+  if (N.isVariableDeclaration(node)) {
+    scanNotificationSchema(node, node.getInitializerOrThrow(), state, readers);
+  } else {
+    scanBusDecl(node, state, readers);
   }
 }
 
@@ -309,14 +316,19 @@ export const busPayloadFact = defineFact({
   population: "@contracts",
   analysis: "types",
   resources: [],
-  create: (context) => {
+  create: (input) => {
+    const pending: (NamedTypeDecl | VariableDeclaration)[] = [];
+    const native = busNativeRead(input, () => pending, "payload");
+    const context = native.context;
     const state: CollectorState = {
       admitted: new Set(context.files.map((file: SourceFile) => file.getFilePath())),
       fields: [],
       refusals: [],
       resolvedRoots: new Set<string>(),
       emptyRoots: [],
-      walkedDecls: new Set<string>(),
+      walkedDecls: new Map(),
+      moduleSources: new Map(),
+      computedNames: new Map(),
       seenMembers: new Set<string>(),
       carriers: new Set<string>(),
       events: 0,
@@ -328,13 +340,26 @@ export const busPayloadFact = defineFact({
       distributions: 0,
     };
     return {
+      prepare: native.prepare,
       visitors: [
         {
           kinds: [SyntaxKind.TypeAliasDeclaration, SyntaxKind.InterfaceDeclaration, SyntaxKind.VariableDeclaration],
-          visit: (node: MorphNode, sourceFile: SourceFile) => collectNode(state, node, context.relativePath(sourceFile)),
+          visit: (node: MorphNode, sourceFile: SourceFile) => {
+            const candidate = payloadRoot(node, context.relativePath(sourceFile));
+            if (candidate !== undefined) {
+              pending.push(candidate);
+            }
+          },
         },
       ],
       finish: (): BusPayloadFact => {
+        for (const node of pending) {
+          const readers = context.types(node);
+          const importer = node.getSourceFile();
+          state.moduleSources.set(readers, (door) => context.moduleSource(importer, door));
+          state.computedNames.set(readers, (subject) => context.invocation(subject, readers).computedName(subject));
+          collectRoot(state, node, readers);
+        }
         // `members` is what the provider WALKED — the authored files its population admitted — never the
         // field census it built, and `unresolved` is pinned at 0 by contract: a non-zero one here would be a
         // FACT TOOL ERROR that withholds both consumers, including the `-health` policy whose entire job is

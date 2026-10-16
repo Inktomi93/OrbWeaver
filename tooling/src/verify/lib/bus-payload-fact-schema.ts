@@ -7,6 +7,7 @@ import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact
 import type { MemberReference } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node as N } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
 import {
@@ -20,10 +21,18 @@ import {
   UNSUPPORTED_TOKEN,
 } from "./bus-payload-fact-resolve.ts";
 
+function computedName(frame: WalkFrame): import("../../floor/code-facts/reference-fact-contract.ts").ReferenceResolutionServices["readComputedName"] {
+  const read = frame.state.computedNames.get(frame.readers);
+  if (read === undefined) {
+    throw new Error("bus schema has no registered importing owner");
+  }
+  return read;
+}
+
 /** Resolve an identifier naming a schema const to its INITIALIZER, inside the population only — the
  *  value-side twin of `resolveNamedTypes`. */
-function resolveSchemaInit(nameNode: MorphNode, state: CollectorState): MorphNode | undefined {
-  const definitions = N.isIdentifier(nameNode) ? nameNode.getDefinitionNodes() : [];
+function resolveSchemaInit(nameNode: MorphNode, state: CollectorState, readers: TypeObservationReader): MorphNode | undefined {
+  const definitions = N.isIdentifier(nameNode) ? readers.definitions(nameNode) : [];
   const decl = definitions.find(
     (def): def is VariableDeclaration =>
       N.isVariableDeclaration(def) && state.admitted.has(def.getSourceFile().getFilePath()) && def.getInitializer() !== undefined,
@@ -34,7 +43,7 @@ function resolveSchemaInit(nameNode: MorphNode, state: CollectorState): MorphNod
 /** A `{ ...base.shape }` spread — the third sanctioned imported shape, RESOLVED. Any other spread is
  *  refused: it would otherwise be dropped silently, the same omission `getProperties()` makes. */
 function scanSchemaSpread(prop: MorphNode, expression: MorphNode, frame: WalkFrame): void {
-  const spread = staticMemberAccess(unwrapExpression(expression));
+  const spread = staticMemberAccess(unwrapExpression(expression), computedName(frame));
   if (spread !== undefined && spread.name === "shape") {
     scanSchemaExpr(spread.receiver, true, { ...frame, origin: "inherited" });
     return;
@@ -75,16 +84,21 @@ function scanSchemaIdentifier(expr: MorphNode, strict: boolean, frame: WalkFrame
   if (!strict) {
     return;
   }
-  const init = resolveSchemaInit(expr, frame.state);
+  const init = resolveSchemaInit(expr, frame.state, frame.readers);
   if (init === undefined) {
     refuse(frame.state, expr, `${UNRESOLVED_SCHEMA_TOKEN}${expr.getText()}`);
     return;
   }
   const key = nodeKey(init);
-  if (frame.state.walkedDecls.has(key)) {
+  let walked = frame.state.walkedDecls.get(frame.readers);
+  if (walked === undefined) {
+    walked = new Set();
+    frame.state.walkedDecls.set(frame.readers, walked);
+  }
+  if (walked.has(key)) {
     return;
   }
-  frame.state.walkedDecls.add(key);
+  walked.add(key);
   scanSchemaExpr(init, true, { ...frame, origin: "inherited" });
 }
 
@@ -127,7 +141,7 @@ function scanSchemaExpr(node: MorphNode, strict: boolean, frame: WalkFrame): voi
     scanSchemaIdentifier(expr, strict, frame);
     return;
   }
-  const callee = N.isCallExpression(expr) ? staticMemberAccess(expr.getExpression()) : undefined;
+  const callee = N.isCallExpression(expr) ? staticMemberAccess(expr.getExpression(), computedName(frame)) : undefined;
   if (callee !== undefined) {
     scanSchemaCall(expr, callee, strict, frame);
     return;
@@ -151,11 +165,11 @@ function scanSchemaArms(arms: MorphNode, frame: WalkFrame): void {
 
 /** Scan the notification zod schema: every arm's property keys are wire fields, including the keys an
  *  IMPORTED schema object contributes (#1025). */
-export function scanNotificationSchema(decl: VariableDeclaration, init: MorphNode, state: CollectorState): void {
+export function scanNotificationSchema(decl: VariableDeclaration, init: MorphNode, state: CollectorState, readers: TypeObservationReader): void {
   state.resolvedRoots.add(NOTIFICATION_SCHEMA_NAME);
   state.events += 1;
   const before = contributionMark(state);
-  scanSchemaExpr(init, true, { state, origin: "local", owner: init });
+  scanSchemaExpr(init, true, { state, origin: "local", owner: init, readers });
   if (contributionMark(state) === before) {
     state.emptyRoots.push({ name: NOTIFICATION_SCHEMA_NAME, node: decl.getNameNode() });
   }

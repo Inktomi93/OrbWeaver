@@ -2,19 +2,43 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
-import type { NativeTypeObservation, NativeTypeObservations, TypeObservationValues } from "./type-observations-contract.ts";
+import type { NativeTypeObservation, NativeTypeObservations, TypeObservationDemand, TypeObservationValues } from "./type-observations-contract.ts";
 import type { InventoryTypeObservations } from "./type-observations-inventory.ts";
 import { mapTypeSelectionPlan } from "./type-projection-codec.ts";
 
 function mapObservation<From, To>(fact: NativeTypeObservation<From>, value: (input: From) => To): NativeTypeObservation<To> {
   return fact.kind === "value" ? { kind: "value", value: value(fact.value) } : fact;
 }
-export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<From>, node: (value: From) => To): TypeObservationValues<To> {
+export function mapTypeObservationDemand<From, To>(demand: TypeObservationDemand<From>, node: (value: From) => To): TypeObservationDemand<To> {
+  const { questions, ...base } = demand;
   return {
-    ...facts,
+    ...base,
+    sources: demand.sources.map(node),
+    nodes: demand.nodes.map(node),
+    ...(questions === undefined ? {} : { questions: questions.map((q) => ({ ...q, nodes: q.nodes.map(node) })) }),
+  };
+}
+export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<From>, node: (value: From) => To): TypeObservationValues<To> {
+  const {
+    definitions: _definitions,
+    callParameters: _callParameters,
+    signatureParameters: _signatureParameters,
+    valueProfiles: _valueProfiles,
+    ...base
+  } = facts;
+  return {
+    ...base,
     anchor: node(facts.anchor),
-    demand: { ...facts.demand, sources: facts.demand.sources.map(node), nodes: facts.demand.nodes.map(node) },
-    symbols: facts.symbols.map((symbol) => ({ ...symbol, declarations: symbol.declarations.map(node) })),
+    demand: mapTypeObservationDemand(facts.demand, node),
+    symbols: facts.symbols.map(({ valueDeclaration, ...symbol }) => ({
+      ...symbol,
+      declarations: symbol.declarations.map(node),
+      ...(valueDeclaration === undefined ? {} : { valueDeclaration: valueDeclaration === null ? null : node(valueDeclaration) }),
+    })),
+    ...(facts.definitions === undefined ? {} : { definitions: facts.definitions.map((entry) => ({ node: node(entry.node), values: entry.values.map(node) })) }),
+    ...(facts.callParameters === undefined ? {} : { callParameters: facts.callParameters.map((entry) => ({ ...entry, call: node(entry.call) })) }),
+    ...(facts.signatureParameters === undefined ? {} : { signatureParameters: facts.signatureParameters.map((entry) => ({ ...entry, at: node(entry.at) })) }),
+    ...(facts.valueProfiles === undefined ? {} : { valueProfiles: facts.valueProfiles.map((entry) => ({ ...entry, node: node(entry.node) })) }),
     nodes: facts.nodes.map((entry) => ({ ...entry, node: node(entry.node) })),
     properties: facts.properties.map((entry) => ({ ...entry, at: node(entry.at) })),
     callReturns: facts.callReturns.map((entry) => ({ ...entry, node: node(entry.node) })),

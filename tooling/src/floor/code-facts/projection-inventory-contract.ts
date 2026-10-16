@@ -170,11 +170,12 @@ function typeSelectionsShape(span: z.ZodType<InventorySpan>): {
   const base = z.union([
     z.strictObject({ kind: z.enum(["node", "contextual", "return"]), node: span }),
     z.strictObject({ kind: z.literal("schema-column"), column: z.string() }),
-    z.strictObject({ kind: z.literal("resolved-parameter"), node: span, index: indexSchema }),
+    z.strictObject({ kind: z.enum(["resolved-parameter", "call-parameter"]), node: span, index: indexSchema }),
   ]);
   const step = z.union([
     z.strictObject({ kind: z.enum(["nonnullable", "array-element-or-self", "array-element", "string-index", "number-index"]) }),
     z.strictObject({ kind: z.literal("property"), name: z.string(), at: span }),
+    z.strictObject({ kind: z.literal("signature-parameter"), signature: indexSchema, index: indexSchema, at: span }),
     z.strictObject({ kind: z.enum(["type-argument", "call-return", "tuple-member", "union-part", "intersection-part"]), index: indexSchema }),
   ]);
   const relation = z.discriminatedUnion("kind", [

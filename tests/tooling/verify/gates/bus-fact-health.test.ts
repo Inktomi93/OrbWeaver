@@ -13,7 +13,7 @@ import { gate as busFactHealth } from "../../../../tooling/src/verify/gates/bus-
 import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bus-producers";
@@ -28,7 +28,15 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test(
@@ -91,7 +99,15 @@ test(
     for (const [path, source] of Object.entries(noBus)) {
       project.createSourceFile(`${ROOT}/${path}`, source);
     }
-    const result = runPolicyPass({ knownPolicies: [busFactHealth], policies: [busFactHealth], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+    const result = runPolicyPass({
+      knownPolicies: [busFactHealth],
+      policies: [busFactHealth],
+      root: ROOT,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
 
     expect(result.policies[0]?.owner.status).toBe("success");
     expect(result.toolErrors).toEqual([]);

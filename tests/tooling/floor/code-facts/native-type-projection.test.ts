@@ -141,6 +141,7 @@ test(
       "projection-reference-codec.ts",
       "type-projection.ts",
       "type-projection-codec.ts",
+      "type-observation-questions.ts",
       "type-origin-projection.ts",
       "type-origin-projection-codec.ts",
       "type-member-origin-graph.ts",
@@ -165,7 +166,7 @@ test(
         expect(inputsCurrent(inputs, { authored, fileSystem: changed }), path).toBe(false);
       }
     }
-    const helper = dependencies[0];
+    const helper = dependencies.find((path) => path.endsWith("/type-observation-questions.ts"));
     if (helper === undefined) {
       throw new Error("native helper invalidation control is missing");
     }

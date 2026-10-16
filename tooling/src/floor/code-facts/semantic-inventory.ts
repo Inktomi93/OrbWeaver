@@ -14,6 +14,7 @@ import type {
   InventoryExportDeclarationQuery,
   InventoryFamily,
   InventoryInvocationQuery,
+  InventoryModuleTargetQuery,
   InventoryOverlay,
   InventoryReadLease,
   InventoryShapeQuery,
@@ -29,6 +30,8 @@ import {
   inventoryFamilies,
   inventoryNodeQueryKey,
   invocationQueryKey,
+  moduleTargetQueryKey,
+  moduleTargetQuerySchema,
   referenceQueryKey,
   SemanticInventoryError,
   shapePairKey,
@@ -54,6 +57,7 @@ import {
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
   readInventoryInputs,
+  readInventoryModules,
   readInventoryPairs,
   readInventoryReferenceQueries,
   readInventorySchemaData,
@@ -61,6 +65,7 @@ import {
 } from "./semantic-inventory-queries.ts";
 import { inventoryReader, ownedInventoryReader, validateInventoryReaderSources } from "./semantic-inventory-reader.ts";
 import { inventoryStringSchema } from "./semantic-inventory-records.ts";
+import { hasTypeObservationValueDemand } from "./type-observations-contract.ts";
 
 function authoredVersion(root: string): string {
   return contentVersion(JSON.stringify(readAuthoredRepositoryInventory(root).paths));
@@ -85,8 +90,17 @@ function projectOverlay(options: SemanticInventoryOptions): InventoryOverlay | u
   return { root: options.root, files, deleted };
 }
 
+function moduleTargetOptions(rawOptions: SemanticInventoryOptions): SemanticInventoryOptions {
+  return rawOptions.moduleTargetQueries === undefined
+    ? rawOptions
+    : {
+        ...rawOptions,
+        moduleTargetQueries: rawOptions.moduleTargetQueries.map((entry) => ({ program: entry.program, query: moduleTargetQuerySchema.parse(entry.query) })),
+      };
+}
 /** Build or reuse a complete native generation under the SQLite writer lock, then pin its immutable facts. */
-export function createSemanticInventory(options: SemanticInventoryOptions): SemanticInventory {
+export function createSemanticInventory(rawOptions: SemanticInventoryOptions): SemanticInventory {
+  const options = moduleTargetOptions(rawOptions);
   const root = canonicalInventoryPath(options.root);
   assertShapeRoot(root, options);
   const overlay = projectOverlay({ ...options, root });
@@ -108,6 +122,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     const families = inventoryFamilies(options.families);
     assertReferenceDemand(options, descriptors, families);
     assertExportDemand(options, descriptors, families);
+    assertModuleDemand(options, descriptors, families);
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
     assertIdBrandDemand(options, descriptors, families);
@@ -118,6 +133,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
     assertReferenceCohort(db, options, descriptors, partitions);
     assertDrizzleCohort(db, options, partitions);
+    assertModuleCohort(db, options, partitions);
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
     const samePopulation =
       JSON.stringify(
@@ -134,6 +150,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     lease = acquireInventoryReadLease(db, generation, partitions);
     reader = ownedInventoryReader(root, generation, lease, {
       db,
+      ...(options.moduleTargetQueries === undefined ? {} : { moduleTargetQueries: options.moduleTargetQueries }),
       ...shapeReaderContext(options, descriptors, lease.partitions),
       dispose: () => {
         db.close();
@@ -185,6 +202,15 @@ function currentDemandDescriptors(options: SemanticInventoryOptions): readonly I
   return options.shapePlan === undefined ? selected : current;
 }
 
+function assertBuiltModuleCoverage(
+  staging: ReturnType<typeof openInventoryDatabase>,
+  candidate: StoredInventoryPartition,
+  request: InventoryBuildRequest,
+): void {
+  if (!coversModuleDemand(staging, candidate, request.moduleTargetQueries ?? [])) {
+    throw new Error(`native inventory worker supplied incomplete contextual module coverage: ${request.descriptor.id}`);
+  }
+}
 function buildPartition(
   db: ReturnType<typeof openInventoryDatabase>,
   request: InventoryBuildRequest,
@@ -218,6 +244,7 @@ function buildPartition(
       throw new Error(`native inventory worker supplied incomplete computed-name coverage: ${request.descriptor.id}`);
     }
     assertIdBrandCoverage(staging, candidate, request);
+    assertBuiltModuleCoverage(staging, candidate, request);
     if (!coversGlobalDemand(staging, candidate, request)) {
       throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
     }
@@ -655,6 +682,60 @@ function assertComputedDemand(
   }
 }
 
+function moduleDemand(options: SemanticInventoryOptions, program: string): readonly InventoryModuleTargetQuery[] {
+  return [
+    ...new Map(
+      (options.moduleTargetQueries ?? []).filter((entry) => entry.program === program).map((entry) => [moduleTargetQueryKey(entry.query), entry.query]),
+    ).values(),
+  ];
+}
+function moduleDemandOptions(
+  options: SemanticInventoryOptions,
+  program: string,
+  families: readonly InventoryFamily[],
+): Pick<InventoryBuildRequest, "moduleTargetQueries"> {
+  return families.includes("modules") && options.moduleTargetQueries !== undefined ? { moduleTargetQueries: moduleDemand(options, program) } : {};
+}
+function assertModuleDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  if (options.moduleTargetQueries !== undefined && !families.includes("modules")) {
+    throw new Error("native contextual module demand requires modules family");
+  }
+  for (const entry of options.moduleTargetQueries ?? []) {
+    moduleTargetQuerySchema.parse(entry.query);
+    if (
+      !descriptors.some(
+        (descriptor) =>
+          descriptor.id === entry.program && descriptor.files.some((file) => canonicalInventoryPath(resolve(options.root, file)) === entry.query.importer.file),
+      )
+    ) {
+      throw new Error("native contextual module demand has no admitted importer program");
+    }
+  }
+}
+function coversModuleDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  queries: readonly InventoryModuleTargetQuery[],
+): boolean {
+  return queries.every(
+    (query) =>
+      partition.roots.includes(query.importer.file) &&
+      (!partition.available.includes(query.node.file) || [...readInventoryModules(db, partition.id, query.node)].length === 1),
+  );
+}
+function assertModuleCohort(
+  db: ReturnType<typeof openInventoryDatabase>,
+  options: SemanticInventoryOptions,
+  partitions: readonly StoredInventoryPartition[],
+): void {
+  if (partitions.some((partition) => !coversModuleDemand(db, partition, moduleDemand(options, partition.program)))) {
+    throw new Error("native contextual module demand changed before publication");
+  }
+}
 function nativeDemandRequest(
   options: SemanticInventoryOptions,
   program: string,
@@ -665,6 +746,7 @@ function nativeDemandRequest(
   | "exportQueries"
   | "idBrandQueries"
   | "callableQueries"
+  | "moduleTargetQueries"
   | "computedNameQueries"
   | "globalOriginQueries"
   | "globalBindingQueries"
@@ -695,6 +777,7 @@ function nativeDemandRequest(
         }
       : {}),
     ...(families.includes("export-declarations") ? { exportQueries: exportDemand(options, program) } : {}),
+    ...moduleDemandOptions(options, program, families),
     ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
     ...(families.includes("computed-names") ? { computedNameQueries: computedDemand(options, program) } : {}),
@@ -715,6 +798,7 @@ function coversNativeDemand(
     | "exportQueries"
     | "idBrandQueries"
     | "callableQueries"
+    | "moduleTargetQueries"
     | "computedNameQueries"
     | "globalOriginQueries"
     | "globalBindingQueries"
@@ -730,6 +814,7 @@ function coversNativeDemand(
     coversReferenceDemand(db, partition, demand.referenceDemand) &&
     coversExportDemand(db, partition, demand.exportQueries ?? []) &&
     coversIdBrandDemand(db, partition, demand.idBrandQueries ?? []) &&
+    coversModuleDemand(db, partition, demand.moduleTargetQueries ?? []) &&
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&
     coversComputedDemand(db, partition, demand.computedNameQueries ?? []) &&
     coversGlobalDemand(db, partition, demand) &&
@@ -986,7 +1071,8 @@ function assertInvocationDemand(
     (options.invocationQueries !== undefined && !families.includes("invocation-evidence")) ||
     (families.includes("invocation-evidence") &&
       (options.invocationQueries === undefined ||
-        ((options.invocationQueries.length === 0 || options.invocationQueries.some(({ query }) => query.mode !== "types")) &&
+        ((options.invocationQueries.length === 0 ||
+          options.invocationQueries.some(({ query }) => query.mode !== "types" || hasTypeObservationValueDemand(query.typeObservations))) &&
           !(families.includes("computed-names") && families.includes("global-origins")))))
   ) {
     throw new Error("native invocation evidence requires closed demand and related fact capabilities in admitted native programs");

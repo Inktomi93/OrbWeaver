@@ -2,6 +2,7 @@
 // and the repo-relative path helper its callers need. Split out of the retired `lib/pass.ts` at #2176
 // Phase F (2026-09-14): the legacy dispatcher died; these two survived it because they describe the
 // WORKSPACE, not the descriptor runtime.
+
 import { posix } from "node:path";
 import {
   canonicalSemanticPrograms,
@@ -12,7 +13,7 @@ import {
   semanticProgramMatchesDescriptor,
   semanticWorkspaceOf,
 } from "@orb/tooling/floor/compiler/ts-workspace";
-import type { AsExpression, Node, TypeNode } from "ts-morph";
+import type { AsExpression, Node, SourceFile, TypeNode } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
@@ -22,6 +23,7 @@ import type { InventoryFamily, InventoryInvocationPlan, SemanticInventoryOptions
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
+import { hasTypeObservationValueDemand } from "../../floor/code-facts/type-observations-contract.ts";
 import type { SemanticSourceView, SemanticWorkspace } from "../../floor/compiler/ts-workspace-contract.ts";
 import type { NativeTypeContext, NativeTypeFactReader, NativeTypeFacts, NativeTypeRequest, ProjectContext } from "../contract/project-context.ts";
 
@@ -60,6 +62,7 @@ function requireModuleTargetDoors(nodes: readonly Node[]): void {
 export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequest[]) => NativeTypeFactReader): NativeTypeFacts {
   const requests = new Map<string, NativeTypeRequest[]>();
   const invocationAdmissions = new Map<string, ReadonlyMap<string, ReadonlySet<Node>>>();
+  const moduleImporterEpochs = new Map<string, Map<SourceFile, SourceFile["compilerNode"]>>();
   let reader: NativeTypeFactReader | undefined;
   let failure: { readonly error: unknown } | undefined;
   let sealed = false;
@@ -102,13 +105,40 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     invocationAdmissions.set(owner, admitted);
     return admitted.get(key) ?? new Set();
   };
+  const assertModuleImporter = (owner: string, importer: SourceFile | undefined): void => {
+    if (importer === undefined) {
+      return;
+    }
+    const epoch = moduleImporterEpochs.get(owner)?.get(importer);
+    if (epoch === undefined) {
+      throw new Error("native contextual module importer was not registered by this owner");
+    }
+    if (importer.wasForgotten() || importer.compilerNode !== epoch) {
+      throw new Error("native contextual module importer epoch is stale");
+    }
+  };
+  const registerModuleImporter = (owner: string, importer: SourceFile | undefined): void => {
+    if (importer === undefined) {
+      return;
+    }
+    if (importer.wasForgotten() || !MorphNode.isSourceFile(importer)) {
+      throw new Error("native module importer must be a current source file");
+    }
+    const epochs = moduleImporterEpochs.get(owner) ?? new Map<SourceFile, SourceFile["compilerNode"]>();
+    const previous = epochs.get(importer);
+    if (previous !== undefined && previous !== importer.compilerNode) {
+      throw new Error("native module importer epoch changed during registration");
+    }
+    epochs.set(importer, importer.compilerNode);
+    moduleImporterEpochs.set(owner, epochs);
+  };
   const selected = (
     owner: string,
     kind: NativeTypeRequest["kind"],
     nodes: readonly Node[],
     projection?: {
-      readonly importer?: import("ts-morph").SourceFile;
       readonly name?: string;
+      readonly importer?: SourceFile;
       readonly mode?: import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleEvidenceMode;
       readonly plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan;
     },
@@ -127,12 +157,16 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
                   query.kind === kind &&
                   (query.kind !== "references" || query.importer === projection?.importer) &&
                   (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
-                  (query.kind !== "export-declarations" || query.name === projection?.name),
+                  (query.kind !== "export-declarations" || query.name === projection?.name) &&
+                  (query.kind !== "module-targets" || query.importer === projection?.importer),
               )
               .flatMap((query) => [...query.nodes]),
           );
     if (nodes.some((node) => !admitted.has(node))) {
       throw new Error("native type query was not registered by this owner");
+    }
+    if (kind === "module-targets") {
+      assertModuleImporter(owner, projection?.importer);
     }
     if (failure !== undefined) {
       throw failure.error;
@@ -168,7 +202,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (sealed) {
         throw new Error("native type request registration is sealed");
       }
-      if (query.nodes.length > 0 || recordsEmptyIntent(query)) {
+      if (hasNativeRequest(query)) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
           case "references":
@@ -217,7 +251,8 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
             break;
           case "module-targets":
             requireModuleTargetDoors(query.nodes);
-            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            registerModuleImporter(owner, query.importer);
+            rows.push(moduleTargetRequest(query));
             break;
           case "shape-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
@@ -236,6 +271,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       for (const owner of requests.keys()) {
         if (!owners.has(owner)) {
           requests.delete(owner);
+          moduleImporterEpochs.delete(owner);
         }
       }
       sealed = true;
@@ -249,12 +285,12 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
     },
-    moduleTargets: (owner, nodes): ReturnType<NativeTypeContext["moduleTargets"]> => {
+    moduleTargets: (owner, nodes, importer): ReturnType<NativeTypeContext["moduleTargets"]> => {
       if (nodes.length === 0) {
         assertReadable();
         return new Map();
       }
-      return selected(owner, "module-targets", nodes).moduleTargets(nodes);
+      return selected(owner, "module-targets", nodes, importer === undefined ? undefined : { importer }).moduleTargets(nodes, importer);
     },
     schemaData: (owner, sources, projection = {}): ReturnType<NativeTypeContext["schemaData"]> => {
       if (sources.length === 0) {
@@ -367,6 +403,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (open) {
         open = false;
         invocationAdmissions.clear();
+        moduleImporterEpochs.clear();
         reader?.[Symbol.dispose]();
         requests.clear();
       }
@@ -474,6 +511,40 @@ function identitySchemaSources(queries: readonly NativeTypeRequest[]): readonly 
     : [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
 }
 
+function querySpan(node: Node): import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan {
+  return { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() };
+}
+function moduleTargetRequest(
+  query: Extract<NativeTypeRequest, { readonly kind: "module-targets" }>,
+): Extract<NativeTypeRequest, { readonly kind: "module-targets" }> {
+  return { kind: query.kind, nodes: [...query.nodes], ...(query.importer === undefined ? {} : { importer: query.importer }) };
+}
+function hasNativeRequest(query: NativeTypeRequest): boolean {
+  return query.nodes.length > 0 || recordsEmptyIntent(query);
+}
+function contextualModuleDemand(
+  queries: readonly NativeTypeRequest[],
+  owner: (node: Node) => string,
+): Pick<import("../../floor/code-facts/semantic-inventory-contract.ts").SemanticInventoryOptions, "moduleTargetQueries"> {
+  const paired = queries.filter((query) => query.kind === "module-targets" && query.importer !== undefined);
+  if (paired.length === 0) {
+    return {};
+  }
+  return {
+    moduleTargetQueries: paired.flatMap((query) => {
+      if (query.kind !== "module-targets" || query.importer === undefined) {
+        return [];
+      }
+      const importer = query.importer;
+      return query.nodes.map((node) => ({ program: owner(importer), query: { importer: querySpan(importer), node: querySpan(node) } }));
+    }),
+  };
+}
+
+function requestOwnerNodes(query: NativeTypeRequest): readonly Node[] {
+  const importer = query.kind === "references" || query.kind === "module-targets" ? query.importer : undefined;
+  return importer === undefined ? query.nodes : [importer];
+}
 function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: readonly NativeTypeRequest[]): NativeTypeFactReader {
   const nodes = queries.flatMap((query) => [...query.nodes]);
   const owner = (node: Node): string => {
@@ -487,16 +558,23 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
     return selected.descriptor.id;
   };
   const referenceOwner = (importer: import("ts-morph").SourceFile): string => nativeImporterOwner(root, workspace, importer);
-  const descriptorOwners = queries
-    .filter((query) => query.kind !== "shape-relations")
-    .flatMap((query) => (query.kind === "references" ? [referenceOwner(query.importer)] : query.nodes.map(owner)));
-  const descriptors = [...new Set(descriptorOwners)].map((id) => {
-    const selected = workspace.program(id);
-    if (selected === undefined) {
-      throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
-    }
-    return selected.descriptor;
-  });
+  const descriptors = [
+    ...new Map(
+      queries
+        .filter((query) => query.kind !== "shape-relations")
+        .flatMap((query) =>
+          requestOwnerNodes(query).map((node) => {
+            const importer = query.kind === "references" || query.kind === "module-targets" ? query.importer : undefined;
+            const program = importer === undefined ? owner(node) : referenceOwner(importer);
+            const selected = workspace.program(program);
+            if (selected === undefined) {
+              throw new SemanticInventoryError("native typed compiler owner is unavailable");
+            }
+            return [selected.descriptor.id, selected.descriptor] as const;
+          }),
+        ),
+    ).values(),
+  ];
   const families = [
     ...new Set(
       queries.flatMap((query) => {
@@ -507,7 +585,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
           return ["drizzle-identities"] as const;
         }
         if (query.kind === "invocation-evidence") {
-          return invocationFamilies(query.plan.mode);
+          return invocationFamilies(query.plan);
         }
         if (query.kind === "global-bindings") {
           return ["global-origins"] as const;
@@ -643,6 +721,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
             ),
         }
       : {}),
+    ...contextualModuleDemand(queries, (node) => nativeImporterOwner(root, workspace, node.getSourceFile())),
     ...(families.length === 0 ? {} : { families }),
     ...(shapes.length === 0
       ? {}
@@ -679,8 +758,13 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
       new Map(subjects.map((node) => [node, inventory.drizzleEvidence(node, owner(node), mode)])),
     exportDeclarations: (sources, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> =>
       new Map(sources.map((source) => [source, inventory.exportDeclarations(source, owner(source), name)])),
-    moduleTargets: (subjects): ReturnType<NativeTypeFactReader["moduleTargets"]> =>
-      new Map(subjects.map((node) => [node, inventory.moduleTarget(node, owner(node))])),
+    moduleTargets: (subjects, importer): ReturnType<NativeTypeFactReader["moduleTargets"]> =>
+      new Map(
+        subjects.map((node) => [
+          node,
+          inventory.moduleTarget(node, importer === undefined ? owner(node) : nativeImporterOwner(root, workspace, importer), importer),
+        ]),
+      ),
     invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
       const result = new Map<Node, import("../../floor/code-facts/semantic-inventory-contract.ts").NativeInvocationEvidence>();
       for (const group of invocationDemandGroups(subjects, plan, owner)) {
@@ -809,9 +893,13 @@ function invocationDemandGroups(
     files.set(canonicalInventoryPath(node.getSourceFile().getFilePath()), program);
   }
   if (
-    [...(demand?.roots ?? []), ...(demand?.reads.map((read) => read.node) ?? []), ...(typeDemand?.sources ?? []), ...(typeDemand?.nodes ?? [])].some(
-      (node) => !files.has(node.file),
-    )
+    [
+      ...(demand?.roots ?? []),
+      ...(demand?.reads.map((read) => read.node) ?? []),
+      ...(typeDemand?.sources ?? []),
+      ...(typeDemand?.nodes ?? []),
+      ...(typeDemand?.questions?.flatMap((q) => q.nodes) ?? []),
+    ].some((node) => !files.has(node.file))
   ) {
     throw new SemanticInventoryError("native ordinary roots/reads are outside their registered source cohort");
   }
@@ -841,6 +929,9 @@ function invocationDemandGroups(
                 ...typeDemand,
                 sources: typeDemand.sources.filter((node) => files.get(node.file) === program),
                 nodes: typeDemand.nodes.filter((node) => files.get(node.file) === program),
+                ...(typeDemand.questions === undefined
+                  ? {}
+                  : { questions: typeDemand.questions.map((q) => ({ ...q, nodes: q.nodes.filter((node) => files.get(node.file) === program) })) }),
               },
             }),
       },
@@ -848,10 +939,10 @@ function invocationDemandGroups(
   });
 }
 
-function invocationFamilies(mode: InventoryInvocationPlan["mode"]): readonly InventoryFamily[] {
-  switch (mode) {
+function invocationFamilies(plan: InventoryInvocationPlan): readonly InventoryFamily[] {
+  switch (plan.mode) {
     case "types":
-      return ["invocation-evidence"];
+      return hasTypeObservationValueDemand(plan.typeObservations) ? ["invocation-evidence", "global-origins", "computed-names"] : ["invocation-evidence"];
     case "observations":
       return ["invocation-evidence", "global-origins", "computed-names", "drizzle-identities"];
     case "value":

@@ -2,6 +2,7 @@
 import type { Node, SourceFile } from "ts-morph";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationReader } from "./type-observations-contract.ts";
+import { assertRawParameterCoverage } from "./type-observations-coverage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
@@ -46,7 +47,7 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
       facts.assertNode(selector.base.node);
     }
     for (const step of selector.steps) {
-      if (step.kind === "property") {
+      if (step.kind === "property" || step.kind === "signature-parameter") {
         facts.assertNode(step.at);
       }
     }
@@ -105,6 +106,7 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
         unionCount: raw.unionCount,
         tupleCount: raw.tupleCount,
         symbol: raw.symbol === null ? null : symbolRef(raw.symbol),
+        aliasSymbol: raw.aliasSymbol === null ? null : symbolRef(raw.aliasSymbol),
       };
     },
     symbol: (node) => {
@@ -198,7 +200,91 @@ export function readTypeObservations(facts: NativeTypeObservations): TypeObserva
       }
       return row.values;
     },
+    definitions: (node) => {
+      facts.assertNode(node);
+      const row = facts.definitions?.find((entry) => entry.node === node);
+      if (row === undefined) {
+        throw new Error("native definition-node question was not captured");
+      }
+      row.values.forEach(facts.assertNode);
+      return row.values;
+    },
+    callParameters: (call) => {
+      facts.assertNode(call);
+      const row = facts.callParameters?.find((entry) => entry.call === call);
+      if (row === undefined) {
+        throw new Error("native instantiated parameter question was not captured");
+      }
+      return row.values?.map(selectorAt) ?? null;
+    },
+    signatureParameters: (selector, at) => {
+      const index = indexOf(selector);
+      facts.assertNode(at);
+      const row = facts.signatureParameters?.find((entry) => entry.selector === index && entry.at === at);
+      if (row === undefined) {
+        throw new Error("native signature parameter table was not captured");
+      }
+      return row.values.map((parameters) => parameters.map(selectorAt));
+    },
+    literal: (selector) => {
+      const value = facts.types[indexOf(selector)];
+      if (value === undefined || value === null || value.stringLiteral === undefined) {
+        throw new Error("native string literal question was not captured");
+      }
+      return value.stringLiteral;
+    },
+    valueDeclaration: (reference) => {
+      const value = facts.symbols[requireRef(reference, "symbol")]?.valueDeclaration;
+      if (value === undefined) {
+        throw new Error("native symbol value declaration was not captured");
+      }
+      if (value !== null) {
+        facts.assertNode(value);
+      }
+      return value;
+    },
   };
-  observeAuthoredTypeSlots(facts.demand, reader);
+  if (facts.definitions === undefined) {
+    observeAuthoredTypeSlots(facts.demand, reader);
+  } else {
+    const usedDefinitions = new Set<Node>();
+    const values = new Map<Node, Set<string>>();
+    observeAuthoredTypeSlots(
+      facts.demand,
+      {
+        ...reader,
+        definitions: (node) => {
+          usedDefinitions.add(node);
+          return reader.definitions(node);
+        },
+      },
+      (node, facets) => {
+        facts.assertNode(node);
+        const requested = values.get(node) ?? new Set<string>();
+        for (const facet of facets) {
+          requested.add(facet);
+        }
+        values.set(node, requested);
+      },
+    );
+    if (facts.definitions.some((row) => !usedDefinitions.has(row.node))) {
+      throw new Error("native definition-node question is foreign to the registered closure");
+    }
+    const delivered = facts.valueProfiles ?? [];
+    if (
+      delivered.length !== values.size ||
+      delivered.some((row) => {
+        const expected = values.get(row.node);
+        return expected === undefined || row.facets.length !== expected.size || row.facets.some((facet) => !expected.has(facet));
+      })
+    ) {
+      throw new Error("native value-profile nomination coverage is missing or foreign");
+    }
+    assertRawParameterCoverage(
+      facts,
+      (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]),
+      (node) => node.getKind(),
+    );
+  }
   return reader;
 }
