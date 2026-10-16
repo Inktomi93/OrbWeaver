@@ -28,7 +28,7 @@ Frozen world qualifications establish selected extraction, publication, release 
 
 Authored-input admission, native JS-depth origins, ID-brand publication, indexed reads, stale-source refusal and release have selected controls. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
-Corrected comparison from frozen `638adf6e65` completes the store, but its native phase reaches the fixed deadline. Completed phases match byte-for-byte, including the previous mismatches; full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`. Repeated binding-read cost is assigned separately; original outputs remain preserved.
+Frozen replay completes selected stored phases; native comparison reaches its deadline. Preserve completed byte-equality evidence and original outputs. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
 Reviewed native reference storage, guarded bindings, settled capture indexes and allocation-free native traversal are integrated. Their bounded controls pass independent review. Callable provenance reads TypeScript; it does not execute a database query. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
 
@@ -38,4 +38,4 @@ Reviewed reached-call capture uses explicit reference inputs, validates native l
 
 The actual env-parser control still refuses inherited descriptor exposure at the identity dispatch. Actual target completion, complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
 
-Pinned metadata and physical source lookup reuse retain admission, mutable epochs and borrowed freshness. Mapped controls pass; ordinary source-lookup qualification, actual env and cost remain open.
+Pinned metadata and physical source lookup reuse retain admission, mutable epochs and borrowed freshness. Finite reentry respects captured invocations; true cycles refuse. Mapped and ordinary reentry controls pass; the actual env control still refuses. Complete replay and cost remain open.

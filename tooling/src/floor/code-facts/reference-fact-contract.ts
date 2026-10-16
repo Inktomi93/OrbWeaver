@@ -263,8 +263,32 @@ export interface ReturnedValueSource {
   readonly bindings: ReadonlyMap<Node, Node>;
 }
 
+/** An actual captured return alternative identifies the invocation whose body is being projected. */
+export interface ReturnedValueInvocation {
+  readonly observation: CallReturnObservation;
+  readonly target: Node;
+}
+
+/** Active evaluation records distinguish captured allocations without storing completed value facts. */
+export interface ReturnedValueActivation {
+  readonly node: ts.Node;
+  readonly path: readonly string[];
+  readonly bindings: ReadonlyMap<Node, Node>;
+  readonly program: CallReturnProgram;
+  readonly nativeProgram: ts.Program;
+  readonly invocation: ReturnedValueInvocation;
+  readonly supplied: boolean;
+  readonly callableValues: boolean;
+  readonly nativeValueTransfers: boolean;
+  readonly explicitAbsentReturns: boolean;
+  readonly terminals: ReturnedValueTerminals;
+  readonly hasNativeIterations: boolean;
+}
+
 /** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
 export interface ReturnedValueContext {
+  readonly invocation?: ReturnedValueInvocation;
+  readonly valueActivations?: readonly ReturnedValueActivation[];
   readonly callableValues?: true;
   readonly nativeValueTransfers: boolean;
   readonly nativeIterations: ReadonlyMap<Node, NativeValueIteration>;
