@@ -1,13 +1,12 @@
 // Origin closure wires retain bounded canonical query answers and their complete annotation coverage.
 import type { Node as MorphNode, TypeNode } from "ts-morph";
-import { Node } from "ts-morph";
 import type { InventoryTypeOriginProjection, WireIdentity } from "./projection-inventory-contract.ts";
 import { replayReferenceFact, wireReferenceFact } from "./projection-reference-codec.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import type { InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
 import type { NativeTypeOriginProjection } from "./type-origin-projection-contract.ts";
-import { assertTypeOriginCoverage } from "./type-origin-projection-contract.ts";
+import { assertTypeOriginCoverage, typeOriginAnnotationClosure } from "./type-origin-projection-contract.ts";
 
 /** Canonical readers have already supplied meaning; encoding only replaces anchors. */
 export function encodeTypeOriginProjection(projection: NativeTypeOriginProjection, span: (node: MorphNode) => InventorySpan): InventoryTypeOriginProjection {
@@ -46,15 +45,8 @@ export function encodeTypeOriginProjection(projection: NativeTypeOriginProjectio
 export function replayTypeOriginProjection(wire: InventoryTypeOriginProjection, replay: (span: InventorySpan) => MorphNode): NativeTypeOriginProjection {
   const identity = (value: WireIdentity): TypeIdentityOrigin => ({ ...value, node: replay(value.node), declarations: value.declarations.map(replay) });
   const origin = (fact: InventoryInvocationReference<WireIdentity>): ReferenceFact<TypeIdentityOrigin> => replayReferenceFact(fact, identity, replay);
-  const annotation = (span: InventorySpan): TypeNode => {
-    const node = replay(span);
-    if (!Node.isTypeNode(node)) {
-      throw new Error("native annotation origin is not a type node");
-    }
-    return node;
-  };
   const property = wire.bindingProperty;
-  const projection: NativeTypeOriginProjection = {
+  const basis: Omit<NativeTypeOriginProjection, "annotations"> = {
     root: replay(wire.root),
     stable: replayReferenceFact(wire.stable, replay, replay),
     binding: replayReferenceFact(wire.binding, replay, replay),
@@ -72,12 +64,24 @@ export function replayTypeOriginProjection(wire: InventoryTypeOriginProjection, 
       identities: replayReferenceFact(value.identities, (identities) => identities.map(identity), replay),
       member: replayReferenceFact(value.member, (nodes) => nodes.map(replay), replay),
     })),
+    callable: wire.callable === null ? null : replayReferenceFact(wire.callable, replay, replay),
+  };
+  const admitted = typeOriginAnnotationClosure(basis);
+  const annotation = (span: InventorySpan): TypeNode => {
+    const replayed = replay(span);
+    const node = admitted.find((candidate) => candidate === replayed);
+    if (node === undefined) {
+      throw new Error("native annotation origin is not an admitted type node");
+    }
+    return node;
+  };
+  const projection: NativeTypeOriginProjection = {
+    ...basis,
     annotations: wire.annotations.map((value) => ({
       annotation: annotation(value.annotation),
       direct: value.direct === null ? null : origin(value.direct),
       scalar: value.scalar.map(origin),
     })),
-    callable: wire.callable === null ? null : replayReferenceFact(wire.callable, replay, replay),
   };
   assertTypeOriginCoverage(projection);
   return projection;

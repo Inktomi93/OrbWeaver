@@ -41,10 +41,12 @@
 // and final `population` admits 1,492. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { BinaryExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import { finiteTypeObservation } from "../lib/finite-type-observations.ts";
+import { readAxisVerdict, readRoleComparison, roleComparisonCandidate, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import { nativeRoleComparisonServices, prepareNativeRoleComparison } from "../lib/role-vocabulary-native.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 const VOCABULARY = "USER_ROLES";
@@ -73,20 +75,20 @@ export const gate = defineGate({
   population: { in: ["@server", "@inference"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [tupleVocabularyFact],
+  facts: [{ provider: tupleVocabularyFact, input: [VOCABULARY] }],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const candidates: { readonly node: MorphNode; readonly read: MorphNode; readonly value: string; readonly subject: string }[] = [];
+    const candidates: { readonly node: BinaryExpression; readonly subject: string }[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.BinaryExpression],
           visit: (node, sourceFile: SourceFile) => {
-            const comparison = readRoleComparison(node);
-            if (comparison !== undefined) {
-              candidates.push({ node, read: comparison.read, value: comparison.value, subject: ctx.relativePath(sourceFile) });
+            if (roleComparisonCandidate(node)) {
+              prepareNativeRoleComparison(ctx, node);
+              candidates.push({ node, subject: ctx.relativePath(sourceFile) });
             }
           },
         },
@@ -99,12 +101,17 @@ export const gate = defineGate({
           return;
         }
         const reported = new Map<string, MorphNode>();
-        for (const candidate of candidates) {
+        const services = nativeRoleComparisonServices(ctx);
+        const comparisons = candidates.flatMap((candidate) => {
+          const comparison = readRoleComparison(candidate.node, false, services);
+          return comparison === undefined ? [] : [{ ...candidate, read: comparison.read, value: comparison.value }];
+        });
+        for (const candidate of comparisons) {
           const onLattice = LATTICE_MEMBERS.includes(candidate.value) && members.has(candidate.value);
           // FAIL-CLOSED on an axis the checker could not close: a read typed `any`/`string`, or one whose
           // type is a strict SUPERSET still carrying the whole lattice, MIGHT be the privilege axis, and
           // the legacy literal reader caught the `string` case. Only a proven other axis acquits.
-          if (!(onLattice && readAxisVerdict(candidate.read, members) !== "foreign")) {
+          if (!(onLattice && readAxisVerdict(candidate.read, members, finiteTypeObservation(ctx, candidate.read, "node-types")) !== "foreign")) {
             continue;
           }
           // ONE finding per carrier: a reviewed grant licenses one `(subject, operation)`.

@@ -19,10 +19,12 @@
 //
 // A pure reader over nodes the dispatcher delivered: no walk, no Project, no cache, no filesystem.
 
-import { readMemberReference, readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readMemberReferenceWithName, readStaticString, referenceResolutionServices } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { RoleAxisVerdict } from "../contract/role-vocabulary.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import type { RoleAxisVerdict, RoleComparisonServices } from "../contract/role-vocabulary.ts";
 import type { TupleVocabularyFact } from "../contract/tuple-vocabulary-fact.ts";
 
 /** The identifier a role read must be spelled with — the legacy subject, kept and declared. */
@@ -41,31 +43,47 @@ export interface RoleComparison {
 }
 
 /** Is this node a read named `role` — the bare identifier, or a dotted/optional/computed member? */
-function isRoleRead(node: MorphNode): boolean {
+function isRoleRead(node: MorphNode, services: RoleComparisonServices): boolean {
   if (Node.isIdentifier(node)) {
     return node.getText() === ROLE_NAME;
   }
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return false;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.computedName);
   return member.kind === "resolved" && member.value.name === ROLE_NAME;
 }
 
-function comparedValue(node: MorphNode): { readonly value: string; readonly valueNode: MorphNode } | undefined {
-  const fact = readStaticString(node);
+function comparedValue(node: MorphNode, services: RoleComparisonServices): { readonly value: string; readonly valueNode: MorphNode } | undefined {
+  const fact = services.string(node);
   return fact.kind === "resolved" ? { value: fact.value, valueNode: node } : undefined;
 }
 
-function roleOperand(left: MorphNode, right: MorphNode): MorphNode | undefined {
-  if (isRoleRead(left)) {
+function roleOperand(left: MorphNode, right: MorphNode, services: RoleComparisonServices): MorphNode | undefined {
+  if (isRoleRead(left, services)) {
     return left;
   }
-  return isRoleRead(right) ? right : undefined;
+  return isRoleRead(right, services) ? right : undefined;
+}
+
+/** A lossless syntax nomination; computed keys and known enforcement sinks await sealed meaning. */
+export function roleComparisonCandidate(node: MorphNode, matchExpression = false): node is import("ts-morph").BinaryExpression {
+  if (!(Node.isBinaryExpression(node) && EQUALITY_TOKENS.includes(node.getOperatorToken().getKind() as (typeof EQUALITY_TOKENS)[number]))) {
+    return false;
+  }
+  const possible = (operand: MorphNode): boolean =>
+    Node.isElementAccessExpression(operand) ||
+    (Node.isIdentifier(operand) && operand.getText() === ROLE_NAME) ||
+    (Node.isPropertyAccessExpression(operand) && operand.getName() === ROLE_NAME);
+  return matchExpression || possible(node.getLeft()) || possible(node.getRight());
 }
 
 /** Read one role equality; expression matching lets a known enforcement field consume a fresh call result. */
-export function readRoleComparison(node: MorphNode, matchExpression = false): RoleComparison | undefined {
+export function readRoleComparison(
+  node: MorphNode,
+  matchExpression = false,
+  services: RoleComparisonServices = { string: readStaticString, computedName: referenceResolutionServices.readComputedName },
+): RoleComparison | undefined {
   if (!Node.isBinaryExpression(node)) {
     return;
   }
@@ -74,20 +92,23 @@ export function readRoleComparison(node: MorphNode, matchExpression = false): Ro
   }
   const left = node.getLeft();
   const right = node.getRight();
-  let read = roleOperand(left, right);
+  let read = roleOperand(left, right, services);
   if (matchExpression) {
-    read = comparedValue(right) === undefined ? right : left;
+    read = comparedValue(right, services) === undefined ? right : left;
   }
   if (read === undefined) {
     return;
   }
-  const literal = comparedValue(read === left ? right : left);
+  const literal = comparedValue(read === left ? right : left, services);
   return literal === undefined ? undefined : { comparison: node, read, value: literal.value, valueNode: literal.valueNode };
 }
 
 /** The string-literal members of a read's own type, or `undefined` when the checker did not resolve a
  *  closed literal union — an axis this reader cannot name is never claimed as one. */
-function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
+function literalMembers(read: MorphNode, native?: TypeObservationReader): ReadonlySet<string> | undefined {
+  if (native !== undefined) {
+    return nativeLiteralMembers(read, native);
+  }
   const type = read.getType().getNonNullableType();
   const parts = type.isUnion() ? type.getUnionTypes() : [type];
   const members = new Set<string>();
@@ -104,6 +125,24 @@ function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
   return members.size === 0 ? undefined : members;
 }
 
+function nativeLiteralMembers(read: MorphNode, native: TypeObservationReader): ReadonlySet<string> | undefined {
+  const selector = { ...nodeTypeSelector(read), steps: [{ kind: "nonnullable" as const }] };
+  const selected = native.select(selector);
+  if (selected === null) {
+    throw new Error("native role type is absent");
+  }
+  const parts = native.type(selected).unionCount > 0 ? native.unions(selector) : [selector];
+  const members = new Set<string>();
+  for (const part of parts) {
+    const literal = native.literal(part);
+    if (literal === null) {
+      return;
+    }
+    members.add(literal);
+  }
+  return members.size === 0 ? undefined : members;
+}
+
 /** Judge a role read against one vocabulary.
  *
  *  - `on-axis` — the read's literal members are EXACTLY the vocabulary.
@@ -113,8 +152,8 @@ function literalMembers(read: MorphNode): ReadonlySet<string> | undefined {
  *  - `foreign` — a closed literal union missing at least one vocabulary member: the message-row axis, a
  *    StreamAuthority tier, `"host" | "guest"`. A narrowed binding lands here too, which is the ONE declared
  *    narrowing (a value already narrowed to a single member is not a lattice comparison). */
-export function readAxisVerdict(read: MorphNode, vocabulary: ReadonlySet<string>): RoleAxisVerdict {
-  const members = literalMembers(read);
+export function readAxisVerdict(read: MorphNode, vocabulary: ReadonlySet<string>, native?: TypeObservationReader): RoleAxisVerdict {
+  const members = literalMembers(read, native);
   if (members === undefined) {
     return "unreadable";
   }

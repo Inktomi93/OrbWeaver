@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createWorkspaceResolutionCache } from "@orb/tooling/floor/compiler/ts-workspace-resolution";
 import type { GatePolicy } from "@orb/tooling/verify";
-import { resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
+import { factProvider, resourceRequestIdentity, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import type { Project } from "ts-morph";
 import { expect } from "./fixtures.ts";
 
@@ -466,7 +466,7 @@ export function assertLivenessPartitions(
  *  reads the fact, and an authority refusal with no policy id belongs to everyone — neither may be dropped. */
 function refusalsFor(result: PassResult, arm: RealCorpusLivenessArm): readonly string[] {
   const id = arm.policy.id;
-  const facts = new Set(arm.policy.facts.map((fact) => fact.id));
+  const facts = new Set(arm.policy.facts.map(factProvider).map((fact) => fact.id));
   return [
     ...result.toolErrors.filter((error) => error.policyId === id).map((error) => JSON.stringify(error)),
     ...result.factErrors.filter((error) => facts.has(error.factId)).map((error) => JSON.stringify(error)),

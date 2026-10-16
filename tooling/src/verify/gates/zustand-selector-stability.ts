@@ -63,12 +63,15 @@
 // `tests/client/agent-nav/__cbbhr_out_index.test.ts` (virtual) rejected by both.
 // CURRENT 2026-09-21: the generic authored classification closes the historical showcase narrowing;
 // showcase and default-content are now judged with the rest of the shipped source tree.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
-import { declaredByFile, declaredByPackage, resolveTypeIdentityChain } from "../lib/type-member-origin.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
+import { declaredByFile, declaredByPackage } from "../lib/type-member-origin.ts";
 import { LOOKALIKE_HOME, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
 /** The app's ONE store-hook type; both store factories return it. */
@@ -86,6 +89,7 @@ const MESSAGE =
 const UNREADABLE = `${MESSAGE} This callee's TYPE has no name the checker can give, so whether it is a store hook CANNOT be established — reported rather than passed.`;
 
 type HookVerdict = "store" | "other" | "unreadable";
+const HOOK_PLAN: import("../../floor/code-facts/type-projection-contract.ts").TypeProjectionPlan = { facets: ["scalar", "origins"], properties: [] };
 
 /** THREE answers, like every sibling in this family, and the boundary between the last two is exact.
  *
@@ -100,12 +104,16 @@ type HookVerdict = "store" | "other" | "unreadable";
  *  nine false findings on the real tree — array `map`/`flatMap` callbacks in server, tooling and test files
  *  that have nothing to do with zustand (measured 2026-09-06, committed as a mustPass row). Only `any` /
  *  `unknown` — where the checker was given nothing and a store hook COULD be hiding — is fail-closed. */
-function hookVerdict(callee: MorphNode, home: SourceFile): HookVerdict {
-  const type = callee.getType();
-  if (type.isAny() || type.isUnknown()) {
+function hookVerdict(ctx: GatePolicyContext, callee: MorphNode, home: SourceFile): HookVerdict {
+  const projection = nativeTypeProjection(ctx, callee, HOOK_PLAN);
+  const type = typeProjectionFacet(projection, "scalar");
+  if (type.any || type.unknown) {
     return "unreadable";
   }
-  const chain = resolveTypeIdentityChain(callee);
+  const chain = typeProjectionFacet(projection, "origins").values.find((value) => value.node === callee)?.identities;
+  if (chain === undefined) {
+    throw new Error("native store-hook identity chain is missing");
+  }
   if (chain.kind === "unresolved") {
     return "other";
   }
@@ -137,6 +145,20 @@ function returnsFreshLiteral(argument: MorphNode | undefined): boolean {
   return Node.isObjectLiteralExpression(body) || Node.isArrayLiteralExpression(body);
 }
 
+function storeHomeMembers(ctx: GatePolicyContext, home: SourceFile | undefined): number {
+  if (ctx.nativeTypes === undefined) {
+    throw new Error("native store-hook export context is unavailable");
+  }
+  if (home === undefined) {
+    return 0;
+  }
+  const declarations = ctx.nativeTypes.exportDeclarations([home], STORE_HOOK_TYPE).get(home);
+  if (declarations === undefined) {
+    throw new Error("native store-hook export coverage is missing");
+  }
+  return declarations === null ? 0 : 1;
+}
+
 export const gate = defineGate({
   id: "zustand-selector-stability",
   family: "zustand-selector-stability",
@@ -150,7 +172,8 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: "select a stored ref, use a frozen module-constant default, or wrap in useShallow. A deliberate fresh literal waives that occurrence with `@orb-waive zustand-selector-stability(<hook>): <reason + end condition>`, where `<hook>` is the STORE HOOK NAME the call is made on — the report anchors the token on the callee's last member segment (`store.useUser` reports `useUser`), never the selector parameter and never the literal itself.",
   create: (ctx) => {
-    const candidates: MorphNode[] = [];
+    const home = ctx.files.find((file) => ctx.relativePath(file) === STORE_HOOK_HOME);
+    const candidates: CallExpression[] = [];
     return {
       visitors: [
         {
@@ -158,28 +181,33 @@ export const gate = defineGate({
           visit: (node): void => {
             if (Node.isCallExpression(node) && returnsFreshLiteral(node.getArguments()[0])) {
               candidates.push(node);
+              prepareNativeTypeProjection(ctx, node.getExpression(), HOOK_PLAN);
             }
           },
         },
       ],
+      prepare: (): void => {
+        if (home !== undefined) {
+          if (ctx.nativeTypes === undefined) {
+            throw new Error("native store-hook export context is unavailable");
+          }
+          ctx.nativeTypes.request({ kind: "export-declarations", nodes: [home], name: STORE_HOOK_TYPE });
+        }
+      },
       evaluate: (): void => {
         // Located by scanning the effective population rather than through `ctx.sourceFile`, which THROWS on
         // an absent path: a missing home is a receipt refusal this policy authors, not an exception it
         // swallows, and a swallowed one would be an unproven caught-failure site besides.
-        const home = ctx.files.find((file) => ctx.relativePath(file) === STORE_HOOK_HOME);
-        const declared = home?.getExportSymbols().filter((symbol) => symbol.getName() === STORE_HOOK_TYPE) ?? [];
+        const members = storeHomeMembers(ctx, home);
         // ZERO members is a REFUSAL: the store-hook type moved or was renamed, and the policy's whole
         // subject would silently retire with it.
-        ctx.receipt({ kind: "population", source: STORE_HOOK_TYPE, members: declared.length, unresolved: 0 });
-        if (home === undefined || declared.length === 0) {
+        ctx.receipt({ kind: "population", source: STORE_HOOK_TYPE, members, unresolved: 0 });
+        if (home === undefined || members === 0) {
           return;
         }
         for (const node of candidates) {
-          if (!Node.isCallExpression(node)) {
-            continue;
-          }
           const callee = node.getExpression();
-          const verdict = hookVerdict(callee, home);
+          const verdict = hookVerdict(ctx, callee, home);
           if (verdict === "other") {
             continue;
           }

@@ -72,7 +72,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [registryDefinitionFacts.chrome, tupleVocabularyFact],
+  facts: [registryDefinitionFacts.chrome, { provider: tupleVocabularyFact, input: [ZONE_TUPLE] }],
   resources: [],
   message: MESSAGE,
   fix: FIX,

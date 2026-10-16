@@ -372,7 +372,7 @@ export const gate = defineGate({
   population: "@client",
   analysis: "types",
   execution: "entire-population",
-  facts: [tupleVocabularyFact],
+  facts: [{ provider: tupleVocabularyFact, input: [...VOCAB_SPECS.map(({ tupleConst }) => tupleConst), CHROME_TUPLE] }],
   resources: [],
   message: MESSAGE,
   fix: FIX,

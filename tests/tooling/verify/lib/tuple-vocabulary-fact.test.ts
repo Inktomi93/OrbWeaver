@@ -2,9 +2,12 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import type { TupleVocabularyFact } from "../../../../tooling/src/verify/contract/tuple-vocabulary-fact.ts";
+import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tuple-facts";
 const VOCAB = "VOCAB";
@@ -17,21 +20,26 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
   return project;
 }
 
-function tuplePolicy(capture: (fact: TupleVocabularyFact) => void): GatePolicy {
+function tuplePolicy(
+  capture: (fact: TupleVocabularyFact) => void,
+  input: readonly string[] = [VOCAB],
+  name = VOCAB,
+  id = "tuple-vocabulary-control",
+): GatePolicy {
   return defineGate({
-    id: "tuple-vocabulary-control",
+    id,
     family: "tuple-vocabulary",
     authority: "hard",
     severity: "error",
     population: "@client",
     analysis: "types",
     execution: "entire-population",
-    facts: [tupleVocabularyFact],
+    facts: [{ provider: tupleVocabularyFact, input }],
     resources: [],
     message: "tuple vocabulary fact control",
     create: (ctx) => ({
       evaluate: () => {
-        const fact = ctx.fact(tupleVocabularyFact).read(VOCAB);
+        const fact = ctx.fact(tupleVocabularyFact).read(name);
         capture(fact);
         ctx.receipt({ kind: "population", ...tupleVocabularyReceipt(fact) });
       },
@@ -46,11 +54,13 @@ function runTuple(files: Readonly<Record<string, string>>): { readonly fact: Tup
   const gate = tuplePolicy((fact) => {
     captured = fact;
   });
+  const project = projectOf(files);
   const result = runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],
     root: ROOT,
-    project: projectOf(files),
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -144,15 +154,85 @@ test("the provider indexes once, receipts the sources it WALKED, and refuses an 
   const blind = tuplePolicy((fact) => {
     captured = fact;
   });
+  const localProject = projectOf({ "packages/client/src/local.ts": 'const VOCAB = ["a"] as const;' });
   const empty = runPolicyPass({
     knownPolicies: [blind],
     policies: [blind],
     root: ROOT,
-    project: projectOf({ "packages/client/src/local.ts": 'const VOCAB = ["a"] as const;' }),
+    project: localProject,
+    nativeTypeFacts: () => isolatedTypeFacts(localProject),
     reviewedGrants: [],
     failOnWarnings: false,
   });
   expect(captured).toBeUndefined();
   expect(empty.factErrors).toMatchObject([{ factId: "tuple-vocabularies", phase: "finish", message: expect.stringContaining("collected no exported") }]);
   expect(empty.authority.withheldPolicyIds).toEqual(["tuple-vocabulary-control"]);
+});
+
+test("selected consumers union exact tuple demands without capturing unrelated exports", () => {
+  const project = projectOf({
+    "packages/client/src/vocab.ts": 'export const A=["a"] as const;export const B=["b"] as const;export const OTHER=["other"] as const;',
+  });
+  const first = tuplePolicy(() => undefined, ["A"], "A", "tuple-first");
+  const second = tuplePolicy(() => undefined, ["B", "A"], "B", "tuple-second");
+  const known = [first, second, unionAlias];
+  const run = (selected: readonly GatePolicy[]): { readonly captured: readonly string[]; readonly result: ReturnType<typeof runPolicyPass> } => {
+    const requests: NativeTypeRequest[] = [];
+    const result = runPolicyPass({
+      knownPolicies: known,
+      policies: selected,
+      root: ROOT,
+      project,
+      reviewedGrants: [],
+      failOnWarnings: false,
+      nativeTypeFacts: () => {
+        const native = isolatedTypeFacts(project);
+        return {
+          ...native,
+          request: (ownerId, request) => {
+            requests.push(request);
+            native.request(ownerId, request);
+          },
+        };
+      },
+    });
+    const captured = requests.flatMap((request) =>
+      request.kind === "invocation-evidence" && request.plan.facets.includes("authored-value")
+        ? request.nodes.map((node) => node.getParentOrThrow().getText())
+        : [],
+    );
+    return { captured, result };
+  };
+  const both = run([first, second]);
+  expect(both.result.toolErrors).toEqual([]);
+  expect(both.result.facts).toHaveLength(1);
+  expect(both.captured).toEqual(['A=["a"] as const', 'B=["b"] as const']);
+  const one = run([first]);
+  expect(one.result.toolErrors).toEqual([]);
+  expect(one.captured).toEqual(['A=["a"] as const']);
+  const none = run([unionAlias]);
+  expect(none.result.toolErrors).toEqual([]);
+  expect(none.result.facts).toEqual([]);
+  expect(none.captured).toEqual([]);
+});
+
+test("tuple demand refuses duplicate declarations and undeclared names", () => {
+  const project = projectOf({ "packages/client/src/vocab.ts": 'export const A=["a"] as const;export const B=["b"] as const;' });
+  const duplicate = tuplePolicy(() => undefined, ["A", "A"], "A");
+  expect(() => runPolicyPass({ knownPolicies: [duplicate], policies: [duplicate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false })).toThrow(
+    "duplicate names",
+  );
+  const undeclared = tuplePolicy(() => undefined, ["A"], "B");
+  const result = runPolicyPass({
+    knownPolicies: [undeclared],
+    policies: [undeclared],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([undeclared.id]);
+  expect(result.toolErrors).toMatchObject([{ policyId: undeclared.id, message: "undeclared tuple vocabulary name: B" }]);
 });

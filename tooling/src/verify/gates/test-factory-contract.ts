@@ -30,9 +30,11 @@
 // admits 11 and final `population` admits 11. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/support/factories/__cbbhr_in_anth-wire.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { FunctionDeclaration } from "ts-morph";
+import type { FunctionDeclaration, ParameterDeclaration } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
+import { finiteTypeObservation, prepareFiniteTypeObservation } from "../lib/finite-type-observations.ts";
 
 const MESSAGE_SHARED_TAIL = " (docs/law/Spine-Testing.md §4).";
 const MESSAGE_PURE = "a `make*` PURE builder accepts a db — a pure builder must stay db-free; persistence belongs to a `seed*` builder" + MESSAGE_SHARED_TAIL;
@@ -42,11 +44,11 @@ const MESSAGE_PERSISTED =
 
 /** Which half of the pure/persisted split this `make*`/`seed*` factory breaks, or `undefined` when it is
  *  conformant (or neither prefix). The arms fail for opposite reasons, so each returns its own message. */
-function factoryContractMessage(func: FunctionDeclaration): string | undefined {
+function factoryContractMessage(func: FunctionDeclaration, typeText: (parameter: ParameterDeclaration) => string): string | undefined {
   const name = func.getName() ?? "";
   if (name.startsWith("make")) {
     // The PURE arm rejects a db by NAME or by TYPE — a `connection: Database` is still a db.
-    return func.getParameters().some((p) => p.getName() === "db" || p.getType().getText().includes("Database")) ? MESSAGE_PURE : undefined;
+    return func.getParameters().some((p) => p.getName() === "db" || typeText(p).includes("Database")) ? MESSAGE_PURE : undefined;
   }
   // The PERSISTED arm requires the parameter by NAME (`db`), which is the contract's spelling.
   return name.startsWith("seed") && !func.getParameters().some((p) => p.getName() === "db") ? MESSAGE_PERSISTED : undefined;
@@ -68,24 +70,49 @@ export const gate = defineGate({
   message:
     "a test factory violates the pure/persisted split — a `make*` pure builder must NOT accept a db, a `seed*` persisted builder MUST (docs/law/Spine-Testing.md §4).",
   fix: "keep `make*` builders db-free (pure) and give `seed*` builders a `db` parameter (persisted). For a deliberate exception, write an adjacent `@orb-waive test-factory-contract(<position>): <why + end condition>` — the position is the FACTORY'S OWN NAME (`makeUser`, `seedUser`), not the `db` parameter the message names.",
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.FunctionDeclaration],
-        visit: (node) => {
-          const func = node.asKind(SyntaxKind.FunctionDeclaration);
-          if (func === undefined || !func.isExported()) {
-            return;
+  create: (ctx) => {
+    const candidates: FunctionDeclaration[] = [];
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.FunctionDeclaration],
+          visit: (node): void => {
+            const func = node.asKind(SyntaxKind.FunctionDeclaration);
+            if (func === undefined) {
+              return;
+            }
+            const name = func.getName() ?? "";
+            if (!(name.startsWith("make") || name.startsWith("seed"))) {
+              return;
+            }
+            candidates.push(func);
+            prepareFiniteTypeObservation(ctx, func, "function-exports");
+            if (func.getName()?.startsWith("make") === true) {
+              for (const parameter of func.getParameters()) {
+                if (parameter.getName() !== "db") {
+                  prepareFiniteTypeObservation(ctx, parameter, "type-details");
+                }
+              }
+            }
+          },
+        },
+      ],
+      evaluate: (): void => {
+        for (const func of candidates) {
+          if (!finiteTypeObservation(ctx, func, "function-exports").functionExport(func)) {
+            continue;
           }
-          const message = factoryContractMessage(func);
+          const message = factoryContractMessage(func, (parameter) =>
+            finiteTypeObservation(ctx, parameter, "type-details").defaultDisplay(nodeTypeSelector(parameter)),
+          );
           if (message !== undefined) {
             const name = func.getName() ?? "factory";
             ctx.report.node(func, { token: name, offset: func.getText().indexOf(name), message });
           }
-        },
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

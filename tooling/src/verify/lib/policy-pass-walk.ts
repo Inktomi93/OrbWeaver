@@ -1,7 +1,10 @@
 // Create + visit dispatch: builds each run's PolicyContext/FactContext, indexes its declared visitors by
 // SyntaxKind, and drives the single per-file AST walk (visitFile then the kind-indexed visitors).
+
 import { collectByKinds } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { SourceFile, SyntaxKind, TypeChecker } from "ts-morph";
+import type { GateFact } from "../contract/fact.ts";
+import { factProvider } from "../contract/fact.ts";
 import type { PolicyFactValueRegistry, PolicyToolError } from "../contract/policy-pass.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { NativeTypeFacts } from "../contract/project-context.ts";
@@ -73,6 +76,7 @@ export function createRuns({ runs, paths, resources, checker, nativeTypes, error
 }
 
 interface CreateFactRunsInput {
+  readonly policyRuns: readonly PolicyRun[];
   readonly runs: readonly FactRun[];
   readonly paths: ReadonlyMap<object, string>;
   readonly resources: ResourceHost;
@@ -81,12 +85,20 @@ interface CreateFactRunsInput {
   readonly control: FactControl;
 }
 
-export function createFactRuns({ runs, paths, resources, checker, nativeTypes, control }: CreateFactRunsInput): void {
+function selectedFactInput(runs: readonly PolicyRun[], fact: GateFact): readonly string[] {
+  const names = runs
+    .filter(({ owner }) => owner.status === "success")
+    .flatMap(({ policy }) => policy.facts.flatMap((dependency) => (factProvider(dependency) === fact && "provider" in dependency ? dependency.input : [])));
+  return [...new Set(names)].toSorted();
+}
+
+export function createFactRuns({ runs, policyRuns, paths, resources, checker, nativeTypes, control }: CreateFactRunsInput): void {
   for (const run of runs) {
     if (run.status !== "success") {
       continue;
     }
     const runtime = makeFactContext({
+      factInput: selectedFactInput(policyRuns, run.fact),
       ownerId: run.fact.id,
       analysis: run.fact.analysis,
       paths,

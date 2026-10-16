@@ -1,9 +1,21 @@
 // Visitor-fed tuple facts built on the final static authored-value reader.
-import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
+import type { Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { readStaticAuthoredValue } from "../../floor/code-facts/static-authored-value.ts";
+import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
 import { defineFact } from "../contract/fact.ts";
-import type { TupleVocabularies, TupleVocabularyEntry, TupleVocabularyFact, TupleVocabularyReceipt } from "../contract/tuple-vocabulary-fact.ts";
+import type {
+  TupleVocabularies,
+  TupleVocabularyEntry,
+  TupleVocabularyFact,
+  TupleVocabularyReadServices,
+  TupleVocabularyReceipt,
+} from "../contract/tuple-vocabulary-fact.ts";
+import { nativeAuthoredValue, prepareNativeAuthoredValue } from "./native-value-projection.ts";
+import { typeObservationReaders } from "./type-observation-context.ts";
 
 export const TUPLE_VOCABULARY_VISITOR_KINDS = [SyntaxKind.VariableDeclaration] as const;
 
@@ -27,7 +39,11 @@ function unresolved(input: UnresolvedTupleInput): TupleVocabularyFact {
   return { kind: "unresolved", ...input };
 }
 
-function readOne(exportedName: string, declarations: readonly VariableDeclaration[]): TupleVocabularyFact {
+function readOne(
+  exportedName: string,
+  declarations: readonly VariableDeclaration[],
+  authoredValue: TupleVocabularyReadServices["authored"],
+): TupleVocabularyFact {
   if (declarations.length === 0) {
     return { kind: "absent", exportedName };
   }
@@ -52,7 +68,7 @@ function readOne(exportedName: string, declarations: readonly VariableDeclaratio
       declarations: [declaration],
     });
   }
-  const authored = readStaticAuthoredValue(initializer);
+  const authored = authoredValue(initializer);
   if (authored.kind === "unresolved") {
     return unresolved({
       exportedName,
@@ -91,23 +107,37 @@ function readOne(exportedName: string, declarations: readonly VariableDeclaratio
 }
 
 /** Create one invocation-local exported-tuple collector; no Project or source walk is exposed. */
-export function createTupleVocabularyFacts(): {
+export function createTupleVocabularyFacts(services: TupleVocabularyReadServices = { exported: exportedVariable, authored: readStaticAuthoredValue }): {
   readonly visit: (node: MorphNode) => void;
   readonly read: (exportedName: string) => TupleVocabularyFact;
   readonly indexed: () => number;
 } {
-  const declarations = new Map<string, VariableDeclaration[]>();
-  return {
-    visit: (node): void => {
-      if (!(Node.isVariableDeclaration(node) && exportedVariable(node))) {
-        return;
+  const candidates: VariableDeclaration[] = [];
+  let declarations: Map<string, VariableDeclaration[]> | undefined;
+  const index = (): Map<string, VariableDeclaration[]> => {
+    if (declarations !== undefined) {
+      return declarations;
+    }
+    declarations = new Map();
+    for (const node of candidates) {
+      if (!services.exported(node)) {
+        continue;
       }
       const existing = declarations.get(node.getName()) ?? [];
       existing.push(node);
       declarations.set(node.getName(), existing);
+    }
+    return declarations;
+  };
+  return {
+    visit: (node): void => {
+      if (Node.isVariableDeclaration(node)) {
+        candidates.push(node);
+        declarations = undefined;
+      }
     },
-    read: (exportedName) => readOne(exportedName, declarations.get(exportedName) ?? []),
-    indexed: () => declarations.size,
+    read: (exportedName) => readOne(exportedName, index().get(exportedName) ?? [], services.authored),
+    indexed: () => index().size,
   };
 }
 
@@ -143,20 +173,82 @@ export const tupleVocabularyFact = defineFact({
   analysis: "types",
   resources: [],
   create: (ctx) => {
-    const collector = createTupleVocabularyFacts();
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("native tuple vocabulary context is unavailable");
+    }
+    const names = new Set(ctx.input ?? []);
+    const statements = new Set<MorphNode>();
+    let plan: InventoryInvocationPlan | undefined;
+    let readers: ReadonlyMap<SourceFile, TypeObservationReader> | undefined;
+    const collector = createTupleVocabularyFacts({
+      exported: (node): boolean => {
+        const statement = node.getVariableStatement();
+        if (statement === undefined) {
+          return false;
+        }
+        const reader = readers?.get(statement.getSourceFile());
+        if (reader === undefined) {
+          throw new Error("native tuple export source is unavailable");
+        }
+        return reader.functionExport(statement);
+      },
+      authored: (node) => nativeAuthoredValue(ctx, node).value,
+    });
     let result: TupleVocabularies | undefined;
     return {
-      visitors: [{ kinds: TUPLE_VOCABULARY_VISITOR_KINDS, visit: collector.visit }],
+      visitors: [
+        {
+          kinds: TUPLE_VOCABULARY_VISITOR_KINDS,
+          visit: (node): void => {
+            collector.visit(node);
+            if (Node.isVariableDeclaration(node)) {
+              const statement = node.getVariableStatement();
+              if (statement !== undefined) {
+                statements.add(statement);
+              }
+              const initializer = node.getInitializer();
+              if (initializer !== undefined && names.has(node.getName())) {
+                prepareNativeAuthoredValue(ctx, initializer);
+              }
+            }
+          },
+        },
+      ],
+      prepare: (): void => {
+        plan = {
+          mode: "types",
+          facets: [],
+          arguments: [],
+          typeObservations: mapTypeObservationDemand<MorphNode, import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan>(
+            { profile: TYPE_OBSERVATION_PROFILE, sources: ctx.files, nodes: [], questions: [{ kind: "function-exports", nodes: [...statements] }] },
+            (node) => ({ file: node.getSourceFile().getFilePath().replaceAll("\\", "/"), start: node.getStart(), end: node.getEnd(), kind: node.getKind() }),
+          ),
+        };
+        native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
       finish: (): TupleVocabularies => {
         if (result !== undefined) {
           return result;
         }
+        if (plan === undefined) {
+          throw new Error("native tuple vocabulary demand was not prepared");
+        }
+        readers = typeObservationReaders(native.invocationEvidence(ctx.files, plan));
         const indexed = collector.indexed();
         if (indexed === 0) {
           throw new Error("tuple vocabulary index collected no exported variable declaration in its effective population");
         }
         ctx.receipt({ kind: "population", source: "tuple-vocabulary-sources", members: ctx.files.length });
-        result = Object.freeze({ read: collector.read, indexed });
+        result = Object.freeze({
+          read: (exportedName: string): TupleVocabularyFact => {
+            if (!names.has(exportedName)) {
+              throw new Error("undeclared tuple vocabulary name: " + exportedName);
+            }
+            return collector.read(exportedName);
+          },
+          indexed,
+        });
         return result;
       },
     };

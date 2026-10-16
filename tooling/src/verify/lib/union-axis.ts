@@ -28,8 +28,8 @@
 // it would demand an illegal import — the opposite of the law it enforces.
 //
 // No Project, no workspace cache, no filesystem, no marker parser: every door takes a node the caller was
-// handed, and the one type read (`coDeclarationUnionNode`) is the compiler-resolved identity its consumer
-// declares `analysis: "types"` for.
+// handed. Indexed co-declarations consume supplied native type-symbol declarations; syntax-only callers
+// never acquire a checker.
 import type { ArrayLiteralExpression, CallExpression, Expression, Node, TypeAliasDeclaration, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
@@ -125,7 +125,7 @@ function unwrapAsConstTuple(initializer: Expression): { readonly array: ArrayLit
 /** The union declaration node an `Interface["prop"]` indexed access refers to — the SOURCE a
  *  `satisfies readonly Interface["prop"][]` tuple derives from — or undefined when it does not resolve to
  *  a single interface property whose type IS a literal union. The one compiler-resolved read here. */
-function coDeclarationUnionNode(elementType: Node): UnionTypeNode | undefined {
+function coDeclarationUnionNode(elementType: Node, declarations: (node: Node) => readonly Node[]): UnionTypeNode | undefined {
   if (!TsNode.isIndexedAccessTypeNode(elementType)) {
     return;
   }
@@ -138,8 +138,7 @@ function coDeclarationUnionNode(elementType: Node): UnionTypeNode | undefined {
     return;
   }
   const property = indexName.getLiteralText();
-  const symbol = elementType.getObjectTypeNode().getType().getSymbol();
-  const propertyType = (symbol?.getDeclarations() ?? [])
+  const propertyType = declarations(elementType.getObjectTypeNode())
     .filter((declaration) => TsNode.isInterfaceDeclaration(declaration))
     .map((declaration) => declaration.getProperty(property)?.getTypeNode())
     .find((typeNode) => typeNode !== undefined && TsNode.isUnionTypeNode(typeNode));
@@ -157,7 +156,11 @@ export interface CanonicalAxisTuple {
 
 /** `const X = [...] as const [satisfies readonly Y[]]` as a canonical axis home, when it clears the member
  *  floor its package earns. Undefined for every other declaration shape. */
-export function canonicalAxisTuple(declaration: VariableDeclaration, relFile: string): CanonicalAxisTuple | undefined {
+export function canonicalAxisTuple(
+  declaration: VariableDeclaration,
+  relFile: string,
+  declarations: (node: Node) => readonly Node[],
+): CanonicalAxisTuple | undefined {
   const initializer = declaration.getInitializer();
   const unwrapped = initializer === undefined ? undefined : unwrapAsConstTuple(initializer);
   if (unwrapped === undefined) {
@@ -172,7 +175,7 @@ export function canonicalAxisTuple(declaration: VariableDeclaration, relFile: st
     name: declaration.getName(),
     file: relFile,
     signature: axisSignature(members),
-    coDeclaration: unwrapped.satisfiesElement === undefined ? undefined : coDeclarationUnionNode(unwrapped.satisfiesElement),
+    coDeclaration: unwrapped.satisfiesElement === undefined ? undefined : coDeclarationUnionNode(unwrapped.satisfiesElement, declarations),
   };
 }
 

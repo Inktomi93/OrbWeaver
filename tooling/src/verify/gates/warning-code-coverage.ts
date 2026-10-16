@@ -411,7 +411,7 @@ export const gate = defineGate({
   population: { in: ["@server", "@contracts", "@inference"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [tupleVocabularyFact],
+  facts: [{ provider: tupleVocabularyFact, input: CHANNELS.map(({ tuple }) => tuple) }],
   resources: [],
   message: MESSAGE,
   fix: FIX,

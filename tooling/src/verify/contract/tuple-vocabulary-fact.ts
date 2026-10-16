@@ -1,6 +1,12 @@
 // Ordered tuple vocabulary facts retain canonical declarations and authored member anchors.
 import type { Node, VariableDeclaration } from "ts-morph";
-import type { ReferenceUnresolvedReason } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { ReferenceFact, ReferenceUnresolvedReason } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
+
+export interface TupleVocabularyReadServices {
+  readonly exported: (node: VariableDeclaration) => boolean;
+  readonly authored: (node: Node) => ReferenceFact<StaticAuthoredValue>;
+}
 
 /** @public knip type-face false positive — a structural field (`symbol`) of the exported `TupleVocabularyFact` shape,
  *  never referenced by its own name at any call site. */

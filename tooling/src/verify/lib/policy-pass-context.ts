@@ -1,3 +1,4 @@
+import { factProvider } from "../contract/fact.ts";
 // Builds the capability-bounded policy context and owns anchored finding/receipt collection.
 
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
@@ -55,6 +56,7 @@ export interface PolicyContextRuntime {
 }
 
 interface CapabilityContextInput {
+  readonly factInput?: readonly string[];
   readonly ownerId: string;
   readonly analysis: GatePolicy["analysis"];
   readonly paths: ReadonlyMap<object, string>;
@@ -305,7 +307,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
 }
 
 export function makeFactContext(input: CapabilityContextInput): FactContextRuntime {
-  return makeCapabilityContext(input);
+  const runtime = makeCapabilityContext(input);
+  return { ...runtime, context: Object.freeze({ ...runtime.context, input: input.factInput ?? [] }) };
 }
 
 /** WHY A REFUSED FILE IS REFUSED, when the answer is the policy's OWN declared provider (#1976).
@@ -337,7 +340,7 @@ const POPULATION_DOOR = { relativePath: "ctx.relativePath", sourceFile: "ctx.sou
 type PolicyPopulationDoor = (typeof POPULATION_DOOR)[keyof typeof POPULATION_DOOR];
 
 function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string, door: PolicyPopulationDoor) => string {
-  const providers = policy.facts;
+  const providers = policy.facts.map(factProvider);
   return (repoRelativePath, door) => {
     if (providers.length === 0 || repoRelativePath.startsWith("/") || repoRelativePath.includes("\\")) {
       return "";
@@ -433,7 +436,7 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     );
   };
   const fact = <Fact extends GateFact>(provider: Fact): GateFactValue<Fact> => {
-    if (!input.policy.facts.includes(provider)) {
+    if (!input.policy.facts.map(factProvider).includes(provider)) {
       throw new Error(`policy ${input.policy.id} ${POLICY_PASS_REFUSALS.factUndeclared} ${provider.id}`);
     }
     const value = input.factValues.get(provider);
@@ -464,6 +467,10 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
   return {
     ...capability,
     context,
-    unconsumedFacts: () => input.policy.facts.filter((provider) => !consumedFacts.has(provider)).map(({ id }) => id),
+    unconsumedFacts: () =>
+      input.policy.facts
+        .map(factProvider)
+        .filter((provider) => !consumedFacts.has(provider))
+        .map(({ id }) => id),
   };
 }

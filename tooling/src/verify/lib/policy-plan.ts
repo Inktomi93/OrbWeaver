@@ -1,6 +1,7 @@
 // Deterministic final-policy planner. It consumes the loader roster, reviewed six-kind scope manifest,
 // and the external ResourceHost population manifest without owning another registry or path predicate.
 import type { GateFact } from "../contract/fact.ts";
+import { factProvider } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicySelectionDisposition } from "../contract/policy-effective-population.ts";
@@ -47,7 +48,10 @@ function rosterEntry(policy: GatePolicy): PolicyRosterEntry {
     population: structuredClone(policy.population),
     analysis: policy.analysis,
     execution: policy.execution,
-    facts: policy.facts.map(({ id }) => id).toSorted(),
+    facts: policy.facts
+      .map(factProvider)
+      .map(({ id }) => id)
+      .toSorted(),
     resources: canonicalResourceDeclarations(policy.resources),
     message: policy.message,
     fix: policy.fix ?? null,
@@ -142,7 +146,7 @@ function permitsEmptyResourcePaths(owner: GatePolicy | GateFact): boolean {
 export function factsForPolicies(policies: readonly GatePolicy[]): readonly GateFact[] {
   const byId = new Map<string, GateFact>();
   for (const policy of policies) {
-    for (const fact of policy.facts) {
+    for (const fact of policy.facts.map(factProvider)) {
       const existing = byId.get(fact.id);
       if (existing !== undefined && existing !== fact) {
         throw new Error(`selected policies import different fact descriptors with id ${fact.id}`);
@@ -344,7 +348,7 @@ function runPlan(
       resources: resources.policies.get(policy.id) ?? [],
       resourceFailure: resources.policyFailures.get(policy.id),
       ...(applicationPaths === undefined ? {} : { applicationPaths }),
-      facts: (applicationPaths !== undefined && policy.application === "implementation" ? [] : policy.facts).map((fact) => {
+      facts: (applicationPaths !== undefined && policy.application === "implementation" ? [] : policy.facts).map(factProvider).map((fact) => {
         const factPlan = factPlansById.get(fact.id);
         if (factPlan === undefined) {
           throw new Error(`policy ${policy.id} has no planned fact ${fact.id}`);
@@ -358,7 +362,14 @@ function runPlan(
     return misuse(`strict scope refuses entire-population policies: ${deferred.join(", ")}`);
   }
   const runningFactIds = new Set(
-    planned.flatMap((row) => (row.mode === "run" ? (selected.find(({ id }) => id === row.policyId)?.facts.map(({ id }) => id) ?? []) : [])),
+    planned.flatMap((row) =>
+      row.mode === "run"
+        ? (selected
+            .find(({ id }) => id === row.policyId)
+            ?.facts.map(factProvider)
+            .map(({ id }) => id) ?? [])
+        : [],
+    ),
   );
   const facts = plannedFacts.filter(({ factId }) => runningFactIds.has(factId));
   const factOwners = selectedFacts.filter(({ id }) => runningFactIds.has(id));

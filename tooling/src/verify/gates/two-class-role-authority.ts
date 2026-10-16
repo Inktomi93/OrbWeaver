@@ -3,11 +3,14 @@
 // roster lookups remain separate. Shared role-vocabulary readers prove the axis and vocabulary identity.
 // Population includes domain and entry; exact sanctioned kernel/shape/nominee grants remain centrally judged.
 // Hoisted booleans, guard inversion and switches remain declared limits.
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import type { BinaryExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticString, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readAxisVerdict, readRoleComparison, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import type { RoleComparisonServices } from "../contract/role-vocabulary.ts";
+import { finiteTypeObservation } from "../lib/finite-type-observations.ts";
+import { readAxisVerdict, readRoleComparison, roleComparisonCandidate, vocabularyAtHome, vocabularyMembers } from "../lib/role-vocabulary.ts";
+import { nativeRoleComparisonServices, prepareNativeRoleComparison } from "../lib/role-vocabulary-native.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../lib/tuple-vocabulary-fact.ts";
 
 const VOCABULARY = "PARTICIPANT_ROLES";
@@ -89,19 +92,30 @@ function fieldValueRoot(comparison: MorphNode): MorphNode {
   return root;
 }
 
-function isEnforcementField(comparison: MorphNode): boolean {
+function isEnforcementField(comparison: MorphNode, services: RoleComparisonServices): boolean {
   const root = fieldValueRoot(comparison);
   const parent = root.getParent();
   if (parent !== undefined && Node.isPropertyAssignment(parent) && parent.getInitializer() === root) {
     const name = parent.getNameNode();
-    const key = Node.isIdentifier(name) ? name.getText() : readStaticString(Node.isComputedPropertyName(name) ? name.getExpression() : name);
+    const key = Node.isIdentifier(name) ? name.getText() : services.string(Node.isComputedPropertyName(name) ? name.getExpression() : name);
     return typeof key === "string" ? ENFORCEMENT_FIELDS.has(key) : key.kind === "resolved" && ENFORCEMENT_FIELDS.has(key.value);
   }
   if (parent !== undefined && Node.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken && parent.getRight() === root) {
-    const member = staticMemberAccess(parent.getLeft());
+    const member = staticMemberAccess(parent.getLeft(), services.computedName);
     return member !== undefined && ENFORCEMENT_FIELDS.has(member.name);
   }
   return false;
+}
+
+function enforcementFieldKey(comparison: MorphNode): MorphNode | undefined {
+  const root = fieldValueRoot(comparison);
+  const parent = root.getParent();
+  if (parent !== undefined && Node.isPropertyAssignment(parent) && parent.getInitializer() === root) {
+    return parent.getNameNode();
+  }
+  return parent !== undefined && Node.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.EqualsToken && parent.getRight() === root
+    ? parent.getLeft()
+    : undefined;
 }
 
 export const gate = defineGate({
@@ -112,23 +126,23 @@ export const gate = defineGate({
   population: { in: ["@server"], under: ["packages/server/src/domain/**", "packages/server/src/entry/**"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [tupleVocabularyFact],
+  facts: [{ provider: tupleVocabularyFact, input: [VOCABULARY] }],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const candidates: { readonly node: MorphNode; readonly read: MorphNode; readonly value: string; readonly subject: string }[] = [];
+    const candidates: { readonly node: BinaryExpression; readonly subject: string }[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.BinaryExpression],
           visit: (node, sourceFile: SourceFile) => {
-            const field = isEnforcementField(node);
-            const comparison = readRoleComparison(node, field);
-            if (comparison === undefined || !(field || isEnforcementPosition(node))) {
+            const field = enforcementFieldKey(node);
+            if (!(roleComparisonCandidate(node, field !== undefined) && (field !== undefined || isEnforcementPosition(node)))) {
               return;
             }
-            candidates.push({ node, read: comparison.read, value: comparison.value, subject: ctx.relativePath(sourceFile) });
+            prepareNativeRoleComparison(ctx, node, field === undefined ? [] : [field]);
+            candidates.push({ node, subject: ctx.relativePath(sourceFile) });
           },
         },
       ],
@@ -140,12 +154,22 @@ export const gate = defineGate({
           return;
         }
         const reported = new Map<string, MorphNode>();
-        for (const candidate of candidates) {
+        const services = nativeRoleComparisonServices(ctx);
+        const comparisons = candidates.flatMap((candidate) => {
+          const field = isEnforcementField(candidate.node, services);
+          const comparison = readRoleComparison(candidate.node, field, services);
+          return comparison === undefined || !(field || isEnforcementPosition(candidate.node))
+            ? []
+            : [{ ...candidate, read: comparison.read, value: comparison.value }];
+        });
+        for (const candidate of comparisons) {
           // FAIL-CLOSED on an axis the checker could not close: a read typed `any`/`string`, or one whose
           // type is a strict SUPERSET still carrying the whole vocabulary, MIGHT be the participant axis —
           // and the legacy name reader bit the `string` case, so passing it would be a narrowing. Only a
           // proven other axis (a closed literal union missing a member) acquits.
-          if (!(members.has(candidate.value) && readAxisVerdict(candidate.read, members) !== "foreign")) {
+          if (
+            !(members.has(candidate.value) && readAxisVerdict(candidate.read, members, finiteTypeObservation(ctx, candidate.read, "node-types")) !== "foreign")
+          ) {
             continue;
           }
           // ONE finding per carrier: a reviewed grant licenses one `(subject, operation)`.

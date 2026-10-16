@@ -1,3 +1,4 @@
+import { factProvider } from "../contract/fact.ts";
 // Runs every final policy proof through runPolicyPass on an isolated example population.
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
@@ -188,7 +189,9 @@ function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GR
         policy,
         root,
         project: shared,
-        ...(policy.facts.includes(staticClassFact) || policy.facts.includes(cssHookProvenanceFact) ? { nativeTypeFacts: () => isolatedTypeFacts(shared) } : {}),
+        ...(policy.facts.map(factProvider).includes(staticClassFact) || policy.facts.map(factProvider).includes(cssHookProvenanceFact)
+          ? { nativeTypeFacts: () => isolatedTypeFacts(shared) }
+          : {}),
       },
       grantSets,
     );

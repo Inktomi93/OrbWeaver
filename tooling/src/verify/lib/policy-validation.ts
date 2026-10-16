@@ -3,8 +3,8 @@
 // cap 2026-09-18); descriptor, fact, resource and hook validation stay here.
 
 import { SyntaxKind } from "ts-morph";
-import type { GateFact, GateFactHooks } from "../contract/fact.ts";
-import { isDefinedGateFact } from "../contract/fact.ts";
+import type { GateFact, GateFactDependency, GateFactHooks } from "../contract/fact.ts";
+import { factProvider, isDefinedGateFact } from "../contract/fact.ts";
 import type { GateAuthority } from "../contract/gate-authority.ts";
 import { GATE_AUTHORITIES, GATE_SEVERITIES } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks, PolicyField } from "../contract/policy.ts";
@@ -216,17 +216,35 @@ export function assertGateFactDescriptor(value: unknown): asserts value is GateF
   }
 }
 
+function assertGateFactDependency(value: unknown): asserts value is GateFactDependency {
+  if (isDefinedGateFact(value)) {
+    assertGateFactDescriptor(value);
+    return;
+  }
+  const input = record(value, "fact input");
+  exactKeys(input, new Set(["provider", "input"]), "fact input");
+  assertGateFactDescriptor(input["provider"]);
+  const names = input["input"];
+  if (!Array.isArray(names) || names.length === 0 || names.some((name) => typeof name !== "string" || name.trim().length === 0)) {
+    invalid("fact input must contain nonblank names");
+  }
+  if (new Set(names).size !== names.length) {
+    invalid("fact input contains duplicate names");
+  }
+}
+
 function assertFacts(value: unknown, execution: unknown): void {
   if (!Array.isArray(value)) {
     invalid("descriptor.facts must be an array");
   }
   const ids = new Set<string>();
   for (const candidate of value) {
-    assertGateFactDescriptor(candidate);
-    if (ids.has(candidate.id)) {
-      invalid(`descriptor.facts contains duplicate provider id ${candidate.id}`);
+    assertGateFactDependency(candidate);
+    const provider = factProvider(candidate);
+    if (ids.has(provider.id)) {
+      invalid(`descriptor.facts contains duplicate provider id ${provider.id}`);
     }
-    ids.add(candidate.id);
+    ids.add(provider.id);
   }
   if (value.length > 0 && execution !== "entire-population") {
     invalid("a policy using shared facts must execute over its entire population");

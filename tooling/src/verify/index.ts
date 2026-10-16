@@ -21,7 +21,7 @@ export type { CaughtFailureJudgment, CaughtFailurePopulation, CaughtFailureRow, 
 export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
 export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
-export { defineFact } from "./contract/fact.ts";
+export { defineFact, factProvider } from "./contract/fact.ts";
 export type { ExemptionRow, ExemptionTable, Finding } from "./contract/gate.ts";
 export type { GateContractCode, GateContractFinding, GateContractReport } from "./contract/gate-contract.ts";
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";

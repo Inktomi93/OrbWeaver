@@ -6,6 +6,13 @@
 // `origin-verdict.ts#OriginVerdict`: that axis answers about a reference's IDENTITY, this one about whether
 // a closed literal union IS a vocabulary. Unifying the two spellings would change every call site's
 // narrowing and is a design decision, not a re-home — flagged rather than taken (#1988 lane report).
+import type { Node } from "ts-morph";
+import type { ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+
+export interface RoleComparisonServices {
+  readonly string: (node: Node) => ReferenceFact<string>;
+  readonly computedName: ReferenceResolutionServices["readComputedName"];
+}
 
 /** The three answers a caller needs, and the reason this is not a boolean. A boolean forced the two role
  *  policies to fail OPEN on everything the checker could not close: a read typed `any`, a read typed plain

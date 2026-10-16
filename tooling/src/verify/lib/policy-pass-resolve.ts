@@ -6,6 +6,7 @@ import type { CompilerProgram } from "../../floor/compiler/compiler-programs-con
 import { isNodeTestJavaScriptSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
 import { canonicalSemanticPrograms, registeredSemanticSourceView, semanticProgramMatchesDescriptor } from "../../floor/compiler/ts-workspace.ts";
 import type { GateFact } from "../contract/fact.ts";
+import { factProvider } from "../contract/fact.ts";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
@@ -88,7 +89,7 @@ export function assertInvocationPolicies(policies: readonly GatePolicy[]): void 
       throw new Error(`runPolicyPass received duplicate policy id ${candidate.id}`);
     }
     ids.add(candidate.id);
-    for (const fact of candidate.facts) {
+    for (const fact of candidate.facts.map(factProvider)) {
       const existing = facts.get(fact.id);
       if (existing !== undefined && existing !== fact) {
         throw new Error(`loaded policies import different fact descriptors with id ${fact.id}`);
@@ -272,7 +273,7 @@ export function assertOwnerPlans(input: PolicyPassInput): void {
  *  policy that merely declared it. */
 function factDependencyPaths(policies: readonly GatePolicy[], candidates: readonly string[], resources: ResourceHost): ReadonlyMap<string, readonly string[]> {
   const byId = new Map<string, readonly string[]>();
-  for (const fact of policies.flatMap(({ facts }) => facts)) {
+  for (const fact of policies.flatMap(({ facts }) => facts.map(factProvider))) {
     if (byId.has(fact.id)) {
       continue;
     }
@@ -328,7 +329,7 @@ export function resolveRuns(
           input.applicationPaths !== undefined && run.policy.application === "implementation"
             ? []
             : resolveResourceDeclarations(resources, run.policy.resources);
-        const dependencyPaths = run.policy.facts.flatMap(({ id }) => dependencies.get(id) ?? []);
+        const dependencyPaths = run.policy.facts.flatMap((dependency) => dependencies.get(factProvider(dependency).id) ?? []);
         resolveRun({
           run,
           candidates,
@@ -350,7 +351,7 @@ export function resolveRuns(
     }
   }
   for (const run of runs.filter(({ owner }) => owner.status === "success")) {
-    const dependencyPaths = run.policy.facts.flatMap(({ id }) => dependencies.get(id) ?? []);
+    const dependencyPaths = run.policy.facts.flatMap((dependency) => dependencies.get(factProvider(dependency).id) ?? []);
     guard(run, "visitFile", errors, () => {
       for (const path of [...run.population.effectiveSourcePaths, ...dependencyPaths]) {
         const source = sourceFiles.get(path);
@@ -370,7 +371,7 @@ export function resolveRuns(
 export function selectedFacts(runs: readonly PolicyRun[]): readonly GateFact[] {
   const byId = new Map<string, GateFact>();
   for (const selected of runs.filter(({ owner }) => owner.status === "success").map(({ policy: descriptor }) => descriptor)) {
-    for (const fact of selected.facts) {
+    for (const fact of selected.facts.map(factProvider)) {
       assertGateFactDescriptor(fact);
       const existing = byId.get(fact.id);
       if (existing !== undefined && existing !== fact) {

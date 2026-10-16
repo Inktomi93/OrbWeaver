@@ -54,7 +54,7 @@ export function runPolicyPass(input: PolicyPassInput): PolicyPassResult {
   };
   // The ONE path resolution: every owner context looks its files up here instead of re-deriving them per visit.
   const paths: ReadonlyMap<object, string> = new Map([...sourceFiles].map(([path, sourceFile]) => [sourceFile.compilerNode, path]));
-  createFactRuns({ runs: factRuns, paths, resources, checker: sharedChecker, ...nativeOptions, control: factControl });
+  createFactRuns({ runs: factRuns, policyRuns: runs, paths, resources, checker: sharedChecker, ...nativeOptions, control: factControl });
   createRuns({
     runs,
     paths,

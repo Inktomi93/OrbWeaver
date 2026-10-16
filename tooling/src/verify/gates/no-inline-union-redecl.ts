@@ -96,10 +96,13 @@
 // admits 7,175 and final `population` admits 7,175. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `tooling/src/verify/gates/_proof/__cbbhr_out_client-vendors.ts` (virtual) rejected by both.
+import type { VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { firstAnchor } from "../lib/caught-failure.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
 import type { AxisRespellCandidate, CanonicalAxisTuple } from "../lib/union-axis.ts";
 import { axisRespellCandidate, canonicalAxisTuple, canReachAxisHome, UNION_AXIS_VISITOR_KINDS } from "../lib/union-axis.ts";
 
@@ -157,6 +160,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const declarations: { readonly node: VariableDeclaration; readonly file: string }[] = [];
     const tuples = new Map<string, CanonicalAxisTuple>();
     /** The compiler nodes of every registered tuple's own `satisfies` co-declaration union — the SOURCE a
      *  tuple derives from, never a re-spell of it. Keyed on `compilerNode` identity rather than a
@@ -169,8 +173,16 @@ export const gate = defineGate({
           kinds: [...UNION_AXIS_VISITOR_KINDS],
           visit: (node): void => {
             const file = ctx.relativePath(node.getSourceFile());
-            const tuple = Node.isVariableDeclaration(node) ? canonicalAxisTuple(node, file) : undefined;
+            const tuple = Node.isVariableDeclaration(node)
+              ? canonicalAxisTuple(node, file, (subject) => {
+                  prepareNativeTypeProjection(ctx, subject, { facets: ["type-symbol"], properties: [] });
+                  return [];
+                })
+              : undefined;
             if (tuple !== undefined) {
+              if (Node.isVariableDeclaration(node)) {
+                declarations.push({ node, file });
+              }
               tuples.set(tuple.signature, tuple);
               if (tuple.coDeclaration !== undefined) {
                 coDeclarations.add(tuple.coDeclaration.compilerNode);
@@ -185,6 +197,16 @@ export const gate = defineGate({
         },
       ],
       evaluate: (): void => {
+        for (const { node, file } of declarations) {
+          const tuple = canonicalAxisTuple(
+            node,
+            file,
+            (subject) => typeProjectionFacet(nativeTypeProjection(ctx, subject, { facets: ["type-symbol"], properties: [] }), "type-symbol") ?? [],
+          );
+          if (tuple?.coDeclaration !== undefined) {
+            coDeclarations.add(tuple.coDeclaration.compilerNode);
+          }
+        }
         for (const { candidate, file } of candidates) {
           const home = tuples.get(candidate.signature);
           if (home === undefined || coDeclarations.has(candidate.reported.compilerNode)) {

@@ -12,6 +12,7 @@ import {
 } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { processEnvValue } from "../../../../../tooling/src/floor/process/process-env.ts";
+import { factProvider } from "../../../../../tooling/src/verify/contract/fact.ts";
 import { INSTRUMENT_AFFECTED_POLICIES_ENV } from "../../../../../tooling/src/verify/contract/instrument-affected.ts";
 import { defineGate } from "../../../../../tooling/src/verify/contract/policy.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
@@ -287,7 +288,9 @@ export function registerLivenessPartition(partitionIndex: number): void {
           `liveness batch ${String(index + 1)}/${String(of)}: ${String(arms.length)} arm(s), ${String(passes)} corpus pass(es), ${String(ms)}ms (${arms[0] ?? ""}${arms.length > 1 ? ", ..." : ""})`,
         );
         console.log(`liveness timing ${JSON.stringify(progress)}`);
-        const expectedFacts = [...new Set(selectedArms.filter((arm) => arms.includes(arm.policy.id)).flatMap((arm) => arm.policy.facts.map(({ id }) => id)))];
+        const expectedFacts = [
+          ...new Set(selectedArms.filter((arm) => arms.includes(arm.policy.id)).flatMap((arm) => arm.policy.facts.map(factProvider).map(({ id }) => id))),
+        ];
         expect(progress.measurements.flatMap((measurement) => measurement.policies.map(({ id }) => id)).toSorted()).toEqual(arms.toSorted());
         expect(progress.measurements.flatMap((measurement) => measurement.facts.map(({ id }) => id)).toSorted()).toEqual(expectedFacts.toSorted());
       },

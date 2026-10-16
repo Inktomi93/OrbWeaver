@@ -34,4 +34,6 @@ Mounted tRPC outputs and inherited service, config and policy members pass revie
 
 Fixture provenance and browser mounting preserve native helper, alias, signature and importing-world contribution judgments. Review and ordinary controls pass. Evidence: `reports/review/1027-native-fixture-ordinary.md` and `reports/review/1027-native-browser-ordinary.md`.
 
-Owner-scoped SQL, remaining checker governance and finite-family integration remain open. Complete consumer equivalence, real-tree censuses, memory and hosted-runner cost remain unqualified.
+Finite role, tuple, factory, union and store-selector consumers pass ordinary controls and review. Value capture follows selected demand; export ambiguity remains complete. Evidence: `reports/review/1027-native-finite-ordinary.md`.
+
+Owner-scoped SQL and remaining checker governance remain open. Complete consumer equivalence, real-tree censuses, memory and hosted-runner cost remain unqualified.

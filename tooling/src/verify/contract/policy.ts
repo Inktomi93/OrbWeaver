@@ -1,6 +1,6 @@
 // The final Orb policy descriptor and the capability-bounded context created once per invocation.
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
-import type { GateFact, GateFactValue } from "./fact.ts";
+import type { GateFact, GateFactDependency, GateFactValue } from "./fact.ts";
 import type { GateAuthority, GateSeverity } from "./gate-authority.ts";
 import type { GatePolicyAnalysis, GatePolicyReceipt, GatePolicyVisitor } from "./policy-primitives.ts";
 import type { PopulationExpr } from "./population.ts";
@@ -144,7 +144,7 @@ interface GatePolicyBase {
   readonly analysis: GatePolicyAnalysis;
   readonly execution: GatePolicyExecution;
   /** Shared providers required by this whole-population policy; `[]` is explicit. */
-  readonly facts: readonly GateFact[];
+  readonly facts: readonly GateFactDependency[];
   /** Explicit closed ResourceHost facts; `[]` is required when the policy consumes none. */
   readonly resources: readonly GateResourceRequest[];
   readonly message: string;

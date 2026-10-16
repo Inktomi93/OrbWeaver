@@ -303,6 +303,7 @@ function warningPassOf(files: Readonly<Record<string, string>>): ReturnType<type
     policies: [warningCodeCoverage],
     root: ROOT,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants: [],
     failOnWarnings: false,
   });

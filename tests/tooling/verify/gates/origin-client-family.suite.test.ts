@@ -11,7 +11,7 @@ import { gate as noManualTokenEstimate } from "../../../../tooling/src/verify/ga
 import { gate as noMultiplexedMutationError } from "../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
 import { gate as zustandSelectorStability } from "../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 test("the canonical-origin client policies keep their founding, respelling and nearest-legal fixtures", () => {
   expect(
@@ -42,7 +42,15 @@ function passOf(policy: Parameters<typeof runPolicyPass>[0]["policies"][number],
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("the store-hook home is a blindness tripwire: a rename REFUSES the verdict instead of passing every selector", () => {

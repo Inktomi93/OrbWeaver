@@ -7,6 +7,7 @@ import type { GateResourceRequest } from "./resource-declaration.ts";
 import type { ResourceHost } from "./resource-host.ts";
 
 export interface GateFactContext {
+  readonly input?: readonly string[];
   readonly nativeTypes?: NativeTypeContext;
   readonly files: readonly SourceFile[];
   readonly resourcePaths: readonly string[];
@@ -30,6 +31,17 @@ export interface GateFact<Value = unknown> {
   readonly analysis: GatePolicyAnalysis;
   readonly resources: readonly GateResourceRequest[];
   readonly create: (context: GateFactContext) => GateFactHooks<Value>;
+}
+
+export interface GateFactInput {
+  readonly provider: GateFact;
+  readonly input: readonly string[];
+}
+export type GateFactDependency = GateFact | GateFactInput;
+
+/** Demand metadata never changes the branded provider identity. */
+export function factProvider(dependency: GateFactDependency): GateFact {
+  return "provider" in dependency ? dependency.provider : dependency;
 }
 
 const definedFacts = new WeakSet<object>();

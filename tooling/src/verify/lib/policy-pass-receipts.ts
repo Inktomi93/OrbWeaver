@@ -2,6 +2,7 @@
 // facts and policies, the finish/evaluate hook drivers, the PolicyOwnerResult/GateFactOwnerResult mappers,
 // and the ordinary-waiver carrier acquisition central authority reconciliation reads.
 import type { SourceFile } from "ts-morph";
+import { factProvider } from "../contract/fact.ts";
 import type { GateOwnerResult } from "../contract/gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy } from "../contract/policy.ts";
@@ -69,7 +70,7 @@ export function withholdFactDependents(runs: readonly PolicyRun[], errors: Polic
     if (run.owner.status !== "success") {
       continue;
     }
-    const failed = run.policy.facts.find((fact) => values.get(fact)?.status === "failed");
+    const failed = run.policy.facts.map(factProvider).find((fact) => values.get(fact)?.status === "failed");
     if (failed !== undefined) {
       const value = values.get(failed);
       const message = value?.status === "failed" ? value.message : POLICY_PASS_REFUSALS.factFailedUnknown;

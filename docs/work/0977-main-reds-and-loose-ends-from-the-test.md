@@ -52,3 +52,5 @@ Inference SDK hook types share a leaf contract. Worker dependencies use direct c
 Native ESLint partition and real CLI controls pass. The [hosted artifact](https://github.com/Inktomi93/OrbWeaver/actions/runs/38544900781) leaves shared-declaration and `contract-verb-presence` native-library qualification open. Arbitrary owner selection and legacy fixture repairs are not remedies.
 
 The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-cache-proof.ts` still builds a copied `MessageView` without it. This item owns its corpus-backed replacement; do not insert a fabricated default to silence the type failure.
+
+Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
