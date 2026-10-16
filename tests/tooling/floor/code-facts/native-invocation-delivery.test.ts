@@ -10,7 +10,11 @@ import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { DEFAULT_INVENTORY_FAMILIES, invocationAtomSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import {
+  DEFAULT_INVENTORY_FAMILIES,
+  invocationAtomSchema,
+  invocationQuerySchema,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   latestInventoryGeneration,
   openInventoryDatabase,
@@ -857,8 +861,16 @@ test(
     const extensions = vi.spyOn(invocationAtomSchema, "extend");
     try {
       for (const inventory of [first, second]) {
-        for (const call of [...selected, ...selected]) {
-          expect(snapshot(call, inventory.invocationEvidence(call, descriptor.id, PLAN))).toEqual(snapshot(call, captureInvocationEvidence(call, PLAN)));
+        for (const [index, call] of [...selected, ...selected].entries()) {
+          const parses = vi.spyOn(invocationQuerySchema, "parse");
+          let delivered: NativeInvocationEvidence;
+          try {
+            delivered = inventory.invocationEvidence(call, descriptor.id, PLAN);
+            expect(parses).toHaveBeenCalledTimes(index < selected.length ? 2 : 1);
+          } finally {
+            parses.mockRestore();
+          }
+          expect(snapshot(call, delivered)).toEqual(snapshot(call, captureInvocationEvidence(call, PLAN)));
         }
         expect(enumerations).toBe(unique.size * (inventory === first ? 1 : 2));
       }

@@ -5,8 +5,13 @@ import { DatabaseSync, StatementSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inventoryConsumerClass } from "@orb/tooling/floor/code-facts/inventory-consumers";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
-import type { InventoryBuildRequest, InventoryPartition, StoredInventoryPartition } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { INVENTORY_FORMAT, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import type {
+  InventoryBuildRequest,
+  InventoryInvocationQuery,
+  InventoryPartition,
+  StoredInventoryPartition,
+} from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { INVENTORY_FORMAT, inventoryFamilies, invocationQuerySchema } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import {
   beginInventoryWrite,
   inventoryGenerationPrograms,
@@ -23,11 +28,13 @@ import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { vi } from "vitest";
 import {
+  acquireInventoryReadLease,
   readInventoryBindings,
   readInventoryBrands,
   readInventoryCasts,
   readInventoryExports,
   readInventoryInputs,
+  readInventoryInvocationEvidence,
   readInventoryModules,
   readInventoryReferences,
   readInventorySources,
@@ -135,6 +142,151 @@ function stage(request: InventoryBuildRequest): void {
   publishInventoryGeneration(database, [partition(request)]);
   database.exec("COMMIT");
 }
+
+function invocationMetadataPartitions(root: string): InventoryPartition[] {
+  return readCompilerPrograms(root).map((descriptor) => {
+    const captured = partition({ root, descriptor, destination: "", families: ["invocation-evidence"] });
+    const source = captured.sources[0];
+    if (source === undefined) {
+      throw new Error("invocation metadata source missing");
+    }
+    return {
+      ...captured,
+      exports: [],
+      invocationEvidence: [0, 1].map((start) => ({
+        query: { mode: "value" as const, facets: [], arguments: [], node: { file: source.file, start, end: start + 1, kind: 80 } },
+        invocation: null,
+        callee: null,
+        profiles: [],
+        sources: [],
+      })),
+    };
+  });
+}
+
+test("pinned invocation metadata retains only demanded row identities and observes mutable caller queries", ({ scratch }) => {
+  initialize(scratch);
+  const data = invocationMetadataPartitions(scratch);
+  const databasePath = join(scratch, "invocation.sqlite");
+  using writer = openInventoryDatabase(databasePath);
+  const generation = publishInventoryGeneration(writer, data);
+  const partitions = readInventoryGeneration(writer, generation);
+  const queries = data.flatMap((captured) =>
+    captured.invocationEvidence.map((fact) => ({
+      id: partitions.find((entry) => entry.program === captured.program)?.id,
+      fact,
+    })),
+  );
+  using db = openInventoryDatabase(databasePath);
+  using lease = acquireInventoryReadLease(db, generation, partitions);
+  const parses = vi.spyOn(invocationQuerySchema, "parse");
+  const released: number[][] = [];
+  const clear = Set.prototype.clear;
+  const disposal = vi.spyOn(Set.prototype, "clear").mockImplementation(function (this: Set<number>) {
+    released.push([...this]);
+    clear.call(this);
+  });
+  try {
+    for (let pass = 0; pass < 4; pass++) {
+      for (const { id, fact } of queries) {
+        if (id === undefined) {
+          throw new Error("invocation metadata partition missing");
+        }
+        parses.mockClear();
+        const facts = [...lease.invocationEvidence(id, fact.query)];
+        expect(facts).toEqual([fact]);
+        expect(parses).toHaveBeenCalledTimes(pass === 0 ? 2 : 1);
+      }
+    }
+    const fact = data[0]?.invocationEvidence[0];
+    const id = partitions.find((entry) => entry.program === data[0]?.program)?.id;
+    if (fact === undefined || id === undefined) {
+      throw new Error("mutable invocation metadata query missing");
+    }
+    const query: InventoryInvocationQuery = { ...fact.query, node: { ...fact.query.node }, facets: [], arguments: [] };
+    const [returned] = lease.invocationEvidence(id, query);
+    if (returned === undefined) {
+      throw new Error("mutable invocation metadata result missing");
+    }
+    returned.query.facets.push("module");
+    expect([...lease.invocationEvidence(id, query)]).toEqual([fact]);
+    query.facets.push("module");
+    expect([...lease.invocationEvidence(id, query)]).toEqual([]);
+    query.facets.length = 0;
+    query.node.kind++;
+    expect([...lease.invocationEvidence(id, query)]).toEqual([]);
+    query.node.kind--;
+    query.arguments.push({ index: 0, facets: [] }, { index: 0, facets: [] });
+    expect(() => [...lease.invocationEvidence(id, query)]).toThrow("argument projection is ambiguous");
+    query.arguments.length = 0;
+    expect([...lease.invocationEvidence(id, query)]).toEqual([fact]);
+    expect(() => [...lease.invocationEvidence("foreign", query)]).toThrow("partition is unavailable");
+    lease[Symbol.dispose]();
+    disposal.mockRestore();
+    expect(released).toEqual([
+      [0, 1],
+      [0, 1],
+    ]);
+    expect(() => [...lease.invocationEvidence(id, query)]).toThrow("lease has been released");
+  } finally {
+    disposal.mockRestore();
+    parses.mockRestore();
+  }
+});
+
+test("invocation query validation refuses corrupt unread rows after another ordinal is admitted", ({ scratch }) => {
+  initialize(scratch);
+  const data = invocationMetadataPartitions(scratch);
+  const databasePath = join(scratch, "invocation.sqlite");
+  using writer = openInventoryDatabase(databasePath);
+  const generation = publishInventoryGeneration(writer, data);
+  const partitions = readInventoryGeneration(writer, generation);
+  const fact = data[0]?.invocationEvidence[0];
+  const id = partitions.find((entry) => entry.program === data[0]?.program)?.id;
+  const other = data[0]?.invocationEvidence[1];
+  if (other === undefined || fact === undefined || id === undefined) {
+    throw new Error("invocation metadata corruption control missing");
+  }
+  expect([...readInventoryInvocationEvidence(writer, id, other.query)]).toEqual([other]);
+  const node = writer.prepare("SELECT node FROM inventory_invocation_evidence WHERE partition=? AND ordinal=1").get(id)?.["node"];
+  if (typeof node !== "number") {
+    throw new Error("invocation metadata root control missing");
+  }
+  for (const [change, restore, message] of [
+    [
+      "UPDATE inventory_invocation_evidence SET node=(SELECT node FROM inventory_invocation_evidence WHERE partition=? AND ordinal=0) WHERE partition=? AND ordinal=1",
+      "UPDATE inventory_invocation_evidence SET node=? WHERE partition=? AND ordinal=1",
+      "root span is foreign",
+    ],
+    [
+      "UPDATE inventory_invocation_atom SET text='\"invocation\"' WHERE partition=? AND owner=1 AND key='\"mode\"'",
+      "UPDATE inventory_invocation_atom SET text='\"value\"' WHERE partition=? AND owner=1 AND key='\"mode\"'",
+      "root span is foreign",
+    ],
+    [
+      "UPDATE inventory_invocation_atom SET number=81 WHERE partition=? AND owner=1 AND key='\"kind\"'",
+      "UPDATE inventory_invocation_atom SET number=80 WHERE partition=? AND owner=1 AND key='\"kind\"'",
+      "query identity is stale",
+    ],
+    [
+      "UPDATE inventory_invocation_evidence SET atomCount=atomCount+1 WHERE partition=? AND ordinal=1",
+      "UPDATE inventory_invocation_evidence SET atomCount=atomCount-1 WHERE partition=? AND ordinal=1",
+      "fact graph is incomplete",
+    ],
+  ] as const) {
+    writer.prepare(change).run(...(change.includes("SELECT node") ? [id, id] : [id]));
+    try {
+      expect(() => [...readInventoryInvocationEvidence(writer, id, other.query)]).toThrow(message);
+      using corrupted = openInventoryDatabase(databasePath);
+      using fresh = acquireInventoryReadLease(corrupted, generation, partitions);
+      expect([...fresh.invocationEvidence(id, fact.query)]).toEqual([fact]);
+      expect(() => [...fresh.invocationEvidence(id, other.query)]).toThrow(message);
+    } finally {
+      writer.prepare(restore).run(...(restore.includes("node=?") ? [node, id] : [id]));
+    }
+    expect([...readInventoryInvocationEvidence(writer, id, other.query)]).toEqual([other]);
+  }
+});
 
 test("unchanged and independently invalidated partitions reuse without worker construction", ({ scratch }) => {
   initialize(scratch);

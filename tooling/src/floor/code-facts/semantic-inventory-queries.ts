@@ -490,13 +490,14 @@ export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, q
 
 const INVOCATION_AVAILABLE_SQL = "SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?";
 interface InvocationReadSnapshot {
+  readonly invocationQueries: Set<number>;
   readonly bindings: Map<string, readonly InventoryPartition["bindings"][number][]>;
   readonly spanSources: Map<string, { readonly source: StoredInventorySource; readonly membership: NonNullable<ReturnType<StatementSync["get"]>> }>;
   readonly available: StatementSync;
 }
 
 function invocationSnapshot(db: DatabaseSync): InvocationReadSnapshot {
-  return { bindings: new Map(), spanSources: new Map(), available: db.prepare(INVOCATION_AVAILABLE_SQL) };
+  return { invocationQueries: new Set(), bindings: new Map(), spanSources: new Map(), available: db.prepare(INVOCATION_AVAILABLE_SQL) };
 }
 
 /** Take the private connection through a real selected-generation pin before creating reusable query state. */
@@ -539,6 +540,9 @@ export function acquireInventoryReadLease(db: DatabaseSync, generation: number, 
     [Symbol.dispose]: (): void => {
       if (open) {
         open = false;
+        for (const snapshot of snapshots.values()) {
+          snapshot.invocationQueries.clear();
+        }
         snapshots.clear();
         rollbackReadSnapshot(db);
       }
@@ -613,11 +617,16 @@ function* invocationEvidence(
     const decoded = invocationValue(atoms);
     assertInvocationSpans(db, id, decoded, snapshot);
     const fact = invocationEvidenceSchema.parse(decoded);
-    if (invocationQueryKey({ ...fact.query, node: spanOf(db, id, integer.parse(row["node"])) }) !== key) {
-      throw new SemanticInventoryError("native invocation root span is foreign");
-    }
-    if (invocationQueryKey(fact.query) !== key) {
-      throw new SemanticInventoryError("native invocation query identity is stale");
+    const owner = integer.parse(row["ordinal"]);
+    if (snapshot?.invocationQueries.has(owner) !== true) {
+      const root = spanOf(db, id, integer.parse(row["node"]));
+      if (invocationQueryKey({ ...fact.query, node: root }) !== key) {
+        throw new SemanticInventoryError("native invocation root span is foreign");
+      }
+      const node = fact.query.node;
+      if (node.file !== root.file || node.start !== root.start || node.end !== root.end || node.kind !== root.kind) {
+        throw new SemanticInventoryError("native invocation query identity is stale");
+      }
     }
     assertInvocationEvidence(fact);
     const owned = db
@@ -638,6 +647,8 @@ function* invocationEvidence(
       throw new SemanticInventoryError("native invocation source ownership is incomplete");
     }
     assertInvocationChildren(db, id, fact, snapshot);
+    // Only a private pinned partition or this synchronous coverage operation can retain validated row identity.
+    snapshot?.invocationQueries.add(owner);
     yield fact;
   }
 }
