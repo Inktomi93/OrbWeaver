@@ -99,7 +99,7 @@ export function unprovenReferenceUse(
   return refusal;
 }
 
-function isDeclarationName(node: MorphNode): boolean {
+export function isReferenceDeclarationName(node: MorphNode): boolean {
   const parent = node.getParent();
   if (parent === undefined) {
     return false;
@@ -269,7 +269,7 @@ function nativeGlobal(node: MorphNode, names: ReadonlySet<string>): boolean {
 
 function nativeGlobalExposure(identifier: Identifier): boolean {
   const text = identifier.getText();
-  if ((!INHERITED_GLOBALS.has(text) && text !== "globalThis") || isDeclarationName(identifier) || !runtimeNode(identifier)) {
+  if ((!INHERITED_GLOBALS.has(text) && text !== "globalThis") || isReferenceDeclarationName(identifier) || !runtimeNode(identifier)) {
     return false;
   }
   const outer = identifier.getParent();
@@ -337,7 +337,7 @@ function collectWrites(sourceFile: SourceFile): SourceWriteFacts {
   const reassigned = new Set<object>();
   const identifiers = descendantsOfKind(sourceFile, SyntaxKind.Identifier);
   for (const identifier of identifiers) {
-    const kind = isDeclarationName(identifier) ? undefined : writeKind(identifier);
+    const kind = isReferenceDeclarationName(identifier) ? undefined : writeKind(identifier);
     const symbol = kind === undefined ? undefined : lexicalReferenceSymbol(identifier);
     if (symbol === undefined) {
       continue;
@@ -449,7 +449,7 @@ function isReadOnlyInvocation(members: readonly (string | undefined)[]): boolean
 function collectInvokedMembers(sourceFile: SourceFile): Map<object, MorphNode> {
   const invoked = new Map<object, MorphNode>();
   for (const identifier of descendantsOfKind(sourceFile, SyntaxKind.Identifier)) {
-    if (isDeclarationName(identifier)) {
+    if (isReferenceDeclarationName(identifier)) {
       continue;
     }
     const invocation = invokedMemberRootedAt(identifier);

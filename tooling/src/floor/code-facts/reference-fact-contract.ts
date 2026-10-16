@@ -256,6 +256,18 @@ export interface CallReturnProgram {
     context: ReturnedValueContext,
     services: NativeValueTransferServices,
   ) => ReferenceFact<readonly ReturnedValueSource[]> | undefined;
+  readonly nativeNamespaceValue?: (
+    call: CallExpression,
+    path: readonly string[],
+    context: ReturnedValueContext,
+    services: NativeValueTransferServices,
+  ) => ReferenceFact<readonly ReturnedValueSource[]> | undefined;
+  readonly nativeNamespaceAlias?: (
+    reference: Node,
+    binding: Identifier,
+    expected: Node,
+    inputs: NativeNamespaceAliasInputs,
+  ) => Identifier | UnresolvedReferenceFact | undefined;
   readonly callableContext?: CallReturnProofContext;
   /** Only completed-proof freshness may inspect this snapshot; semantic reads use the tracked views. */
   readonly callableProofEpoch?: () => CallReturnProofEpoch;
@@ -366,6 +378,22 @@ export interface NativeValueTransferServices {
   readonly leaf: (node: Node, path: readonly string[], context: ReturnedValueContext, present?: boolean) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly alternatives: (node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly refusal: (node: Node, reason: ReferenceUnresolvedReason, detail: string) => UnresolvedReferenceFact;
+}
+
+/** The exact captured owner and optional real private continuation travel together. */
+export interface NativeNamespaceAliasInputs {
+  readonly program: CallReturnProgram;
+  readonly context?: ReturnedValueContext | undefined;
+}
+
+/** Namespace values reuse the captured completion/effect owners, not a conditional module-origin API. */
+export interface NativeNamespaceValueServices extends NativeValueTransferServices {
+  readonly references: ReferenceResolutionServices;
+  readonly capturedProgram: typeof import("./call-supplied.ts").readCallReturnProgram;
+  readonly capturedReference: typeof import("./call-supplied.ts").readCallReturnReference;
+  readonly abruptCompletion: typeof import("./call-returns.ts").readFunctionAbruptCompletion;
+  readonly callableDeclaration: typeof import("./reference-fact-call.ts").resolveCallableDeclaration;
+  readonly sameEpoch: typeof import("./value-carrier.ts").sameCallReturnProofEpoch;
 }
 
 /** Returned-value consumers retain bindings already admitted by the same native invocation. */

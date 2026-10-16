@@ -7,8 +7,10 @@ import type {
   CallReturnObservation,
   CallReturnObservations,
   CallReturnProgram,
+  NativeNamespaceAliasInputs,
   ReferenceFact,
   ReferenceUnresolvedReason,
+  ReturnedValueContext,
   SuppliedValueSource,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
@@ -49,16 +51,26 @@ function suppliedEpochRefusal(node: MorphNode, program: CallReturnProgram | unde
   return admitted?.kind === "unresolved" ? admitted : undefined;
 }
 
-function capturedModuleAlias(use: MorphNode, binding: Identifier, owner: MorphNode, program: CallReturnProgram): ReferenceFact<Identifier> | undefined {
+function capturedModuleAlias(
+  use: MorphNode,
+  binding: Identifier,
+  owner: MorphNode,
+  inputs: NativeNamespaceAliasInputs,
+): Identifier | UnresolvedReferenceFact | undefined {
+  const { program } = inputs;
   const admitted = readCallReturnReference(use, binding, program);
-  return admitted.kind === "unresolved" ? admitted : readModuleAliasBinding(use, owner);
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  const direct = readModuleAliasBinding(use, owner);
+  return direct?.kind === "resolved" ? direct.value : (program.nativeNamespaceAlias?.(use, binding, owner, inputs) ?? direct);
 }
 
 function callableReferenceRefusal(
   name: Identifier,
   owner: MorphNode,
-  program: CallReturnProgram,
   callers: readonly CallReturnObservation[],
+  inputs: NativeNamespaceAliasInputs,
 ): UnresolvedReferenceFact | undefined {
   const expressions = new Set<import("ts-morph").ts.Node>(callers.map((caller) => caller.call.getExpression().compilerNode));
   let refusal: UnresolvedReferenceFact | undefined;
@@ -66,13 +78,13 @@ function callableReferenceRefusal(
     if (use === name || isDocumentationLinkReference(use)) {
       return true;
     }
-    const alias = capturedModuleAlias(use, binding, owner, program);
-    if (alias?.kind === "unresolved") {
-      refusal = alias;
-      return false;
-    }
-    if (alias?.kind === "resolved") {
-      return alias.value;
+    const alias = capturedModuleAlias(use, binding, owner, inputs);
+    if (alias !== undefined) {
+      if ("kind" in alias) {
+        refusal = alias;
+        return false;
+      }
+      return alias;
     }
     for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
       if (expressions.has(ancestor.compilerNode)) {
@@ -88,7 +100,11 @@ function callableReferenceRefusal(
 }
 
 /** Complete observed consumers of one actual callable; sparse or escaping reference coverage refuses. */
-export function readObservedCallableConsumers(owner: MorphNode, program: CallReturnProgram): ReferenceFact<readonly CallReturnObservation[]> {
+export function readObservedCallableConsumers(
+  owner: MorphNode,
+  program: CallReturnProgram,
+  context?: ReturnedValueContext,
+): ReferenceFact<readonly CallReturnObservation[]> {
   const epoch = suppliedEpochRefusal(owner, program);
   if (epoch !== undefined) {
     return epoch;
@@ -118,7 +134,7 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
     return escaped;
   }
   const callers = program.callers.get(owner.compilerNode) ?? [];
-  const reference = Node.isIdentifier(name) ? callableReferenceRefusal(name, owner, program, callers) : undefined;
+  const reference = Node.isIdentifier(name) ? callableReferenceRefusal(name, owner, callers, { program, context }) : undefined;
   if (reference !== undefined) {
     return reference;
   }
@@ -132,6 +148,7 @@ export function readSuppliedParameter(
   node: MorphNode,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   program: CallReturnProgram | undefined,
+  context?: ReturnedValueContext,
 ): ReferenceFact<readonly SuppliedValueSource[]> {
   const epoch = suppliedEpochRefusal(node, program);
   if (epoch !== undefined) {
@@ -156,7 +173,7 @@ export function readSuppliedParameter(
   ) {
     return unresolved("missing", node, "the formal has no complete supplied native caller context", [parameter]);
   }
-  const callers = readObservedCallableConsumers(owner, program);
+  const callers = readObservedCallableConsumers(owner, program, context);
   if (callers.kind === "unresolved") {
     return callers;
   }

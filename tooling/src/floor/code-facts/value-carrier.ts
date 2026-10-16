@@ -16,6 +16,7 @@ import {
   inspectReferenceWrites,
   isDocumentationLinkReference,
   readStaticString,
+  referenceResolutionServices,
   resolveStableExpression,
   staticMemberAccess,
 } from "./reference-fact.ts";
@@ -29,8 +30,10 @@ import type {
   CallReturnProofEpoch,
   InheritedReadEvidence,
   InheritedReadPremise,
+  NativeNamespaceAliasInputs,
   NativeValueTransferServices,
   ReferenceFact,
+  ReferenceUseAdmission,
   ResolvedReferenceFact,
   ReturnedValueActivation,
   ReturnedValueContext,
@@ -41,7 +44,7 @@ import type {
   SuppliedValueSource,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
-import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
+import { isReferenceDeclarationName, isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { readStaticAuthoredValue } from "./static-authored-value.ts";
 import {
   nativeDisposalPropertyKey,
@@ -342,7 +345,7 @@ function returnedOutputCaller(returned: Node, inputs: ReturnedOutputUseContext):
   if (owner === undefined || program === undefined) {
     return valueRefusal(returned, "missing", "returned output has no captured callable owner");
   }
-  const callers = readObservedCallableConsumers(owner, program);
+  const callers = readObservedCallableConsumers(owner, program, inputs.context);
   if (callers.kind === "unresolved") {
     return callers;
   }
@@ -421,7 +424,7 @@ function returnedOutputUseWithin(node: Node, inputs: ReturnedOutputUseContext): 
 }
 
 function returnedDefaultValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
-  const supplied = readSuppliedParameter(node, context.bindings, context.program);
+  const supplied = readSuppliedParameter(node, context.bindings, context.program, context);
   return supplied.kind === "unresolved"
     ? supplied
     : valueAlternatives(
@@ -486,7 +489,7 @@ function returnedNativeSuppliedParameter(
   if (!context.nativeValueTransfers || parameter === undefined || context.nativeIterations.has(parameter)) {
     return;
   }
-  const supplied = readSuppliedParameter(node, context.bindings, context.program);
+  const supplied = readSuppliedParameter(node, context.bindings, context.program, context);
   return supplied.kind === "unresolved"
     ? supplied
     : valueAlternatives(
@@ -527,6 +530,101 @@ function returnedBindingElement(
   }
   const key = N.isArrayBindingPattern(pattern) ? String(pattern.getElements().indexOf(value)) : (value.getPropertyNameNode()?.getText() ?? value.getName());
   return returnedValue(initializer, [key, ...path], context);
+}
+
+function capturedNamespaceBinding(reference: Node, binding: Identifier, program: CallReturnProgram): ReferenceFact<Identifier> | undefined {
+  const element = reference.getParent();
+  if (!N.isBindingElement(element) || (element.getNameNode() !== reference && element.getPropertyNameNode() !== reference)) {
+    return;
+  }
+  const name = element.getNameNode();
+  const pattern = element.getParent();
+  const initial = pattern.getParentIfKind(SyntaxKind.VariableDeclaration)?.getInitializer();
+  if (
+    !(N.isIdentifier(name) && N.isObjectBindingPattern(pattern)) ||
+    initial === undefined ||
+    element.getInitializer() !== undefined ||
+    element.getDotDotDotToken() !== undefined
+  ) {
+    return valueRefusal(element, "unsupported", "the namespace alias has no immutable ordinary single binding");
+  }
+  const admitted = readCallReturnReference(reference, binding, program);
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  const stable = referenceResolutionServices.inspectStableBinding(element);
+  if (stable.kind === "unresolved") {
+    return stable;
+  }
+  return lexicalReferenceSymbol(name)?.getValueDeclaration()?.compilerNode === element.compilerNode
+    ? { kind: "resolved", value: name, trace: { declarations: [element], origin: reference } }
+    : valueRefusal(name, "ambiguous", "the namespace alias has a different native lexical declaration");
+}
+
+function namespaceAliasContinuation(reference: Node, inputs: NativeNamespaceAliasInputs): ReferenceFact<ReturnedValueContext> {
+  const { program, context } = inputs;
+  if (context !== undefined && context.program !== program) {
+    return valueRefusal(reference, "unsupported", "the namespace alias continuation belongs to another capture owner");
+  }
+  if (program.inheritedReadTrialActive?.() === true && context?.inheritedReadPremise === undefined) {
+    return valueRefusal(reference, "unsupported", "the namespace alias cannot borrow a trial without its real continuation");
+  }
+  const value: ReturnedValueContext = context ?? {
+    program,
+    bindings: new Map(),
+    active: new Set(),
+    terminals: new Set(),
+    nativeIterations: new Map(),
+    nativeValueTransfers: false,
+    explicitAbsentReturns: false,
+    callableValues: true,
+  };
+  return { kind: "resolved", value, trace: { declarations: [], origin: reference } };
+}
+
+/** A captured namespace alias is immediately queued by its consumer, never a public conditional certificate. */
+export function readCapturedNamespaceAlias(
+  reference: Node,
+  binding: Identifier,
+  expected: Node,
+  inputs: NativeNamespaceAliasInputs,
+): Identifier | UnresolvedReferenceFact | undefined {
+  if (reference.wasForgotten() || expected.wasForgotten()) {
+    return valueRefusal(reference, "unsupported", "the captured namespace alias or target was forgotten");
+  }
+  const captured = capturedNamespaceBinding(reference, binding, inputs.program);
+  if (captured === undefined || captured.kind === "unresolved") {
+    return captured;
+  }
+  const continuation = namespaceAliasContinuation(reference, inputs);
+  if (continuation.kind === "unresolved") {
+    return continuation;
+  }
+  const name = captured.value;
+  const element = name.getParentIfKindOrThrow(SyntaxKind.BindingElement);
+  const initial = element.getParent().getParentIfKindOrThrow(SyntaxKind.VariableDeclaration).getInitializerOrThrow();
+  const key = defaultBindingKey(element);
+  if (key.kind === "unresolved") {
+    return key;
+  }
+  const value = unwrapTarget(initial);
+  const call = N.isAwaitExpression(value) ? unwrapTarget(value.getExpression()) : value;
+  if (!N.isCallExpression(call)) {
+    return;
+  }
+  const selected = inputs.program.nativeNamespaceValue?.(call, [key.value], continuation.value, nativeValueServices);
+  if (selected === undefined || selected.kind === "unresolved") {
+    return selected;
+  }
+  if (
+    expected.wasForgotten() ||
+    selected.value.length !== 1 ||
+    selected.value.some((source) => !source.present || source.path.length > 0 || source.value.compilerNode !== expected.compilerNode)
+  ) {
+    return valueRefusal(reference, "ambiguous", "the namespace alias does not retain the exact expected native callable");
+  }
+  const target = readCallReturnReference(expected, binding, inputs.program);
+  return target.kind === "unresolved" ? target : name;
 }
 
 function optionalTerminalMember(receiver: Node | undefined): boolean {
@@ -1285,7 +1383,7 @@ function callableSuppliedLeaves(
     if (!(source.present && declaration !== undefined)) {
       return callableNonFormalLeaf(source, program);
     }
-    const supplied = readSuppliedParameter(declaration.getNameNode(), source.bindings, program);
+    const supplied = readSuppliedParameter(declaration.getNameNode(), source.bindings, program, { ...entered, bindings: source.bindings });
     if (supplied.kind === "unresolved") {
       return supplied;
     }
@@ -1486,7 +1584,8 @@ function callableUseEpoch(sharing: CallableUseSharing): CallableUseEpoch {
   };
 }
 
-function sameCallableUseEpoch(left: CallableUseEpoch, right: CallableUseEpoch): boolean {
+/** Captured input identity is shared by callable completion and stack-local namespace selection. */
+export function sameCallReturnProofEpoch(left: CallReturnProofEpoch, right: CallReturnProofEpoch): boolean {
   return (
     left.calls === right.calls &&
     left.callCount === right.callCount &&
@@ -1500,9 +1599,12 @@ function sameCallableUseEpoch(left: CallableUseEpoch, right: CallableUseEpoch): 
     left.directRevision === right.directRevision &&
     left.settledDemandRevision === right.settledDemandRevision &&
     left.refining === right.refining &&
-    left.dependencyOwner === right.dependencyOwner &&
-    left.membership === right.membership
+    left.dependencyOwner === right.dependencyOwner
   );
+}
+
+function sameCallableUseEpoch(left: CallableUseEpoch, right: CallableUseEpoch): boolean {
+  return sameCallReturnProofEpoch(left, right) && left.membership === right.membership;
 }
 
 function callableNodesCurrent(nodes: ReadonlyMap<Node, ts.Node>): boolean {
@@ -2275,19 +2377,37 @@ function callableCarrierSymbol(identifier: Identifier): ts.Symbol | undefined {
   return (lexical?.getAliasedSymbol() ?? lexical)?.compilerSymbol;
 }
 
+function capturedCallableReferenceUse(reference: Node, binding: Identifier, proof: CallableUseProof): ReferenceUseAdmission | undefined {
+  const program = proof.program;
+  const source = proof.origins[0];
+  const alias =
+    program !== undefined && proof.origins.length === 1 && source !== undefined
+      ? program.nativeNamespaceAlias?.(reference, binding, source.value, { program })
+      : undefined;
+  if (alias !== undefined) {
+    return "kind" in alias ? refuseCallableUse(proof, alias) : alias;
+  }
+  if (program === undefined || !N.isIdentifier(reference)) {
+    return;
+  }
+  const expected = callableCarrierSymbol(binding);
+  const actual = callableCarrierSymbol(reference);
+  if (expected === undefined || actual === undefined) {
+    return refuseCallableUse(proof, valueRefusal(reference, "ambiguous", "the callable carrier reference has no exact lexical binding"));
+  }
+  if (expected !== actual) {
+    const admitted = readCallReturnReference(reference, binding, program);
+    return admitted.kind === "resolved" || refuseCallableUse(proof, admitted);
+  }
+  return undefined;
+}
+
 function computeCallableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
   let copied: Node | undefined;
   const missing = unprovenReferenceUse(name, (reference, binding) => {
-    if (proof.program !== undefined && N.isIdentifier(reference)) {
-      const expected = callableCarrierSymbol(binding);
-      const actual = callableCarrierSymbol(reference);
-      if (expected === undefined || actual === undefined) {
-        return refuseCallableUse(proof, valueRefusal(reference, "ambiguous", "the callable carrier reference has no exact lexical binding"));
-      }
-      if (expected !== actual) {
-        const admitted = readCallReturnReference(reference, binding, proof.program);
-        return admitted.kind === "resolved" || refuseCallableUse(proof, admitted);
-      }
+    const admitted = capturedCallableReferenceUse(reference, binding, proof);
+    if (admitted !== undefined) {
+      return admitted;
     }
     const allowed = callableProjectionUse(reference, proof);
     if (proof.program !== undefined && !allowed && N.isSpreadElement(reference.getParent())) {
@@ -2340,6 +2460,9 @@ function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
 
 function selectedCallableValueUse(use: Node, proof: CallableUseProof): boolean | undefined {
   const invocation = use.getParent();
+  if (isReferenceDeclarationName(use)) {
+    return;
+  }
   const calledFormal = N.isCallExpression(invocation) && invocation.getExpression() === use && callableFormalLeaf(use) !== undefined;
   return (proof.selectedValue === true || calledFormal) && proof.path.length === 0 && proof.program !== undefined
     ? callableProjectedUse(use, callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() }), proof)
@@ -2421,6 +2544,17 @@ function callableUseName(declaration: Node, supplied: boolean): Node | undefined
   return N.isVariableDeclaration(declaration) || (supplied && N.isParameterDeclaration(declaration)) ? declaration.getNameNode() : undefined;
 }
 
+function selectedCallableDeclarationProof(declaration: Node, proof: CallableUseProof, binding: Node | undefined): CallableUseProof {
+  if (binding === undefined) {
+    return proof;
+  }
+  const { selectedValue, ...ordinary } = proof;
+  const initial = N.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+  const value = initial === undefined ? undefined : unwrapTarget(initial);
+  const selected = declaration.compilerNode === binding.compilerNode || proof.origins.some((origin) => origin.value.compilerNode === value?.compilerNode);
+  return selectedValue === true && selected ? proof : ordinary;
+}
+
 function callableContainingUseRefusal(
   sources: import("./reference-fact-contract.ts").ResolvedReferenceFact<readonly ReturnedValueSource[]>,
   admits?: CallableAdmission,
@@ -2431,6 +2565,7 @@ function callableContainingUseRefusal(
     readonly completeInvocations?: true;
     readonly selectedKey?: string;
     readonly selectedValue?: true;
+    readonly selectedBinding?: Node;
   } = {},
 ): UnresolvedReferenceFact | undefined {
   const { continuation, suppliedUses } = inputs;
@@ -2451,10 +2586,11 @@ function callableContainingUseRefusal(
     for (const declaration of sources.trace.declarations) {
       const name = callableUseName(declaration, program !== undefined);
       if (N.isIdentifier(name)) {
-        const contexts = suppliedUses?.get(declaration) ?? [proof];
+        const selected = selectedCallableDeclarationProof(declaration, proof, inputs.selectedBinding);
+        const contexts = suppliedUses?.get(declaration) ?? [selected];
         if (
           !contexts.every((context) =>
-            callableClosedUses(name, { ...proof, path: context.path, bindings: context.bindings, selectedKey: context.selectedKey ?? proof.selectedKey }),
+            callableClosedUses(name, { ...selected, path: context.path, bindings: context.bindings, selectedKey: context.selectedKey ?? selected.selectedKey }),
           )
         ) {
           return state.refusal;
@@ -2609,6 +2745,15 @@ function returnedCallableContinuationUses(
   return refusal;
 }
 
+function authoredCallableSelection(node: Node): NonNullable<Parameters<typeof callableContainingUseRefusal>[3]> {
+  if (N.isIdentifier(node)) {
+    const binding = lexicalReferenceSymbol(node)?.getValueDeclaration();
+    return binding === undefined ? {} : { selectedValue: true, selectedBinding: binding };
+  }
+  const member = staticMemberAccess(node);
+  return member === undefined ? {} : { selectedKey: member.name };
+}
+
 /** Finite authored callees retain every literal alternative and refuse escaping containing objects. */
 export function readAuthoredCallableSources(
   node: Node,
@@ -2639,8 +2784,7 @@ export function readAuthoredCallableSources(
       return complete;
     }
   }
-  const selectedKey = staticMemberAccess(node)?.name;
-  const refusal = callableContainingUseRefusal(sources, admits, program, { suppliedUses, ...(selectedKey === undefined ? {} : { selectedKey }) });
+  const refusal = callableContainingUseRefusal(sources, admits, program, { suppliedUses, ...authoredCallableSelection(node) });
   if (refusal !== undefined) {
     return refusal;
   }
