@@ -1,15 +1,5 @@
-// Near-cap advisory (#644) — a READ-ONLY file-size band scan for `pnpm check:show`, mirroring the caps
-// the three line-cap gates already enforce (component-size / component-size-ui / tooling-size) WITHOUT
-// gating: a file a few lines under its cap is a FACT a lane needs BEFORE it edits (a one-member tuple
-// addition + biome's re-wrap turns "a few lines under" into a surprise RED naming a file the edit never
-// meant to restructure — measured twice in one day: shell-store.ts 443→453, rule-preset-picker.tsx
-// 516/450). It is never a violation and this module owns NO red arm — the three cap gates keep doing
-// that; this is advisory-only, computed fresh off disk every call (cheap: fs.readdir + line counts, no
-// ts-morph project load, so `check:show` stays a read-don't-rerun view).
-//
-// Band measured before shipping (2026-08-24, #644): 11/1066 component-size files, 3/338
-// component-size-ui, 2/307 tooling-size — ~1% everywhere, nowhere near a wall. A 15-line/3%-of-cap band
-// is the right size; do not widen it without re-measuring.
+// Read-only near-cap advice mirrors native ESLint file-size limits without rerunning lint.
+// Historical labels identify the source populations; this module never owns a blocking verdict.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 

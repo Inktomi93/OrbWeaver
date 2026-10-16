@@ -32,10 +32,8 @@ import { gate as testDeterminism } from "../../../../../tooling/src/verify/gates
 import { gate as testWorldBrowserContracts } from "../../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
 import { gate as toolingCliEntry } from "../../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
 import { gate as toolingOpsDirectInvocation } from "../../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
-import { gate as toolingSize } from "../../../../../tooling/src/verify/gates/tooling-size.ts";
 
 const GATES = "tooling/src/verify/gates";
-const OVER_CAP = Array.from({ length: 460 }, (_, index) => `export const line${String(index)} = ${String(index)};`).join("\n");
 /** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
  *  source (the testDeterminism fixture below) does. */
 const CLOCK_CALL = ["Date", ".now()"].join("");
@@ -250,10 +248,5 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingOpsDirectInvocation,
     overlays: [add("tooling/src/snap/ops/liveness-ops.ts", "export const livenessOps = 1;\n")],
     messageIncludes: "LIBRARY module with no module-scope `refuseDirectInvocation",
-  },
-  {
-    policy: toolingSize,
-    overlays: [add("tooling/src/snap/ops/liveness-big.ts", OVER_CAP)],
-    messageIncludes: "cap 450",
   },
 ];

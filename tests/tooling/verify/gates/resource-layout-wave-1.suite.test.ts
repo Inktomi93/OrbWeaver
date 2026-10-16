@@ -3,8 +3,6 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as componentSize } from "../../../../tooling/src/verify/gates/component-size.ts";
-import { gate as componentSizeUi } from "../../../../tooling/src/verify/gates/component-size-ui.ts";
 import { gate as featureOwnsDefinition } from "../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as packageLayout } from "../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as serverLayout } from "../../../../tooling/src/verify/gates/server-layout.ts";
@@ -13,7 +11,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [componentSize, componentSizeUi, featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;
+const policies = [featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;
 
 test("first resource layout policies keep their two-sided proofs", { timeout: scaledBudget(20_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);

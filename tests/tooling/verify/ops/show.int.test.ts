@@ -296,7 +296,7 @@ test("a stage flag and a gate flag name DIFFERENT artifacts, so asking for both 
   const root = await plantedTree(publishedSlot(OLD_RUN));
   publish(root, OLD_RUN);
 
-  const mixed = await runCli("verify", ["show", "--stage", "lint:biome", "--gate", "tooling-size"], { cwd: root });
+  const mixed = await runCli("verify", ["show", "--stage", "lint:biome", "--gate", "commented-code"], { cwd: root });
   await expect(mixed).toExitWith(EXIT.misuse);
 });
 

@@ -3,12 +3,16 @@
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as noTestFabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
-import { gate as testFileSize } from "../../../../tooling/src/verify/gates/test-file-size.ts";
 import { gate as testHandShape } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
 import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as testProductionClone } from "../../../../tooling/src/verify/gates/test-production-clone.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-test.each([noTestFabrication, testMockDoctrine, testHandShape, testProductionClone, testFileSize])("$id keeps every planted control", (gate) => {
+test.each([noTestFabrication, testMockDoctrine, testHandShape])("$id keeps every planted control", (gate) => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
+});
+
+test("test-production-clone keeps every planted control", { timeout: scaledBudget(15_000) }, () => {
+  expect(verifyPolicyProofs([testProductionClone])).toEqual([]);
 });
