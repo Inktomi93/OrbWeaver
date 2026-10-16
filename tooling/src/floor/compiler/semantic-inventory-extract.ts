@@ -1187,6 +1187,16 @@ function assertInvocationSource(source: SourceFile, program: ts.Program, phase: 
     );
   }
 }
+function typeObservationDemand(
+  query: InventoryInvocationQuery,
+  byFile: ReadonlyMap<string, SourceFile>,
+): import("../code-facts/type-observations-contract.ts").TypeObservationDemand | undefined {
+  if (query.mode !== "types" || query.typeObservations === undefined) {
+    return undefined;
+  }
+  const node = (span: InventorySpan): MorphNode => inventoryQueryNode(byFile.get(span.file), span);
+  return { ...query.typeObservations, sources: query.typeObservations.sources.map(node), nodes: query.typeObservations.nodes.map(node) };
+}
 function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
   const { context, byFile, program } = state;
   const source = byFile.get(query.node.file);
@@ -1204,7 +1214,8 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
             reads: query.observations.reads.map((read) => ({ ...read, node: inventoryQueryNode(byFile.get(read.node.file), read.node) })),
           },
         };
-  const evidence = captureInvocationEvidence(node, query, ordinary);
+  const typeDemand = typeObservationDemand(query, byFile);
+  const evidence = captureInvocationEvidence(node, query, ordinary, typeDemand);
   assertInvocationSource(node.getSourceFile(), program, "after-query");
   const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);
   for (const keyNode of evidence.observations?.keys ?? []) {
@@ -1215,7 +1226,7 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
       collectComputedNameFact(keyNode, context);
     }
   }
-  const closed: InvocationCollection["related"] = query.mode === "observations" ? new Map() : closeInvocationSources(evidence.sources, state);
+  const closed: InvocationCollection["related"] = invocationRelatedSources(query, evidence.sources, state);
   for (const related of evidence.sources) {
     if (!byFile.has(context.spans.path(related.getFilePath()))) {
       throw new Error("native ordinary source is outside the captured closure");
@@ -1245,6 +1256,13 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
     });
   }
   context.values.invocationEvidence.push({ ...wire, sources: [...closed.values()] });
+}
+function invocationRelatedSources(
+  query: InventoryInvocationQuery,
+  sources: readonly SourceFile[],
+  state: InvocationCollection,
+): InvocationCollection["related"] {
+  return query.mode === "observations" || query.mode === "types" ? new Map() : closeInvocationSources(sources, state);
 }
 function closeInvocationSources(sources: readonly SourceFile[], state: InvocationCollection): InvocationCollection["related"] {
   const closed: InvocationCollection["related"] = new Map();
@@ -1311,7 +1329,9 @@ function invocationDemandFor(
   const invocationQueries = request.invocationQueries ?? [];
   if (
     (families.includes("invocation-evidence") &&
-      (request.invocationQueries === undefined || !families.includes("computed-names") || !families.includes("global-origins"))) ||
+      (request.invocationQueries === undefined ||
+        ((invocationQueries.length === 0 || invocationQueries.some((query) => query.mode !== "types")) &&
+          !(families.includes("computed-names") && families.includes("global-origins"))))) ||
     invocationQueries.some((query) => !roots.includes(query.node.file)) ||
     (invocationQueries.length > 0 && !families.includes("invocation-evidence"))
   ) {
@@ -1359,6 +1379,17 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/type-member-origin-graph.ts",
         "../code-facts/type-member-origin-containment.ts",
         "../code-facts/type-member-origin-recurrence.ts",
+        "../code-facts/type-observations.ts",
+        "../code-facts/type-observations-contract.ts",
+        "../code-facts/type-observations-codec.ts",
+        "../code-facts/type-observations-inventory.ts",
+        "../code-facts/type-observations-coverage.ts",
+        "../code-facts/type-observations-read.ts",
+        "../code-facts/type-observation-profile.ts",
+        "../code-facts/symbol-identity.ts",
+        "../code-facts/type-dependence.ts",
+        "../code-facts/type-slot-syntax.ts",
+        "../code-facts/type-slot-path.ts",
         "../code-facts/type-projection.ts",
         "../code-facts/type-projection-contract.ts",
         "../code-facts/type-projection-codec.ts",

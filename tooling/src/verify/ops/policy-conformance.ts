@@ -600,6 +600,17 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       },
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
         checkerFor(nodes);
+        if (plan.mode === "types") {
+          const first = nodes[0];
+          const demand = plan.typeObservations;
+          if (first === undefined || demand === undefined) {
+            throw new Error("isolated type cohort has no real source anchor");
+          }
+          const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node =>
+            inventoryQueryNode(project.getSourceFile(span.file), span);
+          const facts = captureInvocationEvidence(first, plan, undefined, { ...demand, sources: demand.sources.map(of), nodes: demand.nodes.map(of) });
+          return new Map(nodes.map((node) => [node, facts]));
+        }
         if (plan.mode !== "observations") {
           return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));
         }

@@ -32,13 +32,16 @@ import type { SchemaFact } from "./schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
+import type { NativeTypeObservations } from "./type-observations-contract.ts";
+import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
+import { typeObservationDemandSchema, typeObservationsSchema } from "./type-observations-inventory.ts";
 import type { NativeTypeProjection } from "./type-projection-contract.ts";
 import { assertTypeProjectionCoverage, canonicalTypeProjectionPlan, typeProjectionPlanSchema } from "./type-projection-contract.ts";
 import { columnRowObservationSchema, storedValueObservationSchema } from "./value-observation-codec.ts";
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 18;
+export const INVENTORY_FORMAT = 19;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -136,11 +139,12 @@ export const INVOCATION_VALUE_FACETS = [
 ] as const;
 export const invocationPlanSchema = z
   .object({
-    mode: z.enum(["invocation", "value", "observations"]),
+    mode: z.enum(["invocation", "value", "observations", "types"]),
     facets: z.array(z.enum(INVOCATION_VALUE_FACETS)),
     arguments: z.array(z.object({ index: z.union([z.literal(0), z.literal(1)]), facets: z.array(z.enum(INVOCATION_VALUE_FACETS)) })),
     typeProjection: typeProjectionPlanSchema.optional(),
     observations: ordinaryObservationDemandSchema(spanSchema).optional(),
+    typeObservations: typeObservationDemandSchema(spanSchema).optional(),
   })
   .refine(
     (plan) => [...plan.facets, ...plan.arguments.flatMap((argument) => argument.facets)].includes("type-projection") === (plan.typeProjection !== undefined),
@@ -151,6 +155,12 @@ export const invocationPlanSchema = z
       (plan.mode === "observations") === (plan.observations !== undefined) &&
       (plan.mode !== "observations" || (plan.facets.length === 0 && plan.arguments.length === 0 && plan.typeProjection === undefined)),
     "native ordinary observation mode must name exactly its closed cohort",
+  )
+  .refine(
+    (plan) =>
+      (plan.mode === "types") === (plan.typeObservations !== undefined) &&
+      (plan.mode !== "types" || (plan.facets.length === 0 && plan.arguments.length === 0 && plan.typeProjection === undefined)),
+    "native type observation mode must name exactly its closed profile",
   );
 export type InventoryInvocationPlan = z.infer<typeof invocationPlanSchema>;
 export const invocationQuerySchema = invocationPlanSchema.safeExtend({ node: spanSchema });
@@ -248,7 +258,9 @@ export const ordinaryObservationWireSchema = ordinaryObservationsSchema(
   originValueSchema,
   callableDeclarationValueSchema,
 );
+export const typeObservationWireSchema = typeObservationsSchema(spanSchema);
 export const invocationEvidenceSchema = z.object({
+  typeObservations: typeObservationWireSchema.optional(),
   observations: ordinaryObservationWireSchema.optional(),
   observationBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
   query: invocationQuerySchema,
@@ -285,6 +297,7 @@ export const invocationEvidenceSchema = z.object({
 });
 export type InventoryInvocationEvidence = z.infer<typeof invocationEvidenceSchema>;
 export interface NativeInvocationEvidence {
+  readonly typeObservations?: NativeTypeObservations;
   readonly observations?: NativeOrdinaryObservations;
   readonly invocation: CallableInvocationFact | undefined;
   readonly modules: ReadonlyMap<Node, ReferenceFact<ModuleMemberOrigin>>;
@@ -369,6 +382,27 @@ function assertInvocationProjection(
   requireFacets: (node: InventorySpan, facets: InventoryInvocationPlan["facets"]) => void,
 ): void {
   const plan = entry.query;
+  if (plan.mode === "types") {
+    const facts = entry.typeObservations;
+    if (
+      facts === undefined ||
+      entry.invocation !== null ||
+      entry.callee !== null ||
+      entry.profiles.length > 0 ||
+      entry.sources.length > 0 ||
+      entry.observations !== undefined ||
+      entry.observationBasis !== undefined ||
+      JSON.stringify(facts.demand) !== JSON.stringify(plan.typeObservations) ||
+      inventoryNodeQueryKey(facts.anchor) !== inventoryNodeQueryKey(plan.node)
+    ) {
+      throw new SemanticInventoryError("native type observation profile is missing or foreign");
+    }
+    assertTypeObservationCoverage(facts, inventoryNodeQueryKey, (node) => node.kind);
+    return;
+  }
+  if (entry.typeObservations !== undefined) {
+    throw new SemanticInventoryError("unrequested native type observations");
+  }
   if (plan.mode === "observations") {
     const graph = ordinaryInvocationGraph(entry);
     assertOrdinaryReturnedQueries(graph);

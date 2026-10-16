@@ -12,12 +12,24 @@
 // proves exact bidirectional output parity once an authored twin exists; `zod-export-membership` proves that
 // every exported concrete schema has an explicit output owner in the first place. Cast, satisfies, annotation,
 // contextual-manifest and alias spellings remain one parity predicate rather than separate policy families.
-import type { Expression, Node as MorphNode, Type } from "ts-morph";
+import type { Expression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { observedValueDeclarations } from "../../floor/code-facts/symbol-identity.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeArgumentSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { memberTypeAtPath, observedTypeParameterWithin } from "../../floor/code-facts/type-slot-path.ts";
+import { aggregateCallPath, contextualExpressions } from "../../floor/code-facts/type-slot-syntax.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
-import { symbolDeclarations } from "../lib/symbol-declarations.ts";
-import { readAnnotatedZodOutputTwin, readContextualZodOutputTwin, readExpressionZodOutputTwin, zodTypeReferenceIdentity } from "../lib/zod-output-twin.ts";
+import { typeObservationPlan, typeObservationReaders } from "../lib/type-observation-context.ts";
+import {
+  readAnnotatedZodOutputTwinWith as readAnnotatedZodOutputTwin,
+  readContextualZodOutputTwinWith as readContextualZodOutputTwin,
+  readExpressionZodOutputTwinWith as readExpressionZodOutputTwin,
+  zodTypeReferenceIdentityWith as zodTypeReferenceIdentity,
+} from "../lib/zod-output-twin.ts";
 
 const MESSAGE =
   "a hand-authored ZodType twin disagrees with the schema's exact output. Keep intentional type-first ownership, but make the authored type and schema output mutually assignable; input parity is not required. (tooling/src/verify/gates/GATE-AUTHORING.md)";
@@ -56,7 +68,7 @@ function detail(read: Extract<ZodOutputTwinRead, { readonly kind: "pair" }>): st
     ...(read.outputToTarget ? [] : ["schema output is not assignable to the authored type"]),
     ...(read.targetToOutput ? [] : ["authored type is not assignable to schema output"]),
   ];
-  return `${MESSAGE} ${failed.join("; ")}. Authored=${read.target.getText(read.carrier)}; output=${read.output.getText(read.carrier)}.`;
+  return `${MESSAGE} ${failed.join("; ")}. Authored=${read.targetText}; output=${read.outputText}.`;
 }
 
 function unresolvedIdentity(node: MorphNode, relativePath: (sourceFile: import("ts-morph").SourceFile) => string): string {
@@ -73,227 +85,201 @@ function unresolvedIdentity(node: MorphNode, relativePath: (sourceFile: import("
   return `${relativePath(sourceFile)}:${String(line)}:${String(column)}:${authored}`;
 }
 
-function contextualPropertyInitializer(node: import("ts-morph").PropertyAssignment): readonly Expression[] {
-  const initializer = node.getInitializer();
-  return initializer === undefined ? [] : [initializer];
+interface ParitySemantics {
+  readonly contextualCallReads: (node: MorphNode) => readonly Exclude<ZodOutputTwinRead, { kind: "none" }>[];
+  readonly contextualMemberDerivesOwnerTypeParameter: (node: MorphNode, expression: Expression) => boolean;
 }
+function paritySemantics(readers: TypeObservationReader): ParitySemantics {
+  function info(selector: NativeTypeSelector): ReturnType<TypeObservationReader["type"]> | undefined {
+    const reference = readers.select(selector);
+    return reference === null ? undefined : readers.type(reference);
+  }
+  function isOwnerTypeParameter(type: NativeTypeSelector, declaration: MorphNode): boolean {
+    return observedTypeParameterWithin(type, declaration, readers) !== undefined;
+  }
 
-function contextualExpressions(node: MorphNode): readonly Expression[] {
-  if (Node.isPropertyAssignment(node)) {
-    return contextualPropertyInitializer(node);
-  }
-  if (Node.isReturnStatement(node)) {
-    const expression = node.getExpression();
-    return expression === undefined ? [] : [expression];
-  }
-  if (Node.isArrowFunction(node)) {
-    const body = node.getBody();
-    return Node.isExpression(body) ? [body] : [];
-  }
-  if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements().filter((element): element is Expression => Node.isExpression(element) && !Node.isSpreadElement(element));
-  }
-  if (Node.isBinaryExpression(node) && node.getOperatorToken().isKind(SyntaxKind.EqualsToken)) {
-    return [node.getRight()];
-  }
-  return [];
-}
-
-function isOwnerTypeParameter(type: Type, declaration: MorphNode): boolean {
-  return symbolDeclarations(type.getSymbol()).some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(declaration));
-}
-
-/** Whether the call argument at `index` types against the callee's OWN type parameter — either directly
- * (`schema: Schema`, the parameter type IS the type parameter) or wrapped (`schema: ZodType<T>`, T is the
- * type parameter). Either shape means Schema/T derives from THIS argument, so it creates no independent
- * authored output owner. Missing the bare-parameter shape (checking only the wrapped one) read most of
- * zod's own `array(element: T)` / `record(keyType, valueType: T)` call sites as authored contextual
- * pairs: the argument IS the callee's own bare type parameter, so the pair was comparing a schema
- * against itself. */
-function argumentDerivesOwnerTypeParameter(call: import("ts-morph").CallExpression, declaration: MorphNode, index: number): boolean {
-  if (call.getTypeArguments().length > 0 || !Node.isFunctionLikeDeclaration(declaration)) {
-    return false;
-  }
-  const parameterType = declaration.getParameters()[index]?.getType();
-  if (parameterType === undefined) {
-    return false;
-  }
-  if (isOwnerTypeParameter(parameterType, declaration)) {
-    return true;
-  }
-  const output = parameterType.getTypeArguments()[0];
-  return output !== undefined && isOwnerTypeParameter(output, declaration);
-}
-
-function typeDependsOnOwnerParameter(type: Type, owner: MorphNode, location: MorphNode): boolean {
-  const seen = new Set<unknown>();
-  const visit = (candidateType: Type): boolean => {
-    if (seen.has(candidateType.compilerType)) {
+  /** Whether the call argument at `index` types against the callee's OWN type parameter — either directly
+   * (`schema: Schema`, the parameter type IS the type parameter) or wrapped (`schema: ZodType<T>`, T is the
+   * type parameter). Either shape means Schema/T derives from THIS argument, so it creates no independent
+   * authored output owner. Missing the bare-parameter shape (checking only the wrapped one) read most of
+   * zod's own `array(element: T)` / `record(keyType, valueType: T)` call sites as authored contextual
+   * pairs: the argument IS the callee's own bare type parameter, so the pair was comparing a schema
+   * against itself. */
+  function argumentDerivesOwnerTypeParameter(call: import("ts-morph").CallExpression, declaration: MorphNode, index: number): boolean {
+    if (call.getTypeArguments().length > 0 || !Node.isFunctionLikeDeclaration(declaration)) {
       return false;
     }
-    seen.add(candidateType.compilerType);
-    if (
-      symbolDeclarations(candidateType.getSymbol()).some((candidate) => Node.isTypeParameterDeclaration(candidate) && candidate.getAncestors().includes(owner))
-    ) {
+    const parameter = declaration.getParameters()[index];
+    const parameterType: NativeTypeSelector | undefined =
+      parameter === undefined ? undefined : { base: { kind: "resolved-parameter", node: call, index }, steps: [], displayAt: null };
+    if (parameterType === undefined) {
+      return false;
+    }
+    if (isOwnerTypeParameter(parameterType, declaration)) {
       return true;
     }
-    const children = [
-      ...candidateType.getTypeArguments(),
-      ...candidateType.getAliasTypeArguments(),
-      ...candidateType.getUnionTypes(),
-      ...candidateType.getIntersectionTypes(),
-      ...[candidateType.getStringIndexType(), candidateType.getNumberIndexType()].filter((child): child is Type => child !== undefined),
-    ];
-    return children.some(visit) || candidateType.getProperties().some((property) => visit(property.getTypeAtLocation(location)));
-  };
-  return visit(type);
-}
-
-type AggregatePathSegment = { readonly kind: "property"; readonly name: string } | { readonly kind: "index"; readonly index: number };
-
-interface AggregateCallPath {
-  readonly call: import("ts-morph").CallExpression;
-  readonly argument: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression;
-  readonly segments: readonly AggregatePathSegment[];
-}
-
-function enclosingAggregate(
-  current: AggregateCallPath["argument"],
-): { readonly argument: AggregateCallPath["argument"]; readonly segment: AggregatePathSegment } | undefined {
-  const parent = current.getParent();
-  if (Node.isPropertyAssignment(parent)) {
-    const argument = parent.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
-    return argument === undefined ? undefined : { argument, segment: { kind: "property", name: parent.getName() } };
+    const output = typeArgumentSelector(parameterType);
+    return info(output) !== undefined && isOwnerTypeParameter(output, declaration);
   }
-  if (!Node.isArrayLiteralExpression(parent)) {
-    return;
-  }
-  const index = parent.getElements().indexOf(current);
-  return index < 0 ? undefined : { argument: parent, segment: { kind: "index", index } };
-}
 
-function aggregateCallPath(node: MorphNode, expression: Expression): AggregateCallPath | undefined {
-  const segments: AggregatePathSegment[] = [];
-  let aggregate: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression | undefined;
-  if (Node.isPropertyAssignment(node)) {
-    aggregate = node.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
-    segments.unshift({ kind: "property", name: node.getName() });
-  } else if (Node.isArrayLiteralExpression(node)) {
-    aggregate = node;
-    const index = node.getElements().indexOf(expression);
-    if (index < 0) {
-      return;
+  function typeDependsOnOwnerParameter(type: NativeTypeSelector, owner: MorphNode, location: MorphNode): boolean {
+    return readers.depends(type, owner, location) !== null;
+  }
+
+  function contextualMemberDerivesOwnerTypeParameter(node: MorphNode, expression: Expression): boolean {
+    const path = aggregateCallPath(node, expression);
+    if (path === undefined || path.call.getTypeArguments().length > 0) {
+      return false;
     }
-    segments.unshift({ kind: "index", index });
-  }
-  if (aggregate === undefined) {
-    return;
-  }
-
-  let current: import("ts-morph").ObjectLiteralExpression | import("ts-morph").ArrayLiteralExpression = aggregate;
-  for (;;) {
-    const parent: MorphNode | undefined = current.getParent();
-    if (Node.isCallExpression(parent)) {
-      return { call: parent, argument: current, segments };
+    const signature = readers.signature(path.call);
+    const declaration = signature?.declaration;
+    if (declaration === undefined || !Node.isFunctionLikeDeclaration(declaration)) {
+      return false;
     }
-    const outer = enclosingAggregate(current);
-    if (outer !== undefined) {
-      segments.unshift(outer.segment);
-      current = outer.argument;
-      continue;
+    const argumentIndex = path.call.getArguments().indexOf(path.argument);
+    const parameter = argumentIndex < 0 ? undefined : declaration.getParameters()[argumentIndex];
+    if (parameter === undefined) {
+      return false;
     }
-    return;
+    const parameterType = signature?.parameters[argumentIndex];
+    const member = parameterType === undefined ? undefined : memberTypeAtPath(parameterType, path, { owner: declaration, location: parameter, readers });
+    return member !== undefined && typeDependsOnOwnerParameter(member, declaration, parameter);
   }
-}
 
-function nestedMemberType(member: Type, segment: AggregatePathSegment, location: MorphNode): Type | undefined {
-  if (segment.kind === "property") {
-    const index = Number(segment.name);
-    const numberIndex = Number.isInteger(index) && String(index) === segment.name ? member.getNumberIndexType() : undefined;
-    return member.getProperty(segment.name)?.getTypeAtLocation(location) ?? numberIndex ?? member.getStringIndexType();
+  interface ContextualCallCandidate {
+    readonly index: number;
+    readonly read: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>;
   }
-  const tupleElements = member.getTupleElements();
-  if (tupleElements.length > 0) {
-    return tupleElements[segment.index];
-  }
-  const symbolName = member.getSymbol()?.getName();
-  return (
-    member.getArrayElementType() ??
-    member.getNumberIndexType() ??
-    (symbolName === "Array" || symbolName === "ReadonlyArray" ? member.getTypeArguments()[0] : undefined)
-  );
-}
 
-function memberTypeAtPath(type: Type, path: AggregateCallPath, owner: MorphNode, location: MorphNode): Type | undefined {
-  let member: Type | undefined = type;
-  for (const segment of path.segments) {
-    if (member === undefined) {
-      return;
+  function contextualCallCandidate(argument: MorphNode, index: number): ContextualCallCandidate | null {
+    if (!Node.isExpression(argument)) {
+      return null;
     }
-    // A parameter that is itself the owner's inferred type parameter supplies every nested member.
-    // Its constraint may expose a broad index type, but that constraint is not an independent owner.
-    if (isOwnerTypeParameter(member, owner)) {
-      return member;
-    }
-    member = nestedMemberType(member, segment, location);
+    const read = readContextualZodOutputTwin(argument, argument, readers);
+    return read.kind === "none" ? null : { index, read };
   }
-  return member;
-}
 
-function contextualMemberDerivesOwnerTypeParameter(node: MorphNode, expression: Expression, ctx: { checker: () => import("ts-morph").TypeChecker }): boolean {
-  const path = aggregateCallPath(node, expression);
-  if (path === undefined || path.call.getTypeArguments().length > 0) {
-    return false;
-  }
-  const declaration = ctx.checker().getResolvedSignature(path.call)?.getDeclaration();
-  if (declaration === undefined || !Node.isFunctionLikeDeclaration(declaration)) {
-    return false;
-  }
-  const argumentIndex = path.call.getArguments().indexOf(path.argument);
-  const parameter = argumentIndex < 0 ? undefined : declaration.getParameters()[argumentIndex];
-  if (parameter === undefined) {
-    return false;
-  }
-  const member = memberTypeAtPath(parameter.getType(), path, declaration, parameter);
-  return member !== undefined && typeDependsOnOwnerParameter(member, declaration, parameter);
-}
-
-interface ContextualCallCandidate {
-  readonly index: number;
-  readonly read: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>;
-}
-
-function contextualCallCandidate(argument: MorphNode, index: number): ContextualCallCandidate | null {
-  if (!Node.isExpression(argument)) {
-    return null;
-  }
-  const read = readContextualZodOutputTwin(argument);
-  return read.kind === "none" ? null : { index, read };
-}
-
-function contextualCallReads(
-  node: MorphNode,
-  ctx: { checker: () => import("ts-morph").TypeChecker },
-): readonly Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] {
-  if (!Node.isCallExpression(node)) {
-    return [];
-  }
-  const reads: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] = [];
-  let declaration: MorphNode | undefined;
-  for (const [index, argument] of node.getArguments().entries()) {
-    const candidate = contextualCallCandidate(argument, index);
-    if (candidate === null) {
-      continue;
-    }
-    declaration ??= ctx.checker().getResolvedSignature(node)?.getDeclaration();
-    if (declaration === undefined) {
+  function contextualCallReads(node: MorphNode): readonly Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] {
+    if (!Node.isCallExpression(node)) {
       return [];
     }
-    if (!argumentDerivesOwnerTypeParameter(node, declaration, candidate.index)) {
-      reads.push(candidate.read);
+    const reads: Exclude<ZodOutputTwinRead, { readonly kind: "none" }>[] = [];
+    let declaration: MorphNode | undefined;
+    for (const [index, argument] of node.getArguments().entries()) {
+      const candidate = contextualCallCandidate(argument, index);
+      if (candidate === null) {
+        continue;
+      }
+      declaration ??= readers.signature(node)?.declaration;
+      if (declaration === undefined) {
+        return [];
+      }
+      if (!argumentDerivesOwnerTypeParameter(node, declaration, candidate.index)) {
+        reads.push(candidate.read);
+      }
+    }
+    return reads;
+  }
+
+  return { contextualCallReads, contextualMemberDerivesOwnerTypeParameter };
+}
+
+const PARITY_KINDS = [
+  SyntaxKind.VariableDeclaration,
+  SyntaxKind.PropertyDeclaration,
+  SyntaxKind.SatisfiesExpression,
+  SyntaxKind.AsExpression,
+  SyntaxKind.TypeAssertionExpression,
+  SyntaxKind.PropertyAssignment,
+  SyntaxKind.ReturnStatement,
+  SyntaxKind.ArrowFunction,
+  SyntaxKind.ArrayLiteralExpression,
+  SyntaxKind.BinaryExpression,
+  SyntaxKind.CallExpression,
+];
+
+interface ParityQuestion {
+  readonly node: MorphNode;
+  readonly readers: TypeObservationReader;
+}
+function collectParityQuestions(
+  nominees: readonly MorphNode[],
+  contexts: ReadonlyMap<SourceFile, TypeObservationReader>,
+  sources: readonly SourceFile[],
+): readonly ParityQuestion[] {
+  const sourcePaths = new Set(sources.map((source) => source.getFilePath()));
+  const questions: ParityQuestion[] = [];
+  const seen = new Map<TypeObservationReader, Set<MorphNode>>();
+  const append = (node: MorphNode, readers: TypeObservationReader): void => {
+    let nodes = seen.get(readers);
+    if (nodes === undefined) {
+      nodes = new Set();
+      seen.set(readers, nodes);
+    }
+    if (!nodes.has(node)) {
+      nodes.add(node);
+      questions.push({ node, readers });
+    }
+  };
+  for (const node of nominees) {
+    const readers = contexts.get(node.getSourceFile());
+    if (readers === undefined) {
+      throw new Error("Zod parity source has no native importing owner");
+    }
+    append(node, readers);
+  }
+  for (const question of questions) {
+    appendParityOwners(question, append, sourcePaths);
+  }
+  return questions;
+}
+function appendParityOwners(
+  question: ParityQuestion,
+  append: (node: MorphNode, readers: TypeObservationReader) => void,
+  sourcePaths: ReadonlySet<string>,
+): void {
+  const references = [question.node, ...question.node.getDescendants()].filter((node) => Node.isIdentifier(node) || Node.isPropertyAccessExpression(node));
+  for (const reference of references) {
+    const declarations = observedValueDeclarations(reference, question.readers).filter((declaration) =>
+      sourcePaths.has(declaration.getSourceFile().getFilePath()),
+    );
+    for (const declaration of declarations) {
+      for (const node of [declaration, ...declaration.getDescendants()].filter((candidate) => PARITY_KINDS.includes(candidate.getKind()))) {
+        append(node, question.readers);
+      }
     }
   }
-  return reads;
+}
+const PARITY_READ_KINDS = ["declaration", "expression", "contextual"] as const;
+type ParityReadKind = (typeof PARITY_READ_KINDS)[number];
+interface ParitySink {
+  readonly read: (kind: ParityReadKind, node: MorphNode, read: ZodOutputTwinRead) => void;
+  readonly cast: (node: MorphNode) => void;
+}
+function readParityDeclarations({ node, readers }: ParityQuestion, sink: ParitySink): void {
+  if (Node.isVariableDeclaration(node) || Node.isPropertyDeclaration(node)) {
+    sink.read("declaration", node, readAnnotatedZodOutputTwin(node, readers));
+  }
+  if (Node.isSatisfiesExpression(node) || Node.isAsExpression(node) || Node.isTypeAssertion(node)) {
+    const target = node.getTypeNode();
+    if ((Node.isAsExpression(node) || Node.isTypeAssertion(node)) && target !== undefined && zodTypeReferenceIdentity(target, readers) !== "none") {
+      sink.cast(node);
+    }
+    sink.read("expression", node, readExpressionZodOutputTwin(node, readers));
+  }
+}
+function readParityContexts({ node, readers }: ParityQuestion, sink: ParitySink): void {
+  const { contextualCallReads, contextualMemberDerivesOwnerTypeParameter } = paritySemantics(readers);
+  for (const expression of contextualExpressions(node)) {
+    const read = readContextualZodOutputTwin(expression, expression, readers);
+    if (read.kind === "none" || contextualMemberDerivesOwnerTypeParameter(node, expression)) {
+      continue;
+    }
+    sink.read("contextual", read.carrier, read);
+  }
+  for (const read of contextualCallReads(node)) {
+    sink.read("contextual", read.carrier, read);
+  }
 }
 
 export const gate = defineGate({
@@ -308,104 +294,96 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   create: (ctx) => {
-    let members = 0;
-    let declarationSites = 0;
-    let castSites = 0;
-    let expressionSites = 0;
-    let contextualSites = 0;
-    const unresolvedSites = new Set<string>();
-    const consume = (read: ZodOutputTwinRead): void => {
-      if (read.kind === "none") {
-        return;
-      }
-      if (read.kind === "unresolved") {
-        unresolvedSites.add(unresolvedIdentity(read.carrier, ctx.relativePath));
-        return;
-      }
-      members += 1;
-      if (!(read.outputToTarget && read.targetToOutput)) {
-        ctx.report.node(read.carrier, { message: detail(read) });
-      }
-    };
+    const nominees: MorphNode[] = [];
+    const native = ctx.nativeTypes;
+    let plan: InventoryInvocationPlan | undefined;
+    if (native === undefined) {
+      throw new Error("native Zod output facts are unavailable");
+    }
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.PropertyDeclaration],
-          visit: (node) => {
-            if (Node.isVariableDeclaration(node) || Node.isPropertyDeclaration(node)) {
-              const read = readAnnotatedZodOutputTwin(node);
-              if (read.kind !== "none") {
-                declarationSites += 1;
-              }
-              consume(read);
-            }
-          },
-        },
-        {
-          kinds: [SyntaxKind.SatisfiesExpression, SyntaxKind.AsExpression, SyntaxKind.TypeAssertionExpression],
-          visit: (node) => {
-            if (!(Node.isSatisfiesExpression(node) || Node.isAsExpression(node) || Node.isTypeAssertion(node))) {
-              return;
-            }
-            const target = node.getTypeNode();
-            if (
-              (node.isKind(SyntaxKind.AsExpression) || node.isKind(SyntaxKind.TypeAssertionExpression)) &&
-              target !== undefined &&
-              zodTypeReferenceIdentity(target) !== "none"
-            ) {
-              castSites += 1;
-            }
-            const read = readExpressionZodOutputTwin(node);
-            if (read.kind !== "none") {
-              expressionSites += 1;
-            }
-            consume(read);
-          },
-        },
-        {
-          kinds: [
-            SyntaxKind.PropertyAssignment,
-            SyntaxKind.ReturnStatement,
-            SyntaxKind.ArrowFunction,
-            SyntaxKind.ArrayLiteralExpression,
-            SyntaxKind.BinaryExpression,
-          ],
-          visit: (node) => {
-            for (const expression of contextualExpressions(node)) {
-              const read = readContextualZodOutputTwin(expression);
-              if (read.kind === "none") {
-                continue;
-              }
-              // An exact contextual type inferred from the same schema expression is generic construction
-              // plumbing, not a second owner. Any mismatch remains visible, as does every explicit generic
-              // instantiation whose type argument supplies a concrete independent target.
-              if (contextualMemberDerivesOwnerTypeParameter(node, expression, ctx)) {
-                continue;
-              }
-              contextualSites += 1;
-              consume(read);
-            }
-          },
-        },
-        {
-          kinds: [SyntaxKind.CallExpression],
-          visit: (node) => {
-            for (const read of contextualCallReads(node, ctx)) {
-              contextualSites += 1;
-              consume(read);
-            }
+          kinds: PARITY_KINDS,
+          visit: (node): void => {
+            nominees.push(node);
           },
         },
       ],
-      evaluate: () =>
+      prepare: (): void => {
+        plan = typeObservationPlan(ctx.files, nominees);
+        native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
+      evaluate: (): void => {
+        if (plan === undefined) {
+          throw new Error("native Zod parity request was not prepared");
+        }
+        const contexts = typeObservationReaders(native.invocationEvidence(ctx.files, plan));
+        let members = 0;
+        let declarationSites = 0;
+        let castSites = 0;
+        let expressionSites = 0;
+        let contextualSites = 0;
+        const unresolvedSites = new Set<string>();
+        const questions = collectParityQuestions(nominees, contexts, ctx.files);
+        const siteKey = (node: MorphNode): string => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]);
+        const counters = new Set<string>();
+        const count = (kind: string, node: MorphNode): number => {
+          const key = `${kind}:${siteKey(node)}`;
+          if (counters.has(key)) {
+            return 0;
+          }
+          counters.add(key);
+          return 1;
+        };
+        const interpretations = new Map<string, Exclude<ZodOutputTwinRead, { kind: "none" }>[]>();
+        const consume = (read: ZodOutputTwinRead): void => {
+          if (read.kind === "none") {
+            return;
+          }
+          const key = siteKey(read.carrier);
+          const rows = interpretations.get(key) ?? [];
+          rows.push(read);
+          interpretations.set(key, rows);
+        };
+        const siteCounts = { declaration: 0, expression: 0, contextual: 0 };
+        const sink: ParitySink = {
+          read: (kind, node, read): void => {
+            if (read.kind !== "none") {
+              siteCounts[kind] += count(kind, node);
+            }
+            consume(read);
+          },
+          cast: (node): void => {
+            castSites += count("cast", node);
+          },
+        };
+        for (const question of questions) {
+          readParityDeclarations(question, sink);
+          readParityContexts(question, sink);
+        }
+        declarationSites = siteCounts.declaration;
+        expressionSites = siteCounts.expression;
+        contextualSites = siteCounts.contextual;
+        for (const rows of interpretations.values()) {
+          const unresolved = rows.find((read) => read.kind === "unresolved");
+          if (unresolved !== undefined) {
+            unresolvedSites.add(unresolvedIdentity(unresolved.carrier, ctx.relativePath));
+            continue;
+          }
+          const pairs = rows.filter((read): read is Extract<ZodOutputTwinRead, { kind: "pair" }> => read.kind === "pair");
+          members += 1;
+          const failed = pairs.find((read) => !(read.outputToTarget && read.targetToOutput));
+          if (failed !== undefined) {
+            ctx.report.node(failed.carrier, { message: detail(failed) });
+          }
+        }
         ctx.receipt({
           kind: "population",
-          source: `${RECEIPT} [declarations=${String(declarationSites)}, expression-pairs=${String(expressionSites)}, contextual-pairs=${String(contextualSites)}, raw-casts=${String(castSites)}]${
-            unresolvedSites.size === 0 ? "" : ` ${UNRESOLVED_RECEIPT}${JSON.stringify([...unresolvedSites].sort())}`
-          }`,
+          source: `${RECEIPT} [declarations=${String(declarationSites)}, expression-pairs=${String(expressionSites)}, contextual-pairs=${String(contextualSites)}, raw-casts=${String(castSites)}]${unresolvedSites.size === 0 ? "" : ` ${UNRESOLVED_RECEIPT}${JSON.stringify([...unresolvedSites].sort())}`}`,
           members,
           unresolved: unresolvedSites.size,
-        }),
+        });
+      },
     };
   },
   mustFlag: [

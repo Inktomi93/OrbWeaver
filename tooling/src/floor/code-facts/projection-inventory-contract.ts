@@ -3,8 +3,15 @@ import { z } from "zod";
 import { typeRelationSchema } from "./assignability-contract.ts";
 import type { InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
-import type { NativeTypeProjection, NativeTypeSelections, TypeProjectionPlan } from "./type-projection-contract.ts";
-import { assertTypeSelectionCoverage, nativeSelectedTypeSchema, nativeTypeVocabularySchema, typeProjectionPlanSchema } from "./type-projection-contract.ts";
+import type { NativeScalarTypeSelections, NativeTypeProjection, NativeTypeSelections, TypeProjectionPlan } from "./type-projection-contract.ts";
+import {
+  assertScalarTypeSelectionCoverage,
+  assertTypeSelectionCoverage,
+  nativeScalarSelectedTypeSchema,
+  nativeSelectedTypeSchema,
+  nativeTypeVocabularySchema,
+  typeProjectionPlanSchema,
+} from "./type-projection-contract.ts";
 /** Numeric text retains negative zero and nonfinite canonical answers across JSON/SQLite encoding. */
 export function authoredNumberText(value: number): string {
   return Object.is(value, -0) ? "-0" : String(value);
@@ -156,34 +163,52 @@ export function typeProjectionSchema(
 export type InventoryTypeSelections = NativeTypeSelections<InventorySpan>;
 
 /** Selector identity retains its native source, exact location and ordered transformations. */
-export function typeSelectionsSchema(span: z.ZodType<InventorySpan>): z.ZodType<InventoryTypeSelections> {
+function typeSelectionsShape(span: z.ZodType<InventorySpan>): {
+  readonly plan: z.ZodType<NativeScalarTypeSelections<InventorySpan>["plan"]>;
+  readonly relations: z.ZodType<NativeScalarTypeSelections<InventorySpan>["relations"]>;
+} {
   const base = z.union([
-    z.strictObject({ kind: z.enum(["node", "contextual"]), node: span }),
+    z.strictObject({ kind: z.enum(["node", "contextual", "return"]), node: span }),
     z.strictObject({ kind: z.literal("schema-column"), column: z.string() }),
+    z.strictObject({ kind: z.literal("resolved-parameter"), node: span, index: indexSchema }),
   ]);
   const step = z.union([
-    z.strictObject({ kind: z.enum(["nonnullable", "array-element-or-self"]) }),
+    z.strictObject({ kind: z.enum(["nonnullable", "array-element-or-self", "array-element", "string-index", "number-index"]) }),
     z.strictObject({ kind: z.literal("property"), name: z.string(), at: span }),
+    z.strictObject({ kind: z.enum(["type-argument", "call-return", "tuple-member", "union-part", "intersection-part"]), index: indexSchema }),
   ]);
   const relation = z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("absent") }),
     z.strictObject({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
     z.strictObject({ kind: z.literal("answer"), value: typeRelationSchema }),
   ]);
-  return z
-    .strictObject({
-      plan: z.strictObject({
-        selectors: z.array(z.strictObject({ base, steps: z.array(step), displayAt: span.nullable() })).min(1),
-        relations: z.array(z.strictObject({ left: indexSchema, right: indexSchema })),
-      }),
-      values: z.array(nativeSelectedTypeSchema.nullable()),
-      relations: z.array(relation),
-    })
-    .superRefine((facts, ctx) => {
-      try {
-        assertTypeSelectionCoverage(facts);
-      } catch (error) {
-        ctx.addIssue({ code: "custom", message: error instanceof Error ? error.message : String(error) });
-      }
-    });
+  return {
+    plan: z.strictObject({
+      selectors: z.array(z.strictObject({ base, steps: z.array(step), displayAt: span.nullable() })).min(1),
+      relations: z.array(z.strictObject({ left: indexSchema, right: indexSchema })),
+    }),
+    relations: z.array(relation),
+  };
+}
+
+/** Complete legacy projections retain their original value schema. */
+export function typeSelectionsSchema(span: z.ZodType<InventorySpan>): z.ZodType<InventoryTypeSelections> {
+  return z.strictObject({ ...typeSelectionsShape(span), values: z.array(nativeSelectedTypeSchema.nullable()) }).superRefine((facts, ctx) => {
+    try {
+      assertTypeSelectionCoverage(facts);
+    } catch (error) {
+      ctx.addIssue({ code: "custom", message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+}
+
+/** A scalar request has no vocabulary field, rather than an invented empty vocabulary. */
+export function scalarTypeSelectionsSchema(span: z.ZodType<InventorySpan>): z.ZodType<NativeScalarTypeSelections<InventorySpan>> {
+  return z.strictObject({ ...typeSelectionsShape(span), values: z.array(nativeScalarSelectedTypeSchema.nullable()) }).superRefine((facts, ctx) => {
+    try {
+      assertScalarTypeSelectionCoverage(facts);
+    } catch (error) {
+      ctx.addIssue({ code: "custom", message: error instanceof Error ? error.message : String(error) });
+    }
+  });
 }

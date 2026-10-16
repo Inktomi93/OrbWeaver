@@ -884,7 +884,9 @@ function assertInvocationDemand(
     (options.invocationQueries ?? []).some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)) ||
     (options.invocationQueries !== undefined && !families.includes("invocation-evidence")) ||
     (families.includes("invocation-evidence") &&
-      (options.invocationQueries === undefined || !families.includes("computed-names") || !families.includes("global-origins")))
+      (options.invocationQueries === undefined ||
+        ((options.invocationQueries.length === 0 || options.invocationQueries.some(({ query }) => query.mode !== "types")) &&
+          !(families.includes("computed-names") && families.includes("global-origins")))))
   ) {
     throw new Error("native invocation evidence requires closed demand and related fact capabilities in admitted native programs");
   }

@@ -3,9 +3,10 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { vi } from "vitest";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/zod-output-twin-parity";
 
@@ -26,16 +27,31 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
 }
 
 function driveProject(project: Project): ReturnType<typeof runPolicyPass> {
-  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 function drive(files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
   return driveProject(projectOf(files));
 }
 
-test("zod-output-twin-parity proves its complete output/cast/refusal matrix through production conformance", () => {
+test.each(["mustFlag", "mustPass", "mustRefuse"] as const)("zod-output-twin-parity proves its complete %s arm through production conformance", (arm) => {
   expect(gate.id).toBe("zod-output-twin-parity");
-  expect(verifyPolicyProofs([gate])).toEqual([]);
+  const { mustRefuse, ...base } = gate;
+  const selected = defineGate({
+    ...base,
+    mustFlag: arm === "mustFlag" ? gate.mustFlag : [gate.mustFlag[0]],
+    mustPass: arm === "mustPass" ? gate.mustPass : [gate.mustPass[0]],
+    ...(arm === "mustRefuse" ? { mustRefuse } : {}),
+  });
+  expect(verifyPolicyProofs([selected])).toEqual([]);
 });
 
 test("signature resolution runs only for contextual Zod candidates", () => {

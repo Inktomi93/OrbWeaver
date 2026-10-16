@@ -16,7 +16,9 @@ import {
 import { inputsCurrent, inventoryAuthoredFiles } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
 import { readInventoryInputs } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
-import { typeProjectionFacet } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
+import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
+import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
+import { nodeTypeSelector, typeArgumentSelector, typeProjectionFacet } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
 import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
@@ -285,6 +287,138 @@ function consume(row:typeof table.$inferSelect){const {value:blob}=row;helper(0,
     expect(inventory.invocationEvidence(stored, "tsconfig.node.json", valuePlan).storedValues.get(stored)).toMatchObject({ kind: "call" });
     inventory[Symbol.dispose]();
     expect(() => inventory.invocationEvidence(stored, "tsconfig.node.json", valuePlan)).toThrow("disposed");
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "raw type cohorts retain same-world relations, strict publication, helper freshness and current overlays",
+  ({ scratch }) => {
+    const fixture = setup(scratch);
+    fixture.source.replaceWithText(
+      'import type{Axis}from"platform";interface Box<T>{readonly _output:T;}declare function build():Box<"node">;export const chosen=build() satisfies Box<Axis>;',
+    );
+    writeFileSync(join(scratch, SOURCE), fixture.source.getFullText());
+    const declaration = fixture.source.getVariableDeclarationOrThrow("chosen");
+    const initial = declaration.getInitializerIfKindOrThrow(SyntaxKind.SatisfiesExpression);
+    const plan: InventoryInvocationPlan = {
+      mode: "types",
+      facets: [],
+      arguments: [],
+      typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [anchor(declaration)] },
+    };
+    const options = {
+      root: scratch,
+      programs: fixture.options.programs ?? [],
+      families: ["invocation-evidence"] as const,
+      invocationQueries: (fixture.options.programs ?? []).map(({ id }) => ({ program: id, query: { ...plan, node: anchor(fixture.source) } })),
+    };
+    using inventory = createSemanticInventory(options);
+    const actual = { ...nodeTypeSelector(initial.getExpression()), steps: [{ kind: "property" as const, name: "_output", at: initial.getExpression() }] };
+    const target = typeArgumentSelector(nodeTypeSelector(initial.getTypeNodeOrThrow()));
+    for (const world of ["node", "browser"]) {
+      const evidence = inventory.invocationEvidence(fixture.source, `tsconfig.${world}.json`, plan);
+      if (evidence.typeObservations === undefined) {
+        throw new Error("native raw type cohort missing");
+      }
+      const readers = readTypeObservations(evidence.typeObservations);
+      expect(readers.relation(actual, target)).toEqual({ leftToRight: world === "node", rightToLeft: world === "node", leftIsAny: false, rightIsAny: false });
+      expect(readers.display(target, initial)).toBe(`"${world}"`);
+      expect(evidence.typeObservations.selections?.values.some((value) => value !== null && "vocabulary" in value)).toBe(false);
+    }
+    expect(() =>
+      inventory.invocationEvidence(fixture.source, "tsconfig.node.json", {
+        ...plan,
+        typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [] },
+      }),
+    ).toThrow("query is unavailable");
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, inventory.generation);
+    using stored = inventoryReader(scratch, inventory.generation, partitions, { db, dispose: () => undefined });
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      expect(Number(db.prepare("UPDATE inventory_invocation_atom SET key='\"missing\"' WHERE key='\"types\"'").run().changes)).toBeGreaterThan(0);
+      expect(() => stored.invocationEvidence(fixture.source, "tsconfig.node.json", plan)).toThrow();
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    const helpers = [
+      "type-observations.ts",
+      "type-observation-profile.ts",
+      "type-observations-codec.ts",
+      "type-observations-inventory.ts",
+      "type-observations-coverage.ts",
+      "type-observations-read.ts",
+      "type-slot-path.ts",
+      "type-slot-syntax.ts",
+      "type-dependence.ts",
+      "symbol-identity.ts",
+    ];
+    const authored = inventoryAuthoredFiles(scratch);
+    for (const partition of partitions) {
+      const inputs = [...readInventoryInputs(db, partition.id)];
+      for (const name of helpers) {
+        const path = fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url));
+        expect(
+          inputs.some((input) => input.kind === "file" && input.path === path),
+          name,
+        ).toBe(true);
+        const changed = inventoryFileSystem(fixture.source.getProject().getFileSystem(), {
+          root: scratch,
+          files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
+          deleted: [],
+        });
+        expect(inputsCurrent(inputs, { authored, fileSystem: changed }), name).toBe(false);
+      }
+    }
+    const extra:InventoryInvocationPlan = {
+      ...plan,
+      typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [anchor(declaration), anchor(initial)] },
+    };
+    expect(() =>
+      createSemanticInventory({
+        ...options,
+        invocationQueries: [...options.invocationQueries, { program: "tsconfig.node.json", query: { ...extra, node: anchor(fixture.source) } }],
+        buildPartition: (request) => {
+          runInventoryPartitionWorker(request);
+          using staging = openInventoryDatabase(request.destination);
+          staging.prepare("UPDATE inventory_invocation_atom SET key='\"missing\"' WHERE key='\"types\"'").run();
+        },
+      }),
+    ).toThrow();
+    expect(latestInventoryGeneration(db)).toBe(inventory.generation);
+    expect(stored.invocationEvidence(fixture.source, "tsconfig.node.json", plan).typeObservations).toBeDefined();
+    fixture.source.replaceWithText(fixture.source.getFullText().replace('Box<"node">', 'Box<"edge">'));
+    const current = fixture.source.getVariableDeclarationOrThrow("chosen");
+    const overlayPlan: InventoryInvocationPlan = {
+      ...plan,
+      typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [anchor(current)] },
+    };
+    const overlay = inventoryFileSystem(fixture.source.getProject().getFileSystem(), {
+      root: scratch,
+      files: [{ path: join(scratch, SOURCE), text: fixture.source.getFullText() }],
+      deleted: [],
+    });
+    using changed = createSemanticInventory({
+      ...options,
+      fileSystem: overlay,
+      invocationQueries: options.programs.map(({ id }) => ({ program: id, query: { ...overlayPlan, node: anchor(fixture.source) } })),
+    });
+    const facts = changed.invocationEvidence(fixture.source, "tsconfig.node.json", overlayPlan).typeObservations;
+    if (facts === undefined) {
+      throw new Error("current overlay raw cohort missing");
+    }
+    const expression = current.getInitializerIfKindOrThrow(SyntaxKind.SatisfiesExpression);
+    const readers = readTypeObservations(facts);
+    expect(
+      readers.relation(
+        { ...nodeTypeSelector(expression.getExpression()), steps: [{ kind: "property", name: "_output", at: expression.getExpression() }] },
+        typeArgumentSelector(nodeTypeSelector(expression.getTypeNodeOrThrow())),
+      ),
+    ).toEqual({ leftToRight: false, rightToLeft: false, leftIsAny: false, rightIsAny: false });
+    expect(() => stored.invocationEvidence(fixture.source, "tsconfig.node.json", plan)).toThrow();
+    changed[Symbol.dispose]();
+    expect(() => readers.symbol(current)).toThrow("disposed");
   },
   scaledBudget(60_000),
 );

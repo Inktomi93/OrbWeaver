@@ -149,10 +149,12 @@ export function assertTypeProjectionCoverage<
 }
 
 export type NativeTypeSelectionBase<Anchor> =
-  | { readonly kind: "node" | "contextual"; readonly node: Anchor }
+  | { readonly kind: "node" | "contextual" | "return"; readonly node: Anchor }
+  | { readonly kind: "resolved-parameter"; readonly node: Anchor; readonly index: number }
   | { readonly kind: "schema-column"; readonly column: string };
 export type NativeTypeSelectionStep<Anchor> =
-  | { readonly kind: "nonnullable" | "array-element-or-self" }
+  | { readonly kind: "nonnullable" | "array-element-or-self" | "array-element" | "string-index" | "number-index" }
+  | { readonly kind: "type-argument" | "call-return" | "tuple-member" | "union-part" | "intersection-part"; readonly index: number }
   | { readonly kind: "property"; readonly name: string; readonly at: Anchor };
 export interface NativeTypeSelector<Anchor = Node> {
   readonly base: NativeTypeSelectionBase<Anchor>;
@@ -193,11 +195,18 @@ export const nativeSelectedTypeSchema = z.strictObject({
   arms: z.array(z.strictObject({ flags: nativePrimitiveFlagsSchema, arrayElement: nativePrimitiveFlagsSchema.nullable() })).min(1),
 });
 export type NativeSelectedType = z.infer<typeof nativeSelectedTypeSchema>;
+export const nativeScalarSelectedTypeSchema = nativeSelectedTypeSchema.pick({ any: true, unknown: true, identity: true, display: true });
+export type NativeScalarSelectedType = z.infer<typeof nativeScalarSelectedTypeSchema>;
 export type NativeSelectedTypeRelation =
   | { readonly kind: "absent" }
   | { readonly kind: "unavailable"; readonly reason: "primitive-absent" }
   | { readonly kind: "answer"; readonly value: import("./assignability-contract.ts").TypeRelation };
-export interface NativeTypeSelections<Anchor = Node> {
+export interface NativeScalarTypeSelections<Anchor = Node> {
+  readonly plan: NativeTypeSelectionPlan<Anchor>;
+  readonly values: readonly (NativeScalarSelectedType | null)[];
+  readonly relations: readonly NativeSelectedTypeRelation[];
+}
+export interface NativeTypeSelections<Anchor = Node> extends NativeScalarTypeSelections<Anchor> {
   readonly plan: NativeTypeSelectionPlan<Anchor>;
   readonly values: readonly (NativeSelectedType | null)[];
   readonly relations: readonly NativeSelectedTypeRelation[];
@@ -205,6 +214,12 @@ export interface NativeTypeSelections<Anchor = Node> {
 
 /** Missing selectors and relations cannot become negative native answers. */
 export function assertTypeSelectionCoverage<Anchor>(facts: NativeTypeSelections<Anchor>): void {
+  assertScalarTypeSelectionCoverage(facts);
+  assertSelectedTypeIdentities(facts.values);
+}
+
+/** Scalar-only requests deliberately omit vocabulary and intersection/union projection. */
+export function assertScalarTypeSelectionCoverage<Anchor>(facts: NativeScalarTypeSelections<Anchor>): void {
   const { plan, values, relations } = facts;
   if (plan.selectors.length === 0 || values.length !== plan.selectors.length || relations.length !== plan.relations.length) {
     throw new Error("native Type selection coverage is incomplete");
@@ -214,7 +229,14 @@ export function assertTypeSelectionCoverage<Anchor>(facts: NativeTypeSelections<
       throw new Error("native Type display coverage is incomplete or foreign");
     }
   }
-  assertSelectedTypeIdentities(values);
+  for (const [index, value] of values.entries()) {
+    if (value !== null) {
+      const representative = values[value.identity];
+      if (value.identity > index || representative === undefined || representative === null || representative.identity !== value.identity) {
+        throw new Error("native Type selection identity is foreign");
+      }
+    }
+  }
   assertSelectedTypeRelations(plan, values, relations);
 }
 
@@ -243,8 +265,8 @@ function assertSelectedTypeIdentities(values: NativeTypeSelections["values"]): v
 
 function assertSelectedTypeRelations<Anchor>(
   plan: NativeTypeSelectionPlan<Anchor>,
-  values: NativeTypeSelections["values"],
-  relations: NativeTypeSelections["relations"],
+  values: NativeScalarTypeSelections["values"],
+  relations: NativeScalarTypeSelections["relations"],
 ): void {
   const pairs = new Set<string>();
   for (const [index, pair] of plan.relations.entries()) {
@@ -268,7 +290,7 @@ function assertSelectedTypeRelations<Anchor>(
 }
 
 /** Semantic absence stays distinct from an unavailable native comparison. */
-export function selectedTypeRelation(facts: NativeTypeSelections, index: number): import("./assignability-contract.ts").TypeRelation | undefined {
+export function selectedTypeRelation(facts: NativeScalarTypeSelections, index: number): import("./assignability-contract.ts").TypeRelation | undefined {
   const relation = facts.relations[index];
   if (facts.plan.relations[index] === undefined || relation === undefined) {
     throw new Error("native Type relation was not captured");
@@ -284,7 +306,10 @@ export function typeSelectionIndex<Anchor>(facts: NativeTypeSelections<Anchor>, 
   const equalBase = (left: NativeTypeSelectionBase<Anchor>, right: NativeTypeSelectionBase<Anchor>): boolean =>
     left.kind === "schema-column"
       ? right.kind === "schema-column" && left.column === right.column
-      : right.kind !== "schema-column" && left.kind === right.kind && left.node === right.node;
+      : right.kind !== "schema-column" &&
+        left.kind === right.kind &&
+        left.node === right.node &&
+        (left.kind !== "resolved-parameter" || (right.kind === "resolved-parameter" && left.index === right.index));
   const index = facts.plan.selectors.findIndex(
     (candidate) =>
       equalBase(candidate.base, selector.base) &&
@@ -292,13 +317,48 @@ export function typeSelectionIndex<Anchor>(facts: NativeTypeSelections<Anchor>, 
       candidate.steps.length === selector.steps.length &&
       candidate.steps.every((step, at) => {
         const other = selector.steps[at];
-        return step.kind === "property" ? other?.kind === "property" && step.name === other.name && step.at === other.at : other?.kind === step.kind;
+        return step.kind === "property"
+          ? other?.kind === "property" && step.name === other.name && step.at === other.at
+          : other?.kind === step.kind && (!("index" in step) || ("index" in other && step.index === other.index));
       }),
   );
   if (index < 0) {
     throw new Error("native Type selector was not captured in this ordinary cohort");
   }
   return index;
+}
+
+/** One capture-owned metadata index preserves the first identical nomination, without retaining compiler answers. */
+export function typeSelectorIndex<Anchor>(plan: NativeTypeSelectionPlan<Anchor>): (selector: NativeTypeSelector<Anchor>) => number {
+  const anchors = new Map<Anchor, number>();
+  const anchorId = (anchor: Anchor): number => {
+    let id = anchors.get(anchor);
+    if (id === undefined) {
+      id = anchors.size;
+      anchors.set(anchor, id);
+    }
+    return id;
+  };
+  const key = (selector: NativeTypeSelector<Anchor>): string =>
+    JSON.stringify({
+      base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: anchorId(selector.base.node) },
+      steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: anchorId(step.at) } : step)),
+      displayAt: selector.displayAt === null ? null : anchorId(selector.displayAt),
+    });
+  const indices = new Map<string, number>();
+  for (const [index, selector] of plan.selectors.entries()) {
+    const value = key(selector);
+    if (!indices.has(value)) {
+      indices.set(value, index);
+    }
+  }
+  return (selector) => {
+    const index = indices.get(key(selector));
+    if (index === undefined) {
+      throw new Error("native Type selector was not captured in this ordinary cohort");
+    }
+    return index;
+  };
 }
 
 /** A subset remaps local identity representatives without equating mutually assignable native Types. */
@@ -346,4 +406,12 @@ export function selectTypeSelections<Anchor>(facts: NativeTypeSelections<Anchor>
   const result = { plan, values, relations };
   assertTypeSelectionCoverage(result);
   return result;
+}
+
+/** One exact node slot, with no native interpretation at nomination time. */
+export function nodeTypeSelector(node: Node, kind: "node" | "contextual" | "return" = "node"): NativeTypeSelector {
+  return { base: { kind, node }, steps: [], displayAt: null };
+}
+export function typeArgumentSelector(selector: NativeTypeSelector, index = 0): NativeTypeSelector {
+  return { ...selector, steps: [...selector.steps, { kind: "type-argument", index }] };
 }
