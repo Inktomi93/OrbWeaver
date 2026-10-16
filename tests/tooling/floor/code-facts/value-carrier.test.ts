@@ -17,6 +17,7 @@ import { vi } from "vitest";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-read-parsed.ts";
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 test("defaulted object bindings preserve supplied own values without evaluating the fallback", () => {
   const code = `
@@ -168,6 +169,116 @@ test("defaulted object binding keeps typed supplied allocations and default cycl
     "/typed-default.ts",
     `interface AuthConfig{mode:string}interface Deps{authConfig?:AuthConfig}function createServices(deps:Deps){const {authConfig={mode:createServices(deps)}}=deps;return authConfig.mode;}const first=createServices({authConfig:{mode:"local"}});const second=createServices({});`,
   );
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+    const first = readReturnedValue(source.getVariableDeclarationOrThrow("first").getNameNode(), [], observed, new Set());
+    const second = readReturnedValue(source.getVariableDeclarationOrThrow("second").getNameNode(), [], observed, new Set());
+    expect(first.kind === "resolved" ? first.value.map((value) => value.value.getText()) : first.detail).toEqual(['"local"']);
+    expect(second.kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const scenario of [
+  {
+    name: "own undefined sibling argument",
+    setup: "",
+    input: '{authConfig:{mode:"local"},timers:undefined}',
+    body: "return execution;",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "own primitive sibling argument",
+    setup: "",
+    input: '{authConfig:{mode:"local"},timers:0}',
+    body: "return execution;",
+    runtime: "local",
+    resolved: true,
+  },
+  { name: "ordinary absent sibling argument", setup: "", input: '{authConfig:{mode:"local"}}', body: "return execution;", runtime: "local", resolved: true },
+  {
+    name: "own sibling getter mutates selected object",
+    setup: "",
+    input: '{authConfig:{mode:"local"},get timers(){this.authConfig.mode="outside";return undefined;}}',
+    body: "return execution;",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "sibling shares selected object allocation",
+    setup: 'const shared={mode:"local"};',
+    input: "{authConfig:shared,timers:shared}",
+    body: 'execution.mode="outside";return execution;',
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "absent sibling inherited getter mutates selected object",
+    setup: 'Object.defineProperty(Object.prototype,"timers",{get(){this.authConfig.mode="outside";return undefined;}});',
+    input: '{authConfig:{mode:"local"}}',
+    body: "return execution;",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "conditional spreads preserve the absent sibling",
+    setup: "const flag=true;",
+    input: '{authConfig:{mode:"local"},...(flag?{stProfileDir:"path"}:{}),...(flag?{providerSeams:0}:{})}',
+    body: "return execution;",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "conditional spread retains present and absent sibling alternatives",
+    setup: "const flag=true;",
+    input: '{authConfig:{mode:"local"},...(flag?{timers:undefined}:{})}',
+    body: "return execution;",
+    runtime: "local",
+    resolved: true,
+  },
+  {
+    name: "conditional spread getter may mutate selected allocation",
+    setup: 'const flag=true;const shared={mode:"local"};',
+    input: '{authConfig:shared,...(flag?{get timers(){shared.mode="outside";return undefined;}}:{})}',
+    body: "return execution;",
+    runtime: "outside",
+    resolved: false,
+  },
+  {
+    name: "conditional spread may carry selected allocation",
+    setup: 'const flag=true;const shared={mode:"local"};',
+    input: "{authConfig:shared,...(flag?{timers:shared}:{})}",
+    body: 'execution.mode="outside";return execution;',
+    runtime: "outside",
+    resolved: false,
+  },
+] as const) {
+  test(`defaulted binding sibling read: ${scenario.name}`, () => {
+    const code = `${scenario.setup}function createScopedTimers(execution){${scenario.body}}function createServices(deps){createScopedTimers(deps.timers);const {authConfig={mode:"fallback"}}=deps;return authConfig.mode;}const output=createServices(${scenario.input});`;
+    expect(runInNewContext(`${code};output;`)).toBe(scenario.runtime);
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/sibling-default.ts", code);
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const result = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observations, new Set());
+      expect(result.kind, result.kind === "unresolved" ? result.detail : scenario.name).toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(result.kind === "resolved" ? result.value.map((value) => value.value.getText()) : undefined).toEqual(scenario.resolved ? ['"local"'] : undefined);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("defaulted binding sibling closure keeps same-body safe and unsafe allocations independent", () => {
+  const code =
+    'function createScopedTimers(execution){return execution;}function createServices(deps){createScopedTimers(deps.timers);const {authConfig={mode:"fallback"}}=deps;return authConfig.mode;}const first=createServices({authConfig:{mode:"local"},timers:undefined});const second=createServices({authConfig:{mode:"local"},get timers(){this.authConfig.mode="outside";return undefined;}});';
+  expect(runInNewContext(`${code};[first,second];`)).toEqual(["local", "outside"]);
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/sibling-allocations.ts", code);
   beginReferencePass();
   try {
     const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
@@ -428,7 +539,15 @@ export async function persistedInput(db: Db) { const row = await db.select().fro
     const parserOrigins = parse?.getExpression().getSymbol()?.getDeclarations() ?? [];
     expect(parserOrigins.length > 0).toBe(scenario.name !== "same-named custom parse is not Zod");
     expect(parserOrigins.every((node) => node.getSourceFile().getFilePath().includes("/zod/"))).toBe(true);
-    const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+    const result = runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
     expect(result.toolErrors).toEqual([]);
     expect(result.policies[0]?.owner.status).toBe("success");
     expect(result.authority.authorityAlarms).toEqual([]);
