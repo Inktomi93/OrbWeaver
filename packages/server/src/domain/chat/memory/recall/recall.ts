@@ -20,27 +20,15 @@ import { MEMORY_RECALL_REJECTS_SHOWN } from "@orb/contracts/chat";
 import type { BlockKey, ScoredBlock } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { ChatContext } from "#src/domain/chat/context.ts";
+import type { RecallMemoryArgs } from "../../contract/memory.ts";
 import { resolveCfg } from "../constants.ts";
 import { spanWitnessed } from "../generate/substrate/witnessing.ts";
 import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
-import type { DigestRow, MemoryConfig, MemoryRecallResult, MemoryScope, MsgRow, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
+import type { DigestRow, MemoryRecallResult, MemoryScope, TurnRetrievalWarningEpisode, WitnessInterval } from "../types.ts";
 import { computeBridge } from "./bridge.ts";
 import { blockKeyStr, formatMemory } from "./format.ts";
 import { buildRecallQuery } from "./query.ts";
 import { inLiveWindow } from "./window.ts";
-
-/** `scope.scopedCharacterId` is the speaker's own bucket; `groupCharacterId` is the shared bucket (equal for
- *  solo/merged, so the union dedupes to one read). `recent` (oldest→newest) is the mixB/mixC query window. */
-interface RecallArgs {
-  readonly scope: MemoryScope;
-  readonly groupCharacterId: CharacterId;
-  readonly witnessing?: readonly WitnessInterval[] | undefined;
-  readonly liveWindowCutoffSeq?: number | undefined;
-  readonly config?: MemoryConfig | null | undefined;
-  readonly recent?: readonly MsgRow[] | undefined;
-  readonly names?: ReadonlyMap<CharacterId, string> | undefined;
-  readonly warningEpisode?: TurnRetrievalWarningEpisode | undefined;
-}
 
 /** The per-block verdict ledger: every RAW pool member starts here and its entry is overwritten by whichever
  *  stage eliminates it (witnessing → live window → mode/bridge → retrieval cut). Whatever a block's entry says
@@ -50,7 +38,7 @@ type Verdicts = Map<string, { readonly key: BlockKey; verdict: MemoryRecallVerdi
 /** Resolve the `{{memory}}` string for a turn PLUS the trace explaining it. `text` is `""` when memory is off,
  *  the pool is empty, or no block survives — early-returning before any embed call on off/empty-pool; the
  *  slice then carries the reason in `note`. */
-export async function recallMemory(ctx: ChatContext, args: RecallArgs): Promise<MemoryRecallResult> {
+export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Promise<MemoryRecallResult> {
   const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
   const { scope } = args;
@@ -157,7 +145,7 @@ interface SliceParts {
  *  with the text. The single exit — so a future early return cannot skip the trace. */
 function finish(
   ctx: ChatContext,
-  args: RecallArgs,
+  args: RecallMemoryArgs,
   env: { readonly startedAt: number; readonly text: string; readonly slice: SliceParts },
 ): MemoryRecallResult {
   const p = env.slice;
@@ -315,7 +303,7 @@ async function retrieve(
 /** Select the ordered block-keys per mode, marking every pool member the mode itself eliminated. */
 async function selectKeys(
   ctx: ChatContext,
-  env: { readonly args: RecallArgs; readonly cfg: ReturnType<typeof resolveCfg>; readonly union: readonly DigestRow[]; readonly verdicts: Verdicts },
+  env: { readonly args: RecallMemoryArgs; readonly cfg: ReturnType<typeof resolveCfg>; readonly union: readonly DigestRow[]; readonly verdicts: Verdicts },
 ): Promise<Selection> {
   const { args, cfg, union, verdicts } = env;
   const { scope } = args;

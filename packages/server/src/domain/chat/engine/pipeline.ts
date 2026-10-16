@@ -55,7 +55,14 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import { applyReceivePostProcess } from "#primitives/post-process";
 import { parseReasoningTags } from "#primitives/reasoning";
-import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, BoundToolExecution, ChatToolExecFrame, ChatToolOps, RunChatTurnOp } from "../contract/context.ts";
+import type {
+  ApplyPromptTransformsOp,
+  ApplyRegexReplaceOp,
+  BoundToolExecution,
+  ChatToolExecFrame,
+  ChatToolOps,
+  RunChatTurnOp,
+} from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {

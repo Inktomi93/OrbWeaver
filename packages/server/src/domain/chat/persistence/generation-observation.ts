@@ -10,7 +10,7 @@ import { batchMany, batchStmt } from "@orb/db/query";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import type { ChatContext } from "../contract/context.ts";
+import type { RetainedCanonContext } from "../contract/accounting-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type {
   GenerationObservationContext,
@@ -229,7 +229,7 @@ function generationObservationTransferStatements(
 }
 
 function appendRetainedVariantEconomics(
-  ctx: ChatContext,
+  ctx: RetainedCanonContext,
   statements: BatchStmt[],
   args: {
     readonly scope: RetainedChatAccountingScope<SQL>;
@@ -260,7 +260,11 @@ function appendRetainedVariantEconomics(
   }
 }
 
-async function attachGenerationObservations(ctx: ChatContext, parent: GenerationObservationParent, session: GenerationObservationSession): Promise<void> {
+async function attachGenerationObservations(
+  ctx: RetainedCanonContext,
+  parent: GenerationObservationParent,
+  session: GenerationObservationSession,
+): Promise<void> {
   const { sourceMessageId, sourceVariantId } = parent;
   if (sourceMessageId === null || sourceVariantId === null) {
     return;
@@ -351,7 +355,7 @@ async function attachGenerationObservations(ctx: ChatContext, parent: Generation
 export function createGenerationObservationSession(
   ctx: GenerationObservationContext,
   parent: GenerationObservationParent,
-  targetCtx?: ChatContext,
+  targetCtx?: RetainedCanonContext,
 ): GenerationObservationSession {
   let ordinal = 0;
   const session: GenerationObservationSession = {

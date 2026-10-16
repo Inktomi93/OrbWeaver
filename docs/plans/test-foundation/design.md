@@ -34,7 +34,7 @@ Reduce structural cost before more micro-optimization: remove legacy deep analys
 
 The completed [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns source classification, not successor qualification. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
 
-The pinned TS7 package exposes a checker API with batched queries. Measure complete matched-world extraction and combined client/server memory before choosing the backend. Keep cold acquisition, queried facts and warmed reuse separate. A Program-open probe does not qualify the persisted store. An external nightly comparison changes no repository pin. Full nightly DOM extraction completes; matched backend comparison remains unqualified. Profile checker work and repeated reference requests rather than assuming transport dominates. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+The pinned TS7 package exposes a checker API with batched queries. Measure complete matched-world extraction and combined client/server memory before choosing the backend. Keep cold acquisition, queried facts and warmed reuse separate. A Program-open probe does not qualify the persisted store. An external nightly comparison changes no repository pin. Full TS6 and nightly DOM extraction complete; raw parity fails and a native adapter defect requires correction. Backend comparison remains unqualified. Profile checker work and repeated reference requests rather than assuming transport dominates. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
 ### Execution sequence
 
@@ -199,6 +199,8 @@ Prove native world differences, alias and dynamic-import identity, complete popu
 The audit asks whether a custom engine is necessary after changing the enforcement mechanism. The earlier typed-necessity census describes current implementations. A genuine Type dependency can move to a type change, native typed lint or a production test. Neither census alone proves a successor correct.
 
 Run the migration in this order: security replacements; mechanical native lint/import moves; typed production registries; runtime/type tests; stylelint and CSS moves; obsolete family scaffolding; KEEP-only engine qualification and memory measurement. Security-executor lands real composition-root tests and native boundaries before deleting a security gate. A planted violation must fail.
+
+The chat engine receives an actual narrow capability object; chat binds memory operations outside the engine. Native imports exclude full request-authority contexts and guards. Existing identity and role gates remain active. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructor cases remain unchanged and require production-root adoption. Their unqualified API compatibility is distinct from inherited compiler diagnostics; preserve their meaningful cases before deletion.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

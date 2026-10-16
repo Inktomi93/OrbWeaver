@@ -6,7 +6,7 @@ import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import type { ChatId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatAccountingContext, RetainedCanonContext } from "../contract/accounting-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { PreparedRetainedCanonStats, RetainedCanonCapture, RetainedCanonMutation, RetainedCanonSource } from "../contract/generation-observation.ts";
 import { appendStatsDeltas, retainedCanonDeltas } from "../substrate/stats-delta.ts";
@@ -14,7 +14,7 @@ import { isRetainedParentFenceViolation, retainedChatFenceStatement } from "./ca
 
 /** Resolve each distinct voice once; all snapshots must still agree when the atomic batch writes. */
 export async function prepareRetainedCanonStats(
-  ctx: ChatContext,
+  ctx: Pick<ChatAccountingContext, "resolveRetainedChatAccountingScope">,
   chatId: ChatId,
   deltas: readonly StatsDelta[],
   capture: RetainedCanonCapture,
@@ -47,7 +47,12 @@ function retainedCanonSourcePredicate(source: RetainedCanonSource): ReturnType<t
 }
 
 /** Every signed canon mutation advances all affected owner fences in the same guarded batch. */
-export async function commitRetainedCanonStats(ctx: ChatContext, chatId: ChatId, statements: BatchStmt[], mutation: RetainedCanonMutation): Promise<void> {
+export async function commitRetainedCanonStats(
+  ctx: RetainedCanonContext,
+  chatId: ChatId,
+  statements: BatchStmt[],
+  mutation: RetainedCanonMutation,
+): Promise<void> {
   const prepared = await prepareRetainedCanonStats(ctx, chatId, mutation.deltas, mutation);
   const selection = sql`select ${chats.id} from ${chats} where ${and(eq(chats.id, chatId), prepared.predicate)}`;
   statements.unshift(retainedChatFenceStatement(ctx.db, selection));

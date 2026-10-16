@@ -16,10 +16,10 @@ import type { messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
-import type { ChatContext } from "../contract/context.ts";
+import type { ChatAccountingContext } from "../contract/accounting-context.ts";
 
 /** Append a canonical delta sequence without widening the injected single-delta write boundary. */
-export function appendStatsDeltas(ctx: Pick<ChatContext, "db" | "applyStatsDelta">, statements: BatchStmt[], deltas: readonly StatsDelta[]): void {
+export function appendStatsDeltas(ctx: Pick<ChatAccountingContext, "db" | "applyStatsDelta">, statements: BatchStmt[], deltas: readonly StatsDelta[]): void {
   for (const delta of deltas) {
     ctx.applyStatsDelta(statements, ctx.db, delta);
   }
@@ -27,7 +27,7 @@ export function appendStatsDeltas(ctx: Pick<ChatContext, "db" | "applyStatsDelta
 
 /** Funding/actor labels on a builder template never choose the retained-data accounting cohort. */
 export function retainedCanonDeltas(
-  scope: Pick<Awaited<ReturnType<ChatContext["resolveRetainedChatAccountingScope"]>>, "ownerIds" | "characterOwnerId">,
+  scope: Pick<Awaited<ReturnType<ChatAccountingContext["resolveRetainedChatAccountingScope"]>>, "ownerIds" | "characterOwnerId">,
   deltas: readonly StatsDelta[],
 ): StatsDelta[] {
   return scope.ownerIds.flatMap((ownerId) =>
@@ -95,9 +95,9 @@ export function canonRowOf(
 
 /** The copied room moves contributions, never executions: pending paid facts retain their original home. */
 export function appendRetainedChatRebaseDeltas(
-  ctx: ChatContext,
+  ctx: ChatAccountingContext,
   statements: BatchStmt[],
-  snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>,
+  snapshot: NonNullable<Awaited<ReturnType<ChatAccountingContext["resolveRetainedChatRebase"]>>>,
   rekeys: RetainedChatRekeys,
 ): void {
   for (const ownerId of snapshot.beforeOwnerIds.filter((id) => !snapshot.afterOwnerIds.includes(id))) {
@@ -136,9 +136,9 @@ export function appendRetainedChatRebaseDeltas(
 }
 
 function appendRebasedSeatCensus(
-  ctx: ChatContext,
+  ctx: ChatAccountingContext,
   statements: BatchStmt[],
-  snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>,
+  snapshot: NonNullable<Awaited<ReturnType<ChatAccountingContext["resolveRetainedChatRebase"]>>>,
 ): void {
   for (const [ids, other, sign] of [
     [snapshot.beforeSeatIds, snapshot.afterSeatIds, -1],
@@ -164,10 +164,10 @@ function appendRebasedSeatCensus(
 }
 
 function appendRebasedCanon(
-  ctx: ChatContext,
+  ctx: ChatAccountingContext,
   statements: BatchStmt[],
   args: {
-    readonly snapshot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>;
+    readonly snapshot: NonNullable<Awaited<ReturnType<ChatAccountingContext["resolveRetainedChatRebase"]>>>;
     readonly rekeys: RetainedChatRekeys;
     readonly ownerId: UserId;
     readonly sign: 1 | -1;
@@ -198,7 +198,7 @@ function rebasedVoice(original: CharacterId | null, replacement: CharacterId | u
 }
 
 function rebasedSlotDeltas(
-  slot: NonNullable<Awaited<ReturnType<ChatContext["resolveRetainedChatRebase"]>>>["slots"][number],
+  slot: NonNullable<Awaited<ReturnType<ChatAccountingContext["resolveRetainedChatRebase"]>>>["slots"][number],
   args: Parameters<typeof appendRebasedCanon>[2],
   voice: CharacterId | null,
   now: number,

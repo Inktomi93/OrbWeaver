@@ -13,50 +13,28 @@ import type {
   NextTurnConnectionView,
   ParticipantView,
   PromptTransform,
-  PromptTransformPoint,
-  PromptTransformResult,
   ResolveCharacterTagsOp,
   ResolveSeatDecoOp,
   ResolveSeatDecosOp,
   RoomOverrides,
   StoreSegmentParams,
-  ToolCallRecord,
-  TurnAbortReason,
   TurnInitiator,
   TurnRetrievalEvents,
 } from "@orb/contracts/chat";
 import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, ChatMembership, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { Can, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
-import type { AttachmentQuality, SendAvailability } from "@orb/contracts/inference";
+import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
 import type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
 import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
-import type {
-  ApplyStatsDelta,
-  BumpStatsCanonVersion,
-  ResolveRetainedChatAccountingScope,
-  ResolveRetainedChatRebase,
-  SettleRetainedChatRebase,
-} from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
-import type { chats, Db, messages, messageVariants } from "@orb/db";
+import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import type {
-  BindingActor,
-  ChatToolDefinition,
-  GeneratedImage,
-  Resolved,
-  RoleClientsWithSignal,
-  SideGenSampling,
-  SummarizeResult,
-  ToolCallInput,
-  WireTool,
-} from "@orb/inference";
-import type { ContentImageRef } from "@orb/kit/content";
+import type { BindingActor, Resolved, RoleClientsWithSignal, SideGenSampling, SummarizeResult, WireTool } from "@orb/inference";
 import type {
   AssetId,
   CharacterId,
@@ -65,12 +43,8 @@ import type {
   ChatInjectionId,
   ChatInviteId,
   ChatParticipantId,
-  ChatStreamEventId,
-  ChatStreamGenerationId,
-  ChatTurnId,
   CompactionSpendId,
   Handle,
-  MessageAssetId,
   MessageId,
   MessageReactionId,
   MessageVariantId,
@@ -81,30 +55,36 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
-import type { MessageRole } from "@orb/kit/message-role";
-import type { RegexReplacer } from "@orb/kit/regex";
-import type { IanaTimeZone, TimerScheduler } from "@orb/kit/time";
-import type { SQL } from "drizzle-orm";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
+import type { ChatAccountingContext } from "./accounting-context.ts";
 import type { ActiveTurns } from "./active-turns.ts";
 import type { CharacterDistillate, SpeakerArbiter, SpeakerReranker } from "./arbitration.ts";
+import type { ApplyPromptTransformsOp, EngineContext, RunChatTurnOp } from "./engine-context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
-import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
+import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
 
 export type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, StoreSegmentParams, ViewerVisibility } from "@orb/contracts/chat";
 export type { ResolveCurrentPersonaOp, ResolveDefaultPersonaOp } from "@orb/contracts/persona";
+export type {
+  ApplyPromptTransformsOp,
+  ApplyRegexReplaceOp,
+  BoundToolExecution,
+  ChatToolExecFrame,
+  ChatToolOps,
+  ChatToolSet,
+  EmitChatChanged,
+  RunChatTurnOp,
+} from "./engine-context.ts";
+export type { RpgTurnContext, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 
 // The explicit ChatContext DI bundle + every injected cross-feature op type. Homed under contract/ because
 // the exported-type gate forbids it in the conventional context.ts slot; the top-level context.ts re-exports
 // this. Every cross-feature/infra dependency is an injected op — chat never sideways-imports a sibling domain.
-
-/** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
- *  catastrophic-backtracking pattern throws instead of hanging the turn. */
-export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexReplacer) => string;
 
 /** The node:vm ReDoS watchdog for a world-info regex-KEY `.test` (#710) — a user-authored `use_regex` key is
  *  matched against the chat-history haystack every turn, so its `.test` runs under a per-call timeout and
@@ -112,16 +92,6 @@ export type ApplyRegexReplaceOp = (text: string, regex: RegExp, replacer: RegexR
  *  `testRegex` seam. */
 export type TestRegexKeyOp = (regex: RegExp, haystack: string) => boolean;
 
-/** Options for {@link EmitChatChanged}. `detail` means the changed chat's own row changed (lifecycle/create/
- *  delete); omitted on the message-commit path (the per-chat bus already drives that). `extraUserIds` adds
- *  channels beyond the present roster (a just-kicked/deleted member). */
-interface EmitChatChangedOptions {
-  readonly detail?: boolean;
-  readonly extraUserIds?: readonly UserId[];
-}
-/** Fans `chatsChanged` to every present human member's user-bus channel — the cross-device + multi-human
- *  chat-list recency driver. Best-effort, never throws into the turn. */
-export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions) => Promise<void>;
 /** Publish one `chatsChanged` to one user's bus channel; `chatId` present ⇒ the event names the chat. The user
  *  bus is transport's, so compose injects it into {@link EmitChatChanged}'s factory. */
 export type PublishChatChangedOp = (userId: UserId, chatId: ChatId | undefined) => void;
@@ -142,47 +112,6 @@ export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly Partic
 
 /** The invite preview for a chat the caller already cleared for preview (`verbs/invite-preview.ts`). */
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
-
-/** The injected chat role: the engine builds a {@link TurnRequest} and streams chunks back. */
-export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
-
-/** A resolved tool set carries its projections and executor without exposing the registry's rows. */
-export interface ChatToolSet {
-  readonly toToolDefinitions: () => readonly ChatToolDefinition[];
-  readonly prepareExecution: (frame: ChatToolExecFrame) => Promise<BoundToolExecution>;
-}
-
-/** The identity frame the loop hands `executeToolCalls`. Deliberately no `Principal` — the engine is
- *  principal-blind. `membership` is null until a chat-scoped registrant exists.
- *
- *  `membership` was `roster` before #1010 and `participants` between #1010 and #1772: #1010's local
- *  `roster → participants` pass reached this PropertySignature and took vocabulary-map row 44's LIST word
- *  for a row-45 single-`{role}` value. Row 44's own residue list already said this field's word is
- *  `membership`; #1772 landed it. */
-export interface ChatToolExecFrame {
-  readonly runAsUserId: UserId;
-  readonly triggeredBy: UserId;
-  readonly chatId: ChatId;
-  readonly membership: ChatMembership | null;
-  /** The turn's ephemeral identity, minted once per `executeTurn` and threaded to the tool-exec context so a
-   *  turn-scoped registrant correlates the turn's tool writes to its commit/abort flush (docs/plans/rpg/design.md). */
-  readonly turnId: ChatTurnId;
-  readonly signal?: AbortSignal | undefined;
-}
-
-/** The injected tool-use op bundle. `ChatContext.tools` is null when tool-use isn't wired, so the request
- *  never carries `tools` and the assembled request is byte-identical wired-unattached vs null. */
-export interface ChatToolOps {
-  /** Attach-time resolve (throws on an unknown name — a wiring bug, never model data). `driverUserId` is the
-   *  turn's frozen `runAsUserId`: the attach union was enumerated from the HOST's own contributor tools, so it
-   *  is resolved on the host's shelf too (#677 — the same namespaced plugin tool name exists once per
-   *  installing user, so a name alone no longer identifies an entry). */
-  readonly resolveTools: (driverUserId: UserId, names: readonly string[]) => ChatToolSet;
-}
-
-/** The execute path bound to one turn's resolved set and authority — sequential, errors-as-data; never throws
- *  per-call. */
-export type BoundToolExecution = (calls: readonly ToolCallInput[]) => Promise<readonly ToolCallRecord[]>;
 
 /** Resolve the frozen room HOST's `chat` connection for a turn. A chat binds no connection (F20). */
 type ResolveChatConnectionOp = (params: { readonly funderUserId: UserId; readonly signal?: AbortSignal | undefined }) => Promise<Resolved<"chat">>;
@@ -245,33 +174,6 @@ type ResolveUserPublicsOp = (
   avatarAssetId: AssetId | null;
 } | null>;
 
-/** Resolves a parsed message-image ref to a model-fetchable URL/data-URI + its media kind
- *  ({@link ResolvedMediaRef}, homed in `results.ts` — the D51 seam set). Null blocks the attachment (owner
- *  policy or a gone asset) and the engine drops that part. */
-type ResolveImageUrlOp = (params: {
-  readonly ownerId: UserId;
-  readonly chatId: ChatId;
-  readonly ref: ContentImageRef;
-  readonly quality?: AttachmentQuality | undefined;
-  readonly signal?: AbortSignal | undefined;
-}) => Promise<ResolvedMediaRef | null>;
-
-/** §6.7 — store ONE picture a chat model emitted inside its own reply under `owner`'s CAS, and hand back the
- *  id canon will spell. The provider's payload is either inline base64 or a URL ON THE PROVIDER'S OWN CDN,
- *  which is a response-controlled address: the impl fetches it through the SSRF-safe egress belt and verifies
- *  the BYTES with the magic-sniff belt exactly as `materializeBackground` does for a user-pasted URL (the
- *  domain never imports infra, so both live at the composition root).
- *
- *  `ownerId` is the ROOM HOST, never the funder, and that is a deliberate consequence rather than an oversight:
- *  `GET /api/blob/:hash` is owner-gated (D21), so a member-funded picture stored under that member would
- *  render for them alone in a shared room. A member-funded generation's bytes landing in the host's CAS is
- *  the stated, accepted cost (§6.7).
- *
- *  `null` = the picture could not be stored (egress refused, not an image, over the byte cap, or a payload
- *  carrying neither bytes nor a URL). The turn's PROSE is the product, so a refusal drops that one picture
- *  and never the reply — and no span is emitted, so canon never names an asset that does not exist. */
-type StoreInlineReplyImageOp = (ownerId: UserId, image: GeneratedImage) => Promise<{ readonly assetId: AssetId } | null>;
-
 /** A handle to a synthetic group-character identity row, declared structurally so chat takes no cross-domain edge. */
 interface GroupCharacterRef {
   readonly characterId: CharacterId;
@@ -284,10 +186,6 @@ export type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId;
 
 /** The group identity for a room, or null if not yet minted. */
 type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;
-
-/** Persists the turn-economics delta the chat-side builders produced. */
-type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
-type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
 
 /** The memory summarizer + the smart-arbitrate side-LLM. The SIGNAL-BEARING variant of the isomorphic
  *  `RoleClients["summarize"]` (`RoleClientsWithSignal`): chat is the one caller that already owns a
@@ -549,25 +447,6 @@ type ResolveUserEnabledOp = (userId: UserId) => Promise<boolean>;
  *  prompt-composition attack). Read once per round for seated-character-gating. */
 export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
 
-/** The D50 PromptTransform seam apply op — the injected registry over which
- *  automation's `transform_draft` rules and the plugin host register. `ChatContext.promptTransforms` is
- *  `null` when no registrar is wired — a byte-identical no-op (the `tools`/`rpg` null-op
- *  precedent). Applies every registered transform for `point` in ascending `order`, each under a 250 ms
- *  deadline; a timeout or throw SKIPS that transform (the draft passes through UNCHANGED) + emits a
- *  `prompt_transform_skipped` warning — a broken transform never eats a turn (D53). Chat learns nothing about
- *  WHO registers: it invokes the two fixed points, the registry owns the ordering + deadline discipline.
- *
- *  The result is a UNION, not a string, because a transform has TWO legitimate answers and collapsing them
- *  would make them indistinguishable at the call site: `{aborted:false,text}` is the rewritten draft, and
- *  `{aborted:true,…}` is a DELIBERATE refusal of the generation. A broken transform
- *  still SKIPS (D53) and never reaches the abort arm — "it timed out" and "it said no" are different turns. */
-export type ApplyPromptTransformsOp = (
-  point: PromptTransformPoint,
-  chatId: ChatId,
-  draft: string,
-  vars: Record<string, string>,
-) => Promise<PromptTransformResult>;
-
 /** The PLUGIN-MACRO resolve op — the per-turn read of the TURN AUTHOR's own
  *  enabled plugins' registered macros, already resolved (each guest invoked once, under the plugin plane's
  *  assembly deadline) into kit `UserMacroDef`s the turn's macro registry takes as DATA. `ChatContext.pluginMacros`
@@ -622,97 +501,7 @@ export interface ChatRpgGatherResult {
   readonly terminalTools?: readonly WireTool[] | undefined;
 }
 
-/** The injected rpg turn ops (docs/plans/rpg/design.md). `ChatContext.rpg` is null when rpg isn't wired — a
- *  byte-identical no-op (the `tools` null-op precedent). Chat learns nothing rpg-shaped: gather
- *  returns the generic {@link ChatRpgGatherResult}, and the GM-voice preset redirect rides its OWN early hop
- *  (`resolvePresetOverride`, resolved BEFORE preset resolution — the gather op runs AFTER, so it cannot carry
- *  the override; docs/plans/rpg/design.md). */
-/** One name-stamped canon row the state round reads as story evidence (crunchy-cluster redesign §1.3). The
- *  ENGINE projects it from the canon it already loaded; rpg receives STORY TEXT AS DATA and reads no chat
- *  table (§2 one-directional flow). `tokens` (an `estimateTokens` of the content) lets the consumer
- *  budget-slice its window cheaply. Hidden-class spans are INTACT — the round is model-plane, the model always
- *  reads its own lies (D110 §3.6). */
-export interface RpgTurnTranscriptMessage {
-  /** The canon row's role (derived from `MESSAGE_ROLES` — never a re-spelled inline union, §7.5). */
-  readonly role: MessageRole;
-  /** Resolved via the engine's `historyMacroNames` ("Mira", "You (Aldric)"); `null` for a system row. */
-  readonly speakerName: string | null;
-  /** The stored body (post-freeze canon, macro-raw identity ok — the state round reads the raw story). */
-  readonly content: string;
-  readonly tokens: number;
-}
-
-/** The character turn's RESOLVED route + its OWN canon transcript, handed to
- *  {@link ChatRpgOps.onTurnCompleted} so the post-commit rpg state round rides the EXACT connection the engine
- *  already resolved for THIS turn AND reasons from the story it just told — the [foreign-inputs-seam] shape
- *  (already-resolved values threaded IN, never re-derived).
- *  The connection is the F1 fix: without it the state round resolved the host's GLOBAL chat default
- *  (`resolveRole`), so a room pinned to vllm could fire its round somewhere else entirely. (F1's second half
- *  was an `ownerConsented` verdict threaded beside the connection; the owner-consent belt itself left with
- *  the inference program §14 F13, so only the route survives.) `connection.capability` also gates the round's readonly
- *  verdict (F2). The `transcript` is the §1.3 fix: the extraction was CONTEXT-BLIND (state JSON + one beat), so
- *  deep in a story it forgot fields and never reconciled inventory/quests against what happened — now it rides
- *  the turn's own loaded canon (zero extra model reads, §1.4). */
-export interface RpgTurnContext {
-  /** The generating verb's persistence shape. A continuation extends its selected variant in place, so RPG
-   *  must rebase on the current head and replace that variant's existing snapshot; every other kind writes a
-   *  new variant from the state before its slot. Threaded from the immutable turn prep, never inferred from
-   *  message contents after commit. */
-  readonly kind: TurnKind;
-  /** The character turn's effective `{api, model, credential, capability}` — the agent-speaker's own or the
-   *  round connection; the state round runs on THIS, never a re-resolve. */
-  readonly connection: Resolved<"chat">;
-  /** The selected-lineage canon UP TO AND INCLUDING the committed reply, oldest→newest, name-stamped — the FULL
-   *  loaded canon; the CONSUMER slices to its window (the knob is rpg config, not chat's business). Projected by
-   *  the ENGINE (`fireRpgTurnCompleted`) from `canonAll ∪ {the committed reply}`. */
-  readonly transcript: readonly RpgTurnTranscriptMessage[];
-  /** The TERMINAL tool calls this turn's completion co-emitted alongside its prose (the R1 fold), or `null`
-   *  when terminal tools did NOT ride this turn — because the contributor mounted none, or because the
-   *  connection could not carry them at all (a tools-incapable model; a wire whose backend could not build the
-   *  declaration). Note the DELIVERY is per-wire and is not an eligibility question: the array wires carry them
-   *  in `tools[]`, the stateful agent-sdk wire mounts them as a deny-on-use MCP server (D112 R1). The
-   *  distinction is load-bearing and must stay TOTAL: `null` means "the fold did not happen — run your own
-   *  post-commit round", while an EMPTY ARRAY means "the fold ran and the model chose to record nothing"
-   *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are
-   *  NOT on the committed variant's `toolCalls` — they exist only here. */
-  readonly terminalToolCalls: readonly ToolCallInput[] | null;
-  /** The terminal tool NAMES a registry tool already owned, so the whole channel was withheld this turn
-   *  (#1617) — empty on every ordinary turn, and the ONLY thing that distinguishes the two ways
-   *  `terminalToolCalls` arrives `null`. Without it the consumer reads a withheld-for-collision channel as
-   *  "this wire cannot carry terminal tools", which is false and sends an operator to look at the model.
-   *  Names, not a flag: the fix is per-declaration and belongs to whichever contributor re-spelled one. */
-  readonly terminalToolsCollided: readonly string[];
-  /** WHO ran this turn (`prep.triggeredBy`, D19) — the OWNER the rpg state round's cancellation is scoped to.
-   *  Threaded because {@link ChatRpgOps.cancelStateRounds} mirrors `activeTurns.abort`'s owner-only semantics
-   *  (the rollback-theft defense): without an owner on the round, a member's Stop would cancel ANOTHER member's
-   *  in-flight state round, which is a multi-human bug that would read as a feature. */
-  readonly triggeredBy: UserId;
-  /** The character turn's own cancellation signal (`prep.signal`, off the `activeTurns` handle), or `undefined`
-   *  for an unregistered turn. The state round composes it with its OWN controller rather than relying on it
-   *  alone — see {@link ChatRpgOps.cancelStateRounds} for why the turn's signal is nearly useless here. It is
-   *  still threaded because it DOES cover one real window: in a MULTI-SPEAKER round every speaker shares one
-   *  registration, so speaker 1's in-flight state round is still reachable through this signal while speaker 2
-   *  generates. */
-  readonly signal: AbortSignal | undefined;
-  /** THE TURN'S FROZEN PROSE VIEW (PROSE-1 S4) — the model-facing overrides the engine resolved for THIS turn
-   *  (`prep.assembleContext.prose`: the room host's user-tier blob and the RESOLVED preset's, composed by
-   *  home; on a game turn that preset is the game's GM preset, via the redirect `buildTurnContext` runs before
-   *  its foreign read). The post-commit state round resolves its extraction prompts through it.
-   *
-   *  CAPTURED, NEVER RE-RESOLVED — the same reason `connection` rides here (the
-   *  [foreign-inputs-seam] shape: already-resolved values threaded IN). The round runs AFTER the turn's own
-   *  prompt was assembled and after the reply committed, so resolving the preset a second time at round time
-   *  would open a window where the extractor is taught a different vocabulary than the narrator was — a
-   *  divergence by construction, and one that would only show up when a host edits a teach mid-story. The
-   *  gather's fold mount (`RpgBuildFoldedTurn.prose`) receives the SAME resolution from the SAME turn, so
-   *  the folded vehicle and the round it replaces can never teach two things either.
-   *
-   *  A hand-built turn context (tests, previews) that omits it gets `{}` ⇒ every slot resolves to its shipped
-   *  default ⇒ byte-identical to pre-PROSE-1. */
-  readonly prose: ProseOverrides;
-}
-
-export interface ChatRpgOps {
+export interface ChatRpgOps extends RpgTurnOps {
   /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
    *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
    *  other's rows, while room/game/pointer are one durable commit. */
@@ -752,22 +541,8 @@ export interface ChatRpgOps {
    *  reminder describes the very prose the model is being asked to rewrite). Absent for a fresh turn AND for
    *  `continue` — a continuation's context INCLUDES the slot, so its state genuinely is the head. */
   readonly gatherTurnContext: (args: GatherTurnContextArgs) => Promise<ChatRpgGatherResult | null>;
-  /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
-   *  its FIRST skill check (docs/plans/rpg/design.md). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
-   *  (later GM/auto/arbiter round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
-   *  for a non-game chat. Sync (an in-memory per-turn flag); the engine has the `turnId` gather's prep phase lacks. */
-  readonly markDicePreRollEligible: (turnId: ChatTurnId) => void;
   /** SEND path, after the user row commits — fires the snapshot COMMIT (+ consumes queued dice rolls). */
   readonly onUserCommit: (chatId: ChatId, messageId: MessageId) => Promise<void>;
-  /** Post-turn (commit): FLUSH the turn's staged tool writes onto the committed variant, keyed by `turnId`.
-   *  `turn` carries the NARRATION turn's ALREADY-RESOLVED route + consent verdict + its OWN canon transcript
-   *  (see {@link RpgTurnContext}) so the rpg state round rides the EXACT connection + consent the engine
-   *  enforced — never a second hand-rolled resolve/consent path (stickler F1: a state round must not resolve the
-   *  host's global default nor force-stamp consent; a room on vllm runs its round on vllm, a metered-sub round
-   *  inherits the turn's owner-consent) — AND reasons from the story it just told (§1.3 transcript threading). */
-  readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext) => Promise<void>;
-  /** Turn abort/failure: CLEAR the turn's staged tool writes so a dead turn never flushes into the next turn. */
-  readonly onTurnAborted: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
   /** CANCEL `principalUserId`'s in-flight rpg STATE ROUNDS on this chat; returns how many were signalled. Called by
    *  the `abort` verb beside `activeTurns.abort` — and it has to be a SEPARATE reach, because the turn's own
    *  AbortSignal cannot cover the round. The timeline, which is the whole reason this op exists:
@@ -1153,29 +928,16 @@ export type ChatTeachingRegistry = readonly TeachingContribution[];
 
 /** The DI bundle every chat verb/subsystem closes over. `db` routes queries through `persistence/`; `now` +
  *  the id-minters are the determinism seams (no ambient Date.now()/mintTypeId() in a verb). */
-export interface ChatContext {
-  readonly db: Db;
-  readonly now: () => number;
-  readonly timers?: TimerScheduler;
-  readonly backgroundSignal?: AbortSignal;
-  readonly trackBackground?: (settled: Promise<void>) => void;
+export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The privilege-decision seam — every chat-authority verdict routes through this; chat never imports admin. */
   readonly can: Can;
   readonly newChatId: () => ChatId;
-  readonly newMessageId: () => MessageId;
-  readonly newMessageVariantId: () => MessageVariantId;
   readonly newParticipantId: () => ChatParticipantId;
-  readonly newMessageAssetId: () => MessageAssetId;
   readonly newMessageReactionId: () => MessageReactionId;
   readonly newInjectionId: () => ChatInjectionId;
   readonly newEventId: () => ChatEventId;
-  readonly newStreamEventId: () => ChatStreamEventId;
-  readonly newStreamGenerationId: () => ChatStreamGenerationId;
   readonly newInviteId: () => ChatInviteId;
   readonly newPendingTurnId: () => PendingTurnId;
-  /** Mints the turn's ephemeral identity once per `executeTurn` (docs/plans/rpg/design.md) — threaded to the tool-exec
-   *  frame + the rpg turn-end hooks so a turn-scoped registrant correlates a turn's tool writes to its flush. */
-  readonly newChatTurnId: () => ChatTurnId;
   readonly newCompactionSpendId: () => CompactionSpendId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
@@ -1184,11 +946,6 @@ export interface ChatContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
   readonly auditStatement: (entry: AuditEntry, at: number) => BatchStmt;
-  /** The chat-list recency fan — message-commit terminal path and chat-list-level ops (start/fork/rename/
-   *  star/archive/delete/kick) fan `chatsChanged` after the durable write. Distinct from the per-chat `emit`,
-   *  which only reaches subscribers of the open chat. */
-  readonly emitChatChanged: EmitChatChanged;
-  readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
    *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
   readonly testRegexKey: TestRegexKeyOp;
@@ -1197,7 +954,6 @@ export interface ChatContext {
    *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
    *  blobs. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */
   readonly resolveRegexSources: ResolveRegexSources;
-  readonly runChatTurn: RunChatTurnOp;
   /** The chat host's active-preset params — used by the quiet-generate factory (compaction), which runs on the
    *  chat connection. Wired at compose. */
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
@@ -1210,8 +966,6 @@ export interface ChatContext {
    *  turn's own reads ride `ChatBehaviorInputs`). Called with the room's PRESENT HOST id — the host governs
    *  the posture, never the caller. Wired at compose over the settings read (chat never imports settings). */
   readonly readReactionDefaults: ReadReactionDefaultsOp;
-  /** Null means tool-use isn't wired — byte-identical no-op. */
-  readonly tools: ChatToolOps | null;
   readonly resolveChat: ResolveChatConnectionOp;
   readonly getCard: GetCardOp;
   /** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent.
@@ -1251,27 +1005,12 @@ export interface ChatContext {
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;
-  readonly resolveImageUrl: ResolveImageUrlOp;
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
-  /** §6.7's inline-reply picture store — see {@link StoreInlineReplyImageOp}. */
-  readonly storeInlineReplyImage: StoreInlineReplyImageOp;
   /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
-  readonly applyStatsDelta: ApplyStatsDeltaOp;
-  readonly applyCharacterStatsDelta: ApplyStatsDeltaOp;
-  readonly resolveRetainedChatAccountingScope: ResolveRetainedChatAccountingScope<SQL>;
-  readonly settleRetainedChatRebase: SettleRetainedChatRebase<Parameters<ApplyStatsDeltaOp>[0], Db>;
-  readonly resolveRetainedChatRebase: ResolveRetainedChatRebase<
-    typeof chats.$inferSelect,
-    typeof messages.$inferSelect,
-    typeof messageVariants.$inferSelect,
-    SQL
-  >;
-  /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
-  readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
   /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
    *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
@@ -1308,9 +1047,6 @@ export interface ChatContext {
    *  registry would silently drop a game turn's state block. An EMPTY array is the honest "nothing teaches"
    *  value, and tsc forces every ctx builder to state it. */
   readonly teaching: ChatTeachingRegistry;
-  /** The D50 PromptTransform apply op. Null when no registrar is wired —
-   *  byte-identical no-op (a chat with zero transforms assembles + streams identically). */
-  readonly promptTransforms: ApplyPromptTransformsOp | null;
   /** The per-turn plugin-macro resolve (U6, §5.15) — `null` when no plugin host is wired (byte-identical). */
   readonly pluginMacros: ResolvePluginMacrosOp | null;
   readonly resolveDefaultPersona: ResolveDefaultPersonaOp;

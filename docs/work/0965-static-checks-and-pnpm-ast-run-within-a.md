@@ -40,4 +40,4 @@ Reviewed `49d607fd3c` removes repeated path resolution and native import-map con
 
 Portable corpus contracts remove the Node and server closure and preserve exhaustive router conformance. Other worlds remain unverified. Declaration bridges need freshness and closure qualification. D320 retains legacy execution and typechecking. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-Matched tests-DOM bindings complete on TS6 and both TS7 backends. Canonical differences remain. Full nightly DOM extraction, publication, readback and process release complete. Checker reference work dominates transport; repeated-query cost remains under investigation. Matched full extraction, root comparison and hosted qualification remain open. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+Full TS6 and nightly DOM extraction, publication, readback and release complete. Raw parity fails; a native adapter declaration-filter defect requires correction before another backend verdict. Checker reference work dominates transport. Corrected pinned extraction, root comparison and hosted qualification remain open. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
