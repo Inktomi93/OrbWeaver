@@ -1,4 +1,6 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
+import { getLog } from "@orb/server/foundation/observability";
+import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
 import { z } from "zod";
 import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
@@ -288,4 +290,64 @@ export function createCorpusProviderExecution(script: CorpusProviderScript): Cor
     return postReply(script, path, requestSchema.parse(JSON.parse(body)), body);
   };
   return { execute, requests };
+}
+
+export const CORPUS_PROVIDER_BODY_LIMIT_BYTES = 4 * 1024 * 1024;
+
+export interface CorpusProviderServer extends AsyncDisposable {
+  readonly baseUrl: string;
+  readonly requests: readonly string[];
+}
+
+/** Bind only a dynamically allocated loopback socket; errors never echo request bodies or credentials. */
+export async function createCorpusProviderServer(createExecution: (baseUrl: string) => Promise<CorpusProviderExecution>): Promise<CorpusProviderServer> {
+  let execution: CorpusProviderExecution | undefined;
+  const listener = Promise.withResolvers<string>();
+  const server = serveHttpServer(
+    {
+      hostname: "127.0.0.1",
+      port: 0,
+      fetch: async (request): Promise<Response> => {
+        try {
+          if (execution === undefined) {
+            return new Response("Corpus provider is starting", { status: 503 });
+          }
+          const chunks: Uint8Array[] = [];
+          let length = 0;
+          if (request.body !== null) {
+            for await (const chunk of request.body) {
+              length += chunk.byteLength;
+              if (length > CORPUS_PROVIDER_BODY_LIMIT_BYTES) {
+                return new Response("Corpus provider request is too large", { status: 413 });
+              }
+              chunks.push(chunk);
+            }
+          }
+          return await execution.execute(request.url, {
+            method: request.method,
+            signal: request.signal,
+            ...(chunks.length === 0 ? {} : { body: Buffer.concat(chunks) }),
+          });
+        } catch {
+          // Invalid or unscripted physical input is a failed request, never a server crash or a private diagnostic.
+          return new Response("Corpus provider rejected an unscripted request", { status: 400 });
+        }
+      },
+    },
+    (address) => listener.resolve(`http://127.0.0.1:${address.port}/v1`),
+  );
+  server.once("error", listener.reject);
+  let disposal: Promise<void> | undefined;
+  const dispose = (): Promise<void> => {
+    disposal ??= drainHttpServer(server, getLog());
+    return disposal;
+  };
+  try {
+    const baseUrl = await listener.promise;
+    execution = await createExecution(baseUrl);
+    return { baseUrl, requests: execution.requests, [Symbol.asyncDispose]: dispose };
+  } catch (error) {
+    await dispose();
+    throw error;
+  }
 }
