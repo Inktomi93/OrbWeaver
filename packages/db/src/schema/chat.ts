@@ -104,8 +104,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import * as sqliteCore from "drizzle-orm/sqlite-core";
-import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { checkList } from "../query/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
@@ -249,10 +248,7 @@ export const chatImportClaims = sqliteTable(
     importHash: text("import_hash").notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [
-    sqliteCore.primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }),
-    index("chat_import_claims_chat_idx").on(t.chatId),
-  ],
+  (t) => [primaryKey({ columns: [t.characterId, t.importHash], name: "chat_import_claims_scope_pk" }), index("chat_import_claims_chat_idx").on(t.chatId)],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1155,7 +1151,7 @@ export const chatGenerationObservations = sqliteTable(
     observedAt: integer("observed_at").notNull(),
   },
   (t) => [
-    sqliteCore.primaryKey({ columns: [t.chatId, t.turnId, t.ordinal] }),
+    primaryKey({ columns: [t.chatId, t.turnId, t.ordinal] }),
     index("chat_generation_observations_source_message_idx").on(t.sourceMessageId),
     index("chat_generation_observations_source_variant_idx").on(t.sourceVariantId),
     index("chat_generation_observations_funder_idx").on(t.funderUserId, t.observedAt),

@@ -14,9 +14,6 @@
       "**",
       "!**/*.grit",
       "!.claude/worktrees",
-      "!.ds-sync",
-      "!ds-bundle",
-      "!**/routeTree.gen.ts",
       "!packages/ui/src/tokens/index.ts",
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
@@ -1117,16 +1114,6 @@
                 "allow": ["info", "warn", "error"]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/db/src/schema/**"],
-      "linter": {
-        "rules": {
-          "performance": {
-            "noNamespaceImport": "off"
           }
         }
       }
@@ -2659,7 +2646,6 @@
             "noConsole": "off"
           },
           "style": {
-            "noDefaultExport": "off",
             "useNamingConvention": {
               "level": "error",
               "options": {
