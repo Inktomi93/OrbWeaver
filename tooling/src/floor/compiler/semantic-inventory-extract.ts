@@ -31,8 +31,10 @@ import {
   exportDeclarationQueryKey,
   exportDeclarationQuerySchema,
   INVENTORY_FORMAT,
+  INVENTORY_REFERENCE_MODES,
   inventoryFamilies,
   inventoryNodeQueryKey,
+  referenceQueryKey,
 } from "../code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath, descriptorVersion, inputsCurrent, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
@@ -294,6 +296,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
     fileURLToPath(new URL("./semantic-inventory-filesystem.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-contract.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-inputs.ts", import.meta.url)),
+    fileURLToPath(new URL("../code-facts/inventory-consumers.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-database.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-records.ts", import.meta.url)),
     fileURLToPath(new URL("../code-facts/semantic-inventory-queries.ts", import.meta.url)),
@@ -334,6 +337,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   const invocationQueries = invocationDemandFor(request, families, roots);
   const idBrandQueries = idBrandDemandFor(request, families, roots);
   assertDrizzleRequest(request, families, roots, fileSystem);
+  assertReferenceRequest(request, families);
   const authoredFiles = inventoryAuthoredFiles(request.root, request.overlay);
   const authored = (path: string): boolean => {
     const version = inputVersion(path, "authored", authoredFiles);
@@ -383,6 +387,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
         });
   return {
     intent: request.intent ?? "facts",
+    referenceMode: workerReferenceMode(request),
     available,
     format: INVENTORY_FORMAT,
     families,
@@ -471,7 +476,7 @@ function extractTypedFacts(
     readonly idBrandQueries: readonly InventorySpan[];
     readonly drizzle: InventoryBuildRequest;
   },
-): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
+): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "referenceQueries" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const {
     sources,
     authored,
@@ -526,7 +531,7 @@ function extractTypedFacts(
         : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
       spans,
-      families: new Set(families),
+      families: sourceFamilies(families, input.drizzle),
       exportQueries,
       callableQueries,
       computedNameQueries,
@@ -543,7 +548,9 @@ function extractTypedFacts(
       ...sourceFacts,
       ...drizzle,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
-      references: families.includes("references") ? extractReferenceFacts(service, program, referenceDeclarations, spans) : [],
+      ...(families.includes("references")
+        ? extractReferenceFacts(service, program, referenceDeclarations, { spans, queries: workerReferenceQueries(input.drizzle) })
+        : { references: [], referenceQueries: [] }),
     };
     // A later LS-owned family must not silently replace the Project owner whose invocation bytes were captured.
     for (const source of invocationSources) {
@@ -558,6 +565,22 @@ function extractTypedFacts(
       endReferencePass();
     }
   }
+}
+
+function workerReferenceMode(request: InventoryBuildRequest): import("../code-facts/semantic-inventory-contract.ts").InventoryReferenceMode {
+  return request.referenceDemand?.mode ?? "complete";
+}
+function workerReferenceQueries(request: InventoryBuildRequest): readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] {
+  return request.referenceDemand?.queries ?? [];
+}
+
+function assertReferenceRequest(request: InventoryBuildRequest, families: readonly InventoryFamily[]): void {
+  if (request.referenceDemand !== undefined && !(families.includes("references") && INVENTORY_REFERENCE_MODES.includes(request.referenceDemand.mode))) {
+    throw new Error("native exact references require reference-family demand");
+  }
+}
+function sourceFamilies(families: readonly InventoryFamily[], request: InventoryBuildRequest): Set<InventoryFamily> {
+  return new Set(families.filter((family) => family !== "references" || request.referenceDemand?.mode !== "closed"));
 }
 
 function registerReferenceDeclarations(
@@ -1028,9 +1051,12 @@ function extractReferenceFacts(
   service: ts.LanguageService,
   program: ts.Program,
   referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration>,
-  spans: InventorySpans,
-): InventoryPartition["references"] {
+  options: { readonly spans: InventorySpans; readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] },
+): Pick<InventoryPartition, "references" | "referenceQueries"> {
+  const { spans, queries } = options;
   const references: InventoryPartition["references"] = [];
+  const referenceQueries: NonNullable<InventoryPartition["referenceQueries"]> = [];
+  const sources = queries.length === 0 ? [] : nativeCompilerSourceFiles(program);
   const pass = service.createReadonlyReferencePass();
   try {
     if (service.getProgram() !== program) {
@@ -1054,10 +1080,66 @@ function extractReferenceFacts(
         }
       }
     }
+    referenceQueries.push(...captureReferenceQueries({ pass, service, program }, sources, options));
   } finally {
     pass.dispose();
+    for (const source of sources) {
+      source.forget();
+    }
   }
-  return references;
+  return { references, referenceQueries };
+}
+
+function captureReferenceQueries(
+  owner: { readonly pass: ts.ReadonlyReferencePass; readonly service: ts.LanguageService; readonly program: ts.Program },
+  sources: readonly SourceFile[],
+  options: { readonly spans: InventorySpans; readonly queries: readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] },
+): NonNullable<InventoryPartition["referenceQueries"]> {
+  const { spans, queries } = options;
+  const referenceQueries: NonNullable<InventoryPartition["referenceQueries"]> = [];
+  const byFile = new Map(sources.map((source) => [spans.path(source.getFilePath()), source]));
+  const seen = new Set<string>();
+  for (const pair of queries) {
+    const query = pair.node;
+    const key = referenceQueryKey(pair);
+    if (seen.has(key)) {
+      throw new Error("native exact reference query is ambiguous");
+    }
+    seen.add(key);
+    const root = inventoryQueryNode(byFile.get(pair.root.file), pair.root);
+    if (
+      !(
+        Node.isSourceFile(root) &&
+        owner.program.getRootFileNames().includes(root.getFilePath()) &&
+        owner.program.getSourceFile(root.getFilePath()) === root.compilerNode
+      )
+    ) {
+      throw new Error("native reference importer is outside its admitted native roots");
+    }
+    const source = byFile.get(query.file);
+    const node = inventoryQueryNode(source, query);
+    if (source === undefined || !Node.isReferenceFindable(node) || owner.program.getSourceFile(source.getFilePath()) !== source.compilerNode) {
+      throw new Error("native exact reference query is outside its admitted language-service source");
+    }
+    const target = referenceQueryNode(node);
+    referenceQueries.push({
+      root: pair.root,
+      query,
+      references: nativeReferenceFacts(owner.pass, owner.program, { file: target.getSourceFile().getFilePath(), start: target.getStart() }, spans),
+    });
+    owner.pass.validate(root.getFilePath());
+    owner.pass.validate(source.getFilePath());
+    if (
+      owner.service.getProgram() !== owner.program ||
+      source.wasForgotten() ||
+      root.wasForgotten() ||
+      owner.program.getSourceFile(root.getFilePath()) !== root.compilerNode ||
+      owner.program.getSourceFile(source.getFilePath()) !== source.compilerNode
+    ) {
+      throw new Error("native exact reference language-service owner changed during capture");
+    }
+  }
+  return referenceQueries;
 }
 
 function nativeReferenceFacts(

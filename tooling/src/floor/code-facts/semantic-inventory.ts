@@ -25,9 +25,11 @@ import type {
 import {
   drizzleQueryKey,
   exportDeclarationQueryKey,
+  INVENTORY_REFERENCE_MODES,
   inventoryFamilies,
   inventoryNodeQueryKey,
   invocationQueryKey,
+  referenceQueryKey,
   SemanticInventoryError,
   shapePairKey,
 } from "./semantic-inventory-contract.ts";
@@ -53,6 +55,7 @@ import {
   readInventoryGlobalOrigins,
   readInventoryInputs,
   readInventoryPairs,
+  readInventoryReferenceQueries,
   readInventorySchemaData,
   readInventorySchemaIdentity,
 } from "./semantic-inventory-queries.ts";
@@ -103,6 +106,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
       throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
     }
     const families = inventoryFamilies(options.families);
+    assertReferenceDemand(options, descriptors, families);
     assertExportDemand(options, descriptors, families);
     assertCallableDemand(options, descriptors, families);
     assertComputedDemand(options, descriptors, families);
@@ -112,6 +116,7 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
     assertDrizzleDemand(options, descriptors, families);
     const previous = latestInventoryPartitions(db, families);
     const { partitions, rebuilt } = demandPartitions({ ...options, root }, descriptors, previous, { db, scratch, overlay });
+    assertReferenceCohort(db, options, descriptors, partitions);
     assertDrizzleCohort(db, options, partitions);
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
     const samePopulation =
@@ -215,6 +220,9 @@ function buildPartition(
     assertIdBrandCoverage(staging, candidate, request);
     if (!coversGlobalDemand(staging, candidate, request)) {
       throw new Error(`native inventory worker supplied incomplete global-origin/binding coverage: ${request.descriptor.id}`);
+    }
+    if (!coversReferenceDemand(staging, candidate, request.referenceDemand)) {
+      throw new Error(`native inventory worker supplied incomplete reference coverage: ${request.descriptor.id}`);
     }
     assertExportCoverage(staging, candidate, request);
     assertInvocationCoverage(staging, candidate, request);
@@ -513,6 +521,62 @@ function assertShapeRoot(root: string, options: SemanticInventoryOptions): void 
   }
 }
 
+function assertReferenceCohort(
+  db: ReturnType<typeof openInventoryDatabase>,
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  partitions: readonly StoredInventoryPartition[],
+): void {
+  const familiesFor =
+    options.shapePlan === undefined ? (): readonly InventoryFamily[] => inventoryFamilies(options.families) : scalarDemand(options, descriptors);
+  for (const partition of partitions) {
+    if (familiesFor(partition.program).includes("references") && !coversReferenceDemand(db, partition, referenceDemand(options, partition.program))) {
+      throw new SemanticInventoryError("native reference demand changed before publication");
+    }
+  }
+}
+
+function referenceDemand(options: SemanticInventoryOptions, program: string): NonNullable<InventoryBuildRequest["referenceDemand"]> {
+  return {
+    mode: options.referenceDemand?.mode ?? "complete",
+    queries: [
+      ...new Map(
+        (options.referenceDemand?.queries ?? [])
+          .filter((query) => query.program === program)
+          .map(({ root, node }) => [referenceQueryKey({ root, node }), { root, node }]),
+      ).values(),
+    ],
+  };
+}
+function assertReferenceDemand(
+  options: SemanticInventoryOptions,
+  descriptors: readonly InventoryBuildRequest["descriptor"][],
+  families: readonly InventoryFamily[],
+): void {
+  const demand = options.referenceDemand;
+  if (
+    demand !== undefined &&
+    (!(families.includes("references") && INVENTORY_REFERENCE_MODES.includes(demand.mode)) ||
+      demand.queries.some((query) => !descriptors.some((descriptor) => descriptor.id === query.program)))
+  ) {
+    throw new SemanticInventoryError("native reference demand requires exact admitted compiler programs and reference-family ownership");
+  }
+}
+function coversReferenceDemand(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  demand: InventoryBuildRequest["referenceDemand"],
+): boolean {
+  if (demand === undefined) {
+    return true;
+  }
+  if (partition.referenceMode !== demand.mode) {
+    return false;
+  }
+  const queries = [...readInventoryReferenceQueries(db, partition.id)].map((entry) => referenceQueryKey({ root: entry.root, node: entry.query }));
+  return JSON.stringify(queries) === JSON.stringify(demand.queries.map((pair) => referenceQueryKey(pair)));
+}
+
 function exportDemand(options: SemanticInventoryOptions, program: string): readonly InventoryExportDeclarationQuery[] {
   return [
     ...new Map(
@@ -597,6 +661,7 @@ function nativeDemandRequest(
   families: readonly InventoryFamily[],
 ): Pick<
   InventoryBuildRequest,
+  | "referenceDemand"
   | "exportQueries"
   | "idBrandQueries"
   | "callableQueries"
@@ -612,6 +677,7 @@ function nativeDemandRequest(
 > {
   return {
     ...(families.includes("id-brands") ? { idBrandQueries: idBrandDemand(options, program) } : {}),
+    ...(families.includes("references") ? { referenceDemand: referenceDemand(options, program) } : {}),
     ...(families.includes("drizzle-identities")
       ? {
           drizzleQueries: [
@@ -645,6 +711,7 @@ function coversNativeDemand(
   partition: StoredInventoryPartition,
   demand: Pick<
     InventoryBuildRequest,
+    | "referenceDemand"
     | "exportQueries"
     | "idBrandQueries"
     | "callableQueries"
@@ -660,6 +727,7 @@ function coversNativeDemand(
   >,
 ): boolean {
   return (
+    coversReferenceDemand(db, partition, demand.referenceDemand) &&
     coversExportDemand(db, partition, demand.exportQueries ?? []) &&
     coversIdBrandDemand(db, partition, demand.idBrandQueries ?? []) &&
     coversCallableDemand(db, partition, demand.callableQueries ?? []) &&

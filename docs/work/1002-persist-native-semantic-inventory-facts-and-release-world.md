@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Implement the planned persisted native-world inventory store and worker lifecycle. Existing alias-aware collectors consume shared export origins, module targets, bindings and physical references without retaining every native program. Keep unported typed consumers on explicit native views.
+Implement the persisted native-world inventory store and worker lifecycle. Collectors consume shared export origins, module targets, bindings and physical references without retaining every native program. Keep unported typed consumers on native views.
 
 ## Why
 
@@ -24,7 +24,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Frozen world qualifications establish selected extraction, publication, release and warm reuse, not complete-demand acceptance. Preserve frozen inputs. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Frozen qualifications establish selected extraction, publication, release and reuse, not complete-demand acceptance. Preserve frozen inputs. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
 Authored-input admission, native JS-depth origins, ID-brand publication, indexed reads, stale-source refusal and release have selected controls. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
@@ -36,6 +36,6 @@ Reviewed contextual sharing, optional invocation and native resource registratio
 
 Reviewed reached-call capture uses explicit reference inputs, validates native lifetime and stages complete observations before publication. Omitted reference inputs preserve ordinary behavior. Current SDK APIs and bundled compiler install without runtime mappings. Native transport, reached-call and helper-freshness controls pass. Tooling types pass; root retains inherited diagnostics.
 
-The actual env-parser control still refuses inherited descriptor exposure at the identity dispatch. Actual target completion, complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
+The env-parser control refuses inherited descriptor exposure at identity dispatch. The original callable diagnosis reaches its deadline without a target fact. Complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
 
 Source lookup preserves admission, epochs and borrowed freshness. Supplied alternatives retain actual caller, formal and default provenance; activation metadata stays transient. Mapped and ordinary controls pass; true cycles refuse. The actual env control repeats the same admitted value context; effect qualification remains open. Complete replay and cost remain open.

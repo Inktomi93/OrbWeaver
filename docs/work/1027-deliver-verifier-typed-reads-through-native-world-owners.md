@@ -16,7 +16,7 @@ Route maintained verifier typed reads through canonical native source and checke
 
 ## Why
 
-The ordinary verifier context still constructs a pure-AST workspace; it does not establish registered native Node or browser ownership for typed readers.
+The ordinary syntax workspace does not establish native Node or browser ownership for typed readers.
 
 ## Done when
 
@@ -42,4 +42,4 @@ Native schema, column and configuration facts serve assets, table ownership, vec
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Zod, body-cap and selected origin/query consumers use native facts. Module targets retain importing-world meaning. Exact ID-brand demand and ID matcher consumers pass ordinary qualification and security review. Bus, strict references and cost stay open. Evidence: `reports/review/1027-native-id-ordinary.md`.
+Zod, body-cap, selected origins and ID matchers use native facts. Strict references preserve importing-world meaning, explicit zero, demanded-owner publication and pinned migrations. Independent review and combined ordinary controls pass. Bus, retained origin branches and cost stay open. Evidence: `reports/review/1027-native-strict-references-ordinary.md`.
