@@ -20,6 +20,8 @@ import type {
   CallReturnProgram,
   CallReturnProofContext,
   CallReturnProofEpoch,
+  InheritedReadEvidence,
+  InheritedReadPremise,
   NativeValueTransferServices,
   ReferenceFact,
   ResolvedReferenceFact,
@@ -553,7 +555,7 @@ function defaultBindingSiblingRead(
   return { kind: "resolved", value: true, trace: { declarations: [], origin: use } };
 }
 
-function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext): ReferenceFact<true> {
+function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext): InheritedReadEvidence {
   if (!source.present) {
     const key = source.path[0];
     const own =
@@ -1213,6 +1215,7 @@ function callableSuppliedLeaves(
     readonly active: ReadonlySet<ts.Node>;
     readonly activeValues?: ReadonlySet<ts.Node>;
     readonly continuation?: ReturnedValueContext;
+    readonly inheritedReadPremise?: InheritedReadPremise;
     readonly uses?: Map<Node, CallableSuppliedUse[]>;
   } = {
     bindings: new Map(),
@@ -1222,6 +1225,7 @@ function callableSuppliedLeaves(
   const { bindings, active } = inputs;
   const continuation: ReturnedValueContext = {
     ...inputs.continuation,
+    ...(inputs.inheritedReadPremise === undefined ? {} : { inheritedReadPremise: inputs.inheritedReadPremise }),
     program,
     bindings,
     active: inputs.activeValues ?? new Set(),
@@ -1377,7 +1381,7 @@ function createCallableUseSharing(
   if (typeof admission === "function") {
     context?.untrackedRead?.();
   }
-  if (program === undefined || context === undefined || typeof admission === "function") {
+  if (program === undefined || context === undefined || typeof admission === "function" || program.inheritedReadTrialActive?.() === true) {
     return;
   }
   if (
@@ -1563,6 +1567,7 @@ function captureCallableUse(
 
 function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
   const sharing =
+    proof.program?.inheritedReadTrialActive?.() !== true &&
     proof.state.refusal === undefined &&
     proof.state.sharing?.origins === proof.origins &&
     proof.state.sharing.program === proof.program &&
@@ -1957,14 +1962,20 @@ function inheritedEffectValues(
   node: Node,
   path: readonly string[],
   bindings: ReadonlyMap<Node, Node>,
-  context: { readonly program: CallReturnProgram; readonly activeValues?: ReadonlySet<ts.Node>; readonly continuation?: ReturnedValueContext },
+  context: {
+    readonly program: CallReturnProgram;
+    readonly activeValues?: ReadonlySet<ts.Node>;
+    readonly continuation?: ReturnedValueContext;
+    readonly inheritedReadPremise?: InheritedReadPremise;
+  },
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  const { program, activeValues, continuation } = context;
+  const { program, activeValues, continuation, inheritedReadPremise } = context;
   const inputs = {
     bindings,
     active: activeValues ?? new Set<ts.Node>(),
     ...(activeValues === undefined ? {} : { activeValues }),
     ...(continuation === undefined ? {} : { continuation }),
+    ...(inheritedReadPremise === undefined ? {} : { inheritedReadPremise }),
   };
   const values = callableSuppliedLeaves(node, path, program, inputs);
   if (values.kind === "unresolved") {
@@ -1977,14 +1988,23 @@ function inheritedEffectValues(
   return inheritedReceiverRefusal(node, receiver, path.length > 0) ?? values;
 }
 
-function nativeInheritedEffects(node: Node, context: ReturnedValueContext): ReferenceFact<true> {
+function nativeInheritedEffects(node: Node, context: ReturnedValueContext): InheritedReadEvidence {
   const program = context.program;
   if (program === undefined) {
     return valueRefusal(node, "missing", "native field effects have no captured Program");
   }
+  if (context.inheritedReadPremise !== undefined) {
+    return context.inheritedReadPremise.require(node, program);
+  }
   return inspectInheritedReadEffects(node, {
     program,
-    values: (value, path, bindings) => inheritedEffectValues(value, path, bindings, { program, activeValues: context.active, continuation: context }),
+    values: (value, path, bindings, premise) =>
+      inheritedEffectValues(value, path, bindings, {
+        program,
+        activeValues: context.active,
+        continuation: context,
+        ...(premise === undefined ? {} : { inheritedReadPremise: premise }),
+      }),
   });
 }
 
@@ -1996,7 +2016,8 @@ function effectFreeCallableData(receiver: ReturnedValueSource, key: string, prog
       (terminalDataRead(access) &&
         inspectInheritedReadEffects(receiver.value, {
           program,
-          values: (node, path, bindings) => inheritedEffectValues(node, path, bindings, { program }),
+          values: (node, path, bindings, premise) =>
+            inheritedEffectValues(node, path, bindings, { program, ...(premise === undefined ? {} : { inheritedReadPremise: premise }) }),
         }).kind === "resolved"))
   );
 }

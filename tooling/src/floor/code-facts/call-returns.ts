@@ -1114,6 +1114,7 @@ function captureObservationSources(group: CapturedCallGroup, observation: CallRe
 }
 
 interface SuppliedRefinement {
+  readonly beforeWrite: () => void;
   readonly admitted: Set<import("ts-morph").ts.CallExpression>;
   readonly directCalls: ReadonlySet<import("ts-morph").ts.CallExpression>;
   readonly references: readonly MorphNode[];
@@ -1191,6 +1192,7 @@ function enterObservationBodies(observation: CallReturnObservation, group: Captu
 }
 
 function refineSuppliedRound(groups: ReadonlyMap<import("ts-morph").Project, CapturedCallGroup>, inputs: SuppliedRefinement): boolean {
+  inputs.beforeWrite();
   const observed = inputs.snapshot();
   inputs.ledger.refresh();
   const demandedBefore = inputs.demandedOwners.size;
@@ -1295,7 +1297,12 @@ function settledCallableUse(call: CallExpression, program: CallReturnProgram): R
     : (targets ?? unresolved("missing", call, { declarations: [] }, "the supplied callable use has no settled actual target"));
 }
 
-function captureCallableValue(node: MorphNode, captured: CallReturnProgram, group: CapturedCallGroup): ReferenceFact<CallableDeclaration> {
+function captureCallableValue(
+  node: MorphNode,
+  captured: CallReturnProgram,
+  group: CapturedCallGroup,
+  readonlySources?: (sources: ReadonlySet<import("ts-morph").SourceFile>) => void,
+): ReferenceFact<CallableDeclaration> {
   const fact = resolveCallableValueDeclaration(node, { programs: [captured] });
   if (fact.kind === "unresolved") {
     return fact;
@@ -1307,15 +1314,24 @@ function captureCallableValue(node: MorphNode, captured: CallReturnProgram, grou
   ) {
     return unresolved("unsupported", node, { declarations: [] }, "the supplied callable value has a stale or foreign native declaration source");
   }
-  for (const source of sources) {
-    group.sources.set(source, source.compilerNode);
+  if (readonlySources !== undefined) {
+    readonlySources(sources);
+  } else {
+    for (const source of sources) {
+      group.sources.set(source, source.compilerNode);
+    }
   }
   return fact;
 }
 
 function suppliedCallableUseReader(
   captured: () => CallReturnProgram,
-  context: { readonly activeOwners: Set<import("ts-morph").ts.Node>; readonly demand: (owner: MorphNode) => void; readonly opaque: () => void },
+  context: {
+    readonly activeOwners: Set<import("ts-morph").ts.Node>;
+    readonly demand: (owner: MorphNode) => void;
+    readonly opaque: () => void;
+    readonly readonlyUse: (owner: MorphNode) => ReferenceFact<true> | undefined;
+  },
 ): (owner: MorphNode) => ReferenceFact<true> {
   const { activeOwners, demand } = context;
   return (owner: MorphNode): ReferenceFact<true> => {
@@ -1323,6 +1339,10 @@ function suppliedCallableUseReader(
     const epoch = capturedProgram(owner, { programs: [program] });
     if (epoch.kind === "unresolved") {
       return epoch;
+    }
+    const readonlyUse = context.readonlyUse(owner);
+    if (readonlyUse !== undefined) {
+      return readonlyUse;
     }
     context.opaque();
     if (activeOwners.has(owner.compilerNode)) {
@@ -1345,6 +1365,18 @@ function suppliedCallableUseReader(
   };
 }
 
+class InheritedCaptureDemand extends Error {
+  readonly attempt: object;
+  readonly node: MorphNode;
+  readonly fulfill: (() => void) | undefined;
+  constructor(attempt: object, node: MorphNode, fulfill: (() => void) | undefined) {
+    super("inherited-effect proof requires ordinary capture before a read-only trial");
+    this.attempt = attempt;
+    this.node = node;
+    this.fulfill = fulfill;
+  }
+}
+
 /** Supplied calls and reached value dependencies share one authored-call capture, never another compiler world. */
 export function observeCallReturns(
   roots: readonly CallExpression[],
@@ -1356,6 +1388,12 @@ export function observeCallReturns(
       ? { nativeSymbolServices: { callableOrigin: resolveCallableValueOrigin, memberOrigin: resolveTypeMemberOrigin, declaredByPackage } }
       : {};
   const ledger = new RefinementLedger();
+  let inheritedAttempt: { readonly node: MorphNode } | undefined;
+  const beforeWrite = (node?: MorphNode, fulfill?: () => void): void => {
+    if (inheritedAttempt !== undefined) {
+      throw new InheritedCaptureDemand(inheritedAttempt, node ?? inheritedAttempt.node, fulfill);
+    }
+  };
   const nativeReads = captureNativeReferenceReads(ledger.release);
   const groups = new Map<import("ts-morph").Project, CapturedCallGroup>();
   const observedReferences = [...(references ?? [])];
@@ -1385,6 +1423,7 @@ export function observeCallReturns(
     return { call, target, targets, alternatives, returns };
   };
   const appendObservation = (observation: CallReturnObservation): void => {
+    beforeWrite();
     const project = observation.call.getProject();
     let group = groups.get(project);
     if (group === undefined) {
@@ -1405,6 +1444,7 @@ export function observeCallReturns(
   const activeOwners = new Set<import("ts-morph").ts.Node>();
   const publishers: (() => void)[] = [];
   const publishCapture = (): void => {
+    beforeWrite();
     for (const publish of publishers) {
       publish();
     }
@@ -1412,7 +1452,7 @@ export function observeCallReturns(
   let refining = false;
   let settledDemandCount = 0;
   const pendingValueCalls = new Map<ts.CallExpression, PendingValueCall>();
-  const valueAdmission = (call: CallExpression, captured: CallReturnProgram): ReferenceFact<true> => {
+  const valueAdmission = (call: MorphNode, captured: CallReturnProgram): ReferenceFact<true> => {
     const current = capturedProgram(call, { programs: [captured] });
     if (current.kind === "unresolved") {
       return current;
@@ -1428,6 +1468,7 @@ export function observeCallReturns(
     discoveredReferences: readonly MorphNode[],
     replaced: Set<CapturedCallGroup>,
   ): void => {
+    beforeWrite();
     for (const observation of observations) {
       const group = groups.get(observation.call.getProject());
       if (group !== undefined && !replaced.has(group)) {
@@ -1444,6 +1485,7 @@ export function observeCallReturns(
     }
   };
   const captureValueRequest = (request: PendingValueCall, replaced: Set<CapturedCallGroup>): boolean => {
+    beforeWrite();
     const current = valueAdmission(request.call, request.program);
     if (current.kind === "unresolved") {
       request.refusal = current;
@@ -1474,6 +1516,7 @@ export function observeCallReturns(
     return observations.length > 0;
   };
   const flushValueCalls = (): boolean => {
+    beforeWrite();
     let changed = false;
     const replaced = new Set<CapturedCallGroup>();
     for (const [native, request] of pendingValueCalls) {
@@ -1508,9 +1551,11 @@ export function observeCallReturns(
     },
   };
   const settleDemands = (): void => {
+    beforeWrite();
     refining = true;
     try {
       refineSuppliedCapture(groups, {
+        beforeWrite,
         admitted,
         directCalls,
         references: observedReferences,
@@ -1529,6 +1574,7 @@ export function observeCallReturns(
     }
   };
   const demand = (owner: MorphNode): void => {
+    beforeWrite();
     demandedOwners.add(owner);
     if (!refining && demandedOwners.size !== settledDemandCount) {
       settleDemands();
@@ -1542,6 +1588,7 @@ export function observeCallReturns(
     if (captured.byCall.has(call.compilerNode)) {
       return current;
     }
+    beforeWrite(call, () => demandValueCall(call, captured));
     const request: PendingValueCall = pendingValueCalls.get(call.compilerNode) ?? { call, program: captured };
     pendingValueCalls.set(call.compilerNode, request);
     if (refining) {
@@ -1558,6 +1605,85 @@ export function observeCallReturns(
     return captured.byCall.has(call.compilerNode)
       ? current
       : unresolved("missing", call, { declarations: [] }, "reached value call is unavailable in the published capture");
+  };
+  const inheritedCaptureInputs = (captured: CallReturnProgram): readonly (object | number | boolean | undefined)[] => [
+    captured.program,
+    captured.sources,
+    captured.byCall,
+    captured.callers,
+    captured.escapingReferences,
+    captured.callableContext,
+    captured.referencesObserved,
+    captured.suppliedCallableTargets,
+    captured.nativeValueTransfers,
+    captured.nativeParsedValue,
+    captured.nativeReturnPaths,
+    projection.suppliedCallableTargets,
+    projection.nativeValueTransfers,
+    projection.explicitAbsentReturns,
+    observedReferences.length,
+    admitted.proofSize,
+    demandedOwners.size,
+    directCalls.size,
+    settledDemandCount,
+    refining,
+    ledger.active,
+    ...groups.values().flatMap((group) => [group.calls, ...group.calls, ...group.sources.keys(), ...group.sources.values()]),
+  ];
+  const runInheritedAttempt = (node: MorphNode, prove: () => ReferenceFact<true>): ReferenceFact<true> | InheritedCaptureDemand => {
+    const attempt = { node };
+    inheritedAttempt = attempt;
+    try {
+      return prove();
+    } catch (error) {
+      if (!(error instanceof InheritedCaptureDemand) || error.attempt !== attempt) {
+        throw error;
+      }
+      return error;
+    } finally {
+      inheritedAttempt = undefined;
+    }
+  };
+  const evaluateInheritedAttempt = (
+    node: MorphNode,
+    captured: CallReturnProgram,
+    prove: () => ReferenceFact<true>,
+  ): ReferenceFact<true> | { readonly kind: "retry" } => {
+    const admission = valueAdmission(node, captured);
+    if (admission.kind === "unresolved") {
+      return admission;
+    }
+    const before = inheritedCaptureInputs(captured);
+    const changed = (): boolean => {
+      const after = inheritedCaptureInputs(captured);
+      return before.length !== after.length || before.some((value, index) => value !== after[index]);
+    };
+    const result = runInheritedAttempt(node, prove);
+    const current = valueAdmission(node, captured);
+    if (current.kind === "unresolved") {
+      return current;
+    }
+    if (changed()) {
+      return unresolved("unsupported", node, { declarations: [] }, "capture inputs changed during an inherited-effect trial");
+    }
+    if (!(result instanceof InheritedCaptureDemand)) {
+      return result;
+    }
+    // Discard the entire conditional attempt before the ordinary owner can demand or publish facts.
+    result.fulfill?.();
+    return changed() ? { kind: "retry" } : unresolved("missing", result.node, { declarations: [] }, result.message);
+  };
+  const readonlyInheritedProof = (node: MorphNode, captured: CallReturnProgram, prove: () => ReferenceFact<true>): ReferenceFact<true> => {
+    if (inheritedAttempt !== undefined) {
+      return unresolved("unsupported", node, { declarations: [] }, "an inherited-effect trial cannot admit a reentrant public proof");
+    }
+    ledger.opaque();
+    for (;;) {
+      const result = evaluateInheritedAttempt(node, captured, prove);
+      if (result.kind !== "retry") {
+        return result;
+      }
+    }
   };
   const valueServices = (
     captured: () => CallReturnProgram,
@@ -1578,6 +1704,7 @@ export function observeCallReturns(
   });
   const snapshot = (published = false): CallReturnObservations => ({
     programs: [...groups].map(([project, group]) => {
+      beforeWrite();
       const nativeReferences = observedReferences.filter((node) => node.getProject() === project);
       for (const reference of nativeReferences) {
         const source = reference.getSourceFile();
@@ -1624,6 +1751,11 @@ export function observeCallReturns(
       }
       const captured: CallReturnProgram = {
         ...valueServices(() => captured),
+        inheritedReadTrialActive: () => inheritedAttempt !== undefined,
+        withInheritedReadTrial: (node, owner, prove) =>
+          owner === captured
+            ? readonlyInheritedProof(node, captured, prove)
+            : unresolved("unsupported", node, { declarations: [] }, "an inherited-effect trial belongs to another capture owner"),
         sources: group.sources,
         ...nativeSymbols,
         ...(projection.suppliedCallableTargets === true
@@ -1642,8 +1774,33 @@ export function observeCallReturns(
                 refining,
                 dependencyOwner: ledger.active,
               }),
-              suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand, opaque: () => ledger.opaque() }),
-              suppliedCallableValue: (node: MorphNode) => captureCallableValue(node, captured, group),
+              suppliedCallableUses: suppliedCallableUseReader(() => captured, {
+                activeOwners,
+                demand,
+                opaque: () => ledger.opaque(),
+                readonlyUse: (owner) => {
+                  if (inheritedAttempt === undefined) {
+                    return;
+                  }
+                  if (Node.isCallExpression(owner) && demandedOwners.has(owner)) {
+                    return settledCallableUse(owner, captured);
+                  }
+                  throw new InheritedCaptureDemand(inheritedAttempt, owner, () => demand(owner));
+                },
+              }),
+              suppliedCallableValue: (node: MorphNode) =>
+                captureCallableValue(
+                  node,
+                  captured,
+                  group,
+                  inheritedAttempt === undefined
+                    ? undefined
+                    : (sources) => {
+                        if ([...sources].some((source) => group.sources.get(source) !== source.compilerNode) && inheritedAttempt !== undefined) {
+                          throw new InheritedCaptureDemand(inheritedAttempt, node, () => captureCallableValue(node, captured, group));
+                        }
+                      },
+                ),
             }
           : {}),
         get calls(): CallReturnProgram["calls"] {

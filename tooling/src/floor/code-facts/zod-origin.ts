@@ -354,12 +354,12 @@ function callbackDataRead(use: MorphNode, binding: import("ts-morph").Identifier
     return unresolved("unsupported", parent, "schema callback reads outside its authored record fields");
   }
   const inherited = inputs.inputs.services.inheritedEffects(parent, inputs.inputs.context);
-  return inherited.kind === "resolved"
-    ? inherited
-    : {
+  return inherited.kind === "unresolved"
+    ? {
         ...inherited,
         detail: `schema callback read ${names.join(", ")} may be absent: ${inherited.detail}`,
-      };
+      }
+    : resolved(true, parent, []);
 }
 
 function synchronousCallback(

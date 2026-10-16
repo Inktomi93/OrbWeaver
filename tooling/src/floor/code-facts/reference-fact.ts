@@ -8,6 +8,7 @@ import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
   InheritedReadEffectContext,
+  InheritedReadPremise,
   MemberReference,
   ModuleMemberOrigin,
   ReferenceFact,
@@ -373,6 +374,19 @@ function collectInheritedReadInputs(sources: readonly SourceFile[], writes: Map<
   return sources.flatMap((source) => (source.isDeclarationFile() ? [] : sourceWriteFacts(source, writes).inheritedReads));
 }
 
+class InheritedReadTrialPremise implements InheritedReadPremise {
+  #read: InheritedReadPremise["require"] | undefined;
+  constructor(read: InheritedReadPremise["require"]) {
+    this.#read = read;
+  }
+  require(node: MorphNode, program: InheritedReadEffectContext["program"]): ReturnType<InheritedReadPremise["require"]> {
+    return this.#read?.(node, program) ?? unresolved("unsupported", node, state(), "the inherited-effect premise has expired");
+  }
+  dispose(): void {
+    this.#read = undefined;
+  }
+}
+
 /** Project source effects are neutral facts; every projection retains actual captured binding dependencies. */
 export function inspectInheritedReadEffects(node: MorphNode, context: InheritedReadEffectContext): ReferenceFact<true> {
   const target = state();
@@ -389,22 +403,52 @@ export function inspectInheritedReadEffects(node: MorphNode, context: InheritedR
     openPass.writeProgram = program;
   }
   const cached = openPass?.inheritedReads.get(program);
-  const inputs = cached ?? collectInheritedReadInputs(nativeCompilerSourceFiles(project), target.writesBySource);
+  const sources = nativeCompilerSourceFiles(project);
+  const identities = sources.map((source) => source.compilerNode);
+  const inputs = cached ?? collectInheritedReadInputs(sources, target.writesBySource);
   if (cached === undefined) {
     openPass?.inheritedReads.set(program, inputs);
   }
-  for (const input of inputs) {
-    if (input.wasForgotten()) {
-      return unresolved("unsupported", node, target, "an inherited effect source was forgotten");
+  const pass = openPass;
+  const currentInvocation = (): boolean => openPass === pass && !node.wasForgotten() && project.getProgram().compilerObject === program;
+  const current = (): boolean => currentInvocation() && sources.every((source, index) => !source.wasForgotten() && source.compilerNode === identities[index]);
+  const prove = (): ReferenceFact<true> => {
+    const premise =
+      context.program.withInheritedReadTrial === undefined
+        ? undefined
+        : new InheritedReadTrialPremise((input, captured) =>
+            captured === context.program &&
+            captured.inheritedReadTrialActive?.() === true &&
+            currentInvocation() &&
+            !input.wasForgotten() &&
+            input.getProject() === project &&
+            program.getSourceFile(input.getSourceFile().getFilePath()) === input.getSourceFile().compilerNode
+              ? { kind: "conditional" }
+              : unresolved("unsupported", input, target, "the inherited-effect premise is outside its live native trial"),
+          );
+    const trial: InheritedReadEffectContext = {
+      program: context.program,
+      values: (value, path, bindings) => context.values(value, path, bindings, premise),
+    };
+    try {
+      for (const input of inputs) {
+        if (input.wasForgotten()) {
+          return unresolved("unsupported", node, target, "an inherited effect source was forgotten");
+        }
+        const effect = inheritedReadEffect(input, trial);
+        if (effect !== undefined) {
+          return unresolved("unsupported", effect, target, "the loaded Project contains an unclosed inherited descriptor or prototype exposure");
+        }
+      }
+      // Each complete-population transition must preserve the premise before it can be discharged.
+      return current()
+        ? resolved(true, target, node)
+        : unresolved("unsupported", node, target, "native Project changed while projecting inherited read effects");
+    } finally {
+      premise?.dispose();
     }
-    const effect = inheritedReadEffect(input, context);
-    if (effect !== undefined) {
-      return unresolved("unsupported", effect, target, "the loaded Project contains an unclosed inherited descriptor or prototype exposure");
-    }
-  }
-  return !node.wasForgotten() && project.getProgram().compilerObject === program
-    ? resolved(true, target, node)
-    : unresolved("unsupported", node, target, "native Project changed while projecting inherited read effects");
+  };
+  return context.program.withInheritedReadTrial?.(node, context.program, prove) ?? prove();
 }
 
 function uniqueDeclaration(identifier: Identifier, target: ResolutionState): ReferenceFact<MorphNode> {

@@ -42,8 +42,20 @@ export interface SourceWriteFacts {
 /** Effect projection consumes actual captured alternatives, including their paired argument bindings. */
 export interface InheritedReadEffectContext {
   readonly program: CallReturnProgram;
-  readonly values: (node: Node, path: readonly string[], bindings: ReadonlyMap<Node, Node>) => ReferenceFact<readonly ReturnedValueSource[]>;
+  readonly values: (
+    node: Node,
+    path: readonly string[],
+    bindings: ReadonlyMap<Node, Node>,
+    premise?: InheritedReadPremise,
+  ) => ReferenceFact<readonly ReturnedValueSource[]>;
 }
+
+/** Only the live complete-population trial can require this premise; it is not a discharged fact. */
+export interface InheritedReadPremise {
+  readonly require: (node: Node, program: CallReturnProgram) => { readonly kind: "conditional" } | UnresolvedReferenceFact;
+}
+
+export type InheritedReadEvidence = ReferenceFact<true> | { readonly kind: "conditional" };
 
 /** One property or qualified type read, normalized across dotted, optional, computed-literal, and
  *  namespace-qualified type spellings. */
@@ -228,6 +240,9 @@ export interface CallReturnProofEpoch {
 export type CallableAdmission = ((call: CallExpression) => boolean) | { readonly captured: CallReturnProgram } | { readonly admitted: CallReturnProofContext };
 
 export interface CallReturnProgram {
+  /** Conditional effect evaluation cannot demand or publish capture inputs while this owner is borrowed. */
+  readonly withInheritedReadTrial?: (node: Node, owner: CallReturnProgram, prove: () => ReferenceFact<true>) => ReferenceFact<true>;
+  readonly inheritedReadTrialActive?: () => boolean;
   /** Reached value calls extend this capture's neutral facts; a queued round is not an admitted result. */
   readonly demandValueCall?: (call: CallExpression) => ReferenceFact<true>;
   readonly nativeParsedValue?: (
@@ -324,6 +339,7 @@ export interface ReturnedValueActivation {
 
 /** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
 export interface ReturnedValueContext {
+  readonly inheritedReadPremise?: InheritedReadPremise;
   readonly invocation?: ReturnedValueInvocation;
   readonly valueActivations?: readonly ReturnedValueActivation[];
   readonly callableValues?: true;
@@ -339,7 +355,7 @@ export interface ReturnedValueContext {
 /** Native carriers reuse the sole value traversal and its alternative/refusal operations. */
 export interface NativeValueTransferServices {
   readonly outputUse: (node: Node, path: readonly string[], context: ReturnedValueContext, values: readonly ReturnedValueSource[]) => ReferenceFact<true>;
-  readonly inheritedEffects: (node: Node, context: ReturnedValueContext) => ReferenceFact<true>;
+  readonly inheritedEffects: (node: Node, context: ReturnedValueContext) => InheritedReadEvidence;
   readonly readValue: (node: Node, path: readonly string[], context: ReturnedValueContext) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly leaf: (node: Node, path: readonly string[], context: ReturnedValueContext, present?: boolean) => ReferenceFact<readonly ReturnedValueSource[]>;
   readonly alternatives: (node: Node, facts: readonly ReferenceFact<readonly ReturnedValueSource[]>[]) => ReferenceFact<readonly ReturnedValueSource[]>;

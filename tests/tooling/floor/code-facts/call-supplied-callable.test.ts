@@ -1870,22 +1870,22 @@ for (const scenario of [
     resolved: true,
   },
   {
-    name: "unclosed dispatch retained through a local signal alias",
+    name: "finite dispatch preserved through a local signal alias",
     conditional: true,
     dispatch: true,
     prototype: false,
     handoff: false,
     undefinedOwn: false,
-    resolved: false,
+    resolved: true,
   },
   {
-    name: "unclosed dispatch retained through a signal argument",
+    name: "finite dispatch preserved through a signal argument",
     conditional: true,
     dispatch: true,
     prototype: false,
     handoff: true,
     undefinedOwn: false,
-    resolved: false,
+    resolved: true,
   },
   {
     name: "absent native signal with an inherited getter",
@@ -1958,7 +1958,7 @@ for (const scenario of [
         inherited.mock.results.some(
           (result) => result.type === "return" && result.value.kind === "unresolved" && result.value.node.getText() === "modes[mode]",
         ),
-      ).toBe(scenario.conditional && scenario.dispatch);
+      ).toBe(false);
       expect(
         fact.kind,
         fact.kind === "unresolved" ? `${fact.reason}: ${fact.detail} at ${fact.node.getText()}` : fact.value.map((value) => value.value.getText()).join(" | "),
@@ -1970,6 +1970,98 @@ for (const scenario of [
     }
   });
 }
+
+test("factory-local completion retains the source-derived capability and optional signal handoff", async ({ repoRoot }) => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
+  const identity = project.createSourceFile("/identity-source.ts", await readFile(join(repoRoot, "packages/contracts/src/identity/index.ts"), "utf8"));
+  const capability = project.createSourceFile("/capability-source.ts", await readFile(join(repoRoot, "packages/server/src/entry/auth/capability.ts"), "utf8"));
+  const services = project.createSourceFile("/services-source.ts", await readFile(join(repoRoot, "packages/server/src/entry/compose/services.ts"), "utf8"));
+  const owner = services.getFunctionOrThrow("createServices");
+  const authConfig = owner.getDescendantsOfKind(SyntaxKind.BindingElement).find((element) => element.getName() === "authConfig");
+  if (authConfig === undefined) {
+    throw new Error("the actual defaulted services binding is missing");
+  }
+  const nativeCode = ts.transpileModule(
+    `${identity.getVariableDeclarationOrThrow("MULTI_HUMAN_CAPABLE").getVariableStatementOrThrow().getText()}
+     ${identity
+       .getFunctionOrThrow("isMultiHumanCapable")
+       .getText()
+       .replace(/^export /, "")}
+     ${capability
+       .getFunctionOrThrow("createMultiHumanCapability")
+       .getText()
+       .replace(/^export /, "")}
+     const env={AUTH_MODE:"local"};
+     function createScopedTimers(input){return input;}
+     async function createServices(deps){
+       const timers=createScopedTimers(deps.timers);
+       const {${authConfig.getText()}}=deps;
+       ${owner.getVariableDeclarationOrThrow("authMode").getVariableStatementOrThrow().getText()}
+       const settings={getEffectiveConfig:()=>({localMultiUser:true})};
+       ${owner.getVariableDeclarationOrThrow("multiHumanCapable").getVariableStatementOrThrow().getText()}
+       const controller=new AbortController();
+       return {invoke:compose({backgroundSignal:controller.signal}),multiHumanCapable};
+     }
+     function compose(input){const ctx={settle:()=>1,...(input.backgroundSignal===undefined?{}:{backgroundSignal:input.backgroundSignal})};return ()=>engine(ctx);}
+     function data(args){return args.signal;}
+     function engine(ctx){data({signal:ctx.backgroundSignal});return ctx.settle();}
+     async function boot(){const authConfig={mode:"local"};return await createServices({authConfig});}
+     async function run(){const graph=await boot();graph.multiHumanCapable();return graph.invoke();}`,
+    { compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext } },
+  ).outputText;
+  project.removeSourceFile(identity);
+  project.removeSourceFile(capability);
+  project.removeSourceFile(services);
+  expect(await runInNewContext(`${nativeCode};run();`, Object.fromEntries([["AbortController", AbortController]]))).toBe(1);
+  const source = project.createSourceFile("/factory-local-completion.ts", nativeCode);
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const target = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+  if (target === undefined) {
+    throw new Error("the actual callable target is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the captured factory context is missing");
+    }
+    const fact = readAuthoredCallableSources(target.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+    expect(fact.kind, fact.kind === "unresolved" ? `${fact.detail} at ${fact.node.getText()}` : "resolved").toBe("resolved");
+    expect(fact.kind === "resolved" ? fact.value.map((leaf) => leaf.value.getText()) : []).toEqual(["() => 1"]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("a prior factory instance can change a later read at the same captured call site", () => {
+  const code = `
+    const shared={authConfig:{mode:"local"}};
+    const modes={local:()=>true,oidc:()=>true};
+    function dispatch(mode,config){return modes[mode](config.localMultiUser);}
+    function capability(mode,readConfig){return ()=>dispatch(mode,readConfig());}
+    function readConfig(){Object.defineProperty(Object.prototype,'timers',{configurable:true,get(){this.authConfig.mode='oidc';return undefined;}});return {localMultiUser:true};}
+    function createServices(deps){const timers=deps.timers;const {authConfig={mode:"local"}}=deps;const authMode=authConfig.mode;return {authMode,capability:capability(authMode,readConfig)};}
+    function boot(){return createServices(shared);}
+    const first=boot();first.capability();const second=boot();
+  `;
+  expect(runInNewContext(`${code};[first.authMode,second.authMode];`)).toEqual(["local", "oidc"]);
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/repeated-factory-completion.ts", code);
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const owner = source.getFunctionOrThrow("createServices");
+  const target = owner.getVariableDeclarationOrThrow("authMode").getInitializerOrThrow();
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    expect(program?.callers.get(owner.compilerNode)?.length).toBe(1);
+    const fact = readReturnedValue(target, [], observed, new Set());
+    expect(fact.kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
 
 for (const handoff of [false, true]) {
   test(`conditional background data preserves ${handoff ? "argument handoff" : "local read"} and exact projection alternatives`, async ({ repoRoot }) => {

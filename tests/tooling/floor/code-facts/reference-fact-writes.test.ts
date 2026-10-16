@@ -1,9 +1,10 @@
 // Strong collection-use proof is separate from the source-local explicit-write queries.
 
+import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass, inspectInheritedReadEffects, inspectReferenceWrites } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { InheritedReadEffectContext } from "@orb/tooling/floor/code-facts/reference-fact-contract";
+import type { InheritedReadEffectContext, InheritedReadPremise } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import { unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fact-writes";
 import { readAuthoredCallableSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -78,6 +79,283 @@ function effectContext(project: Project, sources = project.getSourceFiles()): In
   return { program, values: (node, path, bindings) => readReturnedValue(node, path, observed, { terminals: new Set(), bindings }) };
 }
 
+for (const first of [true, false]) {
+  test(`conditional inherited proof retains a ${first ? "first" : "late"} bad exposure and does not poison an ordinary query`, () => {
+    const bad = "Object.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;return undefined;}});";
+    const code = `
+      ${first ? bad : ""}
+      const table={local:()=>true};
+      function mode(deps){const {config={mode:'local'}}=deps;void deps.timers;return config.mode;}
+      function dispatch(key){return table[key]();}
+      const selectedMode=mode({config:{mode:'local'}});dispatch(selectedMode);
+      ${first ? "" : bad}
+      function consume(value){return value;}
+      function select(ctx){consume({value:ctx.payload});return ctx.settle();}
+      const context={settle:()=>1};const answer=select(context);
+      const independent={settle:()=>3};independent.settle();
+    `;
+    expect(runInNewContext(`${code};answer;`)).toBe(2);
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/conditional-effect-order.ts", code);
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+    const independent = calls.find((call) => call.getExpression().getText() === "independent.settle");
+    if (selected === undefined || independent === undefined) {
+      throw new Error("the actual containing-use targets are missing");
+    }
+    beginReferencePass();
+    try {
+      const context = effectContext(project);
+      const observations = { programs: [context.program] };
+      expect(readAuthoredCallableSources(selected.getExpression(), undefined, observations).kind).toBe("unresolved");
+      const next = readAuthoredCallableSources(independent.getExpression(), undefined, observations);
+      expect(next.kind === "resolved" ? next.value.map((leaf) => leaf.value.getText()) : next.detail).toEqual(["()=>3"]);
+      expect(context.program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("a missing value call is captured only after the conditional attempt is revoked", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/conditional-demand.ts",
+    "function key(){return 'safe';}const selected=key();const table={safe:()=>1};table[selected]();",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const missing = calls.find((call) => call.getExpression().getText() === "key");
+  const root = calls.find((call) => Node.isElementAccessExpression(call.getExpression()));
+  if (missing === undefined || root === undefined) {
+    throw new Error("the actual captured and reached calls are missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns([root], source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    if (program === undefined || program.demandValueCall === undefined) {
+      throw new Error("the fixture has no native reached-call owner");
+    }
+    const attempts: boolean[] = [];
+    const premises: InheritedReadPremise[] = [];
+    const fact = inspectInheritedReadEffects(root, {
+      program,
+      values: (node, path, bindings, premise) => {
+        if (premise !== undefined) {
+          premises.push(premise);
+        }
+        if (!program.byCall.has(missing.compilerNode)) {
+          try {
+            program.demandValueCall?.(missing);
+          } finally {
+            attempts.push(program.byCall.has(missing.compilerNode));
+          }
+        }
+        return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
+      },
+    });
+    expect(attempts).toEqual([false]);
+    expect(program.byCall.has(missing.compilerNode)).toBe(true);
+    expect(fact.kind, fact.kind === "unresolved" ? fact.detail : "resolved").toBe("resolved");
+    expect(premises.length).toBeGreaterThan(1);
+    expect(premises.every((premise) => premise.require(root, program).kind === "unresolved")).toBe(true);
+    expect(program.inheritedReadTrialActive?.()).toBe(false);
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("conditional callback failure releases its premise before an ordinary effect query", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/conditional-exception.ts", "const key='safe';const table={safe:()=>1};table[key]();");
+  const root = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const failure = new Error("bounded callback failure");
+  let retained: InheritedReadPremise | undefined;
+  beginReferencePass();
+  try {
+    const captured = effectContext(project);
+    expect(() =>
+      inspectInheritedReadEffects(root, {
+        program: captured.program,
+        values: (_node, _path, _bindings, premise) => {
+          retained = premise;
+          throw failure;
+        },
+      }),
+    ).toThrow(failure);
+    expect(retained?.require(root, captured.program).kind).toBe("unresolved");
+    expect(captured.program.inheritedReadTrialActive?.()).toBe(false);
+    expect(inspectInheritedReadEffects(root, captured).kind).toBe("resolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("a conditional callable demand cannot refine observations before revocation", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/conditional-owner.ts",
+    "function owner(){return 1;}owner();const key='safe';const table={safe:()=>1};table[key]();",
+  );
+  const root = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => Node.isElementAccessExpression(call.getExpression()));
+  if (root === undefined) {
+    throw new Error("the computed effect fixture is missing");
+  }
+  const owner = source.getFunctionOrThrow("owner");
+  const attempts: { readonly demand: number | undefined; readonly calls: object }[] = [];
+  beginReferencePass();
+  try {
+    const captured = effectContext(project);
+    const before = captured.program.callableProofEpoch?.();
+    const fact = inspectInheritedReadEffects(root, {
+      program: captured.program,
+      values: (node, path, bindings) => {
+        try {
+          captured.program.suppliedCallableUses?.(owner);
+        } finally {
+          attempts.push({ demand: captured.program.callableProofEpoch?.().demandRevision, calls: captured.program.calls });
+        }
+        return captured.values(node, path, bindings);
+      },
+    });
+    expect(fact.kind === "unresolved" ? fact.reason : "resolved").toBe("missing");
+    expect(attempts[0]?.demand).toBe(before?.demandRevision);
+    expect(attempts[0]?.calls).toBe(before?.calls);
+    expect(attempts.length).toBe(2);
+    expect(captured.program.inheritedReadTrialActive?.()).toBe(false);
+    expect(captured.program.suppliedCallableUses?.(owner).kind).toBe("resolved");
+    expect(inspectInheritedReadEffects(root, captured).kind).toBe("resolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("conditional callable identity cannot add a declaration source to capture", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const helper = project.createSourceFile("/helper.ts", "export function helper(){return 1;}");
+  const source = project.createSourceFile("/conditional-source.ts", "import {helper} from './helper';const key='safe';const table={safe:()=>1};table[key]();");
+  const root = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const name = source.getImportDeclarations()[0]?.getNamedImports()[0]?.getNameNode();
+  if (name === undefined) {
+    throw new Error("the imported callable identity is missing");
+  }
+  const during: boolean[] = [];
+  beginReferencePass();
+  try {
+    const captured = effectContext(project, [source]);
+    expect(captured.program.sources.has(helper)).toBe(false);
+    const fact = inspectInheritedReadEffects(root, {
+      program: captured.program,
+      values: (node, path, bindings) => {
+        try {
+          captured.program.suppliedCallableValue?.(name);
+        } finally {
+          during.push(captured.program.sources.has(helper));
+        }
+        return captured.values(node, path, bindings);
+      },
+    });
+    expect(during[0]).toBe(false);
+    expect(during.slice(1).every(Boolean)).toBe(true);
+    expect(captured.program.sources.has(helper)).toBe(true);
+    expect(fact.kind).toBe("resolved");
+    expect(captured.program.inheritedReadTrialActive?.()).toBe(false);
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("an inherited premise cannot escape into another capture or a reentrant public query", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/conditional-ownership.ts", "const key='safe';const table={safe:()=>1};table[key]();");
+  const root = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const own: string[] = [];
+  const foreign: string[] = [];
+  const nested: string[] = [];
+  beginReferencePass();
+  try {
+    const captured = effectContext(project);
+    const other = effectContext(project);
+    const result = inspectInheritedReadEffects(root, {
+      program: captured.program,
+      values: (node, path, bindings, premise) => {
+        own.push(premise?.require(root, captured.program).kind ?? "missing");
+        foreign.push(premise?.require(root, other.program).kind ?? "missing");
+        nested.push(inspectInheritedReadEffects(root, captured).kind);
+        return captured.values(node, path, bindings);
+      },
+    });
+    expect(result.kind).toBe("resolved");
+    expect(own.length).toBeGreaterThan(0);
+    expect(own.every((kind) => kind === "conditional")).toBe(true);
+    expect(foreign.every((kind) => kind === "unresolved")).toBe(true);
+    expect(nested.every((kind) => kind === "unresolved")).toBe(true);
+    const borrowed = inspectInheritedReadEffects(root, { ...captured, program: { ...captured.program } });
+    expect(borrowed.kind === "unresolved" ? borrowed.detail : "resolved").toBe("an inherited-effect trial belongs to another capture owner");
+    expect(captured.program.inheritedReadTrialActive?.()).toBe(false);
+    expect(other.program.inheritedReadTrialActive?.()).toBe(false);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const boundary of ["source", "capture metadata", "reference pass", "native cancellation"] as const) {
+  test(`conditional inherited discharge refuses ${boundary} drift without retaining a premise`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/conditional-invalidation.ts", "const key='safe';const table={safe:()=>1};table[key]();");
+    const root = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+    const cancellation = new ts.OperationCanceledException();
+    let retained: InheritedReadPremise | undefined;
+    let altered = false;
+    beginReferencePass();
+    try {
+      const captured = effectContext(project);
+      const evaluate = (): ReturnType<typeof inspectInheritedReadEffects> =>
+        inspectInheritedReadEffects(root, {
+          program: captured.program,
+          values: (node, path, bindings, premise) => {
+            retained = premise;
+            const value = captured.values(node, path, bindings);
+            if (altered) {
+              return value;
+            }
+            altered = true;
+            switch (boundary) {
+              case "source":
+                project.createSourceFile("/new-exposure.ts", "Object.defineProperty(Object.prototype,'payload',{get(){return 2;}});");
+                break;
+              case "capture metadata":
+                Object.defineProperty(captured.program, "referencesObserved", { value: false });
+                break;
+              case "reference pass":
+                endReferencePass();
+                break;
+              case "native cancellation":
+                throw cancellation;
+            }
+            return value;
+          },
+        });
+      const result = ((): ReturnType<typeof inspectInheritedReadEffects> | ts.OperationCanceledException => {
+        try {
+          return evaluate();
+        } catch (error) {
+          if (error !== cancellation) {
+            throw error;
+          }
+          return cancellation;
+        }
+      })();
+      expect(result === cancellation).toBe(boundary === "native cancellation");
+      expect(result).toMatchObject(boundary === "native cancellation" ? {} : { kind: "unresolved" });
+      expect(retained?.require(root, captured.program).kind).toBe("unresolved");
+      expect(captured.program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
 for (const dispatch of [false, true]) {
   test(`conditional native background data retains unrelated ${dispatch ? "computed dispatch" : "no dispatch"}`, () => {
     const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
@@ -128,6 +406,30 @@ for (const dispatch of [false, true]) {
 }
 
 const AUTHORED_DISPATCH_EFFECTS = [
+  {
+    name: "a true selector value cycle",
+    before: "function recursive(){return recursive();}",
+    entries: "safe:()=>1",
+    body: "",
+    calls: "dispatch(recursive());",
+    resolved: false,
+  },
+  {
+    name: "selector coercion with a prototype exposure",
+    before: "const coercing={toString(){Object.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;}});return 'safe';}};",
+    entries: "safe:()=>1",
+    body: "",
+    calls: "dispatch(coercing as never);",
+    resolved: false,
+  },
+  {
+    name: "a producer callback exposure before normal return",
+    before: "function produce(before:()=>void){before();return 'safe';}",
+    entries: "safe:()=>1",
+    body: "",
+    calls: "dispatch(produce(()=>Object.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;}})));",
+    resolved: false,
+  },
   { name: "actual literal selector", before: "", entries: "safe:()=>1", body: "", calls: "dispatch('safe');", resolved: true },
   {
     name: "distinct supplied selectors",

@@ -24,18 +24,20 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Frozen qualifications establish selected extraction, publication, release and reuse, not complete-demand acceptance. Preserve frozen inputs. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Selected extraction, publication, release and reuse pass bounded controls. Complete-demand acceptance remains open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
-Authored-input admission, native JS-depth origins, ID-brand publication, indexed reads, stale-source refusal and release have selected controls. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
+Authored-input, brand, indexed-read, stale-source and release controls pass. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Preserve completed byte-equality evidence and original outputs. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
-Reviewed native reference storage, guarded bindings, settled capture indexes and allocation-free native traversal are integrated. Their bounded controls pass independent review. Callable provenance reads TypeScript; it does not execute a database query. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
+Native reference storage, guarded bindings and allocation-free traversal pass bounded controls and review. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
 
-Reviewed contextual sharing, optional invocation and native resource registration preserve bindings, allocations, disposal, refusal order and capture invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
+Contextual sharing, optional calls and native resources preserve disposal, refusal and invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
 
-Reviewed reached-call capture uses explicit reference inputs, validates native lifetime and stages complete observations before publication. Omitted reference inputs preserve ordinary behavior. Current SDK APIs and bundled compiler install without runtime mappings. Native transport, reached-call and helper-freshness controls pass. Tooling types pass; root retains inherited diagnostics.
+Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
 The original callable diagnosis completes unresolved. Exact returned-object evidence records inherited-effect refusal and a pending background-signal path. Full store qualification stays open. Evidence: `reports/review/1002-original-callable-sibling-witness.md`. Item 1027 owns typed delivery.
 
 Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.
+
+Private first-exposure preservation closes the source-derived async factory while retaining mutation and cycle refusal. Capture barriers precede publication, and revoked premise holders release their callbacks. Review passes; the ordinary floor retains the partial-env missing-consumer failure. Full-context target and cost remain unqualified. Evidence: `reports/review/1002-preservation-ordinary.md`.
