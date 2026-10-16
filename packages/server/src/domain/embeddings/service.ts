@@ -13,7 +13,6 @@ import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
 import { readTargetSnapshot } from "./persistence/space-state.ts";
 import { pendingTargetMove, resolveTargetGeneration } from "./substrate/generation.ts";
-import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
 import { createEmbedAssets } from "./verbs/embed-assets.ts";
@@ -49,7 +48,6 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     store,
     storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),
-    clearTable: createClearTable(ctx),
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, { indexAsset }),
     countAssetAnalysisCalls: createImageAnalysisCounter(ctx, {

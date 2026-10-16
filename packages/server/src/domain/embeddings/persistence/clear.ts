@@ -1,53 +1,7 @@
-// domain/embeddings/persistence/clear — the typed DELETE FROM over a primary vector table.
-//
-// A plain DELETE FROM is safe here because there is no ANN/DiskANN shadow index over these F32_BLOB
-// columns — search is an exact ORDER BY vector_distance_cos(...) scan. If a libSQL ANN index is ever
-// added, this comment is the tripwire: a bare DELETE would then desync the shadow index.
-
 import type { Db } from "@orb/db";
-import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import { chatDigests, chatSegments, documentChunks } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, EmbedGenerationId } from "@orb/kit/ids";
 import { and, eq, gte, notInArray, or } from "drizzle-orm";
-import type { VectorTable } from "../contract/params.ts";
-
-function assertNever(value: never): never {
-  throw new Error(`clearVectorTable: unhandled vector table ${String(value)}`);
-}
-
-// FLAG[dead-clear-vector-table]: DEAD — `clearVectorTable` (the whole-table wipe) has ZERO runtime
-// consumers (test-only). The OLD-space reclaim it was kept beside is no longer here: the model-scoped
-// `purgeStaleVectors` was deleted with the generation cutover, because promotion now retires every
-// non-active generation inside ONE transaction (`persistence/space-state.ts` `retiredVectorStatements`)
-// — `generation_id` is NOT NULL on all five vector tables, so a `!= active` delete reaches every row the
-// model-scoped predicate used to. Delete this + the `clearTable` verb/param/service-method + their tests
-// once file-removal tooling is in hand (this pass is Edit-only).
-/** Dispatch is assertNever-exhaustive over {@link VectorTable} — a new table fails tsc until its arm lands. */
-export async function clearVectorTable(db: Db, table: VectorTable): Promise<void> {
-  switch (table) {
-    case "character_embeddings":
-      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the character vector table.
-      await db.delete(characterEmbeddings);
-      return;
-    case "image_embeddings":
-      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the image vector table.
-      await db.delete(imageEmbeddings);
-      return;
-    case "chat_digests":
-      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the digest vector table.
-      await db.delete(chatDigests);
-      return;
-    case "chat_segments":
-      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the segment vector table.
-      await db.delete(chatSegments);
-      return;
-    case "document_chunks":
-      // eslint-disable-next-line drizzle/enforce-delete-with-where -- This selected maintenance operation intentionally empties the document vector table.
-      await db.delete(documentChunks);
-      return;
-    default:
-      assertNever(table);
-  }
-}
 
 /** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the
  *  `pruneDocumentChunks` idiom for `chat_digests`. Memory's blocks are sliced by POSITION and stored keyed

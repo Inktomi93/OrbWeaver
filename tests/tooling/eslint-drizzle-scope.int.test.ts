@@ -8,7 +8,7 @@ const DELETE_RULE = "drizzle/enforce-delete-with-where";
 const BULK_SUBJECTS = [
   ["packages/server/src/domain/discovery/duplicates/generate.ts", 2],
   ["packages/server/src/domain/discovery/themes/generate.ts", 1],
-  ["packages/server/src/domain/embeddings/persistence/clear.ts", 5],
+  ["packages/server/src/domain/embeddings/persistence/clear.ts", 0],
 ] as const;
 const ADJACENT_DELETES = "\ndb.delete(controlTable);\ndb.delete(controlTable).where(eq(controlTable.id, controlId));\n";
 
@@ -47,7 +47,7 @@ test("native bulk delete permissions admit only their statements and preserve sc
       path,
     ).toEqual([DELETE_RULE]);
     const unqualified = source.replace(/\/\/ eslint-disable-next-line drizzle\/enforce-delete-with-where --[^\n]*/gu, "");
-    expect(unqualified, path).not.toBe(source);
+    expect(unqualified === source, path).toBe(bulkCount === 0);
     const bulkMessages = verify(unqualified);
     expect(
       bulkMessages.map(({ ruleId }) => ruleId),

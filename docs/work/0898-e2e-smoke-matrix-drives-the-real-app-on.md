@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-11
+updated: 2026-10-16
 priority: P1
 area: tests
 plan: test-mirror
@@ -11,7 +11,7 @@ plan: test-mirror
 
 ## What
 
-Add e2e specs that boot the real stack headless and walk the core flows. They run in CI on a synthetic corpus written by the seed tool (tooling/src/seed, packages/default-content): characters with and without art, personas, lore books, presets, solo and shared rooms with history; the corpus is committed, the owner's personal db never is. A local run may instead point at a copy of the owner's container db through the stage-db path from item 887. The flows: start a chat with a character, send and stream a reply on the scripted provider, swipe, edit, switch persona and pin, open Settings and change one setting in each group, open a shared room as a second user, import a card, open the gallery. Run each flow across all chat styles at desktop and phone widths and assert on rendered state, not on hand-declared wire shapes. Specs import production constants and derive types per Spine-Testing section 10.
+Add e2e specs that boot the real stack headless and walk the core flows. They run in CI on a synthetic corpus written by the seed tool (tooling/src/seed, packages/default-content): characters with and without art, personas, lore books, presets, solo and shared rooms with history; the corpus is committed, the owner's personal db never is. A local run may instead point at a copy of the owner's container db through the stage-db path from item 887. The flows: start a chat with a character, send and stream a reply on the scripted provider, swipe, edit, switch persona and pin, exercise each Settings group through its actual public behavior, including read-only About and Backup export/import, open a shared room as a second user, import a card, open the gallery. Run each flow across all chat styles at desktop and phone widths and assert on rendered state, not on hand-declared wire shapes. Specs import production constants and derive types per Spine-Testing section 10.
 
 ## Why
 
@@ -23,4 +23,4 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Selected committed-corpus smoke intake passes; the complete flow, viewport, style and authentication matrix remains open. The corpus wrapper delegates to `e2e:smoke`, whose native project selection is `single-user`. Additional `--project` arguments accumulate selections rather than replace that default. Explicit publication selection does not establish alternate-project coverage.
+Selected committed-corpus read/render intake passes; the complete flow, viewport, style and authentication matrix remains open. Ordinary collection does not establish execution. Corpus mode admits only its selected smoke file and single-user project; it owns no scripted provider. Real provider, local-auth and owner-copy admission need existing-owner integration. Additional `--project` arguments accumulate selections rather than replace defaults. Exercise each Settings group according to its actual public behavior. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/898-replacement-smoke-intake.md`. Replacement work waits for complete shared-reader foundations.

@@ -209,7 +209,3 @@ export interface WriteHubScoresParams {
   readonly table: VectorTable;
   readonly updates: readonly HubScoreUpdate[];
 }
-
-export interface ClearTableParams {
-  readonly table: VectorTable;
-}

@@ -26,7 +26,6 @@ import type { ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
-  ClearTableParams,
   CountDocumentChunksParams,
   EmbedPassParams,
   OwnerChunkCountsParams,
@@ -199,8 +198,6 @@ export interface EmbeddingsService {
   readonly storeSegments: (params: readonly SegmentStoreParams[], signal?: AbortSignal) => Promise<readonly StoreResult[]>;
   /** The only path that writes `hub_score` — the discovery → embeddings seam. Takes pre-computed scores. */
   readonly writeHubScores: (params: WriteHubScoresParams) => Promise<WriteHubScoresResult>;
-  /** Maintenance: wipe a primary vector table (plain `DELETE FROM`). */
-  readonly clearTable: (params: ClearTableParams) => Promise<void>;
   /** Bulk text catch-up sweep: enumerate every non-synthetic character → re-read card text → `store`.
    *  Resumable (hash gate skips already-embedded), cooperative abort, failures propagate. */
   readonly embedCorpus: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
