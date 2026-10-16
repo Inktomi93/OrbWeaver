@@ -22,6 +22,7 @@ import type {
   NativeValueTransferServices,
   ReferenceFact,
   ResolvedReferenceFact,
+  ReturnedValueActivation,
   ReturnedValueContext,
   ReturnedValueInputs,
   ReturnedValueSource,
@@ -265,7 +266,11 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
       if (paths.kind === "unresolved") {
         return paths;
       }
-      const next = { ...context, bindings: readCallBindings(call, alternative.target, context.bindings) };
+      const next = {
+        ...context,
+        bindings: readCallBindings(call, alternative.target, context.bindings),
+        invocation: { observation: observed, target: alternative.target },
+      };
       return valueAlternatives(
         call,
         paths.value.map((value) =>
@@ -527,6 +532,7 @@ function defaultBindingSiblingRead(
       bindings: field.bindings,
       active: context.active,
       activeValues: context.active,
+      continuation: context,
     });
     if (values.kind === "unresolved") {
       return values;
@@ -548,9 +554,7 @@ function defaultBindingSiblingValue(source: ReturnedValueSource, context: Return
   if (!source.present) {
     const key = source.path[0];
     const own =
-      source.path.length === 1 && key !== undefined && context.program !== undefined
-        ? ownDataPresence(source, key, context.program, context.active)
-        : undefined;
+      source.path.length === 1 && key !== undefined && context.program !== undefined ? ownDataPresence(source, key, context.program, context) : undefined;
     return own !== undefined
       ? nativeInheritedEffects(source.value, { ...context, bindings: source.bindings })
       : valueRefusal(source.value, "unsupported", "a binding sibling has no closed ordinary absent descriptor");
@@ -742,7 +746,12 @@ function returnedDefaultBinding(
   }
   const fields =
     context.callableValues === true
-      ? callableSuppliedLeaves(initializer, [key.value], context.program, { bindings: context.bindings, active: context.active, activeValues: context.active })
+      ? callableSuppliedLeaves(initializer, [key.value], context.program, {
+          bindings: context.bindings,
+          active: context.active,
+          activeValues: context.active,
+          continuation: context,
+        })
       : returnedValue(initializer, [key.value], context);
   if (fields.kind === "unresolved") {
     return fields;
@@ -831,12 +840,125 @@ function returnedConditionalValue(
   return valueAlternatives(value, [returnedValue(value.getWhenTrue(), path, context), returnedValue(value.getWhenFalse(), path, context)]);
 }
 
+function captureValueActivation(node: Node, path: readonly string[], context: ReturnedValueContext, supplied: boolean): ReturnedValueActivation | undefined {
+  if (context.program === undefined || context.invocation === undefined) {
+    return;
+  }
+  return {
+    node: node.compilerNode,
+    path: [...path],
+    bindings: new Map(context.bindings),
+    program: context.program,
+    nativeProgram: context.program.program,
+    invocation: context.invocation,
+    supplied,
+    callableValues: context.callableValues === true,
+    nativeValueTransfers: context.nativeValueTransfers,
+    explicitAbsentReturns: context.explicitAbsentReturns,
+    terminals: typeof context.terminals === "function" ? context.terminals : new Set(context.terminals),
+    hasNativeIterations: context.nativeIterations.size > 0,
+  };
+}
+
+function differentValueAllocation(node: Node, previous: ReturnedValueActivation, current: ReturnedValueActivation): boolean {
+  if (previous.invocation.observation.call.compilerNode !== current.invocation.observation.call.compilerNode) {
+    return true;
+  }
+  const scopes = new Set(node.getAncestors().map((ancestor) => ancestor.compilerNode));
+  for (const [parameter, actual] of current.bindings) {
+    const prior = previous.bindings.get(parameter);
+    if (
+      N.isParameterDeclaration(parameter) &&
+      scopes.has(parameter.getParent().compilerNode) &&
+      prior !== undefined &&
+      prior.compilerNode !== actual.compilerNode
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function valueActivationCurrent(activation: ReturnedValueActivation): boolean {
+  const { program, invocation } = activation;
+  if (program.program !== activation.nativeProgram || invocation.target.wasForgotten() || invocation.observation.call.wasForgotten()) {
+    return false;
+  }
+  for (const [parameter, actual] of activation.bindings) {
+    if (parameter.wasForgotten() || actual.wasForgotten()) {
+      return false;
+    }
+  }
+  return program.byCall.get(invocation.observation.call.compilerNode) === invocation.observation;
+}
+
+function sameValueTerminals(left: ReturnedValueTerminals, right: ReturnedValueTerminals): boolean {
+  return typeof left === "function" || typeof right === "function" ? left === right : sameCallableActive(left, right);
+}
+
+function distinctValueActivation(node: Node, previous: ReturnedValueActivation, current: ReturnedValueActivation): boolean {
+  return (
+    previous.program === current.program &&
+    previous.nativeProgram === current.nativeProgram &&
+    previous.supplied === current.supplied &&
+    previous.callableValues === current.callableValues &&
+    previous.nativeValueTransfers === current.nativeValueTransfers &&
+    previous.explicitAbsentReturns === current.explicitAbsentReturns &&
+    sameValueTerminals(previous.terminals, current.terminals) &&
+    !previous.hasNativeIterations &&
+    !current.hasNativeIterations &&
+    previous.invocation.target === current.invocation.target &&
+    node.getAncestors().includes(current.invocation.target) &&
+    valueActivationCurrent(previous) &&
+    valueActivationCurrent(current) &&
+    !(
+      previous.invocation.observation === current.invocation.observation &&
+      previous.path.length === current.path.length &&
+      previous.path.every((part, index) => part === current.path[index]) &&
+      sameCallableBindings(previous.bindings, current.bindings)
+    ) &&
+    differentValueAllocation(node, previous, current)
+  );
+}
+
+function activeValueRefusal(
+  node: Node,
+  current: ReturnedValueActivation | undefined,
+  context: ReturnedValueContext,
+  supplied: boolean,
+): UnresolvedReferenceFact | undefined {
+  const cycle = (): UnresolvedReferenceFact =>
+    valueRefusal(
+      node,
+      "cycle",
+      supplied ? "the supplied callable projection revisits its actual origin" : "the returned value revisits its authored binding/body",
+    );
+  if (current === undefined) {
+    return cycle();
+  }
+  const previous = context.valueActivations?.filter((activation) => activation.node === current.node && activation.supplied === current.supplied);
+  if (previous === undefined || previous.length === 0) {
+    return cycle();
+  }
+  const admitted = readCallReturnProgram(node, { programs: [current.program] });
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  return previous.every((activation) => distinctValueActivation(node, activation, current)) ? undefined : cycle();
+}
+
 function returnedValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const value = unwrapTarget(node);
-  if (context.active.has(value.compilerNode)) {
-    return valueRefusal(value, "cycle", "the returned value revisits its authored binding/body");
+  const activation = captureValueActivation(value, path, context, false);
+  const refused = context.active.has(value.compilerNode) ? activeValueRefusal(value, activation, context, false) : undefined;
+  if (refused !== undefined) {
+    return refused;
   }
-  const next = { ...context, active: new Set(context.active).add(value.compilerNode) };
+  const next = {
+    ...context,
+    active: new Set(context.active).add(value.compilerNode),
+    ...(activation === undefined ? {} : { valueActivations: [...(context.valueActivations ?? []), activation] }),
+  };
   if (N.isAwaitExpression(value)) {
     return returnedValue(value.getExpression(), path, next);
   }
@@ -1038,6 +1160,7 @@ function callableSuppliedLeaves(
     readonly bindings: ReadonlyMap<Node, Node>;
     readonly active: ReadonlySet<ts.Node>;
     readonly activeValues?: ReadonlySet<ts.Node>;
+    readonly continuation?: ReturnedValueContext;
     readonly uses?: Map<Node, CallableSuppliedUse[]>;
   } = {
     bindings: new Map(),
@@ -1045,15 +1168,8 @@ function callableSuppliedLeaves(
   },
 ): ReferenceFact<readonly ReturnedValueSource[]> {
   const { bindings, active } = inputs;
-  if (active.has(node.compilerNode)) {
-    return valueRefusal(node, "cycle", "the supplied callable projection revisits its actual origin");
-  }
-  const next = new Set(active).add(node.compilerNode);
-  const admitted = readCallReturnProgram(node, { programs: [program] });
-  if (admitted.kind === "unresolved") {
-    return admitted;
-  }
-  const projected = returnedValue(node, path, {
+  const continuation: ReturnedValueContext = {
+    ...inputs.continuation,
     program,
     bindings,
     active: inputs.activeValues ?? new Set(),
@@ -1062,7 +1178,22 @@ function callableSuppliedLeaves(
     callableValues: true,
     nativeValueTransfers: false,
     nativeIterations: new Map(),
-  });
+  };
+  const activation = captureValueActivation(node, path, continuation, true);
+  const refused = active.has(node.compilerNode) ? activeValueRefusal(node, activation, continuation, true) : undefined;
+  if (refused !== undefined) {
+    return refused;
+  }
+  const next = new Set(active).add(node.compilerNode);
+  const admitted = readCallReturnProgram(node, { programs: [program] });
+  if (admitted.kind === "unresolved") {
+    return admitted;
+  }
+  const entered = {
+    ...continuation,
+    ...(activation === undefined ? {} : { valueActivations: [...(continuation.valueActivations ?? []), activation] }),
+  };
+  const projected = returnedValue(node, path, entered);
   if (projected.kind === "unresolved") {
     return projected;
   }
@@ -1089,6 +1220,7 @@ function callableSuppliedLeaves(
           ? callableSuppliedLeaves(actual.value, [...actual.path, ...source.path], program, {
               bindings: actual.bindings,
               active: next,
+              continuation: entered,
               ...(inputs.activeValues === undefined ? {} : { activeValues: inputs.activeValues }),
               ...(inputs.uses === undefined ? {} : { uses: inputs.uses }),
             })
@@ -1464,7 +1596,7 @@ function closedCallableRecord(receiver: ReturnedValueSource, key: string, progra
     spreads.length === 1 &&
     spread !== undefined &&
     ordinaryCallableRecord(receiver.value, spread, program) &&
-    ordinarySpreadDataPresence(spread.getExpression(), key, receiver, { program, activeValues: undefined }) !== undefined
+    ordinarySpreadDataPresence(spread.getExpression(), key, receiver, { program, activeValues: undefined, continuation: undefined }) !== undefined
   );
 }
 
@@ -1613,13 +1745,18 @@ function ordinarySpreadDataPresence(
   expression: Node,
   key: string,
   receiver: ReturnedValueSource,
-  inputs: { readonly program: CallReturnProgram; readonly activeValues: ReadonlySet<ts.Node> | undefined },
+  inputs: {
+    readonly program: CallReturnProgram;
+    readonly activeValues: ReadonlySet<ts.Node> | undefined;
+    readonly continuation: ReturnedValueContext | undefined;
+  },
 ): readonly boolean[] | undefined {
-  const { program, activeValues } = inputs;
+  const { program, activeValues, continuation } = inputs;
   const sources = callableSuppliedLeaves(expression, [], program, {
     bindings: receiver.bindings,
     active: activeValues ?? new Set(),
     ...(activeValues === undefined ? {} : { activeValues }),
+    ...(continuation === undefined ? {} : { continuation }),
   });
   if (
     sources.kind === "unresolved" ||
@@ -1645,7 +1782,12 @@ function spreadOwnData(
   previous: readonly boolean[] | undefined,
   expression: Node,
   key: string,
-  inputs: { readonly receiver: ReturnedValueSource; readonly program: CallReturnProgram; readonly activeValues: ReadonlySet<ts.Node> | undefined },
+  inputs: {
+    readonly receiver: ReturnedValueSource;
+    readonly program: CallReturnProgram;
+    readonly activeValues: ReadonlySet<ts.Node> | undefined;
+    readonly continuation: ReturnedValueContext | undefined;
+  },
 ): readonly boolean[] | undefined {
   const { receiver, program, activeValues } = inputs;
   const present = ordinarySpreadDataPresence(expression, key, receiver, inputs);
@@ -1666,7 +1808,7 @@ function ownDataPresence(
   receiver: ReturnedValueSource,
   key: string,
   program: CallReturnProgram,
-  activeValues?: ReadonlySet<ts.Node>,
+  continuation?: ReturnedValueContext,
 ): readonly boolean[] | undefined {
   if (!N.isObjectLiteralExpression(receiver.value)) {
     return;
@@ -1674,7 +1816,7 @@ function ownDataPresence(
   let presence: readonly boolean[] | undefined = [false];
   for (const property of receiver.value.getProperties()) {
     if (N.isSpreadAssignment(property)) {
-      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program, activeValues });
+      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program, activeValues: continuation?.active, continuation });
       continue;
     }
     const name = returnedPropertyName(property, program);
@@ -1758,10 +1900,15 @@ function inheritedEffectValues(
   node: Node,
   path: readonly string[],
   bindings: ReadonlyMap<Node, Node>,
-  context: { readonly program: CallReturnProgram; readonly activeValues?: ReadonlySet<ts.Node> },
+  context: { readonly program: CallReturnProgram; readonly activeValues?: ReadonlySet<ts.Node>; readonly continuation?: ReturnedValueContext },
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  const { program, activeValues } = context;
-  const inputs = { bindings, active: activeValues ?? new Set<ts.Node>(), ...(activeValues === undefined ? {} : { activeValues }) };
+  const { program, activeValues, continuation } = context;
+  const inputs = {
+    bindings,
+    active: activeValues ?? new Set<ts.Node>(),
+    ...(activeValues === undefined ? {} : { activeValues }),
+    ...(continuation === undefined ? {} : { continuation }),
+  };
   const values = callableSuppliedLeaves(node, path, program, inputs);
   if (values.kind === "unresolved") {
     return values;
@@ -1780,7 +1927,7 @@ function nativeInheritedEffects(node: Node, context: ReturnedValueContext): Refe
   }
   return inspectInheritedReadEffects(node, {
     program,
-    values: (value, path, bindings) => inheritedEffectValues(value, path, bindings, { program, activeValues: context.active }),
+    values: (value, path, bindings) => inheritedEffectValues(value, path, bindings, { program, activeValues: context.active, continuation: context }),
   });
 }
 

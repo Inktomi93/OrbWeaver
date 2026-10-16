@@ -19,6 +19,105 @@ import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-re
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
+for (const scenario of [
+  { name: "same return node with different actual arguments", body: "return value;", path: [], runtime: "output" },
+  { name: "same object allocation node with decreasing property path", body: "return {value};", path: ["value", "value"], runtime: "output.value.value" },
+] as const) {
+  test(`finite active value contexts: ${scenario.name}`, () => {
+    const code = `function wrap(value){${scenario.body}}const output=wrap(wrap("local"));`;
+    expect(runInNewContext(`${code};${scenario.runtime};`)).toBe("local");
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/finite-context.ts", code);
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), scenario.path, observations, new Set());
+      expect(fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : `${fact.reason}: ${fact.detail}`).toEqual(['"local"']);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const code of [
+  'function repeat(value){return repeat(value);}const output=repeat("local");',
+  "function identity(value){return value;}const circular=circular.value;const output=identity(circular);",
+]) {
+  test(`active value contexts preserve true recursion: ${code}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/recursive-context.ts", code);
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observations, new Set());
+      expect(fact.kind === "unresolved" ? fact.reason : "unproven recursion resolved").toBe("cycle");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const invalidation of ["none", "source"] as const) {
+  test(`active value context invokes opaque terminals and retains ${invalidation} admission`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/active-admission.ts", 'function wrap(value){return value;}const output=wrap(wrap("local"));');
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const inner = calls.find((call) => call.getText() === 'wrap("local")');
+    if (inner === undefined) {
+      throw new Error("the actual inner invocation is absent");
+    }
+    beginReferencePass();
+    try {
+      const observations = observeCallReturns(calls, source.getDescendants());
+      const seen: string[] = [];
+      const fact = readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observations, {
+        bindings: new Map(),
+        terminals: (call) => {
+          seen.push(call.getText());
+          if (call === inner && invalidation === "source") {
+            source.insertStatements(0, "const changedEpoch=1;");
+          }
+          return false;
+        },
+      });
+      expect(seen).toEqual(['wrap(wrap("local"))', 'wrap("local")']);
+      expect(fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : "refused").toEqual(
+        invalidation === "none" ? ['"local"'] : "refused",
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("active value context preserves native forgotten-formal failure instead of returning a stale leaf", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile("/forgotten-active-context.ts", 'function wrap(value){return value;}const output=wrap(wrap("local"));');
+  const parameter = source.getFunctionOrThrow("wrap").getParameters()[0];
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const inner = calls.find((call) => call.getText() === 'wrap("local")');
+  if (parameter === undefined || inner === undefined) {
+    throw new Error("the actual formal or inner invocation is absent");
+  }
+  beginReferencePass();
+  try {
+    const observations = observeCallReturns(calls, source.getDescendants());
+    expect(() =>
+      readReturnedValue(source.getVariableDeclarationOrThrow("output").getNameNode(), [], observations, {
+        bindings: new Map(),
+        terminals: (call) => {
+          if (call === inner) {
+            parameter.forget();
+          }
+          return false;
+        },
+      }),
+    ).toThrow(/removed or forgotten/u);
+  } finally {
+    endReferencePass();
+  }
+});
+
 test("defaulted object bindings preserve supplied own values without evaluating the fallback", () => {
   const code = `
     function unavailable(){throw new Error("the unused default was evaluated");}
