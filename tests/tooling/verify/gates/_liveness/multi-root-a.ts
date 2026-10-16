@@ -37,8 +37,6 @@ import { gate as cssVarDefined } from "../../../../../tooling/src/verify/gates/c
 import { gate as cssVarDefinedGrants } from "../../../../../tooling/src/verify/gates/css-var-defined-grants.ts";
 import { gate as designAuditRuleProof } from "../../../../../tooling/src/verify/gates/design-audit-rule-proof.ts";
 import { gate as domainFreshnessPlane } from "../../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
-import { gate as freezeProvenanceWritePairing } from "../../../../../tooling/src/verify/gates/freeze-provenance-write-pairing.ts";
-import { gate as freezeProvenanceWritePairingHealth } from "../../../../../tooling/src/verify/gates/freeze-provenance-write-pairing-health.ts";
 import { gate as injectedOpCallerParam } from "../../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
 import { gate as jsonColumnWriteParity } from "../../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as jsonColumnWriteParityHealth } from "../../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
@@ -275,22 +273,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MUTATING domain with NO row",
-  },
-  {
-    policy: freezeProvenanceWritePairingHealth,
-    // One column of the guarded triple is renamed on the real table.
-    overlays: [edit("packages/db/src/schema/chat.ts", "    macroFreezes: text(", "    livenessFreezes: text(")],
-    messageIncludes: "no longer declares macroFreezes",
-  },
-  {
-    policy: freezeProvenanceWritePairing,
-    overlays: [
-      add(
-        "packages/server/src/domain/chat/persistence/liveness-edit.ts",
-        'import type { Db } from "@orb/db";\nimport { messageVariants } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport function livenessEdit(db: Db, id: string, content: string) {\n  return db.update(messageVariants).set({ content }).where(eq(messageVariants.id, id));\n}\n',
-      ),
-    ],
-    messageIncludes: "must write ALL of it",
   },
   {
     policy: injectedOpCallerParam,

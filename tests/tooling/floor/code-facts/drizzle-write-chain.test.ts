@@ -3,8 +3,7 @@
 // in this chain at all", and `unresolved` is a write verb the reader FOUND and could not follow. A consumer
 // fails closed on the third and stays silent on the second, so collapsing them is exactly how an aliased or
 // computed table walks past a column invariant — and only an independent pin holds that apart. The reader's
-// one consumer (`gates/freeze-provenance-write-pairing.ts`) covers it transitively through its own rows;
-// this file is the reader's own, so the boundary survives a change to that policy.
+// subject controls here survive independently of the policies that consume the reader.
 
 import { MINI_DRIZZLE_ORM_PATH, MINI_DRIZZLE_ORM_SOURCE } from "@orb/testkit/node/mini-drizzle-orm.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";

@@ -580,6 +580,13 @@ export const messageVariants = sqliteTable(
       sql.raw(`connection_attribution_provenance in (${checkList(CONNECTION_ATTRIBUTION_PROVENANCES)})`),
     ),
     check("message_variants_connection_attribution_coherence_check", sql.raw("connection_id is null or connection_attribution_provenance = 'recorded'")),
+    check("message_variants_raw_content_distinct_check", sql.raw("raw_content is null or raw_content <> content")),
+    check(
+      "message_variants_macro_freezes_nonempty_check",
+      sql.raw(
+        "macro_freezes is null or case when json_valid(macro_freezes) then json_type(macro_freezes) = 'array' and json_array_length(macro_freezes) > 0 else 0 end",
+      ),
+    ),
   ],
 );
 

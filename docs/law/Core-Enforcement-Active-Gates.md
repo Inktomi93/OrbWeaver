@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(331 registered gates)
+(329 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -156,8 +156,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `fk-ondelete-stated` | drizzle-schema | ordinary/error | @db\* | a .references(...) has no onDelete… |
 | `floorless-control-vocabulary-health` | floorless-control | hard/error | @client,@ui | the floorless Button vocabulary no… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
-| `freeze-provenance-write-pairing` | freeze-provenance | ordinary/error | @packages | a message_variants write that touches… |
-| `freeze-provenance-write-pairing-health` | freeze-provenance | hard/error | @packages | the freeze-provenance write-pairing… |
 | `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
 | `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
 | `handle-key-writer` | external-id-single-writer | hard/error | @server | a users write that sets handle… |

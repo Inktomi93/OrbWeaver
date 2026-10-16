@@ -178,8 +178,8 @@ const PRODUCT_MEMBERSHIP = {
     product: false,
     why:
       'the CENTRAL test mirror (AGENTS.md "Test layout") mirrors product sources rather than being them, and several ' +
-      "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs " +
-      "(`freeze-provenance.ts`'s declared limit). A policy whose subject is a test declares `@tests` itself",
+      "declarers exclude it for a load-bearing reason of their own — scanning tests reds their own proofs. " +
+      "A policy whose subject is a test declares `@tests` itself",
   },
   "@legacy-tests": { product: false, why: "legacy tests mirror product sources and are outside every strict gate" },
   "@scripts": {

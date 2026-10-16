@@ -252,24 +252,22 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
 // the human deleted (D130's removal reasoning). So a content write that is not the freeze itself CLEARS both
 // columns: the edited body is authored, not transformed, and honest absence beats stale provenance.
 
-/** Normalize the freeze-provenance pair to rule 1 above. A caller that hands over a raw equal to the content,
+type CanonBodyColumns = Pick<typeof messageVariants.$inferSelect, "content" | "rawContent" | "macroFreezes">;
+
+/** Normalize the complete transformed body to rule 1 above. A caller that hands over a raw equal to the content,
  *  or an empty record, cannot violate the invariant from here. */
-function freezeProvenanceColumns(
-  content: string,
-  rawContent: string | null | undefined,
-  macroFreezes: MacroFreezeRecord | null | undefined,
-): { rawContent: string | null; macroFreezes: MacroFreezeRecord | null } {
+function transformedBodyColumns(content: string, rawContent: string | null | undefined, macroFreezes: MacroFreezeRecord | null | undefined): CanonBodyColumns {
   return {
+    content,
     rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : rawContent,
     macroFreezes: macroFreezes === null || macroFreezes === undefined || macroFreezes.length === 0 ? null : macroFreezes,
   };
 }
 
-/** The columns a NON-FREEZE content write sets to keep rule 1 true (see the block above): the replaced body's
- *  provenance is dropped rather than left describing bytes that are gone. Spread into every `.set()` that
- *  writes `content` and is not {@link freezeVariantContentStatement} — which is what makes the invariant a
- *  property of the writer set rather than a hope about callers. */
-const CLEARED_FREEZE_PROVENANCE = { rawContent: null, macroFreezes: null } as const;
+/** An authored replacement cannot retain provenance describing the previous body. */
+function authoredBodyColumns(content: string): CanonBodyColumns {
+  return { content, rawContent: null, macroFreezes: null };
+}
 
 /** `reasoning_parts` is NULL when there is nothing replayable — an empty list would make the column's "has
  *  replay material" question a lie and costs a row of JSON for nothing (the `metadata` sidecar's posture). */
@@ -308,7 +306,7 @@ function variantColumns(args: {
     macroDraws: args.variant.macroDraws ?? null,
     // Raw + freeze provenance — null unless a persist-time transform actually changed bytes / a volatile
     // macro actually froze (the columns' own contract; see schema/chat.ts).
-    ...freezeProvenanceColumns(args.variant.content, args.variant.rawContent, args.variant.macroFreezes),
+    ...transformedBodyColumns(args.variant.content, args.variant.rawContent, args.variant.macroFreezes),
     createdAt: args.now,
   };
 }
@@ -579,7 +577,7 @@ export function continueVariantStatements(
           macroDraws: params.variant.macroDraws ?? null,
           // The merged body is not what this variant's freeze produced (a frozen greeting is continuable), so
           // its provenance is dropped rather than left describing a bake these bytes no longer contain.
-          ...CLEARED_FREEZE_PROVENANCE,
+          ...authoredBodyColumns(params.variant.content),
           preContinueContent: params.preContinueContent,
           preContinueReasoning: params.preContinueReasoning,
           lastContinuationContent: params.lastContinuationContent,
@@ -613,8 +611,7 @@ export function freezeVariantContentStatement(
     db
       .update(messageVariants)
       .set({
-        content: params.content,
-        ...freezeProvenanceColumns(params.content, params.rawContent, params.macroFreezes),
+        ...transformedBodyColumns(params.content, params.rawContent, params.macroFreezes),
       })
       .where(eq(messageVariants.id, params.variantId)),
   );
@@ -636,9 +633,8 @@ export function setVariantContentStatement(
     db
       .update(messageVariants)
       .set({
-        content,
+        ...authoredBodyColumns(content),
         reasoning,
-        ...CLEARED_FREEZE_PROVENANCE,
         ...(undoContinuation === undefined
           ? {}
           : {
@@ -715,10 +711,9 @@ export function editMessageContentStatements(
       db
         .update(messageVariants)
         .set({
-          content: params.content,
+          ...authoredBodyColumns(params.content),
           toolCalls: params.toolCalls.map(({ textOffset: _offset, exchangeTextEnd: _end, ...record }) => record),
           metadata: sql`json_remove(coalesce(${messageVariants.metadata}, '{}'), '$.continuationTools')`,
-          ...CLEARED_FREEZE_PROVENANCE,
           // A hand-authored body is no longer evidence of what a connection generated. Keep the immutable
           // provider/model snapshot for context, but clear the FK and mark the connection record absent.
           connectionId: null,
