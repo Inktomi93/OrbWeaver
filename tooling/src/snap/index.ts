@@ -53,6 +53,7 @@ export type {
   StageSweepEvidence,
   StageSweepVerdict,
 } from "./contract/stage.ts";
+export { rowOwner } from "./contract/stage.ts";
 // The `--theme` readiness gate (#1227) — the pure expectation/refusal halves plus the browser wait, so a
 // pin can drive the SHIPPED wait against a late-stamping page without a dev stack.
 export type { ThemeStampExpectation, ThemeStampReceipt } from "./contract/theme-stamp.ts";
@@ -108,7 +109,16 @@ export {
 } from "./lib/stage-keeper-plan.ts";
 // `shortSha`/`stageRowBaseUrl` are the row's DERIVED fields (#1276 stopped storing them — a serialized copy
 // of a derived value is a second home that drifts), so every consumer derives them through this door.
-export { shortSha, stageBandClaim, stageBandRefusal, stageBandSharedNote, stageKeeperLogPath, stageRowBaseUrl, urlTargetsStageBand } from "./lib/stage-plan.ts";
+export {
+  shortSha,
+  stageBandClaim,
+  stageBandRefusal,
+  stageBandSharedNote,
+  stageKeeperLogPath,
+  stageOwnerKey,
+  stageRowBaseUrl,
+  urlTargetsStageBand,
+} from "./lib/stage-plan.ts";
 // #1837's boot-dead latch: which stage row this run bound and whether this run BOOTED it — the one fence
 // that keeps the boot-dead teardown off a stage a run merely REUSED (#324's warm-across-runs rule).
 export { __resetStageRunBinding, boundStageRow, markStageBootDead, registerStageRunBinding, takeBootDeadStage } from "./lib/stage-run-binding.ts";
@@ -158,7 +168,7 @@ export { tryResolveRef } from "./ops/stage-git.ts";
 export { armStageKeeper, runStageKeeper, stageKeeperAlive } from "./ops/stage-keeper.ts";
 // #1186: the band-ownership door — perf-meter/motion-audit ask it before they trust a `--base`. The table
 // readers ride beside it: a proof plants rows in a scratch home rather than the box's real band table.
-export { readBands, setStageKeeper, stageBandVerdictFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
+export { markerRoot as stageMarkerRoot, readBands, setStageKeeper, stageBandVerdictFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
 // The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
 export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
 export { cloneStageDb } from "./ops/stage-source.ts";

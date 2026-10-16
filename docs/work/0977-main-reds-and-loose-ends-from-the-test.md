@@ -43,7 +43,7 @@ Compose integration preserves census equality. Reindex/auth classifications rema
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Reviewed modal and focus-marker repairs pass scoped lint, client types, dialog CTs and real keyboard-close controls. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-modal-marker-delivery.md`. Default-corpus Snap remains red: previewContextFit reaches an unavailable corpus embedding provider. Response bodies are omitted; the captured server excerpt identifies connection refusal. Keep provider setup and cancellation reporting separate from accepted marker behavior. The application snapshot remains withheld under software rendering.
+Reviewed `f7005eb8b6` preserves modal slots and panel focus return. Corpus Snap uses an owned loopback provider, production endpoint updates and captured replay continuation. Native preview and exact-stage retirement pass. Reviewed refusal controls retain resources and reject off-origin transport. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-corpus-provider-stage-independent-review.md`. Separate provider recipes, cancellation reporting and software-rendered snapshots remain unqualified.
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 

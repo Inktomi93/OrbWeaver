@@ -13,29 +13,118 @@ const CONSUMER_TIMEOUT_MS = 600_000;
 const USAGE =
   "corpus-fixture requires publish <new-directory>, e2e [published-directory] [--] [native E2E arguments], or snap [published-directory] [--] [native Snap arguments]";
 
-async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
-  const { parseSnapArgs } = await import("@orb/tooling/snap");
-  const args = [...nativeArgs];
-  if (!parseSnapArgs(args).help) {
-    const { localPath } = await import("@orb/db");
-    const { loadCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
-    const source = loadCorpusFixture(directory === "--" ? undefined : directory);
-    const database = localPath(source.layout.databaseUrl);
-    if (database === undefined) {
-      throw new Error("A corpus Snap stage requires a local database");
-    }
-    args.push("--stage-db", database);
-  }
-  // Snap's existing stage owner clones DB/CAS, retains the warm stage and handles --stage-down.
-  const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "snap", ...args], {
+const INTERRUPTED_EXIT = 130;
+
+function runNativeSnap(
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  teardown?: Parameters<typeof spawnNicedTranscript>[2]["teardown"],
+): ReturnType<typeof spawnNicedTranscript> {
+  return spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "snap", ...args], {
     cwd: process.cwd(),
-    env: inheritedProcessEnv(),
+    env,
     timeoutMs: budget(CONSUMER_TIMEOUT_MS),
     onChunk: (chunk, stream) => {
       process[stream].write(chunk);
     },
+    ...(teardown === undefined ? {} : { teardown }),
   });
-  return result.code ?? 2;
+}
+
+async function retireCorpusSnap(owner: string, marker: string, sourceDb: string, expected: boolean): Promise<void> {
+  const { readBands, rowOwner, stageMarkerRoot, tearDownStageRow } = await import("@orb/tooling/snap");
+  const home = stageMarkerRoot(process.cwd());
+  try {
+    const rows = readBands(home).filter((candidate) => rowOwner(candidate) === owner);
+    if (rows.length > 1 || (expected && rows.length !== 1)) {
+      throw new Error("Corpus Snap stage ownership was not confirmed");
+    }
+    for (const row of rows) {
+      if (row.checkout !== process.cwd() || row.dbProvenance?.copiedFrom !== sourceDb) {
+        throw new Error("Corpus Snap stage clone identity was not confirmed");
+      }
+      process.stdout.write(`Corpus Snap stage retiring: ${JSON.stringify({ owner, band: row.band, pid: row.ownerPid, startedAt: row.startedAt, sourceDb })}\n`);
+      if (tearDownStageRow(home, row, "down").kind !== "stopped") {
+        throw new Error("Corpus Snap stage teardown was not confirmed");
+      }
+    }
+  } finally {
+    await joinRunMarkerSweep(marker);
+  }
+  if (readBands(home).some((row) => rowOwner(row) === owner)) {
+    throw new Error("Corpus Snap stage teardown was not confirmed");
+  }
+  process.stdout.write(`Corpus Snap stage retired: ${owner} (remaining 0)\n`);
+}
+
+async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
+  const { parseSnapArgs, stageOwnerKey } = await import("@orb/tooling/snap");
+  const args = [...nativeArgs];
+  const parsed = parseSnapArgs(args);
+  if (
+    parsed.help ||
+    parsed.stageDown ||
+    parsed.stageStatus ||
+    parsed.stageSweep ||
+    parsed.sessionStatus ||
+    parsed.sessionClose !== null ||
+    parsed.sessionExport !== null ||
+    parsed.sessionSweep
+  ) {
+    return (await runNativeSnap(args, inheritedProcessEnv())).code ?? 2;
+  }
+  if (parsed.session !== null || parsed.stageWait !== null) {
+    throw new UsageError("A corpus Snap provider is run-owned; use a one-shot or scenario drive, not a detached session or stage waiter");
+  }
+  const { localPath } = await import("@orb/db");
+  const { prepareCorpusSnapFixture, runCorpusSnapConsumer } = await import("@orb/testkit/node/corpus-recipe.ts");
+  const prepared = await prepareCorpusSnapFixture(directory === "--" ? undefined : directory);
+  const database = localPath(prepared.fixture.layout.databaseUrl);
+  if (database === undefined) {
+    await prepared[Symbol.asyncDispose]();
+    throw new Error("A corpus Snap stage requires a local database");
+  }
+  args.push("--stage-db", database);
+  const marker = mintRunMarker();
+  const label = `corpus-${marker}`;
+  const owner = stageOwnerKey(process.cwd(), label);
+  const env = inheritedProcessEnv({ ...runMarkerEnv(marker), ORB_SNAP_OWNER: label });
+  const state = { interrupted: false, stageExpected: false };
+  const code = await runCorpusSnapConsumer(
+    prepared,
+    async () => {
+      const result = await runNativeSnap(args, env, {
+        afterTimeoutKill: async () => describeRunMarkerSweep(await joinRunMarkerSweep(marker)),
+        arm: (killGroup) => {
+          const cancel = (): void => {
+            state.interrupted = true;
+            killGroup();
+          };
+          const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+          for (const signal of signals) {
+            process.on(signal, cancel);
+          }
+          return {
+            dispose: () => {
+              for (const signal of signals) {
+                process.removeListener(signal, cancel);
+              }
+            },
+          };
+        },
+      });
+      state.stageExpected = result.code === 0;
+      return state.interrupted ? INTERRUPTED_EXIT : (result.code ?? 2);
+    },
+    () => retireCorpusSnap(owner, marker, database, state.stageExpected),
+    (reason) => {
+      process.stderr.write(
+        `Corpus Snap completion unconfirmed: ${reason}; retained provider ${prepared.provider.baseUrl}, clone ${prepared.fixture.layout.root}, owner ${owner}, wrapper pid ${process.pid}\n`,
+      );
+    },
+  );
+  process.stdout.write(`Corpus provider requests: ${JSON.stringify(prepared.provider.requests)}\n`);
+  return code;
 }
 
 await runTool(async () => {
