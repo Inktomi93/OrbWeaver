@@ -14,7 +14,9 @@ import type {
   InventoryFamily,
   InventoryInvocationEvidence,
   InventoryPartition,
+  InventoryReaderSourceMetadata,
   InventoryReaderStorage,
+  InventoryReadLease,
   InventorySourceCorpus,
   InventorySpan,
   InventorySymbols,
@@ -81,7 +83,52 @@ export function inventoryReader(
   partitions: readonly StoredInventoryPartition[],
   storage: InventoryReaderStorage,
 ): SemanticInventory {
-  const { db, dispose, shapeCohort } = storage;
+  return createInventoryReader(root, generation, partitions, storage);
+}
+
+/** Retain the owned query-only snapshot until the returned inventory is disposed. */
+export function ownedInventoryReader(root: string, generation: number, lease: InventoryReadLease, storage: InventoryReaderStorage): SemanticInventory {
+  try {
+    return createInventoryReader(root, generation, lease.partitions, { ...storage, lease });
+  } catch (error) {
+    lease[Symbol.dispose]();
+    throw error;
+  }
+}
+
+/** Constructor metadata errors must still prevent publication, without creating another syntax reader. */
+export function validateInventoryReaderSources(db: DatabaseSync, partitions: readonly StoredInventoryPartition[]): void {
+  readerSourceMetadata(db, partitions);
+}
+
+function readerSourceMetadata(db: DatabaseSync, partitions: readonly StoredInventoryPartition[]): InventoryReaderSourceMetadata {
+  const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
+  const aliases = new Map<string, string>();
+  const authored = new Set<string>();
+  for (const partition of partitions) {
+    for (const source of readInventorySourceMetadata(db, partition.id)) {
+      const previous = texts.get(source.file);
+      if (previous !== undefined && previous.source.textVersion !== source.textVersion) {
+        throw new SemanticInventoryError(`native semantic inventory mixed source versions: ${source.file}`);
+      }
+      texts.set(source.file, { partition: partition.id, source });
+      if (source.authored) {
+        authored.add(source.file);
+      }
+      aliases.set(source.path, source.file);
+      aliases.set(source.file, source.file);
+    }
+  }
+  return { texts, aliases, authored };
+}
+
+function createInventoryReader(
+  root: string,
+  generation: number,
+  partitions: readonly StoredInventoryPartition[],
+  storage: InventoryReaderStorage & { readonly lease?: InventoryReadLease },
+): SemanticInventory {
+  const { db, dispose, shapeCohort, lease } = storage;
   const shapeOwners = new Map(storage.shapeOwners);
   let indexes = [...partitions];
   let open = true;
@@ -102,25 +149,9 @@ export function inventoryReader(
   const capturedTexts = new Map<SourceFile, string>();
   const projections = new Map<SourceFile, { readonly epoch: SourceFile["compilerNode"]; readonly nodes: Map<string, Node> }>();
   const bindingUses = new Map<string, SourceBindingUsage>();
-  const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
-  const aliases = new Map<string, string>();
+  const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
   const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
-  const authored = new Set<string>();
-  for (const partition of partitions) {
-    for (const source of readInventorySourceMetadata(db, partition.id)) {
-      const previous = texts.get(source.file);
-      if (previous !== undefined && previous.source.textVersion !== source.textVersion) {
-        throw new SemanticInventoryError(`native semantic inventory mixed source versions: ${source.file}`);
-      }
-      texts.set(source.file, { partition: partition.id, source });
-      if (source.authored) {
-        authored.add(source.file);
-      }
-      aliases.set(source.path, source.file);
-      aliases.set(source.file, source.file);
-    }
-  }
   const contextProject = (context: readonly string[] | undefined): Project => {
     if (context === undefined) {
       return project;
@@ -349,13 +380,14 @@ export function inventoryReader(
     },
     invocationEvidence: (node, program, plan) => {
       const { partition, span } = nativeSpan(node, program, "invocation-evidence");
-      const matches = [...readInventoryInvocationEvidence(db, partition.id, { ...plan, node: span })];
+      const query = { ...plan, node: span };
+      const matches = [...(lease?.invocationEvidence(partition.id, query) ?? readInventoryInvocationEvidence(db, partition.id, query))];
       const wire = matches[0];
       if (matches.length !== 1 || wire === undefined) {
         throw new SemanticInventoryError("native invocation query is unavailable in its captured native partition");
       }
       const replay = replayFor(node, program, partition, "invocation");
-      const bindings = invocationBindings(db, partition.id, wire, replay);
+      const bindings = invocationBindings(wire, replay, (file) => lease?.bindings(partition.id, file) ?? readInventoryGlobalBindings(db, partition.id, file));
       const computed = invocationComputed(db, partition.id, wire, replay);
       const globals = invocationGlobals(db, partition.id, wire, replay);
       const required = <T>(map: ReadonlyMap<Node, T>, subject: Node): T => {
@@ -690,7 +722,11 @@ export function inventoryReader(
         }
       }
       contextProjects.clear();
-      dispose();
+      try {
+        lease?.[Symbol.dispose]();
+      } finally {
+        dispose();
+      }
     },
   };
   inventories.set(project, inventory);
@@ -699,14 +735,13 @@ export function inventoryReader(
 }
 
 function invocationBindings(
-  db: DatabaseSync,
-  id: string,
   wire: InventoryInvocationEvidence,
   replay: (span: InventorySpan) => Node,
+  read: (file: string) => Iterable<InventoryPartition["bindings"][number]>,
 ): ReadonlyMap<Node, readonly Node[]> {
   const bindings = new Map<Node, readonly Node[]>();
   for (const source of wire.sources) {
-    for (const fact of readInventoryGlobalBindings(db, id, source.file)) {
+    for (const fact of read(source.file)) {
       bindings.set(replay(fact.node), fact.symbols.lexical.map(replay));
     }
   }

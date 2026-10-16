@@ -1,6 +1,6 @@
 // @subject tooling/src/floor/compiler/invocation-evidence-extract.ts
 // @subject tooling/src/floor/code-facts/invocation-evidence-replay.ts
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path, { dirname, join } from "node:path";
 import { DatabaseSync, StatementSync } from "node:sqlite";
@@ -741,6 +741,256 @@ test(
     expect(() => retained.declarations(restored.getExpression())).toThrow("disposed");
     inventory[Symbol.dispose]();
     expect(() => inventory.invocationEvidence(restored, descriptor.id, PLAN)).toThrow("disposed");
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "owned inventory lease pins its private connection before any consumer fact read",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const selected = calls.filter((call) => ["bound()", "rebound()"].includes(call.getText()));
+    expect(selected).toHaveLength(2);
+    const options = {
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"] as const,
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
+    };
+    const databasePath = join(scratch, ".cache/semantic-inventory.sqlite");
+    let connection: DatabaseSync | undefined;
+    const prepare = DatabaseSync.prototype.prepare;
+    const observation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
+      if (this.location() === databasePath) {
+        connection = this;
+      }
+      return prepare.apply(this, args);
+    });
+    let inventory: ReturnType<typeof createSemanticInventory>;
+    try {
+      inventory = createSemanticInventory(options);
+    } finally {
+      observation.mockRestore();
+    }
+    using owned = inventory;
+    const privateConnection = connection;
+    if (privateConnection === undefined) {
+      throw new Error("private inventory connection was not observed");
+    }
+    expect(privateConnection.isTransaction).toBe(true);
+    expect(privateConnection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
+    expect(() => privateConnection.exec("UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1")).toThrow("readonly");
+    using db = openInventoryDatabase(databasePath);
+    const partitions = readInventoryGeneration(db, owned.generation);
+    const partition = partitions[0];
+    if (partition === undefined) {
+      throw new Error("owned lease partition is missing");
+    }
+    db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=?").run(partition.id);
+    for (const call of selected) {
+      expect(snapshot(call, owned.invocationEvidence(call, descriptor.id, PLAN))).toEqual(snapshot(call, captureInvocationEvidence(call, PLAN)));
+    }
+    using borrowed = inventoryReader(scratch, owned.generation, partitions, { db, dispose: () => undefined });
+    for (const call of selected) {
+      expect(() => borrowed.invocationEvidence(call, descriptor.id, PLAN)).toThrow("declarations are incomplete");
+    }
+    expect(() => createSemanticInventory(options)).toThrow("declarations are incomplete");
+    db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount-1 WHERE partition=?").run(partition.id);
+    for (const call of selected) {
+      expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+    }
+    owned[Symbol.dispose]();
+    expect(privateConnection.isOpen).toBe(false);
+    expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "owned inventory lease validates complete raw bindings once across multiple public queries",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const selected = calls.filter((call) => ["bound()", "rebound()", "written()"].includes(call.getText()));
+    expect(selected).toHaveLength(3);
+    const options = {
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"] as const,
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
+    };
+    using first = createSemanticInventory(options);
+    using second = createSemanticInventory(options);
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, first.generation);
+    const partition = partitions[0];
+    if (partition === undefined) {
+      throw new Error("raw binding work-count partition is missing");
+    }
+    const facts = selected.flatMap((call) => [...readInventoryInvocationEvidence(db, partition.id, { ...PLAN, node: span(call) })]);
+    const unique = new Set(facts.flatMap((fact) => fact.sources.map(({ file }) => file)));
+    expect(facts.reduce((count, fact) => count + fact.sources.length, 0)).toBeGreaterThan(unique.size);
+    let enumerations = 0;
+    const iterate = StatementSync.prototype.iterate;
+    const observation = vi.spyOn(StatementSync.prototype, "iterate").mockImplementation(function (this: StatementSync, ...args) {
+      if (this.sourceSQL.includes("b.lexicalCount,b.originCount FROM inventory_global_binding")) {
+        enumerations++;
+      }
+      return iterate.apply(this, args);
+    });
+    try {
+      for (const inventory of [first, second]) {
+        for (const call of [...selected, ...selected]) {
+          expect(snapshot(call, inventory.invocationEvidence(call, descriptor.id, PLAN))).toEqual(snapshot(call, captureInvocationEvidence(call, PLAN)));
+        }
+        expect(enumerations).toBe(unique.size * (inventory === first ? 1 : 2));
+      }
+      using borrowed = inventoryReader(scratch, first.generation, partitions, { db, dispose: () => undefined });
+      for (const call of selected) {
+        borrowed.invocationEvidence(call, descriptor.id, PLAN);
+      }
+      expect(enumerations).toBeGreaterThan(unique.size * 2);
+    } finally {
+      observation.mockRestore();
+    }
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "owned inventory leaves borrowed savepoints, unfinished writes and DDL reads fresh",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const call = calls.find((node) => node.getText() === "bound()");
+    if (call === undefined) {
+      throw new Error("borrowed freshness call is missing");
+    }
+    using owned = createSemanticInventory({
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+    });
+    const captured = owned.invocationEvidence(call, descriptor.id, PLAN);
+    const declarations = captured.declarations(call.getExpression());
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, owned.generation);
+    const partition = partitions[0];
+    if (partition === undefined) {
+      throw new Error("borrowed freshness partition missing");
+    }
+    using borrowed = inventoryReader(scratch, owned.generation, partitions, { db, dispose: () => undefined });
+    expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+    db.exec("BEGIN IMMEDIATE;SAVEPOINT beforeWrite");
+    try {
+      db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=?").run(partition.id);
+      const changed = db.prepare("SELECT total_changes() AS count").get();
+      expect(() => borrowed.invocationEvidence(call, descriptor.id, PLAN)).toThrow("declarations are incomplete");
+      db.exec("ROLLBACK TO beforeWrite");
+      expect(db.prepare("SELECT total_changes() AS count").get()).toEqual(changed);
+      expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+      db.exec("SAVEPOINT beforeDdl;ALTER TABLE inventory_global_binding RENAME TO displaced_binding");
+      expect(() => borrowed.invocationEvidence(call, descriptor.id, PLAN)).toThrow("no such table");
+      db.exec("ROLLBACK TO beforeDdl");
+      expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    const before = db.prepare("SELECT total_changes() AS count").get();
+    const pending = db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=? RETURNING ordinal").iterate(partition.id);
+    pending.next();
+    try {
+      expect(db.isTransaction).toBe(false);
+      expect(db.prepare("SELECT total_changes() AS count").get()).toEqual(before);
+      expect(() => borrowed.invocationEvidence(call, descriptor.id, PLAN)).toThrow("declarations are incomplete");
+      expect(captured.declarations(call.getExpression())).toEqual(declarations);
+      expect(owned.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+    } finally {
+      pending.return?.();
+    }
+    db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount-1 WHERE partition=?").run(partition.id);
+    expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+    db.exec("BEGIN IMMEDIATE");
+    borrowed[Symbol.dispose]();
+    expect(db.isTransaction).toBe(true);
+    db.exec("ROLLBACK");
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "owned inventory overlay closes its query-only lease before removing isolated storage",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const call = calls.find((node) => node.getText() === "bound()");
+    if (call === undefined) {
+      throw new Error("overlay lease call missing");
+    }
+    const options = {
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"] as const,
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+    };
+    using main = createSemanticInventory(options);
+    const captured: DatabaseSync[] = [];
+    const prepare = DatabaseSync.prototype.prepare;
+    const observation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
+      if (this.location()?.endsWith("/overlay.sqlite") === true && !captured.includes(this)) {
+        captured.push(this);
+      }
+      return prepare.apply(this, args);
+    });
+    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
+      root: scratch,
+      files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }],
+      deleted: [],
+    });
+    let acquired: ReturnType<typeof createSemanticInventory>;
+    try {
+      acquired = createSemanticInventory({ ...options, fileSystem, overlay: { addedPaths: ["vendor/bound.ts"], deletedPaths: [] } });
+    } finally {
+      observation.mockRestore();
+    }
+    using overlay = acquired;
+    const connection = captured.find((candidate) => candidate.isOpen);
+    const overlayPath = connection?.location();
+    if (connection === undefined || overlayPath === undefined || overlayPath === null) {
+      throw new Error("overlay private connection missing");
+    }
+    expect(connection.isTransaction).toBe(true);
+    expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
+    expect(existsSync(overlayPath)).toBe(true);
+    const source = overlay.sourceCorpus().getSourceFile(SOURCE);
+    const overlayCall = source?.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getText() === "bound()");
+    if (overlayCall === undefined) {
+      throw new Error("overlay captured call missing");
+    }
+    expect(overlay.invocationEvidence(overlayCall, descriptor.id, PLAN).invocation).toMatchObject({
+      kind: "resolved",
+      value: { target: { kind: "module", canonical: { exportedName: "bound" } } },
+    });
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    expect(latestInventoryGeneration(db)).toBe(main.generation);
+    overlay[Symbol.dispose]();
+    expect(connection.isOpen).toBe(false);
+    expect(existsSync(overlayPath)).toBe(false);
+    expect(() => overlay.invocationEvidence(overlayCall, descriptor.id, PLAN)).toThrow("disposed");
   },
   scaledBudget(30_000),
 );
