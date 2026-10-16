@@ -263,11 +263,22 @@ export interface ReturnedValueSource {
   readonly bindings: ReadonlyMap<Node, Node>;
 }
 
-/** An actual captured return alternative identifies the invocation whose body is being projected. */
-export interface ReturnedValueInvocation {
+/** Supplied provenance stays in the native evaluation; it is not part of persisted returned leaves. */
+export interface CapturedValueSupply {
   readonly observation: CallReturnObservation;
-  readonly target: Node;
+  readonly parameter: import("ts-morph").ParameterDeclaration;
+  readonly argument: Node | undefined;
+  readonly value: Node;
 }
+
+export interface SuppliedValueSource extends ReturnedValueSource {
+  readonly supply?: CapturedValueSupply;
+}
+
+/** Arguments belong to their caller; defaults and selected formals belong to the supplied owner. */
+export type ReturnedValueInvocation =
+  | { readonly kind: "return"; readonly observation: CallReturnObservation; readonly target: Node }
+  | { readonly kind: "supplied"; readonly supply: CapturedValueSupply; readonly formal: boolean };
 
 /** Active evaluation records distinguish captured allocations without storing completed value facts. */
 export interface ReturnedValueActivation {

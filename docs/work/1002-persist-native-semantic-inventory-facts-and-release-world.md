@@ -38,4 +38,4 @@ Reviewed reached-call capture uses explicit reference inputs, validates native l
 
 The actual env-parser control still refuses inherited descriptor exposure at the identity dispatch. Actual target completion, complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
 
-Pinned metadata and physical source lookup reuse retain admission, mutable epochs and borrowed freshness. Finite reentry respects captured invocations; true cycles refuse. Mapped and ordinary reentry controls pass; the actual env control still refuses. Complete replay and cost remain open.
+Pinned metadata and source lookup retain admission, mutable epochs and borrowed freshness. Supplied alternatives retain actual caller, formal and default provenance; activation metadata stays transient. Reviewed mapped and ordinary reentry controls pass; true cycles refuse. The actual env control still refuses. Complete replay and cost remain open.

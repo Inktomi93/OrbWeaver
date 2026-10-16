@@ -6,7 +6,7 @@ import { readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { observeCallReturns } from "@orb/tooling/floor/code-facts/call-returns";
+import { observeCallReturns, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { readAuthoredCallableSources, readAuthoredValueSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -18,6 +18,127 @@ import { gate } from "../../../../tooling/src/verify/gates/json-column-read-pars
 import { isDirectParse } from "../../../../tooling/src/verify/lib/json-column-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+
+test("supplied value provenance preserves distinct captured callers and refuses to invent a bound origin", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/supplied-origin.ts",
+    'function collect(value="default"){return value;}const shared="same";collect(shared);collect(shared);collect();',
+  );
+  const parameter = source.getFunctionOrThrow("collect").getParameters()[0];
+  if (parameter === undefined) {
+    throw new Error("the actual supplied formal is missing");
+  }
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the captured native Program is missing");
+    }
+    const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
+    expect(supplied.kind).toBe("resolved");
+    if (supplied.kind !== "resolved") {
+      return;
+    }
+    expect(supplied.value.length).toBe(3);
+    for (const [index, value] of supplied.value.entries()) {
+      const call = calls[index];
+      if (call === undefined) {
+        throw new Error("the supplied alternative has no actual caller");
+      }
+      expect(value.supply?.observation).toBe(program.byCall.get(call.compilerNode));
+      expect(value.supply?.parameter).toBe(parameter);
+      expect(value.supply?.argument).toBe(call.getArguments()[0]);
+      expect(value.supply?.value).toBe(value.value);
+      expect(value.value).toBe(call.getArguments()[0] ?? parameter.getInitializer());
+      expect(value.bindings.get(parameter)).toBe(value.value);
+    }
+    const first = supplied.value[0];
+    if (first === undefined) {
+      throw new Error("the first actual supplied alternative is missing");
+    }
+    const bound = readSuppliedParameter(parameter.getNameNode(), first.bindings, program);
+    expect(bound.kind === "resolved" ? bound.value.map((value) => value.supply) : "refused").toEqual([undefined]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const argument of ["", "undefined"]) {
+  test(`supplied default contexts retain a finite default invocation through the same formal: ${argument}`, () => {
+    const code = `function wrap(value=wrap("local")){return value;}const answer=wrap(${argument});`;
+    expect(runInNewContext(`${code};answer;`)).toBe("local");
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/supplied-default-context.ts", code);
+    const selected = source.getFunctionOrThrow("wrap").getFirstDescendantByKindOrThrow(SyntaxKind.ReturnStatement).getExpressionOrThrow();
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(selected, [], observed, new Set());
+      expect(fact.kind === "resolved" ? fact.value.map((value) => value.value.getText()) : `${fact.reason}: ${fact.detail}`).toEqual(['"local"', '"local"']);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const scenario of [
+  { name: "the same default context remains recursive", code: "function wrap(value=wrap()){return value;}const answer=wrap();" },
+  {
+    name: "a mutable supplied default cannot keep its earlier value",
+    code: 'let selected="local";selected="outside";function wrap(value=wrap(selected)){return value;}const answer=wrap();',
+  },
+  {
+    name: "unknown callers do not acquire a supplied context",
+    code: 'declare function escape(value:object):void;function wrap(value=wrap("local")){return value;}escape(wrap);const answer=wrap();',
+  },
+] as const) {
+  test(`supplied default context safety: ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/supplied-default-safety.ts", scenario.code);
+    const selected = source.getFunctionOrThrow("wrap").getFirstDescendantByKindOrThrow(SyntaxKind.ReturnStatement).getExpressionOrThrow();
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants());
+      const fact = readReturnedValue(selected, [], observed, new Set());
+      expect(fact.kind).toBe("unresolved");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const mode of ["sparse", "unproven-binding", "changed-source"] as const) {
+  test(`supplied default context retains ${mode} refusal`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/supplied-admission.ts", 'function wrap(value=wrap("local")){return value;}const answer=wrap();');
+    const owner = source.getFunctionOrThrow("wrap");
+    const parameter = owner.getParameters()[0];
+    const initializer = parameter?.getInitializer();
+    if (parameter === undefined || initializer === undefined) {
+      throw new Error("the actual defaulted formal is missing");
+    }
+    const selected = owner.getFirstDescendantByKindOrThrow(SyntaxKind.ReturnStatement).getExpressionOrThrow();
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), mode === "sparse" ? undefined : source.getDescendants());
+      const fact = readReturnedValue(selected, [], observed, {
+        bindings: mode === "unproven-binding" ? new Map([[parameter, initializer]]) : new Map(),
+        terminals: (call) => {
+          if (mode === "changed-source" && call === initializer) {
+            source.insertStatements(0, "const changedSourceEpoch=1;");
+          }
+          return false;
+        },
+      });
+      expect(fact.kind).toBe("unresolved");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
 
 for (const scenario of [
   { name: "same return node with different actual arguments", body: "return value;", path: [], runtime: "output" },

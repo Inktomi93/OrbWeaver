@@ -9,6 +9,7 @@ import type {
   CallReturnProgram,
   ReferenceFact,
   ReferenceUnresolvedReason,
+  SuppliedValueSource,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 import { unprovenReferenceUse } from "./reference-fact-writes.ts";
@@ -106,7 +107,7 @@ export function readSuppliedParameter(
   node: MorphNode,
   bindings: ReadonlyMap<MorphNode, MorphNode>,
   program: CallReturnProgram | undefined,
-): ReferenceFact<readonly import("./reference-fact-contract.ts").ReturnedValueSource[]> {
+): ReferenceFact<readonly SuppliedValueSource[]> {
   const epoch = suppliedEpochRefusal(node, program);
   if (epoch !== undefined) {
     return epoch;
@@ -144,7 +145,17 @@ export function readSuppliedParameter(
     kind: "resolved",
     value: alternatives.flatMap(({ caller, argument }) =>
       argument.kind === "resolved"
-        ? [{ value: argument.value ?? node, path: [], present: argument.value !== undefined, bindings: readCallBindings(caller.call, owner, bindings) }]
+        ? [
+            {
+              value: argument.value ?? node,
+              path: [],
+              present: argument.value !== undefined,
+              bindings: readCallBindings(caller.call, owner, bindings),
+              ...(argument.value === undefined
+                ? {}
+                : { supply: { observation: caller, parameter, argument: caller.call.getArguments()[index], value: argument.value } }),
+            },
+          ]
         : [],
     ),
     trace: { declarations: [parameter, owner], origin: node },

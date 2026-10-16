@@ -25,8 +25,10 @@ import type {
   ReturnedValueActivation,
   ReturnedValueContext,
   ReturnedValueInputs,
+  ReturnedValueInvocation,
   ReturnedValueSource,
   ReturnedValueTerminals,
+  SuppliedValueSource,
   UnresolvedReferenceFact,
 } from "./reference-fact-contract.ts";
 import { isReferenceWriteTarget, unprovenReferenceUse } from "./reference-fact-writes.ts";
@@ -269,7 +271,7 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
       const next = {
         ...context,
         bindings: readCallBindings(call, alternative.target, context.bindings),
-        invocation: { observation: observed, target: alternative.target },
+        invocation: { kind: "return" as const, observation: observed, target: alternative.target },
       };
       return valueAlternatives(
         call,
@@ -416,7 +418,7 @@ function returnedDefaultValue(node: Node, path: readonly string[], context: Retu
         node,
         supplied.value.map((source) =>
           source.present
-            ? returnedValue(source.value, [...source.path, ...path], { ...context, bindings: source.bindings })
+            ? returnedValue(source.value, [...source.path, ...path], suppliedValueContext(node, path, source, { context }))
             : { kind: "resolved", value: [{ ...source, path }], trace: supplied.trace },
         ),
       );
@@ -481,7 +483,7 @@ function returnedNativeSuppliedParameter(
         node,
         supplied.value.map((source) =>
           source.present
-            ? returnedValue(source.value, [...source.path, ...path], { ...context, bindings: source.bindings })
+            ? returnedValue(source.value, [...source.path, ...path], suppliedValueContext(node, path, source, { context }))
             : { kind: "resolved", value: [{ ...source, path }], trace: supplied.trace },
         ),
       );
@@ -860,8 +862,50 @@ function captureValueActivation(node: Node, path: readonly string[], context: Re
   };
 }
 
+function suppliedValueContext(
+  node: Node,
+  path: readonly string[],
+  source: SuppliedValueSource,
+  inputs: { readonly context: ReturnedValueContext; readonly supplied?: true },
+): ReturnedValueContext {
+  const { context } = inputs;
+  const next = { ...context, bindings: source.bindings };
+  if (source.supply === undefined) {
+    return next;
+  }
+  const activation = captureValueActivation(
+    node,
+    path,
+    {
+      ...next,
+      invocation: { kind: "supplied", supply: source.supply, formal: true },
+    },
+    inputs.supplied === true,
+  );
+  return {
+    ...next,
+    invocation: { kind: "supplied", supply: source.supply, formal: false },
+    ...(activation === undefined ? {} : { valueActivations: [...(next.valueActivations ?? []), activation] }),
+  };
+}
+
+function valueInvocationObservation(invocation: ReturnedValueInvocation): import("./reference-fact-contract.ts").CallReturnObservation {
+  return invocation.kind === "return" ? invocation.observation : invocation.supply.observation;
+}
+
+function valueInvocationScope(invocation: ReturnedValueInvocation): Node {
+  if (invocation.kind === "return") {
+    return invocation.target;
+  }
+  const { supply } = invocation;
+  if (invocation.formal || supply.value !== supply.argument) {
+    return supply.parameter.getParent();
+  }
+  return supply.observation.call.getFirstAncestor(N.isFunctionLikeDeclaration) ?? supply.observation.call.getSourceFile();
+}
+
 function differentValueAllocation(node: Node, previous: ReturnedValueActivation, current: ReturnedValueActivation): boolean {
-  if (previous.invocation.observation.call.compilerNode !== current.invocation.observation.call.compilerNode) {
+  if (valueInvocationObservation(previous.invocation).call.compilerNode !== valueInvocationObservation(current.invocation).call.compilerNode) {
     return true;
   }
   const scopes = new Set(node.getAncestors().map((ancestor) => ancestor.compilerNode));
@@ -881,7 +925,14 @@ function differentValueAllocation(node: Node, previous: ReturnedValueActivation,
 
 function valueActivationCurrent(activation: ReturnedValueActivation): boolean {
   const { program, invocation } = activation;
-  if (program.program !== activation.nativeProgram || invocation.target.wasForgotten() || invocation.observation.call.wasForgotten()) {
+  const observation = valueInvocationObservation(invocation);
+  if (
+    program.program !== activation.nativeProgram ||
+    observation.call.wasForgotten() ||
+    (invocation.kind === "return"
+      ? invocation.target.wasForgotten()
+      : invocation.supply.parameter.wasForgotten() || invocation.supply.value.wasForgotten() || invocation.supply.argument?.wasForgotten() === true)
+  ) {
     return false;
   }
   for (const [parameter, actual] of activation.bindings) {
@@ -889,7 +940,7 @@ function valueActivationCurrent(activation: ReturnedValueActivation): boolean {
       return false;
     }
   }
-  return program.byCall.get(invocation.observation.call.compilerNode) === invocation.observation;
+  return program.byCall.get(observation.call.compilerNode) === observation;
 }
 
 function sameValueTerminals(left: ReturnedValueTerminals, right: ReturnedValueTerminals): boolean {
@@ -907,12 +958,12 @@ function distinctValueActivation(node: Node, previous: ReturnedValueActivation, 
     sameValueTerminals(previous.terminals, current.terminals) &&
     !previous.hasNativeIterations &&
     !current.hasNativeIterations &&
-    previous.invocation.target === current.invocation.target &&
-    node.getAncestors().includes(current.invocation.target) &&
     valueActivationCurrent(previous) &&
     valueActivationCurrent(current) &&
+    valueInvocationScope(previous.invocation) === valueInvocationScope(current.invocation) &&
+    node.getAncestors().includes(valueInvocationScope(current.invocation)) &&
     !(
-      previous.invocation.observation === current.invocation.observation &&
+      valueInvocationObservation(previous.invocation) === valueInvocationObservation(current.invocation) &&
       previous.path.length === current.path.length &&
       previous.path.every((part, index) => part === current.path[index]) &&
       sameCallableBindings(previous.bindings, current.bindings)
@@ -1220,7 +1271,7 @@ function callableSuppliedLeaves(
           ? callableSuppliedLeaves(actual.value, [...actual.path, ...source.path], program, {
               bindings: actual.bindings,
               active: next,
-              continuation: entered,
+              continuation: suppliedValueContext(source.value, source.path, actual, { context: entered, supplied: true }),
               ...(inputs.activeValues === undefined ? {} : { activeValues: inputs.activeValues }),
               ...(inputs.uses === undefined ? {} : { uses: inputs.uses }),
             })
