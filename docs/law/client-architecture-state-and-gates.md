@@ -20,9 +20,11 @@ Split off [client-architecture-lockdown.md](client-architecture-lockdown.md) for
   adds the `*-registry.ts` contract module beside it. Every store is minted through exactly one of the
   three doors — bare zustand `create(`/`createStore(` exists only inside them: `createGatedStore`
   (devtools, required action labels, unique-name throw), `createPersistedStore` (version, partialize,
-  total migrate), `createEntityDraftStore` (frozen empty, `useShallow`, persist). Gates: `state-files`,
-  `persist-partialize-and-total-migrate`, `no-raw-zustand-persist`, both selector-stability guards, the
-  ESLint static-`setState` ban, `persistence-boundary` (device-local vs synced).
+  total migrate), `createEntityDraftStore` (frozen empty, `useShallow`, persist). Native persist options
+  require version, partialize and migrate at compile time; this proves field presence, not that migration cannot throw.
+  `orb/no-raw-zustand-persist` keeps raw persist calls inside the factory implementations. Other guards:
+  `state-files`, both selector-stability guards, the ESLint static-`setState` ban, and
+  `persistence-boundary` (device-local vs synced).
 - **`shell-store` is one drawer for cross-cutting shell state** (activeSection, panelOverrides, openModal,
   contextTab, openOverlayPanel) — features read via narrow hooks, write via intent-named module actions;
   the handle never escapes the file. `openConfigTo` (§8) is the one settings navigation verb.
@@ -65,8 +67,10 @@ Every piece of client state is exactly one of three classes — the blunt "cross
   3. **Total migrate** (pre-existing law) stays; identity/referential validity are 1 and 2's job, not a
      smarter migrate.
 
-Enforcer: `persistence-boundary` (raw-storage-outside-the-doors guard, §9) plus `state-files`/
-`persist-partialize-and-total-migrate`. Design of record + the as-built deltas (why store rebind reads a
+Enforcer: `persistence-boundary` (raw-storage-outside-the-doors guard, §9), the native required-key
+contracts on `createPersistedStore` and `createEntityDraftStore`, and `orb/no-raw-zustand-persist`.
+The required-key types prove the options fields exist; total, crash-proof migration remains a factory
+behavior contract. Design of record + the as-built deltas (why store rebind reads a
 boot pointer rather than minting fresh, why legacy adoption goes through each store's own persist
 storage): D138.
 
@@ -211,7 +215,7 @@ state why machine-checking fails and carry the exact checklist.
 | G15 | one-directional client tiers | dep-cruiser | `client-feature-front-door` · `client-features-no-cross` (type-only exempt) · `client-lib-floor` · `client-state-below-data` · `client-data-direction` · `client-forms-direction` · `client-features-below-routes` · `client-nothing-imports-main`. |
 | G16 | compose, never paint | ESLint keystone | `className`/`style` on a raw intrinsic in `packages/client/src` (3 exact exemptions, §4). |
 | G17 | token/value discipline | ts-morph + ESLint | `no-color-literals` family · `no-arbitrary-tw-values` · `better-tailwindcss/no-unknown-classes` against the generated theme · `no-off-token-inline-style` · `motion-token-purity`. |
-| G18 | state discipline | ts-morph + eslint | `state-files` · `persist-partialize-and-total-migrate` · `orb/no-raw-zustand-persist` · selector-stability pair · `no-effect-on-shared-selection` · static-`setState` ban · `persistence-boundary`. |
+| G18 | state discipline | TypeScript + ts-morph + ESLint | native persist factory required-key types · `state-files` · `orb/no-raw-zustand-persist` · selector-stability pair · `no-effect-on-shared-selection` · static-`setState` ban · `persistence-boundary`. |
 | G19 | data/query discipline | ts-morph + eslint | the `queryKey` selector of `no-restricted-syntax` · `no-inline-invalidate-outside-seam` · `bus-on-data-no-store-write` · `no-fake-disabled-id` · `orb/no-static-staletime` · `no-multiplexed-mutation-error`. |
 | G20 | forms discipline | ts-morph + eslint | `form-factory-for-multifield` · `orb/no-direct-useform` · `no-form-reset-in-autosave` · ESLint direct form-dependency restrictions · `no-form-state-in-useeffect` for resolved computed names only. |
 | G21 | bus producer coverage | ts-morph | `bus-producer-coverage` — one policy quantified over every guarded bus union. |

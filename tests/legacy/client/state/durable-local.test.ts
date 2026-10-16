@@ -9,8 +9,13 @@
 // missing half is its own describe block at the bottom of this file: a double's `reset` writes nothing,
 // so no double can see what an arm does to the durable BYTES — which is precisely where #837 lived.
 
+import type { UserId, VerifiedUserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { afterEach, describe, vi } from "vitest";
+import type { StateStorage } from "zustand/middleware";
 // @orb-waive-file no-test-fabrication({ count?: unknown; label?: unknown } | null | undefined): baselined when the gate widened to value casts; burn-down item 906.
-import type { DurableLocalPersistApi, DurableLocalStorage, PersistedStoreOptions } from "@orb/client/state";
+import type { DurableLocalPersistApi, DurableLocalStorage, PersistedStoreOptions } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 import {
   __resetDurableLocal,
   activeDurableLocalUserId,
@@ -19,12 +24,7 @@ import {
   durableLocalReadyFor,
   durableLocalWritesAllowed,
   registerDurableLocalStore,
-} from "@orb/client/state";
-import type { UserId, VerifiedUserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { afterEach, describe, vi } from "vitest";
-import type { StateStorage } from "zustand/middleware";
+} from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 
 // #854 — the bind boundary now takes the SESSION-VERIFIED brand (`VerifiedUserId`), so the doubles mint
 // it here exactly as the session-recovery seam does off `sessions.me`. It is a sub-brand of `UserId`, so
@@ -352,7 +352,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     expect(map.has(`orb:u/${ALICE}/shell`)).toBe(false);
 
     vi.resetModules();
-    const reloaded = await import("@orb/client/state");
+    const reloaded = await import("../../../../packages/client/src/state/legacy-test-factories/index.ts");
     const bobShell = storeDouble(map);
     const bobDrafts = storeDouble(map);
     reloaded.registerDurableLocalStore({ prefix: "orb:", name: "shell", api: bobShell.api, reset: bobShell.reset });
@@ -467,7 +467,7 @@ describe("bindDurableLocalToUser — the three arms", () => {
     expect(hints.get("orb:pending-legacy-adoption")).toBe(ALICE);
 
     vi.resetModules();
-    const reloaded = await import("@orb/client/state");
+    const reloaded = await import("../../../../packages/client/src/state/legacy-test-factories/index.ts");
     const shellAfterReload = storeDouble(map);
     const draftsAfterReload = storeDouble(map);
     reloaded.registerDurableLocalStore({ prefix: "orb:", name: "shell", api: shellAfterReload.api, reset: shellAfterReload.reset });
@@ -556,7 +556,7 @@ describe("bindDurableLocalToUser — the boot arms over REAL persisted stores", 
   }
 
   interface Booted {
-    readonly mod: typeof import("@orb/client/state");
+    readonly mod: typeof import("../../../../packages/client/src/state/legacy-test-factories/index.ts");
     readonly map: Map<string, string>;
     /** Every key the store's persist storage was asked to WRITE — a boot that preserves writes nothing. */
     readonly writes: string[];
@@ -576,7 +576,7 @@ describe("bindDurableLocalToUser — the boot arms over REAL persisted stores", 
       },
     });
     vi.resetModules();
-    const mod = await import("@orb/client/state");
+    const mod = await import("../../../../packages/client/src/state/legacy-test-factories/index.ts");
     const map = new Map<string, string>(Object.entries(seed));
     const writes: string[] = [];
     const storage: StateStorage = {

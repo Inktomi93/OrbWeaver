@@ -7,9 +7,8 @@
 //
 // FAMILY `state-files` — a declared SINGLETON. Re-derived 2026-09-12 across the whole gate corpus for
 // the three literals this module owns (`createGatedStore`, `createEntityDraftStore`, and the flat
-// `state/` tier): `persisted-store-registry` and `persist-partialize-and-total-migrate` judge the
-// PERSISTENCE factories' registration and migration, never the mint ARITY or the handle EXPORT, and
-// neither shares a reader with this one. The census proposed a "shared export/member fact"; the export
+// `state/` tier): the persistence factories' native name and options contracts do not judge mint ARITY
+// or handle EXPORT and share no reader with this policy. The census proposed a "shared export/member fact"; the export
 // question here is `VariableStatement#isExported()` on a declaration this file authored — authored
 // syntax with no identity to resolve and no second consumer — so promoting it to `lib/` would be this
 // gate's private reader wearing a shared reader's clothes (§11.5).

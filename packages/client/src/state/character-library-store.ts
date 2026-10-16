@@ -1,7 +1,7 @@
 // The character-library VIEW-PREFS store: sort mode, flat/categorized view mode, filter chips, bulk-select
 // flag. Does NOT home the selected character (character-selection-store.ts) or the bulk selection set
 // (createCollectionSurface's transient id-set). Device-local, registered in
-// tooling/src/verify/gates/persistence-boundary.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
+// packages/client/src/state/device-local-registry.ts DEVICE_LOCAL_REGISTRY. `bulkMode` is transient (excluded
 // from partialize) — a reload landing in bulk mode with an empty selection would be a confusing dead state.
 // (It also used to carry `browseOffset`, the scroll position #255 rescued across the LIST pane's selection
 // swap. #501 stopped the pane swapping, so nothing unmounts the list and there is no position to rescue.)

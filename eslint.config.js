@@ -668,10 +668,10 @@ const RESTRICTIONS = [
     scope: rootSources("@client"),
     homes: [
       {
-        path: "packages/client/src/state/create-entity-draft-store.ts",
+        path: "packages/client/src/state/entity-draft-store-implementation.ts",
         why: "the draft-store factory bakes partialize / version+total-migrate / key uniqueness in; its `persist(` call and its registered `reset` closure ARE the seal every draft store mints through",
       },
-      { path: "packages/client/src/state/create-persisted-store.ts", why: "the general persisted-store factory, the same seal one shape over" },
+      { path: "packages/client/src/state/persisted-store-implementation.ts", why: "the general persisted-store factory, the same seal one shape over" },
     ],
     selectors: [
       {

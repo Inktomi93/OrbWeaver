@@ -17,7 +17,6 @@ import { gate as noMutatingRegisterApi } from "../../../../tooling/src/verify/ga
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noRejectedCorsProxy } from "../../../../tooling/src/verify/gates/no-rejected-cors-proxy.ts";
 import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
-import { gate as persistedStoreRegistry } from "../../../../tooling/src/verify/gates/persisted-store-registry.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
@@ -42,7 +41,6 @@ const FAMILY: readonly GatePolicy[] = [
   noRawEgress,
   noRejectedCorsProxy,
   noUntypedSoftRef,
-  persistedStoreRegistry,
   persistenceBoundary,
   pluginDumpGuard,
   registryAssemblyAtDoorOnly,
@@ -173,50 +171,6 @@ test("untrusted-regex-safe-exec is not laundered by a SAFE seam in another compo
   // is the disappearance this policy exists to catch. Written as a pin because the legacy gate counted the
   // canonical property ONLY, and a naive count over the whole population would read this as healthy.
   expect(laundered.toolErrors).toMatchObject([{ policyId: "untrusted-regex-safe-exec", phase: "receipt" }]);
-});
-
-test("persisted-store-registry REFUSES when a persist factory home no longer exports its factory", () => {
-  const renamed = passOf(persistedStoreRegistry, {
-    "packages/client/src/state/create-persisted-store.ts": "export declare function createStore(name: string): unknown;\n",
-    "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
-  });
-
-  expect(renamed.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
-  expect(renamed.policies[0]?.receipts).toEqual([
-    { kind: "population", source: "packages/client/src/state/create-entity-draft-store.ts", members: 1, unresolved: 0 },
-    { kind: "population", source: "packages/client/src/state/create-persisted-store.ts", members: 0, unresolved: 1 },
-  ]);
-});
-
-// #2029 — the header used to promise that a MOVED door refuses, while the two doors shared ONE summed receipt:
-// an absent persist home (`members 0 / unresolved 0`) beside a present draft home (`members 1`) summed to a
-// clean `members 1`, so the run passed with no provable `createPersistedStore` mint. Each door is now its own
-// receipt; this is the shape the sum could not see, in both directions.
-test("persisted-store-registry REFUSES when exactly ONE factory door is absent from the fileset", () => {
-  const draftOnly = passOf(persistedStoreRegistry, {
-    "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
-  });
-  const persistOnly = passOf(persistedStoreRegistry, {
-    "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
-  });
-
-  expect(draftOnly.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
-  expect(draftOnly.authority.withheldPolicyIds).toEqual(["persisted-store-registry"]);
-  expect(persistOnly.toolErrors).toMatchObject([{ policyId: "persisted-store-registry", phase: "receipt" }]);
-  expect(persistOnly.authority.withheldPolicyIds).toEqual(["persisted-store-registry"]);
-});
-
-test("persisted-store-registry does NOT refuse when both doors are present and exporting — the control for the arm above", () => {
-  const both = passOf(persistedStoreRegistry, {
-    "packages/client/src/state/create-persisted-store.ts": "export declare function createPersistedStore(name: string, initial: () => unknown): unknown;\n",
-    "packages/client/src/state/create-entity-draft-store.ts": "export declare function createEntityDraftStore(options: { name: string }): unknown;\n",
-  });
-
-  expect(both.toolErrors).toEqual([]);
-  expect(both.policies[0]?.receipts).toEqual([
-    { kind: "population", source: "packages/client/src/state/create-entity-draft-store.ts", members: 1, unresolved: 0 },
-    { kind: "population", source: "packages/client/src/state/create-persisted-store.ts", members: 1, unresolved: 0 },
-  ]);
 });
 
 test("registry-assembly-at-door-only REFUSES when the registry home no longer exports both factories", () => {

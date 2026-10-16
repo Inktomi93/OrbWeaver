@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Execute D321 after the remaining assigned native delivery. Start security replacements, then native lint/import moves, typed production registries, real runtime/type tests, stylelint and obsolete family scaffolding. Keep custom gate analysis only for KEEP consumers and their required data contracts. The canonical external owner audit is in /home/inktomi/Desktop/gate-audit; use its folder versions, not loose Desktop CSVs.
+Execute D321's native replacements after assigned delivery. Keep custom analysis only for unmatched KEEP consumers and their data contracts. Use the canonical folder audit in /home/inktomi/Desktop/gate-audit.
 
 ## Why
 
@@ -36,4 +36,6 @@ Native ESLint file-size limits preserve source scopes and replace the custom cou
 
 Chat constructs the actual engine capability object and binds memory operations outside it. Native import restrictions exclude full chat authority contexts and guards. Production-root turn and memory controls pass independent security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Existing identity and role gates remain active. Unchanged legacy direct constructors require production-root adoption; their compatibility and CI execution are unqualified, not inherited type diagnostics.
 
-Native database constraints enforce freeze-provenance row normalization. Complete canon body writers and production-root controls preserve freshness beyond SQL constraints. Migration preserves coherent stored bytes and refuses invalid rows atomically. Independent security review passes. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Ordinary combined qualification remains required; application and hosted CI stay unqualified.
+Native database constraints enforce freeze-provenance row normalization. Complete canon body writers and production-root controls preserve freshness beyond SQL constraints. Migration preserves coherent stored bytes and refuses invalid rows atomically. Independent security review passes. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Ordinary production-root controls pass; application and hosted CI stay unqualified.
+
+Production device-local names and required persistence options use native factory types. Private implementation and legacy adapter imports remain restricted. Security-independent review confirms the corrected successor. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Application qualification remains open.

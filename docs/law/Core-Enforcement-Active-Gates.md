@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(329 registered gates)
+(327 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -253,8 +253,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `package-deep-import` | — | hard/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a parent-relative import climbs two… |
 | `package-layout` | — | reviewed-grant/error | @client,@ui,@db,@contracts,@kit,@inference | a loose .ts file (not index.ts) sits… |
 | `package-subpath-crossing` | — | reviewed-grant/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a #src/ subpath reaches into another… |
-| `persist-partialize-and-total-migrate` | — | ordinary/error | @client\* | the mint factory's own persist()… |
-| `persisted-store-registry` | persistence-boundary | hard/error | @client | a persisted store name that is not in… |
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
 | `persistence-no-in-memory-state` | — | ordinary/error | @authored\* | an ambient Map/Set/WeakMap/WeakSet is… |
 | `placeholder-copy-registry` | registry-definitions | ordinary/error | @client | a SectionDefinition's placeholder is… |

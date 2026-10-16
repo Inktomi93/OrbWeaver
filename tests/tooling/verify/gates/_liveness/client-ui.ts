@@ -27,7 +27,6 @@ import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/
 import { gate as noInteractiveRoleInFeatures } from "../../../../../tooling/src/verify/gates/no-interactive-role-in-features.ts";
 import { gate as noManualAutosaveFlush } from "../../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
 import { gate as noMultiplexedMutationError } from "../../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
-import { gate as persistPartializeAndTotalMigrate } from "../../../../../tooling/src/verify/gates/persist-partialize-and-total-migrate.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as settingsSectionAnchored } from "../../../../../tooling/src/verify/gates/settings-section-anchored.ts";
@@ -212,17 +211,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "multiplexed mutation errors",
-  },
-  {
-    policy: persistPartializeAndTotalMigrate,
-    // The mint factory's own persist() options, losing both irreversibility guards.
-    overlays: [
-      neutralise(
-        "packages/client/src/state/create-persisted-store.ts",
-        'import { persist } from "zustand/middleware";\nexport const s = persist(() => ({}), { version: 1 });\n',
-      ),
-    ],
-    messageIncludes: "missing partialize, migrate",
   },
   {
     policy: registryAssemblyAtDoorOnly,

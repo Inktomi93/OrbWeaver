@@ -26,8 +26,8 @@
 //   B ANOTHER GATE MODULE (§12.3, owner ruling #2096, 2026-09-12: *"a gate module never imports another gate
 //     module; shared predicates move to `lib/<family>.ts`"*). A `-health` sibling reading its twin's exports was
 //     two homes for one reader wearing a family's clothes. The predicate is NOT the directory: `gates/_proof/**`
-//     holds shared proof surfaces that register nothing (`persist-partialize-and-total-migrate` imports
-//     `./_proof/zustand.ts` by right, guide §6.5), so the arm resolves the specifier and asks the loader's own
+//     holds shared proof surfaces that register nothing (this family imports `./_proof/policy-soundness.ts`
+//     by right, guide §6.5), so the arm resolves the specifier and asks the loader's own
 //     question of the TARGET — does it register under either contract (`gateRegistrationOf`)? A module that does
 //     is a gate module wherever it sits; a module that does not is a surface, a reader or a helper.
 //   D the RECEIPT arm (#2320, 2026-09-13): a BINDING this module imports whose declared DATA GRAPH carries
@@ -1388,7 +1388,7 @@ export const gate = defineGate({
         ),
         { "tooling/src/verify/gates/_proof/surface.ts": "export const SURFACE = 1;\n" },
       ),
-      why: "ARM B THE SHARED PROOF SURFACE: `gates/_proof/**` holds fixture sources that register nothing (`persist-partialize-and-total-migrate` imports `./_proof/zustand.ts` by right, guide §6.5; this family imports `./_proof/policy-soundness.ts`). A directory-keyed arm would red every one of them; the registration test acquits them by construction",
+      why: "ARM B THE SHARED PROOF SURFACE: `gates/_proof/**` holds fixture sources that register nothing (this family imports `./_proof/policy-soundness.ts` by right, guide §6.5). A directory-keyed arm would red every one of them; the registration test acquits them by construction",
     },
     {
       mode: "types",

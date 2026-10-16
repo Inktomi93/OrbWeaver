@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-16
 ---
 
 # UI-Gates-and-Lessons
@@ -95,7 +95,8 @@ The UI enforcement families:
   `modal-/section-/chrome-registry-completeness` trio — the rail derives modal affordances from the
   registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
   client-foundation checks (the `queryKey` selector of `no-restricted-syntax`, `no-inline-invalidate-outside-seam`,
-  `bus-on-data-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
+  `bus-on-data-no-store-write`, `no-form-reset-in-autosave`), plus the native persisted-store factory
+  required-key types and `orb/no-raw-zustand-persist`.
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
 
@@ -241,7 +242,8 @@ per-theme `color-scheme`).
 
 - **Persist versioning — partly irreversible, pin first.** 9 of 11 neo stores `persist()` a non-primitive
   shape with no `version`/`migrate`; once stale blobs are in users' `localStorage` you can't migrate from
-  a version line you never shipped. \*Lint rule `orb/no-raw-zustand-persist` + `persist-partialize-and-total-migrate`
+  a version line you never shipped. `orb/no-raw-zustand-persist` protects the factory boundary; native
+  required-key types require `version`, `partialize` and `migrate` on both persist factories.
   - a STORAGE_KEYS uniqueness registry *(PHANTOM-REF — never built; only a code-comment concept in `create-gated-store.ts`)*.\*
 - **Determinism reaches the client.** Extend the server's no-`Date.now()`/`new Date()`/`Math.random()`
   rule to client render + optimistic code (seeded PRNG allowed). **Timezone pipeline:** the wire is

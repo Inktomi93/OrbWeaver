@@ -25,7 +25,6 @@ import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/sr
 import { gate as noMutatingRegisterApi } from "../../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noParallelSectionMap } from "../../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as noPointerVariantsInFeatures } from "../../../../../tooling/src/verify/gates/no-pointer-variants-in-features.ts";
-import { gate as persistedStoreRegistry } from "../../../../../tooling/src/verify/gates/persisted-store-registry.ts";
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as pointerCapabilityTierHealth } from "../../../../../tooling/src/verify/gates/pointer-capability-tier-health.ts";
@@ -189,16 +188,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noPointerVariantsInFeatures,
     overlays: [add(`${CHAT_COMPONENTS}/liveness-pointer.tsx`, 'export const x = <div className="pointer-coarse:hidden" />;\n')],
     messageIncludes: "pointer/hover capability variant",
-  },
-  {
-    policy: persistedStoreRegistry,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-store.ts",
-        'import { createPersistedStore } from "./create-persisted-store.ts";\nexport const s = createPersistedStore("liveness-unregistered", () => ({}), { version: 1 });\n',
-      ),
-    ],
-    messageIncludes: "liveness-unregistered",
   },
   {
     policy: persistenceBoundary,

@@ -3,14 +3,14 @@
 // freshness gate — the ENVELOPE (`{ values, schemaVersion, baselineHash }`) plus the read-time
 // validate + schema-version + baseline-hash checks that discard a stale/unverifiable draft.
 
-// @orb-waive-file no-test-fabrication({ state: { drafts: Record<string, { values: object; schemaVersion: number }> }; version: number }): baselined when the gate widened to value casts; burn-down item 906.
-import { __resetDurableLocal, bindDurableLocalToUser, createEntityDraftStore } from "@orb/client/state";
 import type { VerifiedUserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { StateStorage } from "zustand/middleware";
+// @orb-waive-file no-test-fabrication({ state: { drafts: Record<string, { values: object; schemaVersion: number }> }; version: number }): baselined when the gate widened to value casts; burn-down item 906.
+import { __resetDurableLocal, bindDurableLocalToUser, createEntityDraftStore } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

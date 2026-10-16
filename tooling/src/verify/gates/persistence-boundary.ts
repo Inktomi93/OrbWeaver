@@ -18,10 +18,8 @@
 // on the STORAGE it touches so a file licensed for `sessionStorage` does not silently acquire
 // `localStorage`. Four is therefore the correct count and the roster row that says four is correct.
 //
-// THE REGISTRY HALF IS ITS OWN POLICY. `DEVICE_LOCAL_REGISTRY` is not an exception table at all — the
-// exception census classifies it as authoritative data (which persisted-store names the tree has decided
-// are legitimately device-local), and its arms are HARD. It is `persisted-store-registry`, same family;
-// one descriptor cannot carry two authorities.
+// Device-local classifications constrain factory arguments in client state.
+// This policy owns raw browser-storage permissions, not factory-name admission.
 //
 // IDENTITY, NOT SPELLING. Legacy matched an Identifier whose text was one of the three api names, so a
 // `globalThis.localStorage`, a `globalThis["localStorage"]` and a stored alias were invisible, while any

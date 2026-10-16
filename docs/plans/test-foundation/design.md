@@ -202,6 +202,8 @@ Run the migration in this order: security replacements; mechanical native lint/i
 
 The chat engine receives an actual narrow capability object; chat binds memory operations outside the engine. Native imports exclude full request-authority contexts and guards. Existing identity and role gates remain active. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructor cases remain unchanged and require production-root adoption. Their unqualified API compatibility is distinct from inherited compiler diagnostics; preserve their meaningful cases before deletion.
 
+Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
+
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 
 Required producers cannot disappear with their audit row. Replace bus definitions, schema/catalog data, static-class and floorless-control inputs before removing an upstream producer used by KEEP consumers. Preserve meaningful unavailable-data and lifecycle refusal. Retire redundant certification, not the remaining consumer's failure behavior.
