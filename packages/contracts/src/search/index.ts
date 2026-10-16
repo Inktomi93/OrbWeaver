@@ -446,3 +446,55 @@ export interface RetrievalFallback<T> {
   readonly empty: T;
   readonly onIndexUnavailable: (() => void) | undefined;
 }
+
+/** WHERE a unified search runs. `owner` = the whole corpus (all the user's cards/chats); `chat` = one
+ *  authorized chat (the egocentric `scopedCharacterId` is the verbatim-lens POV, required by the
+ *  `segments` target); `character` = this character ACROSS ALL the owner's chats — the membership-widened
+ *  scope (D16) that credits co-star blocks via the `chat_digest_speakers` OR-branch, not just the digests
+ *  the character egocentrically produced. Single importable union — never re-declared inline. */
+export type SearchScope =
+  | { readonly kind: "owner" }
+  | {
+      readonly kind: "chat";
+      readonly chatId: ChatId;
+      readonly scopedCharacterId?: CharacterId | undefined;
+    }
+  | { readonly kind: "character"; readonly characterId: CharacterId };
+
+/** The retrieval-surface axis the unified `search()` dispatches over — one member per underlying verb.
+ *  A new member fails `tsc` at the `UnifiedSearchResult` union + the exhaustive dispatch (no inline
+ *  re-declaration; `SEARCH_TARGETS` is the one home). */
+export const SEARCH_TARGETS = ["entities", "characters", "discover", "segments", "digests", "corpus", "images", "documents"] as const;
+export type SearchTarget = (typeof SEARCH_TARGETS)[number];
+
+export const searchScopeInputSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("owner") }),
+  z.object({
+    kind: z.literal("chat"),
+    chatId: typeIdSchema(ID_PREFIX.chat),
+    scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+  }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+]) satisfies z.ZodType<SearchScope>;
+
+const similarCharactersInput = z.object({
+  characterId: typeIdSchema(ID_PREFIX.character),
+  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
+});
+
+export const unifiedSearchInputSchema = z.object({
+  query: z.string().min(1),
+  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
+  over: z.enum(SEARCH_TARGETS),
+  scope: searchScopeInputSchema,
+  rerank: z.boolean().optional(),
+  lens: imageLensSchema.optional(),
+});
+
+export const fieldSearchInputSchema = z.object({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) });
+
+export const searchSuggestInputSchema = z.object({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) });
+
+export const similarArtInputSchema = similarCharactersInput.extend({
+  lens: imageLensSchema.optional(),
+});

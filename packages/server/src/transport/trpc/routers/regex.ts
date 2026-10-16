@@ -32,7 +32,11 @@ import {
   detachResultSchema,
   importScriptFileResultSchema,
   regexAttachScopeSchema,
+  regexCharacterInputSchema,
+  regexChatInputSchema,
   regexPlacementListSchema,
+  regexPresetInputSchema,
+  regexScriptIdInputSchema,
   regexScriptUsageSchema,
   regexScriptViewSchema,
   removeResultSchema,
@@ -51,7 +55,6 @@ const MAX_SCRIPT_FILE_CHARS = 200_000;
 const MAX_BULK_SCRIPTS = 500;
 const DEC = new TextDecoder();
 
-const scriptIdInput = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });
 const scriptIdsInput = z.array(typeIdSchema(ID_PREFIX.regexScript)).max(MAX_BULK_SCRIPTS);
 
 export const regexRouter = t.router({
@@ -71,12 +74,12 @@ export const regexRouter = t.router({
 
   removeScript: authedProcedure
     .output(removeResultSchema)
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.removeScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
   duplicateScript: authedProcedure
     .output(regexScriptViewSchema)
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.duplicateScript({ principal: ctx.auth, scriptId: input.scriptId })),
 
   // Bulk script verbs share one capped id-list shape, so a hostile caller cannot turn a request into an
@@ -110,7 +113,7 @@ export const regexRouter = t.router({
   // door cells cite exactly these two names.
   exportScript: authedProcedure
     .output(portableTextFileSchema)
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .query(async ({ ctx, input }) => {
       const file = await ctx.services.regex.exportScript({ principal: ctx.auth, scriptId: input.scriptId });
       if (file === null) {
@@ -131,16 +134,16 @@ export const regexRouter = t.router({
   // carry `ownerId`, the rooms go through chat's injected membership filter.
   listScriptUsage: authedProcedure
     .output(regexScriptUsageSchema)
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listScriptUsage({ principal: ctx.auth, scriptId: input.scriptId })),
 
   attachGlobal: authedProcedure
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.attachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
   detachGlobal: authedProcedure
     .output(detachResultSchema)
-    .input(scriptIdInput)
+    .input(regexScriptIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.regex.detachGlobal({ principal: ctx.auth, scriptId: input.scriptId })),
 
   listGlobal: authedProcedure.output(z.array(regexScriptViewSchema)).query(({ ctx }) => ctx.services.regex.listGlobal({ principal: ctx.auth })),
@@ -156,7 +159,7 @@ export const regexRouter = t.router({
 
   listForCharacter: authedProcedure
     .output(z.array(regexScriptViewSchema))
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(regexCharacterInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForCharacter({ principal: ctx.auth, characterId: input.characterId })),
 
   attachToPreset: authedProcedure
@@ -170,7 +173,7 @@ export const regexRouter = t.router({
 
   listForPreset: authedProcedure
     .output(z.array(regexScriptViewSchema))
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.preset) }))
+    .input(regexPresetInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForPreset({ principal: ctx.auth, presetId: input.presetId })),
 
   attachToChat: authedProcedure
@@ -184,14 +187,14 @@ export const regexRouter = t.router({
 
   listForChat: authedProcedure
     .output(z.array(regexScriptViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(regexChatInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
   // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
   // a non-member is refused, and a member of a room that never opted in gets `[]`.
   listRoomDisplayScripts: authedProcedure
     .output(z.array(regexScriptViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(regexChatInputSchema)
     .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
 
   applyScopeOrder: authedProcedure

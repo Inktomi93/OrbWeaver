@@ -343,3 +343,5 @@ export const markAllReadResultSchema = z.strictObject({ markedCount: z.number() 
  *  happens before any fan-out, so the event is deliverable from the table alone). Composed at `entry/` from
  *  this domain's `record` + transport's bus. */
 export type EmitNotification = (event: NotificationEvent) => Promise<void>;
+
+export const listInboxInputSchema = z.object({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional();

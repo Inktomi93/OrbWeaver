@@ -214,3 +214,7 @@ export type ResolveDefaultPersonaOp = (userId: UserId) => Promise<PersonaId | nu
 
 /** The user's last-played persona (`seeds.currentPersonaId`) — the floor below the default. */
 export type ResolveCurrentPersonaOp = (userId: UserId) => Promise<PersonaId | null>;
+
+export const personaIdInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
+
+export const personaCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });

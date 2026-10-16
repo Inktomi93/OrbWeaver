@@ -6,23 +6,20 @@
 
 export type { SearchContext } from "./context.ts";
 export { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "./contract/errors.ts";
-export {
-  type CorpusParams,
-  type DigestsParams,
-  type DiscoverParams,
-  type DocumentSearchParams,
-  type FieldSearchParams,
-  type FindCharactersParams,
-  type ImagesParams,
-  type KnnParams,
-  SEARCH_TARGETS,
-  type SearchScope,
-  type SearchTarget,
-  type SegmentsParams,
-  type SimilarArtParams,
-  type SimilarCharactersParams,
-  type SuggestParams,
-  type UnifiedSearchParams,
+export type {
+  CorpusParams,
+  DigestsParams,
+  DiscoverParams,
+  DocumentSearchParams,
+  FieldSearchParams,
+  FindCharactersParams,
+  ImagesParams,
+  KnnParams,
+  SegmentsParams,
+  SimilarArtParams,
+  SimilarCharactersParams,
+  SuggestParams,
+  UnifiedSearchParams,
 } from "./contract/params.ts";
 export type {
   CharacterCardHit,

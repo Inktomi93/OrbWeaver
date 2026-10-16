@@ -39,14 +39,16 @@ import {
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
   PLUGIN_COMMAND_ARGS_MAX,
   PLUGIN_COMMAND_NAME_RE,
-  PLUGIN_LOG_LIST_MAX_LIMIT,
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_TEXT_MAX_CHARS,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   pluginBundleHashSchema,
   pluginComposerDraftSchema,
+  pluginIdInputSchema,
+  pluginLogInputSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
+  pluginSurfaceStateInputSchema,
   pluginUiOutcomeSchema,
 } from "@orb/contracts/plugin";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -193,7 +195,7 @@ export const pluginRouter = t.router({
   //    the service loads the owner-scoped row and NOT_FOUNDs a stranger BEFORE it asks whether that row is one
   //    of the examples — so a stranger cannot even learn that much about someone else's install.
   upgradeFromShowcase: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema }))
+    .input(pluginIdInputSchema)
     .output(pluginViewSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.upgradeFromShowcase({ caller: ctx.auth, pluginId: input.pluginId })),
 
@@ -223,7 +225,7 @@ export const pluginRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.plugin.setEnabled({ caller: ctx.auth, pluginId: input.pluginId, enabled: input.enabled })),
 
   uninstall: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema }))
+    .input(pluginIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.plugin.uninstall({ caller: ctx.auth, pluginId: input.pluginId })),
 
   list: authedProcedure.output(z.array(pluginViewSchema).readonly()).query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
@@ -252,7 +254,7 @@ export const pluginRouter = t.router({
     .query(({ ctx }) => ctx.services.plugin.listDistributedPlugins({ caller: ctx.auth })),
 
   getLog: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, limit: z.int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))
+    .input(pluginLogInputSchema)
     .output(z.array(pluginLogViewSchema).readonly())
     .query(({ ctx, input }) =>
       ctx.services.plugin.getLog({ caller: ctx.auth, pluginId: input.pluginId, ...(input.limit !== undefined ? { limit: input.limit } : {}) }),
@@ -278,12 +280,12 @@ export const pluginRouter = t.router({
   // set beside `getSurfaceState`: the service's owner-scoped `getById` load is the gate, and a stranger
   // holding owner A's real id gets the same leak-free NOT_FOUND every other per-row plugin read gives.
   listBundleAssets: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema }))
+    .input(pluginIdInputSchema)
     .output(z.array(pluginBundleAssetViewSchema).readonly())
     .query(({ ctx, input }) => ctx.services.plugin.listBundleAssets({ caller: ctx.auth, pluginId: input.pluginId })),
 
   getSurfaceState: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, surfaceId: surfaceIdSchema, chatId: chatIdSchema.optional() }))
+    .input(pluginSurfaceStateInputSchema)
     .output(pluginSurfaceStateSchema.nullable())
     .query(({ ctx, input }) =>
       ctx.services.plugin.getSurfaceState({

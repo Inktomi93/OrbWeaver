@@ -5,10 +5,10 @@ import { characterEmbeddings, characters, chatDigests, chatSegments, documentChu
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
-import type { CorpusRead } from "../iso/corpus.ts";
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
 import { corpusSearchInput, corpusSearchRoomIds } from "../iso/corpus-search.ts";
 import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
+import type { TrpcCapture } from "./corpus-read.ts";
 import type { SeededCorpusLibraries, SeededRecallCorpus, seedCorpusActors } from "./corpus-seed.ts";
 import { seedCorpusConnections, seedRecallRoom } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
@@ -331,7 +331,7 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
   };
 }
 
-async function capture<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<CorpusRead<P>> {
+async function capture<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<TrpcCapture<P>> {
   return { input, output: await invoke(input) };
 }
 
@@ -378,7 +378,7 @@ export async function captureCorpusSearchPublication(root: ServerTestHarness, so
       reads.imagesCaptioned.output,
     ]),
   ]);
-  const rooms: CorpusRead<"chat.getChat">[] = [];
+  const rooms: TrpcCapture<"chat.getChat">[] = [];
   for (const chatId of [...chatIds].sort()) {
     rooms.push(await capture<"chat.getChat">({ chatId: typeIdSchema(ID_PREFIX.chat).parse(chatId) }, caller.chat.getChat));
   }

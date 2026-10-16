@@ -36,6 +36,6 @@ Reviewed contextual sharing, optional invocation and native resource registratio
 
 Reviewed reached-call capture uses explicit reference inputs, validates native lifetime and stages complete observations before publication. Omitted reference inputs preserve ordinary behavior. Current SDK APIs and bundled compiler install without runtime mappings. Native transport, reached-call and helper-freshness controls pass. Tooling types pass; root retains inherited diagnostics.
 
-The env-parser control refuses inherited descriptor exposure at identity dispatch. The original callable diagnosis completes with an unresolved background-signal origin. Complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
+The original callable diagnosis completes unresolved. Exact returned-object evidence records inherited-effect refusal and a pending background-signal path. Full store qualification stays open. Evidence: `reports/review/1002-original-callable-sibling-witness.md`. Item 1027 owns typed delivery.
 
 Source lookup preserves admission and borrowed freshness. Supplied contexts remain transient; true cycles refuse. Callable-proof epochs bind completed reuse to its refinement read-set without bypassing semantic opacity. Independent review and ordinary controls pass. Env effects, the original target, complete replay and cost remain open.

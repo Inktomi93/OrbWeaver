@@ -13,14 +13,14 @@ import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import {
   actionTemplatesPreviewSchema,
   assemblyPreviewSchema,
-  CHAT_LIST_MAX_LIMIT,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
   chatCensusInputSchema,
   chatDetailSchema,
+  chatIdInputSchema,
   chatInjectionInputSchema,
   chatInjectionViewSchema,
   chatLineageViewSchema,
-  chatListCursorSchema,
+  chatListInputSchema,
   chatListPageSchema,
   chatReactionsViewSchema,
   chatVariablesSchema,
@@ -30,6 +30,7 @@ import {
   groupConfigSchema,
   guidedSteerSchema,
   hostTierRegexAllowSchema,
+  listMessagesInputSchema,
   memberCardViewSchema,
   messageContentBlockSchema,
   messagesPageSchema,
@@ -79,15 +80,6 @@ const getMemberCardSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   characterId: typeIdSchema(ID_PREFIX.character),
   timeZone: reportedTimeZoneSchema,
-});
-
-const listMessagesSchema = z.object({
-  chatId: typeIdSchema(ID_PREFIX.chat),
-  beforeSeq: z.number().optional(),
-  // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask is a
-  // BAD_REQUEST naming the bound, never an unbounded canon fetch (`CHAT_MESSAGE_LIST_MAX_LIMIT`). The domain
-  // still applies its own DoS backstop for internal callers.
-  limit: z.int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
 });
 
 // The swipe strip's step-target resolver (chat-surface-lane follow-up to #19): `ChatService.listMessageVariants`
@@ -536,14 +528,7 @@ export const chatRouter = t.router({
   // stops pulling the whole library to find three rows.
   listChats: authedProcedure
     .output(chatListPageSchema)
-    .input(
-      chatCensusInputSchema
-        .extend({
-          limit: z.int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
-          cursor: chatListCursorSchema.nullish(),
-        })
-        .optional(),
-    )
+    .input(chatListInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.chat.listChats({
         principal: ctx.auth,
@@ -557,24 +542,24 @@ export const chatRouter = t.router({
     ),
   getChat: authedProcedure
     .output(chatDetailSchema)
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
   // The fork ancestry, gated per ancestor inside the verb (D27): an ancestor the caller is not a present member
   // of is omitted, never named, so the room menu's "Back to parent chat" offers only a parent this caller can open.
   getChatLineage: authedProcedure
     .output(chatLineageViewSchema)
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChatLineage({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
   // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
   // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
     .output(sendAvailabilitySchema)
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.checkSendAvailability({ principal: ctx.auth, chatId: input.chatId })),
   getNextTurnConnection: authedProcedure
     .output(nextTurnConnectionViewSchema)
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getNextTurnConnection({ principal: ctx.auth, chatId: input.chatId })),
   // D22 member-card read — member-gated + roster-scoped INSIDE the verb (leak-free NOT_FOUND for a
   // non-participant OR a not-in-roster characterId); level-clamped fields are NULL server-side.
@@ -586,7 +571,7 @@ export const chatRouter = t.router({
   // for a non-member, the same collapse `getChat` uses). `beforeSeq`/`limit` page backwards from the tail.
   listMessages: authedProcedure
     .output(messagesPageSchema)
-    .input(listMessagesSchema)
+    .input(listMessagesInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.listMessages({ principal: ctx.auth, ...input })),
   getMessageWindow: authedProcedure
     .output(messageWindowSchema)
@@ -722,7 +707,7 @@ export const chatRouter = t.router({
   // (three of the four tiers are the host's own library, D19); a member's rack is `regex.listForChat`.
   listEffectiveRegex: authedProcedure
     .output(effectiveRegexViewSchema)
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.listEffectiveRegex({ principal: ctx.auth, chatId: input.chatId })),
 
   // B1 — the per-room offer-choices posture. Host-gated in the verb (a member's call is a refusal, not a
@@ -855,9 +840,7 @@ export const chatRouter = t.router({
   // started; the VERB re-checks `started_at IS NULL` under the host gate, so this input is a request, never a
   // verdict, and a chatId the caller does not host is the usual leak-free refusal. Host-only + id-scoped, so
   // unlike `reapTemporaryChats` it does take an input.
-  reapHusk: authedProcedure
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
-    .mutation(({ ctx, input }) => ctx.services.chat.reapHusk({ principal: ctx.auth, chatId: input.chatId })),
+  reapHusk: authedProcedure.input(chatIdInputSchema).mutation(({ ctx, input }) => ctx.services.chat.reapHusk({ principal: ctx.auth, chatId: input.chatId })),
   // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure

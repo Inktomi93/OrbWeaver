@@ -990,3 +990,11 @@ export interface PluginCardDataTarget {
  *  ⇒ the installer owns it, `data` is the stored blob or `null` when this plugin has written none on that
  *  character. Homed HERE per no-inline-types §7.4. */
 export type PluginCardDataRead = { readonly found: false } | { readonly found: true; readonly data: Record<string, unknown> | null };
+
+export const characterListInputSchema = characterCensusInputSchema
+  .extend({
+    sort: characterListSortSchema.optional(),
+    cursor: characterListCursorSchema.optional(),
+    limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
+  })
+  .optional();

@@ -144,7 +144,7 @@ Track source, config, package-resolution and dependency inputs with content vers
 
 Keep transaction overlays separate from committed facts. Derive their roots from the compiler overlay and their content from the transaction filesystem. Changed overlay content selects new facts; it never changes the repository generation. Discard overlay partitions when their transaction ends.
 
-Portable corpus types must not reach Node support or AppRouter. Derive their data from production contracts and retain exhaustive router conformance in Node. The current iso corpus imports violate this boundary and require repair. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Complete inventory retains legacy consumer evidence. Cross-world file duplication does not explain the separate single-world callable cost.
+Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Complete inventory retains legacy consumer evidence. Cross-world file duplication does not explain the separate single-world callable cost.
 
 Exact Program source admission preserves compiler redirects and physical host input metadata. Ordinary installed controls qualify this dependency; complete invocation and full-schema qualification remain open.
 

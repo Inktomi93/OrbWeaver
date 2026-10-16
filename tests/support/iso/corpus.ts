@@ -27,7 +27,6 @@ import type { JsonValue } from "@orb/kit/json";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
-import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "../node/route-trpc.ts";
 import type { CorpusRegexLibrary, CorpusWorldInfoLibrary } from "./corpus-library.ts";
 import {
   hydrateRegexLibrary,
@@ -41,7 +40,7 @@ import type { CorpusLibraryRelations } from "./corpus-library-relations.ts";
 import { hydrateLibraryRelations, libraryRelationsSchema, publishLibraryRelations } from "./corpus-library-relations.ts";
 import type { CorpusPluginLibrary } from "./corpus-plugin.ts";
 import { hydrateCorpusPlugins, pluginLibrarySchema, publishCorpusPlugins } from "./corpus-plugin.ts";
-import type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
+import type { CorpusCapture, CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 import type { CorpusSearchLibrary } from "./corpus-search.ts";
 import { corpusSearchSchema, hydrateCorpusSearch, publishCorpusSearch } from "./corpus-search.ts";
 
@@ -123,12 +122,12 @@ const corpusOidcSchema = z.strictObject({
 /** The finite corpus requests, not a replacement for the production routers' input parsers. */
 export const corpusReadInput = {
   absent: (): undefined => undefined,
-  notificationInbox: (): TrpcInput<"notifications.list"> => ({}),
-  documentList: (): TrpcInput<"databank.list"> => ({}),
-  ownerLatency: (): TrpcInput<"stats.latency"> => ({ kind: "owner" }),
-  persona: ({ id }: Pick<z.output<typeof personaDetailSchema>, "id">): TrpcInput<"persona.get"> => ({ personaId: id }),
-  chat: ({ id }: Pick<z.output<typeof chatDetailSchema>, "id">): TrpcInput<"chat.getChat"> => ({ chatId: id }),
-  document: ({ id }: Pick<z.output<typeof documentDetailViewSchema>, "id">): TrpcInput<"databank.get"> => ({ id, includeText: true }),
+  notificationInbox: (): CorpusRead<"notifications.list">["input"] => ({}),
+  documentList: (): CorpusRead<"databank.list">["input"] => ({}),
+  ownerLatency: (): CorpusRead<"stats.latency">["input"] => ({ kind: "owner" }),
+  persona: ({ id }: Pick<z.output<typeof personaDetailSchema>, "id">): CorpusRead<"persona.get">["input"] => ({ personaId: id }),
+  chat: ({ id }: Pick<z.output<typeof chatDetailSchema>, "id">): CorpusRead<"chat.getChat">["input"] => ({ chatId: id }),
+  document: ({ id }: Pick<z.output<typeof documentDetailViewSchema>, "id">): CorpusRead<"databank.get">["input"] => ({ id, includeText: true }),
 };
 
 const publishedCorpusSchema = z
@@ -256,10 +255,10 @@ export interface CorpusWire {
   readonly chatLifecycleMember?: CorpusChatLifecycleMember;
 }
 
-function hydrateReads<P extends TrpcProcedurePath>(
-  records: readonly CorpusRead<P>[],
-  outputSchema: z.ZodType<NoInfer<TrpcWireOutput<P>>>,
-): readonly CorpusRead<P>[] {
+function hydrateReads<Input, Output>(
+  records: readonly CorpusCapture<Input, Output>[],
+  outputSchema: z.ZodType<NoInfer<Output>>,
+): readonly CorpusCapture<Input, Output>[] {
   return records.map((record) => ({ input: record.input, output: outputSchema.parse(record.output) }));
 }
 

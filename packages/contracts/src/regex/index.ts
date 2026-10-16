@@ -401,3 +401,11 @@ export const bulkResultSchema = z.strictObject({ affected: z.number() }) satisfi
 
 export const importScriptFileResultSchema = z.strictObject({ created: z.boolean() });
 export type ImportScriptFileResult = z.output<typeof importScriptFileResultSchema>;
+
+export const regexScriptIdInputSchema = z.object({ scriptId: typeIdSchema(ID_PREFIX.regexScript) });
+
+export const regexCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+
+export const regexPresetInputSchema = z.object({ presetId: typeIdSchema(ID_PREFIX.preset) });
+
+export const regexChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });

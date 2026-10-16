@@ -4,12 +4,10 @@
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
 import {
-  CHARACTER_LIST_MAX_LIMIT,
   characterBulkTagResultSchema,
   characterCensusInputSchema,
   characterDetailSchema,
-  characterListCursorSchema,
-  characterListSortSchema,
+  characterListInputSchema,
   createCharacterSchema,
   generatedGreetingSchema,
   listCharactersResultSchema,
@@ -46,15 +44,7 @@ export const characterRouter = t.router({
   // top-level input (part of the query key), so changing it resets the infinite query's pages.
   list: authedProcedure
     .output(listCharactersResultSchema)
-    .input(
-      characterCensusInputSchema
-        .extend({
-          sort: characterListSortSchema.optional(),
-          cursor: characterListCursorSchema.optional(),
-          limit: z.int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
-        })
-        .optional(),
-    )
+    .input(characterListInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.character.list({
         principal: ctx.auth,

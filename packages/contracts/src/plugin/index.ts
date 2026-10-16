@@ -5,6 +5,9 @@
 // (landed); the registry/lifecycle/grants lives in `domain/plugin`. This node imports nothing above
 // contracts (the package cake) and is the ONE home for these shapes — the domain derives, never re-spells.
 
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+import { PLUGIN_SURFACE_ID_RE } from "./ui.ts";
 /** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
@@ -292,3 +295,13 @@ export {
   pluginSurfaceViewSchema,
   pluginViewSchema,
 } from "./view.ts";
+
+export const pluginIdInputSchema = z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin) });
+
+export const pluginLogInputSchema = z.object({ pluginId: typeIdSchema(ID_PREFIX.plugin), limit: z.int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() });
+
+export const pluginSurfaceStateInputSchema = z.object({
+  pluginId: typeIdSchema(ID_PREFIX.plugin),
+  surfaceId: z.string().regex(PLUGIN_SURFACE_ID_RE),
+  chatId: typeIdSchema(ID_PREFIX.chat).optional(),
+});

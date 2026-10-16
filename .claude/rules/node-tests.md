@@ -28,6 +28,7 @@ Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import c
 - Complete foundation qualification remains open; the plan's work items own its current state.
 - `tests/legacy/` holds every test not yet rebuilt. Add no file there; a new test goes in the mirror. `docs/law/Spine-Testing.md` §2 owns its rules.
 - `pnpm test:scoped` and `pnpm test:ct` refuse a legacy path. Pass `--legacy` to run one on purpose.
+- For testkit import changes, run native dependency-cruiser on the changed helper entries. Typechecking alone does not prove world purity.
 
 ## Fixtures and timeouts
 

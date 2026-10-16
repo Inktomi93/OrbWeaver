@@ -19,6 +19,7 @@
 import {
   AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR,
   AUTOMATION_FIRES_LIST_MAX_LIMIT,
+  automationChatInputSchema,
   automationRuleCreateSchema,
   automationRuleReorderSchema,
   automationRuleTimeZoneSchema,
@@ -60,7 +61,7 @@ export const automationRouter = t.router({
   // The host-only rule list is position-ordered.
   listRules: authedProcedure
     .output(z.array(ruleViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(automationChatInputSchema)
     .query(({ ctx, input }) => ctx.services.automation.listRules({ principal: ctx.auth, chatId: input.chatId })),
 
   setRuleEnabled: authedProcedure

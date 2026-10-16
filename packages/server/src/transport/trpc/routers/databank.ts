@@ -11,14 +11,14 @@
 import {
   activeChatDocumentViewSchema,
   bankHealthViewSchema,
-  docOriginSchema,
+  DATABANK_NAME_MAX,
   documentAttachmentsViewSchema,
   documentDestinationSchema,
   documentDetailViewSchema,
   documentIdSchema,
-  documentListCursorSchema,
   documentViewSchema,
-  ingestPhaseSchema,
+  getDocumentInputSchema,
+  listDocumentsInputSchema,
   listDocumentsResultSchema,
   reindexModeSchema,
   reindexResultSchema,
@@ -29,15 +29,12 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
-const NAME_MAX = 500;
 const TEXT_MIN = 1;
-const LIMIT_MIN = 1;
-const LIMIT_MAX = 500;
 
 export const databankRouter = t.router({
   createFromText: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ name: z.string().min(1).max(NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }))
+    .input(z.object({ name: z.string().min(1).max(DATABANK_NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text, destination: input.destination }),
     ),
@@ -61,7 +58,7 @@ export const databankRouter = t.router({
 
   get: authedProcedure
     .output(documentDetailViewSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() }))
+    .input(getDocumentInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
     ),
@@ -74,17 +71,7 @@ export const databankRouter = t.router({
   // keysets. `.nullish()` on the cursor because the client seeds the first page with `initialCursor: null`.
   list: authedProcedure
     .output(listDocumentsResultSchema)
-    .input(
-      z.object({
-        origin: docOriginSchema.optional(),
-        // Bounded like every other free-text lens: a needle longer than the longest storable name can only
-        // match nothing, and an unbounded `like` argument is a request-size hole.
-        search: z.string().max(NAME_MAX).optional(),
-        phase: ingestPhaseSchema.optional(),
-        limit: z.int().min(LIMIT_MIN).max(LIMIT_MAX).optional(),
-        cursor: documentListCursorSchema.nullish(),
-      }),
-    )
+    .input(listDocumentsInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.databank.list({
         principal: ctx.auth,
@@ -102,7 +89,7 @@ export const databankRouter = t.router({
 
   rename: authedProcedure
     .output(documentViewSchema.strict())
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(NAME_MAX) }))
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.document), name: z.string().min(1).max(DATABANK_NAME_MAX) }))
     .mutation(({ ctx, input }) => ctx.services.databank.rename({ principal: ctx.auth, id: input.id, name: input.name })),
 
   remove: authedProcedure

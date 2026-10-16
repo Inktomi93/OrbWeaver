@@ -1,20 +1,7 @@
-// domain/stats/contract/params — verb argument shapes. LeaderboardSort backs the readLeaderboard sortCols
-// exhaustive-dispatch Record; LatencyScope is a discriminated union whose readLatency switch carries an
-// assertNever default, so an unhandled kind fails tsc instead of falling through to owner-scope.
+// Domain read options; wire axes and their validators belong to contracts/stats.
 
+import type { LeaderboardSort } from "@orb/contracts/stats";
 import type { CharacterId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { z } from "zod";
-
-export const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
-export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
-
-export const latencyScopeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("owner") }),
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-  z.object({ kind: z.literal("model"), model: z.string(), provider: z.string().nullable() }),
-]);
-export type LatencyScope = z.infer<typeof latencyScopeSchema>;
 
 export interface LeaderboardOpts {
   sort?: LeaderboardSort | undefined;

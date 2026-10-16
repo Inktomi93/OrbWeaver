@@ -4,8 +4,10 @@
 
 import {
   createTagSchema,
+  pendingTagSuggestionsInputSchema,
   pruneUnusedResultSchema,
   tagFilterVocabularyEntrySchema,
+  tagReachInputSchema,
   tagReachViewSchema,
   tagStatusSchema,
   tagSuggestionViewSchema,
@@ -50,7 +52,7 @@ export const tagRouter = t.router({
 
   listAttachedEntities: authedProcedure
     .output(tagReachViewSchema)
-    .input(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema }))
+    .input(tagReachInputSchema)
     .query(({ ctx, input }) => ctx.services.tag.listAttachedEntities({ principal: ctx.auth, ...input })),
 
   listTagsWithUsage: authedProcedure.output(z.array(tagWithUsageSchema)).query(({ ctx }) => ctx.services.tag.listTagsWithUsage({ principal: ctx.auth })),
@@ -67,7 +69,7 @@ export const tagRouter = t.router({
   // import staged card tags). `characterId` narrows to one editor's suggestions; absent = the whole inbox.
   listPendingSuggestions: authedProcedure
     .output(z.array(tagSuggestionViewSchema))
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional())
+    .input(pendingTagSuggestionsInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.tag.listPendingSuggestions({
         principal: ctx.auth,

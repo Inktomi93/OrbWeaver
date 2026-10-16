@@ -453,3 +453,20 @@ export interface CreateFromTextParams {
   readonly text: string;
 }
 export type CreateDocumentFromText = (params: CreateFromTextParams) => Promise<UploadResult>;
+
+/** Maximum authored document name and name-search length. */
+export const DATABANK_NAME_MAX = 500;
+const DATABANK_LIST_LIMIT_MIN = 1;
+const DATABANK_LIST_LIMIT_MAX = 500;
+
+export const getDocumentInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.document), includeText: z.boolean().optional() });
+
+export const listDocumentsInputSchema = z.object({
+  origin: docOriginSchema.optional(),
+  // Bounded like every other free-text lens: a needle longer than the longest storable name can only
+  // match nothing, and an unbounded `like` argument is a request-size hole.
+  search: z.string().max(DATABANK_NAME_MAX).optional(),
+  phase: ingestPhaseSchema.optional(),
+  limit: z.int().min(DATABANK_LIST_LIMIT_MIN).max(DATABANK_LIST_LIMIT_MAX).optional(),
+  cursor: documentListCursorSchema.nullish(),
+});

@@ -7,7 +7,7 @@ import { auditLogs, themes, userSettings } from "@orb/db";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CorpusRead } from "../iso/corpus.ts";
+import type { TrpcCapture } from "./corpus-read.ts";
 import { seedStats } from "./factories/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -21,24 +21,24 @@ interface HistoryReferences {
 }
 
 interface StatsReads {
-  readonly overview: CorpusRead<"stats.overview">;
-  readonly character: CorpusRead<"stats.character">;
-  readonly leaderboard: CorpusRead<"stats.leaderboard">;
-  readonly capped: CorpusRead<"stats.leaderboard">;
-  readonly searched: CorpusRead<"stats.leaderboard">;
-  readonly missingSearch: CorpusRead<"stats.leaderboard">;
-  readonly timeseries: CorpusRead<"stats.timeseries">;
-  readonly boundary: CorpusRead<"stats.timeseries">;
-  readonly outside: CorpusRead<"stats.timeseries">;
-  readonly byModel: CorpusRead<"stats.byModel">;
-  readonly modelCapped: CorpusRead<"stats.byModel">;
-  readonly freshness: CorpusRead<"stats.freshness">;
-  readonly personas: CorpusRead<"stats.personaUsage">;
-  readonly characterPersonas: CorpusRead<"stats.personaUsage">;
-  readonly wrapped: CorpusRead<"stats.wrapped">;
-  readonly momentum: CorpusRead<"stats.momentum">;
-  readonly sorts: readonly CorpusRead<"stats.leaderboard">[];
-  readonly latency: Record<"owner" | "character" | "model" | "missing", CorpusRead<"stats.latency">>;
+  readonly overview: TrpcCapture<"stats.overview">;
+  readonly character: TrpcCapture<"stats.character">;
+  readonly leaderboard: TrpcCapture<"stats.leaderboard">;
+  readonly capped: TrpcCapture<"stats.leaderboard">;
+  readonly searched: TrpcCapture<"stats.leaderboard">;
+  readonly missingSearch: TrpcCapture<"stats.leaderboard">;
+  readonly timeseries: TrpcCapture<"stats.timeseries">;
+  readonly boundary: TrpcCapture<"stats.timeseries">;
+  readonly outside: TrpcCapture<"stats.timeseries">;
+  readonly byModel: TrpcCapture<"stats.byModel">;
+  readonly modelCapped: TrpcCapture<"stats.byModel">;
+  readonly freshness: TrpcCapture<"stats.freshness">;
+  readonly personas: TrpcCapture<"stats.personaUsage">;
+  readonly characterPersonas: TrpcCapture<"stats.personaUsage">;
+  readonly wrapped: TrpcCapture<"stats.wrapped">;
+  readonly momentum: TrpcCapture<"stats.momentum">;
+  readonly sorts: readonly TrpcCapture<"stats.leaderboard">[];
+  readonly latency: Record<"owner" | "character" | "model" | "missing", TrpcCapture<"stats.latency">>;
 }
 
 interface Effects {
@@ -48,49 +48,49 @@ interface Effects {
 }
 
 interface SettingsCaptures {
-  readonly before: CorpusRead<"settings.getUserSettings">;
-  readonly initialThemes: CorpusRead<"settings.listThemes">;
-  readonly source: CorpusRead<"settings.createTheme">;
-  readonly sourceRead: CorpusRead<"settings.getTheme">;
-  readonly duplicate: CorpusRead<"settings.duplicateTheme">;
-  readonly duplicateAgain: CorpusRead<"settings.duplicateTheme">;
-  readonly updated: CorpusRead<"settings.updateTheme">;
-  readonly clearedCss: CorpusRead<"settings.updateTheme">;
-  readonly selected: CorpusRead<"settings.updateUserSettingsSection">;
-  readonly appearance: CorpusRead<"settings.updateUserSettingsSection">;
-  readonly echo: CorpusRead<"settings.updateUserSettingsSection">;
-  readonly cleared: CorpusRead<"settings.updateUserSettingsSection">;
-  readonly restored: CorpusRead<"settings.getUserSettings">;
-  readonly imported: CorpusRead<"settings.importThemeFile">;
-  readonly importedAgain: CorpusRead<"settings.importThemeFile">;
-  readonly importedThemes: CorpusRead<"settings.listThemes">;
-  readonly collision: CorpusRead<"settings.importThemeFile">;
-  readonly collisionAgain: CorpusRead<"settings.importThemeFile">;
-  readonly removed: CorpusRead<"settings.removeTheme">;
-  readonly reset: CorpusRead<"settings.resetUserConfig">;
-  readonly resetRead: CorpusRead<"settings.getUserSettings">;
-  readonly seedRead: CorpusRead<"settings.getTheme"> | undefined;
-  readonly seedCopy: CorpusRead<"settings.duplicateTheme"> | undefined;
+  readonly before: TrpcCapture<"settings.getUserSettings">;
+  readonly initialThemes: TrpcCapture<"settings.listThemes">;
+  readonly source: TrpcCapture<"settings.createTheme">;
+  readonly sourceRead: TrpcCapture<"settings.getTheme">;
+  readonly duplicate: TrpcCapture<"settings.duplicateTheme">;
+  readonly duplicateAgain: TrpcCapture<"settings.duplicateTheme">;
+  readonly updated: TrpcCapture<"settings.updateTheme">;
+  readonly clearedCss: TrpcCapture<"settings.updateTheme">;
+  readonly selected: TrpcCapture<"settings.updateUserSettingsSection">;
+  readonly appearance: TrpcCapture<"settings.updateUserSettingsSection">;
+  readonly echo: TrpcCapture<"settings.updateUserSettingsSection">;
+  readonly cleared: TrpcCapture<"settings.updateUserSettingsSection">;
+  readonly restored: TrpcCapture<"settings.getUserSettings">;
+  readonly imported: TrpcCapture<"settings.importThemeFile">;
+  readonly importedAgain: TrpcCapture<"settings.importThemeFile">;
+  readonly importedThemes: TrpcCapture<"settings.listThemes">;
+  readonly collision: TrpcCapture<"settings.importThemeFile">;
+  readonly collisionAgain: TrpcCapture<"settings.importThemeFile">;
+  readonly removed: TrpcCapture<"settings.removeTheme">;
+  readonly reset: TrpcCapture<"settings.resetUserConfig">;
+  readonly resetRead: TrpcCapture<"settings.getUserSettings">;
+  readonly seedRead: TrpcCapture<"settings.getTheme"> | undefined;
+  readonly seedCopy: TrpcCapture<"settings.duplicateTheme"> | undefined;
   readonly loaded: Awaited<ReturnType<ServerTestHarness["services"]["settings"]["loadUserSettings"]>>;
   readonly exported: readonly PortableFile[];
-  readonly stImported: CorpusRead<"settings.importThemeFile">;
-  readonly stRepeated: CorpusRead<"settings.importThemeFile">;
-  readonly resetBefore: CorpusRead<"settings.updateUserSettingsSection">;
+  readonly stImported: TrpcCapture<"settings.importThemeFile">;
+  readonly stRepeated: TrpcCapture<"settings.importThemeFile">;
+  readonly resetBefore: TrpcCapture<"settings.updateUserSettingsSection">;
 }
 
 interface StatsSettingsCaptures {
   readonly history: HistoryReferences;
   readonly absent: {
-    readonly overview: CorpusRead<"stats.overview">;
-    readonly wrapped: CorpusRead<"stats.wrapped">;
-    readonly freshness: CorpusRead<"stats.freshness">;
-    readonly settings: CorpusRead<"settings.getUserSettings">;
+    readonly overview: TrpcCapture<"stats.overview">;
+    readonly wrapped: TrpcCapture<"stats.wrapped">;
+    readonly freshness: TrpcCapture<"stats.freshness">;
+    readonly settings: TrpcCapture<"settings.getUserSettings">;
     readonly row: typeof userSettings.$inferSelect | undefined;
   };
-  readonly computedEmpty: CorpusRead<"stats.reconcile">;
+  readonly computedEmpty: TrpcCapture<"stats.reconcile">;
   readonly emptyAfter: Pick<StatsReads, "overview" | "freshness" | "timeseries" | "byModel" | "momentum">;
-  readonly reconciled: CorpusRead<"stats.reconcile">;
-  readonly repeated: CorpusRead<"stats.reconcile">;
+  readonly reconciled: TrpcCapture<"stats.reconcile">;
+  readonly repeated: TrpcCapture<"stats.reconcile">;
   readonly rows: Awaited<ReturnType<typeof seedStats>>;
   readonly stats: StatsReads;
   readonly afterRepeat: Pick<StatsReads, "overview" | "character" | "byModel" | "timeseries">;
@@ -100,12 +100,12 @@ interface StatsSettingsCaptures {
     readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
     readonly rows: Awaited<ReturnType<typeof seedStats>>;
     readonly turn: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["send"]>>;
-    readonly latency: CorpusRead<"stats.latency">;
+    readonly latency: TrpcCapture<"stats.latency">;
     readonly projection: {
-      readonly ownerCharacter: CorpusRead<"stats.character">;
-      readonly foreignCharacter: CorpusRead<"stats.character">;
-      readonly personas: CorpusRead<"stats.personaUsage">;
-      readonly latency: CorpusRead<"stats.latency">;
+      readonly ownerCharacter: TrpcCapture<"stats.character">;
+      readonly foreignCharacter: TrpcCapture<"stats.character">;
+      readonly personas: TrpcCapture<"stats.personaUsage">;
+      readonly latency: TrpcCapture<"stats.latency">;
       readonly rowsAfter: Awaited<ReturnType<typeof seedStats>>;
     };
   };
@@ -129,7 +129,7 @@ interface StatsSettingsCaptures {
   readonly persisted: { readonly source: typeof themes.$inferSelect | undefined; readonly settings: typeof userSettings.$inferSelect | undefined };
 }
 
-async function read<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<CorpusRead<P>> {
+async function read<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<TrpcCapture<P>> {
   return { input, output: await invoke(input) };
 }
 
@@ -269,10 +269,10 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     seed === undefined
       ? undefined
       : await read<"settings.duplicateTheme">({ id: seed.id, name: "Corpus default palette copy" }, caller.settings.duplicateTheme);
-  let selected: CorpusRead<"settings.updateUserSettingsSection">;
-  let appearance: CorpusRead<"settings.updateUserSettingsSection">;
-  let echo: CorpusRead<"settings.updateUserSettingsSection">;
-  let cleared: CorpusRead<"settings.updateUserSettingsSection">;
+  let selected: TrpcCapture<"settings.updateUserSettingsSection">;
+  let appearance: TrpcCapture<"settings.updateUserSettingsSection">;
+  let echo: TrpcCapture<"settings.updateUserSettingsSection">;
+  let cleared: TrpcCapture<"settings.updateUserSettingsSection">;
   let loaded: Awaited<ReturnType<ServerTestHarness["services"]["settings"]["loadUserSettings"]>>;
   try {
     selected = await read<"settings.updateUserSettingsSection">(

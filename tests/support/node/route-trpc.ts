@@ -39,9 +39,9 @@
 // @orb-waive-file no-test-fabrication(TrpcInput<P>): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(TrpcInput<P> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(TrpcInput<P>[]): baselined when the gate widened to value casts; burn-down item 906.
-import type { Branded } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
+import type { TrpcWire } from "../iso/trpc-wire.ts";
 // The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
 import type { TrpcErrorCode } from "./matchers.ts";
@@ -75,15 +75,6 @@ type ProcedureAtPath<TRecord, TPath extends string> = TPath extends `${infer Hea
 export type TrpcProcedurePath = ProcedurePath<AppRouterRecord>;
 
 type AppProcedure<TPath extends TrpcProcedurePath> = Extract<ProcedureAtPath<AppRouterRecord, TPath>, AppProcedureShape>;
-
-type TrpcWire<T> =
-  T extends Branded<string>
-    ? string
-    : T extends readonly (infer Item)[]
-      ? readonly TrpcWire<Item>[]
-      : T extends object
-        ? { readonly [K in keyof T]: TrpcWire<T[K]> }
-        : T;
 
 type AppProcedureOutput<TPath extends TrpcProcedurePath> = AppProcedure<TPath>["_def"]["$types"]["output"];
 type TrpcFullSuccess<TPath extends TrpcProcedurePath> = TrpcWire<AppProcedureOutput<TPath>> | (undefined extends AppProcedureOutput<TPath> ? null : never);

@@ -41,9 +41,9 @@
 
 import {
   inboxViewSchema,
+  listInboxInputSchema,
   listInboxResultSchema,
   markAllReadResultSchema,
-  NOTIFICATIONS_LIST_MAX_LIMIT,
   PRESENCE_READ_MAX_USER_IDS,
   presenceSnapshotSchema,
 } from "@orb/contracts/notifications";
@@ -56,7 +56,7 @@ import { authedProcedure, multiHumanProcedure, t } from "../trpc.ts";
 export const notificationsRouter = t.router({
   list: authedProcedure
     .output(listInboxResultSchema)
-    .input(z.object({ cursor: z.number().optional(), limit: z.int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional())
+    .input(listInboxInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.notifications.list({
         principal: ctx.auth,

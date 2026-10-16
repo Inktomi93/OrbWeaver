@@ -1369,3 +1369,5 @@ export const confirmSuggestionResultSchema = z.strictObject({
   ran: z.literal(["stashed-arm", "fresh-run"]),
   outcome: automationRunOutcomeSchema,
 }) satisfies z.ZodType<ConfirmSuggestionResult>;
+
+export const automationChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat) });

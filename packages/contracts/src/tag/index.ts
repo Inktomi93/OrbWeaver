@@ -210,3 +210,7 @@ export interface PruneUnusedResult {
   readonly removed: number;
 }
 export const pruneUnusedResultSchema = z.strictObject({ removed: z.number() }) satisfies z.ZodType<PruneUnusedResult>;
+
+export const tagReachInputSchema = z.object({ tagId: typeIdSchema(ID_PREFIX.tag), targetType: tagTargetTypeSchema });
+
+export const pendingTagSuggestionsInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();

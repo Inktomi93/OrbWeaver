@@ -4,14 +4,15 @@
 // `ctx.services.rosterPreset.<verb>`. Input shapes derive from `@orb/contracts/roster-preset`.
 
 import {
+  applyRosterPresetInputSchema,
   applyRosterPresetResultSchema,
   createRosterPresetSchema,
-  HOME_ROSTER_PREVIEW_LIMIT,
+  rosterPresetIdInputSchema,
+  rosterPresetListInputSchema,
   rosterPresetSummarySchema,
   rosterPresetViewSchema,
 } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -29,24 +30,24 @@ export const rosterPresetRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.update({ principal: ctx.auth, presetId: input.presetId, input: input.input })),
 
   remove: authedProcedure
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) }))
+    .input(rosterPresetIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rosterPreset.remove({ principal: ctx.auth, presetId: input.presetId })),
 
   count: authedProcedure.output(z.int().nonnegative()).query(({ ctx }) => ctx.services.rosterPreset.count({ principal: ctx.auth })),
 
   list: authedProcedure
     .output(z.array(rosterPresetSummarySchema))
-    .input(z.object({ limit: z.int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional())
+    .input(rosterPresetListInputSchema)
     .query(({ ctx, input }) => ctx.services.rosterPreset.list({ principal: ctx.auth, ...(input?.limit === undefined ? {} : { limit: input.limit }) })),
 
   get: authedProcedure
     .output(rosterPresetViewSchema)
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) }))
+    .input(rosterPresetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.rosterPreset.get({ principal: ctx.auth, presetId: input.presetId })),
 
   applyToChat: authedProcedure
     .output(applyRosterPresetResultSchema)
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset), chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))
+    .input(applyRosterPresetInputSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.rosterPreset.applyToChat({ principal: ctx.auth, presetId: input.presetId, chatId: input.chatId, timeZone: input.timeZone }),
     ),

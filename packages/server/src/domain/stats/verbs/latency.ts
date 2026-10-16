@@ -1,5 +1,5 @@
+import type { LatencyScope } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
-import type { LatencyScope } from "../contract/params.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
 import type { LatencyStats } from "../contract/views.ts";
 import { readLatency } from "../persistence/latency.ts";

@@ -20,7 +20,14 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, SAMPLER_KNOBS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import {
+  capabilityTargetSchema,
+  EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
+  SAMPLER_KNOBS,
+  samplerOrderSchema,
+  userRoleHandlingSchema,
+  VERBOSITY_LEVELS,
+} from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -3810,3 +3817,7 @@ export const effectivePresetSchema = z.strictObject({
   stale: z.array(staleKnobSchema).readonly(),
   qualityMapping: qualityMappingSchema.nullable(),
 }) satisfies z.ZodType<EffectivePreset>;
+
+export const presetIdInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset) });
+
+export const resolveEffectivePresetInputSchema = z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() });

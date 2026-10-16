@@ -2,11 +2,11 @@
 // Room-derived scans require current host membership in SQL before ranking (D16/D20).
 // Character-card and image scans retain their producer ownership rules.
 
-import type { MemoryRetrievalMode } from "@orb/contracts/search";
+import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
-import type { SearchScope, UnifiedSearchParams } from "../contract/params.ts";
+import type { UnifiedSearchParams } from "../contract/params.ts";
 import type { DigestSourceHit, SegmentSearchHit, UnifiedSearchResult, UnifiedSearchRows } from "../contract/results.ts";
 import type { DigestCoverageOp, SearchService } from "../contract/service.ts";
 import { hostedChatIds, nearestDigests } from "../persistence/digest-rows.ts";

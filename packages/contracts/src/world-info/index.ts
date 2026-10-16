@@ -338,3 +338,13 @@ export type WiBusEvent =
       entryId: WorldEntryId;
       scope: WorldInfoScope;
     };
+
+export const worldBookIdInputSchema = z.object({ bookId: typeIdSchema(ID_PREFIX.worldBook) });
+
+export const worldEntryIdInputSchema = z.object({ entryId: typeIdSchema(ID_PREFIX.worldEntry) });
+
+export const worldInfoCharacterInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character) });
+
+export const worldInfoPersonaInputSchema = z.object({ personaId: typeIdSchema(ID_PREFIX.persona) });
+
+export const worldInfoChatInputSchema = z.object({ chatId: typeIdSchema(ID_PREFIX.chat), includeInherited: z.boolean().optional() });

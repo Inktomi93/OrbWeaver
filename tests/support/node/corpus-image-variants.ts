@@ -9,10 +9,10 @@ import { readSessionCookie } from "@orb/server/entry/auth";
 import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 import { z } from "zod";
-import type { CorpusRead } from "../iso/corpus.ts";
 import type { CorpusImageWire } from "./corpus-image-wire.ts";
 import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_KEY, CORPUS_VARIANT_TEXT_MODEL } from "./corpus-image-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
+import type { TrpcCapture } from "./corpus-read.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import { seedUserConnection } from "./factories/connection.ts";
 import { seedUserCredential } from "./factories/credentials.ts";
@@ -57,19 +57,19 @@ interface CorpusImageVariants {
   readonly skipPostsBefore: readonly string[];
   readonly skipPostsAfter: readonly string[];
   readonly previews: {
-    readonly extracted: CorpusRead<"imagery.extractPrompt">;
-    readonly captioned: CorpusRead<"imagery.extractPrompt">;
+    readonly extracted: TrpcCapture<"imagery.extractPrompt">;
+    readonly captioned: TrpcCapture<"imagery.extractPrompt">;
   };
   readonly free: Cohort;
   readonly captioned: Cohort;
   readonly warning: Cohort;
   readonly edited: {
-    readonly read: CorpusRead<"imagery.editImage">;
+    readonly read: TrpcCapture<"imagery.editImage">;
     readonly picture: z.output<typeof generatedPictureSchema>;
     readonly generations: Cohort["generations"];
   };
-  readonly provenance: readonly CorpusRead<"imagery.readProvenance">[];
-  readonly nullProvenance: readonly CorpusRead<"imagery.readProvenance">[];
+  readonly provenance: readonly TrpcCapture<"imagery.readProvenance">[];
+  readonly nullProvenance: readonly TrpcCapture<"imagery.readProvenance">[];
   readonly refusals: readonly { readonly status: number; readonly code: string; readonly message: string }[];
   readonly beforeRefusals: Effects;
   readonly afterRefusals: Effects;
@@ -123,7 +123,7 @@ async function output<S extends z.ZodType>(response: Response, schema: S): Promi
   return schema.parse(envelope.result.data);
 }
 
-async function provenance(auth: NativeAuth, assetId: TrpcInput<"imagery.readProvenance">["assetId"]): Promise<CorpusRead<"imagery.readProvenance">> {
+async function provenance(auth: NativeAuth, assetId: TrpcInput<"imagery.readProvenance">["assetId"]): Promise<TrpcCapture<"imagery.readProvenance">> {
   const input = { assetId };
   return { input, output: await output(await request(auth, "imagery.readProvenance", input, false), generationProvenanceSchema.nullable()) };
 }

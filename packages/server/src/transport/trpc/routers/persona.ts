@@ -6,7 +6,9 @@ import {
   connectedCharacterViewSchema,
   createPersonaSchema,
   disconnectResultSchema,
+  personaCharacterInputSchema,
   personaDetailSchema,
+  personaIdInputSchema,
   removePersonaResultSchema,
   updatePersonaSchema,
 } from "@orb/contracts/persona";
@@ -32,7 +34,7 @@ export const personaRouter = t.router({
 
   get: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(personaIdInputSchema)
     .query(({ ctx, input }) => ctx.services.persona.get({ principal: ctx.auth, personaId: input.personaId })),
 
   update: authedProcedure
@@ -48,7 +50,7 @@ export const personaRouter = t.router({
 
   remove: authedProcedure
     .output(removePersonaResultSchema)
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(personaIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.persona.remove({ principal: ctx.auth, personaId: input.personaId })),
 
   // The per-participant active-persona flip (verb built + composed; this is its ONE wire surface).
@@ -106,7 +108,7 @@ export const personaRouter = t.router({
 
   listConnectedToCharacter: authedProcedure
     .output(z.array(personaDetailSchema))
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character) }))
+    .input(personaCharacterInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.persona.listConnectedToCharacter({
         principal: ctx.auth,
@@ -117,7 +119,7 @@ export const personaRouter = t.router({
   // The junction read from the PERSONA side (#866 S4 — the editor's "Connected characters" section).
   listConnectedCharacters: authedProcedure
     .output(z.array(connectedCharacterViewSchema))
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(personaIdInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.persona.listConnectedCharacters({
         principal: ctx.auth,
@@ -128,7 +130,7 @@ export const personaRouter = t.router({
   // FINAL-Persona §A.6b gap #2/#3 — duplicate + the export/import backup round-trip.
   duplicate: authedProcedure
     .output(personaDetailSchema)
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(personaIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId })),
 
   // The two single-entity doors, both THIN ARMS over the bundle descriptor's verbs (the ratified thin-arm
@@ -136,7 +138,7 @@ export const personaRouter = t.router({
   // inside a backup zip and the merge semantics can never fork.
   export: authedProcedure
     .output(portableTextFileSchema)
-    .input(z.object({ personaId: typeIdSchema(ID_PREFIX.persona) }))
+    .input(personaIdInputSchema)
     .query(async ({ ctx, input }) => {
       const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
       return { filename: file.filename, fileText: DEC.decode(file.bytes) };

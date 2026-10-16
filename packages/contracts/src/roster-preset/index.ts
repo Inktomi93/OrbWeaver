@@ -17,6 +17,7 @@
 
 import type { CharacterId, PersonaId, RosterPresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 import type { RulePresetId, RulePresetKnobValueInputs, RulePresetKnobValues } from "#automation";
 import { RULE_PRESET_IDS, rulePresetIdSchema, rulePresetKnobOutputValuesSchema, rulePresetKnobValuesSchema } from "#automation";
@@ -238,3 +239,13 @@ export const applyRosterPresetResultSchema = z.strictObject({
 
 /** Maximum Home roster shelf rows; the complete library remains available through All rosters. */
 export const HOME_ROSTER_PREVIEW_LIMIT = 6;
+
+export const rosterPresetIdInputSchema = z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset) });
+
+export const rosterPresetListInputSchema = z.object({ limit: z.int().min(1).max(HOME_ROSTER_PREVIEW_LIMIT).optional() }).optional();
+
+export const applyRosterPresetInputSchema = z.object({
+  presetId: typeIdSchema(ID_PREFIX.rosterPreset),
+  chatId: typeIdSchema(ID_PREFIX.chat),
+  timeZone: reportedTimeZoneSchema,
+});

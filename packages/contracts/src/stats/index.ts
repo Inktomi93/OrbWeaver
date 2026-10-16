@@ -750,3 +750,28 @@ export const reconcileStatsWorkloadResultSchema = z.strictObject({
   owners: z.number(),
   characters: z.number(),
 }) satisfies z.ZodType<ReconcileStatsWorkloadResult>;
+
+export const LEADERBOARD_SORTS = ["assistantTurns", "totalGenTimeMs", "swipes", "lastActivityAt"] as const;
+export type LeaderboardSort = (typeof LEADERBOARD_SORTS)[number];
+
+export const latencyScopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("owner") }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.object({ kind: z.literal("model"), model: z.string(), provider: z.string().nullable() }),
+]);
+export type LatencyScope = z.infer<typeof latencyScopeSchema>;
+
+export const statsLeaderboardInputSchema = z
+  .object({
+    sort: z.enum(LEADERBOARD_SORTS).optional(),
+    limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional(),
+    // Narrows the ranked page and census without changing owner scope.
+    search: z.string().optional(),
+  })
+  .optional();
+
+export const statsTimeseriesInputSchema = z.object({ from: z.int().optional(), to: z.int().optional() }).optional();
+
+export const statsByModelInputSchema = z.object({ limit: z.int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional();
+
+export const statsPersonaUsageInputSchema = z.object({ characterId: typeIdSchema(ID_PREFIX.character).optional() }).optional();

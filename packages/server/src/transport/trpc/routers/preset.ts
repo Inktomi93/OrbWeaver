@@ -7,14 +7,15 @@
 // (today: a format string that dropped its carrier token). Reads keep the plain schema on purpose, so a
 // preset that already carries a broken wrapper still loads and can be fixed in the editor.
 
-import { capabilityTargetSchema } from "@orb/contracts/inference";
 import {
   effectivePresetSchema,
   presetDetailSchema,
+  presetIdInputSchema,
   presetImportOutcomeSchema,
   presetSummarySchema,
   presetUsageViewSchema,
   promptConfigWriteSchema,
+  resolveEffectivePresetInputSchema,
 } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -48,7 +49,7 @@ export const presetRouter = t.router({
 
   get: authedProcedure
     .output(presetDetailSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
+    .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.get({ userId: ctx.auth.userId, id: input.id })),
 
   update: authedProcedure
@@ -78,13 +79,11 @@ export const presetRouter = t.router({
       }),
     ),
 
-  remove: authedProcedure
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
-    .mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
+  remove: authedProcedure.input(presetIdInputSchema).mutation(({ ctx, input }) => ctx.services.preset.remove({ userId: ctx.auth.userId, id: input.id })),
 
   resetToDefault: authedProcedure
     .output(presetDetailSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
+    .input(presetIdInputSchema)
     .mutation(({ ctx, input }) => ctx.services.preset.resetToDefault({ userId: ctx.auth.userId, id: input.id })),
 
   // The editor's effective-profile read (redesign §4.3): the generation funnel projected for THIS preset
@@ -92,7 +91,7 @@ export const presetRouter = t.router({
   // both ways — the preset must be readable by them, and the capability half is owner-checked by connection.
   resolveEffective: authedProcedure
     .output(effectivePresetSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset), target: capabilityTargetSchema.optional() }))
+    .input(resolveEffectivePresetInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.preset.resolveEffective({ principal: ctx.auth, id: input.id, ...(input.target !== undefined ? { target: input.target } : {}) }),
     ),
@@ -101,7 +100,7 @@ export const presetRouter = t.router({
   // room half is membership-scoped (D18) and is resolved for the ACTING caller, never a supplied user id.
   listUsage: authedProcedure
     .output(presetUsageViewSchema)
-    .input(z.object({ id: typeIdSchema(ID_PREFIX.preset) }))
+    .input(presetIdInputSchema)
     .query(({ ctx, input }) => ctx.services.preset.listUsage({ principal: ctx.auth, id: input.id })),
 
   // The single-preset import door (G6) — a thin arm over the ONE `ImportPreset` verb the profile bundle uses,

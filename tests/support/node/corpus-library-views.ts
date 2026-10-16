@@ -22,7 +22,8 @@ import {
 } from "@orb/db";
 import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import type { CorpusLibraryRelations, CorpusRead, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
+import type { CorpusLibraryRelations, CorpusRegexLibrary, CorpusWorldInfoLibrary } from "../iso/corpus.ts";
+import type { TrpcCapture } from "./corpus-read.ts";
 import type { seedCorpusActors, seedCorpusLibraries } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { AuditLogRow } from "./factories/credentials.ts";
@@ -53,118 +54,118 @@ interface WorldViews {
   readonly first: Awaited<ReturnType<typeof seedWorldEntry>>;
   readonly second: Awaited<ReturnType<typeof seedWorldEntry>>;
   readonly replacement: Awaited<ReturnType<typeof seedWorldBook>>;
-  readonly ordered: CorpusRead<"worldInfo.applyEntryOrder">;
-  readonly orderedEntries: CorpusRead<"worldInfo.listEntries">;
-  readonly demoted: CorpusRead<"worldInfo.listForCharacter">;
-  readonly exported: CorpusRead<"worldInfo.exportBook">;
+  readonly ordered: TrpcCapture<"worldInfo.applyEntryOrder">;
+  readonly orderedEntries: TrpcCapture<"worldInfo.listEntries">;
+  readonly demoted: TrpcCapture<"worldInfo.listForCharacter">;
+  readonly exported: TrpcCapture<"worldInfo.exportBook">;
   readonly collision: Awaited<ReturnType<Caller["worldInfo"]["createBook"]>>;
-  readonly imported: CorpusRead<"worldInfo.importFile">;
-  readonly repeated: CorpusRead<"worldInfo.importFile">;
-  readonly deleted: CorpusRead<"worldInfo.removeBook">;
+  readonly imported: TrpcCapture<"worldInfo.importFile">;
+  readonly repeated: TrpcCapture<"worldInfo.importFile">;
+  readonly deleted: TrpcCapture<"worldInfo.removeBook">;
   readonly persisted: Awaited<ReturnType<typeof captureWorldBookRows>>;
-  readonly books: CorpusRead<"worldInfo.listBooks">;
-  readonly detail: CorpusRead<"worldInfo.getBook">;
-  readonly usage: CorpusRead<"worldInfo.listBooksWithUsage">;
-  readonly targets: CorpusRead<"worldInfo.listAttachmentsForBook">;
-  readonly entry: CorpusRead<"worldInfo.getEntry">;
-  readonly characterBooks: CorpusRead<"worldInfo.listForCharacter">;
-  readonly personaBooks: CorpusRead<"worldInfo.listForPersona">;
-  readonly globalBooks: CorpusRead<"worldInfo.listGlobal">;
-  readonly chatBooks: CorpusRead<"worldInfo.listForChat">;
-  readonly inheritedBooks: CorpusRead<"worldInfo.listForChat">;
+  readonly books: TrpcCapture<"worldInfo.listBooks">;
+  readonly detail: TrpcCapture<"worldInfo.getBook">;
+  readonly usage: TrpcCapture<"worldInfo.listBooksWithUsage">;
+  readonly targets: TrpcCapture<"worldInfo.listAttachmentsForBook">;
+  readonly entry: TrpcCapture<"worldInfo.getEntry">;
+  readonly characterBooks: TrpcCapture<"worldInfo.listForCharacter">;
+  readonly personaBooks: TrpcCapture<"worldInfo.listForPersona">;
+  readonly globalBooks: TrpcCapture<"worldInfo.listGlobal">;
+  readonly chatBooks: TrpcCapture<"worldInfo.listForChat">;
+  readonly inheritedBooks: TrpcCapture<"worldInfo.listForChat">;
 }
 
 interface RegexViews {
   readonly scripts: readonly Awaited<ReturnType<typeof seedRegexScript>>[];
   readonly first: Awaited<ReturnType<typeof seedRegexScript>>;
   readonly second: Awaited<ReturnType<typeof seedRegexScript>>;
-  readonly before: CorpusRead<"regex.listForChat">;
-  readonly ordered: CorpusRead<"regex.applyScopeOrder">;
-  readonly after: CorpusRead<"regex.listForChat">;
-  readonly displayOff: CorpusRead<"regex.listRoomDisplayScripts">;
-  readonly displayOn: CorpusRead<"regex.listRoomDisplayScripts">;
-  readonly exported: CorpusRead<"regex.exportScript">;
-  readonly imported: CorpusRead<"regex.importScriptFile">;
-  readonly repeated: CorpusRead<"regex.importScriptFile">;
-  readonly bulk: CorpusRead<"regex.bulkSetEnabled">;
-  readonly detached: CorpusRead<"regex.detachFromChat">;
-  readonly detachedAgain: CorpusRead<"regex.detachFromChat">;
-  readonly deleted: CorpusRead<"regex.removeScript">;
+  readonly before: TrpcCapture<"regex.listForChat">;
+  readonly ordered: TrpcCapture<"regex.applyScopeOrder">;
+  readonly after: TrpcCapture<"regex.listForChat">;
+  readonly displayOff: TrpcCapture<"regex.listRoomDisplayScripts">;
+  readonly displayOn: TrpcCapture<"regex.listRoomDisplayScripts">;
+  readonly exported: TrpcCapture<"regex.exportScript">;
+  readonly imported: TrpcCapture<"regex.importScriptFile">;
+  readonly repeated: TrpcCapture<"regex.importScriptFile">;
+  readonly bulk: TrpcCapture<"regex.bulkSetEnabled">;
+  readonly detached: TrpcCapture<"regex.detachFromChat">;
+  readonly detachedAgain: TrpcCapture<"regex.detachFromChat">;
+  readonly deleted: TrpcCapture<"regex.removeScript">;
   readonly persisted: Awaited<ReturnType<typeof captureRegexRows>>;
-  readonly list: CorpusRead<"regex.listScripts">;
-  readonly usage: CorpusRead<"regex.listScriptUsage">;
-  readonly global: CorpusRead<"regex.listGlobal">;
-  readonly character: CorpusRead<"regex.listForCharacter">;
-  readonly preset: CorpusRead<"regex.listForPreset">;
+  readonly list: TrpcCapture<"regex.listScripts">;
+  readonly usage: TrpcCapture<"regex.listScriptUsage">;
+  readonly global: TrpcCapture<"regex.listGlobal">;
+  readonly character: TrpcCapture<"regex.listForCharacter">;
+  readonly preset: TrpcCapture<"regex.listForPreset">;
 }
 
 interface TagViews {
   readonly tag: Awaited<ReturnType<typeof seedTag>>;
-  readonly pending: CorpusRead<"tag.listPendingSuggestions">;
-  readonly before: CorpusRead<"tag.listTagsWithUsage">;
+  readonly pending: TrpcCapture<"tag.listPendingSuggestions">;
+  readonly before: TrpcCapture<"tag.listTagsWithUsage">;
   readonly accepted: Awaited<ReturnType<typeof seedCharacterTag>>;
-  readonly list: CorpusRead<"tag.listTags">;
-  readonly usage: CorpusRead<"tag.listTagsWithUsage">;
-  readonly vocabulary: CorpusRead<"tag.listTagFilterVocabulary">;
-  readonly reaches: readonly CorpusRead<"tag.listAttachedEntities">[];
-  readonly pendingAfter: CorpusRead<"tag.listPendingSuggestions">;
+  readonly list: TrpcCapture<"tag.listTags">;
+  readonly usage: TrpcCapture<"tag.listTagsWithUsage">;
+  readonly vocabulary: TrpcCapture<"tag.listTagFilterVocabulary">;
+  readonly reaches: readonly TrpcCapture<"tag.listAttachedEntities">[];
+  readonly pendingAfter: TrpcCapture<"tag.listPendingSuggestions">;
 }
 
 interface PersonaViews {
-  readonly duplicate: CorpusRead<"persona.duplicate">;
-  readonly exported: CorpusRead<"persona.export">;
-  readonly imported: CorpusRead<"persona.import">;
-  readonly repeated: CorpusRead<"persona.import">;
-  readonly disconnected: CorpusRead<"persona.disconnectFromCharacter">;
-  readonly deleted: CorpusRead<"persona.remove">;
-  readonly connected: CorpusRead<"persona.listConnectedToCharacter">;
-  readonly characters: CorpusRead<"persona.listConnectedCharacters">;
+  readonly duplicate: TrpcCapture<"persona.duplicate">;
+  readonly exported: TrpcCapture<"persona.export">;
+  readonly imported: TrpcCapture<"persona.import">;
+  readonly repeated: TrpcCapture<"persona.import">;
+  readonly disconnected: TrpcCapture<"persona.disconnectFromCharacter">;
+  readonly deleted: TrpcCapture<"persona.remove">;
+  readonly connected: TrpcCapture<"persona.listConnectedToCharacter">;
+  readonly characters: TrpcCapture<"persona.listConnectedCharacters">;
 }
 
 interface RosterViews {
   readonly addedCharacter: Awaited<ReturnType<Caller["character"]["create"]>>;
   readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
   readonly persisted: Awaited<ReturnType<typeof seedRosterPreset>>;
-  readonly detail: CorpusRead<"rosterPreset.get">;
-  readonly applied: CorpusRead<"rosterPreset.applyToChat">;
-  readonly appliedAgain: CorpusRead<"rosterPreset.applyToChat">;
-  readonly ruleCatalog: CorpusRead<"automation.listRulePresets">;
-  readonly firstRules: CorpusRead<"automation.listRules">;
-  readonly repeatedRules: CorpusRead<"automation.listRules">;
-  readonly list: CorpusRead<"rosterPreset.list">;
-  readonly chat: CorpusRead<"chat.getChat">;
+  readonly detail: TrpcCapture<"rosterPreset.get">;
+  readonly applied: TrpcCapture<"rosterPreset.applyToChat">;
+  readonly appliedAgain: TrpcCapture<"rosterPreset.applyToChat">;
+  readonly ruleCatalog: TrpcCapture<"automation.listRulePresets">;
+  readonly firstRules: TrpcCapture<"automation.listRules">;
+  readonly repeatedRules: TrpcCapture<"automation.listRules">;
+  readonly list: TrpcCapture<"rosterPreset.list">;
+  readonly chat: TrpcCapture<"chat.getChat">;
 }
 
 interface PresetViews {
-  readonly detail: CorpusRead<"preset.get">;
-  readonly inactive: CorpusRead<"preset.listUsage">;
-  readonly active: CorpusRead<"preset.listUsage">;
-  readonly restored: CorpusRead<"preset.listUsage">;
+  readonly detail: TrpcCapture<"preset.get">;
+  readonly inactive: TrpcCapture<"preset.listUsage">;
+  readonly active: TrpcCapture<"preset.listUsage">;
+  readonly restored: TrpcCapture<"preset.listUsage">;
   readonly previous: TrpcWireOutput<"settings.getUserSettings">["config"]["seeds"]["defaultPresetId"];
   readonly restoredDefault: PresetViews["previous"];
-  readonly list: CorpusRead<"preset.list">;
-  readonly effective: CorpusRead<"preset.resolveEffective">;
+  readonly list: TrpcCapture<"preset.list">;
+  readonly effective: TrpcCapture<"preset.resolveEffective">;
 }
 
 interface DocumentViews {
-  readonly created: CorpusRead<"databank.createFromText"> & { readonly output: Awaited<ReturnType<Caller["databank"]["createFromText"]>> };
+  readonly created: TrpcCapture<"databank.createFromText"> & { readonly output: Awaited<ReturnType<Caller["databank"]["createFromText"]>> };
   readonly intake: Awaited<ReturnType<Caller["workloads"]["list"]>>;
   readonly settledIntake: Awaited<ReturnType<typeof settleCorpusWorkloads>>;
-  readonly repeated: CorpusRead<"databank.createFromText">;
+  readonly repeated: TrpcCapture<"databank.createFromText">;
   readonly chunks: Awaited<ReturnType<typeof captureDocumentChunks>>;
-  readonly reindexed: CorpusRead<"databank.reindex">;
+  readonly reindexed: TrpcCapture<"databank.reindex">;
   readonly jobs: Awaited<ReturnType<typeof settleCorpusWorkloads>>;
   readonly repeatedChunks: Awaited<ReturnType<typeof captureDocumentChunks>>;
-  readonly detail: CorpusRead<"databank.get">;
-  readonly metadata: CorpusRead<"databank.get">;
-  readonly list: CorpusRead<"databank.list">;
-  readonly health: CorpusRead<"databank.bankHealth">;
-  readonly global: CorpusRead<"databank.listGlobal">;
-  readonly attachments: CorpusRead<"databank.listAttachments">;
-  readonly active: CorpusRead<"databank.listActiveForChat">;
-  readonly assets: CorpusRead<"assets.listOwned">;
-  readonly gallery: CorpusRead<"assets.listGallery">;
-  readonly blobs: CorpusRead<"assets.resolveBlobRefs">;
+  readonly detail: TrpcCapture<"databank.get">;
+  readonly metadata: TrpcCapture<"databank.get">;
+  readonly list: TrpcCapture<"databank.list">;
+  readonly health: TrpcCapture<"databank.bankHealth">;
+  readonly global: TrpcCapture<"databank.listGlobal">;
+  readonly attachments: TrpcCapture<"databank.listAttachments">;
+  readonly active: TrpcCapture<"databank.listActiveForChat">;
+  readonly assets: TrpcCapture<"assets.listOwned">;
+  readonly gallery: TrpcCapture<"assets.listGallery">;
+  readonly blobs: TrpcCapture<"assets.resolveBlobRefs">;
 }
 
 interface CapturedEffects {
@@ -204,7 +205,7 @@ interface LibraryViews {
   };
 }
 
-async function read<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<CorpusRead<P>> {
+async function read<P extends TrpcProcedurePath>(input: TrpcInput<P>, invoke: (input: TrpcInput<P>) => Promise<TrpcWireOutput<P>>): Promise<TrpcCapture<P>> {
   return { input, output: await invoke(input) };
 }
 
@@ -517,7 +518,7 @@ async function presetViews(library: Library, actors: Actors, caller: Caller): Pr
   const previous = settings.config.seeds.defaultPresetId;
   const detail = await read<"preset.get">({ id: library.preset.id }, caller.preset.get);
   const inactive = await read<"preset.listUsage">({ id: library.preset.id }, caller.preset.listUsage);
-  let active: CorpusRead<"preset.listUsage">;
+  let active: TrpcCapture<"preset.listUsage">;
   try {
     await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { defaultPresetId: library.preset.id } });
     active = await read<"preset.listUsage">({ id: library.preset.id }, caller.preset.listUsage);

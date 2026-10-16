@@ -3,58 +3,24 @@
 // supplied from the resolved `Principal.userId` — never client input (audit #1: no caller-supplied owner).
 // Thin: validate → `ctx.services.search.<verb>` → map errors.
 
-import { imageLensSchema } from "@orb/contracts/embeddings";
 import {
+  fieldSearchInputSchema,
   fieldSearchResultSchema,
-  SEARCH_SUGGEST_MAX_LIMIT,
-  SEARCH_TOP_N_MAX,
   searchSpaceStatusSchema,
+  searchSuggestInputSchema,
   searchSuggestionSchema,
   similarArtHitSchema,
+  similarArtInputSchema,
+  unifiedSearchInputSchema,
   unifiedSearchResultSchema,
 } from "@orb/contracts/search";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { SEARCH_TARGETS } from "#domain/search";
 import { authedProcedure, t } from "../trpc.ts";
-
-// The unified omnibox: one query + one target surface + one scope. `scope` is the discriminated WHERE axis
-// (owner-wide · one chat · one character across all chats — the membership-widened cross-chat scope). Ids
-// inside the scope are owner-belted inside the domain (a foreign id → empty, never another tenant's data).
-const searchScopeInput = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("owner") }),
-  z.object({
-    kind: z.literal("chat"),
-    chatId: typeIdSchema(ID_PREFIX.chat),
-    scopedCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-  }),
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-]);
-
-const unifiedSearchInput = z.object({
-  query: z.string().min(1),
-  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
-  over: z.enum(SEARCH_TARGETS),
-  scope: searchScopeInput,
-  rerank: z.boolean().optional(),
-  lens: imageLensSchema.optional(),
-});
-
-// The seed-vector similarity verbs take a seed characterId (owner-belted inside the domain — the seed read
-// returns nothing for a foreign id, so a stranger gets an empty result, never another tenant's neighbourhood).
-const similarCharactersInput = z.object({
-  characterId: typeIdSchema(ID_PREFIX.character),
-  topN: z.int().positive().max(SEARCH_TOP_N_MAX),
-});
-
-const similarArtInput = similarCharactersInput.extend({
-  lens: imageLensSchema.optional(),
-});
 
 export const searchRouter = t.router({
   fields: authedProcedure
     .output(fieldSearchResultSchema)
-    .input(z.object({ query: z.string().min(1), topN: z.int().positive().max(SEARCH_TOP_N_MAX) }))
+    .input(fieldSearchInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.search.fields({
         ownerId: ctx.auth.userId,
@@ -65,7 +31,7 @@ export const searchRouter = t.router({
 
   suggest: authedProcedure
     .output(z.array(searchSuggestionSchema))
-    .input(z.object({ query: z.string().min(1), limit: z.int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) }))
+    .input(searchSuggestInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.search.suggest({
         ownerId: ctx.auth.userId,
@@ -76,7 +42,7 @@ export const searchRouter = t.router({
 
   similarArt: authedProcedure
     .output(z.array(similarArtHitSchema))
-    .input(similarArtInput)
+    .input(similarArtInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.search.similarArt({
         ownerId: ctx.auth.userId,
@@ -90,7 +56,7 @@ export const searchRouter = t.router({
   // resolved principal (audit #1). Any ids in `scope` are owner-belted in the domain (cross-tenant-swept).
   search: authedProcedure
     .output(unifiedSearchResultSchema)
-    .input(unifiedSearchInput)
+    .input(unifiedSearchInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.search.search({
         ownerId: ctx.auth.userId,
