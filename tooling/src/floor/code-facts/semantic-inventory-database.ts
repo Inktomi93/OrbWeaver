@@ -22,6 +22,7 @@ const DECLARATION_OUTPUT_SCHEMA_VERSION = 5;
 const SHAPE_SCHEMA_VERSION = 4;
 const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
 const SOURCE_FILE_INDEX = "inventory_source_file";
+const LIST_VALUE_INDEX = "inventory_list_value";
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -78,12 +79,13 @@ function storageSchemaVersion(db: DatabaseSync): number {
 function storageSchemaReady(db: DatabaseSync): boolean {
   return (
     storageSchemaVersion(db) === STORAGE_SCHEMA_VERSION &&
-    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(SOURCE_FILE_INDEX) !== undefined
+    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(SOURCE_FILE_INDEX) !== undefined &&
+    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(LIST_VALUE_INDEX) !== undefined
   );
 }
 
 function initializeStorageSchema(db: DatabaseSync): void {
-  // Ready readers do not wait for another writer; older current stores add the lookup index once below.
+  // Ready readers do not wait for another writer; older current stores add missing lookup indexes once below.
   if (storageSchemaReady(db)) {
     return;
   }
@@ -154,6 +156,8 @@ function initializeStorageSchema(db: DatabaseSync): void {
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
+    // Membership reads need value equality, while ordered lists retain their ordinal primary key.
+    db.exec(`CREATE INDEX IF NOT EXISTS ${LIST_VALUE_INDEX} ON inventory_list(partition,kind,value);`);
     if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
     }
