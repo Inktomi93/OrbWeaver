@@ -48,6 +48,8 @@ export function replayInvocationEvidence(
   const undefinedMembers = new Map<MorphNode, boolean>();
   const namespaces = new Map<MorphNode, readonly MorphNode[]>();
   const strings = new Map<MorphNode, ReferenceFact<string>>();
+  const referenceWrites = new Map<MorphNode, ReferenceFact<true>>();
+  const authoredComposites = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
@@ -74,6 +76,7 @@ export function replayInvocationEvidence(
         restore(profile.string, (value) => value),
       );
     }
+    replayAdditionalReferences(profile, node, { restore, referenceWrites, authoredComposites, replay });
     if (profile.stable !== undefined) {
       stableValues.set(node, restore(profile.stable, replay));
     }
@@ -105,6 +108,7 @@ export function replayInvocationEvidence(
     undefinedMembers,
     namespaces,
     strings,
+    ...optionalReferenceFacets(referenceWrites, authoredComposites),
     stableValues,
     canonicalValues,
     typeProjections,
@@ -261,4 +265,31 @@ function replayTypeAttachment(
   replay: (span: InventorySpan) => MorphNode,
 ): Pick<NativeInvocationEvidence, "typeObservations"> {
   return wire.typeObservations === undefined ? {} : { typeObservations: typeReplayOwner(wire.typeObservations, replay) };
+}
+
+function optionalReferenceFacets(
+  referenceWrites: NonNullable<NativeInvocationEvidence["referenceWrites"]>,
+  authoredComposites: NonNullable<NativeInvocationEvidence["authoredComposites"]>,
+): Pick<NativeInvocationEvidence, "referenceWrites" | "authoredComposites"> {
+  return { ...(referenceWrites.size === 0 ? {} : { referenceWrites }), ...(authoredComposites.size === 0 ? {} : { authoredComposites }) };
+}
+function replayAdditionalReferences(
+  profile: Profile,
+  node: MorphNode,
+  context: {
+    readonly restore: <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V) => ReferenceFact<V>;
+    readonly referenceWrites: Map<MorphNode, ReferenceFact<true>>;
+    readonly authoredComposites: Map<MorphNode, ReferenceFact<MorphNode>>;
+    readonly replay: (span: InventorySpan) => MorphNode;
+  },
+): void {
+  if (profile["reference-writes"] !== undefined) {
+    context.referenceWrites.set(
+      node,
+      context.restore(profile["reference-writes"], (value) => value),
+    );
+  }
+  if (profile["authored-composite"] !== undefined) {
+    context.authoredComposites.set(node, context.restore(profile["authored-composite"], context.replay));
+  }
 }

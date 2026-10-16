@@ -660,6 +660,7 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
           };
           const facts = captureInvocationEvidence(first, plan, undefined, {
             demand: mapTypeObservationDemand(demand, of),
+            node: of,
             references: (node) => {
               const importer = node.getSourceFile();
               if (!queries.some((request) => request.kind === "references" && request.importer === importer && request.nodes.includes(node))) {

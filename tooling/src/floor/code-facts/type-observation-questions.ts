@@ -1,6 +1,8 @@
 // Explicit raw questions retain their nominated locations and one importing capture.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { referenceResolutionServices } from "./reference-fact.ts";
+import { rootIdentifier } from "./reference-fact-alias.ts";
 import { uncastReceiver } from "./type-member-origin-core.ts";
 import type {
   SelectedPropertyGraph,
@@ -438,18 +440,270 @@ function rawPropertyLiterals(readers: TypeObservationReader, selector: NativeTyp
     }
   }
 }
+function canonicalDeclarations(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  const symbol = readers.symbol(node);
+  return symbol === null ? [] : readers.symbolData(readers.symbolData(symbol).canonical).declarations;
+}
+function directTypeUses(node: MorphNode): readonly MorphNode[] {
+  if (Node.isParenthesizedTypeNode(node)) {
+    return directTypeUses(node.getTypeNode());
+  }
+  if (Node.isUnionTypeNode(node) || Node.isIntersectionTypeNode(node)) {
+    return node.getTypeNodes().flatMap(directTypeUses);
+  }
+  return Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node) ? [node] : [];
+}
+function literalGraph(node: MorphNode, readers: TypeObservationReader): void {
+  const pending = [nodeTypeSelector(node)];
+  const seen = new Set<object>();
+  for (const selector of pending) {
+    const selected = readers.select(selector);
+    if (selected === null) {
+      continue;
+    }
+    const type = readers.type(selected);
+    if (seen.has(type.key)) {
+      continue;
+    }
+    seen.add(type.key);
+    readers.primitiveFlags(selector);
+    pending.push(...readers.unions(selector), ...readers.intersections(selector));
+    const constraint = readers.constraint(selector);
+    if (constraint !== null) {
+      pending.push(constraint);
+    }
+  }
+}
+function reactDeclaration(node: MorphNode): boolean {
+  return node.getSourceFile().getFilePath().replaceAll("\\", "/").includes("/node_modules/@types/react/");
+}
+function genericConstraints(node: MorphNode, defaults: boolean): readonly MorphNode[] {
+  if (!(Node.isTypeAliasDeclaration(node) || Node.isClassDeclaration(node) || Node.isInterfaceDeclaration(node))) {
+    return [];
+  }
+  return node
+    .getTypeParameters()
+    .flatMap((parameter) => [parameter.getConstraint(), ...(defaults ? [parameter.getDefault()] : [])].filter((value) => value !== undefined));
+}
+function intrinsicBodies(node: MorphNode): readonly MorphNode[] {
+  return [...(Node.isTypeAliasDeclaration(node) ? [node.getTypeNodeOrThrow()] : []), ...genericConstraints(node, true)];
+}
+function intrinsicReferences(body: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  const referenced = Node.isTypeReference(body) ? [...canonicalDeclarations(body.getTypeName(), readers)] : [];
+  const direct = body.forEachDescendant((node) => {
+    if (Node.isIdentifier(node) && node.getText() === "IntrinsicElements") {
+      const declarations = canonicalDeclarations(node, readers);
+      if (declarations.length > 0 && declarations.every(reactDeclaration)) {
+        return true;
+      }
+    }
+    if (Node.isTypeReference(node)) {
+      referenced.push(...canonicalDeclarations(node.getTypeName(), readers));
+    }
+    return false;
+  });
+  return direct === true ? [] : referenced;
+}
+function captureIntrinsicClosure(roots: readonly MorphNode[], readers: TypeObservationReader): void {
+  const seen = new Set<MorphNode>();
+  const pending = [...roots];
+  for (const body of pending) {
+    for (const declaration of intrinsicReferences(body, readers)) {
+      if (!reactDeclaration(declaration) || seen.has(declaration)) {
+        continue;
+      }
+      seen.add(declaration);
+      pending.push(...intrinsicBodies(declaration));
+    }
+  }
+}
+function declarationTypeParents(node: MorphNode): readonly MorphNode[] {
+  if (Node.isTypeAliasDeclaration(node)) {
+    return directTypeUses(node.getTypeNodeOrThrow());
+  }
+  return Node.isInterfaceDeclaration(node) || Node.isClassDeclaration(node) ? node.getHeritageClauses().flatMap((clause) => clause.getTypeNodes()) : [];
+}
+function aliasInitializers(declarations: readonly MorphNode[]): readonly MorphNode[] {
+  return declarations.flatMap((declaration) => {
+    if (!(Node.isVariableDeclaration(declaration) || Node.isPropertyAssignment(declaration)) || declaration.getSourceFile().isDeclarationFile()) {
+      return [];
+    }
+    const initial = declaration.getInitializer();
+    if (initial === undefined) {
+      return [];
+    }
+    const value = referenceResolutionServices.unwrapExpression(initial);
+    return Node.isIdentifier(value) || Node.isPropertyAccessExpression(value) || Node.isElementAccessExpression(value) || Node.isObjectLiteralExpression(value)
+      ? [value]
+      : [];
+  });
+}
+function browserTypeReference(node: MorphNode): MorphNode {
+  if (Node.isTypeReference(node)) {
+    return node.getTypeName();
+  }
+  return Node.isExpressionWithTypeArguments(node) ? node.getExpression() : node;
+}
+function browserContracts(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  const visited = new Set<MorphNode>();
+  const pending = [...question.nodes];
+  for (const node of pending) {
+    if (visited.has(node)) {
+      continue;
+    }
+    visited.add(node);
+    const root = rootIdentifier(node);
+    if (root !== undefined && root !== node) {
+      pending.push(root);
+    }
+    const reference = browserTypeReference(node);
+    const declarations = canonicalDeclarations(reference, readers);
+    if (Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node)) {
+      for (const argument of node.getTypeArguments()) {
+        literalGraph(argument, readers);
+        pending.push(...directTypeUses(argument));
+      }
+      pending.push(...declarations.flatMap(declarationTypeParents));
+      captureIntrinsicClosure(
+        declarations.filter(reactDeclaration).flatMap((declaration) => genericConstraints(declaration, false)),
+        readers,
+      );
+    } else if (isValueNode(node)) {
+      readers.signatureDeclarations(nodeTypeSelector(node), "call");
+      readers.signatureDeclarations(nodeTypeSelector(node), "construct");
+    }
+    valueProfile(question, reference, profile);
+    pending.push(...aliasInitializers(declarations));
+  }
+}
+function ctVariableInitializers(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  const symbol = readers.symbol(node);
+  if (symbol === null) {
+    return [];
+  }
+  const declarations = [symbol, readers.symbolData(symbol).canonical].flatMap((value) => readers.symbolData(value).declarations);
+  const shorthand = Node.isIdentifier(node) && Node.isShorthandPropertyAssignment(node.getParent()) ? readers.definitions(node) : [];
+  return [...declarations, ...shorthand].filter(
+    (declaration) => Node.isVariableDeclaration(declaration) && declaration.getInitializer() !== undefined && !declaration.getSourceFile().isDeclarationFile(),
+  );
+}
+function ctMounting(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  if (profile === undefined) {
+    throw new Error("native CT mounting values have no captured owner");
+  }
+  const seen = new Set<MorphNode>();
+  const pending = [...question.nodes];
+  for (const root of pending) {
+    for (const node of [root, ...root.getDescendants()]) {
+      if (seen.has(node) || Node.isOmittedExpression(node)) {
+        continue;
+      }
+      seen.add(node);
+      if (!isValueNode(node)) {
+        continue;
+      }
+      const facets = (question.valueFacets ?? []).filter((facet) => facet !== "reference-writes" || Node.isIdentifier(node));
+      profile(node, facets);
+      pending.push(...ctVariableInitializers(node, readers));
+    }
+  }
+}
+function contributionSelector(node: MorphNode, readers: TypeObservationReader): NativeTypeSelector | undefined {
+  const selector = readers.typeArguments(nodeTypeSelector(node)).at(-1);
+  if (selector === undefined) {
+    return;
+  }
+  const selected = readers.select(selector);
+  if (selected === null || readers.type(selected).any) {
+    return;
+  }
+  readers.defaultDisplay(selector);
+  return selector;
+}
+function declaredContribution(node: MorphNode, question: TypeObservationQuestion, owner: Pick<TypeObservationCaptureOwner, "module">): boolean {
+  if (!Node.isCallExpression(node) || owner.module === undefined) {
+    throw new Error("native contribution module context is unavailable");
+  }
+  const origin = owner.module(node.getExpression());
+  if (origin.kind !== "resolved" || origin.value.canonical.kind !== "project") {
+    return false;
+  }
+  const declaration = origin.value.canonical.declaration;
+  return (
+    Node.isFunctionDeclaration(declaration) &&
+    (question.callableHomes ?? []).some(
+      (home) => declaration.getName() === home.name && declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(home.suffix),
+    )
+  );
+}
+function contributionCandidates(
+  nodes: readonly MorphNode[],
+  question: TypeObservationQuestion,
+  readers: TypeObservationReader,
+  owner: Pick<TypeObservationCaptureOwner, "module" | "profile">,
+): readonly NativeTypeSelector[] {
+  if (owner.profile === undefined) {
+    throw new Error("native contribution profile owner is unavailable");
+  }
+  const result: NativeTypeSelector[] = [];
+  for (const node of nodes) {
+    if (!Node.isCallExpression(node)) {
+      throw new Error("native contribution question is not a call");
+    }
+    owner.profile(node.getExpression(), ["module"]);
+    if (!declaredContribution(node, question, owner)) {
+      continue;
+    }
+    const selector = contributionSelector(node, readers);
+    if (selector !== undefined) {
+      result.push(selector);
+    }
+  }
+  return result;
+}
+function ctContributions(
+  question: TypeObservationQuestion,
+  readers: TypeObservationReader,
+  profile?: TypeObservationCaptureOwner["profile"],
+  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node">,
+): void {
+  if (owner === undefined) {
+    throw new Error("native contribution context is unavailable");
+  }
+  const candidates = contributionCandidates(question.nodes, question, readers, { ...owner, profile });
+  if (candidates.length === 0) {
+    return;
+  }
+  if (question.relationTargets === undefined || owner.node === undefined) {
+    throw new Error("native contribution relation targets are unavailable");
+  }
+  const targets = contributionCandidates(question.relationTargets.map(owner.node), question, readers, { ...owner, profile });
+  for (const candidate of candidates) {
+    for (const target of targets) {
+      readers.relation(candidate, target);
+    }
+  }
+}
 const questions: Record<
   TypeObservationQuestion["kind"],
   (
     question: TypeObservationQuestion,
     readers: TypeObservationReader,
     profile?: TypeObservationCaptureOwner["profile"],
-    references?: TypeObservationCaptureOwner["references"],
+    owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node">,
   ) => void
 > = {
   "const-initializers": constInitializers,
   "callable-body-values": callableBodyValues,
   "selected-property-graph": selectedPropertyGraph,
+  "browser-contracts": browserContracts,
+  "mount-signatures": (question, readers): void => {
+    for (const node of question.nodes) {
+      readers.signatureDeclarations({ ...nodeTypeSelector(node), steps: [{ kind: "nonnullable" }] }, "call");
+    }
+  },
+  "ct-mounting": ctMounting,
+  "ct-contributions": ctContributions,
   "declaration-closure": declarationClosure,
   "literal-values": (question, readers): void => {
     for (const node of question.nodes) {
@@ -484,7 +738,8 @@ const questions: Record<
       }
     }
   },
-  "reference-closure": (question, readers, _profile, references): void => {
+  "reference-closure": (question, readers, _profile, owner): void => {
+    const references = owner?.references;
     if (references === undefined) {
       throw new Error("native raw reference closure has no strict reference owner");
     }
@@ -567,9 +822,9 @@ export function observeRawQuestions(
   demand: TypeObservationDemand,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  references?: TypeObservationCaptureOwner["references"],
+  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node">,
 ): void {
   for (const question of demand.questions ?? []) {
-    questions[question.kind](question, readers, profile, references);
+    questions[question.kind](question, readers, profile, owner);
   }
 }

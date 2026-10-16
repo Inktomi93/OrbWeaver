@@ -36,7 +36,9 @@
 // population now admits them and the same shared classifier skips them inside the walk. Controls: inside
 // `tests/client/agent-plugin/__cbbhr_in_index.test.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+
 import { Node, SyntaxKind } from "ts-morph";
+import type { BrowserContractRead } from "../contract/browser-mount-native.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { BrowserContractIssue } from "../lib/browser-contract-reader.ts";
 import {
@@ -46,6 +48,7 @@ import {
   isNodeTestContractRoot,
   isPotentialModuleReference,
 } from "../lib/browser-contract-reader.ts";
+import { nativeBrowserContractRead } from "../lib/browser-mount-native.ts";
 
 const MESSAGE =
   "a Node-intent test consumes a browser-only contract. Node-green is insufficient here because React's " +
@@ -55,13 +58,17 @@ const FIX =
   "lib/state/data/forms/UI-lib contracts; move a mixed helper behind tests/support/browser rather than adding a path exemption.";
 
 /** One node's browser-contract verdict, or undefined when it is out of the class this policy judges. */
-function nodeIssue(node: import("ts-morph").Node, candidateBindings: WeakMap<object, ReadonlySet<string>>): BrowserContractIssue | undefined {
+function nodeIssue(
+  node: import("ts-morph").Node,
+  candidateBindings: WeakMap<object, ReadonlySet<string>>,
+  read: BrowserContractRead,
+): BrowserContractIssue | undefined {
   if (Node.isImportDeclaration(node)) {
     return directBaseUiDoor(node);
   }
   const isTypedUse = Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node);
-  const isBoundValueUse = isConsumedReference(node) && isPotentialModuleReference(node, candidateBindings);
-  return isTypedUse || isBoundValueUse ? browserContractIssue(node) : undefined;
+  const isBoundValueUse = isConsumedReference(node) && isPotentialModuleReference(node, candidateBindings, read);
+  return isTypedUse || isBoundValueUse ? browserContractIssue(node, read) : undefined;
 }
 
 export const gate = defineGate({
@@ -79,7 +86,10 @@ export const gate = defineGate({
   create: (ctx) => {
     const reportedSites = new Set<string>();
     const candidateBindings = new WeakMap<object, ReadonlySet<string>>();
+    const nodes: import("ts-morph").Node[] = [];
+    const native = nativeBrowserContractRead(ctx, () => nodes);
     return {
+      prepare: native.prepare,
       visitors: [
         {
           kinds: [
@@ -94,22 +104,30 @@ export const gate = defineGate({
             if (!isNodeTestContractRoot(ctx.relativePath(sf))) {
               return;
             }
-            const issue = nodeIssue(node, candidateBindings);
-            if (issue === undefined) {
-              return;
+            if (Node.isImportDeclaration(node) || Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node) || isConsumedReference(node)) {
+              nodes.push(node);
             }
-            const site = issue.kind === "unreadable" ? `${sf.getFilePath()}:unreadable:${issue.detail}` : `${sf.getFilePath()}:${node.getStart()}`;
-            if (reportedSites.has(site)) {
-              return;
-            }
-            reportedSites.add(site);
-            if (issue.kind === "unreadable") {
-              throw new Error(issue.detail);
-            }
-            ctx.report.node(node, { token: node.getText(), offset: 0 });
           },
         },
       ],
+      evaluate: () => {
+        for (const node of nodes) {
+          const sf = node.getSourceFile();
+          const issue = nodeIssue(node, candidateBindings, native.at(sf));
+          if (issue === undefined) {
+            continue;
+          }
+          const site = issue.kind === "unreadable" ? `${sf.getFilePath()}:unreadable:${issue.detail}` : `${sf.getFilePath()}:${node.getStart()}`;
+          if (reportedSites.has(site)) {
+            continue;
+          }
+          reportedSites.add(site);
+          if (issue.kind === "unreadable") {
+            throw new Error(issue.detail);
+          }
+          ctx.report.node(node, { token: node.getText(), offset: 0 });
+        }
+      },
     };
   },
   mustFlag: [
@@ -180,6 +198,16 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "local.Button" },
       why: "the same object-facade member reached through a LOCAL alias still resolves to the same callable identity",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/ui/src/button.tsx": "export function Button(): string { return 'button'; }",
+        "packages/ui/src/index.ts": "import { Button } from './button.tsx'; export const API = ({ Button } satisfies { Button: typeof Button });",
+        "tests/ui/wrapped-object-facade.test.ts": "import { API } from '../../packages/ui/src/index.ts'; export const subject = API.Button();",
+      },
+      expect: { count: 1, token: "API.Button" },
+      why: "an object facade retains canonical callable ownership through a TypeScript wrapper",
     },
     // The canonical-React-DOM-generic shapes (ComponentProps/Ref/DOMAttributes/SyntheticEvent/the React
     // global.d.ts fallback and namespace-door identity) need the REAL @types/react + lib.dom resolution —

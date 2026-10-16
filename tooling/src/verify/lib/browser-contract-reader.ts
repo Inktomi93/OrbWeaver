@@ -2,10 +2,13 @@
 // identity, declared alias/heritage ancestry, and generic constraints; it never expands object members or
 // ReactNode's structural graph.
 
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { Node as MorphNode, Type, TypeNode } from "ts-morph";
+import { referenceResolutionServices } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { Node as MorphNode, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { BROWSER_PACKAGES, worldOf } from "../../floor/compiler/project-worlds.ts";
+import type { BrowserContractRead } from "../contract/browser-mount-native.ts";
 
 const BASE_UI_PREFIX = "@base-ui/react";
 const REACT_DOM_ANCHORS = new Set(["DOMAttributes", "SyntheticEvent"]);
@@ -62,20 +65,20 @@ function aliasExpressions(node: MorphNode, declaration: MorphNode): readonly Mor
 }
 
 /** Public const facades retain their own export identity; callable signatures still identify the implementation. */
-function callableAliasIssue(node: MorphNode, declarations: readonly MorphNode[]): BrowserContractIssue | undefined {
+function callableAliasIssue(node: MorphNode, declarations: readonly MorphNode[], read: BrowserContractRead): BrowserContractIssue | undefined {
   const expressions = new Set(declarations.flatMap((declaration) => aliasExpressions(node, declaration)));
   const signatures = [...expressions].flatMap((expression) => {
-    const type = expression.getType();
-    return [...type.getCallSignatures(), ...type.getConstructSignatures()];
+    const selector = nodeTypeSelector(expression);
+    return [...read.types.signatureDeclarations(selector, "call"), ...read.types.signatureDeclarations(selector, "construct")];
   });
-  const implementation = browserPackageDeclaration(signatures.map((signature) => signature.getDeclaration()));
+  const implementation = browserPackageDeclaration(signatures);
   return implementation === undefined
     ? undefined
     : { kind: "browser-package", detail: `the callable implementation is authored by ${normalizedPath(implementation)}` };
 }
 
-function moduleIssue(node: MorphNode): BrowserContractIssue | undefined {
-  const origin = resolveModuleMemberOrigin(node);
+function moduleIssue(node: MorphNode, read: BrowserContractRead): BrowserContractIssue | undefined {
+  const origin = read.module(node);
   if (origin.kind === "resolved") {
     if (origin.value.moduleSpecifier === BASE_UI_PREFIX || origin.value.moduleSpecifier.startsWith(`${BASE_UI_PREFIX}/`)) {
       return { kind: "base-ui", detail: `the consumed symbol resolves through ${origin.value.moduleSpecifier}` };
@@ -89,10 +92,10 @@ function moduleIssue(node: MorphNode): BrowserContractIssue | undefined {
         detail: `the consumed symbol is authored by ${normalizedPath(origin.value.canonical.declaration)}`,
       };
     }
-    return callableAliasIssue(node, [...origin.trace.declarations, ...canonicalDeclarations(node)]);
+    return callableAliasIssue(node, [...origin.trace.declarations, ...canonicalDeclarations(node, read)], read);
   }
-  const tracedDeclarations = [...origin.trace.declarations, ...canonicalDeclarations(node)];
-  const callable = callableAliasIssue(node, tracedDeclarations);
+  const tracedDeclarations = [...origin.trace.declarations, ...canonicalDeclarations(node, read)];
+  const callable = callableAliasIssue(node, tracedDeclarations, read);
   if (callable !== undefined) {
     return callable;
   }
@@ -113,7 +116,7 @@ function moduleIssue(node: MorphNode): BrowserContractIssue | undefined {
     if (specifier !== undefined && BROWSER_PACKAGE_DOOR_RE.test(specifier)) {
       return true;
     }
-    const source = importDeclaration?.getModuleSpecifierSourceFile();
+    const source = importDeclaration === undefined ? undefined : read.moduleSource(importDeclaration);
     return source !== undefined && BROWSER_PACKAGE_PATH_RE.test(source.getFilePath().replaceAll("\\", "/"));
   });
   return relevantDoor === undefined
@@ -125,24 +128,24 @@ function declarationName(node: MorphNode): string | undefined {
   return Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node) || Node.isClassDeclaration(node) ? node.getName() : undefined;
 }
 
-function canonicalDeclarations(reference: MorphNode): readonly MorphNode[] {
-  const symbol = reference.getSymbol();
-  return (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+function canonicalDeclarations(reference: MorphNode, read: BrowserContractRead): readonly MorphNode[] {
+  const symbol = read.types.symbol(reference);
+  return symbol === null ? [] : read.types.symbolData(read.types.symbolData(symbol).canonical).declarations;
 }
 
 function isReactDeclaration(node: MorphNode): boolean {
   return normalizedPath(node).includes("/node_modules/@types/react/");
 }
 
-function intrinsicReferences(typeNode: TypeNode): { readonly direct: boolean; readonly declarations: readonly MorphNode[] } {
+function intrinsicReferences(typeNode: TypeNode, read: BrowserContractRead): { readonly direct: boolean; readonly declarations: readonly MorphNode[] } {
   let reaches = false;
   const referencedDeclarations: MorphNode[] = [];
   if (Node.isTypeReference(typeNode)) {
-    referencedDeclarations.push(...canonicalDeclarations(typeNode.getTypeName()));
+    referencedDeclarations.push(...canonicalDeclarations(typeNode.getTypeName(), read));
   }
   typeNode.forEachDescendant((node, traversal) => {
     if (Node.isIdentifier(node) && node.getText() === "IntrinsicElements") {
-      const declarations = canonicalDeclarations(node);
+      const declarations = canonicalDeclarations(node, read);
       if (declarations.length > 0 && declarations.every(isReactDeclaration)) {
         reaches = true;
         traversal.stop();
@@ -150,7 +153,7 @@ function intrinsicReferences(typeNode: TypeNode): { readonly direct: boolean; re
       return;
     }
     if (Node.isTypeReference(node)) {
-      referencedDeclarations.push(...canonicalDeclarations(node.getTypeName()));
+      referencedDeclarations.push(...canonicalDeclarations(node.getTypeName(), read));
     }
   });
   return { direct: reaches, declarations: referencedDeclarations };
@@ -179,8 +182,8 @@ function declarationConstraintBodies(declaration: MorphNode): readonly TypeNode[
   return bodies;
 }
 
-function typeNodeReachesReactIntrinsic(typeNode: TypeNode, visited: Set<object>): boolean {
-  const references = intrinsicReferences(typeNode);
+function typeNodeReachesReactIntrinsic(typeNode: TypeNode, visited: Set<object>, read: BrowserContractRead): boolean {
+  const references = intrinsicReferences(typeNode, read);
   if (references.direct) {
     return true;
   }
@@ -189,41 +192,50 @@ function typeNodeReachesReactIntrinsic(typeNode: TypeNode, visited: Set<object>)
       return false;
     }
     visited.add(declaration.compilerNode);
-    return declarationConstraintBodies(declaration).some((body) => typeNodeReachesReactIntrinsic(body, visited));
+    return declarationConstraintBodies(declaration).some((body) => typeNodeReachesReactIntrinsic(body, visited, read));
   });
 }
 
-function constraintReachesReactIntrinsic(constraint: TypeNode | undefined): boolean {
+function constraintReachesReactIntrinsic(constraint: TypeNode | undefined, read: BrowserContractRead): boolean {
   if (constraint === undefined) {
     return false;
   }
-  return typeNodeReachesReactIntrinsic(constraint, new Set<object>());
+  return typeNodeReachesReactIntrinsic(constraint, new Set<object>(), read);
 }
 
-function hasIntrinsicStringArgument(declaration: MorphNode, arguments_: readonly TypeNode[]): boolean {
+function hasIntrinsicStringArgument(declaration: MorphNode, arguments_: readonly TypeNode[], read: BrowserContractRead): boolean {
   if (!(Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration) || Node.isClassDeclaration(declaration))) {
     return false;
   }
   return declaration.getTypeParameters().some((parameter, index) => {
     const argument = arguments_[index];
-    return argument !== undefined && constraintReachesReactIntrinsic(parameter.getConstraint()) && hasStringLiteralConstituent(argument.getType());
+    return (
+      argument !== undefined &&
+      constraintReachesReactIntrinsic(parameter.getConstraint(), read) &&
+      hasStringLiteralConstituent(nodeTypeSelector(argument), read)
+    );
   });
 }
 
-function hasStringLiteralConstituent(type: Type): boolean {
+function hasStringLiteralConstituent(type: NativeTypeSelector, read: BrowserContractRead): boolean {
   const pending = [type];
   const seen = new Set<object>();
   for (const current of pending) {
-    if (seen.has(current.compilerType)) {
+    const selected = read.types.select(current);
+    if (selected === null) {
       continue;
     }
-    seen.add(current.compilerType);
-    if (current.isStringLiteral()) {
+    const metadata = read.types.type(selected);
+    if (seen.has(metadata.key)) {
+      continue;
+    }
+    seen.add(metadata.key);
+    if (read.types.primitiveFlags(current).stringLiteral) {
       return true;
     }
-    pending.push(...current.getUnionTypes(), ...current.getIntersectionTypes());
-    const constraint = current.getConstraint();
-    if (constraint !== undefined) {
+    pending.push(...read.types.unions(current), ...read.types.intersections(current));
+    const constraint = read.types.constraint(current);
+    if (constraint !== null) {
       pending.push(constraint);
     }
   }
@@ -266,7 +278,7 @@ function directAliasUses(typeNode: TypeNode): readonly TypeUse[] {
   return use === undefined ? [] : [use];
 }
 
-function directTypeIssue(declarations: readonly MorphNode[], arguments_: readonly TypeNode[]): BrowserContractIssue | undefined {
+function directTypeIssue(declarations: readonly MorphNode[], arguments_: readonly TypeNode[], read: BrowserContractRead): BrowserContractIssue | undefined {
   const browserDeclaration = browserPackageDeclaration(declarations);
   if (browserDeclaration !== undefined) {
     return { kind: "browser-package", detail: `the consumed type is authored by ${normalizedPath(browserDeclaration)}` };
@@ -279,17 +291,17 @@ function directTypeIssue(declarations: readonly MorphNode[], arguments_: readonl
   if (anchor !== undefined) {
     return { kind: "react-dom", detail: `the type derives from React.${declarationName(anchor)}` };
   }
-  const intrinsic = declarations.some((declaration) => isReactDeclaration(declaration) && hasIntrinsicStringArgument(declaration, arguments_));
+  const intrinsic = declarations.some((declaration) => isReactDeclaration(declaration) && hasIntrinsicStringArgument(declaration, arguments_, read));
   return intrinsic
     ? { kind: "react-dom", detail: "a string intrinsic is supplied to a canonical React generic constrained by JSX.IntrinsicElements" }
     : undefined;
 }
 
-function nestedArgumentIssue(arguments_: readonly TypeNode[], visited: Set<object>): BrowserContractIssue | undefined {
+function nestedArgumentIssue(arguments_: readonly TypeNode[], visited: Set<object>, read: BrowserContractRead): BrowserContractIssue | undefined {
   let found: BrowserContractIssue | undefined;
   for (const argument of arguments_) {
     const nested = typeUse(argument);
-    const issue = nested === undefined ? undefined : inspectTypeUse(nested, visited);
+    const issue = nested === undefined ? undefined : inspectTypeUse(nested, visited, read);
     if (issue !== undefined) {
       found = issue;
       break;
@@ -298,7 +310,7 @@ function nestedArgumentIssue(arguments_: readonly TypeNode[], visited: Set<objec
   return found;
 }
 
-function ancestryIssue(declarations: readonly MorphNode[], visited: Set<object>): BrowserContractIssue | undefined {
+function ancestryIssue(declarations: readonly MorphNode[], visited: Set<object>, read: BrowserContractRead): BrowserContractIssue | undefined {
   let found: BrowserContractIssue | undefined;
   for (const declaration of declarations) {
     if (visited.has(declaration.compilerNode)) {
@@ -306,7 +318,7 @@ function ancestryIssue(declarations: readonly MorphNode[], visited: Set<object>)
     }
     visited.add(declaration.compilerNode);
     for (const parent of declarationParents(declaration)) {
-      const issue = inspectTypeUse(parent, visited);
+      const issue = inspectTypeUse(parent, visited, read);
       if (issue !== undefined) {
         found = issue;
         break;
@@ -333,18 +345,18 @@ function declarationParents(declaration: MorphNode): readonly TypeUse[] {
   return [];
 }
 
-function inspectTypeUse(use: TypeUse, visited: Set<object>): BrowserContractIssue | undefined {
-  const declarations = canonicalDeclarations(use.reference);
+function inspectTypeUse(use: TypeUse, visited: Set<object>, read: BrowserContractRead): BrowserContractIssue | undefined {
+  const declarations = canonicalDeclarations(use.reference, read);
   if (declarations.length === 0) {
-    return moduleIssue(use.reference);
+    return moduleIssue(use.reference, read);
   }
-  return directTypeIssue(declarations, use.arguments) ?? nestedArgumentIssue(use.arguments, visited) ?? ancestryIssue(declarations, visited);
+  return directTypeIssue(declarations, use.arguments, read) ?? nestedArgumentIssue(use.arguments, visited, read) ?? ancestryIssue(declarations, visited, read);
 }
 
 /** Inspect one consumed module reference or type use. The caller supplies only dispatcher-delivered nodes. */
-export function browserContractIssue(node: MorphNode): BrowserContractIssue | undefined {
+export function browserContractIssue(node: MorphNode, read: BrowserContractRead): BrowserContractIssue | undefined {
   const use = typeUse(node);
-  return use === undefined ? moduleIssue(node) : inspectTypeUse(use, new Set<object>());
+  return use === undefined ? moduleIssue(node, read) : inspectTypeUse(use, new Set<object>(), read);
 }
 
 /** A direct Base UI import is itself a forbidden browser door, even when the binding is accidentally unused. */
@@ -358,7 +370,11 @@ export function directBaseUiDoor(node: MorphNode): BrowserContractIssue | undefi
     : undefined;
 }
 
-function relevantModuleBindings(node: MorphNode, candidateBindingsBySource: WeakMap<object, ReadonlySet<string>>): ReadonlySet<string> {
+function relevantModuleBindings(
+  node: MorphNode,
+  candidateBindingsBySource: WeakMap<object, ReadonlySet<string>>,
+  read: BrowserContractRead,
+): ReadonlySet<string> {
   const source = node.getSourceFile();
   const cached = candidateBindingsBySource.get(source.compilerNode);
   if (cached !== undefined) {
@@ -367,7 +383,7 @@ function relevantModuleBindings(node: MorphNode, candidateBindingsBySource: Weak
   const names = new Set<string>();
   for (const declaration of source.getImportDeclarations()) {
     const specifier = declaration.getModuleSpecifierValue();
-    const importedSource = declaration.getModuleSpecifierSourceFile();
+    const importedSource = read.moduleSource(declaration);
     const importedPath = importedSource?.getFilePath().replaceAll("\\", "/");
     if (
       !(specifier === BASE_UI_PREFIX || specifier.startsWith(`${BASE_UI_PREFIX}/`) || BROWSER_PACKAGE_DOOR_RE.test(specifier)) &&
@@ -400,20 +416,25 @@ function referenceRoot(node: MorphNode): import("ts-morph").Identifier | undefin
 }
 
 /** Cheap authored-door nomination before the canonical resolver. False positives are judged semantically. */
-export function isPotentialModuleReference(node: MorphNode, candidateBindingsBySource: WeakMap<object, ReadonlySet<string>>): boolean {
+export function isPotentialModuleReference(
+  node: MorphNode,
+  candidateBindingsBySource: WeakMap<object, ReadonlySet<string>>,
+  read: BrowserContractRead,
+): boolean {
   const root = referenceRoot(node);
   if (root === undefined) {
     return false;
   }
-  const bindings = relevantModuleBindings(node, candidateBindingsBySource);
+  const bindings = relevantModuleBindings(node, candidateBindingsBySource, read);
   if (bindings.has(root.getText())) {
     return true;
   }
-  return (
-    bindings.size > 0 &&
-    (root.getSymbol()?.getDeclarations() ?? []).some(
-      (declaration) => Node.isVariableDeclaration(declaration) || Node.isBindingElement(declaration) || Node.isParameterDeclaration(declaration),
-    )
+  if (bindings.size === 0) {
+    return false;
+  }
+  const symbol = read.types.symbol(root);
+  return (symbol === null ? [] : read.types.symbolData(symbol).declarations).some(
+    (declaration) => Node.isVariableDeclaration(declaration) || Node.isBindingElement(declaration) || Node.isParameterDeclaration(declaration),
   );
 }
 

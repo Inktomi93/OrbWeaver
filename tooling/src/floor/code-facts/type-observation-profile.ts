@@ -15,10 +15,10 @@ export function observeAuthoredTypeSlots(
   demand: TypeObservationDemand,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  references?: TypeObservationCaptureOwner["references"],
+  captureOwner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node">,
 ): void {
   if (demand.questions !== undefined) {
-    observeRawQuestions(demand, readers, profile, references);
+    observeRawQuestions(demand, readers, profile, captureOwner);
     return;
   }
   const seen = new Set<MorphNode>();

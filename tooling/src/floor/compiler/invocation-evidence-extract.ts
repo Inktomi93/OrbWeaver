@@ -17,6 +17,7 @@ import type { OrdinaryObservationDemand } from "../code-facts/ordinary-observati
 import type { InventoryAuthoredValueProjection, InventoryTypeProjection } from "../code-facts/projection-inventory-contract.ts";
 import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
 import {
+  inspectReferenceWrites,
   readStaticString,
   referenceResolutionServices,
   resolveGlobalMemberOrigin,
@@ -33,8 +34,10 @@ import type {
   InventoryInvocationEvidence,
   InventoryInvocationPlan,
   InventorySpan,
+  NativeInvocationEvidence,
 } from "../code-facts/semantic-inventory-contract.ts";
 import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/semantic-inventory-contract.ts";
+import { resolveAuthoredComposite } from "../code-facts/static-authored-value.ts";
 import { captureTypeObservations } from "../code-facts/type-observations.ts";
 import { encodeTypeObservations } from "../code-facts/type-observations-codec.ts";
 import type { TypeObservationCaptureRequest, TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
@@ -65,6 +68,8 @@ export function captureInvocationEvidence(
   const undefinedMembers = new Map<MorphNode, boolean>();
   const namespaces = new Map<MorphNode, readonly MorphNode[]>();
   const strings = new Map<MorphNode, ReferenceFact<string>>();
+  const referenceWrites = new Map<MorphNode, ReferenceFact<true>>();
+  const authoredComposites = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
@@ -91,6 +96,13 @@ export function captureInvocationEvidence(
     undefined: (subject) => captureOnce(undefinedMembers, subject, undefinedMember),
     namespace: (subject) => captureOnce(namespaces, subject, readModuleNamespaceDeclarations),
     string: (subject) => captureOnce(strings, subject, readStaticString),
+    "reference-writes": (subject) => {
+      if (!Node.isIdentifier(subject)) {
+        throw new Error("native reference write demand is not an identifier");
+      }
+      captureOnce(referenceWrites, subject, () => inspectReferenceWrites(subject));
+    },
+    "authored-composite": (subject) => captureOnce(authoredComposites, subject, resolveAuthoredComposite),
     stable: (subject) => captureOnce(stableValues, subject, resolveStableExpression),
     "type-projection": (subject) =>
       captureOnce(typeProjections, subject, (value) => {
@@ -152,6 +164,14 @@ export function captureInvocationEvidence(
           profile: (subject, facets) => capture(subject, [...facets]),
           references: typeCapture.references,
           callableDeclaration: resolveCallableDeclaration,
+          node: typeCapture.node,
+          module: (subject) => {
+            const value = modules.get(subject);
+            if (value === undefined) {
+              throw new Error("native raw module question was not captured");
+            }
+            return value;
+          },
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {
@@ -172,6 +192,7 @@ export function captureInvocationEvidence(
     undefinedMembers,
     namespaces,
     strings,
+    ...optionalReferenceFacets(referenceWrites, authoredComposites),
     stableValues,
     canonicalValues,
     typeProjections,
@@ -304,6 +325,8 @@ export function encodeInvocationEvidence(
       namespace?: InventorySpan[];
       string?: object;
       stable?: object;
+      "reference-writes"?: object;
+      "authored-composite"?: object;
       canonicalValue?: { declaration: InventorySpan; fact: object };
       "type-projection"?: InventoryTypeProjection;
       "authored-value"?: InventoryAuthoredValueProjection;
@@ -336,6 +359,7 @@ export function encodeInvocationEvidence(
   for (const [subject, fact] of evidence.strings) {
     profile(subject).string = wireReferenceFact(fact, (value) => value, span);
   }
+  encodeAdditionalReferences(evidence, span, profile);
   for (const [subject, fact] of evidence.stableValues) {
     profile(subject).stable = wireReferenceFact(fact, span, span);
   }
@@ -432,4 +456,23 @@ function captureWrite(node: MorphNode, related: (node: MorphNode) => MorphNode):
     }
   }
   return fact;
+}
+
+function optionalReferenceFacets(
+  referenceWrites: NonNullable<NativeInvocationEvidence["referenceWrites"]>,
+  authoredComposites: NonNullable<NativeInvocationEvidence["authoredComposites"]>,
+): Pick<NativeInvocationEvidence, "referenceWrites" | "authoredComposites"> {
+  return { ...(referenceWrites.size === 0 ? {} : { referenceWrites }), ...(authoredComposites.size === 0 ? {} : { authoredComposites }) };
+}
+function encodeAdditionalReferences(
+  evidence: NativeInvocationEvidence,
+  span: (node: MorphNode) => InventorySpan,
+  profile: (node: MorphNode) => { "reference-writes"?: object; "authored-composite"?: object },
+): void {
+  for (const [subject, fact] of evidence.referenceWrites ?? []) {
+    profile(subject)["reference-writes"] = wireReferenceFact(fact, (value) => value, span);
+  }
+  for (const [subject, fact] of evidence.authoredComposites ?? []) {
+    profile(subject)["authored-composite"] = wireReferenceFact(fact, span, span);
+  }
 }

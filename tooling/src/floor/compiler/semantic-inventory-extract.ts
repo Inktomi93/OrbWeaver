@@ -1450,7 +1450,9 @@ function collectInvocationQuery(query: InventoryInvocationQuery, state: Invocati
     node,
     query,
     ordinary,
-    typeDemand === undefined ? undefined : { demand: typeDemand, references: (subject) => invocationReferences(state, subject) },
+    typeDemand === undefined
+      ? undefined
+      : { demand: typeDemand, references: (subject) => invocationReferences(state, subject), node: (span) => inventoryQueryNode(byFile.get(span.file), span) },
   );
   assertInvocationSource(node.getSourceFile(), program, "after-query");
   const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);

@@ -1,12 +1,28 @@
 // One closed capture owns scalar Type/Symbol relationships; no checker object survives publication.
+
 import type { Node, SourceFile } from "ts-morph";
-import type { CallableDeclaration, ReferenceFact } from "./reference-fact-contract.ts";
+import type { CallableDeclaration, ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
+import type { InventorySpan } from "./semantic-inventory-contract.ts";
 import type { NativePrimitiveFlags, NativeScalarTypeSelections, NativeTypeSelector } from "./type-projection-contract.ts";
 
 export const TYPE_OBSERVATION_PROFILE = "authored-type-slots-v1";
 export const ZOD_OUTPUT_PROPERTY = "_output";
-export const TYPE_OBSERVATION_VALUE_FACETS = ["module", "global", "binding", "string", "stable", "authored-value"] as const;
+export const TYPE_OBSERVATION_VALUE_FACETS = [
+  "module",
+  "global",
+  "binding",
+  "string",
+  "stable",
+  "authored-value",
+  "reference-writes",
+  "authored-composite",
+  "type-projection",
+] as const;
 export const TYPE_OBSERVATION_QUESTION_KINDS = [
+  "browser-contracts",
+  "mount-signatures",
+  "ct-mounting",
+  "ct-contributions",
   "node-types",
   "primitive-flags",
   "literal-values",
@@ -42,6 +58,8 @@ export interface TypeObservationQuestion<Anchor = Node> {
   readonly kind: (typeof TYPE_OBSERVATION_QUESTION_KINDS)[number];
   readonly nodes: readonly Anchor[];
   readonly files?: readonly string[] | undefined;
+  readonly relationTargets?: readonly InventorySpan[] | undefined;
+  readonly callableHomes?: readonly { readonly name: string; readonly suffix: string }[] | undefined;
   readonly properties?: readonly string[] | undefined;
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
@@ -187,11 +205,14 @@ export interface TypeObservationCaptureOwner {
   readonly profile?: ((node: Node, facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][]) => void) | undefined;
   readonly references?: ((node: Node) => readonly Node[]) | undefined;
   readonly callableDeclaration?: ((node: Node) => ReferenceFact<CallableDeclaration>) | undefined;
+  readonly module?: ((node: Node) => ReferenceFact<ModuleMemberOrigin>) | undefined;
+  readonly node?: ((span: InventorySpan) => Node) | undefined;
 }
 
 export interface TypeObservationCaptureRequest {
   readonly demand: TypeObservationDemand;
   readonly references?: TypeObservationCaptureOwner["references"];
+  readonly node?: TypeObservationCaptureOwner["node"];
 }
 
 /** Handles are scalar references into an explicit capture, not compiler Type/Symbol facades. */

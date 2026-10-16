@@ -24,32 +24,14 @@ Structure and scoped entrypoints preserve native options, roots, closure and wor
 
 ## Evidence
 
-Token, cast, ID-brand and callable-export delivery preserves native ownership and refusal. Evidence: `reports/review/native-brand-integrated.md`.
+Native token, cast, ID, callable, shape and declaration-output delivery preserves importing-world meaning and lifetime refusal. Evidence: `reports/review/native-brand-integrated.md`, `reports/review/shape-binding-integrated.md` and `reports/review/1027-declaration-output-delivery.md`.
 
-Native shape and declaration-output delivery preserves membership and unknown judgments. Evidence: `reports/review/shape-binding-integrated.md` and `reports/review/1027-declaration-output-delivery.md`.
+Global, invocation, reference, export-home and context-utility consumers use sealed native facts. Schema, JSON, Zod, body-cap, bus and failure consumers preserve their separate populations and authority. Evidence: `reports/review/1027-native-consumers-ordinary.md`, `reports/review/1027-json-three-ordinary.md`, `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
 
-Plugin guards and client assertions consume native callable and computed-name facts. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-computed-normalization-review.md` and its linked reviews.
+CSS providers and retained origins pass ordinary controls and independent review. Census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md` and `reports/review/1027-retained-origins-ordinary.md`.
 
-Clock/random and determinism/mock consumers preserve native demand and refusal. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-global-origin-review.md` and `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-invocation-independent-review.md`.
+Mounted tRPC outputs and inherited service, config and policy members pass review and ordinary controls. Real-router and grant censuses remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md` and `reports/review/1027-native-inherited-members-ordinary.md`.
 
-Sealed-reference consumers preserve grammar, authority and coordinates. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-sealed-reference-independent-review.md`.
+Fixture provenance and browser mounting preserve native helper, alias, signature and importing-world contribution judgments. Review and ordinary controls pass. Evidence: `reports/review/1027-native-fixture-ordinary.md` and `reports/review/1027-native-browser-ordinary.md`.
 
-Export-home consumers preserve native demand, absence, declaration order and publication refusal. Evidence: `.claude/worktrees/codex-corpus-row-clocks/reports/stickler/2026-10-15-native-export-home-independent-review.md`.
-
-Context-utility identity preserves native meaning through sealed global/module and lexical facts. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/1027-no-context-returntype-independent-review.md`.
-
-Native schema and value consumers include assets, table ownership, vectors, enums, nullable, catalogs and JSON. Route, Base UI, registry and inference consumers use finite native observations. Publication tracks executable helpers and codecs. Evidence: `reports/review/1027-native-consumers-ordinary.md`.
-
-JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
-
-Zod, body-cap, origin, ID, reference, bus and failure consumers pass ordinary controls and review. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
-
-CSS providers preserve population and authority. Review and ordinary controls pass; census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
-
-Retained direct and uncast origins pass ordinary controls and security review. Evidence: `reports/review/1027-retained-origins-ordinary.md`.
-
-Mounted tRPC outputs pass review and ordinary controls. Real-router census and cost remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md`.
-
-Inherited service, config and policy members preserve native order and complete populations. Review and ordinary controls pass; grant census remains open. Evidence: `reports/review/1027-native-inherited-members-ordinary.md`.
-
-Fixture provenance preserves native helper and alias judgments. Review and ordinary controls pass; other governance routes stay open. Evidence: `reports/review/1027-native-fixture-ordinary.md`.
+Owner-scoped SQL, remaining checker governance and finite-family integration remain open. Complete consumer equivalence, real-tree censuses, memory and hosted-runner cost remain unqualified.

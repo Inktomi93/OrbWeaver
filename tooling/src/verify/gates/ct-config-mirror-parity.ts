@@ -1,16 +1,17 @@
 // CT mounts use canonical production composition or named isolation; copied lists fail even when their rows match.
 // Factory and component identity use shared reference readers; native mount signatures and visitor-fed views own entry admission.
 // A singleton: registry forwarding, assembly and mounting are one CT composition contract; legacy suites remain outside strict admission.
-import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile, Symbol as TsSymbol, Type, VariableDeclaration } from "ts-morph";
+import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
-import { resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
-import { BROWSER_PACKAGES, worldOf } from "../../floor/compiler/project-worlds.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { worldOf } from "../../floor/compiler/project-worlds.ts";
+import type { CtMountRead } from "../contract/browser-mount-native.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
-import { ctMountArguments, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission, readCtProductionDoor } from "../lib/ct-mount-admission.ts";
-import { definitionField, definitionStringField } from "../lib/registry-definition-field.ts";
+import { nativeCtMountRead } from "../lib/browser-mount-native.ts";
+import { ctMountArguments, isCtMountRoot, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission, readCtProductionDoor } from "../lib/ct-mount-admission.ts";
+import { definitionField } from "../lib/registry-definition-field.ts";
 
 const COMPOSE = "packages/client/src/compose";
 const DOOR_SECTIONS = `${COMPOSE}/config-sections.ts`;
@@ -31,15 +32,17 @@ const UNIT_TEST_NAMES = ["*.test.ts", "*.test.tsx", "*.test-d.ts"] as const;
 /** The factory and the exception are recognised by DECLARATION, never by import spelling or local name. */
 const MINT = "createContributorRegistry";
 const CLOSED_MINT = "createRegistry";
-const MINT_FILE = /(?:^|\/)lib\/registry\.ts$/u;
+const MINT_SUFFIX = "/lib/registry.ts";
+const MINT_FILE = new RegExp(`${RegExp.escape(MINT_SUFFIX)}$`, "u");
 const ISOLATE = "isolationRegistry";
-const ISOLATE_FILE = /(?:^|\/)ct-isolation\.ts$/u;
+const ISOLATE_SUFFIX = "/ct-isolation.ts";
+const ISOLATE_FILE = new RegExp(`${RegExp.escape(ISOLATE_SUFFIX)}$`, "u");
 
 const MESSAGE =
   "CTs must reuse production factories, registry declarations and providers; an equal copied assembly is still drift. Maintained browser-package CTs enter through CtClientProviders or a named CtIsolation. Registry subsets use isolationRegistry with the actual registry name and an authored reason.";
 const FIX = `Forward declarations through ${CT_DOOR}; mount CtClientProviders from ${CT_PROVIDERS}, or state a genuine isolated subject through ${CT_ISOLATION}. Derive registry variants through isolationRegistry instead of copying lists.`;
 
-type RowReader = (declaration: VariableDeclaration) => readonly string[];
+type RowReader = (declaration: VariableDeclaration, read: CtMountRead) => readonly string[];
 
 interface Family {
   readonly label: string;
@@ -56,20 +59,20 @@ function variable(source: SourceFile, name: string): VariableDeclaration {
   return declaration;
 }
 
-function objectValue(node: MorphNode | undefined, label: string): ObjectLiteralExpression {
+function objectValue(node: MorphNode | undefined, label: string, read: CtMountRead): ObjectLiteralExpression {
   if (node === undefined) {
     throw new Error(`${label} has no value`);
   }
-  const resolved = resolveAuthoredComposite(node);
+  const resolved = read.composite(node);
   if (resolved.kind === "unresolved" || !Node.isObjectLiteralExpression(resolved.value)) {
     throw new Error(`${label} is not an authored object literal`);
   }
   return resolved.value;
 }
 
-function findCanonicalVariable(node: MorphNode): VariableDeclaration | undefined {
-  const origin = resolveModuleMemberOrigin(node);
-  const stable = origin.kind === "unresolved" ? resolveStableExpression(node) : undefined;
+function findCanonicalVariable(node: MorphNode, read: CtMountRead): VariableDeclaration | undefined {
+  const origin = read.module(node);
+  const stable = origin.kind === "unresolved" ? read.stable(node) : undefined;
   const declaration =
     origin.kind === "resolved" && origin.value.canonical.kind === "project"
       ? origin.value.canonical.declaration
@@ -77,17 +80,18 @@ function findCanonicalVariable(node: MorphNode): VariableDeclaration | undefined
   return declaration !== undefined && Node.isVariableDeclaration(declaration) ? declaration : undefined;
 }
 
-function canonicalVariable(node: MorphNode, label: string): VariableDeclaration {
-  const declaration = findCanonicalVariable(node);
+function canonicalVariable(node: MorphNode, label: string, read: CtMountRead): VariableDeclaration {
+  const declaration = findCanonicalVariable(node, read);
   if (declaration === undefined) {
     throw new Error(`${label} does not resolve to one exported variable`);
   }
   return declaration;
 }
 
-function authoredString(object: ObjectLiteralExpression, field: string, label: string): string {
-  const value = definitionStringField(object, field);
-  if (value === undefined || value.kind === "unresolved") {
+function authoredString(object: ObjectLiteralExpression, field: string, label: string, read: CtMountRead): string {
+  const node = definitionField(object, field);
+  const value = node === undefined ? undefined : read.scalar(node);
+  if (value === undefined || value.kind === "unresolved" || typeof value.value !== "string") {
     throw new Error(`${label}.${field} is not an authored string`);
   }
   return value.value;
@@ -105,22 +109,23 @@ function memberElements(declaration: VariableDeclaration): readonly MorphNode[] 
 
 const memberRows: RowReader = (declaration) => memberElements(declaration).map((member) => member.getText().replaceAll(/\s+/gu, " "));
 
-const sectionRows: RowReader = (declaration) =>
+const sectionRows: RowReader = (declaration, read) =>
   memberElements(declaration).map((member) => {
-    const contribution = canonicalVariable(member, member.getText());
-    const contributionObject = objectValue(contribution.getInitializer(), contribution.getName());
-    const anchor = authoredString(contributionObject, "anchor", contribution.getName());
-    const sectionId = authoredString(contributionObject, "id", contribution.getName());
-    const nav = objectValue(definitionField(contributionObject, "nav"), `${contribution.getName()}.nav`);
-    const subId = authoredString(nav, "id", `${contribution.getName()}.nav`);
+    const contribution = canonicalVariable(member, member.getText(), read);
+    const contributionObject = objectValue(contribution.getInitializer(), contribution.getName(), read);
+    const anchor = authoredString(contributionObject, "anchor", contribution.getName(), read);
+    const sectionId = authoredString(contributionObject, "id", contribution.getName(), read);
+    const nav = objectValue(definitionField(contributionObject, "nav"), `${contribution.getName()}.nav`, read);
+    const subId = authoredString(nav, "id", `${contribution.getName()}.nav`, read);
     return `${anchor}/${subId}=>${sectionId}`;
   });
 
-const groupRows: RowReader = (declaration) => {
+const groupRows: RowReader = (declaration, read) => {
   const initializer = declaration.getInitializer();
   const object = objectValue(
     initializer !== undefined && Node.isCallExpression(initializer) ? initializer.getArguments()[2] : initializer,
     declaration.getName(),
+    read,
   );
   return object.getProperties().map((property) => {
     if (!Node.isPropertyAssignment(property)) {
@@ -130,7 +135,7 @@ const groupRows: RowReader = (declaration) => {
     if (value === undefined) {
       throw new Error(`${property.getName()} has no group value`);
     }
-    return `${property.getName()}=>${canonicalVariable(value, property.getName()).getName()}`;
+    return `${property.getName()}=>${canonicalVariable(value, property.getName(), read).getName()}`;
   });
 };
 
@@ -308,9 +313,9 @@ type Required = (path: string) => SourceFile;
 type Report = (node: MorphNode, message: string) => void;
 
 /** Each family's `ct-door.ts` export against its `compose/` declaration; returns the door's registry names. */
-function checkFamilies(required: Required, report: Report): ReadonlySet<string> {
+function checkFamilies(required: Required, report: Report, read: CtMountRead): ReadonlySet<string> {
   const ctDoorSource = required(CT_DOOR);
-  const exported = ctDoorSource.getExportedDeclarations();
+  const exported = new Map(FAMILIES.map((family) => [family.name, read.exports(ctDoorSource, family.name)]));
   const doorRegistryNames = new Set<string>();
   for (const family of FAMILIES) {
     const door = variable(required(family.doorFile), family.name);
@@ -322,7 +327,7 @@ function checkFamilies(required: Required, report: Report): ReadonlySet<string> 
     if (mirror === undefined) {
       report(ctDoorSource, `${family.label}: ${CT_DOOR} does not export ${family.name}.`);
     } else if (!sameDeclaration(mirror, door)) {
-      const diff = differences(family.rows(door), family.rows(mirror));
+      const diff = differences(family.rows(door, read), family.rows(mirror, read));
       report(
         mirror,
         diff.length > 0
@@ -338,15 +343,15 @@ function sameDeclaration(left: MorphNode, right: MorphNode): boolean {
   return left.getSourceFile().getFilePath() === right.getSourceFile().getFilePath() && left.getStart() === right.getStart() && left.getEnd() === right.getEnd();
 }
 
-function checkGroups(required: Required, report: Report): void {
+function checkGroups(required: Required, report: Report, read: CtMountRead): void {
   const source = required(CT_GROUPS);
-  const mirror = source.getExportedDeclarations().get("realConfigGroups")?.find(Node.isVariableDeclaration);
+  const mirror = read.exports(source, "realConfigGroups")?.find(Node.isVariableDeclaration);
   const door = variable(required(DOOR_GROUPS), "configGroups");
   if (mirror !== undefined && sameDeclaration(mirror, door)) {
     return;
   }
   const copied = source.getVariableDeclaration("REAL_CONFIG_GROUPS");
-  const diff = copied === undefined ? [] : differences(groupRows(door), groupRows(copied));
+  const diff = copied === undefined ? [] : differences(groupRows(door, read), groupRows(copied, read));
   report(
     copied ?? source,
     diff.length > 0
@@ -371,8 +376,8 @@ interface HarnessFacts {
 }
 
 /** The callee resolved to its project declaration through imports, re-exports, namespaces and immutable aliases. */
-function callsDeclared(call: CallExpression, name: string, file: RegExp): boolean {
-  const origin = resolveModuleMemberOrigin(call.getExpression());
+function callsDeclared(call: CallExpression, name: string, file: RegExp, read: CtMountRead): boolean {
+  const origin = read.module(call.getExpression());
   if (origin.kind !== "resolved" || origin.value.canonical.kind !== "project") {
     return false;
   }
@@ -381,24 +386,36 @@ function callsDeclared(call: CallExpression, name: string, file: RegExp): boolea
 }
 
 /** The `Def` of the `ContributorRegistry<Def>` a call returns. */
-function contributionType(call: CallExpression): Type | undefined {
-  const def = call.getType().getTypeArguments().at(-1);
-  return def === undefined || def.isAny() ? undefined : def;
+function contributionType(call: CallExpression, read: CtMountRead): NativeTypeSelector | undefined {
+  const def = read.types.typeArguments(nodeTypeSelector(call)).at(-1);
+  if (def === undefined) {
+    return;
+  }
+  const selected = read.types.select(def);
+  return selected === null || read.types.type(selected).any ? undefined : def;
 }
 
-/** The type's own symbol: an alias when it has one, else the interface or class. */
-function ownSymbol(type: Type): TsSymbol | undefined {
-  return type.getAliasSymbol() ?? type.getSymbol();
+function ownSymbol(type: NativeTypeSelector, read: CtMountRead): object | undefined {
+  const selected = read.types.select(type);
+  if (selected === null) {
+    return;
+  }
+  const metadata = read.types.type(selected);
+  const symbol = metadata.aliasSymbol ?? metadata.symbol;
+  return symbol === null ? undefined : read.types.symbolData(symbol).key;
 }
-
-function typeLabel(type: Type): string {
-  return type.getAliasSymbol()?.getName() ?? type.getSymbol()?.getName() ?? type.getText();
+function typeLabel(type: NativeTypeSelector, read: CtMountRead): string {
+  const selected = read.types.select(type);
+  if (selected === null) {
+    throw new Error("native contribution type is absent");
+  }
+  const metadata = read.types.type(selected);
+  const symbol = metadata.aliasSymbol ?? metadata.symbol;
+  return symbol === null ? read.types.defaultDisplay(type) : read.types.symbolData(symbol).name;
 }
-
-/** A contribution type is a door type when it is a door's own declaration or a structural subtype of one. */
-function isDoorType(type: Type, doorTypes: readonly Type[]): boolean {
-  const symbol = ownSymbol(type);
-  return doorTypes.some((door) => (symbol !== undefined && symbol === ownSymbol(door)) || type.isAssignableTo(door));
+function isDoorType(type: NativeTypeSelector, doorTypes: readonly NativeTypeSelector[], read: CtMountRead): boolean {
+  const symbol = ownSymbol(type, read);
+  return doorTypes.some((door) => (symbol !== undefined && symbol === ownSymbol(door, read)) || read.types.relation(type, door)?.leftToRight === true);
 }
 
 function literalArgument(call: CallExpression, index: number): string | undefined {
@@ -407,12 +424,12 @@ function literalArgument(call: CallExpression, index: number): string | undefine
 }
 
 /** Sorts one call into the facts the policy judges, by the file it sits in. */
-function gatherMount(facts: HarnessFacts, path: string, call: CallExpression): void {
+function gatherMount(facts: HarnessFacts, path: string, call: CallExpression, read: CtMountRead): void {
   if (path === CT_PROVIDERS || path === CT_RUNTIME) {
     facts.compositionCalls.push(call);
   }
-  if ([...BROWSER_PACKAGES].some((name) => path.startsWith(`tests/${name}/`)) && path.endsWith(".ct.tsx")) {
-    const args = ctMountArguments(call);
+  if (isCtMountRoot(path)) {
+    const args = ctMountArguments(call, read);
     if (args !== undefined) {
       facts.mounts.push({ call, args });
     }
@@ -422,12 +439,12 @@ function gatherMount(facts: HarnessFacts, path: string, call: CallExpression): v
 const CLOSED_REGISTRY_ARITY = 3;
 const REGISTRY_CALL_ARITIES: ReadonlySet<number> = new Set([2, CLOSED_REGISTRY_ARITY]);
 
-function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): void {
-  gatherMount(facts, path, call);
+function gatherCall(facts: HarnessFacts, path: string, call: CallExpression, read: CtMountRead): void {
+  gatherMount(facts, path, call, read);
   if (!REGISTRY_CALL_ARITIES.has(call.getArguments().length)) {
     return;
   }
-  const mint = callsDeclared(call, MINT, MINT_FILE) || callsDeclared(call, CLOSED_MINT, MINT_FILE);
+  const mint = callsDeclared(call, MINT, MINT_FILE, read) || callsDeclared(call, CLOSED_MINT, MINT_FILE, read);
   if (path.startsWith(`${COMPOSE}/`)) {
     if (mint) {
       facts.doorMints.push(call);
@@ -435,51 +452,59 @@ function gatherCall(facts: HarnessFacts, path: string, call: CallExpression): vo
   } else if (path !== CT_ISOLATION && path !== CT_DOOR && path.startsWith("tests/")) {
     if (mint) {
       facts.storyMints.push(call);
-    } else if (callsDeclared(call, ISOLATE, ISOLATE_FILE)) {
+    } else if (callsDeclared(call, ISOLATE, ISOLATE_FILE, read)) {
       facts.isolations.push(call);
     }
   }
 }
 
 /** A registry of a door contribution type is the door export or a named isolation subset, whatever its name. */
-function checkStories(facts: HarnessFacts, report: Report): void {
-  const doorTypes = facts.doorMints.flatMap((call) => contributionType(call) ?? []);
+function checkStories(facts: HarnessFacts, report: Report, readAt: (source: SourceFile) => CtMountRead): void {
+  const doorTypes = facts.doorMints.flatMap((call) => contributionType(call, readAt(call.getSourceFile())) ?? []);
   const names = new Set(facts.doorMints.flatMap((call) => literalArgument(call, 0) ?? []));
   if (doorTypes.length === 0) {
     throw new Error("the production door files mint no registry the checker can type, so no story mint can be judged");
   }
   for (const call of facts.storyMints) {
-    const def = contributionType(call);
-    if (def !== undefined && isDoorType(def, doorTypes)) {
+    const read = readAt(call.getSourceFile());
+    const def = contributionType(call, read);
+    if (def !== undefined && isDoorType(def, doorTypes, read)) {
       report(
         call,
-        `a registry of the door contribution type "${typeLabel(def)}" is minted by hand (${literalArgument(call, 0) ?? "unnamed"}); take it from ${CT_DOOR} or declare the subset with ${ISOLATE}(name, isolates, members).`,
+        `a registry of the door contribution type "${typeLabel(def, read)}" is minted by hand (${literalArgument(call, 0) ?? "unnamed"}); take it from ${CT_DOOR} or declare the subset with ${ISOLATE}(name, isolates, members).`,
       );
     }
   }
-  checkIsolations(facts.isolations, doorTypes, names, report);
+  checkIsolations(facts.isolations, { types: doorTypes, names }, report, readAt);
 }
 
-function checkIsolations(isolations: readonly CallExpression[], doorTypes: readonly Type[], names: ReadonlySet<string>, report: Report): void {
+function checkIsolations(
+  isolations: readonly CallExpression[],
+  door: { readonly types: readonly NativeTypeSelector[]; readonly names: ReadonlySet<string> },
+  report: Report,
+  readAt: (source: SourceFile) => CtMountRead,
+): void {
+  const { types: doorTypes, names } = door;
   for (const call of isolations) {
-    const def = contributionType(call);
+    const read = readAt(call.getSourceFile());
+    const def = contributionType(call, read);
     const isolates = literalArgument(call, 1);
     const name = literalArgument(call, 0);
-    if (def === undefined || !isDoorType(def, doorTypes)) {
+    if (def === undefined || !isDoorType(def, doorTypes, read)) {
       report(call, `${ISOLATE} wraps a registry that is not of a door contribution type; mint it with ${MINT}.`);
     } else if (name === undefined || !names.has(name)) {
       report(call, `${ISOLATE} must name the production registry whose contributions it keeps apart.`);
     } else if (isolates === undefined || isolates.trim().split(/\s+/u).length < MIN_ISOLATION_REASON_WORDS) {
       report(
         call,
-        `${ISOLATE} for "${typeLabel(def)}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATION_REASON_WORDS}+ words what the story keeps apart from the production roster.`,
+        `${ISOLATE} for "${typeLabel(def, read)}" has no \`isolates\` text: state in an authored string of ${MIN_ISOLATION_REASON_WORDS}+ words what the story keeps apart from the production roster.`,
       );
     }
   }
 }
 
 /** Genuine factories and providers prevent a parallel graph; maintained mounts enter through that door or named isolation. */
-function productionWitness(required: Required, facts: HarnessFacts, report: Report): MorphNode | undefined {
+function productionWitness(required: Required, facts: HarnessFacts, report: Report, read: CtMountRead): MorphNode | undefined {
   let missingWitness = false;
   for (const [home, name] of [
     [DOOR_GROUPS, "createAuthedComposition"],
@@ -488,7 +513,7 @@ function productionWitness(required: Required, facts: HarnessFacts, report: Repo
     const target = required(home).getFunctionOrThrow(name);
     if (
       !facts.compositionCalls.some((call) => {
-        const resolved = resolveCallableDeclaration(call);
+        const resolved = read.callable(call);
         return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, target);
       })
     ) {
@@ -499,7 +524,7 @@ function productionWitness(required: Required, facts: HarnessFacts, report: Repo
   const provider = required(DOOR_PROVIDERS).getFunctionOrThrow("AuthedProviders");
   if (
     !facts.providerTags.some((tag) => {
-      const resolved = resolveCallableDeclaration(tag);
+      const resolved = read.callable(tag);
       return resolved.kind === "resolved" && sameDeclaration(resolved.value.declaration, provider);
     })
   ) {
@@ -512,8 +537,8 @@ function productionWitness(required: Required, facts: HarnessFacts, report: Repo
   return provider;
 }
 
-function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryNames: ReadonlySet<string>, report: Report): void {
-  const provider = productionWitness(required, facts, report);
+function checkHarness(required: Required, facts: HarnessFacts, report: Report, read: CtMountRead): void {
+  const provider = productionWitness(required, facts, report, read);
   if (provider === undefined) {
     return;
   }
@@ -521,7 +546,12 @@ function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryName
   const problems =
     door === undefined
       ? ["the returned CtClientProviders declaration is absent"]
-      : readCtProductionDoor({ door, factory: required(DOOR_GROUPS).getFunctionOrThrow("createAuthedComposition"), provider }, facts.returns, facts.children);
+      : readCtProductionDoor(
+          { door, factory: required(DOOR_GROUPS).getFunctionOrThrow("createAuthedComposition"), provider },
+          facts.returns,
+          facts.children,
+          read,
+        );
   if (problems.length > 0 || door === undefined) {
     for (const problem of problems) {
       report(door ?? required(CT_PROVIDERS), problem);
@@ -532,7 +562,7 @@ function checkHarness(required: Required, facts: HarnessFacts, _doorRegistryName
     const mountProblems =
       args.length === 0
         ? ["an indirect or empty native mount exposes no readable subject"]
-        : args.flatMap((arg) => readCtMountAdmission(arg, facts.returns, facts.children, door));
+        : args.flatMap((arg) => readCtMountAdmission(arg, facts.returns, facts.children, { productionDoor: door, read }));
     for (const problem of mountProblems) {
       report(call, problem);
     }
@@ -607,11 +637,27 @@ export const gate = defineGate({
       returns: new Map(),
       children: new Map(),
     };
+    const nodes: MorphNode[] = [];
+    const calls: CallExpression[] = [];
+    const native = nativeCtMountRead(ctx, () => nodes, {
+      exports: new Map([
+        [CT_DOOR, FAMILIES.map((family) => family.name)],
+        [CT_GROUPS, ["realConfigGroups"]],
+      ]),
+      composeRoot: COMPOSE,
+      callableHomes: [
+        { name: MINT, suffix: MINT_SUFFIX },
+        { name: CLOSED_MINT, suffix: MINT_SUFFIX },
+        { name: ISOLATE, suffix: ISOLATE_SUFFIX },
+      ],
+    });
     return {
+      prepare: native.prepare,
       visitFile: (source) => files.set(ctx.relativePath(source), source),
       visitors: [
         {
           kinds: [
+            SyntaxKind.VariableDeclaration,
             SyntaxKind.CallExpression,
             SyntaxKind.FunctionDeclaration,
             SyntaxKind.FunctionExpression,
@@ -626,9 +672,10 @@ export const gate = defineGate({
           ],
           visit: (node, source) => {
             const path = ctx.relativePath(source);
+            nodes.push(node);
             gatherView(harness, node, path);
             if (Node.isCallExpression(node)) {
-              gatherCall(harness, path, node);
+              calls.push(node);
             }
           },
         },
@@ -642,10 +689,14 @@ export const gate = defineGate({
           return source;
         };
         const report: Report = (node, detail) => ctx.report.node(node, { message: `${MESSAGE} ${detail}`, fix: FIX });
-        const doorRegistryNames = checkFamilies(required, report);
-        checkGroups(required, report);
-        checkHarness(required, harness, doorRegistryNames, report);
-        checkStories(harness, report);
+        const read = native.at(required(CT_PROVIDERS));
+        for (const call of calls) {
+          gatherCall(harness, ctx.relativePath(call.getSourceFile()), call, native.at(call.getSourceFile()));
+        }
+        checkFamilies(required, report, read);
+        checkGroups(required, report, read);
+        checkHarness(required, harness, report, read);
+        checkStories(harness, report, native.at);
       },
     };
   },
@@ -999,6 +1050,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: proofFiles({
+        [CT_PROVIDERS]:
+          'import { createAuthedComposition, AuthedProviders } from "./ct-door.ts";\nfunction relay(graph: object) { return { graph }; }\nexport function CtClientProviders({ children }: { children?: object }) { const graph = createAuthedComposition({}); const forwarded = relay(graph); return <AuthedProviders composition={forwarded.graph}>{children}</AuthedProviders>; }\n',
+      }),
+      why: "a shorthand helper result retains the lexical parameter binding rather than its object-property symbol",
+    },
     {
       mode: "types",
       files: proofFiles({

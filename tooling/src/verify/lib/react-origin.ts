@@ -141,7 +141,10 @@ export interface ReactExportMatcher {
 }
 
 /** Build an invocation-local matcher for ONE React export. Each source file's alias index is computed once. */
-export function createReactExportMatcher(exportedName: string): ReactExportMatcher {
+export function createReactExportMatcher(
+  exportedName: string,
+  services?: Pick<import("../contract/origin-verdict.ts").ModuleOriginServices, "moduleOrigin">,
+): ReactExportMatcher {
   const spellingsBySource = new WeakMap<object, ReadonlySet<string>>();
   const spellings = (source: SourceFile): ReadonlySet<string> => {
     let cached = spellingsBySource.get(source.compilerNode);
@@ -156,7 +159,7 @@ export function createReactExportMatcher(exportedName: string): ReactExportMatch
       if (!couldNameReactExport(node, exportedName, spellings(node.getSourceFile()))) {
         return "other";
       }
-      return verdictOf(resolveModuleMemberOrigin(node), exportedName, node);
+      return verdictOf(services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node), exportedName, node);
     },
     // AN IMPORT SPECIFIER'S OWN NAME IS THE MODULE'S EXPORT NAME, alias or not, so a specifier spelled
     // anything else is a PROVEN different export and never a candidate. Resolving every `from "react"`
@@ -169,7 +172,7 @@ export function createReactExportMatcher(exportedName: string): ReactExportMatch
       if (specifier.getName() !== exportedName) {
         return;
       }
-      return verdictOf(resolveModuleMemberOrigin(specifier), exportedName, specifier.getNameNode());
+      return verdictOf(services === undefined ? resolveModuleMemberOrigin(specifier) : services.moduleOrigin(specifier), exportedName, specifier.getNameNode());
     },
   };
 }

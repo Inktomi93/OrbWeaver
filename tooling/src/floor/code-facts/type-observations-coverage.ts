@@ -70,6 +70,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   }
   assertRawNominations(facts, key);
   assertConstInitializerCoverage(facts, key);
+  assertContributionDemand(facts);
   assertNamedPropertyCoverage(facts, key);
   assertSelectedPropertyGraphDemand(facts, key, kind);
   assertCallableBodyNominations(facts, key);
@@ -200,7 +201,10 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
     questions.some((q) =>
       q.kind === "value-profiles"
         ? q.valueFacets === undefined
-        : q.kind !== "definition-closure" &&
+        : q.kind !== "ct-contributions" &&
+          q.kind !== "ct-mounting" &&
+          q.kind !== "browser-contracts" &&
+          q.kind !== "definition-closure" &&
           q.kind !== "declaration-closure" &&
           q.kind !== "const-initializers" &&
           q.kind !== "selected-property-graph" &&
@@ -836,6 +840,26 @@ export function assertCompletePropertyCoverage<Anchor>(facts: TypeObservationVal
       }
     } else if (row.propertyCount !== undefined) {
       throw new Error("native complete property count is unrequested");
+    }
+  }
+}
+
+function assertContributionDemand<Anchor>(facts: TypeObservationValues<Anchor>): void {
+  for (const question of facts.demand.questions ?? []) {
+    const selected = question.kind === "ct-contributions";
+    if (selected !== (question.relationTargets !== undefined) || selected !== (question.callableHomes !== undefined)) {
+      throw new Error("native contribution relation demand is missing or foreign");
+    }
+    if (!selected) {
+      continue;
+    }
+    uniqueRawKeys((question.relationTargets ?? []).map((span) => JSON.stringify(span)));
+    uniqueRawKeys((question.callableHomes ?? []).map((home) => JSON.stringify(home)));
+    if (
+      question.relationTargets?.some((span) => span.kind !== SyntaxKind.CallExpression || span.end < span.start) === true ||
+      question.callableHomes?.some((home) => home.name.length === 0 || !home.suffix.startsWith("/")) === true
+    ) {
+      throw new Error("native contribution relation demand is malformed");
     }
   }
 }

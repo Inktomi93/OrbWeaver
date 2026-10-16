@@ -7,7 +7,12 @@ import { assertCompletePropertyCoverage, assertRawParameterCoverage, assertTypeA
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
-export function readTypeObservations(facts: NativeTypeObservations, references?: TypeObservationCaptureOwner["references"]): TypeObservationReader {
+export function readTypeObservations(
+  facts: NativeTypeObservations,
+  references?: TypeObservationCaptureOwner["references"],
+  module?: TypeObservationCaptureOwner["module"],
+  targetNode?: TypeObservationCaptureOwner["node"],
+): TypeObservationReader {
   assertCompletePropertyCoverage(facts);
   const scope = {};
   const selectedIndex = facts.selections === null ? undefined : typeSelectorIndex(facts.selections.plan);
@@ -345,7 +350,7 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     },
   };
   if (facts.definitions === undefined) {
-    observeAuthoredTypeSlots(facts.demand, reader, undefined, references);
+    observeAuthoredTypeSlots(facts.demand, reader, undefined, { references, module, node: targetNode });
   } else {
     const usedDefinitions = new Set<Node>();
     const displays = new Set<number>();
@@ -421,7 +426,7 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
         }
         values.set(node, requested);
       },
-      references,
+      { references, module, node: targetNode },
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
     assertConstInitializerRelationships(facts, reader);

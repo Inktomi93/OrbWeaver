@@ -1,35 +1,38 @@
 // CT admission consumes visitor-fed returns and JSX children; canonical callable and alias readers own identity.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { inspectReferenceWrites, resolveLexicalValueDeclaration, resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { BROWSER_PACKAGES } from "../../floor/compiler/project-worlds.ts";
+import type { CtMountRead } from "../contract/browser-mount-native.ts";
 import { readStringValue } from "./ast-read.ts";
 import { jsxAttributeNamed } from "./query-boundary-vocabulary.ts";
 import { createReactExportMatcher } from "./react-origin.ts";
 
-function nativeMount(node: MorphNode): boolean {
-  return node
-    .getType()
-    .getNonNullableType()
-    .getCallSignatures()
-    .some((signature) => {
-      const declaration = signature.getDeclaration();
-      return (
+/** The maintained component-test roots alone carry the native mount admission question. */
+export function isCtMountRoot(path: string): boolean {
+  return [...BROWSER_PACKAGES].some((name) => path.startsWith(`tests/${name}/`)) && path.endsWith(".ct.tsx");
+}
+
+function nativeMount(node: MorphNode, read: CtMountRead): boolean {
+  return read.types
+    .signatureDeclarations({ ...nodeTypeSelector(node), steps: [{ kind: "nonnullable" }] }, "call")
+    .some(
+      (declaration) =>
         declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith("/node_modules/@playwright/experimental-ct-react/index.d.ts") &&
-        declaration.getFirstAncestorByKind(SyntaxKind.PropertySignature)?.getName() === "mount"
-      );
-    });
+        declaration.getFirstAncestorByKind(SyntaxKind.PropertySignature)?.getName() === "mount",
+    );
 }
 
 /** Native mount signatures survive local aliases; indirect Function wrappers refuse rather than disappear. */
-export function ctMountArguments(call: CallExpression): readonly MorphNode[] | undefined {
+export function ctMountArguments(call: CallExpression, read: CtMountRead): readonly MorphNode[] | undefined {
   const callee = call.getExpression();
-  if (nativeMount(callee)) {
+  if (nativeMount(callee, read)) {
     const first = call.getArguments()[0];
     return first === undefined ? [] : [first];
   }
   const member = staticMemberAccess(callee);
-  return member !== undefined && (member.name === "call" || member.name === "apply") && nativeMount(member.receiver) ? [] : undefined;
+  return member !== undefined && (member.name === "call" || member.name === "apply") && nativeMount(member.receiver, read) ? [] : undefined;
 }
 
 export const MIN_ISOLATION_REASON_WORDS = 3;
@@ -105,18 +108,24 @@ class ProductionDoorReader {
   // Nested use of one provider at distinct JSX call sites is not recursive rendering.
   private readonly activeTrees = new Map<object, Set<object>>();
   private readonly activeValues = new Map<object, Set<string>>();
-  private readonly stateHook = createReactExportMatcher("useState");
-  private readonly contextHook = createReactExportMatcher("use");
-  private readonly contextFactory = createReactExportMatcher("createContext");
+  private readonly readFacts: CtMountRead;
+  private readonly stateHook: ReturnType<typeof createReactExportMatcher>;
+  private readonly contextHook: ReturnType<typeof createReactExportMatcher>;
+  private readonly contextFactory: ReturnType<typeof createReactExportMatcher>;
 
   constructor(
-    factory: MorphNode,
-    provider: MorphNode,
+    targets: { readonly factory: MorphNode; readonly provider: MorphNode },
     returns: ReadonlyMap<object, readonly MorphNode[]>,
     children: ReadonlyMap<object, readonly MorphNode[]>,
+    read: CtMountRead,
   ) {
-    this.factory = factory;
-    this.provider = provider;
+    this.readFacts = read;
+    const services = { moduleOrigin: read.module };
+    this.stateHook = createReactExportMatcher("useState", services);
+    this.contextHook = createReactExportMatcher("use", services);
+    this.contextFactory = createReactExportMatcher("createContext", services);
+    this.factory = targets.factory;
+    this.provider = targets.provider;
     this.returns = returns;
     this.children = children;
   }
@@ -147,8 +156,8 @@ class ProductionDoorReader {
   }
 
   private bound(node: MorphNode, environment: DoorEnvironment): readonly DoorValue[] | undefined {
-    const declaration = resolveLexicalValueDeclaration(node);
-    return declaration.kind === "resolved" ? environment.bindings.get(declaration.value.compilerNode) : undefined;
+    const declaration = this.readFacts.lexical(node);
+    return declaration !== undefined ? environment.bindings.get(declaration.compilerNode) : undefined;
   }
 
   private siblingTrees(trees: readonly DoorTree[]): DoorTree {
@@ -189,18 +198,18 @@ class ProductionDoorReader {
   }
 
   private tree(input: MorphNode, environment: DoorEnvironment, provided: boolean): DoorTree {
-    if (Node.isIdentifier(input) && inspectReferenceWrites(input).kind === "unresolved") {
+    if (Node.isIdentifier(input) && this.readFacts.writes(input).kind === "unresolved") {
       return UNREADABLE_DOOR_TREE;
     }
-    const binding = resolveLexicalValueDeclaration(input);
-    if (binding.kind === "resolved" && this.subject.has(binding.value.compilerNode)) {
+    const binding = this.readFacts.lexical(input);
+    if (binding !== undefined && this.subject.has(binding.compilerNode)) {
       return { ...NO_DOOR_TREE, delivered: provided, escaped: !provided };
     }
     const bound = this.bound(input, environment);
     if (bound !== undefined) {
       return this.siblingTrees(bound.map((value) => this.tree(value.node, value.environment, provided)));
     }
-    const stable = resolveStableExpression(input);
+    const stable = this.readFacts.stable(input);
     const node = stable.kind === "resolved" ? stable.value : stable.node;
     const active = this.activeTrees.get(node.compilerNode) ?? new Set<object>();
     if (active.has(environment.invocation)) {
@@ -232,7 +241,7 @@ class ProductionDoorReader {
       return NEUTRAL_TREE_KINDS.has(node.getKind()) ? NO_DOOR_TREE : UNREADABLE_DOOR_TREE;
     }
     const tag = opening.getTagNameNode();
-    const callable = resolveCallableDeclaration(tag);
+    const callable = this.readFacts.callable(tag);
     if (callable.kind === "resolved" && sameHome(callable.value.declaration, this.provider)) {
       return this.providerTree(node, environment);
     }
@@ -260,7 +269,7 @@ class ProductionDoorReader {
   }
 
   private contextIdentity(node: MorphNode): object | undefined {
-    const stable = resolveStableExpression(node);
+    const stable = this.readFacts.stable(node);
     const value = stable.kind === "resolved" ? stable.value : stable.node;
     return Node.isCallExpression(value) && this.contextFactory.reference(value.getExpression()) === "react"
       ? stable.trace.declarations.findLast(Node.isVariableDeclaration)?.compilerNode
@@ -268,14 +277,14 @@ class ProductionDoorReader {
   }
 
   private origin(input: MorphNode, environment: DoorEnvironment, path: readonly string[]): CompositionOrigin {
-    if (Node.isIdentifier(input) && inspectReferenceWrites(input).kind === "unresolved") {
+    if (Node.isIdentifier(input) && this.readFacts.writes(input).kind === "unresolved") {
       return UNREADABLE_COMPOSITION;
     }
     const bound = this.bound(input, environment);
     if (bound !== undefined) {
       return this.origins(bound.map((value) => this.origin(value.node, value.environment, path)));
     }
-    const stable = resolveStableExpression(input);
+    const stable = this.readFacts.stable(input);
     if (stable.kind === "unresolved" && ["write", "cycle", "ambiguous"].includes(stable.reason)) {
       return UNREADABLE_COMPOSITION;
     }
@@ -354,7 +363,7 @@ class ProductionDoorReader {
   }
 
   private callOrigin(call: CallExpression, environment: DoorEnvironment, path: readonly string[]): CompositionOrigin {
-    const callable = resolveCallableDeclaration(call);
+    const callable = this.readFacts.callable(call);
     if (callable.kind === "resolved" && sameHome(callable.value.declaration, this.factory)) {
       return { valid: path.length === 0, nullable: false };
     }
@@ -375,7 +384,7 @@ class ProductionDoorReader {
     if (initializer === undefined) {
       return UNREADABLE_COMPOSITION;
     }
-    const callback = resolveCallableDeclaration(initializer);
+    const callback = this.readFacts.callable(initializer);
     const values = callback.kind === "resolved" ? this.returned(callback.value.declaration) : [initializer];
     return this.origins(values.map((value) => this.origin(value, environment, path)));
   }
@@ -387,7 +396,7 @@ class ProductionDoorReader {
     if (bound !== undefined) {
       return this.origin(bound.node, bound.environment, path);
     }
-    const stable = context === undefined ? undefined : resolveStableExpression(context);
+    const stable = context === undefined ? undefined : this.readFacts.stable(context);
     const creation = stable?.kind === "resolved" ? stable.value : stable?.node;
     const initial = identity !== undefined && Node.isCallExpression(creation) ? creation.getArguments()[0] : undefined;
     return initial === undefined ? UNREADABLE_COMPOSITION : this.origin(initial, environment, path);
@@ -411,8 +420,9 @@ export function readCtProductionDoor(
   targets: { readonly door: MorphNode; readonly factory: MorphNode; readonly provider: MorphNode },
   returns: ReadonlyMap<object, readonly MorphNode[]>,
   children: ReadonlyMap<object, readonly MorphNode[]>,
+  read: CtMountRead,
 ): readonly string[] {
-  return new ProductionDoorReader(targets.factory, targets.provider, returns, children).read(targets.door);
+  return new ProductionDoorReader(targets, returns, children, read).read(targets.door);
 }
 
 interface ViewAdmission {
@@ -441,8 +451,9 @@ export function readCtMountAdmission(
   expression: MorphNode,
   returns: ReadonlyMap<object, readonly MorphNode[]>,
   children: ReadonlyMap<object, readonly MorphNode[]>,
-  productionDoor: MorphNode,
+  context: { readonly productionDoor: MorphNode; readonly read: CtMountRead },
 ): readonly string[] {
+  const { productionDoor, read } = context;
   const active = new Set<object>();
   const neutral: ViewAdmission = { hasDoor: false, problems: [] };
   const failed = (message: string): ViewAdmission => ({ hasDoor: false, problems: [message] });
@@ -486,7 +497,7 @@ export function readCtMountAdmission(
     if (Node.isIdentifier(tag) && /^[a-z]/u.test(tag.getText())) {
       return childViews(node);
     }
-    const callable = resolveCallableDeclaration(tag);
+    const callable = read.callable(tag);
     if (callable.kind === "unresolved") {
       return failed(`mounted component ${tag.getText()} has unresolved identity (${callable.reason})`);
     }
@@ -525,7 +536,7 @@ export function readCtMountAdmission(
     return failed(`the mounted ${node.getKindName()} tree is unreadable; mount the production door or name its isolation`);
   };
   const view = (input: MorphNode): ViewAdmission => {
-    const stable = resolveStableExpression(input);
+    const stable = read.stable(input);
     const node = stable.kind === "resolved" ? stable.value : stable.node;
     if (active.has(node.compilerNode)) {
       return failed("the mounted component graph is cyclic");

@@ -800,7 +800,7 @@ export function captureTypeObservations(demand: TypeObservationDemand, owner: Ty
       }
       values.set(node, requested);
     },
-    owner.references,
+    owner,
   );
   const facts = capture.finish(
     demand,
@@ -811,6 +811,6 @@ export function captureTypeObservations(demand: TypeObservationDemand, owner: Ty
     (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]),
     (node) => node.getKind(),
   );
-  readTypeObservations(facts, owner.references);
+  readTypeObservations(facts, owner.references, owner.module, owner.node);
   return facts;
 }

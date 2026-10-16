@@ -132,6 +132,8 @@ export const INVOCATION_VALUE_FACETS = [
   "undefined",
   "namespace",
   "string",
+  "reference-writes",
+  "authored-composite",
   "stable",
   "type-projection",
   "authored-value",
@@ -147,7 +149,10 @@ export const invocationPlanSchema = z
     typeObservations: typeObservationDemandSchema(spanSchema).optional(),
   })
   .refine(
-    (plan) => [...plan.facets, ...plan.arguments.flatMap((argument) => argument.facets)].includes("type-projection") === (plan.typeProjection !== undefined),
+    (plan) =>
+      ([...plan.facets, ...plan.arguments.flatMap((argument) => argument.facets)].includes("type-projection") ||
+        plan.typeObservations?.questions?.some((question) => question.valueFacets?.includes("type-projection") === true) === true) ===
+      (plan.typeProjection !== undefined),
     "native invocation type projection must name exactly its closed demand",
   )
   .refine(
@@ -158,8 +163,7 @@ export const invocationPlanSchema = z
   )
   .refine(
     (plan) =>
-      (plan.mode === "types") === (plan.typeObservations !== undefined) &&
-      (plan.mode !== "types" || (plan.facets.length === 0 && plan.arguments.length === 0 && plan.typeProjection === undefined)),
+      (plan.mode === "types") === (plan.typeObservations !== undefined) && (plan.mode !== "types" || (plan.facets.length === 0 && plan.arguments.length === 0)),
     "native type observation mode must name exactly its closed profile",
   );
 export type InventoryInvocationPlan = z.infer<typeof invocationPlanSchema>;
@@ -276,6 +280,8 @@ export const invocationEvidenceSchema = z.object({
       namespace: z.array(spanSchema).optional(),
       string: stringFactSchema.optional(),
       stable: nodeFactSchema.optional(),
+      "reference-writes": inventoryReferenceSchema(z.literal(true)).optional(),
+      "authored-composite": nodeFactSchema.optional(),
       "type-projection": typeProjectionWireSchema.optional(),
       "authored-value": authoredValueProjectionSchema.optional(),
       "stored-value": storedValueObservationSchema(spanSchema).optional(),
@@ -306,6 +312,8 @@ export interface NativeInvocationEvidence {
   readonly undefinedMembers: ReadonlyMap<Node, boolean>;
   readonly namespaces: ReadonlyMap<Node, readonly Node[]>;
   readonly strings: ReadonlyMap<Node, ReferenceFact<string>>;
+  readonly referenceWrites?: ReadonlyMap<Node, ReferenceFact<true>>;
+  readonly authoredComposites?: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly stableValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly canonicalValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly typeProjections: ReadonlyMap<Node, NativeTypeProjection>;

@@ -900,7 +900,7 @@ function invocationDemandGroups(
       ...(demand?.reads.map((read) => read.node) ?? []),
       ...(typeDemand?.sources ?? []),
       ...(typeDemand?.nodes ?? []),
-      ...(typeDemand?.questions?.flatMap((q) => q.nodes) ?? []),
+      ...(typeDemand?.questions?.flatMap((q) => [...q.nodes, ...(q.relationTargets ?? [])]) ?? []),
     ].some((node) => !files.has(node.file))
   ) {
     throw new SemanticInventoryError("native ordinary roots/reads are outside their registered source cohort");

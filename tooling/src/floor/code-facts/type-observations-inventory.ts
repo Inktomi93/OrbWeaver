@@ -20,6 +20,8 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           kind: z.enum(TYPE_OBSERVATION_QUESTION_KINDS),
           nodes: z.array(span),
           files: z.array(z.string()).optional(),
+          relationTargets: z.array(z.strictObject({ file: z.string(), start: index, end: index, kind: index })).optional(),
+          callableHomes: z.array(z.strictObject({ name: z.string(), suffix: z.string() })).optional(),
           properties: z.array(z.string()).optional(),
           receiverMethods: z.array(z.string()).optional(),
           selectedPropertyGraph: z
