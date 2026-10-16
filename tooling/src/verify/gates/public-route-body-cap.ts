@@ -40,10 +40,12 @@
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import {
+  bodyCapDeclarations,
   findEnclosingRouteArg,
   isBodyReadCall,
   isCappedStreamCall,
   isRawBodyPropertyAccess,
+  prepareBodyCapOrigin,
   resolvesCapMiddleware,
   routeMethod,
 } from "../lib/http-route-body.ts";
@@ -74,6 +76,8 @@ export const gate = defineGate({
     const routes = new Set<import("ts-morph").CallExpression>();
     const bodyReadArgs = new Map<import("ts-morph").CallExpression, Set<number>>();
     const cappedStreamArgs = new Map<import("ts-morph").CallExpression, Set<number>>();
+    const calls: import("ts-morph").Node[] = [];
+    const declarations = (node: import("ts-morph").Node): readonly import("ts-morph").Node[] => bodyCapDeclarations(ctx, node);
 
     const markArg = (index: import("ts-morph").CallExpression, argIndex: number, table: Map<import("ts-morph").CallExpression, Set<number>>): void => {
       const set = table.get(index) ?? new Set<number>();
@@ -101,10 +105,12 @@ export const gate = defineGate({
               attribute(node, bodyReadArgs);
               return;
             }
-            if (isCappedStreamCall(node)) {
-              attribute(node, cappedStreamArgs);
-            }
+            calls.push(node);
           },
+        },
+        {
+          kinds: [SyntaxKind.Identifier],
+          visit: (node) => prepareBodyCapOrigin(ctx, node),
         },
         {
           kinds: [SyntaxKind.PropertyAccessExpression],
@@ -116,6 +122,11 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        for (const call of calls) {
+          if (isCappedStreamCall(call, declarations)) {
+            attribute(call, cappedStreamArgs);
+          }
+        }
         for (const route of routes) {
           const method = routeMethod(route);
           if (method === undefined) {
@@ -129,7 +140,7 @@ export const gate = defineGate({
               return false;
             }
             const orderedMiddleware = args.some(
-              (candidate, candidateIndex) => candidateIndex > 0 && candidateIndex < handlerIndex && resolvesCapMiddleware(candidate),
+              (candidate, candidateIndex) => candidateIndex > 0 && candidateIndex < handlerIndex && resolvesCapMiddleware(candidate, declarations),
             );
             const cappedInline = cappedArgs?.has(handlerIndex) === true;
             return !(orderedMiddleware || cappedInline);
@@ -142,6 +153,24 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/http/__probe.ts":
+          'const left = right; const right = left;\napp.post("/api/x", left, async (c) => c.json(await c.req.json()));\n',
+      },
+      expect: { count: 1, token: "post" },
+      why: "a middleware alias cycle proves no cap and produces the ordinary finding instead of exhausting the stack",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/http/__probe.ts":
+          'app.post("/api/x", async (c) => { const stream = c.req.raw.body; { const stream = unrelatedStream; stageCapped(stream, path, IMPORT_MAX_TOTAL_BYTES); } return stream; });\n',
+      },
+      expect: { count: 1, token: "post" },
+      why: "same-spelled shadow bindings do not let a cap over unrelated bytes authorize the request body",
+    },
     {
       mode: "types",
       files: { "packages/server/src/entry/http/__probe.ts": 'app.post("/api/x", async (c) => c.json(await c.req.json()));\n' },
@@ -173,6 +202,13 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/entry/http/__probe.ts": `const cap0 = bodyLimit({ maxSize: MAX_BODY_BYTES });\n${Array.from({ length: 16 }, (_, index) => `const cap${String(index + 1)} = cap${String(index)};\n`).join("")}app.post("/api/x", cap16, async (c) => c.json(await c.req.json()));\napp.post("/api/import", async (c) => { const stream0 = c.req.raw.body;\n${Array.from({ length: 16 }, (_, index) => `const stream${String(index + 1)} = stream${String(index)};\n`).join("")}return stageCapped(stream16, path, IMPORT_MAX_TOTAL_BYTES); });\n`,
+      },
+      why: "finite same-file immutable alias chains preserve middleware and raw-stream origins without a hop cutoff",
+    },
     {
       mode: "types",
       files: {
