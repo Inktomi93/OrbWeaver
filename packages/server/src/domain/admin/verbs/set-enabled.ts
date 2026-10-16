@@ -30,7 +30,7 @@ import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetEnabledParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
-import { requireAdmin } from "../guard.ts";
+import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
 import { loadUser, userCols } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
@@ -49,7 +49,7 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
-    if (target.role === OWNER_ROLE) {
+    if (isBootstrapOwnerRole(target.role)) {
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be disabled");
     }
 

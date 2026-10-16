@@ -14,7 +14,7 @@ import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetRoleParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
-import { requireOwner } from "../guard.ts";
+import { isBootstrapOwnerRole, requireOwner } from "../guard.ts";
 import { loadUser, userCols } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
@@ -29,14 +29,14 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     if (target === undefined) {
       throw new DomainNotFoundError("user", userId);
     }
-    if (target.role === OWNER_ROLE) {
-      if (role === OWNER_ROLE) {
+    if (isBootstrapOwnerRole(target.role)) {
+      if (isBootstrapOwnerRole(role)) {
         return target;
       }
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be demoted");
     }
 
-    if (role === OWNER_ROLE) {
+    if (isBootstrapOwnerRole(role)) {
       throw new DomainConflictError("an owner already exists; ownership transfer is not supported");
     }
 

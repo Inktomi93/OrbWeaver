@@ -24,11 +24,10 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
 import type { AdminUserView } from "../contract/views.ts";
-import { requireAdmin, requireOwner } from "../guard.ts";
+import { isBootstrapOwnerRole, requireAdmin, requireOwner } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
-const OWNER_ROLE = "owner";
 const DEFAULT_ROLE = "user";
 const LIMIT_ONE = 1;
 
@@ -63,7 +62,7 @@ function validateCreate(params: CreateUserParams, role: UserRole, isReservedHand
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
   // so a second owner can never be minted.
-  if (role === OWNER_ROLE) {
+  if (isBootstrapOwnerRole(role)) {
     throw new DomainOperationError(ADMIN_OP_CODES.cannotGrantOwner, "the owner role cannot be assigned to a newly created user");
   }
   if (params.password.length < MIN_PASSWORD_LENGTH) {
