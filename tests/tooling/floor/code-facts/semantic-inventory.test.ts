@@ -1,13 +1,14 @@
 // @subject tooling/src/floor/code-facts/semantic-inventory-records.ts
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { StatementSync } from "node:sqlite";
+import { DatabaseSync, StatementSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inventoryConsumerClass } from "@orb/tooling/floor/code-facts/inventory-consumers";
 import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventoryPartition, StoredInventoryPartition } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { INVENTORY_FORMAT, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import {
+  beginInventoryWrite,
   inventoryGenerationPrograms,
   latestInventoryGeneration,
   latestInventoryPartitions,
@@ -32,6 +33,7 @@ import {
   readInventorySources,
   readInventoryWitnesses,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 
 function write(root: string, path: string, text: string): void {
   const absolute = join(root, path);
@@ -68,10 +70,10 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
     version: inputVersion(path, "file"),
   }));
   return {
-    intent: "facts",
+    intent: request.intent ?? "facts",
     available: sources.map((source) => source.file),
     format: INVENTORY_FORMAT,
-    families: inventoryFamilies(request.families),
+    families: request.intent === "membership" ? [] : inventoryFamilies(request.families),
     casts: [],
     brands: [],
     memberOrigins: [],
@@ -93,7 +95,7 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
     nativeRoots: sources.map((source) => source.path),
     inputs,
     sources,
-    exports,
+    exports: request.intent === "membership" ? [] : exports,
     modules: [],
     bindings: [],
     references: [],
@@ -496,4 +498,256 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
   database.exec("COMMIT");
   expect(readInventoryGeneration(database, changed)[0]?.id).not.toBe(row.id);
   expect(completePartition(database, row)).toStrictEqual(native);
+});
+
+test("owned inventory snapshots retain old unread data across publication and external corruption", ({ scratch }) => {
+  initialize(scratch);
+  using first = createSemanticInventory({ root: scratch, buildPartition: stage });
+  expect(first.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
+  write(scratch, "a.ts", "export const changedA=3;\n");
+  write(scratch, "b.ts", "export const changedB=4;\n");
+  using second = createSemanticInventory({ root: scratch, buildPartition: stage });
+  expect(second.generation).toBeGreaterThan(first.generation);
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  const partitions = readInventoryGeneration(db, first.generation);
+  const selected = partitions.find((row) => row.program === "tsconfig.b.json");
+  if (selected === undefined) {
+    throw new Error("unread old-world partition is missing");
+  }
+  db.prepare("UPDATE inventory_text SET value=? WHERE partition=?").run(JSON.stringify("corrupted"), selected.id);
+  expect(first.sourceCorpus().getSourceFile("b.ts")?.getFullText()).toContain("b=2");
+  expect(second.sourceCorpus().getSourceFile("b.ts")?.getFullText()).toContain("changedB");
+  using borrowed = inventoryReader(scratch, first.generation, partitions, { db, dispose: () => undefined });
+  expect(() => borrowed.sourceCorpus().getSourceFile("b.ts")).toThrow("source text version differs");
+  first[Symbol.dispose]();
+  second[Symbol.dispose]();
+  expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
+});
+
+test("owned inventory preflight metadata failures preserve the prior published generation", ({ scratch }) => {
+  initialize(scratch);
+  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
+  write(scratch, "b.ts", "export const changed=3;\n");
+  const malformed = (request: InventoryBuildRequest): void => {
+    const facts = partition(request);
+    if (request.descriptor.id === "tsconfig.b.json") {
+      const file = join(scratch, "a.ts");
+      facts.sources.push({ file, path: file, text: "export const mixed=0;", authored: true, consumerClass: "product" });
+      facts.available.push(file);
+    }
+    using db = openInventoryDatabase(request.destination);
+    beginInventoryWrite(db);
+    publishInventoryGeneration(db, [facts]);
+    db.exec("COMMIT");
+  };
+  expect(() => createSemanticInventory({ root: scratch, buildPartition: malformed })).toThrow("mixed source versions");
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  expect(latestInventoryGeneration(db)).toBe(previous.generation);
+  expect(db.prepare("PRAGMA wal_checkpoint(PASSIVE)").get()).toMatchObject({ busy: 0 });
+});
+
+test.for(["pin", "metadata", "inputs"] as const)(
+  "owned inventory postpublication %s failure releases acquisition without erasing publication",
+  (failure, { scratch }) => {
+    initialize(scratch);
+    const path = join(scratch, ".cache/semantic-inventory.sqlite");
+    const connections = new Set<DatabaseSync>();
+    let published = false;
+    let pinned = false;
+    const execute = DatabaseSync.prototype.exec;
+    const prepare = DatabaseSync.prototype.prepare;
+    const execution = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+      const owned = this.location() === path;
+      if (owned) {
+        connections.add(this);
+      }
+      if (owned && published && sql === "BEGIN" && failure === "pin") {
+        throw new Error("injected read pin failure");
+      }
+      execute.call(this, sql);
+      if (owned && sql === "COMMIT" && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
+        published = true;
+        if (failure === "inputs") {
+          write(scratch, "a.ts", "export const gapMutation=3;\n");
+        }
+      }
+      if (owned && published && sql === "BEGIN") {
+        pinned = true;
+      }
+    });
+    const preparation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
+      if (this.location() === path && pinned && failure === "metadata" && args[0].includes("SELECT ordinal,file,path,consumerClass")) {
+        throw new Error("injected pinned metadata failure");
+      }
+      return prepare.apply(this, args);
+    });
+    try {
+      expect(() => createSemanticInventory({ root: scratch, buildPartition: stage })).toThrow(
+        { inputs: "inputs changed during extraction", pin: "injected read pin failure", metadata: "injected pinned metadata failure" }[failure],
+      );
+    } finally {
+      preparation.mockRestore();
+      execution.mockRestore();
+    }
+    expect(published).toBe(true);
+    expect(connections.size).toBe(1);
+    expect([...connections].every((connection) => !connection.isOpen)).toBe(true);
+    using db = openInventoryDatabase(path);
+    expect(latestInventoryGeneration(db)).toBe(1);
+    expect(readInventoryGeneration(db, 1).map(({ program }) => program)).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
+    expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
+  },
+);
+
+test.for(["duplicate", "swapped"] as const)("owned inventory handoff refuses %s native-world membership mappings", (mapping, { scratch }) => {
+  initialize(scratch);
+  const path = join(scratch, ".cache/semantic-inventory.sqlite");
+  const connections = new Set<DatabaseSync>();
+  let accepted: readonly StoredInventoryPartition[] = [];
+  let corrupted = false;
+  const execute = DatabaseSync.prototype.exec;
+  const publication = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+    const owned = this.location() === path;
+    if (owned && !corrupted) {
+      connections.add(this);
+    }
+    execute.call(this, sql);
+    if (owned && sql === "COMMIT" && !corrupted && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
+      accepted = readInventoryGeneration(this, 1);
+      const [first, second] = accepted;
+      if (first === undefined || second === undefined) {
+        throw new Error("handoff requires two accepted native worlds");
+      }
+      corrupted = true;
+      using writer = openInventoryDatabase(path);
+      beginInventoryWrite(writer);
+      writer.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND partition=?").run(first.id, second.id);
+      if (mapping === "swapped") {
+        writer.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND program=?").run(second.id, JSON.stringify(first.program));
+      }
+      writer.exec("COMMIT");
+    }
+  });
+  let acquired: ReturnType<typeof createSemanticInventory> | undefined;
+  try {
+    expect(() => {
+      acquired = createSemanticInventory({ root: scratch, buildPartition: stage });
+    }).toThrow("native inventory read acquisition failed: native inventory generation member program differs from its partition");
+  } finally {
+    publication.mockRestore();
+    acquired?.[Symbol.dispose]();
+  }
+  expect(corrupted).toBe(true);
+  expect(connections.size).toBe(1);
+  expect([...connections].every((connection) => !connection.isOpen)).toBe(true);
+  using db = openInventoryDatabase(path);
+  expect(latestInventoryGeneration(db)).toBe(1);
+  expect(() => readInventoryGeneration(db, 1)).toThrow("native inventory generation member program differs from its partition");
+  beginInventoryWrite(db);
+  for (const selected of accepted) {
+    db.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND program=?").run(selected.id, JSON.stringify(selected.program));
+  }
+  db.exec("COMMIT");
+  expect(readInventoryGeneration(db, 1)).toStrictEqual(accepted);
+  using restored = inventoryReader(scratch, 1, accepted, { db, dispose: () => undefined });
+  expect(
+    restored
+      .sourceCorpus()
+      .getSourceFiles()
+      .map((source) => source.getBaseName())
+      .toSorted(),
+  ).toEqual(["a.ts", "b.ts"]);
+  expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
+});
+
+test("owned inventory handoff pins its chosen generation instead of a concurrent publisher latest", ({ scratch }) => {
+  initialize(scratch);
+  const path = join(scratch, ".cache/semantic-inventory.sqlite");
+  const descriptors = readCompilerPrograms(scratch);
+  let raced = false;
+  const execute = DatabaseSync.prototype.exec;
+  const publication = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+    const owned = this.location() === path;
+    execute.call(this, sql);
+    if (owned && sql === "COMMIT" && !raced && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
+      raced = true;
+      using writer = openInventoryDatabase(path);
+      beginInventoryWrite(writer);
+      publishInventoryGeneration(
+        writer,
+        descriptors.map((descriptor) => ({
+          ...partition({ root: scratch, descriptor, destination: "unused" }),
+          intent: "membership" as const,
+          families: [],
+          exports: [],
+        })),
+      );
+      writer.exec("COMMIT");
+    }
+  });
+  let acquired: ReturnType<typeof createSemanticInventory>;
+  try {
+    acquired = createSemanticInventory({ root: scratch, buildPartition: stage });
+  } finally {
+    publication.mockRestore();
+  }
+  using inventory = acquired;
+  expect(raced).toBe(true);
+  expect(inventory.generation).toBe(1);
+  const declaration = inventory.sourceCorpus().getSourceFile("a.ts")?.getVariableDeclarationOrThrow("a");
+  if (declaration === undefined) {
+    throw new Error("selected generation declaration is missing");
+  }
+  expect(inventory.exports(declaration.getSourceFile()).has("a")).toBe(true);
+  using db = openInventoryDatabase(path);
+  expect(latestInventoryGeneration(db)).toBe(2);
+});
+
+test("owned inventory shape preparation borrows the staged writer without query-only conversion", ({ scratch }) => {
+  initialize(scratch);
+  const path = join(scratch, ".cache/semantic-inventory.sqlite");
+  const source = new Project({ useInMemoryFileSystem: true }).createSourceFile(join(scratch, "a.ts"), readFileSync(join(scratch, "a.ts"), "utf8"));
+  const connections: DatabaseSync[] = [];
+  const prepare = DatabaseSync.prototype.prepare;
+  const observation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
+    if (this.location() === path && !connections.includes(this)) {
+      connections.push(this);
+    }
+    return prepare.apply(this, args);
+  });
+  let called = false;
+  let acquired: ReturnType<typeof createSemanticInventory>;
+  try {
+    acquired = createSemanticInventory({
+      root: scratch,
+      buildPartition: stage,
+      shapePlan: {
+        sources: [source],
+        prepare: (catalog) => {
+          called = true;
+          const connection = connections.find((db) => db.isOpen);
+          if (connection === undefined) {
+            throw new Error("shape writer connection missing");
+          }
+          expect(connection.isTransaction).toBe(true);
+          expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 0 });
+          connection.exec("SAVEPOINT shapeCallback");
+          expect(catalog.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
+          connection.exec("ROLLBACK TO shapeCallback;RELEASE shapeCallback");
+          return [];
+        },
+      },
+    });
+  } finally {
+    observation.mockRestore();
+  }
+  using inventory = acquired;
+  expect(inventory.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
+  expect(called).toBe(true);
+  const connection = connections.find((db) => db.isOpen);
+  if (connection === undefined) {
+    throw new Error("owned shape final connection missing");
+  }
+  expect(connection.isTransaction).toBe(true);
+  expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
 });

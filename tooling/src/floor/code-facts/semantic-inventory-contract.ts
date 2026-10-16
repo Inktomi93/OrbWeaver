@@ -701,6 +701,19 @@ export interface SemanticInventory extends Disposable {
   readonly witnessOrigins: (node: Node) => readonly Node[];
 }
 
+export interface InventoryReaderSourceMetadata {
+  readonly texts: Map<string, { readonly partition: string; readonly source: StoredInventorySource }>;
+  readonly aliases: Map<string, string>;
+  readonly authored: Set<string>;
+}
+
+/** Acquired only by transitioning an owned connection to its selected-generation read snapshot. */
+export interface InventoryReadLease extends Disposable {
+  readonly partitions: readonly StoredInventoryPartition[];
+  readonly invocationEvidence: (id: string, query: InventoryInvocationQuery) => Iterable<InventoryInvocationEvidence>;
+  readonly bindings: (id: string, file: string) => readonly InventoryPartition["bindings"][number][];
+}
+
 export interface InventoryReaderStorage {
   readonly shapeCohort?: boolean;
   readonly shapeOwners?: ReadonlyMap<SourceFile, string>;

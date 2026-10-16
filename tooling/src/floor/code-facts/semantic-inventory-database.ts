@@ -329,7 +329,14 @@ export function readInventoryGeneration(db: DatabaseSync, generation: number): r
   return db
     .prepare("SELECT program,partition FROM inventory_member WHERE generation=? ORDER BY program")
     .all(generation)
-    .map((value) => readPartition(db, memberRow.parse(value).partition))
+    .map((value) => {
+      const member = memberRow.parse(value);
+      const partition = readPartition(db, member.partition);
+      if (member.program !== partition.program) {
+        throw new Error("native inventory generation member program differs from its partition");
+      }
+      return partition;
+    })
     .toSorted((a, b) => {
       if (a.program === b.program) {
         return 0;

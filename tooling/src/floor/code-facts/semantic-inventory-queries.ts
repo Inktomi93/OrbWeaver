@@ -1,6 +1,7 @@
 // Indexed queries read one native fact family or origin; no adapter reconstructs a complete partition.
 
 import type { DatabaseSync, SQLInputValue, StatementSync } from "node:sqlite";
+import { isDeepStrictEqual } from "node:util";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type { InventoryDrizzleCall, InventoryDrizzleQuery, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
@@ -16,7 +17,9 @@ import type {
   InventoryInvocationEvidence,
   InventoryInvocationQuery,
   InventoryPartition,
+  InventoryReadLease,
   InventorySpan,
+  StoredInventoryPartition,
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
 import {
@@ -44,6 +47,7 @@ import {
   spanSchema,
   storedSourceSchema,
 } from "./semantic-inventory-contract.ts";
+import { readInventoryGeneration } from "./semantic-inventory-database.ts";
 import { contentVersion } from "./semantic-inventory-inputs.ts";
 import { inventoryString, inventoryStringSchema, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
@@ -485,12 +489,79 @@ export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, q
 
 const INVOCATION_AVAILABLE_SQL = "SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?";
 interface InvocationReadSnapshot {
-  readonly bindingCounts: Map<string, number>;
+  readonly bindings: Map<string, readonly InventoryPartition["bindings"][number][]>;
   readonly spanSources: Map<string, { readonly source: StoredInventorySource; readonly membership: NonNullable<ReturnType<StatementSync["get"]>> }>;
   readonly available: StatementSync;
 }
 
-/** Shared-source validation is reusable only within this synchronous, transaction-pinned demand batch. */
+function invocationSnapshot(db: DatabaseSync): InvocationReadSnapshot {
+  return { bindings: new Map(), spanSources: new Map(), available: db.prepare(INVOCATION_AVAILABLE_SQL) };
+}
+
+/** Take the private connection through a real selected-generation pin before creating reusable query state. */
+export function acquireInventoryReadLease(db: DatabaseSync, generation: number, expected: readonly StoredInventoryPartition[]): InventoryReadLease {
+  if (db.isTransaction) {
+    throw new SemanticInventoryError("owned inventory read lease requires completed publication");
+  }
+  db.exec("PRAGMA query_only=ON");
+  db.exec("BEGIN");
+  const partitions = readInventoryGeneration(db, generation);
+  const accepted = expected.toSorted((a, b) => {
+    if (a.program === b.program) {
+      return 0;
+    }
+    return a.program < b.program ? -1 : 1;
+  });
+  if (new Set(accepted.map((partition) => partition.program)).size !== accepted.length || !isDeepStrictEqual(partitions, accepted)) {
+    throw new SemanticInventoryError("owned inventory selected generation differs from its accepted native partitions");
+  }
+  let open = true;
+  const snapshots = new Map<string, InvocationReadSnapshot>();
+  const selected = (id: string): InvocationReadSnapshot => {
+    if (!(open && db.isOpen && db.isTransaction)) {
+      throw new SemanticInventoryError("owned inventory read lease has been released");
+    }
+    if (!partitions.some((partition) => partition.id === id)) {
+      throw new SemanticInventoryError("owned inventory native partition is unavailable");
+    }
+    let snapshot = snapshots.get(id);
+    if (snapshot === undefined) {
+      snapshot = invocationSnapshot(db);
+      snapshots.set(id, snapshot);
+    }
+    return snapshot;
+  };
+  return {
+    partitions,
+    invocationEvidence: (id, query) => invocationEvidence(db, id, query, selected(id)),
+    bindings: (id, file) => invocationSourceBindings(db, id, file, selected(id)),
+    [Symbol.dispose]: (): void => {
+      if (open) {
+        open = false;
+        snapshots.clear();
+        rollbackReadSnapshot(db);
+      }
+    },
+  };
+}
+
+function invocationSourceBindings(
+  db: DatabaseSync,
+  id: string,
+  file: string,
+  snapshot: InvocationReadSnapshot | undefined,
+): readonly InventoryPartition["bindings"][number][] {
+  const captured = snapshot?.bindings.get(file);
+  if (captured !== undefined) {
+    return captured;
+  }
+  capturedInventorySource(db, id, file);
+  const rows = [...readInventoryGlobalBindings(db, id, file)];
+  snapshot?.bindings.set(file, rows);
+  return rows;
+}
+
+/** Staging coverage borrows one transaction for this call; it never carries data into an owned reader lease. */
 export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, queries: readonly InventoryInvocationQuery[]): boolean {
   if (queries.length === 0) {
     return true;
@@ -500,7 +571,7 @@ export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, que
     db.exec("BEGIN");
   }
   try {
-    const snapshot: InvocationReadSnapshot = { bindingCounts: new Map(), spanSources: new Map(), available: db.prepare(INVOCATION_AVAILABLE_SQL) };
+    const snapshot = invocationSnapshot(db);
     const covered = queries.every((query) => [...invocationEvidence(db, id, query, snapshot)].length === 1);
     if (ownsSnapshot) {
       db.exec("COMMIT");
@@ -565,7 +636,7 @@ function* invocationEvidence(
     ) {
       throw new SemanticInventoryError("native invocation source ownership is incomplete");
     }
-    assertInvocationChildren(db, id, fact, snapshot?.bindingCounts);
+    assertInvocationChildren(db, id, fact, snapshot);
     yield fact;
   }
 }
@@ -605,15 +676,9 @@ function assertInvocationSpan(db: DatabaseSync, id: string, span: InventorySpan,
   }
 }
 
-function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence, bindingCounts: Map<string, number> | undefined): void {
+function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence, snapshot: InvocationReadSnapshot | undefined): void {
   for (const source of fact.sources) {
-    let count = bindingCounts?.get(source.file);
-    if (count === undefined) {
-      capturedInventorySource(db, id, source.file);
-      count = [...readInventoryGlobalBindings(db, id, source.file)].length;
-      bindingCounts?.set(source.file, count);
-    }
-    if (count !== source.bindings) {
+    if (invocationSourceBindings(db, id, source.file, snapshot).length !== source.bindings) {
       throw new SemanticInventoryError("native invocation binding-source coverage is incomplete");
     }
     if (source.computed.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1)) {

@@ -15,6 +15,7 @@ import type {
   InventoryFamily,
   InventoryInvocationQuery,
   InventoryOverlay,
+  InventoryReadLease,
   InventoryShapeQuery,
   InventorySpan,
   SemanticInventory,
@@ -41,6 +42,7 @@ import {
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
 import {
+  acquireInventoryReadLease,
   hasInventoryInvocationCoverage,
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
@@ -53,7 +55,7 @@ import {
   readInventorySchemaData,
   readInventorySchemaIdentity,
 } from "./semantic-inventory-queries.ts";
-import { inventoryReader } from "./semantic-inventory-reader.ts";
+import { inventoryReader, ownedInventoryReader, validateInventoryReaderSources } from "./semantic-inventory-reader.ts";
 import { inventoryStringSchema } from "./semantic-inventory-records.ts";
 
 function authoredVersion(root: string): string {
@@ -88,7 +90,9 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
   const databasePath = overlay === undefined ? (options.databasePath ?? join(root, ".cache", "semantic-inventory.sqlite")) : join(scratch, "overlay.sqlite");
   const db = openInventoryDatabase(databasePath);
   let retained = false;
+  let writerCommitted = false;
   let reader: SemanticInventory | undefined;
+  let lease: InventoryReadLease | undefined;
   try {
     // Holding the writer transaction across extraction makes a racing writer recheck before its first worker.
     beginInventoryWrite(db);
@@ -115,16 +119,21 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
           .toSorted(),
       ) === JSON.stringify(partitions.map((partition) => partition.id).toSorted());
     const generation = rebuilt || !samePopulation ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
-    reader = inventoryReader(root, generation, partitions, {
+    validateInventoryReaderSources(db, partitions);
+    shapeReaderContext(options, descriptors, partitions);
+    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+    db.exec("COMMIT");
+    writerCommitted = true;
+    lease = acquireInventoryReadLease(db, generation, partitions);
+    reader = ownedInventoryReader(root, generation, lease, {
       db,
-      ...shapeReaderContext(options, descriptors, partitions),
+      ...shapeReaderContext(options, descriptors, lease.partitions),
       dispose: () => {
         db.close();
         rmSync(scratch, { recursive: true, force: true });
       },
     });
     assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
-    db.exec("COMMIT");
     if (overlay === undefined) {
       rmSync(scratch, { recursive: true, force: true });
     }
@@ -135,16 +144,22 @@ export function createSemanticInventory(options: SemanticInventoryOptions): Sema
       db.exec("ROLLBACK");
     }
     if (reader === undefined) {
+      lease?.[Symbol.dispose]();
       db.close();
     } else {
       reader[Symbol.dispose]();
     }
-    throw new SemanticInventoryError(error instanceof Error ? error.message : String(error), { cause: error });
+    throw inventoryFailure(error, writerCommitted);
   } finally {
     if (!retained) {
       rmSync(scratch, { recursive: true, force: true });
     }
   }
+}
+
+function inventoryFailure(error: unknown, writerCommitted: boolean): SemanticInventoryError {
+  const message = error instanceof Error ? error.message : String(error);
+  return new SemanticInventoryError(writerCommitted ? `native inventory read acquisition failed: ${message}` : message, { cause: error });
 }
 
 function currentDemandDescriptors(options: SemanticInventoryOptions): readonly InventoryBuildRequest["descriptor"][] {
