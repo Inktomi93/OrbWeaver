@@ -1,5 +1,6 @@
 // Coverage checks prove the fixed raw-question profile, never Zod ownership or output parity.
 import { SyntaxKind } from "ts-morph";
+import { MAX_RECEIVER_HOPS } from "./type-member-origin-core.ts";
 import type { NativeObservedNode, TypeObservationValues } from "./type-observations-contract.ts";
 import { assertScalarTypeSelectionCoverage } from "./type-projection-contract.ts";
 
@@ -35,6 +36,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   if (facts.demand.questions === undefined) {
     if (
       facts.propertySymbols !== undefined ||
+      facts.constInitializers !== undefined ||
       facts.definitions !== undefined ||
       facts.callParameters !== undefined ||
       facts.signatureParameters !== undefined ||
@@ -58,6 +60,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
     throw new Error("native raw question tables are missing");
   }
   assertRawNominations(facts, key);
+  assertConstInitializerCoverage(facts, key);
   assertNamedPropertyCoverage(facts, key);
   assertTypeArgumentCoverage(facts, key);
   const functions = facts.demand.questions
@@ -138,7 +141,7 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
     questions.some((q) =>
       q.kind === "value-profiles"
         ? q.valueFacets === undefined
-        : q.kind !== "definition-closure" && q.kind !== "declaration-closure" && q.valueFacets !== undefined,
+        : q.kind !== "definition-closure" && q.kind !== "declaration-closure" && q.kind !== "const-initializers" && q.valueFacets !== undefined,
     )
   ) {
     throw new Error("native value facets have no closed nomination");
@@ -550,16 +553,67 @@ function namedPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node:
   }
   return [index, ...parts.values];
 }
+function assertConstInitializerCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "const-initializers");
+  if (questions.length > 0 !== (facts.constInitializers !== undefined)) {
+    throw new Error("native const initializer nominations are missing or unrequested");
+  }
+  const roots = new Set(questions.flatMap((question) => question.nodes.map(key)));
+  const rows = facts.constInitializers ?? [];
+  uniqueRawKeys(rows.map((row) => key(row.node)));
+  const observed = new Set(facts.nodes.map((row) => key(row.node)));
+  if (rows.length !== roots.size || rows.some((row) => !roots.has(key(row.node)))) {
+    throw new Error("native const initializer roots are missing or foreign");
+  }
+  for (const row of rows) {
+    uniqueRawKeys(row.values.map(key));
+    const first = row.values[0];
+    if (
+      first === undefined ||
+      row.values.length > MAX_RECEIVER_HOPS + 2 ||
+      key(first) !== key(row.node) ||
+      row.values.some((node) => !observed.has(key(node)))
+    ) {
+      throw new Error("native const initializer nomination closure is incomplete or foreign");
+    }
+  }
+}
+
+function constPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node: Anchor, key: (node: Anchor) => string): readonly number[] {
+  const row = facts.constInitializers?.find((entry) => key(entry.node) === key(node));
+  if (row === undefined) {
+    throw new Error("native const initializer root was not captured");
+  }
+  return row.values.flatMap((value) => {
+    const index = facts.selections?.plan.selectors.findIndex(
+      (selector) =>
+        selector.base.kind === "node" &&
+        key(selector.base.node) === key(value) &&
+        selector.displayAt === null &&
+        selector.steps.length === 1 &&
+        selector.steps[0]?.kind === "nonnullable",
+    );
+    if (index === undefined || index < 0) {
+      throw new Error("native const initializer nonnullable property owner was not captured");
+    }
+    return facts.types[index] === null ? [] : [index];
+  });
+}
+
 function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
-  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "property-symbols");
+  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "property-symbols" || question.kind === "const-initializers");
   if (questions.length > 0 !== (facts.propertySymbols !== undefined)) {
     throw new Error("native named property symbols are missing or unrequested");
   }
   const expected = new Set(
     questions.flatMap((question) =>
-      question.nodes.flatMap((node) =>
-        namedPropertyOwners(facts, node, key).flatMap((selector) => (question.properties ?? []).map((name) => JSON.stringify([selector, name]))),
-      ),
+      question.nodes.flatMap((node) => {
+        if (question.kind === "const-initializers" && (question.properties?.length ?? 0) === 0) {
+          return [];
+        }
+        const owners = question.kind === "const-initializers" ? constPropertyOwners(facts, node, key) : namedPropertyOwners(facts, node, key);
+        return owners.flatMap((selector) => (question.properties ?? []).map((name) => JSON.stringify([selector, name])));
+      }),
     ),
   );
   const actual = (facts.propertySymbols ?? []).map((row) => JSON.stringify([row.selector, row.name]));

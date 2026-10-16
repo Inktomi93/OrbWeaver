@@ -1,8 +1,46 @@
 // Native declaration/identity primitives for type-member readers; graph/containment judgments stay consumers.
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, Type } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, VariableDeclarationKind } from "ts-morph";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
+import type { TypeObservationReader } from "./type-observations-contract.ts";
+import { nodeTypeSelector } from "./type-projection-contract.ts";
+
+function unwrapReceiverExpression(raw: MorphNode): MorphNode {
+  let node = raw;
+  while (Node.isParenthesizedExpression(node) || Node.isAsExpression(node) || Node.isSatisfiesExpression(node) || Node.isNonNullExpression(node)) {
+    node = node.getExpression();
+  }
+  return node;
+}
+
+export const MAX_RECEIVER_HOPS = 4;
+
+/** Follow only raw lexical const initializers, retaining call terminals after unwrapping. */
+export function uncastReceiver(
+  node: MorphNode,
+  declarations: (identifier: MorphNode) => readonly MorphNode[] = (identifier) => identifier.getSymbol()?.getDeclarations() ?? [],
+  observe?: (value: MorphNode) => void,
+): MorphNode {
+  let current = unwrapReceiverExpression(node);
+  observe?.(current);
+  for (let hop = 0; hop < MAX_RECEIVER_HOPS && Node.isIdentifier(current); hop += 1) {
+    let initializer: MorphNode | null = null;
+    for (const declaration of declarations(current)) {
+      const value = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+      const isConst = Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const;
+      if (initializer === null && isConst && value !== undefined) {
+        initializer = value;
+      }
+    }
+    if (initializer === null) {
+      break;
+    }
+    current = unwrapReceiverExpression(initializer);
+    observe?.(current);
+  }
+  return current;
+}
 
 export function resolved<T>(value: T, origin: MorphNode, declarations: readonly MorphNode[]): ReferenceFact<T> {
   return { kind: "resolved", value, trace: { declarations: [...declarations], origin } };
@@ -27,6 +65,17 @@ export interface NativeTypePropertyValue {
 export function resolveTypePropertyOrigin(expression: MorphNode, name: string | readonly string[]): ReferenceFact<readonly MorphNode[]> {
   const fact = resolveTypePropertyValue(expression, name);
   return fact.kind === "resolved" ? { ...fact, value: fact.value.declarations } : fact;
+}
+
+/** Captured native property declarations retain the direct reader's nonnullable and no-evidence rules. */
+export function observedTypePropertyOrigin(receiver: MorphNode, name: string, readers: TypeObservationReader): ReferenceFact<readonly MorphNode[]> {
+  const selector = { ...nodeTypeSelector(receiver), steps: [{ kind: "nonnullable" as const }] };
+  const symbol = readers.propertySymbol(selector, name);
+  if (symbol === null) {
+    return unresolved("missing", receiver, `the checker resolved no property symbol named ${name} on ${receiver.getText()}`);
+  }
+  const declarations = readers.symbolData(symbol).declarations;
+  return declarations.length === 0 ? unresolved("missing", receiver, `property ${name} has no declaration`) : resolved(declarations, receiver, declarations);
 }
 
 /** Resolve `<expression>.<name>` WHEN THERE IS NO MEMBER-ACCESS NODE TO HAND OVER — the BINDING-PATTERN twin

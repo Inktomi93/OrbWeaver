@@ -5,6 +5,7 @@ import { readAssignabilityChecker, readNativeTypeRelation } from "./assignabilit
 import { symbolDeclarations, ultimateSymbol } from "./symbol-identity.ts";
 import { firstOwnedTypeParameter } from "./type-dependence.ts";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
+import { constInitializerNominations } from "./type-observation-questions.ts";
 import type {
   NativeObservedDependency,
   NativeObservedNode,
@@ -17,6 +18,7 @@ import type {
   TypeObservationCapture,
   TypeObservationCaptureOwner,
   TypeObservationDemand,
+  TypeObservationReader,
 } from "./type-observations-contract.ts";
 import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
 import { readTypeObservations } from "./type-observations-read.ts";
@@ -611,11 +613,13 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       if (program === undefined) {
         throw new Error("native type observation capture is disposed");
       }
+      const constInitializers = capturedConstInitializers(demand, reader);
       const selections = selectors.length === 0 ? null : captureScalarTypeSelections({ selectors, relations: pairs }, { program, selectors, values: selected });
       const epochs = new Map(admittedSources);
       const result: NativeTypeObservations = {
         anchor,
         demand,
+        ...constInitializers,
         ...(valueProfiles === undefined ? {} : { valueProfiles }),
         assertNode: (node): void => {
           for (const [source, epoch] of epochs) {
@@ -644,7 +648,9 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
             }
           : {}),
         localTargets: [...locals].map(([node, symbol]) => ({ node, symbol })),
-        ...(demand.questions?.some((question) => question.kind === "property-symbols") === true ? { propertySymbols: [...propertySymbols.values()] } : {}),
+        ...(demand.questions?.some((question) => ["property-symbols", "const-initializers"].includes(question.kind)) === true
+          ? { propertySymbols: [...propertySymbols.values()] }
+          : {}),
         signatures: [...signatures.values()],
         dependencies: [...dependencies.values()],
         exports: [...exports.values()],
@@ -661,6 +667,11 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       return result;
     },
   };
+}
+
+function capturedConstInitializers(demand: TypeObservationDemand, reader: TypeObservationReader): Pick<NativeTypeObservations, "constInitializers"> {
+  const question = demand.questions?.find((value) => value.kind === "const-initializers");
+  return question === undefined ? {} : { constInitializers: constInitializerNominations(question.nodes, reader) };
 }
 
 /** One complete fixed profile, captured and checked before the native factory releases its owner. */

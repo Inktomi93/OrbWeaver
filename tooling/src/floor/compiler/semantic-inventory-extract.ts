@@ -41,7 +41,7 @@ import {
 import { canonicalInventoryPath, descriptorVersion, inputsCurrent, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { mapTypeObservationDemand } from "../code-facts/type-observations-codec.ts";
-import { hasTypeObservationValueDemand } from "../code-facts/type-observations-contract.ts";
+import { hasTypeObservationValueDemand, typeObservationNeedsSourceBindings } from "../code-facts/type-observations-contract.ts";
 import { extractDrizzleIdentities, inventoryQueryNode } from "./drizzle-inventory-extract.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "./invocation-evidence-extract.ts";
 import { inventoryFileSystem } from "./semantic-inventory-filesystem.ts";
@@ -1508,7 +1508,7 @@ function invocationRelatedSources(
   sources: readonly SourceFile[],
   state: InvocationCollection,
 ): InvocationCollection["related"] {
-  return query.mode === "observations" || (query.mode === "types" && !hasTypeObservationValueDemand(query.typeObservations))
+  return query.mode === "observations" || (query.mode === "types" && !typeObservationNeedsSourceBindings(query.typeObservations))
     ? new Map()
     : closeInvocationSources(sources, state);
 }

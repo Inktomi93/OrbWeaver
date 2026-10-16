@@ -43,8 +43,9 @@
 // still reported, and each carries its own row.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -100,30 +101,30 @@ function isExpressionReference(node: MorphNode): boolean {
 }
 
 /** A member read whose ROOT is not one of the ambient global objects is an injected port, not the api. */
-function isForeignMemberRead(node: MorphNode): boolean {
+function isForeignMemberRead(node: MorphNode, services: GlobalOriginServices): boolean {
   const member = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node);
-  return member && !readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [FETCH]);
+  return member && !readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [FETCH], services);
 }
 
 type EgressVerdict = "raw" | "other" | "unreadable";
 
-function classify(node: MorphNode): EgressVerdict {
-  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [FETCH])) {
+function classify(node: MorphNode, services: GlobalOriginServices): EgressVerdict {
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [FETCH], services)) {
     return "raw";
   }
-  if (isForeignMemberRead(node)) {
+  if (isForeignMemberRead(node, services)) {
     return "other";
   }
-  const global = resolveGlobalMemberOrigin(node);
+  const global = services.globalOrigin(node);
   if (global.kind === "resolved") {
     return global.value.globalName === FETCH && global.value.memberPath.length === 0 ? "raw" : "other";
   }
   // An IMPORTED binding named `fetch` is a raw egress door under another roof (a polyfill, `undici`), and
   // legacy reported it as an identifier callee. It stays a finding; the exception is a reviewed row.
-  if (resolveModuleMemberOrigin(node).kind === "resolved") {
+  if (services.moduleOrigin(node).kind === "resolved") {
     return "raw";
   }
-  return classifyOriginRefusal(global.reason, node);
+  return classifyOriginRefusal(global.reason, node, services.declarations);
 }
 
 export const gate = defineGate({
@@ -143,30 +144,37 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
+    const reads: MorphNode[] = [];
+    const origins = nativeOriginPass(ctx, []);
     return {
       visitors: [
         {
           kinds: [SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-          visit: (node, sourceFile): void => {
+          visit: (node): void => {
             if (!fetchCandidate(node) || isCapabilityProbe(node) || !isExpressionReference(node)) {
               return;
             }
-            const verdict = classify(node);
-            if (verdict === "other") {
-              return;
-            }
-            candidates.push({
-              node,
-              subject: ctx.relativePath(sourceFile),
-              operation: OPERATION,
-              unreadable: verdict === "unreadable",
-              token: FETCH,
-              offset: Math.max(node.getText().lastIndexOf(FETCH), 0),
-            });
+            reads.push(node);
+            origins.register(node);
           },
         },
       ],
+      prepare: origins.prepare,
       evaluate: (): void => {
+        for (const node of reads) {
+          const verdict = classify(node, origins.at(node));
+          if (verdict === "other") {
+            continue;
+          }
+          candidates.push({
+            node,
+            subject: ctx.relativePath(node.getSourceFile()),
+            operation: OPERATION,
+            unreadable: verdict === "unreadable",
+            token: FETCH,
+            offset: Math.max(node.getText().lastIndexOf(FETCH), 0),
+          });
+        }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

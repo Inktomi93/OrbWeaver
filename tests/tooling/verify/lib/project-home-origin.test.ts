@@ -7,6 +7,7 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { uncastReceiver } from "../../../../tooling/src/floor/code-facts/type-member-origin-core.ts";
 import {
   classifyPackageMemberOrigin,
   classifyProjectDirectoryOrigin,
@@ -194,6 +195,26 @@ test("THE CAST AXIS' LIMIT: a value with no real type behind the cast carries no
   });
 
   expect(classifyPackageMemberOrigin(memberIn(project, "packages/client/src/features/typeless.ts"), ["vendor-pkg"])).toBe("other");
+});
+
+test("uncast receiver closure retains call terminals and the existing four immutable-hop limit", () => {
+  const project = projectOf({
+    "packages/client/src/features/receivers.ts":
+      "declare function make():object; const first=make(); const second=first as object; const third=second; const fourth=third; const fifth=fourth; const sixth=fifth; export const reads=[fourth,sixth];",
+  });
+  const source = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/features/receivers.ts`);
+  const reads = source.getVariableDeclarationOrThrow("reads").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+  expect(reads.map((node) => uncastReceiver(node).getText())).toEqual(["make()", "second"]);
+});
+
+test("uncast receiver closure does not chase mutable bindings or import declarations", () => {
+  const project = projectOf({
+    "packages/client/src/features/receivers.ts": 'import {value} from "./value.ts"; let mutable=value as object; export const reads=[mutable,value];',
+    "packages/client/src/features/value.ts": "export const value={};",
+  });
+  const source = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/features/receivers.ts`);
+  const reads = source.getVariableDeclarationOrThrow("reads").getInitializerOrThrow().asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements();
+  expect(reads.map((node) => uncastReceiver(node).getText())).toEqual(["mutable", "value"]);
 });
 
 test("a property capture strips a cast before judging the package home and preserves a local implementation", () => {

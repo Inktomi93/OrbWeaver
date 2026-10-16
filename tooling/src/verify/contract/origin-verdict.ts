@@ -19,7 +19,13 @@
 // nobody has taken, not a re-home.
 
 import type { Node } from "ts-morph";
-import type { CallableOriginServices, ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices } from "../../floor/code-facts/reference-fact-contract.ts";
+import type {
+  CallableOriginServices,
+  GlobalMemberOrigin,
+  ModuleMemberOrigin,
+  ReferenceFact,
+  ReferenceResolutionServices,
+} from "../../floor/code-facts/reference-fact-contract.ts";
 
 /** Existing origin/name algorithms may consume captured native binding and key facts after seal. */
 export interface OriginReferenceServices {
@@ -33,6 +39,24 @@ export interface KitIdCallServices extends CallableOriginServices, Pick<OriginRe
 /** Canonical origin judgments may consume a closed native module fact instead of a syntax checker. */
 export interface ModuleOriginServices extends OriginReferenceServices {
   readonly moduleOrigin: (node: Node) => ReferenceFact<ModuleMemberOrigin>;
+}
+
+/** Member policies consume native declaration origins without exposing Types or Symbols. */
+export interface MemberOriginServices extends OriginReferenceServices {
+  readonly memberOrigin: (node: Node) => ReferenceFact<readonly Node[]>;
+  readonly propertyOrigin: (receiver: Node, name: string) => ReferenceFact<readonly Node[]>;
+}
+
+/** Ambient policies retain their module-import and global-root axes under one captured owner. */
+export interface GlobalOriginServices extends ModuleOriginServices {
+  readonly globalOrigin: (node: Node) => ReferenceFact<GlobalMemberOrigin>;
+}
+
+/** Closed nominations retain one actual importing owner for all related receiver facts. */
+export interface NativeOriginPass {
+  readonly register: (node: Node) => void;
+  readonly prepare: () => void;
+  readonly at: (node: Node) => MemberOriginServices & GlobalOriginServices;
 }
 
 /** The two answers a refusal resolves to: a PROVEN different identity, or a read that could not be made.

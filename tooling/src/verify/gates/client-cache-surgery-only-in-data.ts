@@ -21,6 +21,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyPackageMemberOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
@@ -71,11 +72,13 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
+    const reads = new Map<MorphNode, string>();
+    const origins = nativeOriginPass(ctx, [...METHODS]);
     return {
       visitors: [
         {
           kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile): void => {
+          visit: (node): void => {
             if (!Node.isCallExpression(node)) {
               return;
             }
@@ -84,22 +87,26 @@ export const gate = defineGate({
             if (name === null || !METHODS.has(name)) {
               return;
             }
-            const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE]);
-            if (verdict === "other") {
-              return;
-            }
+            reads.set(callee, name);
+            origins.register(callee);
+          },
+        },
+      ],
+      prepare: origins.prepare,
+      evaluate: (): void => {
+        for (const [callee, name] of reads) {
+          const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE], origins.at(callee));
+          if (verdict !== "other") {
             candidates.push({
               node: callee,
-              subject: ctx.relativePath(sourceFile),
+              subject: ctx.relativePath(callee.getSourceFile()),
               operation: `${OPERATION_PREFIX}:${name}`,
               unreadable: verdict === "unreadable",
               token: name,
               offset: Math.max(callee.getText().lastIndexOf(name), 0),
             });
-          },
-        },
-      ],
-      evaluate: (): void => {
+          }
+        }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

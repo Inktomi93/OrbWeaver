@@ -26,6 +26,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyPackageMemberOrigin } from "../lib/project-home-origin.ts";
 import { LOOKALIKE_HOME, tanstackQueryProof, vendorLookalikeProof } from "./_proof/client-vendors.ts";
 
@@ -66,34 +67,40 @@ export const gate = defineGate({
     "it. A deliberate site is waived with `@orb-waive no-inline-optimistic-in-surface(<position>): <reason>` " +
     "on the line above, where <position> is the query-core method's own name (e.g. `setQueryData`) at its " +
     "occurrence in the call chain.",
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.CallExpression],
-        visit: (node): void => {
-          if (!Node.isCallExpression(node)) {
-            return;
-          }
-          const callee = node.getExpression();
-          const name = calledMemberName(callee);
-          if (name === undefined || !OPTIMISTIC_METHODS.has(name)) {
-            return;
-          }
-          // THE CAST AXIS is why this goes through the shared reader rather than asking the property symbol
-          // directly: a cast declares the method in its OWN type literal, so
-          // `(useQueryClient() as { setQueryData(…): void }).setQueryData(…)` read as a proven different
-          // identity and passed. `classifyPackageMemberOrigin` asks the UNCAST receiver as well, which the
-          // cast cannot change (`lib/project-home-origin.ts`, shared with the sanctioned-home client family).
-          const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE]);
+  create: (ctx) => {
+    const reads = new Map<MorphNode, string>();
+    const origins = nativeOriginPass(ctx, [...OPTIMISTIC_METHODS]);
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
+            }
+            const callee = node.getExpression();
+            const name = calledMemberName(callee);
+            if (name === undefined || !OPTIMISTIC_METHODS.has(name)) {
+              return;
+            }
+            reads.set(callee, name);
+            origins.register(callee);
+          },
+        },
+      ],
+      prepare: origins.prepare,
+      evaluate: (): void => {
+        for (const [callee, name] of reads) {
+          const verdict = classifyPackageMemberOrigin(callee, [QUERY_CORE], origins.at(callee));
           if (verdict === "other") {
-            return;
+            continue;
           }
           const offset = Math.max(callee.getText().lastIndexOf(name), 0);
           ctx.report.node(callee, { ...(verdict === "unreadable" ? { message: UNREADABLE } : {}), token: name, offset });
-        },
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

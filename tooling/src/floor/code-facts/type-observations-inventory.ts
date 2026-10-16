@@ -57,6 +57,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       demand: typeObservationDemandSchema(span),
       symbols: z.array(symbol),
       nodes: z.array(z.strictObject({ node: span, symbol: index.nullable(), type: index, contextual: observation(index) })),
+      constInitializers: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       types: z.array(type.nullable()),
       properties: z.array(z.strictObject({ selector: index, at: span, values: z.array(z.strictObject({ name: z.string(), symbol: index, type: index })) })),
       unions: z.array(z.strictObject({ selector: index, values: z.array(index) })),

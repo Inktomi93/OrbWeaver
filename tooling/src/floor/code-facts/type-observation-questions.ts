@@ -1,9 +1,58 @@
 // Explicit raw questions retain their nominated locations and one importing capture.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { TypeObservationCaptureOwner, TypeObservationDemand, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
+import { uncastReceiver } from "./type-member-origin-core.ts";
+import type {
+  TypeObservationCaptureOwner,
+  TypeObservationDemand,
+  TypeObservationQuestion,
+  TypeObservationReader,
+  TypeObservationValues,
+} from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
+
+/** Capture and replay follow the same bounded raw lexical initializer relationships. */
+export function constInitializerNominations(
+  nodes: readonly MorphNode[],
+  readers: TypeObservationReader,
+): NonNullable<TypeObservationValues["constInitializers"]> {
+  return [...new Set(nodes)].map((node) => {
+    const values = new Set<MorphNode>([node]);
+    uncastReceiver(
+      node,
+      (identifier) => {
+        const symbol = readers.symbol(identifier);
+        return symbol === null ? [] : readers.symbolData(symbol).declarations;
+      },
+      (value) => {
+        values.add(value);
+      },
+    );
+    return { node, values: [...values] };
+  });
+}
+
+function constInitializerProperties(node: MorphNode, names: readonly string[], readers: TypeObservationReader): void {
+  if (names.length === 0) {
+    return;
+  }
+  const selector = { ...nodeTypeSelector(node), steps: [{ kind: "nonnullable" as const }] };
+  if (readers.select(selector) !== null) {
+    for (const name of names) {
+      readers.propertySymbol(selector, name);
+    }
+  }
+}
+function constInitializers(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  for (const { values } of constInitializerNominations(question.nodes, readers)) {
+    for (const node of values) {
+      readers.symbol(node);
+      constInitializerProperties(node, question.properties ?? [], readers);
+      valueProfile(question, node, profile);
+    }
+  }
+}
 
 function propertyLiterals(readers: TypeObservationReader, selector: NativeTypeSelector, at: MorphNode, names: readonly string[]): void {
   if (readers.select(selector) === null) {
@@ -229,6 +278,7 @@ const questions: Record<
     references?: TypeObservationCaptureOwner["references"],
   ) => void
 > = {
+  "const-initializers": constInitializers,
   "declaration-closure": declarationClosure,
   "literal-values": (question, readers): void => {
     for (const node of question.nodes) {

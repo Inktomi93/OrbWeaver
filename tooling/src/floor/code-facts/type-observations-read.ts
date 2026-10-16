@@ -1,6 +1,7 @@
 // Delivered selectors answer only one closed capture; scalar identity never grants another world's meaning.
 import type { Node, SourceFile } from "ts-morph";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
+import { constInitializerNominations } from "./type-observation-questions.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
 import { assertRawParameterCoverage, assertTypeArgumentCoverage } from "./type-observations-coverage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
@@ -342,6 +343,7 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
       references,
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
+    assertConstInitializerRelationships(facts, reader);
     if (
       facts.types.some((row, index) => (row?.primitiveFlags !== undefined) !== primitives.has(index)) ||
       (facts.propertySymbols ?? []).some((row) => !namedProperties.has(JSON.stringify([row.selector, row.name])))
@@ -388,5 +390,27 @@ function assertDetailCoverage(
     )
   ) {
     throw new Error("native Type detail coverage is missing or foreign");
+  }
+}
+
+function assertConstInitializerRelationships(facts: NativeTypeObservations, reader: TypeObservationReader): void {
+  const initializerPaths = constInitializerNominations(
+    (facts.demand.questions ?? []).filter((question) => question.kind === "const-initializers").flatMap((question) => question.nodes),
+    reader,
+  );
+  const capturedPaths = facts.constInitializers ?? [];
+  if (
+    initializerPaths.length !== capturedPaths.length ||
+    initializerPaths.some((path, index) => {
+      const captured = capturedPaths[index];
+      return (
+        captured === undefined ||
+        captured.node !== path.node ||
+        captured.values.length !== path.values.length ||
+        path.values.some((value, at) => captured.values[at] !== value)
+      );
+    })
+  ) {
+    throw new Error("native const initializer relationships are missing or foreign");
   }
 }

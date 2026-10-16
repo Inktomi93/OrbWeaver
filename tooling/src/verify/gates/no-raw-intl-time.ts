@@ -39,8 +39,9 @@
 // header says why.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -87,8 +88,8 @@ type IntlVerdict = "intl" | "other" | "unreadable";
 const GLOBAL_RECEIVERS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
 
 /** Is this member read `Intl.<Formatter>` — the AMBIENT global, under any receiver spelling? */
-function intlVerdict(node: MorphNode, formatter: string): IntlVerdict {
-  const global = resolveGlobalMemberOrigin(node);
+function intlVerdict(node: MorphNode, formatter: string, services: GlobalOriginServices): IntlVerdict {
+  const global = services.globalOrigin(node);
   if (global.kind === "resolved") {
     const { globalName, memberPath } = global.value;
     return globalName === INTL && memberPath.length === 1 ? "intl" : "other";
@@ -97,10 +98,10 @@ function intlVerdict(node: MorphNode, formatter: string): IntlVerdict {
   // the property symbols declarations inside the cast's own type literal, so the value reader refuses and the
   // refusal classifier calls it a proven different binding — a one-line dodge for the whole law. The chain's
   // ROOT cannot be cast away: read off a proven ambient global, `Intl.<Formatter>` is the ECMAScript api.
-  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [INTL, formatter])) {
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [INTL, formatter], services)) {
     return "intl";
   }
-  return classifyOriginRefusal(global.reason, node);
+  return classifyOriginRefusal(global.reason, node, services.declarations);
 }
 
 /** The kit time seam AS IT IS — it constructs the formatter, which is the licensed occurrence. Only the row
@@ -128,6 +129,8 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
+    const reads = new Map<MorphNode, string>();
+    const origins = nativeOriginPass(ctx, [...TO_LOCALE]);
     const push = (found: {
       readonly node: MorphNode;
       readonly sourceFile: import("ts-morph").SourceFile;
@@ -151,20 +154,18 @@ export const gate = defineGate({
           // The `Intl.<Formatter>` arm: any member read whose leaf is a formatter name is a candidate, and
           // the resolved global says whether the receiver is really `Intl`.
           kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-          visit: (node, sourceFile): void => {
+          visit: (node): void => {
             const name = memberName(node);
             if (name === null || !FORMATTERS.has(name)) {
               return;
             }
-            const verdict = intlVerdict(node, name);
-            if (verdict !== "other") {
-              push({ node, sourceFile, operation: OPERATIONS.intlFormatter, token: name, unreadable: verdict === "unreadable" });
-            }
+            reads.set(node, name);
+            origins.register(node);
           },
         },
         {
           kinds: [SyntaxKind.CallExpression],
-          visit: (node, sourceFile): void => {
+          visit: (node): void => {
             if (!Node.isCallExpression(node)) {
               return;
             }
@@ -173,14 +174,27 @@ export const gate = defineGate({
             if (name === null || !TO_LOCALE.has(name)) {
               return;
             }
-            const verdict = classifyPackageMemberOrigin(callee, [AMBIENT_HOME]);
-            if (verdict !== "other") {
-              push({ node: callee, sourceFile, operation: OPERATIONS.toLocale, token: name, unreadable: verdict === "unreadable" });
-            }
+            reads.set(callee, name);
+            origins.register(callee);
           },
         },
       ],
+      prepare: origins.prepare,
       evaluate: (): void => {
+        for (const [node, name] of reads) {
+          const services = origins.at(node);
+          const formatter = FORMATTERS.has(name);
+          const verdict = formatter ? intlVerdict(node, name, services) : classifyPackageMemberOrigin(node, [AMBIENT_HOME], services);
+          if (verdict !== "other") {
+            push({
+              node,
+              sourceFile: node.getSourceFile(),
+              operation: formatter ? OPERATIONS.intlFormatter : OPERATIONS.toLocale,
+              token: name,
+              unreadable: verdict === "unreadable",
+            });
+          }
+        }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

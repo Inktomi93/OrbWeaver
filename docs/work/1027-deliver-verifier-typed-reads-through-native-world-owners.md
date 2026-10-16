@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/css-mirror-1009
+lane: codex/zod-native-integers
 plan: test-foundation
 ---
 
@@ -20,7 +20,7 @@ The ordinary syntax workspace does not establish native Node or browser ownershi
 
 ## Done when
 
-Actual structure and scoped entrypoints preserve native options, roots, closure and world-specific interpretations. Missing or stale native ownership refuses. Native entrypoint controls and finding equivalence distinguish correct Node and browser meanings without synthetic merged programs or compiler floods.
+Structure and scoped entrypoints preserve native options, roots, closure and world meaning. Missing or stale native ownership refuses. Native entrypoint controls and finding equivalence distinguish correct Node and browser meanings without synthetic merged programs or compiler floods.
 
 ## Evidence
 
@@ -30,7 +30,7 @@ Native shape and declaration-output delivery preserves membership and unknown ju
 
 Invoked-member, callable-body and computed-name facts preserve identity, await, traces, refusal and coordinates for plugin guards and client assertions. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-computed-normalization-review.md` and its linked reviews.
 
-Clock/random native origins do not claim complete bindings. Determinism and mock policies share guarded invocation facts with arguments, bindings and refusals. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-global-origin-review.md` and `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-invocation-independent-review.md`.
+Clock/random origins and determinism/mock invocation delivery preserve demand and refusal. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-global-origin-review.md` and `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-invocation-independent-review.md`.
 
 Sealed-reference policies preserve candidate grammar, authority and authored coordinates through native value/module facts. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-sealed-reference-independent-review.md`.
 
@@ -44,4 +44,6 @@ JSON read, write and health policies consume native cohorts with parser membersh
 
 Native Zod, body-cap, selected origin, ID, reference, bus and failure consumers pass ordinary qualification and independent review. Missing native evidence refuses. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
 
-Static-class and CSS-hook providers use sealed native observations through the existing evaluator. Importing-world and lifetime controls pass independent review and ordinary qualification. Policy populations, resources and authority remain separate. CSS census and cost stay open. Evidence: `reports/review/1027-native-css-ordinary.md`.
+CSS providers retain separate populations and authority through the existing evaluator. Native world and lifetime controls pass review and ordinary qualification. Census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
+
+Retained origins preserve direct and uncast declarations through bounded const-initializer questions. Ordinary controls and security review pass. Evidence: `reports/review/1027-retained-origins-ordinary.md`.

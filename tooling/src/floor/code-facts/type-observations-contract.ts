@@ -4,12 +4,13 @@ import type { NativePrimitiveFlags, NativeScalarTypeSelections, NativeTypeSelect
 
 export const TYPE_OBSERVATION_PROFILE = "authored-type-slots-v1";
 export const ZOD_OUTPUT_PROPERTY = "_output";
-export const TYPE_OBSERVATION_VALUE_FACETS = ["module", "binding", "string", "stable", "authored-value"] as const;
+export const TYPE_OBSERVATION_VALUE_FACETS = ["module", "global", "binding", "string", "stable", "authored-value"] as const;
 export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "node-types",
   "primitive-flags",
   "literal-values",
   "property-symbols",
+  "const-initializers",
   "declaration-closure",
   "type-properties",
   "definition-nodes",
@@ -42,6 +43,17 @@ export interface TypeObservationDemand<Anchor = Node> {
 /** Value questions require the existing binding/computed children in this same native capture. */
 export function hasTypeObservationValueDemand(demand: TypeObservationDemand<object> | undefined): boolean {
   return demand?.questions?.some((question) => question.valueFacets !== undefined) === true;
+}
+
+/** Exact const cohorts carry their lexical records; every existing callback-dependent question stays complete. */
+export function typeObservationNeedsSourceBindings(demand: TypeObservationDemand<object> | undefined): boolean {
+  return (
+    demand?.questions?.some(
+      (question) =>
+        question.valueFacets !== undefined &&
+        (question.kind !== "const-initializers" || question.valueFacets.some((facet) => facet !== "module" && facet !== "global")),
+    ) === true
+  );
 }
 
 /** Numeric references are local to this exact capture/world/generation, never declaration or display substitutes. */
@@ -95,6 +107,7 @@ export interface TypeObservationValues<Anchor = Node> {
   readonly demand: TypeObservationDemand<Anchor>;
   readonly symbols: readonly NativeObservedSymbol<Anchor>[];
   readonly nodes: readonly NativeObservedNode<Anchor>[];
+  readonly constInitializers?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
   readonly types: readonly (NativeObservedType | null)[];
   readonly properties: readonly {
     readonly selector: number;

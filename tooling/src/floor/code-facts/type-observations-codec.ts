@@ -20,6 +20,7 @@ export function mapTypeObservationDemand<From, To>(demand: TypeObservationDemand
 }
 export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<From>, node: (value: From) => To): TypeObservationValues<To> {
   const {
+    constInitializers: _constInitializers,
     definitions: _definitions,
     functionExports: _functionExports,
     callParameters: _callParameters,
@@ -36,6 +37,9 @@ export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<
       declarations: symbol.declarations.map(node),
       ...(valueDeclaration === undefined ? {} : { valueDeclaration: valueDeclaration === null ? null : node(valueDeclaration) }),
     })),
+    ...(facts.constInitializers === undefined
+      ? {}
+      : { constInitializers: facts.constInitializers.map((row) => ({ node: node(row.node), values: row.values.map(node) })) }),
     ...(facts.definitions === undefined ? {} : { definitions: facts.definitions.map((entry) => ({ node: node(entry.node), values: entry.values.map(node) })) }),
     ...(facts.functionExports === undefined ? {} : { functionExports: facts.functionExports.map((entry) => ({ ...entry, node: node(entry.node) })) }),
     ...(facts.callParameters === undefined ? {} : { callParameters: facts.callParameters.map((entry) => ({ ...entry, call: node(entry.call) })) }),

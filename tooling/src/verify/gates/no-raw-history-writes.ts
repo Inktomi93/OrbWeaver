@@ -4,11 +4,12 @@
 
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { computedNameNeedsBindings, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { staticString } from "../../floor/code-facts/reference-fact-static.ts";
+import type { GlobalOriginServices, MemberOriginServices, OriginReferenceServices, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyPackageMemberOrigin, readsAmbientGlobalPath, uncastPropertyDeclaredByPackage } from "../lib/project-home-origin.ts";
-import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 
 const MUTATORS: ReadonlySet<string> = new Set(["pushState", "replaceState"]);
 const GLOBALS: ReadonlySet<string> = new Set(["globalThis", "window", "self"]);
@@ -17,15 +18,37 @@ const ROUTER_HOME = "packages/client/src/lib/use-router-url-replace.ts";
 const FIX = `use router.navigate, or the router commitLocation URL scrub seam in ${ROUTER_HOME}`;
 const UNREADABLE = `this history mutation capture cannot be established as browser History or a local implementation; expose its concrete receiver instead of an opaque structural signature. Router home: ${ROUTER_HOME}`;
 
-function capturedMutation(node: MorphNode): string | undefined {
+function capturedMutation(node: MorphNode, services?: OriginReferenceServices): string | undefined {
   if (!Node.isBindingElement(node)) {
-    return staticMemberAccess(node)?.name;
+    return staticMemberAccess(node, services?.readComputedName)?.name;
   }
   const key = node.getPropertyNameNode() ?? node.getNameNode();
   if (Node.isIdentifier(key)) {
     return key.getText();
   }
-  return staticString(Node.isComputedPropertyName(key) ? key.getExpression() : key);
+  const value = Node.isComputedPropertyName(key) ? key.getExpression() : key;
+  if (services === undefined) {
+    return staticString(value);
+  }
+  const fact = services.readComputedName(value);
+  return fact.kind === "resolved" ? fact.value : undefined;
+}
+
+function possibleMutation(node: MorphNode): boolean {
+  let computed: MorphNode | undefined;
+  if (Node.isElementAccessExpression(node)) {
+    computed = node.getArgumentExpression();
+  } else if (Node.isBindingElement(node)) {
+    const key = node.getPropertyNameNode();
+    if (key !== undefined && Node.isComputedPropertyName(key)) {
+      computed = key.getExpression();
+    }
+  }
+  if (computed !== undefined && computedNameNeedsBindings(computed)) {
+    return true;
+  }
+  const name = capturedMutation(node);
+  return name !== undefined && MUTATORS.has(name);
 }
 
 function hasLocalImplementation(declaration: MorphNode): boolean {
@@ -39,22 +62,35 @@ function hasLocalImplementation(declaration: MorphNode): boolean {
   return false;
 }
 
-function mutationDeclarations(node: MorphNode, name: string): readonly MorphNode[] {
+function mutationDeclarations(node: MorphNode, name: string, services: MemberOriginServices): readonly MorphNode[] {
   if (Node.isBindingElement(node)) {
     const receiver = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-    const origin = receiver === undefined ? undefined : resolveTypePropertyOrigin(receiver, name);
+    const origin = receiver === undefined ? undefined : services.propertyOrigin(receiver, name);
     return origin?.kind === "resolved" ? origin.value : [];
   }
-  const origin = resolveTypeMemberOrigin(node);
-  return origin.kind === "resolved" ? origin.value.declarations : [];
+  const origin = services.memberOrigin(node);
+  return origin.kind === "resolved" ? origin.value : [];
 }
 
-function browserMemberOrigin(node: MorphNode, name: string): boolean {
+function browserMemberOrigin(node: MorphNode, name: string, services: MemberOriginServices): boolean {
   if (!Node.isBindingElement(node)) {
-    return classifyPackageMemberOrigin(node, DOM_PACKAGES) === "home";
+    return classifyPackageMemberOrigin(node, DOM_PACKAGES, services) === "home";
   }
   const receiver = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  return receiver !== undefined && uncastPropertyDeclaredByPackage(receiver, name, DOM_PACKAGES);
+  return receiver !== undefined && uncastPropertyDeclaredByPackage(receiver, name, DOM_PACKAGES, services);
+}
+
+function mutationVerdict(node: MorphNode, name: string, services: GlobalOriginServices & MemberOriginServices): ProjectHomeVerdict {
+  const reference = Node.isBindingElement(node) ? node.getNameNode() : node;
+  const global = services.globalOrigin(reference);
+  const ambient =
+    global.kind === "resolved" && global.value.globalName === "history" && global.value.memberPath.length === 1 && global.value.memberPath[0] === name;
+  const declarations = mutationDeclarations(node, name, services);
+  const browser = ambient || readsAmbientGlobalPath(reference, GLOBALS, ["history", name], services) || browserMemberOrigin(node, name, services);
+  if (browser) {
+    return "home";
+  }
+  return declarations.length > 0 && declarations.every(hasLocalImplementation) ? "other" : "unreadable";
 }
 
 export const gate = defineGate({
@@ -69,29 +105,38 @@ export const gate = defineGate({
   resources: [],
   message: `client code captures a browser History mutation directly; route pushState and replaceState through router navigation. Router home: ${ROUTER_HOME}`,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.BindingElement],
-        visit: (node): void => {
-          const name = capturedMutation(node);
-          if (name === undefined || !MUTATORS.has(name)) {
-            return;
-          }
-          const reference = Node.isBindingElement(node) ? node.getNameNode() : node;
-          const global = resolveGlobalMemberOrigin(reference);
-          const ambient =
-            global.kind === "resolved" && global.value.globalName === "history" && global.value.memberPath.length === 1 && global.value.memberPath[0] === name;
-          const declarations = mutationDeclarations(node, name);
-          const browser = ambient || readsAmbientGlobalPath(reference, GLOBALS, ["history", name]) || browserMemberOrigin(node, name);
-          if (!browser && declarations.length > 0 && declarations.every(hasLocalImplementation)) {
-            return;
-          }
-          ctx.report.node(Node.isPropertyAccessExpression(node) ? node.getNameNode() : node, browser ? {} : { message: UNREADABLE });
+  create: (ctx) => {
+    const reads: MorphNode[] = [];
+    const origins = nativeOriginPass(ctx, [...MUTATORS]);
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.BindingElement],
+          visit: (node): void => {
+            if (possibleMutation(node)) {
+              reads.push(node);
+              origins.register(node);
+            }
+          },
         },
+      ],
+      prepare: origins.prepare,
+      evaluate: (): void => {
+        for (const node of reads) {
+          const services: GlobalOriginServices & MemberOriginServices = origins.at(node);
+          const name = capturedMutation(node, services);
+          if (name === undefined || !MUTATORS.has(name)) {
+            continue;
+          }
+          const verdict = mutationVerdict(node, name, services);
+          if (verdict === "other") {
+            continue;
+          }
+          ctx.report.node(Node.isPropertyAccessExpression(node) ? node.getNameNode() : node, verdict === "home" ? {} : { message: UNREADABLE });
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

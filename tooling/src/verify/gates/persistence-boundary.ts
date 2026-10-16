@@ -64,8 +64,9 @@
 //     (§4.1's fourth outcome: record the gap, never fake a pin).
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
+import { nativeOriginPass } from "../lib/native-origin.ts";
 import { classifyOriginRefusal } from "../lib/origin-verdict.ts";
 import { readsAmbientGlobalPath } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
@@ -116,8 +117,8 @@ function isExpressionReference(node: MorphNode): boolean {
 
 type StorageVerdict = "raw" | "other" | "unreadable";
 
-function classify(node: MorphNode, name: string): StorageVerdict {
-  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [name])) {
+function classify(node: MorphNode, name: string, services: GlobalOriginServices): StorageVerdict {
+  if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [name], services)) {
     return "raw";
   }
   const member = Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node);
@@ -125,11 +126,11 @@ function classify(node: MorphNode, name: string): StorageVerdict {
     // A member read whose ROOT is not an ambient global is an injected storage port, not the api.
     return "other";
   }
-  const global = resolveGlobalMemberOrigin(node);
+  const global = services.globalOrigin(node);
   if (global.kind === "resolved") {
     return global.value.globalName === name && global.value.memberPath.length === 0 ? "raw" : "other";
   }
-  return classifyOriginRefusal(global.reason, node);
+  return classifyOriginRefusal(global.reason, node, services.declarations);
 }
 
 export const gate = defineGate({
@@ -148,31 +149,38 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
+    const reads = new Map<MorphNode, string>();
+    const origins = nativeOriginPass(ctx, []);
     return {
       visitors: [
         {
           kinds: [SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
-          visit: (node, sourceFile): void => {
+          visit: (node): void => {
             const name = storageCandidateName(node);
             if (name === undefined || isCapabilityProbe(node) || !isExpressionReference(node)) {
               return;
             }
-            const verdict = classify(node, name);
-            if (verdict === "other") {
-              return;
-            }
-            candidates.push({
-              node,
-              subject: ctx.relativePath(sourceFile),
-              operation: `raw-storage:${name}`,
-              unreadable: verdict === "unreadable",
-              token: name,
-              offset: Math.max(node.getText().lastIndexOf(name), 0),
-            });
+            reads.set(node, name);
+            origins.register(node);
           },
         },
       ],
+      prepare: origins.prepare,
       evaluate: (): void => {
+        for (const [node, name] of reads) {
+          const verdict = classify(node, name, origins.at(node));
+          if (verdict === "other") {
+            continue;
+          }
+          candidates.push({
+            node,
+            subject: ctx.relativePath(node.getSourceFile()),
+            operation: `raw-storage:${name}`,
+            unreadable: verdict === "unreadable",
+            token: name,
+            offset: Math.max(node.getText().lastIndexOf(name), 0),
+          });
+        }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

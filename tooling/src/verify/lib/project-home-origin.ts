@@ -14,13 +14,20 @@
 
 import {
   readMemberReference,
+  readMemberReferenceWithName,
   referenceResolutionServices,
   resolveGlobalMemberOrigin,
   resolveModuleMemberOrigin,
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { Node, VariableDeclarationKind } from "ts-morph";
-import type { ModuleOriginServices, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
+import { MAX_RECEIVER_HOPS, uncastReceiver } from "../../floor/code-facts/type-member-origin-core.ts";
+import type {
+  GlobalOriginServices,
+  MemberOriginServices,
+  ModuleOriginServices,
+  OriginReferenceServices,
+  ProjectHomeVerdict,
+} from "../contract/origin-verdict.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
@@ -140,64 +147,24 @@ export function readPackageExportOrigin(
   return { verdict: inPackage ? "home" : "other", exportedName: inPackage ? named : null };
 }
 
-/** How far a receiver's identity is chased through immutable const hops before the reader gives up. A cast
- *  is normally zero or one hop from its value; the cap only stops a pathological chain. */
-const MAX_RECEIVER_HOPS = 4;
-
-/** The initializer of an identifier's `const` declaration, or null. Deliberately NOT `resolveStableExpression`:
- *  that reader resolves to a stable TERMINAL and refuses a call (`create(…)`, `useQueryClient()`), which is
- *  precisely the receiver whose type this axis needs. `const` only — a reassignable binding proves nothing
- *  about the value at the call site. */
-function constInitializerOf(identifier: MorphNode): MorphNode | null {
-  let initializer: MorphNode | null = null;
-  for (const declaration of identifier.getSymbol()?.getDeclarations() ?? []) {
-    const value = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
-    const isConst = Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const;
-    if (initializer === null && isConst && value !== undefined) {
-      initializer = value;
-    }
-  }
-  return initializer;
-}
-
-/** THE CAST AXIS. What a receiver REALLY is, with every `as`/`satisfies`/parenthesis stripped and immutable
- *  const hops followed.
- *
- *  WHY THIS EXISTS: a member read is normally judged by the DECLARATION of the property symbol the checker
- *  resolved off the receiver's type — and a cast REPLACES that declaration with one in the cast's own type
- *  literal, which the shared refusal classifier then correctly calls "a proven different identity". So
- *  `(useQueryClient() as { setQueryData(k: unknown, v: unknown): void }).setQueryData(…)` passed every
- *  policy in this family while the uncast twin reported: a one-line dodge for the whole class. The receiver's
- *  own identity cannot be cast away, so the fix belongs here rather than in each policy. */
-function uncastReceiver(node: MorphNode): MorphNode {
-  let current = referenceResolutionServices.unwrapExpression(node);
-  for (let hop = 0; hop < MAX_RECEIVER_HOPS && Node.isIdentifier(current); hop += 1) {
-    const initializer = constInitializerOf(current);
-    if (initializer === null) {
-      break;
-    }
-    current = referenceResolutionServices.unwrapExpression(initializer);
-  }
-  return current;
-}
-
 /** Does the member, looked up on the receiver's UNCAST type, belong to one of the named packages? A receiver
  *  whose uncast type does not declare the member at all carries no evidence either way and answers false —
  *  the caller's direct verdict then stands. */
-function uncastMemberDeclaredByPackage(node: MorphNode, packageNames: readonly string[]): boolean {
-  const read = readMemberReference(node);
+function uncastMemberDeclaredByPackage(node: MorphNode, packageNames: readonly string[], services?: MemberOriginServices): boolean {
+  const read = services === undefined ? readMemberReference(node) : readMemberReferenceWithName(node, services.readComputedName);
   if (read.kind === "unresolved") {
     return false;
   }
-  return uncastPropertyDeclaredByPackage(read.value.receiver, read.value.name, packageNames);
+  return uncastPropertyDeclaredByPackage(read.value.receiver, read.value.name, packageNames, services);
 }
 
 /** The uncast package-member check for a property captured without a member node, such as destructuring. */
-export function uncastPropertyDeclaredByPackage(receiver: MorphNode, name: string, packageNames: readonly string[]): boolean {
+export function uncastPropertyDeclaredByPackage(receiver: MorphNode, name: string, packageNames: readonly string[], services?: MemberOriginServices): boolean {
   // Through the shared reader (#2097): "no property symbol" and "a symbol with no declaration" are the same
   // NO-EVIDENCE answer for this predicate, which is what the doc above states, so an unresolved fact
   // collapses to the empty set exactly as the open-coded `?? []` did.
-  const origin = resolveTypePropertyOrigin(uncastReceiver(receiver), name);
+  const uncast = uncastReceiver(receiver, services?.declarations);
+  const origin = services === undefined ? resolveTypePropertyOrigin(uncast, name) : services.propertyOrigin(uncast, name);
   return declaredByAnyPackage(origin.kind === "resolved" ? origin.value : [], packageNames);
 }
 
@@ -208,31 +175,35 @@ export function uncastPropertyDeclaredByPackage(receiver: MorphNode, name: strin
  *
  *  The CAST AXIS runs second and only widens the verdict: a cast that hides the property's declaration
  *  cannot hide what the receiver IS ({@link uncastReceiver}). */
-export function classifyPackageMemberOrigin(node: MorphNode, packageNames: readonly string[]): ProjectHomeVerdict {
-  const origin = resolveTypeMemberOrigin(node);
-  if (origin.kind === "resolved" && declaredByAnyPackage(origin.value.declarations, packageNames)) {
+export function classifyPackageMemberOrigin(node: MorphNode, packageNames: readonly string[], services?: MemberOriginServices): ProjectHomeVerdict {
+  const direct = (): import("../../floor/code-facts/reference-fact-contract.ts").ReferenceFact<readonly MorphNode[]> => {
+    const origin = resolveTypeMemberOrigin(node);
+    return origin.kind === "resolved" ? { ...origin, value: origin.value.declarations } : origin;
+  };
+  const origin = services === undefined ? direct() : services.memberOrigin(node);
+  if (origin.kind === "resolved" && declaredByAnyPackage(origin.value, packageNames)) {
     return "home";
   }
-  if (uncastMemberDeclaredByPackage(node, packageNames)) {
+  if (uncastMemberDeclaredByPackage(node, packageNames, services)) {
     return "home";
   }
-  return origin.kind === "unresolved" ? classifyOriginRefusal(origin.reason, node) : "other";
+  return origin.kind === "unresolved" ? classifyOriginRefusal(origin.reason, node, services?.declarations) : "other";
 }
 
 /** One member chain, ROOT-FIRST, with every cast stripped at every step:
  *  `(globalThis as { Intl: … }).Intl.DateTimeFormat` reads as root `globalThis` plus `["Intl","DateTimeFormat"]`. */
-function readMemberChain(node: MorphNode): { readonly root: MorphNode; readonly names: readonly string[] } | null {
+function readMemberChain(node: MorphNode, services?: OriginReferenceServices): { readonly root: MorphNode; readonly names: readonly string[] } | null {
   const names: string[] = [];
   let current = referenceResolutionServices.unwrapExpression(node);
   for (let hop = 0; hop < MAX_RECEIVER_HOPS; hop += 1) {
-    const read = readMemberReference(current);
+    const read = services === undefined ? readMemberReference(current) : readMemberReferenceWithName(current, services.readComputedName);
     if (read.kind === "unresolved") {
       break;
     }
     names.unshift(read.value.name);
     current = referenceResolutionServices.unwrapExpression(read.value.receiver);
   }
-  return names.length === 0 ? null : { root: uncastReceiver(current), names };
+  return names.length === 0 ? null : { root: uncastReceiver(current, services?.declarations), names };
 }
 
 /** Is this member read exactly `<ambient global>.<path>` — the CAST AXIS for an api hung off `globalThis`?
@@ -240,12 +211,12 @@ function readMemberChain(node: MorphNode): { readonly root: MorphNode; readonly 
  *  The property-symbol reader is cast-poisoned one level down (`(globalThis as { Intl: … }).Intl` declares
  *  its `Intl` in the cast's type literal), so the chain's ROOT is what proves the identity: whatever the
  *  members are annotated as, the object they are read off is the ambient global. */
-export function readsAmbientGlobalPath(node: MorphNode, globals: ReadonlySet<string>, path: readonly string[]): boolean {
-  const chain = readMemberChain(node);
+export function readsAmbientGlobalPath(node: MorphNode, globals: ReadonlySet<string>, path: readonly string[], services?: GlobalOriginServices): boolean {
+  const chain = readMemberChain(node, services);
   if (chain === null || chain.names.length !== path.length || chain.names.some((name, index) => name !== path[index])) {
     return false;
   }
-  const origin = resolveGlobalMemberOrigin(chain.root);
+  const origin = services === undefined ? resolveGlobalMemberOrigin(chain.root) : services.globalOrigin(chain.root);
   return origin.kind === "resolved" && origin.value.memberPath.length === 0 && globals.has(origin.value.globalName);
 }
 
