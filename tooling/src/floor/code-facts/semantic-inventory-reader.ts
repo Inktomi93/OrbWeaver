@@ -164,6 +164,7 @@ function createInventoryReader(
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
   const capturedTexts = new Map<SourceFile, string>();
+  const materializedSources = new Map<Project, Map<string, SourceFile>>();
   const projections = new Map<SourceFile, { readonly epoch: SourceFile["compilerNode"]; readonly nodes: Map<string, Node> }>();
   const bindingUses = new Map<string, SourceBindingUsage>();
   const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
@@ -212,6 +213,14 @@ function createInventoryReader(
     assertOpen();
     const file = canonicalPath(path);
     const carrier = contextProject(context);
+    const materialized = materializedSources.get(carrier);
+    const cached = materialized?.get(file);
+    if (cached !== undefined) {
+      if (!cached.wasForgotten() && cached.getFilePath() === file) {
+        return cached;
+      }
+      materialized?.delete(file);
+    }
     const existing = carrier.getSourceFile(file);
     const text = texts.get(file);
     if (existing !== undefined || text === undefined) {
@@ -219,6 +228,9 @@ function createInventoryReader(
     }
     const captured = readInventorySourceText(db, text.partition, text.source);
     const created = carrier.createSourceFile(file, captured);
+    const sources = materialized ?? new Map<string, SourceFile>();
+    sources.set(file, created);
+    materializedSources.set(carrier, sources);
     capturedTexts.set(created, captured);
     inventories.set(created, inventory);
     inventories.set(created.compilerNode, inventory);
@@ -727,6 +739,7 @@ function createInventoryReader(
       available.clear();
       texts.clear();
       capturedTexts.clear();
+      materializedSources.clear();
       projections.clear();
       shapeOwners.clear();
       aliases.clear();
