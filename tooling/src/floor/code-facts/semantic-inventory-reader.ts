@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
 import type { Node, SourceFile } from "ts-morph";
@@ -100,9 +100,11 @@ export function inventoryReader(
   const contextProjects = new Map<string, Project>();
   const contextWorlds = new WeakMap<Project, readonly string[]>();
   const capturedTexts = new Map<SourceFile, string>();
+  const projections = new Map<SourceFile, { readonly epoch: SourceFile["compilerNode"]; readonly nodes: Map<string, Node> }>();
   const bindingUses = new Map<string, SourceBindingUsage>();
   const texts = new Map<string, { partition: string; source: StoredInventorySource }>();
   const aliases = new Map<string, string>();
+  const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
   const authored = new Set<string>();
   for (const partition of partitions) {
@@ -139,7 +141,18 @@ export function inventoryReader(
     inventories.set(carrier, inventory);
     return carrier;
   };
-  const canonicalPath = (path: string): string => aliases.get(resolve(root, path)) ?? resolve(root, path);
+  const canonicalPath = (path: string): string => {
+    const cached = canonicalPaths.get(path);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const absolute = resolve(root, path);
+    const canonical = aliases.get(absolute) ?? absolute;
+    if (open && isAbsolute(root)) {
+      canonicalPaths.set(path, canonical);
+    }
+    return canonical;
+  };
   const capturedSpan = (node: Node): InventorySpan => ({ ...nodeSpan(node), file: canonicalPath(node.getSourceFile().getFilePath()) });
   const sourceFile = (path: string, context?: readonly string[]): SourceFile | undefined => {
     assertOpen();
@@ -171,13 +184,27 @@ export function inventoryReader(
   };
   const nodeOf = (span: InventorySpan, context?: readonly string[], source?: SourceFile): Node => {
     const sf = source ?? sourceFile(span.file, context);
-    const leaf = sf?.getDescendantAtPos(span.start);
+    const key = spanKey(span);
+    if (sf === undefined || sf.wasForgotten()) {
+      throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${key}`);
+    }
+    let projection = projections.get(sf);
+    if (projection?.epoch !== sf.compilerNode) {
+      projection = { epoch: sf.compilerNode, nodes: new Map() };
+      projections.set(sf, projection);
+    }
+    const existing = projection.nodes.get(key);
+    if (existing !== undefined && !existing.wasForgotten()) {
+      return existing;
+    }
+    const leaf = sf.getDescendantAtPos(span.start);
     const node = [sf, leaf, ...(leaf?.getAncestors() ?? [])].find(
       (candidate) => candidate?.getStart() === span.start && candidate.getEnd() === span.end && candidate.getKind() === span.kind,
     );
     if (node === undefined) {
       throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${spanKey(span)}`);
     }
+    projection.nodes.set(key, node);
     return node;
   };
   const worlds = (node: Node): readonly StoredInventoryPartition[] => {
@@ -642,8 +669,10 @@ export function inventoryReader(
       indexes = [];
       texts.clear();
       capturedTexts.clear();
+      projections.clear();
       shapeOwners.clear();
       aliases.clear();
+      canonicalPaths.clear();
       authored.clear();
       for (const usage of bindingUses.values()) {
         usage[Symbol.dispose]();
