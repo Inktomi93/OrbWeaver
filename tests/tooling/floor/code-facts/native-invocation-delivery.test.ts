@@ -1,7 +1,8 @@
 // @subject tooling/src/floor/compiler/invocation-evidence-extract.ts
 // @subject tooling/src/floor/code-facts/invocation-evidence-replay.ts
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { syncBuiltinESMExports } from "node:module";
+import path, { dirname, join } from "node:path";
 import { DatabaseSync, StatementSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode } from "ts-morph";
@@ -620,6 +621,126 @@ test(
     expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
     expect(() => hasInventoryInvocationCoverage(db, "foreign", queries)).toThrow("family unavailable");
     expect(db.isTransaction).toBe(false);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "invocation replay reuses only exact live physical syntax projections",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, source, calls } = controls(scratch);
+    const call = calls.find((node) => node.getText() === "bound()");
+    if (call === undefined) {
+      throw new Error("physical projection invocation is missing");
+    }
+    using inventory = createSemanticInventory({
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+    });
+    const positions = vi.spyOn(Node.prototype, "getDescendantAtPos");
+    const ancestors = vi.spyOn(Node.prototype, "getAncestors");
+    try {
+      const first = inventory.invocationEvidence(call, descriptor.id, PLAN);
+      expect(first.modules.has(call.getExpression())).toBe(true);
+      const firstPositions = positions.mock.calls.length;
+      const firstAncestors = ancestors.mock.calls.length;
+      expect(firstPositions).toBeGreaterThan(0);
+      expect(firstAncestors).toBeGreaterThan(0);
+      const second = inventory.invocationEvidence(call, descriptor.id, PLAN);
+      expect(second.modules.has(call.getExpression())).toBe(true);
+      expect({ positions: positions.mock.calls.length - firstPositions, ancestors: ancestors.mock.calls.length - firstAncestors }).toEqual({
+        positions: 0,
+        ancestors: 0,
+      });
+    } finally {
+      ancestors.mockRestore();
+      positions.mockRestore();
+    }
+    const twin = new Project({ useInMemoryFileSystem: true }).createSourceFile(source.getFilePath(), TEXT);
+    const twinCall = twin.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getText() === "bound()");
+    if (twinCall === undefined) {
+      throw new Error("same-span twin invocation is missing");
+    }
+    expect(span(twinCall)).toEqual(span(call));
+    expect(twinCall.compilerNode).not.toBe(call.compilerNode);
+    const twinEvidence = inventory.invocationEvidence(twinCall, descriptor.id, PLAN);
+    expect(twinEvidence.modules.has(twinCall.getExpression())).toBe(true);
+    expect(twinEvidence.modules.has(call.getExpression())).toBe(false);
+    source.forgetDescendants();
+    expect(call.wasForgotten()).toBe(true);
+    const currentCall = (): import("ts-morph").CallExpression => {
+      const current = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getText() === "bound()");
+      if (current === undefined) {
+        throw new Error("current projection invocation is missing");
+      }
+      return current;
+    };
+    const afterForget = currentCall();
+    expect(inventory.invocationEvidence(afterForget, descriptor.id, PLAN).modules.has(afterForget.getExpression())).toBe(true);
+    const previousEpoch = source.compilerNode;
+    source.replaceWithText(TEXT);
+    expect(source.compilerNode).not.toBe(previousEpoch);
+    const replacement = currentCall();
+    expect(inventory.invocationEvidence(replacement, descriptor.id, PLAN).modules.has(replacement.getExpression())).toBe(true);
+    source.replaceWithText(TEXT + "\nexport const changed=1;");
+    expect(() => inventory.invocationEvidence(currentCall(), descriptor.id, PLAN)).toThrow("source/epoch");
+    source.replaceWithText(TEXT);
+    const restored = currentCall();
+    expect(inventory.invocationEvidence(restored, descriptor.id, PLAN).modules.has(restored.getExpression())).toBe(true);
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partition = readInventoryGeneration(db, inventory.generation)[0];
+    if (partition === undefined) {
+      throw new Error("physical projection partition is missing");
+    }
+    const alias = join(scratch, "invocation-alias.ts");
+    symlinkSync(source.getFilePath(), alias);
+    db.prepare("UPDATE inventory_source SET path=? WHERE partition=? AND file=?").run(
+      JSON.stringify(alias),
+      partition.id,
+      JSON.stringify(source.getFilePath()),
+    );
+    using borrowed = inventoryReader(scratch, inventory.generation, [partition], { db, dispose: () => undefined });
+    const paths = [SOURCE, "tests/server/../server/invocation.test.ts", source.getFilePath(), alias];
+    const resolution = vi.spyOn(path, "resolve");
+    syncBuiltinESMExports();
+    try {
+      for (const input of paths) {
+        expect(borrowed.canonicalPath(input)).toBe(source.getFilePath());
+      }
+      const cold = resolution.mock.calls.length;
+      expect(cold).toBeGreaterThan(0);
+      for (const input of paths) {
+        expect(borrowed.canonicalPath(input)).toBe(source.getFilePath());
+      }
+      expect(resolution.mock.calls.length - cold).toBe(0);
+    } finally {
+      resolution.mockRestore();
+      syncBuiltinESMExports();
+    }
+    const retained = borrowed.invocationEvidence(restored, descriptor.id, PLAN);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.prepare("UPDATE inventory_span SET kind=? WHERE partition=? AND ordinal=(SELECT node FROM inventory_global_binding WHERE partition=? LIMIT 1)").run(
+        SyntaxKind.EndOfFileToken,
+        partition.id,
+        partition.id,
+      );
+      expect(() => borrowed.invocationEvidence(restored, descriptor.id, PLAN)).toThrow("cannot materialize span");
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    expect(borrowed.invocationEvidence(restored, descriptor.id, PLAN).modules.has(restored.getExpression())).toBe(true);
+    borrowed[Symbol.dispose]();
+    expect(borrowed.canonicalPath(alias)).toBe(alias);
+    expect(() => retained.declarations(restored.getExpression())).toThrow("disposed");
+    inventory[Symbol.dispose]();
+    expect(() => inventory.invocationEvidence(restored, descriptor.id, PLAN)).toThrow("disposed");
   },
   scaledBudget(30_000),
 );
