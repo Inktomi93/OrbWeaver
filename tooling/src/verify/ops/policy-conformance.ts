@@ -557,6 +557,17 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   };
   return nativeTypeFactSession(
     (queries): NativeTypeFactReader => ({
+      references: (nodes, importer): ReturnType<NativeTypeFactReader["references"]> => {
+        checkerFor([importer, ...nodes]);
+        return new Map(
+          nodes.map((node) => {
+            if (!TsNode.isReferenceFindable(node)) {
+              throw new Error("isolated reference query is not reference-findable");
+            }
+            return [node, node.findReferencesAsNodes()] as const;
+          }),
+        );
+      },
       schemaData: (requested, projection): ReturnType<NativeTypeFactReader["schemaData"]> => {
         const checker = checkerFor(requested);
         return readSchemaData(

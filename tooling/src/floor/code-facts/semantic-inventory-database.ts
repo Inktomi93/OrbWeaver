@@ -6,12 +6,13 @@ import { DatabaseSync } from "node:sqlite";
 import { z } from "zod";
 import { waitSync } from "../process/sync-sleep.ts";
 import type { InventoryFamily, InventoryPartition, StoredInventoryPartition } from "./semantic-inventory-contract.ts";
-import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
+import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, INVENTORY_REFERENCE_MODES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
 import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInventoryRecords } from "./semantic-inventory-records.ts";
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 12;
+const STORAGE_SCHEMA_VERSION = 13;
+const SOURCE_INDEX_SCHEMA_VERSION = 12;
 const EXPORT_SCHEMA_VERSION = 11;
 const INVOCATION_SCHEMA_VERSION = 10;
 const GLOBAL_SCHEMA_VERSION = 9;
@@ -35,6 +36,7 @@ const descriptorRow = z.object({
   compilerOptionsJson: inventoryStringSchema,
   workerPid: z.number().int().nullable(),
   intent: z.enum(["facts", "membership"]),
+  referenceMode: z.enum(INVENTORY_REFERENCE_MODES),
 });
 const SQLITE_BUSY = 5;
 const WRITER_RETRY_MS = 50;
@@ -69,6 +71,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== GLOBAL_SCHEMA_VERSION &&
     version !== INVOCATION_SCHEMA_VERSION &&
     version !== EXPORT_SCHEMA_VERSION &&
+    version !== SOURCE_INDEX_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -153,6 +156,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
     if (version < SHAPE_SCHEMA_VERSION) {
       upgradeShapeStorage(db);
     }
+    upgradeReferenceStorage(db, version);
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
@@ -167,6 +171,21 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("ROLLBACK");
     }
     throw error;
+  }
+}
+
+function upgradeReferenceStorage(db: DatabaseSync, version: number): void {
+  if (version < STORAGE_SCHEMA_VERSION) {
+    db.exec(`CREATE TABLE IF NOT EXISTS inventory_reference_query(${inventoryRecordTables.referenceQuery.definition}) STRICT;`);
+    db.exec(`CREATE TABLE IF NOT EXISTS inventory_reference_query_node(${inventoryRecordTables.referenceQueryNode.definition}) STRICT;`);
+    if (
+      !db
+        .prepare("PRAGMA table_info(inventory_descriptor)")
+        .all()
+        .some((row) => row["name"] === "referenceMode")
+    ) {
+      db.exec("ALTER TABLE inventory_descriptor ADD COLUMN referenceMode TEXT NOT NULL DEFAULT 'complete' CHECK(referenceMode IN ('complete','closed'));");
+    }
   }
 }
 
@@ -212,7 +231,7 @@ function readPartition(db: DatabaseSync, id: string): StoredInventoryPartition {
   const row = descriptorRow.parse(
     db
       .prepare(
-        "SELECT p.id,p.format,d.program,d.descriptorVersion,d.compilerOptionsJson,d.workerPid,d.intent FROM inventory_partition p JOIN inventory_descriptor d ON d.partition=p.id WHERE p.id=?",
+        "SELECT p.id,p.format,d.program,d.descriptorVersion,d.compilerOptionsJson,d.workerPid,d.intent,d.referenceMode FROM inventory_partition p JOIN inventory_descriptor d ON d.partition=p.id WHERE p.id=?",
       )
       .get(id),
   );

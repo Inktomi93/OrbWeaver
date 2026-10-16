@@ -3,7 +3,15 @@
 // Phase F (2026-09-14): the legacy dispatcher died; these two survived it because they describe the
 // WORKSPACE, not the descriptor runtime.
 import { posix } from "node:path";
-import { createSemanticWorkspace, getWorkspace, registeredSemanticSourceView } from "@orb/tooling/floor/compiler/ts-workspace";
+import {
+  canonicalSemanticPrograms,
+  createSemanticWorkspace,
+  getWorkspace,
+  hasRegisteredSemanticProgram,
+  registeredSemanticSourceView,
+  semanticProgramMatchesDescriptor,
+  semanticWorkspaceOf,
+} from "@orb/tooling/floor/compiler/ts-workspace";
 import type { AsExpression, Node, TypeNode } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
@@ -99,12 +107,16 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
     kind: NativeTypeRequest["kind"],
     nodes: readonly Node[],
     projection?: {
+      readonly importer?: import("ts-morph").SourceFile;
       readonly name?: string;
       readonly mode?: import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleEvidenceMode;
       readonly plan?: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan;
     },
   ): NativeTypeFactReader => {
     assertReadable();
+    if (kind === "references" && !(requests.get(owner) ?? []).some((query) => query.kind === "references" && query.importer === projection?.importer)) {
+      throw new Error("native reference importer was not registered by this owner");
+    }
     const admitted =
       kind === "invocation-evidence"
         ? invocationNodes(owner, projection?.plan)
@@ -113,6 +125,7 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
               .filter(
                 (query) =>
                   query.kind === kind &&
+                  (query.kind !== "references" || query.importer === projection?.importer) &&
                   (query.kind !== "drizzle-identities" || query.mode === projection?.mode) &&
                   (query.kind !== "export-declarations" || query.name === projection?.name),
               )
@@ -155,9 +168,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       if (sealed) {
         throw new Error("native type request registration is sealed");
       }
-      if (query.nodes.length > 0 || query.kind === "schema-data" || query.kind === "schema-identities") {
+      if (query.nodes.length > 0 || recordsEmptyIntent(query)) {
         const rows = requests.get(owner) ?? [];
         switch (query.kind) {
+          case "references":
+            requireReferenceNodes(query);
+            rows.push({ kind: query.kind, importer: query.importer, nodes: [...query.nodes] });
+            break;
           case "schema-data":
             rows.push({
               kind: query.kind,
@@ -223,6 +240,8 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
       }
       sealed = true;
     },
+    references: (owner, nodes, importer): ReturnType<NativeTypeContext["references"]> =>
+      selected(owner, "references", nodes, { importer }).references(nodes, importer),
     exportDeclarations: (owner, sources, name): ReturnType<NativeTypeContext["exportDeclarations"]> => {
       if (sources.length === 0) {
         assertReadable();
@@ -355,6 +374,77 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
   };
 }
 
+function recordsEmptyIntent(query: NativeTypeRequest): boolean {
+  return query.kind === "schema-data" || query.kind === "schema-identities" || query.kind === "references";
+}
+function requireReferenceNodes(query: Extract<NativeTypeRequest, { readonly kind: "references" }>): void {
+  if (!MorphNode.isSourceFile(query.importer) || query.nodes.some((node) => !MorphNode.isReferenceFindable(node))) {
+    throw new Error("native reference demand requires an importing source and exact reference-findable query nodes");
+  }
+}
+function nativeImporterOwner(root: string, workspace: SemanticWorkspace, importer: import("ts-morph").SourceFile): string {
+  if (importer.wasForgotten()) {
+    throw new SemanticInventoryError("native importing source was forgotten");
+  }
+  const registeredWorkspace = semanticWorkspaceOf(importer.getProject());
+  const canonicalRoot = canonicalInventoryPath(root);
+  const file = canonicalInventoryPath(importer.getFilePath());
+  const path = repoRel(canonicalRoot, file);
+  if (!hasRegisteredSemanticProgram(importer.getProject())) {
+    const selected = workspace.primaryOwner(file);
+    if (selected === undefined || !selected.descriptor.files.includes(path)) {
+      throw new SemanticInventoryError("native importing source has no admitted primary root owner");
+    }
+    return selected.descriptor.id;
+  }
+  const view = registeredSemanticSourceView(importer);
+  if (
+    view === undefined ||
+    registeredWorkspace === undefined ||
+    canonicalInventoryPath(registeredWorkspace.root) !== canonicalRoot ||
+    view.canonicalPath !== file
+  ) {
+    throw new SemanticInventoryError("native importing source has a foreign or changed compiler meaning");
+  }
+  const canonical = canonicalSemanticPrograms(root, importer.getProject()).find((program) => program.id === view.program.descriptor.id);
+  if (canonical === undefined || !canonical.files.includes(path) || !semanticProgramMatchesDescriptor(importer, canonical)) {
+    throw new SemanticInventoryError("native importing source has a foreign or changed compiler meaning");
+  }
+  if (importer.getProject().getFileSystem().readFileSync(importer.getFilePath()) !== importer.getFullText()) {
+    throw new SemanticInventoryError("native importing source text/epoch is stale");
+  }
+  return canonical.id;
+}
+function referenceOptions(
+  queries: readonly NativeTypeRequest[],
+  owner: (node: import("ts-morph").SourceFile) => string,
+): Pick<import("../../floor/code-facts/semantic-inventory-contract.ts").SemanticInventoryOptions, "referenceDemand"> {
+  if (!queries.some((query) => query.kind === "references")) {
+    return {};
+  }
+  return {
+    referenceDemand: {
+      mode: "closed",
+      queries: queries
+        .filter((query) => query.kind === "references")
+        .flatMap((query) => {
+          const program = owner(query.importer);
+          const root = {
+            file: canonicalInventoryPath(query.importer.getFilePath()),
+            start: query.importer.getStart(),
+            end: query.importer.getEnd(),
+            kind: query.importer.getKind(),
+          };
+          return query.nodes.map((node) => ({
+            program,
+            root,
+            node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
+          }));
+        }),
+    },
+  };
+}
+
 function assertNeverRequest(value: never): never {
   throw new Error(`unhandled native type request: ${String(value)}`);
 }
@@ -396,20 +486,17 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
     }
     return selected.descriptor.id;
   };
-  const descriptors = [
-    ...new Map(
-      queries
-        .filter((query) => query.kind !== "shape-relations")
-        .flatMap((query) => [...query.nodes])
-        .map((node) => {
-          const selected = workspace.program(owner(node));
-          if (selected === undefined) {
-            throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
-          }
-          return [selected.descriptor.id, selected.descriptor] as const;
-        }),
-    ).values(),
-  ];
+  const referenceOwner = (importer: import("ts-morph").SourceFile): string => nativeImporterOwner(root, workspace, importer);
+  const descriptorOwners = queries
+    .filter((query) => query.kind !== "shape-relations")
+    .flatMap((query) => (query.kind === "references" ? [referenceOwner(query.importer)] : query.nodes.map(owner)));
+  const descriptors = [...new Set(descriptorOwners)].map((id) => {
+    const selected = workspace.program(id);
+    if (selected === undefined) {
+      throw new SemanticInventoryError("native typed primary compiler owner is unavailable");
+    }
+    return selected.descriptor;
+  });
   const families = [
     ...new Set(
       queries.flatMap((query) => {
@@ -448,6 +535,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   const inventory = createSemanticInventory({
     root,
     programs: descriptors,
+    ...referenceOptions(queries, referenceOwner),
     ...(families.includes("drizzle-identities")
       ? {
           ...(schemaProgram === undefined
@@ -570,6 +658,10 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   // biome-ignore lint/nursery/useDisposables: the returned reader owns the binding lease.
   const binding = shapes.length === 0 ? undefined : bindShapeInventory(capturedSources, inventory);
   return {
+    references: (subjects, importer): ReturnType<NativeTypeFactReader["references"]> => {
+      const program = referenceOwner(importer);
+      return new Map(subjects.map((node) => [node, inventory.references(node, program, importer)]));
+    },
     schemaData: (sources, projection): ReturnType<NativeTypeFactReader["schemaData"]> => {
       if (schemaDataProgram === undefined) {
         throw new SemanticInventoryError("native schema roster owner is unavailable");

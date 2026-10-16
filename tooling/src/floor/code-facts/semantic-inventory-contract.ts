@@ -41,7 +41,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 19;
+export const INVENTORY_FORMAT = 20;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -534,8 +534,35 @@ export const shapeCatalogSchema = z.object({
   queries: z.array(z.string()),
 });
 export type InventoryShape = z.infer<typeof shapeCatalogSchema>;
+export const referenceQuerySchema = z.object({
+  root: spanSchema,
+  query: spanSchema,
+  references: z.array(z.object({ reference: spanSchema, consumerClass: z.enum(INVENTORY_CONSUMER_CLASSES) })),
+});
+export type InventoryReferenceQuery = z.infer<typeof referenceQuerySchema>;
+export interface InventoryReferencePair {
+  readonly root: InventorySpan;
+  readonly node: InventorySpan;
+}
+export interface InventoryNativeReferenceQuery extends InventoryReferencePair {
+  readonly program: string;
+}
+
+/** Importer and exact queried syntax jointly own a language-service request. */
+export function referenceQueryKey(pair: InventoryReferencePair): string {
+  return JSON.stringify([inventoryNodeQueryKey(pair.root), inventoryNodeQueryKey(pair.node)]);
+}
+export const INVENTORY_REFERENCE_MODES = ["complete", "closed"] as const;
+export type InventoryReferenceMode = (typeof INVENTORY_REFERENCE_MODES)[number];
+export interface InventoryReferenceDemand<Query> {
+  readonly mode: InventoryReferenceMode;
+  readonly queries: readonly Query[];
+}
+
 export const partitionSchema = z.object({
   intent: z.enum(["facts", "membership"]),
+  referenceMode: z.enum(INVENTORY_REFERENCE_MODES).optional(),
+  referenceQueries: z.array(referenceQuerySchema).optional(),
   families: familySchema,
   available: z.array(z.string()),
   shapes: z.array(shapeCatalogSchema),
@@ -577,6 +604,7 @@ export const partitionSchema = z.object({
 });
 
 export const partitionMetadataSchema = partitionSchema.omit({
+  referenceQueries: true,
   globalOrigins: true,
   globalBindings: true,
   invocationEvidence: true,
@@ -601,7 +629,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
   references: true,
   witnesses: true,
 });
-export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string() });
+export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string(), referenceMode: z.enum(INVENTORY_REFERENCE_MODES) });
 export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
 export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots", "available"] as const;
 export const INVENTORY_FAMILY_FIELDS = {
@@ -638,6 +666,8 @@ export const INVENTORY_RECORD_TABLES = [
   "fact",
   "declaration",
   "reference",
+  "referenceQuery",
+  "referenceQueryNode",
   "cast",
   "brand",
   "runtimeExport",
@@ -690,6 +720,7 @@ export interface InventoryOverlay {
 }
 
 export interface InventoryBuildRequest {
+  readonly referenceDemand?: InventoryReferenceDemand<InventoryReferencePair>;
   readonly schemaSources?: readonly InventorySpan[];
   readonly schemaDataSources?: readonly InventorySpan[];
   readonly schemaDataProjection?: SchemaDataProjection;
@@ -711,6 +742,7 @@ export interface InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
+  readonly referenceDemand?: InventoryReferenceDemand<InventoryNativeReferenceQuery>;
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
   readonly schemaDataQuery?: { readonly program: string; readonly sources: readonly InventorySpan[]; readonly projection?: SchemaDataProjection };
   readonly drizzleQueries?: readonly { readonly program: string; readonly query: InventoryDrizzleQuery }[];
@@ -766,7 +798,7 @@ export interface SemanticInventory extends Disposable {
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
   readonly moduleTarget: (node: Node, program?: string) => SourceFile | undefined;
   readonly symbols: (node: Node) => InventorySymbols;
-  readonly references: (node: Node) => readonly Node[];
+  readonly references: (node: Node, program?: string, importer?: SourceFile) => readonly Node[];
   readonly witnessOrigins: (node: Node) => readonly Node[];
 }
 

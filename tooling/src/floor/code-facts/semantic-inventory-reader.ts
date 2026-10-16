@@ -29,7 +29,7 @@ import type {
   StoredInventoryPartition,
   StoredInventorySource,
 } from "./semantic-inventory-contract.ts";
-import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
+import { INVENTORY_KEY_SEPARATOR, INVENTORY_REFERENCE_MODES, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 
 import {
@@ -48,6 +48,7 @@ import {
   readInventoryMemberOrigins,
   readInventoryModules,
   readInventoryPairs,
+  readInventoryReferenceQueries,
   readInventoryReferences,
   readInventoryRuntimeExports,
   readInventorySchemaData,
@@ -91,6 +92,12 @@ function agreed<T>(values: readonly T[], label: string): T | undefined {
     throw new SemanticInventoryError(`native semantic inventory ambiguity: ${label}`);
   }
   return first;
+}
+
+function assertReferenceModes(partitions: readonly StoredInventoryPartition[]): void {
+  if (partitions.some((partition) => !INVENTORY_REFERENCE_MODES.includes(partition.referenceMode))) {
+    throw new SemanticInventoryError("native reference coverage metadata is unavailable");
+  }
 }
 
 /** Materialize source syntax only; all typed questions select immutable native facts explicitly. */
@@ -346,6 +353,38 @@ function createInventoryReader(
       throw new SemanticInventoryError("native module target source is unavailable");
     }
     return replayFor(node, program, partition, "module target")(capturedSpan(target)).getSourceFile();
+  };
+  const nativeReferences = (node: Node, program: string, importer: SourceFile | undefined): readonly Node[] => {
+    assertOpen();
+    const partition = indexes.find((candidate) => candidate.program === program);
+    if (partition === undefined) {
+      throw new SemanticInventoryError("native reference compiler partition is unavailable");
+    }
+    requireFamily([partition], "references");
+    const span = capturedSpan(node);
+    const recorded = [...readInventorySourceMetadata(db, partition.id)].filter((captured) => captured.file === span.file);
+    const source = recorded[0];
+    if (
+      node.wasForgotten() ||
+      recorded.length !== 1 ||
+      source === undefined ||
+      !hasAvailableSource(partition, span.file) ||
+      inventoryTextVersion(inventoryTextParts(node.getSourceFile().getFullText())) !== source.textVersion ||
+      !TsNode.isReferenceFindable(node)
+    ) {
+      throw new SemanticInventoryError("native reference query source/epoch is not admitted by its captured native partition");
+    }
+    if (importer === undefined) {
+      throw new SemanticInventoryError("native reference query requires its registered importing root");
+    }
+    const importerSpan = nativeSpan(importer, program, "references").span;
+    const entries = [...readInventoryReferenceQueries(db, partition.id, { root: importerSpan, node: span })];
+    const entry = entries[0];
+    if (entries.length !== 1 || entry === undefined) {
+      throw new SemanticInventoryError("native exact reference query coverage is unavailable");
+    }
+    const replay = replayFor(node, program, partition, "reference");
+    return entry.references.map((result) => replay(result.reference));
   };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
@@ -724,8 +763,16 @@ function createInventoryReader(
         ) ?? { lexical: [], origins: [] }
       );
     },
-    references: (node) => {
+    references: (node, program, importer) => {
+      assertOpen();
+      assertReferenceModes(indexes);
+      if (program !== undefined) {
+        return nativeReferences(node, program, importer);
+      }
       assertCapturedSource(node);
+      if (indexes.some((partition) => partition.families.includes("references") && partition.referenceMode === "closed")) {
+        throw new SemanticInventoryError("native declaration reference union requires complete reference coverage");
+      }
       const origin = capturedSpan(node);
       if (!authored.has(origin.file)) {
         throw new SemanticInventoryError(

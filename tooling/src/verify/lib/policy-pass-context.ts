@@ -239,6 +239,10 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
     relativePath,
     sourceFile,
     nativeTypes: {
+      references: (
+        nodes: Parameters<NativeTypeContext["references"]>[0],
+        importer: Parameters<NativeTypeContext["references"]>[1],
+      ): ReturnType<NativeTypeContext["references"]> => nativeFacts([importer]).references(input.ownerId, nodes, importer),
       schemaData: (
         sources: Parameters<NativeTypeContext["schemaData"]>[0],
         projection?: Parameters<NativeTypeContext["schemaData"]>[1],
@@ -273,7 +277,7 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
         nativeFacts(nodes).declarationOutputs(input.ownerId, nodes),
       prepareShapes: (sources: Parameters<NativeTypeContext["prepareShapes"]>[0]): void => nativeFacts(sources).prepareShapes(input.ownerId, sources),
       request: (query: NativeTypeRequest): void => {
-        const facts = nativeFacts(query.nodes);
+        const facts = nativeFacts(query.kind === "references" ? [query.importer] : query.nodes);
         facts.request(input.ownerId, query);
       },
       castRelations: (nodes: Parameters<NativeTypeContext["castRelations"]>[0]): ReturnType<NativeTypeContext["castRelations"]> =>

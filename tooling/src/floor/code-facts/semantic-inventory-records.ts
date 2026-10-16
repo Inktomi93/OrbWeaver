@@ -34,6 +34,7 @@ import {
   memberOriginSchema,
   partitionMetadataSchema,
   partitionSchema,
+  referenceQueryKey,
   schemaDataCatalogSchema,
   shapePairKey,
   shapePairSchema,
@@ -163,6 +164,16 @@ export const inventoryRecordTables = {
     columns: "ordinal,key,leftNode,rightNode,leftField,rightField,projection,lenient,state,reason,a,b,c,d",
     definition: `${PARTITION},${ORDINAL},key TEXT NOT NULL,leftNode INTEGER NOT NULL,rightNode INTEGER NOT NULL,leftField TEXT,rightField TEXT,projection TEXT NOT NULL CHECK(projection IN ('mutual','relation')),lenient INTEGER NOT NULL CHECK(lenient IN (0,1)),state TEXT NOT NULL CHECK(state IN ('answer','no-comparable','unavailable')),reason TEXT,a INTEGER CHECK(a IN (0,1)),b INTEGER CHECK(b IN (0,1)),c INTEGER CHECK(c IN (0,1)),d INTEGER CHECK(d IN (0,1)),CHECK((state='answer' AND reason IS NULL AND a IS NOT NULL AND ((projection='mutual' AND b IS NULL AND c IS NULL AND d IS NULL) OR (projection='relation' AND b IS NOT NULL AND c IS NOT NULL AND d IS NOT NULL))) OR (state='no-comparable' AND projection='relation' AND reason IS NULL AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL) OR (state='unavailable' AND reason IN ('primitive-absent','node-absent') AND a IS NULL AND b IS NULL AND c IS NULL AND d IS NULL)),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key),FOREIGN KEY(partition,leftNode) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,rightNode) REFERENCES inventory_span(partition,ordinal)`,
   },
+  referenceQuery: {
+    name: "inventory_reference_query",
+    columns: "ordinal,root,node,resultCount",
+    definition: `${PARTITION},${ORDINAL},root INTEGER NOT NULL,node INTEGER NOT NULL,resultCount INTEGER NOT NULL CHECK(resultCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,root,node),FOREIGN KEY(partition,root) REFERENCES inventory_span(partition,ordinal),${SPAN_REFERENCE}`,
+  },
+  referenceQueryNode: {
+    name: "inventory_reference_query_node",
+    columns: "owner,ordinal,node,consumerClass",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},node INTEGER NOT NULL,${CONSUMER},PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_reference_query(partition,ordinal),${SPAN_REFERENCE}`,
+  },
   runtimeExport: {
     name: "inventory_runtime_export",
     columns: "ordinal,file,name,node,callable,initializerKind,initializerCallable",
@@ -185,8 +196,8 @@ export const inventoryRecordTables = {
   },
   descriptor: {
     name: "inventory_descriptor",
-    columns: "program,descriptorVersion,compilerOptionsJson,workerPid,intent",
-    definition: `${PARTITION} PRIMARY KEY,program TEXT NOT NULL,descriptorVersion TEXT NOT NULL,compilerOptionsJson TEXT NOT NULL,workerPid INTEGER,intent TEXT NOT NULL CHECK(intent IN ('facts','membership'))`,
+    columns: "program,descriptorVersion,compilerOptionsJson,workerPid,intent,referenceMode",
+    definition: `${PARTITION} PRIMARY KEY,program TEXT NOT NULL,descriptorVersion TEXT NOT NULL,compilerOptionsJson TEXT NOT NULL,workerPid INTEGER,intent TEXT NOT NULL CHECK(intent IN ('facts','membership')),referenceMode TEXT NOT NULL DEFAULT 'complete' CHECK(referenceMode IN ('complete','closed'))`,
   },
   list: {
     name: "inventory_list",
@@ -346,6 +357,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
       throw new Error("native closed bindings exceed their global-origin demand");
     }
   }
+  assertReferenceOwnership(partition);
   assertBindingSourceOwnership(partition);
   const emit = (table: InventoryRecordTable, ...values: InventoryRecord["values"]): void => write({ table, values });
   emit(
@@ -355,6 +367,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     inventoryString(metadata.compilerOptionsJson),
     metadata.workerPid ?? null,
     metadata.intent,
+    referenceMode(metadata),
   );
   metadata.families.forEach((family, ordinal) => {
     emit("family", ordinal, family);
@@ -632,9 +645,42 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
         : [null, null, null, null, result.reason];
     emit("cast", ordinal, spanId(entry.node), ...values);
   });
+  writeReferenceQueries(partition, emit, spanId);
   partition.references.forEach((entry, ordinal) => {
     const fact = referenceRecordSchema.parse(entry);
     emit("reference", ordinal, spanId(entry.declaration), spanId(entry.reference), fact.consumerClass);
+  });
+}
+
+function referenceMode(partition: Pick<InventoryPartition, "referenceMode">): import("./semantic-inventory-contract.ts").InventoryReferenceMode {
+  return partition.referenceMode ?? "complete";
+}
+
+function assertReferenceOwnership(partition: InventoryPartition): void {
+  if ((partition.referenceQueries?.length ?? 0) > 0 && !partition.families.includes("references")) {
+    throw new Error("native reference query has no reference-family owner");
+  }
+  if (partition.referenceMode === "closed" && (partition.references.length > 0 || !partition.families.includes("references"))) {
+    throw new Error("native closed reference demand cannot advertise complete declaration facts");
+  }
+}
+
+function writeReferenceQueries(
+  partition: InventoryPartition,
+  emit: (table: InventoryRecordTable, ...values: InventoryRecord["values"]) => void,
+  spanId: (node: InventorySpan) => number,
+): void {
+  const referenceKeys = new Set<string>();
+  partition.referenceQueries?.forEach((entry, ordinal) => {
+    const key = referenceQueryKey({ root: entry.root, node: entry.query });
+    if (referenceKeys.has(key)) {
+      throw new Error("native reference query identity is ambiguous");
+    }
+    referenceKeys.add(key);
+    emit("referenceQuery", ordinal, spanId(entry.root), spanId(entry.query), entry.references.length);
+    entry.references.forEach((result, index) => {
+      emit("referenceQueryNode", ordinal, index, spanId(result.reference), result.consumerClass);
+    });
   });
 }
 

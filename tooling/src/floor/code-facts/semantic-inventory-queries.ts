@@ -38,6 +38,7 @@ import {
   invocationQueryKey,
   memberOriginSchema,
   partitionSchema,
+  referenceQuerySchema,
   SemanticInventoryError,
   schemaDataCatalogSchema,
   shapeCatalogSchema,
@@ -62,6 +63,7 @@ const sourceRow = storedSourceSchema.extend({
 const inputRow = inputSchema.extend({ path: inventoryStringSchema, version: inventoryStringSchema });
 const spanRow = spanSchema.extend({ file: inventoryStringSchema });
 const invocationAtomRow = invocationAtomSchema.extend({ key: inventoryStringSchema });
+const referenceQueryRow = z.object({ ordinal: integer.nonnegative(), resultCount: integer.nonnegative() });
 const textRow = z.object({ ordinal: integer, value: z.string() });
 const factRow = z.object({
   kind: z.enum(INVENTORY_FACTS),
@@ -749,6 +751,91 @@ export function* readInventoryReferences(db: DatabaseSync, id: string, origin?: 
       reference: spanRow.parse(row),
       consumerClass: row["consumerClass"],
     });
+  }
+}
+
+/** Exact native queries preserve zero answers, ordering and repetitions independently of declaration liveness. */
+export function* readInventoryReferenceQueries(
+  db: DatabaseSync,
+  id: string,
+  pair?: import("./semantic-inventory-contract.ts").InventoryReferencePair,
+): Iterable<import("./semantic-inventory-contract.ts").InventoryReferenceQuery> {
+  requireInventoryFamily(db, id, "references");
+  const values: SQLInputValue[] =
+    pair === undefined
+      ? [id]
+      : [
+          id,
+          inventoryString(pair.node.file),
+          pair.node.start,
+          pair.node.end,
+          pair.node.kind,
+          inventoryString(pair.root.file),
+          pair.root.start,
+          pair.root.end,
+          pair.root.kind,
+        ];
+  const filter = pair === undefined ? "" : " AND s.file=? AND s.start=? AND s.end=? AND s.kind=? AND a.file=? AND a.start=? AND a.end=? AND a.kind=?";
+  let ordinal = 0;
+  let children = 0;
+  for (const value of db
+    .prepare(
+      `SELECT q.ordinal,q.resultCount,s.file,s.start,s.end,s.kind,a.file AS rootFile,a.start AS rootStart,a.end AS rootEnd,a.kind AS rootKind FROM inventory_reference_query q JOIN inventory_span s ON s.partition=q.partition AND s.ordinal=q.node JOIN inventory_span a ON a.partition=q.partition AND a.ordinal=q.root WHERE q.partition=?${filter} ORDER BY q.ordinal`,
+    )
+    .iterate(...values)) {
+    const row = referenceQueryRow.parse(value);
+    if (pair === undefined && row.ordinal !== ordinal++) {
+      throw new SemanticInventoryError("native reference query sequence is incomplete");
+    }
+    const requested = spanRow.parse(value);
+    const root = spanSchema.parse({
+      file: inventoryStringSchema.parse(value["rootFile"]),
+      start: value["rootStart"],
+      end: value["rootEnd"],
+      kind: value["rootKind"],
+    });
+    const references: import("./semantic-inventory-contract.ts").InventoryReferenceQuery["references"] = [];
+    for (const child of db
+      .prepare(
+        "SELECT r.ordinal,s.file,s.start,s.end,s.kind,r.consumerClass FROM inventory_reference_query_node r JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node WHERE r.partition=? AND r.owner=? ORDER BY r.ordinal",
+      )
+      .iterate(id, row.ordinal)) {
+      if (child["ordinal"] !== references.length) {
+        throw new SemanticInventoryError("native reference result sequence is incomplete");
+      }
+      references.push(referenceQuerySchema.shape.references.element.parse({ reference: spanRow.parse(child), consumerClass: child["consumerClass"] }));
+    }
+    if (references.length !== row.resultCount) {
+      throw new SemanticInventoryError("native reference result coverage is incomplete");
+    }
+    children += references.length;
+    assertReferenceSpans(db, id, [root, requested, ...references.map((result) => result.reference)]);
+    yield referenceQuerySchema.parse({ root, query: requested, references });
+  }
+  if (pair === undefined) {
+    assertReferenceCounts(db, id, ordinal, children);
+  }
+}
+function assertReferenceCounts(db: DatabaseSync, id: string, queries: number, children: number): void {
+  if (
+    db.prepare("SELECT COUNT(*) AS count FROM inventory_reference_query WHERE partition=?").get(id)?.["count"] !== queries ||
+    db.prepare("SELECT COUNT(*) AS count FROM inventory_reference_query_node WHERE partition=?").get(id)?.["count"] !== children
+  ) {
+    throw new SemanticInventoryError("native reference query ownership is incomplete or orphaned");
+  }
+}
+
+function assertReferenceSpans(db: DatabaseSync, id: string, spans: readonly InventorySpan[]): void {
+  for (const span of spans) {
+    const source = capturedInventorySource(db, id, span.file);
+    if (
+      span.start < 0 ||
+      span.end < span.start ||
+      span.end > source.textLength ||
+      db.prepare(INVOCATION_AVAILABLE_SQL).get(id, inventoryString(span.file)) === undefined
+    ) {
+      throw new SemanticInventoryError("native reference span is outside its captured native closure");
+    }
   }
 }
 

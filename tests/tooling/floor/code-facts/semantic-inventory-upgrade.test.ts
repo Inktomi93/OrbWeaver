@@ -85,6 +85,10 @@ const EXPORT_SCHEMA_DDL = `${FORMAT14_DDL.replace("'exports','modules'", "'expor
 CREATE TABLE inventory_export_declaration(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,file TEXT NOT NULL,name TEXT NOT NULL,present INTEGER NOT NULL CHECK(present IN (0,1)),declarationCount INTEGER NOT NULL CHECK(declarationCount>=0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,file,name),CHECK(present=1 OR declarationCount=0)) STRICT;
 CREATE TABLE inventory_export_declaration_node(partition TEXT NOT NULL REFERENCES inventory_partition(id),owner INTEGER NOT NULL,ordinal INTEGER NOT NULL,node INTEGER NOT NULL,PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_export_declaration(partition,ordinal),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
 
+const REFERENCE_PRIOR_DDL = `${EXPORT_SCHEMA_DDL}
+CREATE TABLE inventory_drizzle_evidence(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,key TEXT NOT NULL,atomCount INTEGER NOT NULL CHECK(atomCount>0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key)) STRICT;
+CREATE TABLE inventory_drizzle_atom(partition TEXT NOT NULL REFERENCES inventory_partition(id),owner INTEGER NOT NULL,ordinal INTEGER NOT NULL,parent INTEGER,key TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('object','array','string','number','boolean','null')),text TEXT,number REAL,size INTEGER NOT NULL CHECK(size>=0),PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_drizzle_evidence(partition,ordinal),FOREIGN KEY(partition,owner,parent) REFERENCES inventory_drizzle_atom(partition,owner,ordinal)) STRICT;`;
+
 function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   return [
     db.prepare("SELECT * FROM inventory_partition WHERE id=?").all(LEGACY_PARTITION),
@@ -98,7 +102,7 @@ function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
   ];
 }
 
-function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11): ReturnType<typeof legacyRows> {
+function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12): ReturnType<typeof legacyRows> {
   mkdirSync(dirname(path), { recursive: true });
   using db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;");
@@ -117,6 +121,7 @@ function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
         FORMAT13_DDL,
         FORMAT14_DDL,
         EXPORT_SCHEMA_DDL,
+        REFERENCE_PRIOR_DDL,
       ] as const
     )[version],
   );
@@ -155,6 +160,9 @@ function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 }
 
 function priorFormat(version: number): number {
+  if (version === 12) {
+    return 19;
+  }
   return version === 11 ? 14 : 4 + version;
 }
 
@@ -276,7 +284,7 @@ test.for([11, 12] as const)("source-file lookup upgrades physical schema %s with
   using current = openInventoryDatabase(path);
   const details = current.prepare(`EXPLAIN QUERY PLAN ${SOURCE_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/legacy.ts"));
   expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_source USING INDEX inventory_source_file (partition=? AND file=?)");
-  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
   expect(legacyRows(current)).toEqual(before);
   expect(legacyRows(pinned)).toEqual(before);
   expect(pinned.prepare("SELECT name FROM sqlite_schema WHERE name='inventory_source_file'").get()).toBeUndefined();
@@ -356,7 +364,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
       current.exec("COMMIT");
       const direct = readInventoryGeneration(current, generation)[0];
       expect(direct?.id).toBe(freshId);
-      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
       expect(legacyRows(current)).toEqual(before);
       expect(legacyRows(pinned)).toEqual(before);
       expect(familyDdl(pinned)).toEqual(oldDdl);
@@ -383,7 +391,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
       try {
         using reader = openInventoryDatabase(path);
         expect(legacyRows(reader)).toEqual(before);
-        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
       } finally {
         readerLock.mockRestore();
       }
@@ -476,7 +484,7 @@ test.for([
   expect(observer.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all()).toEqual(oldTables);
   expect(observer.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   using retried = openInventoryDatabase(path);
-  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
   expect(legacyRows(retried)).toEqual(before);
 });
 
@@ -493,7 +501,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)("competing physical up
     results.map(({ code }) => code),
     JSON.stringify(results),
   ).toEqual([0, 0]);
-  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 12 }, { ["user_version"]: 12 }]);
+  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 13 }, { ["user_version"]: 13 }]);
   using db = openInventoryDatabase(path);
   expect(legacyRows(db)).toEqual(before);
   expect(db.prepare("SELECT name FROM sqlite_schema WHERE name IN ('inventory_family_upgrade','inventory_input_upgrade')").all()).toEqual([]);
@@ -503,10 +511,10 @@ test("an unsupported future physical schema is refused rather than downgraded", 
   const path = join(scratch, "future.sqlite");
   const before = createPriorStorage(path, 0);
   using db = new DatabaseSync(path);
-  db.exec("PRAGMA user_version=13");
+  db.exec("PRAGMA user_version=14");
   const oldDdl = familyDdl(db);
-  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 13");
-  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 14");
+  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
   expect(familyDdl(db)).toEqual(oldDdl);
   expect(legacyRows(db)).toEqual(before);
 });
@@ -545,7 +553,7 @@ test.for([11, 12] as const)(
     using current = openInventoryDatabase(path);
     const details = current.prepare(`EXPLAIN QUERY PLAN ${LIST_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/library-1023.ts"));
     expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_list USING INDEX inventory_list_value (partition=? AND kind=? AND value=?)");
-    expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+    expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
     expect(legacyRows(current)).toEqual(before);
     expect(legacyRows(pinned)).toEqual(before);
     expect(current.prepare("SELECT * FROM inventory_list ORDER BY partition,kind,ordinal").all()).toEqual(rows);
@@ -601,4 +609,37 @@ test("list-value lookup preserves duplicate membership, explicit list order and 
   }
   expect(readInventoryGeneration(db, generation)).toEqual(before);
   expect([...readInventoryExportDeclarations(db, partition.id, capture.query)]).toEqual([capture]);
+});
+
+test("strict reference schema12 migration rolls back new tables and preserves old pinned generations", ({ scratch }) => {
+  const path = join(scratch, "reference-upgrade.sqlite");
+  const before = createPriorStorage(path, 12);
+  using pinned = new DatabaseSync(path, { readOnly: true });
+  pinned.exec("BEGIN");
+  expect(legacyRows(pinned)).toEqual(before);
+  const execute = DatabaseSync.prototype.exec;
+  const failure = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+    if (sql.startsWith("ALTER TABLE inventory_descriptor ADD COLUMN referenceMode")) {
+      throw new Error("reference coverage migration failed");
+    }
+    execute.call(this, sql);
+  });
+  try {
+    expect(() => openInventoryDatabase(path)).toThrow("reference coverage migration failed");
+  } finally {
+    failure.mockRestore();
+  }
+  using observer = new DatabaseSync(path, { readOnly: true });
+  expect(observer.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+  expect(observer.prepare("SELECT name FROM sqlite_schema WHERE name LIKE 'inventory_reference_query%'").all()).toEqual([]);
+  expect(legacyRows(observer)).toEqual(before);
+  using current = openInventoryDatabase(path);
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+  expect(legacyRows(current)).toEqual(before);
+  expect(current.prepare("SELECT referenceMode FROM inventory_descriptor").all()).toEqual([{ referenceMode: "complete" }]);
+  expect(pinned.prepare("SELECT id,format FROM inventory_generation").all()).toEqual([{ id: 1, format: 19 }]);
+  expect(pinned.prepare("SELECT name FROM sqlite_schema WHERE name LIKE 'inventory_reference_query%'").all()).toEqual([]);
+  expect(legacyRows(pinned)).toEqual(before);
+  expect(current.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  pinned.exec("ROLLBACK");
 });

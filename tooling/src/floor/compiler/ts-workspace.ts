@@ -411,6 +411,11 @@ export function registeredSemanticSourceView(sourceFile: SourceFile): SemanticSo
   return { program, sourceFile, canonicalPath: canonicalCompilerPath(workspace.root, sourceFile.getFilePath()) };
 }
 
+/** Registration presence is metadata only; current native meaning requires its separate source/descriptor guards. */
+export function hasRegisteredSemanticProgram(project: Project): boolean {
+  return semanticPrograms.has(project);
+}
+
 export function semanticWorkspaceOf(value: object): SemanticWorkspace | undefined {
   return semanticWorkspaces.get(value);
 }
