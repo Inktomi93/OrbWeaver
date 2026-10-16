@@ -63,7 +63,7 @@ const POLICY_CASES = [
 ] as const;
 
 for (const scenario of POLICY_CASES) {
-  test(scenario.name, async ({ plantedTree, repoRoot }) => {
+  test(`${scenario.name}`, async ({ plantedTree, repoRoot }) => {
     const fixture = await nativeFixture(
       { plantedTree, repoRoot },
       {
@@ -168,7 +168,7 @@ const CALLBACK_CASES = [
 ] as const;
 
 for (const scenario of CALLBACK_CASES) {
-  test(scenario.name, async ({ plantedTree, repoRoot }) => {
+  test(`${scenario.name}`, async ({ plantedTree, repoRoot }) => {
     const fixture = await nativeFixture(
       { plantedTree, repoRoot },
       {

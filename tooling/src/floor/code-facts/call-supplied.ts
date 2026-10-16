@@ -1,7 +1,7 @@
 // Supplied formals and complete callable consumers reuse the captured native call/return graph.
-import type { CallExpression, Node as MorphNode } from "ts-morph";
+import type { CallExpression, Identifier, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import { isDocumentationLinkReference, resolveStableExpression } from "./reference-fact.ts";
+import { isDocumentationLinkReference, readModuleAliasBinding, resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
   CallReturnObservation,
@@ -49,6 +49,44 @@ function suppliedEpochRefusal(node: MorphNode, program: CallReturnProgram | unde
   return admitted?.kind === "unresolved" ? admitted : undefined;
 }
 
+function capturedModuleAlias(use: MorphNode, binding: Identifier, owner: MorphNode, program: CallReturnProgram): ReferenceFact<Identifier> | undefined {
+  const admitted = readCallReturnReference(use, binding, program);
+  return admitted.kind === "unresolved" ? admitted : readModuleAliasBinding(use, owner);
+}
+
+function callableReferenceRefusal(
+  name: Identifier,
+  owner: MorphNode,
+  program: CallReturnProgram,
+  callers: readonly CallReturnObservation[],
+): UnresolvedReferenceFact | undefined {
+  const expressions = new Set<import("ts-morph").ts.Node>(callers.map((caller) => caller.call.getExpression().compilerNode));
+  let refusal: UnresolvedReferenceFact | undefined;
+  const missing = unprovenReferenceUse(name, (use, binding) => {
+    if (use === name || isDocumentationLinkReference(use)) {
+      return true;
+    }
+    const alias = capturedModuleAlias(use, binding, owner, program);
+    if (alias?.kind === "unresolved") {
+      refusal = alias;
+      return false;
+    }
+    if (alias?.kind === "resolved") {
+      return alias.value;
+    }
+    for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
+      if (expressions.has(ancestor.compilerNode)) {
+        return true;
+      }
+    }
+    return false;
+  });
+  return (
+    refusal ??
+    (missing === undefined ? undefined : unresolved("unsupported", missing, "an actual callable reference has no admitted supplied consumer", [owner]))
+  );
+}
+
 /** Complete observed consumers of one actual callable; sparse or escaping reference coverage refuses. */
 export function readObservedCallableConsumers(owner: MorphNode, program: CallReturnProgram): ReferenceFact<readonly CallReturnObservation[]> {
   const epoch = suppliedEpochRefusal(owner, program);
@@ -80,22 +118,9 @@ export function readObservedCallableConsumers(owner: MorphNode, program: CallRet
     return escaped;
   }
   const callers = program.callers.get(owner.compilerNode) ?? [];
-  if (Node.isIdentifier(name)) {
-    const expressions = new Set<import("ts-morph").ts.Node>(callers.map((caller) => caller.call.getExpression().compilerNode));
-    const missing = unprovenReferenceUse(name, (use) => {
-      if (use === name || isDocumentationLinkReference(use)) {
-        return true;
-      }
-      for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
-        if (expressions.has(ancestor.compilerNode)) {
-          return true;
-        }
-      }
-      return false;
-    });
-    if (missing !== undefined) {
-      return unresolved("unsupported", missing, "an actual callable reference has no admitted supplied consumer", [owner]);
-    }
+  const reference = Node.isIdentifier(name) ? callableReferenceRefusal(name, owner, program, callers) : undefined;
+  if (reference !== undefined) {
+    return reference;
   }
   return callers.length === 0
     ? unresolved("missing", owner, "the callable has no observed supplied consumers", [owner])

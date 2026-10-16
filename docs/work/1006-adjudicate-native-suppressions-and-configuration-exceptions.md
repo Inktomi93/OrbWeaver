@@ -33,4 +33,4 @@ Destructive consent, payload expansion and draft identities have native rendered
 
 Native Drizzle checks cover neighboring scoped writes. Intentional replacements have statement-local permissions; unused wipe permissions are removed. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-drizzle-delete-scope-independent-review.md`.
 
-Composed Vitest imports expose valid-title false positives on literal-typed scenario member titles. Installed allowArguments does not cover member expressions without type checking. No suppression is added. Evidence: `reports/review/1027-native-reduction-wave.md`.
+Explicit string templates resolve native Vitest scenario-title false positives without changing registration, case names, fixtures or assertions. Native rules remain enabled; no suppression is added. Evidence: `reports/review/1006-native-scenario-title-ordinary.md`.

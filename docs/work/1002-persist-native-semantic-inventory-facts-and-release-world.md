@@ -26,22 +26,24 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Selected extraction, publication, release and reuse pass bounded controls. Complete-demand acceptance remains open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Bounded extraction, publication, release and reuse pass. Complete demand stays open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
-Authored-input, brand, indexed-read, stale-source and release controls pass. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Reviewed collector corrections preserve source admission and typed-world meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
+Input, brand and lifetime controls pass. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Collector corrections preserve native meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
-Frozen replay completes selected stored phases; native comparison reaches its deadline. Preserve completed byte-equality evidence and original outputs. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
+Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
-Native reference storage, guarded bindings and allocation-free traversal pass bounded controls and review. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
+Reference storage and guarded bindings pass review. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
 
 Contextual sharing, optional calls and native resources preserve disposal, refusal and invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The original callable query remains unresolved at `ctx.backgroundSignal`. Actual caller/default proof refuses the `createLifecycle` dynamic-module binding in entry. Evidence: `reports/review/1002-original-callable-current/4e53d3ee02/diagnosis.md`. Target and cost remain unqualified.
+The latest full-context diagnostic remains unresolved at `ctx.backgroundSignal`, through the `createLifecycle` dynamic-module binding. Evidence: `reports/review/1002-original-callable-current/4e53d3ee02/diagnosis.md`. Target and cost remain unqualified.
 
-Source lookup, transient supplied contexts, callable-proof epochs and examined refusals pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
+Source lookup and contextual proof reuse pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 
 Missing-reference admission passes review and ordinary controls except the partial-env failure. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
+
+Direct awaited module aliases preserve native identity, trace and actual consumer closure. Review and ordinary controls pass. Evidence: `reports/review/1002-module-alias-ordinary.md`. Native catch transfer still requires captured-effect capability; the desired positive remains unqualified.

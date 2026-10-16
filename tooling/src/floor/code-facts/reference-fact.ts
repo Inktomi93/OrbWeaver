@@ -20,7 +20,7 @@ import type {
 } from "./reference-fact-contract.ts";
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberAccessWith, readMemberReferenceWith } from "./reference-fact-member.ts";
-import { resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
+import { readModuleAliasBindingWith, resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
 import { sourceWriteFacts, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { inventoryExports } from "./semantic-inventory-reader.ts";
 
@@ -779,6 +779,11 @@ export const referenceResolutionServices = {
 /** Resolve a reference to its module export through aliases, namespaces, re-exports, and destructuring. */
 export function resolveModuleMemberOrigin(node: MorphNode): ReferenceFact<ModuleMemberOrigin> {
   return resolveModuleMemberOriginWith(node, referenceResolutionServices);
+}
+
+/** A namespace alias does not admit execution; callers must still close every actual consumer. */
+export function readModuleAliasBinding(reference: MorphNode, expected: MorphNode): ReferenceFact<Identifier> | undefined {
+  return readModuleAliasBindingWith(reference, expected, referenceResolutionServices);
 }
 
 /** Resolve a checker-proven ambient global through immutable aliases, members, and destructuring. */

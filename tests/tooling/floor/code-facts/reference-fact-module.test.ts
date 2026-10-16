@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readModuleAliasBinding, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import { Project, SyntaxKind } from "ts-morph";
 
 const DYNAMIC_ORIGIN_CASES = ["direct", "local", "destructured", "computed", "transitive"] as const;
@@ -61,6 +61,69 @@ test.for(["missing", "nonliteral"] as const)("dynamic namespace origin refuses t
   const fact = pickOrigin({ ...DYNAMIC_FILES, "/repo/use.ts": source });
   expect(fact).toMatchObject({ kind: "unresolved", reason: scenario === "missing" ? "missing" : "dynamic" });
 });
+
+for (const scenario of [
+  { name: "native abrupt handler without captured effect context", before: "", receiver: 'import("./barrel.ts")', handler: "(error)=>{throw error;}" },
+  { name: "returning handler", before: "", receiver: 'import("./barrel.ts")', handler: "()=>({pick:()=>2})" },
+  { name: "returning wrong module", before: "", receiver: 'import("./barrel.ts")', handler: '()=>import("./wrong.ts")' },
+  { name: "fake namespace", before: "const pending={catch:()=>({pick:()=>2})};", receiver: "pending", handler: "(error)=>{throw error;}" },
+  {
+    name: "overwritten catch",
+    before: "Promise.prototype.catch=function(){return Promise.resolve({pick:()=>2});};",
+    receiver: 'import("./barrel.ts")',
+    handler: "(error)=>{throw error;}",
+  },
+  {
+    name: "overwritten then",
+    before: "Promise.prototype.then=function(){return Promise.resolve({pick:()=>2});};",
+    receiver: 'import("./barrel.ts")',
+    handler: "(error)=>{throw error;}",
+  },
+  {
+    name: "overwritten species",
+    before: "Object.defineProperty(Promise,Symbol.species,{value:class extends Promise{}});",
+    receiver: 'import("./barrel.ts")',
+    handler: "(error)=>{throw error;}",
+  },
+] as const) {
+  test(`namespace catch transfer refuses without captured runtime evidence: ${scenario.name}`, () => {
+    const fact = pickOrigin({
+      ...DYNAMIC_FILES,
+      "/repo/wrong.ts": "export function pick(){return 2;}",
+      "/repo/use.ts": `${scenario.before}const {pick}=await ${scenario.receiver}.catch(${scenario.handler});export const value=pick;`,
+    });
+    expect(fact).toMatchObject({ kind: "unresolved", reason: "dynamic", detail: "AwaitExpression has no stable module-member origin" });
+  });
+}
+
+for (const scenario of ["direct", "renamed", "wrong module", "foreign Program", "forgotten alias", "mutable", "reassigned"] as const) {
+  test(`module alias closure requires exact native identity: ${scenario}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile("/repo/leaf.ts", "export function pick(){return 1;}");
+    project.createSourceFile("/repo/other.ts", "export function pick(){return 2;}");
+    const use = project.createSourceFile(
+      "/repo/use.ts",
+      `${scenario === "mutable" ? "let" : "const"} {pick:alias}=await import("./${scenario === "wrong module" ? "other" : "leaf"}.ts");${scenario === "reassigned" ? "alias=()=>3;" : ""}alias();`,
+    );
+    const binding = use.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const name = binding.getNameNode();
+    const reference = binding.getPropertyNameNodeOrThrow();
+    let expected = source.getFunctionOrThrow("pick");
+    if (scenario === "foreign Program") {
+      const other = new Project({ useInMemoryFileSystem: true });
+      expected = other.createSourceFile("/repo/leaf.ts", "export function pick(){return 1;}").getFunctionOrThrow("pick");
+    }
+    if (scenario === "forgotten alias") {
+      use.replaceWithText("export const changed=1;");
+    }
+    const fact = readModuleAliasBinding(scenario === "direct" ? name : reference, expected);
+    expect(fact?.kind).toBe(scenario === "direct" || scenario === "renamed" ? "resolved" : "unresolved");
+    expect(fact?.kind === "resolved" ? fact.value.compilerNode : undefined).toBe(
+      scenario === "direct" || scenario === "renamed" ? name.compilerNode : undefined,
+    );
+    expect(fact?.kind !== "resolved" || fact.trace.declarations.some((declaration) => declaration.compilerNode === expected.compilerNode)).toBe(true);
+  });
+}
 
 function origin(barrel: string): ReturnType<typeof resolveModuleMemberOrigin> {
   const project = new Project({ useInMemoryFileSystem: true });

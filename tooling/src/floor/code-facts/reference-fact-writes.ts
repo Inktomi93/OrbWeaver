@@ -6,7 +6,7 @@ import { descendantsOfKind, nativeReferenceNodes } from "@orb/tooling/floor/comp
 import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { aliasEdges, lexicalReferenceSymbol, rootIdentifier, unwrapTarget } from "./reference-fact-alias.ts";
-import type { SourceWriteFacts } from "./reference-fact-contract.ts";
+import type { ReferenceUseAdmission, SourceWriteFacts } from "./reference-fact-contract.ts";
 
 function transparentUse(node: MorphNode): MorphNode {
   let current = node;
@@ -16,7 +16,10 @@ function transparentUse(node: MorphNode): MorphNode {
   return current;
 }
 
-function aliasName(reference: MorphNode): MorphNode | undefined {
+function aliasName(reference: MorphNode, admission: false | Identifier = false): MorphNode | undefined {
+  if (admission !== false) {
+    return admission;
+  }
   let projected = reference;
   for (let outer = projected.getParent(); outer !== undefined && isMemberReceiver(outer, projected); outer = projected.getParent()) {
     projected = outer;
@@ -36,7 +39,8 @@ function aliasName(reference: MorphNode): MorphNode | undefined {
 }
 
 /** The first use not proven to preserve this value's identity/cardinality, in the loaded Project.
- *  The predicate receives the current alias binding, not necessarily the input identifier.
+ *  The reader receives the current alias binding, not necessarily the input identifier; an explicit
+ *  identifier result queues that proven alias's actual references instead of admitting them wholesale.
  *  Caller endpoints are exact value nodes, never property names or permission paths. Const aliases and
  *  compiler-resolved import/re-export references are followed; a spread copies an array's elements but
  *  does not alias its length. Opaque arguments, member calls (including callbacks), storage and returns
@@ -44,7 +48,7 @@ function aliasName(reference: MorphNode): MorphNode | undefined {
  *  The older source-local write/member queries below intentionally retain their weaker contracts. */
 export function unprovenReferenceUse(
   identifier: Identifier,
-  accepted: ReadonlySet<MorphNode> | ((use: MorphNode, binding: Identifier) => boolean),
+  accepted: ReadonlySet<MorphNode> | ((use: MorphNode, binding: Identifier) => ReferenceUseAdmission),
 ): MorphNode | undefined {
   const accepts = typeof accepted === "function" ? accepted : (use: MorphNode): boolean => accepted.has(use);
   const pending: Identifier[] = [identifier];
@@ -76,11 +80,12 @@ export function unprovenReferenceUse(
         return false;
       }
       const wrapped = transparentUse(reference);
-      if (accepts(wrapped, name)) {
+      const admission = accepts(wrapped, name);
+      if (admission === true) {
         return false;
       }
       const parent = wrapped.getParent();
-      const alias = aliasName(wrapped);
+      const alias = aliasName(wrapped, admission);
       if (alias === undefined) {
         return !(Node.isSpreadElement(parent) && parent.getExpression() === wrapped && Node.isArrayLiteralExpression(parent.getParent()));
       }

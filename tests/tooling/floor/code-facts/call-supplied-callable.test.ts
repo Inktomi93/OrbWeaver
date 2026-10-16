@@ -7,7 +7,12 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import { vi } from "vitest";
-import { observeCallReturns, readCallTargets, readSuppliedParameter } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import {
+  observeCallReturns,
+  readCallTargets,
+  readObservedCallableConsumers,
+  readSuppliedParameter,
+} from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import { readCallReturnReference } from "../../../../tooling/src/floor/code-facts/call-supplied.ts";
 import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { CallReturnObservations } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
@@ -17,6 +22,122 @@ import { nativeReferenceNodes } from "../../../../tooling/src/floor/compiler/ts-
 function queriedTargets(call: CallExpression, observations: CallReturnObservations): ReturnType<typeof readCallTargets> {
   const program = observations.programs[0];
   return readCallTargets(call, program === undefined ? undefined : new Set(program.byCall.keys()), observations);
+}
+
+for (const scenario of [
+  {
+    name: "direct destructured namespace",
+    binding: "const {createLifecycle}",
+    callee: "createLifecycle",
+    capture: true,
+    references: true,
+    escape: "",
+    expected: true,
+  },
+  {
+    name: "renamed destructured namespace",
+    binding: "const {createLifecycle:build}",
+    callee: "build",
+    capture: true,
+    references: true,
+    escape: "",
+    expected: true,
+  },
+  {
+    name: "a const alias of the destructured namespace",
+    binding: "const {createLifecycle}",
+    callee: "alias",
+    capture: true,
+    references: true,
+    escape: "const alias=createLifecycle;",
+    expected: true,
+  },
+  {
+    name: "an omitted actual caller",
+    binding: "const {createLifecycle}",
+    callee: "createLifecycle",
+    capture: false,
+    references: true,
+    escape: "",
+    expected: false,
+  },
+  {
+    name: "omitted reference coverage",
+    binding: "const {createLifecycle}",
+    callee: "createLifecycle",
+    capture: true,
+    references: false,
+    escape: "",
+    expected: false,
+  },
+  {
+    name: "an escaping destructured namespace alias",
+    binding: "const {createLifecycle}",
+    callee: "createLifecycle",
+    capture: true,
+    references: true,
+    escape: "declare function escape(value:object):void;const alias=createLifecycle;escape(alias);",
+    expected: false,
+  },
+  {
+    name: "a mutable destructured namespace",
+    binding: "let {createLifecycle}",
+    callee: "createLifecycle",
+    capture: true,
+    references: true,
+    escape: "",
+    expected: false,
+  },
+] as const) {
+  test(`dynamic namespace supplied consumers: ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const producer = project.createSourceFile(
+      "/repo/lifecycle.ts",
+      'export function createLifecycle(options={mode:"local"}){return options.mode;}function seed(){return 1;}seed();',
+    );
+    const source = project.createSourceFile(
+      "/repo/entry.ts",
+      `${scenario.binding}=await import("./lifecycle.ts");${scenario.escape}const lifecycle=${scenario.callee}();`,
+    );
+    const owner = producer.getFunctionOrThrow("createLifecycle");
+    const parameter = owner.getParameters()[0];
+    const actual = source.getVariableDeclarationOrThrow("lifecycle").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+    if (parameter === undefined) {
+      throw new Error("the actual lifecycle options formal is missing");
+    }
+    beginReferencePass();
+    try {
+      const calls = [...producer.getDescendantsOfKind(SyntaxKind.CallExpression), ...source.getDescendantsOfKind(SyntaxKind.CallExpression)].filter(
+        (call) => scenario.capture || call !== actual,
+      );
+      const observed = observeCallReturns(calls, scenario.references ? [...producer.getDescendants(), ...source.getDescendants()] : undefined, {
+        suppliedCallableTargets: true,
+      });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual native capture is missing");
+      }
+      expect(program.byCall.has(actual.compilerNode)).toBe(scenario.capture);
+      expect(program.referencesObserved).toBe(scenario.references);
+      const target = program.byCall.get(actual.compilerNode)?.target;
+      expect(!scenario.expected || (target?.kind === "resolved" && target.value.compilerNode === owner.compilerNode)).toBe(true);
+      expect(scenario.capture || (program.callers.get(owner.compilerNode) ?? []).length === 0).toBe(true);
+      const consumers = readObservedCallableConsumers(owner, program);
+      const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
+      expect(consumers.kind, consumers.kind === "unresolved" ? `${consumers.detail} at ${consumers.node.getText()}` : scenario.name).toBe(
+        scenario.expected ? "resolved" : "unresolved",
+      );
+      expect(supplied.kind).toBe(scenario.expected ? "resolved" : "unresolved");
+      expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : []).toEqual(
+        scenario.expected ? [actual.compilerNode] : [],
+      );
+      expect(supplied.kind === "resolved" ? supplied.value.map((value) => value.value.compilerNode) : []).toEqual(
+        scenario.expected ? [parameter.getInitializerOrThrow().compilerNode] : [],
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
 }
 
 test("captured actual supplied members retain the composition wrapper target", () => {

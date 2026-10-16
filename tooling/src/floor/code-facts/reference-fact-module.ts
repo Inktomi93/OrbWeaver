@@ -1,5 +1,14 @@
 // Module-origin traversal for reference-fact.ts, separated from static expression/value resolution.
-import type { BindingElement, ExportSpecifier, ImportClause, ImportSpecifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
+import type {
+  BindingElement,
+  ExportSpecifier,
+  Identifier,
+  ImportClause,
+  ImportSpecifier,
+  Node as MorphNode,
+  Symbol as MorphSymbol,
+  SourceFile,
+} from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { bindingElementName } from "./reference-fact-binding-name.ts";
 import type { ModuleMemberOrigin, ReferenceFact, ReferenceResolutionServices, ResolvedReferenceFact } from "./reference-fact-contract.ts";
@@ -449,4 +458,50 @@ function resolveInternal(node: MorphNode, target: ModuleState, services: Referen
 /** Internal engine; reference-fact.ts owns the one-argument public API and injects its shared readers. */
 export function resolveModuleMemberOriginWith(node: MorphNode, services: ReferenceResolutionServices): ReferenceFact<ModuleMemberOrigin> {
   return resolveInternal(node, moduleState(services), services);
+}
+
+/** A destructured module declaration is an alias only after its namespace and exact exported target agree. */
+export function readModuleAliasBindingWith(
+  reference: MorphNode,
+  expected: MorphNode,
+  services: ReferenceResolutionServices,
+): ReferenceFact<Identifier> | undefined {
+  const target = moduleState(services);
+  if (reference.wasForgotten() || expected.wasForgotten()) {
+    return unresolved("unsupported", reference, target, "the module alias or its target was forgotten");
+  }
+  const binding = reference.getParent();
+  if (!Node.isBindingElement(binding) || (binding.getNameNode() !== reference && binding.getPropertyNameNode() !== reference)) {
+    return;
+  }
+  const name = binding.getNameNode();
+  if (!Node.isIdentifier(name)) {
+    return unresolved("unsupported", binding, target, "the module alias has no single native binding");
+  }
+  const project = expected.getProject();
+  const program = project.getProgram().compilerObject;
+  const source = reference.getSourceFile();
+  if (
+    reference.getProject() !== project ||
+    program.getSourceFile(source.getFilePath()) !== source.compilerNode ||
+    program.getSourceFile(expected.getSourceFile().getFilePath()) !== expected.getSourceFile().compilerNode
+  ) {
+    return unresolved("unsupported", reference, target, "the module alias is not the target's current native Project source");
+  }
+  const lexical = services.declarationOf(name);
+  if (lexical.kind === "unresolved") {
+    return lexical;
+  }
+  if (lexical.value.compilerNode !== binding.compilerNode) {
+    return unresolved("ambiguous", name, target, "the module alias has a different native lexical declaration");
+  }
+  const origin = moduleOriginFromBinding(binding, target, services);
+  if (origin.kind === "unresolved") {
+    return origin;
+  }
+  return origin.value.canonical.kind === "project" &&
+    origin.value.canonical.declaration.compilerNode === expected.compilerNode &&
+    origin.value.memberPath.length === 0
+    ? { ...origin, value: name }
+    : unresolved("ambiguous", reference, target, "the module alias does not retain the exact native exported target");
 }
