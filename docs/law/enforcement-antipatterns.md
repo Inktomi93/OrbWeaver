@@ -1,16 +1,16 @@
 ---
 kind: law
 status: active
-updated: 2026-10-14
+updated: 2026-10-16
 ---
 
 # Enforcement antipattern catalog
 
-Every antipattern the audits found has a class, a detector and a burn-down item. A detector is a structural gate in [Core-Enforcement-Active-Gates.md](Core-Enforcement-Active-Gates.md). A hit either fails the build or carries an explicit `@orb-waive` marker that names its burn-down item.
+Maintained tools and structural gates enforce this catalog. Structural classes use [Core-Enforcement-Active-Gates.md](Core-Enforcement-Active-Gates.md). Native lint reports its own findings and migration debt.
 
 ## How to use it
 
-- Run `pnpm ast antipatterns` for the whole tree, or `pnpm ast antipatterns --scope <dir>` for one directory. It runs every detector below in one structure pass and prints the hits by class, waived or not. Exit 1 means an unwaived hit or a stale or misplaced marker. A waiver-budget alarm prints as a `budget` line and does not fail the command: the budget rows are measured at the application scope the structure barrier judges, and this pass also reads the tooling suites.
+- Run `pnpm ast antipatterns` for the whole tree, or `pnpm ast antipatterns --scope <dir>` for one directory. It runs the structural classes in one pass and prints their hits, waived or not. Native lint findings are outside this command. Exit 1 means an unwaived hit or a stale or misplaced marker. A waiver-budget alarm prints as a `budget` line and does not fail the command: the budget rows are measured at the application scope the structure barrier judges, and this pass also reads the tooling suites.
 - The class-to-gate table the command runs is `ANTIPATTERN_CLASSES` in `tooling/src/ast/ops/antipatterns.ts`. Change it and this page together.
 - A waived hit is debt, not permission. Fix it under its burn-down item, then delete the marker. The waived count per gate only falls.
 - A new hit with no marker fails. Fix it; do not add a marker for new code.
@@ -21,7 +21,7 @@ Every antipattern the audits found has a class, a detector and a burn-down item.
 | - | - | - | - | - | - |
 | Shape that copies a contract | `contract-copy` | `interface CommandRow { id; name; label; enabled }` beside the contract `PluginCommandView` | A renamed or retyped contract field still compiles on both sides, and the copy reads `undefined` | `contract-structural-copy`, `no-inline-wire-interface`, `no-inline-domain-interface`, `no-inline-package-interface`, `no-inline-types`, `contract-derives-not-respells`, `test-hand-shape` | the legacy test rebuild |
 | Copied production function | `copied-logic` | a test helper `pidAlive` with the body of an exported production `pidAlive` | The copy keeps passing when the production rule changes | `test-production-clone` | the [test-foundation rebuild](../plans/test-foundation/design.md) |
-| Oversized test file | `oversized-test` | a CT file that proves a whole surface in one review unit | Repeated setup and unrelated concerns hide the case that broke | `test-file-size` | the monolith splits in the [test-mirror plan](../plans/test-mirror/design.md) |
+| Oversized test file | native lint | a CT file that proves a whole surface in one review unit | Repeated setup and unrelated concerns hide the case that broke | ESLint `max-lines` in `eslint.config.js` | Split by concern; native bulk migration debt only shrinks. |
 | Boundary read without a parse | `unparsed-boundary` | `(await res.json()) as ChatImportResult`; `row.manifest.capabilities` off a `$type<PluginManifest>` column | The cast states what the writer meant, not what arrived; a server change or an old row reaches the domain unvalidated | `wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`, `zod-output-twin-parity` | the gate's waiver budget |
 | Re-spelled constant or union | `respelled-constant` | `data-testid="composer-input"` in a story; `z.enum(["a", "b"])` beside the canonical tuple | The copy keeps the old value when production renames it, and the test or selector silently stops matching | `no-inline-union-alias`, `no-inline-union-redecl`, `testid-typed-only`, `testid-typed-only-stories` | the legacy test rebuild, the legacy test rebuild |
 | Cast or double cast | `cast` | `value as never`; `raw as unknown as ChatId` | The cast switches the type checker off at the one place it would catch a drift | `no-loose-id-cast`, `no-mint-via-cast`, `no-test-fabrication` | the legacy test rebuild |

@@ -1571,8 +1571,38 @@ const STANDARD_CONFIG = tseslint.config(
   ...maintainedRulePacks(),
 );
 
+// Size scopes stay outside generated-source exclusions: token output and tooling/test generators still have caps.
+const SIZE_IGNORED_DIRS = ["**/node_modules/**", "**/dist/**", "**/__screenshots__/**"];
+const CLIENT_SIZE_IGNORES = [...SIZE_IGNORED_DIRS, "**/*.{test,spec,gen}.{ts,tsx}", "**/*.d.ts"];
+const UI_SIZE_IGNORES = [...CLIENT_SIZE_IGNORES, "**/*.{ct,fixtures}.{ts,tsx}"];
+const FILE_SIZE_BLOCKS = [
+  { files: [CLIENT_SRC], ignores: CLIENT_SIZE_IGNORES, rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] } },
+  {
+    files: ["packages/client/src/routes/**/*.{ts,tsx}"],
+    ignores: CLIENT_SIZE_IGNORES,
+    rules: { "max-lines": ["error", { max: 500, skipBlankLines: false, skipComments: false }] },
+  },
+  { files: [UI_SRC], ignores: UI_SIZE_IGNORES, rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] } },
+  {
+    files: ["tests/**/*.{ts,tsx}", "tests/support/node/**/*.mjs"],
+    ignores: ["tests/legacy/**"],
+    rules: { "max-lines": ["error", { max: 1000, skipBlankLines: false, skipComments: false }] },
+  },
+  {
+    files: ["tooling/src/**/*.{ts,tsx}"],
+    ignores: ["tooling/src/verify/gates/**"],
+    rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] },
+  },
+  {
+    files: ["tooling/src/**/cli.ts"],
+    ignores: ["tooling/src/verify/gates/**"],
+    rules: { "max-lines": ["error", { max: 200, skipBlankLines: false, skipComments: false }] },
+  },
+];
+
 // Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
 export default [
+  ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined || INFRA_AUTH_RESTRICTIONS.some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block

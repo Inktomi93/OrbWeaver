@@ -6,6 +6,9 @@
 import { createHash } from "node:crypto";
 import type { Node, SourceFile } from "ts-morph";
 import { Node as N, ts } from "ts-morph";
+import type { InventoryRuntimeExport } from "./semantic-inventory-contract.ts";
+import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 
 /** Below this many shape tokens a body is one call or one property read, which names its callee instead of copying a rule. */
 const FUNCTION_SHAPE_TOKEN_FLOOR = 12;
@@ -220,15 +223,24 @@ export function functionShape(fn: Node): FunctionShape | undefined {
   return { key: createHash("sha256").update(tokens.join(" ")).digest("hex"), tokens: tokens.length };
 }
 
-/** Every function this file exports as its own declaration: function declarations and function-valued consts,
- *  under each exported name, read from the module's export table so `export { f }` lists count too. */
-export function ownExportedFunctions(sourceFile: SourceFile): readonly ExportedFunction[] {
-  return [...sourceFile.getExportedDeclarations()].flatMap(([name, declarations]) =>
-    declarations.flatMap((declaration) => {
-      const node = declaration.getSourceFile() === sourceFile ? functionOf(declaration) : undefined;
-      return node === undefined ? [] : [{ name, node }];
-    }),
-  );
+/** Own function bodies retain native exported names; syntax replay never discovers exports through a checker. */
+export function ownExportedFunctions(sourceFile: SourceFile, exports: readonly InventoryRuntimeExport[]): readonly ExportedFunction[] {
+  const file = canonicalInventoryPath(sourceFile.getFilePath());
+  return exports.flatMap((entry) => {
+    if (entry.file !== file) {
+      throw new SemanticInventoryError("native clone export source is foreign");
+    }
+    const span = entry.declaration;
+    if (span.file !== file) {
+      return [];
+    }
+    const declaration = sourceFile.getDescendantAtStartWithWidth(span.start, span.end - span.start);
+    if (declaration === undefined || declaration.getKind() !== span.kind) {
+      throw new SemanticInventoryError("native clone export declaration is unavailable");
+    }
+    const node = functionOf(declaration);
+    return node === undefined ? [] : [{ name: entry.name, node }];
+  });
 }
 
 function functionOf(declaration: Node): Node | undefined {

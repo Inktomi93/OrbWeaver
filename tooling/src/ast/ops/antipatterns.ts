@@ -35,7 +35,6 @@ export const ANTIPATTERN_CLASSES = [
     ],
   },
   { name: "copied-logic", gates: ["test-production-clone"] },
-  { name: "oversized-test", gates: ["test-file-size"] },
   { name: "unparsed-boundary", gates: ["json-column-read-parsed", "wire-json-parsed-at-consumer", "trpc-input-declarations", "zod-output-twin-parity"] },
   { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl", "testid-typed-only", "testid-typed-only-stories"] },
   { name: "cast", gates: ["no-loose-id-cast", "no-mint-via-cast", "no-test-fabrication"] },

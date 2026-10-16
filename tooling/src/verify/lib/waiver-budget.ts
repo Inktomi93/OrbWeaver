@@ -105,7 +105,6 @@ const IMPLEMENTATION = Object.freeze({
   "no-vanity-alias": 1,
   suppressions: 7,
   "test-determinism": 32,
-  "test-file-size": 11,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,

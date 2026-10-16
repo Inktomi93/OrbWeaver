@@ -8,8 +8,8 @@ import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
-import type { SchemaModel } from "./schema-model-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
+import type { SchemaProjectedModel } from "./schema-projection-contract.ts";
 import { terminalCall } from "./schema-value.ts";
 import { resolved, unresolved } from "./type-member-origin-core.ts";
 
@@ -80,7 +80,7 @@ export function readDrizzleSelection(node: Node): DrizzleSelection | undefined {
   return selection;
 }
 
-function fullRowColumn(selection: DrizzleSelection, name: string, schema: SchemaModel): ReferenceFact<DrizzleProjectedColumn | undefined> {
+function fullRowColumn(selection: DrizzleSelection, name: string, schema: SchemaProjectedModel): ReferenceFact<DrizzleProjectedColumn | undefined> {
   const anchors = selection.calls.flatMap((candidate) => {
     const anchor = readAnchorOf(candidate);
     return anchor === undefined ? [] : [anchor];
@@ -118,7 +118,7 @@ function fullRowColumn(selection: DrizzleSelection, name: string, schema: Schema
 }
 
 /** Actual field lineage; an authored label or an omitted ambiguous field map never supplies table identity. */
-export function readDrizzleProjectedColumn(select: Node, name: string, schema: SchemaModel): ReferenceFact<DrizzleProjectedColumn | undefined> {
+export function readDrizzleProjectedColumn(select: Node, name: string, schema: SchemaProjectedModel): ReferenceFact<DrizzleProjectedColumn | undefined> {
   const selection = readDrizzleSelection(select);
   if (selection === undefined) {
     return resolved(undefined, select, []);

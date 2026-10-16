@@ -1,7 +1,7 @@
 // Test-side copies of exported production functions or the canonical test assembly retain a second rule body.
 // Function shape is floor/function-shape; test-assembly-home shares the canonical Node assembly vocabulary.
 // Existing body copies retain their reviewed-grant accounting; new graph construction is the hard sibling.
-import type { Node } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
 import type { FunctionShape } from "../../floor/code-facts/function-shape.ts";
 import { functionShape, ownExportedFunctions } from "../../floor/code-facts/function-shape.ts";
@@ -75,20 +75,39 @@ export const gate = defineGate({
   create: (ctx) => {
     const production = new Map<string, ProductionFunction[]>();
     const candidates: TestFunction[] = [];
+    const sources: SourceFile[] = [];
     let indexed = 0;
-    return {
-      visitFile: (sourceFile) => {
-        const file = ctx.relativePath(sourceFile);
-        if (file.startsWith(TESTS) && file !== SERVER_TEST_ASSEMBLY_HOME) {
-          return;
+    const indexProduction = (): void => {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native clone export context is unavailable");
+      }
+      const exports = ctx.nativeTypes.runtimeExports(sources);
+      for (const source of sources) {
+        const declarations = exports.get(source);
+        if (declarations === undefined) {
+          throw new Error("native clone export source is unavailable");
         }
-        for (const { name, node } of ownExportedFunctions(sourceFile)) {
+        const file = ctx.relativePath(source);
+        for (const { name, node } of ownExportedFunctions(source, declarations)) {
           const shape = functionShape(node);
           if (shape !== undefined) {
             indexed += 1;
             production.set(shape.key, [...(production.get(shape.key) ?? []), { file, name }]);
           }
         }
+      }
+    };
+    return {
+      visitFile: (sourceFile) => {
+        const file = ctx.relativePath(sourceFile);
+        if (file.startsWith(TESTS) && file !== SERVER_TEST_ASSEMBLY_HOME) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native clone export context is unavailable");
+        }
+        sources.push(sourceFile);
+        ctx.nativeTypes.request({ kind: "runtime-exports", nodes: [sourceFile] });
       },
       visitors: [
         {
@@ -106,6 +125,7 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
+        indexProduction();
         for (const candidate of candidates) {
           // One finding per copy: production can hold twins of its own, and the copy is one defect whichever it calls.
           const twins = (production.get(candidate.shape.key) ?? [])

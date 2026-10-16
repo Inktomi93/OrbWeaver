@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-07
+updated: 2026-10-16
 ---
 
 # UI-Primitives-and-Reuse
@@ -129,7 +129,7 @@ Codified after a full seal review found the same miss-class across agents: thin 
 
 **Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / dialog-state-gate (app-shell chrome) · **weave-glyph — RE-HOMED by D62 to `packages/client/src/lib/` (the cross-cutting display seam): features cannot import app-shell, and D62's empty-state decorations need the glyph across features; still NOT `@orb/ui` (brand, not a domain-agnostic primitive)** · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears).
 
-**Primitive deltas land under the §13.7 contract and the authoring rules in §13.8 — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc. **`table` IS an `@orb/ui` primitive** (built + exported `"./table"`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and `table.tsx` naturally splits under the 450-line cap.
+**Primitive deltas land under the §13.7 contract and the authoring rules in §13.8 — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc. **`table` IS an `@orb/ui` primitive** (built + exported `"./table"`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. ESLint `max-lines` in `eslint.config.js` owns the UI source limit; the table is consumed by `packages/client/src/features/tag/components/labels-suggestions.tsx`.
 
 ### 13.10 Namecraft — the accessible-name & control-name contract (BINDING; CT `accessible-name-quality.suite.ct.tsx`)
 

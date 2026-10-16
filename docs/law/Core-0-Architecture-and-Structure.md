@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-14
+updated: 2026-10-16
 ---
 
 # Orbweaver — structure & enforcement (the constitution)
@@ -255,7 +255,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | Tests and the test kit enter a package through its declared entries; a raw reach carries a reviewed grant | `tests-package-subpath` · `tests-raw-package-reach` |
 | **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |
 | **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
-| **Tests run the product**: no copy of an exported production function, no hand shape in e2e or support, no unproven cast, no mock or spy of an internal module, no test file over the cap | `test-production-clone` · `test-hand-shape` · `no-test-fabrication` · `test-mock-doctrine` · `test-file-size` (§10 `spine/testing`) |
+| **Tests run the product**: no copy of an exported production function, no hand shape in e2e or support, no unproven cast, no mock or spy of an internal module, no test file over the cap | `test-production-clone` · `test-hand-shape` · `no-test-fabrication` · `test-mock-doctrine` · ESLint `max-lines` (§10 `spine/testing`) |
 | `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
 | **No exported `type`/`interface`/`z.object`/structural-cast outside `db` schema / `contracts` / a domain's `contract/` / `kit`** (incl. `context.ts` = explicit interface, not `ReturnType<>`) | `no-inline-types` (§7.4 spine) |
 | **Every string-union axis has ONE importable union — no inline re-spelling** | `no-inline-union-redecl` (§7.5 spine) |
@@ -341,7 +341,7 @@ did not change when the fleet moved.
 | - | - |
 | top-level entries are tool DIRS; each carries `cli.ts` + `index.ts`; tool roots admit only the five slots | `tooling-slot-template` |
 | a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
-| no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | `tooling-size` |
+| no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | ESLint `max-lines` in `eslint.config.js` |
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
 | every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |

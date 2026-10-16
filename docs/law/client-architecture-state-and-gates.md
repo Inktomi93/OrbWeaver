@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-07
+updated: 2026-10-16
 ---
 
 # Client architecture: state, data, error handling, sync spine and the gate spec
@@ -215,7 +215,7 @@ state why machine-checking fails and carry the exact checklist.
 | G19 | data/query discipline | ts-morph + eslint | the `queryKey` selector of `no-restricted-syntax` · `no-inline-invalidate-outside-seam` · `bus-on-data-no-store-write` · `no-fake-disabled-id` · `orb/no-static-staletime` · `no-multiplexed-mutation-error`. |
 | G20 | forms discipline | ts-morph + eslint | `form-factory-for-multifield` · `orb/no-direct-useform` · `no-form-reset-in-autosave` · ESLint direct form-dependency restrictions · `no-form-state-in-useeffect` for resolved computed names only. |
 | G21 | bus producer coverage | ts-morph | `bus-producer-coverage` — one policy quantified over every guarded bus union. |
-| G22 | structure/size/a11y | ts-morph + eslint | `client-structure` · `component-size` · `surface-a11y-focus` · `surface-in-a-container` · `orb/no-raw-interactive-intrinsics` · `empty-state-has-action` · `no-interactive-role-in-features` · `test-presence-client`. |
+| G22 | structure/size/a11y | ts-morph + eslint | `client-structure` · ESLint `max-lines` · `surface-a11y-focus` · `surface-in-a-container` · `orb/no-raw-interactive-intrinsics` · `empty-state-has-action` · `no-interactive-role-in-features` · `test-presence-client`. |
 | G23 | `feature-owns-definition` | fs check (standalone `fsBacked` gate) | a `packages/client/src/features/*` dir co-locating no registered definition (`lib/*-{section,modal,group,chrome}.tsx`) — a feature owns a rail section, a modal, a settings group, or a chrome widget, or it is deleted. No exemption exists — `notifications` owns a chrome def. |
 | R1 | row/field anatomy choice (ListRow vs setting-row vs Field vs message anatomy) | review | Why ungateable: the correct primitive follows the value type and interaction shape, not a syntactic signature. Checklist: entity-in-a-collection → ListRow/LibraryRow · label+control settings line → setting-row · editable labeled input → Field · chat turn → the message-row-skin machine · a repeated interactive row in a list surface matching none of these → reject. |
 | R2 | composite promotion (≥2-feature duplication → `components/`) | review + jscpd | Why ungateable: semantic near-duplicates (same anatomy, different fields) defeat textual clone detection; jscpd (tsx, 5%) is the tripwire, the hoist is judgment. Checklist: same anatomy in 2+ features and changing together → tier 2; 3+ repeats of wiring → tier 3 factory; a genuine one-off → leave. |

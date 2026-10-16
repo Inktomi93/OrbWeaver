@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-01
+updated: 2026-10-16
 ---
 
 # `@orb/tooling` — tooling-tree law
@@ -238,15 +238,15 @@ A repo-root CONFIG read whose data would otherwise be respelled (one-home config
 
 **Two layers on purpose, not two homes.** This gate is the LANE-SPEED case (a scoped `check:structure` sees a changed file) and matches specifier SHAPE; the §4.6 cruiser stanzas are the whole-graph resolved-edge backstop — the same split as `domain-sibling-front-door`.
 
-### 4.3 `tooling-size`
+### 4.3 Native source-size limits
 
-incremental-safe, `visitFile` line count, comments-INTENDED (it counts comment lines, like `component-size`); `scanRoot: tooling/src/`.
+ESLint `max-lines` in `eslint.config.js` owns tooling source limits. It counts blank and comment lines.
 
-REDs: any file >450 lines; any `cli.ts` >200. Declared carve with its own `mustPass` row: `tooling/src/verify/gates/**` is cap-EXEMPT — a gate file is a contract-headed single-purpose module, and splitting one is worse than a long one.
+Limits: any file >450 lines; any nested `cli.ts` >200. `tooling/src/verify/gates/**` remains exempt because each gate is a single-purpose contract module. Native boundary controls preserve these scopes.
 
-**This gate is ORDERING, not a ratchet.** It exists before a monolith can move, which is what forces decomposition at the move instead of after it.
+The limit forces decomposition during the move, not after it.
 
-**WHEN THE FILE YOU ARE EDITING IS AT THE CAP, LAND THE NEW THING AS A SIBLING MODULE — never buy a line by deleting a doc comment.** The gate counts comment lines, so at 450 the cheapest way to fit one more field is to delete the sentence explaining an old one. A deleted comment is invisible to every check in this repo and costs the next cold reader the whole derivation, while a sibling module costs one import. The cap is a DECOMPOSITION trigger; treating it as a comment budget inverts it. Where the sibling genuinely has nowhere to go, decompose the file — the one answer the cap never accepts is a smaller explanation.
+At the limit, put new behavior in a sibling module or split the existing file by concern. Preserve necessary explanations; deleting them does not remove the complexity that caused the split.
 
 ### 4.4 The plumbing homes — the ten-policy split of `tooling-shared-plumbing`
 

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Orbweaver — Spine: Testing
@@ -316,7 +316,7 @@ A test proves what ships. Helpers, stories and fixtures must follow a product ch
 - **Mount the real door.** CT harnesses call production registry factories and mount their actual provider stack. Equal copied lists are not the production door. Stories mount the real surface and stub only the network edge. `ct-config-mirror-parity` verifies forwarding and factory identity, then admits maintained browser-package mounts through `CtClientProviders` or a named `CtIsolation`. A registry variant uses `isolationRegistry(name, isolates, members)` from `tests/support/browser/ct-isolation.ts`; its name identifies the production registry and its reason states what it keeps apart. Browser-world stories, fixtures and support cannot value-import server implementation; native dependency-cruiser owns that boundary and preserves the type-only bridge.
 - **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
 - **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
-- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. `test-file-size` caps a test-tree file, and `pnpm cpd:tests` holds the duplicated share of `tests/` at the ratchet in `jscpd.tests.json`.
+- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. ESLint `max-lines` in `eslint.config.js` caps maintained test files; existing native bulk migration debt only shrinks. `pnpm cpd:tests` holds the duplicated share of `tests/` at the ratchet in `jscpd.tests.json`.
 - **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists. `test-reach` enforces it (§5).
 
 The antipatterns these rules forbid, with their detectors and burn-down items, are in [enforcement-antipatterns.md](enforcement-antipatterns.md).

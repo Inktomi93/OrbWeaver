@@ -1,4 +1,4 @@
-// Shared TENANCY-CLASS reader: reads the drizzle schema fact's already-resolved `SchemaModel` for the two
+// Shared TENANCY-CLASS reader: reads the drizzle schema fact's already-resolved data for the two
 // questions `table-scoping-class` (its own coherence check) and the `owner-scoped-{reads,writes,upserts}`
 // family all need answered IDENTICALLY — "which drizzle table identifiers are ownerId-scoped" (answered from the
 // registry below) and "every declared table identifier" (the denominator that tells a
@@ -60,8 +60,8 @@
 //   with it. That member therefore declares the DRIZZLE-SCHEMA family's shared population while belonging
 //   to THIS family: the classification data is tenancy's, the files it reads are the schema's, and the two
 //   are deliberately not merged.
-import type { SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
-import type { SchemaForeignKey, SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
+import type { SchemaProjectedModel, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { SchemaForeignKey } from "../contract/schema-fact.ts";
 import type { ForeignKeyColumns, SchemaTableIndex } from "../contract/tenancy.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 import { TABLE_SCOPING_ROWS } from "./tenancy-scope-rows.ts";
@@ -100,7 +100,7 @@ export function tableShapeOf(table: Pick<SchemaProjectedTable, "columns">): Tabl
   return { hasOwnerId, hasChatId, fkCount };
 }
 
-function tableIdents(model: SchemaModel, keep: (table: SchemaTable) => boolean): ReadonlySet<string> {
+function tableIdents(model: SchemaProjectedModel, keep: (table: SchemaProjectedTable) => boolean): ReadonlySet<string> {
   const idents = new Set<string>();
   for (const table of model.tables) {
     if (keep(table)) {
@@ -116,7 +116,7 @@ function tableIdents(model: SchemaModel, keep: (table: SchemaTable) => boolean):
  *  `owner-scoped-writes`, and `owner-scoped-upserts` import this reader directly, and each keeps its
  *  OWN blindness tripwire (an empty set means the
  *  derivation went blind, never that the tree is clean). */
-export function ownerScopedTableIdents(model: SchemaModel): ReadonlySet<string> {
+export function ownerScopedTableIdents(model: SchemaProjectedModel): ReadonlySet<string> {
   const classes = tableScopingClasses();
   return tableIdents(model, (table) => classes.get(table.sqlName)?.scope === "ownerId");
 }
@@ -126,7 +126,7 @@ export function ownerScopedTableIdents(model: SchemaModel): ReadonlySet<string> 
  *  human can see. Same derivation and same home as `ownerScopedTableIdents` above, read by
  *  `membership-write-fan` (#1734): a re-classification of a table moves the owner half and the membership
  *  half in one edit, and neither can be hand-kept out of step with the other. */
-export function membershipScopedTableIdents(model: SchemaModel): ReadonlySet<string> {
+export function membershipScopedTableIdents(model: SchemaProjectedModel): ReadonlySet<string> {
   const classes = tableScopingClasses();
   return tableIdents(model, (table) => classes.get(table.sqlName)?.scope === "membership");
 }
@@ -135,7 +135,7 @@ export function membershipScopedTableIdents(model: SchemaModel): ReadonlySet<str
  *  Without it "this identifier is not an (a) table" and "I could not read this identifier at all" are the same
  *  answer, and the second one is a bypass wearing the first one's clothes. The SQL-name map is what a typed
  *  table reference (a parameter typed `typeof chatTags | typeof characterTags`) resolves through. */
-export function schemaTableIndex(model: SchemaModel): SchemaTableIndex {
+export function schemaTableIndex(model: SchemaProjectedModel): SchemaTableIndex {
   return {
     idents: tableIdents(model, () => true),
     identBySqlName: new Map(model.tables.map((table) => [table.sqlName, table.identity.declarationName])),
@@ -162,7 +162,7 @@ function parentEnd(parent: SchemaForeignKey["parent"]): { readonly table: string
 }
 
 /** Every declared foreign key, from both the column-level `.references()` and the table-level `foreignKey()` forms. */
-function foreignKeyPairs(model: SchemaModel): readonly ForeignKeyPair[] {
+function foreignKeyPairs(model: SchemaProjectedModel): readonly ForeignKeyPair[] {
   return model.tables.flatMap((table) => [
     ...table.columns.flatMap((column) => {
       if (column.foreignKey === null) {
@@ -188,7 +188,7 @@ function foreignKeyPairs(model: SchemaModel): readonly ForeignKeyPair[] {
 /** Every declared foreign key as `child->parent` column keys. This is the edge set the FK-chain inheritance
  *  (Spine-Identity-and-Auth §2b) walks: a joined owner-scoped table inherits a bound row's scope only along an
  *  edge that points AT it. */
-export function foreignKeyEdges(model: SchemaModel): ReadonlySet<string> {
+export function foreignKeyEdges(model: SchemaProjectedModel): ReadonlySet<string> {
   return new Set(
     foreignKeyPairs(model).map(
       (pair) => `${foreignKeyColumnKey(pair.childTable, pair.childColumn)}${EDGE_ARROW}${foreignKeyColumnKey(pair.parentTable, pair.parentColumn)}`,
@@ -211,7 +211,7 @@ export function foreignKeysBetween(fkEdges: ReadonlySet<string>, child: string, 
 /** The scope-bearing parents of every DERIVED table (class `parent` or `junction`, D23): the ownerId- or
  *  membership-class tables its foreign keys reach. A chain through a derived table scopes the parent it joins
  *  only when the read also pins another of these parents to the caller (Spine-Identity-and-Auth §2b). */
-export function scopeParentsOfDerivedTables(model: SchemaModel): ReadonlyMap<string, ReadonlySet<string>> {
+export function scopeParentsOfDerivedTables(model: SchemaProjectedModel): ReadonlyMap<string, ReadonlySet<string>> {
   const classes = tableScopingClasses();
   const classByIdent = new Map(model.tables.map((table) => [table.identity.declarationName, classes.get(table.sqlName)?.scope]));
   const parents = new Map<string, Set<string>>();

@@ -19,8 +19,6 @@ import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gat
 import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as clientCacheSurgeryOnlyInData } from "../../../../../tooling/src/verify/gates/client-cache-surgery-only-in-data.ts";
 import { gate as clientStructure } from "../../../../../tooling/src/verify/gates/client-structure.ts";
-import { gate as componentSize } from "../../../../../tooling/src/verify/gates/component-size.ts";
-import { gate as componentSizeUi } from "../../../../../tooling/src/verify/gates/component-size-ui.ts";
 import { gate as emptyStateHasAction } from "../../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as listRowAdoption } from "../../../../../tooling/src/verify/gates/list-row-adoption.ts";
@@ -49,8 +47,6 @@ import { gate as uiVariantAxesStampedHealth } from "../../../../../tooling/src/v
 
 const CHAT = "packages/client/src/features/chat";
 const UI = "packages/ui/src/primitives";
-/** Ten lines past the hard 450-line cap both component-size policies enforce. */
-const OVER_CAP = Array.from({ length: 460 }, (_, index) => `export const line${String(index)} = ${String(index)};`).join("\n");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -142,16 +138,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     // The feature-slice layout is read as a resource tree: a stray module at a built feature's root.
     overlays: [{ kind: "resource", path: `${CHAT}/liveness-stray.ts`, source: "export const stray = 1;\n" }],
     messageIncludes: "stray file",
-  },
-  {
-    policy: componentSizeUi,
-    overlays: [add(`${UI}/liveness-big/big.tsx`, OVER_CAP)],
-    messageIncludes: "cap 450",
-  },
-  {
-    policy: componentSize,
-    overlays: [add(`${CHAT}/lib/liveness-big.ts`, OVER_CAP)],
-    messageIncludes: "cap 450",
   },
   {
     policy: emptyStateHasAction,

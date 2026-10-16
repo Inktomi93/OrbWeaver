@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(335 registered gates)
+(331 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -98,8 +98,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `client-package-no-side-effects` | — | hard/error | none | the client package declares… |
 | `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
-| `component-size` | — | hard/error | @client\* | a client source file exceeds the hard… |
-| `component-size-ui` | component-size | hard/error | @ui\* | an @orb/ui source file exceeds the… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | an entry/compose module runs a… |
 | `config-anchor-in-registry` | — | reviewed-grant/error | @client | a file stamps configAnchorId(…) but… |
 | `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
@@ -329,7 +327,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
 | `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
-| `test-file-size` | component-size | reviewed-grant/error | @tests | a test-tree file exceeds 1000 lines —… |
 | `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
 | `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
@@ -362,7 +359,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
 | `tooling-root-config-import` | — | reviewed-grant/error | @tooling | a tooling module imports outside the… |
 | `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
-| `tooling-size` | — | hard/error | @tooling\* | a @orb/tooling source file exceeds… |
 | `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |

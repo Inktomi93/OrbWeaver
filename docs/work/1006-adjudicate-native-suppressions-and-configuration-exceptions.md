@@ -34,3 +34,5 @@ Destructive consent, payload expansion and draft identities have native rendered
 Native Drizzle checks cover neighboring scoped writes. Intentional replacements have statement-local permissions; unused wipe permissions are removed. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-drizzle-delete-scope-independent-review.md`.
 
 Explicit string templates resolve native Vitest scenario-title false positives without changing registration, case names, fixtures or assertions. Native rules remain enabled; no suppression is added. Evidence: `reports/review/1006-native-scenario-title-ordinary.md`.
+
+File-size migration rejudges existing test monolith grants as shrinking native bulk debt. New subjects remain blocking. Evidence: `reports/review/native-foundation-wave-ordinary.md`.

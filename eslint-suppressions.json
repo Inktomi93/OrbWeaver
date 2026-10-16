@@ -1,0 +1,57 @@
+{
+  "tests/tooling/_ct-stories.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/ast/index.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/design-audit-walker.ct.tsx": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/snap/ops/run-bundle.suite.int.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/tool-guard.int.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/ui-audit/index.int.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/ui-audit/index.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/verify/lib/policy-pass.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/verify/ops/policy-conformance.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  },
+  "tests/tooling/verify/ops/run.int.test.ts": {
+    "max-lines": {
+      "count": 1
+    }
+  }
+}

@@ -43,4 +43,4 @@ Plain-value pins, session capture reuse, evaluated waiver metadata, lazy lexical
 
 D320 eligibility is integrated. Ordinary controls retain native closure, runtime/typecheck worlds, syntax boundaries and historical generations. Store metadata failures remain unchanged. Evidence: `reports/review/1002-legacy-analysis-current-integration.md`.
 
-Retained delivery gaps are raw base-schema extraction, clone export discovery and compose callable/reference/lifetime reads. Evidence: `reports/review/1027-remaining-delivery-boundary.md`. The foundation plan sequences these separately from the audited migration after assigned SQL acceptance.
+Native full-schema metadata and clone export discovery pass review and bounded controls. Evidence: `reports/review/native-foundation-wave-ordinary.md`. Compose callable/reference/lifetime delivery and complete equivalence remain open. The foundation plan keeps these separate from the audited migration.
