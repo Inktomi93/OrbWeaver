@@ -2,7 +2,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/zod-export-membership.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/zod-export-membership";
 
@@ -12,7 +12,15 @@ function drive(files: Readonly<Record<string, string>>): ReturnType<typeof runPo
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
   project.resolveSourceFileDependencies();
-  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("zod-export-membership proves every ownership class and its fail-closed population arms through production conformance", () => {
@@ -222,4 +230,17 @@ test("a generic overload cannot launder a fixed implementation schema", () => {
   const result = drive(proof.files);
   expect(result.authority.withheldPolicyIds).toContain(gate.id);
   expect(result.policies[0]?.receipts).toMatchObject([{ members: 1, unresolved: 1 }]);
+});
+
+test("a deep dynamic aggregate cannot disappear behind a healthy exported schema owner", () => {
+  const proof = gate.mustPass[1];
+  const result = drive({
+    ...proof.files,
+    "packages/contracts/src/x.ts":
+      'import * as z from "zod";\nexport const healthy = z.string();\nexport type Healthy = z.output<typeof healthy>;\ndeclare function hidden(): { a: { b: { c: { d: { wire: z.ZodType<string> } } } } };\nexport default { ...hidden() };\n',
+  });
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toContain(gate.id);
+  expect(result.toolErrors).toEqual([expect.objectContaining({ phase: "receipt" })]);
+  expect(result.policies[0]?.receipts).toMatchObject([{ members: 2, unresolved: 1 }]);
 });

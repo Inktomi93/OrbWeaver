@@ -10,7 +10,7 @@ import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
-import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { InventoryFamily, InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
@@ -403,9 +403,7 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
           return ["drizzle-identities"] as const;
         }
         if (query.kind === "invocation-evidence") {
-          return query.plan.mode === "observations"
-            ? (["invocation-evidence", "global-origins", "computed-names", "drizzle-identities"] as const)
-            : (["invocation-evidence", "global-origins", "computed-names"] as const);
+          return invocationFamilies(query.plan.mode);
         }
         if (query.kind === "global-bindings") {
           return ["global-origins"] as const;
@@ -659,11 +657,12 @@ function invocationDemandGroups(
   plan: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
   owner: (node: Node) => string,
 ): readonly { readonly nodes: readonly Node[]; readonly anchor: Node; readonly plan: typeof plan }[] {
-  if (plan.mode !== "observations") {
+  if (plan.mode !== "observations" && plan.mode !== "types") {
     return nodes.map((node) => ({ nodes: [node], anchor: node, plan }));
   }
   const demand = plan.observations;
-  if (demand === undefined || nodes.some((node) => !MorphNode.isSourceFile(node))) {
+  const typeDemand = plan.typeObservations;
+  if ((demand === undefined && typeDemand === undefined) || nodes.some((node) => !MorphNode.isSourceFile(node))) {
     throw new SemanticInventoryError("native ordinary cohort requires real source anchors");
   }
   const owners = new Map<string, Node[]>();
@@ -675,7 +674,11 @@ function invocationDemandGroups(
     owners.set(program, selected);
     files.set(canonicalInventoryPath(node.getSourceFile().getFilePath()), program);
   }
-  if ([...demand.roots, ...demand.reads.map((read) => read.node)].some((node) => !files.has(node.file))) {
+  if (
+    [...(demand?.roots ?? []), ...(demand?.reads.map((read) => read.node) ?? []), ...(typeDemand?.sources ?? []), ...(typeDemand?.nodes ?? [])].some(
+      (node) => !files.has(node.file),
+    )
+  ) {
     throw new SemanticInventoryError("native ordinary roots/reads are outside their registered source cohort");
   }
   return [...owners].map(([program, selected]) => {
@@ -688,12 +691,37 @@ function invocationDemandGroups(
       anchor,
       plan: {
         ...plan,
-        observations: {
-          ...demand,
-          roots: demand.roots.filter((node) => files.get(node.file) === program),
-          reads: demand.reads.filter((read) => files.get(read.node.file) === program),
-        },
+        ...(demand === undefined
+          ? {}
+          : {
+              observations: {
+                ...demand,
+                roots: demand.roots.filter((node) => files.get(node.file) === program),
+                reads: demand.reads.filter((read) => files.get(read.node.file) === program),
+              },
+            }),
+        ...(typeDemand === undefined
+          ? {}
+          : {
+              typeObservations: {
+                ...typeDemand,
+                sources: typeDemand.sources.filter((node) => files.get(node.file) === program),
+                nodes: typeDemand.nodes.filter((node) => files.get(node.file) === program),
+              },
+            }),
       },
     };
   });
+}
+
+function invocationFamilies(mode: InventoryInvocationPlan["mode"]): readonly InventoryFamily[] {
+  switch (mode) {
+    case "types":
+      return ["invocation-evidence"];
+    case "observations":
+      return ["invocation-evidence", "global-origins", "computed-names", "drizzle-identities"];
+    case "value":
+    case "invocation":
+      return ["invocation-evidence", "global-origins", "computed-names"];
+  }
 }

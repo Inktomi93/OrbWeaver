@@ -18,6 +18,7 @@ import type {
   NativeInvocationEvidence,
 } from "./semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { replayTypeObservations } from "./type-observations-codec.ts";
 import { replayTypeProjection } from "./type-projection-codec.ts";
 import type { NativeTypeProjection } from "./type-projection-contract.ts";
 import { mapColumnRowObservation, mapStoredValueObservation } from "./value-observation-codec.ts";
@@ -97,6 +98,7 @@ export function replayInvocationEvidence(
   const observations = readObservations();
   return {
     ...(observations === undefined ? {} : { observations }),
+    ...replayTypeAttachment(wire, replayNode),
     invocation,
     modules,
     callableBindings,
@@ -227,4 +229,36 @@ function ordinaryReplayOwner(
       };
     },
   };
+}
+
+function typeReplayOwner(
+  payload: NonNullable<InventoryInvocationEvidence["typeObservations"]>,
+  replayNode: (span: InventorySpan) => MorphNode,
+): NonNullable<NativeInvocationEvidence["typeObservations"]> {
+  const epochs = new Map<SourceFile, SourceFile["compilerNode"]>();
+  const replay = (span: InventorySpan): MorphNode => {
+    const node = replayNode(span);
+    epochs.set(node.getSourceFile(), node.getSourceFile().compilerNode);
+    return node;
+  };
+  const restored = replayTypeObservations(payload, replay);
+  return {
+    ...restored,
+    assertNode: (node): void => {
+      replayNode(payload.anchor);
+      for (const [source, epoch] of epochs) {
+        if (source.wasForgotten() || source.compilerNode !== epoch) {
+          throw new SemanticInventoryError("native type observation closed source epoch is stale");
+        }
+      }
+      restored.assertNode(node);
+    },
+  };
+}
+
+function replayTypeAttachment(
+  wire: InventoryInvocationEvidence,
+  replay: (span: InventorySpan) => MorphNode,
+): Pick<NativeInvocationEvidence, "typeObservations"> {
+  return wire.typeObservations === undefined ? {} : { typeObservations: typeReplayOwner(wire.typeObservations, replay) };
 }

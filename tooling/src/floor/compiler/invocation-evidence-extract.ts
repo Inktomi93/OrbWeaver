@@ -34,6 +34,9 @@ import type {
   InventorySpan,
 } from "../code-facts/semantic-inventory-contract.ts";
 import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/semantic-inventory-contract.ts";
+import { captureTypeObservations } from "../code-facts/type-observations.ts";
+import { encodeTypeObservations } from "../code-facts/type-observations-codec.ts";
+import type { TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
 import { captureTypeProjection } from "../code-facts/type-projection.ts";
 import { encodeTypeProjection } from "../code-facts/type-projection-codec.ts";
 import type { NativeTypeProjection } from "../code-facts/type-projection-contract.ts";
@@ -51,6 +54,7 @@ export function captureInvocationEvidence(
     readonly schema: SchemaQuery | undefined;
     readonly basis?: import("../code-facts/drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   },
+  typeDemand?: TypeObservationDemand,
 ): CapturedInvocationEvidence {
   const plan = invocationPlanSchema.parse(rawPlan);
   const modules = new Map<MorphNode, ReferenceFact<ModuleMemberOrigin>>();
@@ -132,8 +136,20 @@ export function captureInvocationEvidence(
             capture(subject, ["module", "global", "string", "stable", "authored-value", ...(Node.isCallExpression(subject) ? ["drizzle-write" as const] : [])]),
           anchor: node,
         });
-  const invocation = plan.mode === "observations" ? undefined : captureRequestedInvocation(node, plan, capture);
-  if (plan.mode !== "observations") {
+  if ((plan.mode === "types") !== (typeDemand !== undefined)) {
+    throw new Error("native type observation demand has no captured owner");
+  }
+  const typeObservations =
+    typeDemand === undefined
+      ? undefined
+      : captureTypeObservations(typeDemand, {
+          anchor: Node.isSourceFile(node) ? node : node.getSourceFile(),
+          admit: (subject): void => {
+            related(subject);
+          },
+        });
+  const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
+  if (plan.mode !== "observations" && plan.mode !== "types") {
     closeRelatedInvocationSources(sources);
   }
   const admitted = (subject: MorphNode): void => {
@@ -143,6 +159,7 @@ export function captureInvocationEvidence(
   };
   return {
     ...(observations === undefined ? {} : { observations, observationBasis: ordinary?.basis ?? null }),
+    ...(typeObservations === undefined ? {} : { typeObservations }),
     invocation,
     modules,
     globals,
@@ -251,7 +268,7 @@ export function encodeInvocationEvidence(
   spanNode: (node: MorphNode) => InventorySpan,
 ): InventoryInvocationEvidence {
   const span = (subject: MorphNode): InventorySpan => {
-    if (plan.mode === "observations") {
+    if (plan.mode === "observations" || plan.mode === "types") {
       evidence.captureSource?.(subject);
     }
     return spanNode(subject);
@@ -321,6 +338,7 @@ export function encodeInvocationEvidence(
     evidence.invocation === undefined ? null : wireReferenceFact(evidence.invocation, (value) => ({ ...binding(value), invocation: value.invocation }), span);
   return invocationEvidenceSchema.parse({
     ...encodeOrdinaryAttachment(evidence, span),
+    ...(evidence.typeObservations === undefined ? {} : { typeObservations: encodeTypeObservations(evidence.typeObservations, span) }),
     query: { ...plan, node: span(node) },
     callee: plan.mode === "invocation" && (Node.isCallExpression(node) || Node.isNewExpression(node)) ? span(node.getExpression()) : null,
     invocation,

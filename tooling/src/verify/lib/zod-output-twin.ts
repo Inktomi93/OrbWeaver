@@ -1,8 +1,12 @@
-// Canonical ZodType declaration identity and exact OUTPUT parity for hand-authored schema/type twins.
-// Input is deliberately absent from this reader: defaults, coercions, preprocessors and transforms may
-// widen or narrow accepted input while preserving the output contract a twin promises.
-import type { Expression, Node as MorphNode, Symbol as MorphSymbol, PropertyDeclaration, SourceFile, Type, TypeNode, VariableDeclaration } from "ts-morph";
+// Canonical ZodType declaration identity and exact output parity; input is not this contract.
+import type { Expression, Node as MorphNode, PropertyDeclaration, SourceFile, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { createTypeObservationCapture } from "../../floor/code-facts/type-observations.ts";
+import type { ObservedReference, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { ZOD_OUTPUT_PROPERTY } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector, typeArgumentSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { unwrapTypeExpression as unwrapSchemaExpression } from "../../floor/code-facts/type-slot-syntax.ts";
 import type { ZodOutputTwinRead } from "../contract/zod-output-twin.ts";
 
 const ZOD_PACKAGE_SEGMENT = "/node_modules/zod/";
@@ -10,60 +14,67 @@ const RUNTIME_GENERATED_SCHEMA_SOURCE = "/packages/kit/src/json-schema/lift.ts";
 const RUNTIME_GENERATED_SCHEMA_BRAND = "RUNTIME_GENERATED_SCHEMA_BRAND";
 const RUNTIME_GENERATED_SCHEMA_BOX = "RuntimeGeneratedSchemaBox";
 
-function canonicalZodType(type: Type): boolean {
-  const symbol = type.getSymbol();
+/** Direct native and isolated callers keep their genuine owner; delivered readers never use this fallback. */
+function nativeZodTypeReaders(node: MorphNode): TypeObservationReader {
+  const project = node.getProject();
+  return createTypeObservationCapture({
+    anchor: node.getSourceFile(),
+    admit: (subject): void => {
+      if (subject.wasForgotten() || subject.getProject() !== project) {
+        throw new Error("Zod native observation belongs to a foreign or forgotten source");
+      }
+    },
+  }).reader;
+}
+
+function typeInfo(selector: NativeTypeSelector, readers: TypeObservationReader): ReturnType<TypeObservationReader["type"]> | undefined {
+  const reference = readers.select(selector);
+  return reference === null ? undefined : readers.type(reference);
+}
+function canonicalZodType(selector: NativeTypeSelector, readers: TypeObservationReader): boolean {
+  const symbol = typeInfo(selector, readers)?.symbol;
+  if (symbol === undefined || symbol === null) {
+    return false;
+  }
+  const value = readers.symbolData(symbol);
   return (
-    symbol?.getName() === "ZodType" &&
-    symbol.getDeclarations().some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(ZOD_PACKAGE_SEGMENT))
+    value.name === "ZodType" &&
+    value.declarations.some((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes(ZOD_PACKAGE_SEGMENT))
   );
 }
 
 export function zodTypeReferenceIdentity(node: TypeNode): "canonical" | "none" | "unresolved" {
+  return zodTypeReferenceIdentityWith(node, nativeZodTypeReaders(node));
+}
+export function zodTypeReferenceIdentityWith(node: TypeNode, readers: TypeObservationReader): "canonical" | "none" | "unresolved" {
   if (!Node.isTypeReference(node) || node.getTypeArguments().length === 0) {
     return "none";
   }
-  const resolvedType = node.getType();
-  if (canonicalZodType(resolvedType)) {
+  if (canonicalZodType(nodeTypeSelector(node), readers)) {
     return "canonical";
   }
-  const symbol = node.getTypeName().getSymbol();
-  const declarations = symbol?.getDeclarations() ?? [];
-
-  // A resolved lookalike is somebody else's type. An unresolved binding imported from `zod` is OUR
-  // unreadable subject and must refuse rather than silently disappear when module resolution breaks.
-  if (declarations.length > 0) {
+  const symbol = readers.symbol(node.getTypeName());
+  if (symbol !== null && readers.symbolData(symbol).declarations.length > 0) {
     return "none";
   }
   const text = node.getTypeName().getText();
-  const sourceFile = node.getSourceFile();
-  const importedFromZod = sourceFile.getImportDeclarations().some((declaration) => {
-    if (declaration.getModuleSpecifierValue() !== "zod") {
-      return false;
-    }
-    const namespace = declaration.getNamespaceImport()?.getText();
-    if (namespace !== undefined && text === `${namespace}.ZodType`) {
-      return true;
-    }
-    return declaration.getNamedImports().some((specifier) => {
-      const local = specifier.getAliasNode()?.getText() ?? specifier.getName();
-      return specifier.getName() === "ZodType" && text === local;
+  const importedFromZod = node
+    .getSourceFile()
+    .getImportDeclarations()
+    .some((declaration) => {
+      if (declaration.getModuleSpecifierValue() !== "zod") {
+        return false;
+      }
+      const namespace = declaration.getNamespaceImport()?.getText();
+      if (namespace !== undefined && text === `${namespace}.ZodType`) {
+        return true;
+      }
+      return declaration.getNamedImports().some((specifier) => {
+        const local = specifier.getAliasNode()?.getText() ?? specifier.getName();
+        return specifier.getName() === "ZodType" && text === local;
+      });
     });
-  });
   return importedFromZod ? "unresolved" : "none";
-}
-
-function unwrapSchemaExpression(node: Expression): Expression {
-  let current = node;
-  while (
-    Node.isParenthesizedExpression(current) ||
-    Node.isAsExpression(current) ||
-    Node.isTypeAssertion(current) ||
-    Node.isSatisfiesExpression(current) ||
-    Node.isNonNullExpression(current)
-  ) {
-    current = current.getExpression();
-  }
-  return current;
 }
 
 function canonicalRuntimeGeneratedSchemaDeclarations(sourceFile: SourceFile): {
@@ -88,107 +99,87 @@ function isCanonicalRuntimeGeneratedSchemaBrand(node: MorphNode): boolean {
   const canonical = canonicalRuntimeGeneratedSchemaDeclarations(node.getSourceFile());
   return canonical !== null && node.compilerNode === canonical.brand.compilerNode;
 }
-
-/** Whether `type` (or an intersection constituent) declares the exact module-scope unique-symbol brand.
- * The receiver owns the branded intersection; its `.schema` member belongs to the plain carrier class. */
-function typeCarriesCanonicalBrand(type: Type): boolean {
-  const constituents = type.isIntersection() ? type.getIntersectionTypes() : [type];
-  return constituents.some((constituent) =>
-    constituent.getProperties().some((property) =>
-      property.getDeclarations().some((declaration) => {
-        if (!(Node.isPropertySignature(declaration) || Node.isPropertyDeclaration(declaration))) {
-          return false;
-        }
-        const name = declaration.getNameNode();
-        if (!Node.isComputedPropertyName(name)) {
-          return false;
-        }
-        return name.getExpression().getSymbol()?.getDeclarations().some(isCanonicalRuntimeGeneratedSchemaBrand) === true;
-      }),
-    ),
-  );
-}
-
-/** A contextual `ZodType<any | unknown>` is truthful only when the value comes through the canonical
- * carrier's `schema` property and the receiver carries the exact module-scope unique-symbol brand. */
-function isCanonicalRuntimeGeneratedSchemaMember(rawExpression: Expression): boolean {
-  const expression = unwrapSchemaExpression(rawExpression);
+function isCanonicalRuntimeGeneratedSchemaMember(raw: Expression, readers: TypeObservationReader): boolean {
+  const expression = unwrapSchemaExpression(raw);
   if (!Node.isPropertyAccessExpression(expression)) {
     return false;
   }
-  const memberDeclarations = expression.getNameNode().getSymbol()?.getDeclarations() ?? [];
+  const symbol = readers.symbol(expression.getNameNode());
+  const declarations = symbol === null ? [] : readers.symbolData(symbol).declarations;
   const canonical = canonicalRuntimeGeneratedSchemaDeclarations(expression.getSourceFile());
   if (
     canonical === null ||
-    !memberDeclarations.some(
-      (memberDeclaration) => Node.isPropertyDeclaration(memberDeclaration) && memberDeclaration.compilerNode === canonical.schema.compilerNode,
-    )
+    !declarations.some((declaration) => Node.isPropertyDeclaration(declaration) && declaration.compilerNode === canonical.schema.compilerNode)
   ) {
     return false;
   }
-  return typeCarriesCanonicalBrand(expression.getExpression().getType());
+  return readers.computedNames(nodeTypeSelector(expression.getExpression())).some((property) => property.names.some(isCanonicalRuntimeGeneratedSchemaBrand));
 }
-
-function pairWithTarget(target: Type, rawSchema: Expression, carrier: MorphNode, resolvedSchemaType?: Type): ZodOutputTwinRead {
-  const targetOutput = target.getTypeArguments()[0];
-  if (targetOutput === undefined) {
+function pairWithTarget(
+  target: NativeTypeSelector,
+  raw: Expression,
+  carrier: MorphNode,
+  context: { readonly readers: TypeObservationReader; readonly schema?: NativeTypeSelector },
+): ZodOutputTwinRead {
+  const { readers, schema: suppliedSchema } = context;
+  const targetOutput = typeArgumentSelector(target);
+  const targetInfo = typeInfo(targetOutput, readers);
+  if (targetInfo === undefined) {
     return { kind: "unresolved", carrier, reason: "the canonical ZodType target exposed no readable output argument" };
   }
-  // An explicit `ZodType<any | unknown>` annotation erases the very output contract this policy must
-  // compare. Keep it in the population as unreadable so a healthy sibling cannot make the owner clean.
-  if (targetOutput.isAny() || targetOutput.isUnknown()) {
+  if (targetInfo.any || targetInfo.unknown) {
     return { kind: "unresolved", carrier, reason: "the authored ZodType target erases output as any/unknown" };
   }
-  const schema = unwrapSchemaExpression(rawSchema);
-  const schemaType = resolvedSchemaType ?? schema.getType();
-  // Exhaustive dispatch tails (`return assertNever(x)`) are control-flow proofs, not schema values.
-  if (schemaType.isNever()) {
+  const schema = unwrapSchemaExpression(raw);
+  const schemaSelector = suppliedSchema ?? nodeTypeSelector(schema);
+  if (typeInfo(schemaSelector, readers)?.never === true) {
     return { kind: "none" };
   }
-  const output = schemaType.getProperty("_output")?.getTypeAtLocation(schema);
-  if (output === undefined || output.isAny() || output.isUnknown()) {
+  const output = { ...schemaSelector, steps: [...schemaSelector.steps, { kind: "property" as const, name: ZOD_OUTPUT_PROPERTY, at: schema }] };
+  const outputInfo = typeInfo(output, readers);
+  if (outputInfo === undefined || outputInfo.any || outputInfo.unknown) {
     return {
       kind: "unresolved",
       carrier,
       reason: "the schema output or authored target collapsed to any/unknown, so exact output parity cannot be established",
     };
   }
-  return {
-    kind: "pair",
-    carrier,
-    target: targetOutput,
-    output,
-    outputToTarget: output.isAssignableTo(targetOutput),
-    targetToOutput: targetOutput.isAssignableTo(output),
-  };
+  const relation = readers.relation(output, targetOutput);
+  const targetText = readers.display(targetOutput, carrier);
+  const outputText = readers.display(output, carrier);
+  if (relation === null || targetText === null || outputText === null) {
+    throw new Error("native Zod output relation/display was not captured");
+  }
+  return { kind: "pair", carrier, targetText, outputText, outputToTarget: relation.leftToRight, targetToOutput: relation.rightToLeft };
 }
-
-function pair(targetNode: TypeNode, rawSchema: Expression, carrier: MorphNode): ZodOutputTwinRead {
-  const identity = zodTypeReferenceIdentity(targetNode);
+function pair(target: TypeNode, raw: Expression, carrier: MorphNode, readers: TypeObservationReader): ZodOutputTwinRead {
+  const identity = zodTypeReferenceIdentityWith(target, readers);
   if (identity === "none") {
     return { kind: "none" };
   }
   if (identity === "unresolved") {
     return { kind: "unresolved", carrier, reason: "the authored ZodType target could not be resolved to the installed zod declaration" };
   }
-  return pairWithTarget(targetNode.getType(), rawSchema, carrier);
+  return pairWithTarget(nodeTypeSelector(target), raw, carrier, { readers });
 }
-
-function annotationOwnsInitializer(declaration: VariableDeclaration | PropertyDeclaration): boolean {
+function annotationOwnsInitializer(declaration: VariableDeclaration | PropertyDeclaration, readers: TypeObservationReader): boolean {
   const annotation = declaration.getTypeNode();
-  return annotation !== undefined && zodTypeReferenceIdentity(annotation) !== "none";
+  return annotation !== undefined && zodTypeReferenceIdentityWith(annotation, readers) !== "none";
 }
-
-/** Read a variable or class-property `schema: z.ZodType<T> = ...` twin. A declaration with no value is
- * plumbing; any declaration that constructs or aliases a value makes an independently checkable promise. */
+/** A declaration with a value makes one independently checkable authored output promise. */
 export function readAnnotatedZodOutputTwin(declaration: VariableDeclaration | PropertyDeclaration): ZodOutputTwinRead {
+  return readAnnotatedZodOutputTwinWith(declaration, nativeZodTypeReaders(declaration));
+}
+export function readAnnotatedZodOutputTwinWith(declaration: VariableDeclaration | PropertyDeclaration, readers: TypeObservationReader): ZodOutputTwinRead {
   const target = declaration.getTypeNode();
   const initializer = declaration.getInitializer();
-  return target === undefined || initializer === undefined ? { kind: "none" } : pair(target, initializer, declaration.getNameNode());
+  return target === undefined || initializer === undefined ? { kind: "none" } : pair(target, initializer, declaration.getNameNode(), readers);
 }
-
-/** Read an expression-level `satisfies` / cast twin, unless a module annotation already owns it. */
+/** Preserve annotation ownership and nested transparent expression suppression. */
 export function readExpressionZodOutputTwin(node: MorphNode): ZodOutputTwinRead {
+  return readExpressionZodOutputTwinWith(node, nativeZodTypeReaders(node));
+}
+export function readExpressionZodOutputTwinWith(node: MorphNode, readers: TypeObservationReader): ZodOutputTwinRead {
   if (!(Node.isSatisfiesExpression(node) || Node.isAsExpression(node) || Node.isTypeAssertion(node))) {
     return { kind: "none" };
   }
@@ -196,41 +187,35 @@ export function readExpressionZodOutputTwin(node: MorphNode): ZodOutputTwinRead 
   if (
     declaration !== undefined &&
     (Node.isVariableDeclaration(declaration) || Node.isPropertyDeclaration(declaration)) &&
-    annotationOwnsInitializer(declaration)
+    annotationOwnsInitializer(declaration, readers)
   ) {
     return { kind: "none" };
   }
   const parent = node.getParent();
   const parentType = Node.isAsExpression(parent) || Node.isTypeAssertion(parent) || Node.isSatisfiesExpression(parent) ? parent.getTypeNode() : undefined;
-  if (parentType !== undefined && zodTypeReferenceIdentity(parentType) !== "none") {
+  if (parentType !== undefined && zodTypeReferenceIdentityWith(parentType, readers) !== "none") {
     return { kind: "none" };
   }
   const target = node.getTypeNode();
   return target === undefined
     ? { kind: "unresolved", carrier: node, reason: "the authored ZodType expression exposed no readable target node" }
-    : pair(target, node.getExpression(), node);
+    : pair(target, node.getExpression(), node, readers);
 }
-
-function ownerTypeParameter(type: Type, owner: MorphNode): boolean {
+function ownerTypeParameter(selector: NativeTypeSelector, owner: MorphNode, readers: TypeObservationReader): boolean {
+  const symbol = typeInfo(selector, readers)?.symbol;
   return (
-    type
-      .getSymbol()
-      ?.getDeclarations()
-      .some((declaration) => {
-        if (!Node.isTypeParameterDeclaration(declaration)) {
-          return false;
-        }
-        return declaration.getAncestors().includes(owner);
-      }) ?? false
+    symbol !== undefined &&
+    symbol !== null &&
+    readers.symbolData(symbol).declarations.some((declaration) => Node.isTypeParameterDeclaration(declaration) && declaration.getAncestors().includes(owner))
   );
 }
-
-function isGenericSchemaPassThrough(expression: Expression, contextual: Type): boolean {
+function isGenericSchemaPassThrough(expression: Expression, contextual: NativeTypeSelector, readers: TypeObservationReader): boolean {
   const schema = unwrapSchemaExpression(expression);
   if (!Node.isIdentifier(schema)) {
     return false;
   }
-  const declarations = schema.getSymbol()?.getDeclarations() ?? [];
+  const symbol = readers.symbol(schema);
+  const declarations = symbol === null ? [] : readers.symbolData(symbol).declarations;
   const parameter = declarations.length === 1 && Node.isParameterDeclaration(declarations[0]) ? declarations[0] : undefined;
   if (parameter === undefined) {
     return false;
@@ -240,70 +225,47 @@ function isGenericSchemaPassThrough(expression: Expression, contextual: Type): b
   if (parameterOwner === undefined || parameterOwner !== schemaOwner) {
     return false;
   }
-  const parameterOutput = parameter.getType().getTypeArguments()[0];
-  const contextualOutput = contextual.getTypeArguments()[0];
-  return (
-    parameterOutput !== undefined &&
-    contextualOutput !== undefined &&
-    ownerTypeParameter(parameterOutput, parameterOwner) &&
-    ownerTypeParameter(contextualOutput, parameterOwner) &&
-    parameterOutput.isAssignableTo(contextualOutput) &&
-    contextualOutput.isAssignableTo(parameterOutput)
-  );
+  const parameterOutput = typeArgumentSelector(nodeTypeSelector(parameter));
+  const contextualOutput = typeArgumentSelector(contextual);
+  if (!(ownerTypeParameter(parameterOutput, parameterOwner, readers) && ownerTypeParameter(contextualOutput, parameterOwner, readers))) {
+    return false;
+  }
+  const relation = readers.relation(parameterOutput, contextualOutput);
+  return relation !== null && relation.leftToRight && relation.rightToLeft;
 }
-
-/** Read a schema expression whose enclosing declaration supplies a contextual `ZodType<T>`: object/array
- * manifest members, return expressions, assignment RHS values and expression-bodied functions. Call
- * arguments are intentionally absent: passing a schema through a generic parameter creates no second
- * authored type owner and therefore cannot drift independently. A bare parameter returned or assigned is
- * the same pass-through case and is excluded for the same reason. */
+/** Contextual output promises exclude only canonical generated carriers and same-owner generic plumbing. */
 export function readContextualZodOutputTwin(expression: Expression, carrier: MorphNode = expression): ZodOutputTwinRead {
-  const expressionTarget =
+  return readContextualZodOutputTwinWith(expression, carrier, nativeZodTypeReaders(expression));
+}
+export function readContextualZodOutputTwinWith(expression: Expression, carrier: MorphNode, readers: TypeObservationReader): ZodOutputTwinRead {
+  const target =
     Node.isAsExpression(expression) || Node.isTypeAssertion(expression) || Node.isSatisfiesExpression(expression) ? expression.getTypeNode() : undefined;
-  if (expressionTarget !== undefined && zodTypeReferenceIdentity(expressionTarget) !== "none") {
+  if (target !== undefined && zodTypeReferenceIdentityWith(target, readers) !== "none") {
     return { kind: "none" };
   }
-  if (isCanonicalRuntimeGeneratedSchemaMember(expression)) {
+  if (isCanonicalRuntimeGeneratedSchemaMember(expression, readers)) {
     return { kind: "none" };
   }
-  const schemaType = unwrapSchemaExpression(expression).getType();
-  if (schemaType.getProperty("_output") === undefined) {
+  const schemaSelector = nodeTypeSelector(unwrapSchemaExpression(expression));
+  if (
+    readers.select({
+      ...schemaSelector,
+      steps: [...schemaSelector.steps, { kind: "property", name: ZOD_OUTPUT_PROPERTY, at: unwrapSchemaExpression(expression) }],
+    }) === null
+  ) {
     return { kind: "none" };
   }
-  const contextual = expression.getContextualType();
-  if (contextual === undefined || !canonicalZodType(contextual) || isGenericSchemaPassThrough(expression, contextual)) {
+  const contextual = nodeTypeSelector(expression, "contextual");
+  if (readers.select(contextual) === null || !canonicalZodType(contextual, readers) || isGenericSchemaPassThrough(expression, contextual, readers)) {
     return { kind: "none" };
   }
-  return pairWithTarget(contextual, expression, carrier, schemaType);
+  return pairWithTarget(contextual, expression, carrier, { readers, schema: schemaSelector });
 }
 
-/** The expressions a function-like node returns from ITS OWN body: an expression body is its single return,
- *  and a nested function's returns are excluded. The family's schema-factory reader classifies these. */
-export function ownReturnExpressions(node: MorphNode): readonly Expression[] {
-  if (!(Node.isFunctionDeclaration(node) || Node.isArrowFunction(node) || Node.isFunctionExpression(node))) {
-    return [];
-  }
-  const body = node.getBody();
-  if (body === undefined) {
-    return [];
-  }
-  if (Node.isExpression(body)) {
-    return [body];
-  }
-  return body
-    .getDescendantsOfKind(SyntaxKind.ReturnStatement)
-    .filter((statement) => statement.getFirstAncestor(Node.isFunctionLikeDeclaration) === node)
-    .flatMap((statement) => {
-      const expression = statement.getExpression();
-      return expression === undefined ? [] : [expression];
-    });
-}
-
-/** The symbols the identifiers inside a type node resolve to. The schema-factory reader asks whether a
- *  factory's return contract names one of the factory's own parameters or type parameters. */
-export function typeNodeIdentifierSymbols(typeNode: TypeNode): readonly MorphSymbol[] {
+/** Raw symbol observations preserve every identifier binding in an authored type node. */
+export function typeNodeIdentifierSymbols(typeNode: TypeNode, readers: TypeObservationReader): readonly ObservedReference<"symbol">[] {
   return typeNode.getDescendantsOfKind(SyntaxKind.Identifier).flatMap((identifier) => {
-    const symbol = identifier.getSymbol();
-    return symbol === undefined ? [] : [symbol];
+    const symbol = readers.symbol(identifier);
+    return symbol === null ? [] : [symbol];
   });
 }

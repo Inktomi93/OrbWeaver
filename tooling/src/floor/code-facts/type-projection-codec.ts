@@ -120,7 +120,8 @@ export function replayTypeProjection(wire: InventoryTypeProjection, input: TypeP
   return facts;
 }
 
-function mapTypeSelectionPlan<From, To>(plan: NativeTypeSelectionPlan<From>, anchor: (value: From) => To): NativeTypeSelectionPlan<To> {
+/** Preserve exact selector locations while translating native nodes to captured spans and back. */
+export function mapTypeSelectionPlan<From, To>(plan: NativeTypeSelectionPlan<From>, anchor: (value: From) => To): NativeTypeSelectionPlan<To> {
   return {
     selectors: plan.selectors.map((selector) => ({
       base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: anchor(selector.base.node) },

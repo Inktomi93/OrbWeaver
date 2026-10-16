@@ -40,4 +40,6 @@ Context-utility identity preserves native meaning through sealed global/module a
 
 Native schema, column and configuration facts serve assets, table ownership, vector, enum and nullable policies. Catalog-only and open-JSON policies consume native schema and value facts. Finite native type, origin, export-presence and authored-value facts serve route, Base UI, registry and inference policies. Atomic publication tracks executable helpers and shared codecs. Independent review and ordinary combined-tree controls pass: `reports/review/1027-native-consumers-ordinary.md`.
 
-Native admission and pinned reads retain refusals, lifetimes and fresh borrowed reads. JSON read, write and health policies consume exact native cohorts with initial parser membership and atomic catalog identity. Ordinary controls pass. Delivery and actual cost remain open. Item 1012 owns live-tree recertification cleanup. Root types retain off-owned errors. Evidence: `reports/review/1027-json-three-ordinary.md`.
+JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
+
+Zod ownership and output parity use persisted native type observations; ordinary projection, upgrade and command controls pass. Bus delivery follows; other families and cost remain open. Evidence: `reports/review/1027-native-zod-ordinary.md`.
