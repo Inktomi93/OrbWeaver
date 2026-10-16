@@ -232,13 +232,26 @@ function freshEffectTarget(node: MorphNode | undefined, context: InheritedReadEf
   return value.kind === "resolved" && value.value.length > 0 && value.value.every(freshEffectValue);
 }
 
+function authoredEffectCallable(source: import("./reference-fact-contract.ts").ReturnedValueSource): boolean {
+  return (
+    source.present &&
+    source.path.length === 0 &&
+    (Node.isArrowFunction(source.value) || Node.isFunctionExpression(source.value) || Node.isFunctionDeclaration(source.value)) &&
+    source.value.getBody() !== undefined
+  );
+}
+
 function projectedEffectValue(
-  member: import("ts-morph").ElementAccessExpression | import("ts-morph").PropertyAccessExpression,
+  member: MorphNode,
   context: InheritedReadEffectContext,
+  accepts: (source: import("./reference-fact-contract.ts").ReturnedValueSource) => boolean = freshEffectValue,
 ): boolean {
+  if (!(Node.isPropertyAccessExpression(member) || Node.isElementAccessExpression(member))) {
+    return false;
+  }
   if (Node.isPropertyAccessExpression(member)) {
     const value = context.values(member.getExpression(), [member.getName()], new Map());
-    return value.kind === "resolved" && value.value.length > 0 && value.value.every(freshEffectValue);
+    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
   }
   const expression = member.getArgumentExpression();
   if (expression === undefined) {
@@ -264,7 +277,7 @@ function projectedEffectValue(
       return false;
     }
     const value = context.values(member.getExpression(), [name], key.bindings);
-    return value.kind === "resolved" && value.value.length > 0 && value.value.every(freshEffectValue);
+    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
   });
 }
 
@@ -274,11 +287,12 @@ function inheritedReadEffect(input: MorphNode, context: InheritedReadEffectConte
   }
   const call = input.getParent();
   if (!Node.isCallExpression(call) || call.getExpression() !== input) {
-    return (Node.isPropertyAccessExpression(input) || Node.isElementAccessExpression(input)) && projectedEffectValue(input, context) ? undefined : input;
+    return projectedEffectValue(input, context) ? undefined : input;
   }
   const origin = resolveGlobalMemberOrigin(input);
   if (origin.kind === "unresolved" || !["Object", "Reflect"].includes(origin.value.globalName) || origin.value.memberPath.length !== 1) {
-    return input;
+    // Actual authored callees remain subject to the complete Project's body and parameter effect sites.
+    return projectedEffectValue(input, context, authoredEffectCallable) ? undefined : input;
   }
   const member = origin.value.memberPath[0];
   switch (member) {

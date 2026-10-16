@@ -8,7 +8,7 @@ import { unprovenReferenceUse } from "@orb/tooling/floor/code-facts/reference-fa
 import { readAuthoredCallableSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Node as MorphNode } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
+import { Node, Project, SyntaxKind, ts } from "ts-morph";
 import { vi } from "vitest";
 
 function query(files: Readonly<Record<string, string>>, source = "source.ts"): MorphNode | undefined {
@@ -76,6 +76,241 @@ function effectContext(project: Project, sources = project.getSourceFiles()): In
     throw new Error("the effect fixture requires its actual native captured call context");
   }
   return { program, values: (node, path, bindings) => readReturnedValue(node, path, observed, { terminals: new Set(), bindings }) };
+}
+
+for (const dispatch of [false, true]) {
+  test(`conditional native background data retains unrelated ${dispatch ? "computed dispatch" : "no dispatch"}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ts.ScriptTarget.ESNext, lib: ["lib.esnext.d.ts", "lib.dom.d.ts"] } });
+    const source = project.createSourceFile(
+      "/background-dispatch.ts",
+      `
+      ${
+        dispatch
+          ? `
+      type Mode="single-user"|"local"|"forward-header"|"oidc";
+      const CAPABLE:Record<Mode,(multiple:boolean)=>boolean>={
+        "single-user":()=>false,local:(multiple)=>multiple,"forward-header":()=>true,oidc:()=>true,
+      };
+      function capability(mode:Mode,multiple:boolean){return CAPABLE[mode](multiple);}
+      capability("local",true);
+      `
+          : ""
+      }
+      interface Context{settle:()=>number;backgroundSignal?:AbortSignal}
+      function consume(ctx:Context){return ctx.settle();}
+      function segments(ctx:Context,options:{signal?:AbortSignal}){return options.signal===undefined;}
+      function engine(ctx:Context){segments(ctx,{signal:ctx.backgroundSignal});return consume(ctx);}
+      function compose(input:{backgroundSignal?:AbortSignal}){
+        const context={settle:()=>1,...(input.backgroundSignal===undefined?{}:{backgroundSignal:input.backgroundSignal})};
+        return engine(context);
+      }
+      function background(){const controller=new AbortController();return {signal:controller.signal,async [Symbol.asyncDispose](){controller.abort();}};}
+      const resources=new AsyncDisposableStack();const work=resources.use(background());compose({backgroundSignal:work.signal});
+    `,
+    );
+    const call = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText() === "ctx.settle");
+    const expected = source.getFunctionOrThrow("compose").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (call === undefined) {
+      throw new Error("the conditional background consumer is missing");
+    }
+    beginReferencePass();
+    try {
+      const captured = effectContext(project);
+      const result = readAuthoredCallableSources(call.getExpression(), (candidate) => captured.program.byCall.has(candidate.compilerNode), {
+        programs: [captured.program],
+      });
+      expect(result.kind, result.kind === "unresolved" ? `${result.reason}: ${result.detail} at ${result.node.getText()}` : "resolved").toBe("resolved");
+      expect(result.kind === "resolved" && result.value.length === 1 && result.value[0]?.value === expected).toBe(true);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+const AUTHORED_DISPATCH_EFFECTS = [
+  { name: "actual literal selector", before: "", entries: "safe:()=>1", body: "", calls: "dispatch('safe');", resolved: true },
+  {
+    name: "distinct supplied selectors",
+    before: "",
+    entries: "safe:()=>1,other:()=>2",
+    body: "",
+    calls: "dispatch('safe');dispatch('other');",
+    resolved: true,
+  },
+  { name: "unbound annotated selector", before: "declare const key:'safe';", entries: "safe:()=>1", body: "", calls: "dispatch(key);", resolved: false },
+  { name: "asserted inherited selector", before: "", entries: "safe:()=>1", body: "", calls: "dispatch('__proto__' as 'safe');", resolved: false },
+  { name: "missing own callee", before: "", entries: "safe:()=>1", body: "", calls: "dispatch('missing');", resolved: false },
+  { name: "inherited constructor", before: "", entries: "safe:()=>1", body: "", calls: "dispatch('constructor');", resolved: false },
+  { name: "getter selected callee", before: "", entries: "get safe(){return ()=>1;}", body: "", calls: "dispatch('safe');", resolved: false },
+  {
+    name: "opaque selected callee",
+    before: "declare function foreign():number;",
+    entries: "safe:foreign",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+  { name: "native selected callee", before: "", entries: "safe:Object.defineProperty", body: "", calls: "dispatch('safe');", resolved: false },
+  { name: "written actual selector", before: "", entries: "safe:()=>1", body: "key='constructor';", calls: "dispatch('safe');", resolved: false },
+  { name: "written table alias", before: "", entries: "safe:()=>1", body: "const alias=table;alias.safe=()=>2;", calls: "dispatch('safe');", resolved: false },
+  {
+    name: "opaque receiver escape",
+    before: "declare function escape(value:object):void;",
+    entries: "safe:()=>1",
+    body: "escape(table);",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+  {
+    name: "callee body prototype effect",
+    before: "",
+    entries: "safe:()=>{Object.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;}});return 1;}",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+  {
+    name: "callee parameter initializer effect",
+    before: "",
+    entries: "safe:(ignored=Reflect.defineProperty(Object.prototype,'payload',{get(){this.settle=()=>2;}}))=>1",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+  {
+    name: "callee aliased native effect",
+    before: "const define=Reflect.defineProperty;const prototype=Object.getPrototypeOf({});",
+    entries: "safe:()=>{define(prototype,'payload',{get(){this.settle=()=>2;}});return 1;}",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+  {
+    name: "shadowed native spelling with an authored body",
+    before: "const Object={defineProperty:()=>1};",
+    entries: "safe:()=>Object.defineProperty()",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: true,
+  },
+  {
+    name: "shadowed native spelling retaining real prototype effects",
+    before: "const Object={defineProperty:()=>globalThis.Object.defineProperty(globalThis.Object.prototype,'payload',{get(){this.settle=()=>2;}})};",
+    entries: "safe:()=>Object.defineProperty()",
+    body: "",
+    calls: "dispatch('safe');",
+    resolved: false,
+  },
+] as const;
+
+for (const configured of [true, false]) {
+  test(`inherited authored dispatch follows factory-bound ${configured ? "actual" : "annotation-only"} configuration`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/configured-dispatch.ts",
+      `
+      type Mode="local"|"single-user";
+      const table={local:(multiple:boolean)=>multiple,"single-user":()=>false};
+      function capability(mode:Mode,multiple:boolean){return table[mode](multiple);}
+      function createCapability(mode:Mode,readConfig:()=>{localMultiUser:boolean}){
+        return ()=>capability(mode,readConfig().localMultiUser);
+      }
+      function services(config:{authMode:Mode}){
+        const enabled=createCapability(config.authMode,()=>({localMultiUser:true}));return enabled();
+      }
+      ${configured ? 'const config={authMode:"local" as const};' : "declare const config:{authMode:Mode};"}
+      services(config);
+      function consume(payload:object|undefined){return payload;}
+      function selected(ctx:{settle:()=>number;payload?:object}){consume(ctx.payload);return ctx.settle();}
+      const context={settle:()=>1};selected(context);
+    `,
+    );
+    const call = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText() === "ctx.settle");
+    if (call === undefined) {
+      throw new Error("the configured dispatch consumer is missing");
+    }
+    beginReferencePass();
+    try {
+      const captured = effectContext(project);
+      const result = readAuthoredCallableSources(call.getExpression(), (candidate) => captured.program.byCall.has(candidate.compilerNode), {
+        programs: [captured.program],
+      });
+      expect(result.kind, result.kind === "unresolved" ? `${result.reason}: ${result.detail} at ${result.node.getText()}` : "resolved").toBe(
+        configured ? "resolved" : "unresolved",
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const scenario of AUTHORED_DISPATCH_EFFECTS) {
+  test(`inherited authored dispatch preserves ${scenario.name}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/authored-dispatch.ts",
+      `
+      export {};
+      ${scenario.before}
+      const table={${scenario.entries}};
+      function dispatch(key:string){${scenario.body}return table[key]();}
+      ${scenario.calls}
+      function consume(payload:object|undefined){return payload;}
+      function selected(ctx:{settle:()=>number;payload?:object}){consume(ctx.payload);return ctx.settle();}
+      const context={settle:()=>1};selected(context);
+    `,
+    );
+    const call = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText() === "ctx.settle");
+    if (call === undefined) {
+      throw new Error("the selected authored dispatch consumer is missing");
+    }
+    beginReferencePass();
+    try {
+      const captured = effectContext(project);
+      const result = readAuthoredCallableSources(call.getExpression(), (candidate) => captured.program.byCall.has(candidate.compilerNode), {
+        programs: [captured.program],
+      });
+      expect(result.kind, result.kind === "unresolved" ? `${result.reason}: ${result.detail} at ${result.node.getText()}` : "resolved").toBe(
+        scenario.resolved ? "resolved" : "unresolved",
+      );
+      const expected = source.getVariableDeclarationOrThrow("context").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+      expect(result.kind === "resolved" && result.value.length === 1 && result.value[0]?.value === expected).toBe(scenario.resolved);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const secondKey of ["safe", "constructor"]) {
+  test(`inherited authored dispatch retains distinct actual receiver allocations: ${secondKey}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    const source = project.createSourceFile(
+      "/allocated-dispatch.ts",
+      `
+      function dispatch(table:{safe:()=>number},key:string){return table[key]();}
+      dispatch({safe:()=>1},'safe');dispatch({safe:()=>2},${JSON.stringify(secondKey)});
+      function consume(payload:object|undefined){return payload;}
+      function selected(ctx:{settle:()=>number;payload?:object}){consume(ctx.payload);return ctx.settle();}
+      const context={settle:()=>1};selected(context);
+    `,
+    );
+    const call = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText() === "ctx.settle");
+    if (call === undefined) {
+      throw new Error("the selected allocation consumer is missing");
+    }
+    beginReferencePass();
+    try {
+      const captured = effectContext(project);
+      const result = readAuthoredCallableSources(call.getExpression(), (candidate) => captured.program.byCall.has(candidate.compilerNode), {
+        programs: [captured.program],
+      });
+      expect(result.kind, result.kind === "unresolved" ? `${result.reason}: ${result.detail} at ${result.node.getText()}` : "resolved").toBe(
+        secondKey === "safe" ? "resolved" : "unresolved",
+      );
+    } finally {
+      endReferencePass();
+    }
+  });
 }
 
 const INHERITED_EFFECTS = [
