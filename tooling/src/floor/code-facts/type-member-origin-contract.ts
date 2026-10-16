@@ -12,6 +12,11 @@ import type {
 } from "ts-morph";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 
+/** The declaration kinds that can own a generic constructor identity. */
+export type GenericDeclaration = InterfaceDeclaration | TypeAliasDeclaration;
+const CONTAINMENTS = ["no", "possible", "yes"] as const;
+export type Containment = (typeof CONTAINMENTS)[number];
+
 export interface CallMemberDeclarationOrigin {
   readonly name: string | null;
   readonly origin: ReferenceFact<readonly Node[]>;

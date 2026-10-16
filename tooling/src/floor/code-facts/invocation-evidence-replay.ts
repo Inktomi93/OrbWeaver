@@ -1,32 +1,24 @@
 // Replay one captured invocation graph into canonical syntax nodes; the inventory retains ownership.
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
+import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
+import { replayAuthoredValueProjection } from "./authored-value-projection-codec.ts";
+import { replayReferenceFact } from "./projection-reference-codec.ts";
 import type { CallableBinding, CallableInvocation, ModuleMemberOrigin, ReferenceFact, ReferenceOrigin } from "./reference-fact-contract.ts";
-import type { InventoryInvocationEvidence, InventoryInvocationReference, InventorySpan, NativeInvocationEvidence } from "./semantic-inventory-contract.ts";
+import type {
+  InventoryInvocationEvidence,
+  InventoryInvocationPlan,
+  InventoryInvocationReference,
+  InventorySpan,
+  NativeInvocationEvidence,
+} from "./semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
+import { replayTypeProjection } from "./type-projection-codec.ts";
+import type { NativeTypeProjection } from "./type-projection-contract.ts";
 
 type Profile = InventoryInvocationEvidence["profiles"][number];
 type WireModule = NonNullable<Profile["module"]> extends InventoryInvocationReference<infer V> ? V : never;
 type WireBinding = NonNullable<Profile["binding"]> extends InventoryInvocationReference<infer V> ? V : never;
-
-/** Restore ordered trace and refusal data without consulting syntax-carrier meaning. */
-export function replayReferenceFact<T, V>(
-  fact: InventoryInvocationReference<T>,
-  value: (input: T) => V,
-  replay: (span: InventorySpan) => MorphNode,
-): ReferenceFact<V> {
-  const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
-  return fact.kind === "resolved"
-    ? { kind: fact.kind, value: value(fact.value), trace }
-    : {
-        kind: fact.kind,
-        reason: fact.reason,
-        detail: fact.detail,
-        node: replay(fact.node),
-        trace,
-        ...(fact.capture === undefined ? {} : { capture: fact.capture }),
-      };
-}
 
 export function replayInvocationEvidence(
   wire: InventoryInvocationEvidence,
@@ -63,6 +55,8 @@ export function replayInvocationEvidence(
   const strings = new Map<MorphNode, ReferenceFact<string>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
+  const typeProjections = new Map<MorphNode, NativeTypeProjection>();
+  const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
   for (const profile of wire.profiles) {
     const node = replay(profile.node);
     if (profile.module !== undefined) {
@@ -87,6 +81,7 @@ export function replayInvocationEvidence(
     if (profile.canonicalValue !== undefined) {
       canonicalValues.set(replay(profile.canonicalValue.declaration), restore(profile.canonicalValue.fact, replay));
     }
+    replayDataProfile(profile, node, { plan: wire.query.typeProjection, replay, types: typeProjections, authored: authoredValues });
   }
   const invocation =
     wire.invocation === null
@@ -100,7 +95,41 @@ export function replayInvocationEvidence(
             arguments: restore(value.arguments, (nodes) => nodes.map(replay)),
           }),
         );
-  return { invocation, modules, callableBindings, undefinedMembers, namespaces, strings, stableValues, canonicalValues, ...children };
+  return {
+    invocation,
+    modules,
+    callableBindings,
+    undefinedMembers,
+    namespaces,
+    strings,
+    stableValues,
+    canonicalValues,
+    typeProjections,
+    authoredValues,
+    ...children,
+  };
+}
+
+function replayDataProfile(
+  profile: Profile,
+  node: MorphNode,
+  context: {
+    readonly plan: InventoryInvocationPlan["typeProjection"];
+    readonly replay: (span: InventorySpan) => MorphNode;
+    readonly types: Map<MorphNode, NativeTypeProjection>;
+    readonly authored: Map<MorphNode, NativeAuthoredValueProjection>;
+  },
+): void {
+  const { plan, replay, types, authored } = context;
+  if (profile["type-projection"] !== undefined) {
+    if (plan === undefined) {
+      throw new SemanticInventoryError("native type projection has no registered demand");
+    }
+    types.set(node, replayTypeProjection(profile["type-projection"], plan, replay));
+  }
+  if (profile["authored-value"] !== undefined) {
+    authored.set(node, replayAuthoredValueProjection(profile["authored-value"], replay));
+  }
 }
 
 function captureNamespace(

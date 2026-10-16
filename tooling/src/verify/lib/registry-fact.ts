@@ -4,9 +4,10 @@ import { resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/referen
 import type { ReferenceFact, ReferenceUnresolvedReason } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, Node as MorphNode, ReturnStatement, TypeNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readStaticAuthoredValue, resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import type { StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
-import type { GateFact } from "../contract/fact.ts";
+import type { TypeProjectionPlan } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
+import type { GateFact, GateFactContext } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import type {
   JsxTagFact,
@@ -18,6 +19,10 @@ import type {
   RegistryTypeTargetFact,
 } from "../contract/registry-fact.ts";
 import { REGISTRY_DEFINITION_KINDS } from "../contract/registry-fact.ts";
+import { nativeAuthoredValue, nativeTypeProjection, prepareNativeAuthoredValue, prepareNativeTypeProjection } from "./native-value-projection.ts";
+
+const TYPE_ORIGIN_PLAN: TypeProjectionPlan = { facets: ["type-identity"], properties: [] };
+const EXPORT_PLAN: TypeProjectionPlan = { facets: ["declaration-export"], properties: [] };
 
 const TYPE_NAMES = {
   section: "SectionDefinition",
@@ -56,22 +61,19 @@ function kindForName(name: string): RegistryDefinitionKind | undefined {
   return REGISTRY_DEFINITION_KINDS.find((kind) => TYPE_NAMES[kind] === name);
 }
 
-function isExportedType(node: MorphNode): node is RegistryTypeDeclaration {
-  return (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) && node.isExported() && kindForName(node.getName()) !== undefined;
+function isRegistryType(node: MorphNode): node is RegistryTypeDeclaration {
+  return (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) && kindForName(node.getName()) !== undefined;
 }
 
-function typeOrigin(typeNode: TypeNode): ReferenceFact<RegistryTypeOrigin> {
-  const type = typeNode.getType();
-  const symbol = type.getAliasSymbol() ?? type.getSymbol();
-  if (symbol === undefined) {
-    return unresolved("missing", typeNode, [], `type ${typeNode.getText()} has no canonical symbol`);
+function typeOrigin(typeNode: TypeNode, ctx: GateFactContext): ReferenceFact<RegistryTypeOrigin> {
+  const origin = typeProjectionFacet(nativeTypeProjection(ctx, typeNode, TYPE_ORIGIN_PLAN), "type-identity");
+  if (origin.kind === "unresolved") {
+    return origin;
   }
-  const declarations = symbol
-    .getDeclarations()
-    .filter(
-      (candidateDeclaration): candidateDeclaration is RegistryTypeDeclaration =>
-        Node.isInterfaceDeclaration(candidateDeclaration) || Node.isTypeAliasDeclaration(candidateDeclaration),
-    );
+  const declarations = origin.value.declarations.filter(
+    (candidateDeclaration): candidateDeclaration is RegistryTypeDeclaration =>
+      Node.isInterfaceDeclaration(candidateDeclaration) || Node.isTypeAliasDeclaration(candidateDeclaration),
+  );
   if (declarations.length === 0) {
     return unresolved("missing", typeNode, [], `type ${typeNode.getText()} has no interface or type-alias declaration`);
   }
@@ -96,6 +98,7 @@ function unresolved<T>(reason: ReferenceUnresolvedReason, node: MorphNode, decla
 function authoredObject(
   node: MorphNode | undefined,
   fallback: MorphNode,
+  ctx: GateFactContext,
 ): {
   readonly object: ReferenceFact<import("ts-morph").ObjectLiteralExpression>;
   readonly authoredValue: ReferenceFact<StaticAuthoredValue>;
@@ -104,12 +107,13 @@ function authoredObject(
     const missing = unresolved<never>("missing", fallback, [fallback], "registry definition has no authored value");
     return { object: missing, authoredValue: missing };
   }
-  const authoredValue = readStaticAuthoredValue(node);
+  const projection = nativeAuthoredValue(ctx, node);
+  const authoredValue = projection.value;
   // Object PROVENANCE and field READABILITY are independent facts. Every live registry definition carries
   // imported icons, components, and hooks, so the complete JSON-like value legitimately refuses; inheriting
   // that refusal as a provenance refusal made this fact report zero members for section/modal/home-tile/
   // config-group on the real tree while their definitions were all sitting at their sanctioned paths.
-  const stable = resolveAuthoredComposite(node);
+  const stable = projection.composite;
   if (stable.kind === "unresolved") {
     return { object: stable, authoredValue };
   }
@@ -149,23 +153,31 @@ function factoryExpression(factory: FactoryNode, returns: ReadonlyMap<object, re
     : { kind: "resolved", value: expression, trace: { declarations: [factory], origin: expression } };
 }
 
-function candidateValue(candidate: Candidate, returns: ReadonlyMap<object, readonly ReturnStatement[]>): ReturnType<typeof authoredObject> {
+function candidateValue(
+  candidate: Candidate,
+  returns: ReadonlyMap<object, readonly ReturnStatement[]>,
+  ctx: GateFactContext,
+): ReturnType<typeof authoredObject> {
   if (candidate.shape === "const") {
-    return authoredObject(candidate.value, candidate.declaration);
+    return authoredObject(candidate.value, candidate.declaration, ctx);
   }
   const factory = candidate.value;
   if (!(factory !== undefined && (Node.isFunctionDeclaration(factory) || Node.isArrowFunction(factory) || Node.isFunctionExpression(factory)))) {
-    return authoredObject(undefined, candidate.declaration);
+    return authoredObject(undefined, candidate.declaration, ctx);
   }
   const expression = factoryExpression(factory, returns);
   if (expression.kind === "unresolved") {
     return { object: expression, authoredValue: expression };
   }
-  return authoredObject(expression.value, candidate.declaration);
+  return authoredObject(expression.value, candidate.declaration, ctx);
 }
 
-function targetFact(kind: RegistryDefinitionKind, targets: ReadonlyMap<RegistryDefinitionKind, readonly RegistryTypeDeclaration[]>): RegistryTypeTargetFact {
-  const declarations = targets.get(kind) ?? [];
+function targetFact(
+  kind: RegistryDefinitionKind,
+  targets: ReadonlyMap<RegistryDefinitionKind, readonly RegistryTypeDeclaration[]>,
+  ctx: GateFactContext,
+): RegistryTypeTargetFact {
+  const declarations = (targets.get(kind) ?? []).filter((node) => typeProjectionFacet(nativeTypeProjection(ctx, node, EXPORT_PLAN), "declaration-export"));
   if (declarations.length === 1 && declarations[0] !== undefined) {
     return { kind: "resolved", value: { exportedName: TYPE_NAMES[kind], declaration: declarations[0] } };
   }
@@ -191,19 +203,19 @@ function sameDeclaration(left: RegistryTypeDeclaration, right: RegistryTypeDecla
  *  made the provider refuse over exactly the population the policy was built to accuse, so the fail-closed
  *  arms could never fire (three `mustFlag` rows, #1953). Every consumer's own receipt already declares this
  *  same census — `members: <view>.definitions.length, unresolved: 0`. */
-function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts): RegistryDefinitionKindFacts {
-  const target = targetFact(kind, state.targets);
+function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts, ctx: GateFactContext): RegistryDefinitionKindFacts {
+  const target = targetFact(kind, state.targets, ctx);
   const definitions: RegistryDefinitionFact[] = [];
   if (target.kind === "resolved") {
     for (const candidate of state.candidates) {
       if (candidate.shape === "factory" && kind !== "section") {
         continue;
       }
-      const origin = typeOrigin(candidate.typeNode);
+      const origin = typeOrigin(candidate.typeNode, ctx);
       if (origin.kind === "unresolved" || !sameDeclaration(origin.value.declaration, target.value.declaration)) {
         continue;
       }
-      const value = candidateValue(candidate, state.returns);
+      const value = candidateValue(candidate, state.returns, ctx);
       definitions.push({
         kind,
         shape: candidate.shape,
@@ -222,22 +234,31 @@ function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts): Re
   };
 }
 
-function noteVariable(node: VariableDeclaration, state: MutableRegistryFacts): void {
+function noteVariable(node: VariableDeclaration, state: MutableRegistryFacts, ctx: GateFactContext): void {
   const initializer = node.getInitializer();
   if (initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))) {
     const typeNode = initializer.getReturnTypeNode();
     if (typeNode !== undefined) {
       state.candidates.push({ declaration: node, shape: "factory", typeNode, value: initializer });
+      prepareNativeTypeProjection(ctx, typeNode, TYPE_ORIGIN_PLAN);
+      const body = initializer.getBody();
+      if (!Node.isBlock(body)) {
+        prepareNativeAuthoredValue(ctx, body);
+      }
     }
     return;
   }
   const typeNode = node.getTypeNode();
   if (typeNode !== undefined) {
     state.candidates.push({ declaration: node, shape: "const", typeNode, value: initializer });
+    prepareNativeTypeProjection(ctx, typeNode, TYPE_ORIGIN_PLAN);
+    if (initializer !== undefined) {
+      prepareNativeAuthoredValue(ctx, initializer);
+    }
   }
 }
 
-function noteTarget(node: RegistryTypeDeclaration, state: MutableRegistryFacts): void {
+function noteTarget(node: RegistryTypeDeclaration, state: MutableRegistryFacts, ctx: GateFactContext): void {
   const kind = kindForName(node.getName());
   if (kind === undefined) {
     return;
@@ -245,16 +266,18 @@ function noteTarget(node: RegistryTypeDeclaration, state: MutableRegistryFacts):
   const existing = state.targets.get(kind) ?? [];
   existing.push(node);
   state.targets.set(kind, existing);
+  prepareNativeTypeProjection(ctx, node, EXPORT_PLAN);
 }
 
-function noteFunction(node: FunctionDeclaration, state: MutableRegistryFacts): void {
+function noteFunction(node: FunctionDeclaration, state: MutableRegistryFacts, ctx: GateFactContext): void {
   const typeNode = node.getReturnTypeNode();
   if (typeNode !== undefined) {
     state.candidates.push({ declaration: node, shape: "factory", typeNode, value: node });
+    prepareNativeTypeProjection(ctx, typeNode, TYPE_ORIGIN_PLAN);
   }
 }
 
-function noteReturn(node: ReturnStatement, state: MutableRegistryFacts): void {
+function noteReturn(node: ReturnStatement, state: MutableRegistryFacts, ctx: GateFactContext): void {
   const factory = closestFactory(node);
   if (factory === undefined) {
     return;
@@ -262,29 +285,33 @@ function noteReturn(node: ReturnStatement, state: MutableRegistryFacts): void {
   const existing = state.returns.get(factory.compilerNode) ?? [];
   existing.push(node);
   state.returns.set(factory.compilerNode, existing);
+  const expression = node.getExpression();
+  if (factory.getReturnTypeNode() !== undefined && expression !== undefined) {
+    prepareNativeAuthoredValue(ctx, expression);
+  }
 }
 
-function visitRegistryNode(node: MorphNode, state: MutableRegistryFacts): void {
-  if (isExportedType(node)) {
-    noteTarget(node, state);
+function visitRegistryNode(node: MorphNode, state: MutableRegistryFacts, ctx: GateFactContext): void {
+  if (isRegistryType(node)) {
+    noteTarget(node, state, ctx);
   } else if (Node.isVariableDeclaration(node)) {
-    noteVariable(node, state);
+    noteVariable(node, state, ctx);
   } else if (Node.isFunctionDeclaration(node)) {
-    noteFunction(node, state);
+    noteFunction(node, state, ctx);
   } else if (Node.isReturnStatement(node)) {
-    noteReturn(node, state);
+    noteReturn(node, state, ctx);
   }
 }
 
 /** Create one invocation-local collector and feed it only nodes delivered by the shared dispatcher. */
-function createRegistryDefinitionFacts(): {
+function createRegistryDefinitionFacts(ctx: GateFactContext): {
   readonly visit: (node: MorphNode) => void;
   readonly forKind: (kind: RegistryDefinitionKind) => RegistryDefinitionKindFacts;
 } {
   const state: MutableRegistryFacts = { targets: new Map(), candidates: [], returns: new Map() };
   return {
-    visit: (node): void => visitRegistryNode(node, state),
-    forKind: (kind) => factsFor(kind, state),
+    visit: (node): void => visitRegistryNode(node, state, ctx),
+    forKind: (kind) => factsFor(kind, state, ctx),
   };
 }
 
@@ -328,7 +355,7 @@ function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<Re
     analysis: "types",
     resources: [],
     create: (ctx) => {
-      const collector = createRegistryDefinitionFacts();
+      const collector = createRegistryDefinitionFacts(ctx);
       let result: RegistryDefinitionKindFacts | undefined;
       return {
         visitors: [{ kinds: REGISTRY_DEFINITION_VISITOR_KINDS, visit: collector.visit }],

@@ -1,13 +1,8 @@
-// The per-node recurrence walk over an authored annotation's value graph, and `resolveTypeValueOrigins` —
-// the public entry point that turns that graph into declaration identities, with explicit unresolved
-// candidates for a recursively-transported or opaque value position. Drives the containment lattice
-// (type-member-origin-containment.ts) and the constructor-summary fixed point (type-member-origin-
-// recurrence.ts); neither of those siblings imports back from here.
+// Authored value/scalar provenance uses canonical containment and recurrence, never a type display.
+// Opaque and recursively transported candidates retain explicit unresolved declaration traces.
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Type, TypeNode } from "ts-morph";
 import { Node, TypeFlags } from "ts-morph";
-import { annotationReferenceOrigin, resolved, symbolDeclarations, unprovenTypeIdentity, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
-import type { Containment, TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import type { ConstructorSummary, TransportContext } from "./type-member-origin-containment.ts";
 import {
   annotationChildren,
@@ -19,6 +14,8 @@ import {
   typeExpressionContains,
   valueTypeEdges,
 } from "./type-member-origin-containment.ts";
+import type { Containment, TypeIdentityOrigin } from "./type-member-origin-contract.ts";
+import { annotationReferenceOrigin, resolved, symbolDeclarations, unprovenTypeIdentity, unresolved } from "./type-member-origin-core.ts";
 import { constructorSummaries, recurrenceSignature } from "./type-member-origin-recurrence.ts";
 
 interface RecurrenceFrame {

@@ -1,4 +1,4 @@
-// Verify retains the containment graph while direct declaration facts have one floor home.
+// Verify consumers retain explicit readers from their canonical floor homes.
 // biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting direct native readers and the value containment graph to their owners
 export {
   declaredByAnyPackage,
@@ -11,4 +11,4 @@ export {
   resolveTypeMemberOrigin,
 } from "../../floor/code-facts/type-member-origin.ts";
 export { resolveTypePropertyOrigin } from "../../floor/code-facts/type-member-origin-core.ts";
-export { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "./type-member-origin-graph.ts";
+export { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "../../floor/code-facts/type-member-origin-graph.ts";

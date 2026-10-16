@@ -69,16 +69,23 @@
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/ui/src/art/art-bleed/__cbbhr_in_art-bleed.tsx`
 // (virtual) admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by
 // both.
-import type { JsxAttributeLike, JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode, ParameterDeclaration, SourceFile } from "ts-morph";
+import type { Identifier, JsxAttributeLike, JsxOpeningElement, JsxSelfClosingElement, Node as MorphNode, ParameterDeclaration, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeProjectionPlan } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { baseUiBindings, consumesContainerProp, readsDocumentBody } from "../lib/baseui-read.ts";
 import { firstAnchor } from "../lib/caught-failure.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
 
 type JsxElement = JsxOpeningElement | JsxSelfClosingElement;
 
 const CONTAINER = "container";
+const CONTAINER_PLAN: TypeProjectionPlan = { facets: ["properties"], properties: [CONTAINER] };
+const BINDING_PLAN: InventoryInvocationPlan = { mode: "value", facets: [], arguments: [] };
 
 const MESSAGE =
   "a sealed Base UI portal does not expose its `container`. Base UI portals to `document.body` by default, " +
@@ -117,10 +124,6 @@ function callableParameters(callable: MorphNode | undefined): readonly Parameter
   return callable.getParameters();
 }
 
-function declaresContainer(callable: MorphNode | undefined): boolean {
-  return callableParameters(callable).some((parameter) => parameter.getType().getProperty(CONTAINER) !== undefined);
-}
-
 /** The authored `container=` attribute on this element, if the seal wrote one. It is arm B's anchor: a
  *  DEAD wire is named at the wire, which is the thing the author has to look at. */
 function containerAttribute(el: JsxElement): JsxAttributeLike | undefined {
@@ -128,7 +131,7 @@ function containerAttribute(el: JsxElement): JsxAttributeLike | undefined {
 }
 
 /** Presence is not wiring: the actual Base UI target must consume THIS callable's caller prop. */
-function hasLiveContainer(el: JsxElement, callable: MorphNode | undefined): boolean {
+function hasLiveContainer(el: JsxElement, callable: MorphNode | undefined, declarations: (node: Identifier) => readonly MorphNode[]): boolean {
   const attribute = containerAttribute(el);
   if (attribute === undefined || !Node.isJsxAttribute(attribute)) {
     return false;
@@ -145,7 +148,7 @@ function hasLiveContainer(el: JsxElement, callable: MorphNode | undefined): bool
   if ((Node.isIdentifier(value) && value.getText() === "undefined") || value.isKind(SyntaxKind.NullKeyword) || readsDocumentBody(value)) {
     return false;
   }
-  return consumesContainerProp(value, callableParameters(callable));
+  return consumesContainerProp(value, callableParameters(callable), declarations);
 }
 
 /** `Local.Portal` for every VALUE binding of a `@base-ui/react/*` component in this file. */
@@ -170,6 +173,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const portals: JsxElement[] = [];
     const tagsByFile = new Map<SourceFile, ReadonlySet<string>>();
     const tagsFor = (sf: SourceFile): ReadonlySet<string> => {
       const hit = tagsByFile.get(sf);
@@ -188,12 +192,20 @@ export const gate = defineGate({
       const callable = owningCallable(el);
       // The arms are MUTUALLY EXCLUSIVE by construction (see the header): with no declared prop there is
       // nothing for the target to consume, so arm A alone speaks and one marker can waive the site.
-      if (!declaresContainer(callable)) {
+      if (
+        !callableParameters(callable).some((parameter) =>
+          typeProjectionFacet(nativeTypeProjection(ctx, parameter, CONTAINER_PLAN), "properties").some(({ present }) => present),
+        )
+      ) {
         const anchor = firstAnchor(el, [tagNode]);
         ctx.report.node(el, { ...anchor, message: NO_PROP, fix: FIX });
         return;
       }
-      if (hasLiveContainer(el, callable)) {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native portal binding context is unavailable");
+      }
+      const evidence = requiredInvocationFact(ctx.nativeTypes.invocationEvidence([el], BINDING_PLAN), el);
+      if (hasLiveContainer(el, callable, evidence.declarations)) {
         return;
       }
       const attribute = containerAttribute(el);
@@ -205,12 +217,24 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.JsxOpeningElement, SyntaxKind.JsxSelfClosingElement],
           visit: (node): void => {
-            if (Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node)) {
-              judge(node);
+            if ((Node.isJsxOpeningElement(node) || Node.isJsxSelfClosingElement(node)) && tagsFor(node.getSourceFile()).has(node.getTagNameNode().getText())) {
+              if (ctx.nativeTypes === undefined) {
+                throw new Error("native portal binding context is unavailable");
+              }
+              ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: [node], plan: BINDING_PLAN });
+              for (const parameter of callableParameters(owningCallable(node))) {
+                prepareNativeTypeProjection(ctx, parameter, CONTAINER_PLAN);
+              }
+              portals.push(node);
             }
           },
         },
       ],
+      evaluate: () => {
+        for (const portal of portals) {
+          judge(portal);
+        }
+      },
     };
   },
 

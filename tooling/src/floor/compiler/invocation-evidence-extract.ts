@@ -2,7 +2,12 @@
 // Canonical floor readers own resolution; this adapter captures no policy judgment or compiler owner.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { NativeAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
+import { captureAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
+import { encodeAuthoredValueProjection } from "../code-facts/authored-value-projection-codec.ts";
 import { readModuleNamespaceDeclarations } from "../code-facts/module-namespace.ts";
+import type { InventoryAuthoredValueProjection, InventoryTypeProjection } from "../code-facts/projection-inventory-contract.ts";
+import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
 import {
   readStaticString,
   referenceResolutionServices,
@@ -17,11 +22,12 @@ import type {
   CapturedInvocationEvidence,
   InventoryInvocationEvidence,
   InventoryInvocationPlan,
-  InventoryInvocationRefusal,
-  InventoryInvocationTrace,
   InventorySpan,
 } from "../code-facts/semantic-inventory-contract.ts";
 import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/semantic-inventory-contract.ts";
+import { captureTypeProjection } from "../code-facts/type-projection.ts";
+import { encodeTypeProjection } from "../code-facts/type-projection-codec.ts";
+import type { NativeTypeProjection } from "../code-facts/type-projection-contract.ts";
 import { descendantsOfKind } from "./ts-workspace.ts";
 
 /** Capture only requested facets and their finite canonical callee/argument dependencies. */
@@ -35,6 +41,8 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
   const strings = new Map<MorphNode, ReferenceFact<string>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
+  const typeProjections = new Map<MorphNode, NativeTypeProjection>();
+  const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
   const sources = new Set<SourceFile>([node.getSourceFile()]);
   const readers: Record<InventoryInvocationPlan["facets"][number], (subject: MorphNode) => void> = {
     module: (subject) => captureOnce(modules, subject, resolveModuleMemberOrigin),
@@ -50,6 +58,14 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
     namespace: (subject) => captureOnce(namespaces, subject, readModuleNamespaceDeclarations),
     string: (subject) => captureOnce(strings, subject, readStaticString),
     stable: (subject) => captureOnce(stableValues, subject, resolveStableExpression),
+    "type-projection": (subject) =>
+      captureOnce(typeProjections, subject, (value) => {
+        if (plan.typeProjection === undefined) {
+          throw new Error("native type projection demand is unavailable");
+        }
+        return captureTypeProjection(value, plan.typeProjection);
+      }),
+    "authored-value": (subject) => captureOnce(authoredValues, subject, captureAuthoredValueProjection),
   };
   const capture = (subject: MorphNode, facets: InventoryInvocationPlan["facets"]): void => {
     sources.add(subject.getSourceFile());
@@ -78,6 +94,8 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
     strings,
     stableValues,
     canonicalValues,
+    typeProjections,
+    authoredValues,
     sources: [...sources],
     declarations: (subject): readonly MorphNode[] => {
       admitted(subject);
@@ -158,26 +176,6 @@ function captureArgumentProfiles(
   }
 }
 
-/** Preserve ordered native trace/refusal fields across type-free evidence families. */
-export function wireReferenceFact<T, V>(
-  fact: ReferenceFact<T>,
-  value: (input: T) => V,
-  span: (node: MorphNode) => InventorySpan,
-): { readonly kind: "resolved"; readonly value: V; readonly trace: InventoryInvocationTrace } | InventoryInvocationRefusal {
-  const trace = { origin: span(fact.trace.origin), declarations: fact.trace.declarations.map(span) };
-  if (fact.kind === "resolved") {
-    return { kind: fact.kind, value: value(fact.value), trace };
-  }
-  return {
-    kind: fact.kind,
-    reason: fact.reason,
-    detail: fact.detail,
-    node: span(fact.node),
-    trace,
-    ...("capture" in fact && fact.capture === "native-bind" ? { capture: "native-bind" as const } : {}),
-  };
-}
-
 /** Encode span-valued facts without replacing canonical node/refusal semantics. */
 export function encodeInvocationEvidence(
   node: MorphNode,
@@ -214,6 +212,8 @@ export function encodeInvocationEvidence(
       string?: object;
       stable?: object;
       canonicalValue?: { declaration: InventorySpan; fact: object };
+      "type-projection"?: InventoryTypeProjection;
+      "authored-value"?: InventoryAuthoredValueProjection;
     }
   >();
   const profile = (subject: MorphNode): NonNullable<ReturnType<typeof profiles.get>> => {
@@ -242,6 +242,7 @@ export function encodeInvocationEvidence(
   for (const [subject, fact] of evidence.stableValues) {
     profile(subject).stable = wireReferenceFact(fact, span, span);
   }
+  encodeDataProfiles(evidence, plan, span, profile);
   for (const [subject, module] of evidence.modules) {
     const canonical = canonicalVariableFact(module, evidence, span);
     if (canonical !== undefined) {
@@ -257,6 +258,23 @@ export function encodeInvocationEvidence(
     profiles: [...profiles.values()],
     sources: [],
   });
+}
+
+function encodeDataProfiles(
+  evidence: CapturedInvocationEvidence,
+  plan: InventoryInvocationPlan,
+  span: (node: MorphNode) => InventorySpan,
+  profile: (node: MorphNode) => Pick<InventoryInvocationEvidence["profiles"][number], "type-projection" | "authored-value">,
+): void {
+  for (const [subject, fact] of evidence.typeProjections) {
+    if (plan.typeProjection === undefined) {
+      throw new Error("native type projection demand is unavailable");
+    }
+    profile(subject)["type-projection"] = encodeTypeProjection(fact, plan.typeProjection, span);
+  }
+  for (const [subject, fact] of evidence.authoredValues) {
+    profile(subject)["authored-value"] = encodeAuthoredValueProjection(fact, span);
+  }
 }
 
 function canonicalVariableFact(

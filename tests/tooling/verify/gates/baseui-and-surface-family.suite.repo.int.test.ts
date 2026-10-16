@@ -41,9 +41,9 @@ import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/s
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as surfaceInAContainerHealth } from "../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
-import { getProject } from "../../../../tooling/src/verify/lib/harness.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
 const POLICIES = [
@@ -87,6 +87,7 @@ function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, s
     policies: [policy],
     root,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     resourceOptions: { overlay: files },
     reviewedGrants: [],
     failOnWarnings: false,
@@ -458,11 +459,13 @@ describe("§4.5 — the installed-surface READER's own blindness, which no proof
 
 describe("the real tree — marker translation, and the conversion differential", () => {
   test("every live marker across both families binds its exact policy, source and token", ({ repoRoot }) => {
+    const context = projectCtx(repoRoot);
     const result = runPolicyPass({
       knownPolicies: [...POLICIES],
       policies: [...POLICIES],
       root: repoRoot,
-      project: getProject(repoRoot),
+      project: context.project,
+      ...nativeTypeFactOptions(context),
       reviewedGrants: [],
       failOnWarnings: false,
     });

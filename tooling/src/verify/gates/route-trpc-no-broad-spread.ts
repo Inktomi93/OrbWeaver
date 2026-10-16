@@ -7,11 +7,15 @@
 //
 // SINGLETON: no other policy judges the resolved types of routeTrpc fixture spreads. The LIFO policy
 // judges Playwright registration order through syntax and shares no production reader with this one.
-import type { CallExpression, SpreadAssignment } from "ts-morph";
+import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
+import type { CallableDeclaration, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { TypeProjectionPlan } from "../../floor/code-facts/type-projection-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "../lib/native-value-projection.ts";
 
 const TARGET_HOME = "/tests/support/node/route-trpc.ts";
 const TARGETS = new Set(["routeTrpc", "defineTrpcRoutes"]);
@@ -19,8 +23,8 @@ const MESSAGE =
   "a routeTrpc fixture object spreads a string-indexed route map, so TypeScript can erase those unknown keys and validate only an explicit sibling; give the reusable map concrete AppRouter-derived keys (tests/support/node/route-trpc.ts)";
 const FIX = 'replace Record<string, unknown> with defineTrpcRoutes({...}) or TrpcRoutes<"procedure" | ...> before spreading it.';
 
-function routeArgument(call: CallExpression): Node | undefined {
-  const resolved = resolveCallableDeclaration(call);
+const SPREAD_PLAN: TypeProjectionPlan = { facets: ["string-index"], properties: [] };
+function routeArgument(call: CallExpression, resolved: ReferenceFact<CallableDeclaration>): Node | undefined {
   if (resolved.kind !== "resolved") {
     return;
   }
@@ -31,10 +35,6 @@ function routeArgument(call: CallExpression): Node | undefined {
     return;
   }
   return call.getArguments()[name === "routeTrpc" ? 1 : 0];
-}
-
-function hasUnknownKeys(spread: SpreadAssignment): boolean {
-  return spread.getExpression().getType().getStringIndexType() !== undefined;
 }
 
 export const gate = defineGate({
@@ -50,28 +50,56 @@ export const gate = defineGate({
   resources: [],
   message: MESSAGE,
   fix: FIX,
-  create: (ctx) => ({
-    visitors: [
-      {
-        kinds: [SyntaxKind.CallExpression],
-        visit: (node): void => {
-          if (!Node.isCallExpression(node)) {
-            return;
-          }
-          const argument = routeArgument(node);
-          const object = argument === undefined ? undefined : unwrapExpression(argument);
-          if (object === undefined || !Node.isObjectLiteralExpression(object)) {
-            return;
-          }
-          for (const spread of object.getProperties().filter(Node.isSpreadAssignment)) {
-            if (hasUnknownKeys(spread)) {
-              ctx.report.node(spread.getExpression());
+  create: (ctx) => {
+    const calls: CallExpression[] = [];
+    const judge = (call: CallExpression, target: ReferenceFact<CallableDeclaration>): void => {
+      const argument = routeArgument(call, target);
+      const object = argument === undefined ? undefined : unwrapExpression(argument);
+      if (object === undefined || !Node.isObjectLiteralExpression(object)) {
+        return;
+      }
+      for (const spread of object.getProperties().filter(Node.isSpreadAssignment)) {
+        if (typeProjectionFacet(nativeTypeProjection(ctx, spread.getExpression(), SPREAD_PLAN), "string-index")) {
+          ctx.report.node(spread.getExpression());
+        }
+      }
+    };
+    return {
+      visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node): void => {
+            if (!Node.isCallExpression(node)) {
+              return;
             }
-          }
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native route callable context is unavailable");
+            }
+            ctx.nativeTypes.request({ kind: "callable-declarations", nodes: [node] });
+            calls.push(node);
+            for (const argument of node.getArguments()) {
+              const object = unwrapExpression(argument);
+              if (!Node.isObjectLiteralExpression(object)) {
+                continue;
+              }
+              for (const spread of object.getProperties().filter(Node.isSpreadAssignment)) {
+                prepareNativeTypeProjection(ctx, spread.getExpression(), SPREAD_PLAN);
+              }
+            }
+          },
         },
+      ],
+      evaluate: () => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native route callable context is unavailable");
+        }
+        const targets = ctx.nativeTypes.callableDeclarations(calls);
+        for (const call of calls) {
+          judge(call, requiredInvocationFact(targets, call));
+        }
       },
-    ],
-  }),
+    };
+  },
   mustFlag: [
     {
       mode: "types",

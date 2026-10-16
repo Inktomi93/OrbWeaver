@@ -440,6 +440,7 @@ test(
     using inventory = createSemanticInventory(fixture.options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const dependencies = [
+      "projection-reference-codec.ts",
       "static-authored-value.ts",
       "id-brand.ts",
       "type-member-origin.ts",
