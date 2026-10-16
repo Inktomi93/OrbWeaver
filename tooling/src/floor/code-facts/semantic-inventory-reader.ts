@@ -6,6 +6,7 @@ import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
 import { createSourceBindingUsage } from "./binding-usage.ts";
 import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage-contract.ts";
+import { replayDrizzleCallEvidence, replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
 import { replayInvocationEvidence } from "./invocation-evidence-replay.ts";
 import type { GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
 import type {
@@ -29,6 +30,7 @@ import {
   readInventoryCasts,
   readInventoryComputedNames,
   readInventoryDeclarationOutputs,
+  readInventoryDrizzleCall,
   readInventoryExportDeclarations,
   readInventoryExports,
   readInventoryGlobalBindings,
@@ -39,6 +41,7 @@ import {
   readInventoryPairs,
   readInventoryReferences,
   readInventoryRuntimeExports,
+  readInventorySchemaIdentity,
   readInventoryShape,
   readInventorySourceMetadata,
   readInventorySourceText,
@@ -246,6 +249,47 @@ export function inventoryReader(
   // biome-ignore lint/nursery/useDisposables: the returned handle transfers disposal ownership to the caller.
   const inventory: SemanticInventory = {
     generation,
+    schemaIdentity: (sources, program) => {
+      assertOpen();
+      const selected = indexes.filter((candidate) => candidate.program === program);
+      const partition = selected[0];
+      if (selected.length !== 1 || partition === undefined) {
+        throw new SemanticInventoryError("native schema catalog owner is unavailable");
+      }
+      requireFamily(selected, "drizzle-identities");
+      for (const source of sources) {
+        nativeSpan(source, program, "drizzle-identities");
+      }
+      const catalog = readInventorySchemaIdentity(db, partition.id);
+      const expected = sources.map((source) => JSON.stringify(capturedSpan(source))).toSorted();
+      if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
+        throw new SemanticInventoryError("native schema identity source demand is incomplete or foreign");
+      }
+      const first = sources[0];
+      if (first === undefined) {
+        if (catalog.fact.status !== "missing") {
+          throw new SemanticInventoryError("native empty schema demand has nonmissing evidence");
+        }
+        return catalog.fact;
+      }
+      return replaySchemaIdentityCatalog(catalog, replayFor(first, program, partition, "schema identity"));
+    },
+    drizzleEvidence: (node, program, mode) => {
+      const { partition, span } = nativeSpan(node, program, "drizzle-identities");
+      if (!TsNode.isCallExpression(node)) {
+        throw new SemanticInventoryError("native Drizzle query is not a call");
+      }
+      const fact = readInventoryDrizzleCall(db, partition.id, { node: span, mode });
+      const catalogPartition = indexes.find((candidate) => candidate.id === fact.basis.partition && candidate.program === fact.basis.program);
+      if (catalogPartition === undefined) {
+        throw new SemanticInventoryError("native Drizzle catalog dependency is outside the pinned generation");
+      }
+      const catalog = replaySchemaIdentityCatalog(
+        readInventorySchemaIdentity(db, catalogPartition.id),
+        replayFor(node, catalogPartition.program, catalogPartition, "schema identity"),
+      );
+      return replayDrizzleCallEvidence(fact.evidence, catalog, replayFor(node, program, partition, "Drizzle call"), node);
+    },
     invocationEvidence: (node, program, plan) => {
       const { partition, span } = nativeSpan(node, program, "invocation-evidence");
       const matches = [...readInventoryInvocationEvidence(db, partition.id, { ...plan, node: span })];

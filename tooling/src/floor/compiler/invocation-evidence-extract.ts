@@ -158,7 +158,8 @@ function captureArgumentProfiles(
   }
 }
 
-function wireFact<T, V>(
+/** Preserve ordered native trace/refusal fields across type-free evidence families. */
+export function wireReferenceFact<T, V>(
   fact: ReferenceFact<T>,
   value: (input: T) => V,
   span: (node: MorphNode) => InventorySpan,
@@ -198,7 +199,7 @@ export function encodeInvocationEvidence(
   const binding = (value: CallableBinding): object => ({
     target: origin(value.target),
     callee: span(value.callee),
-    arguments: wireFact(value.arguments, (nodes) => nodes.map(span), span),
+    arguments: wireReferenceFact(value.arguments, (nodes) => nodes.map(span), span),
     ...("invocation" in value && value.invocation === "bind" ? { invocation: "bind" } : {}),
   });
   const profiles = new Map<
@@ -221,13 +222,13 @@ export function encodeInvocationEvidence(
     return current;
   };
   for (const [subject, fact] of evidence.modules) {
-    profile(subject).module = wireFact(fact, origin, span);
+    profile(subject).module = wireReferenceFact(fact, origin, span);
   }
   for (const subject of evidence.globals.keys()) {
     profile(subject).global = true;
   }
   for (const [subject, fact] of evidence.callableBindings) {
-    profile(subject).binding = wireFact(fact, binding, span);
+    profile(subject).binding = wireReferenceFact(fact, binding, span);
   }
   for (const [subject, value] of evidence.undefinedMembers) {
     profile(subject).undefined = value;
@@ -236,10 +237,10 @@ export function encodeInvocationEvidence(
     profile(subject).namespace = value.map(span);
   }
   for (const [subject, fact] of evidence.strings) {
-    profile(subject).string = wireFact(fact, (value) => value, span);
+    profile(subject).string = wireReferenceFact(fact, (value) => value, span);
   }
   for (const [subject, fact] of evidence.stableValues) {
-    profile(subject).stable = wireFact(fact, span, span);
+    profile(subject).stable = wireReferenceFact(fact, span, span);
   }
   for (const [subject, module] of evidence.modules) {
     const canonical = canonicalVariableFact(module, evidence, span);
@@ -248,7 +249,7 @@ export function encodeInvocationEvidence(
     }
   }
   const invocation =
-    evidence.invocation === undefined ? null : wireFact(evidence.invocation, (value) => ({ ...binding(value), invocation: value.invocation }), span);
+    evidence.invocation === undefined ? null : wireReferenceFact(evidence.invocation, (value) => ({ ...binding(value), invocation: value.invocation }), span);
   return invocationEvidenceSchema.parse({
     query: { ...plan, node: span(node) },
     callee: plan.mode === "invocation" && (Node.isCallExpression(node) || Node.isNewExpression(node)) ? span(node.getExpression()) : null,
@@ -268,5 +269,5 @@ function canonicalVariableFact(
   }
   const declaration = module.value.canonical.declaration;
   const fact = evidence.canonicalValues.get(declaration);
-  return fact === undefined ? undefined : { declaration: span(declaration), fact: wireFact(fact, span, span) };
+  return fact === undefined ? undefined : { declaration: span(declaration), fact: wireReferenceFact(fact, span, span) };
 }

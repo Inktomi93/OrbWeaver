@@ -12,7 +12,7 @@ import { Node } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { ModuleOriginServices, OriginReferenceServices } from "../contract/origin-verdict.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
-import type { SealedOriginVerdict } from "../contract/sealed-origin.ts";
+import type { SealedOriginVerdict, SealedReferenceAnchor } from "../contract/sealed-origin.ts";
 import { invocationOriginServices, requiredInvocationFact } from "./native-invocation.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 
@@ -43,7 +43,7 @@ export function possibleSealedReference(node: MorphNode, names: ReadonlySet<stri
 }
 
 /** Report the actual member/key slice; transparent wrappers cannot become waiver-token punctuation. */
-export function reportSealedReference(ctx: GatePolicyContext, node: MorphNode, name: string, message?: string): void {
+export function sealedReferenceAnchor(node: MorphNode, name: string): SealedReferenceAnchor {
   const member = referenceResolutionServices.unwrapExpression(node);
   const key = Node.isElementAccessExpression(member) ? member.getArgumentExpression() : undefined;
   let anchor = member;
@@ -54,7 +54,12 @@ export function reportSealedReference(ctx: GatePolicyContext, node: MorphNode, n
   }
   const text = anchor.getText();
   const offset = (Node.isStringLiteral(anchor) || Node.isNoSubstitutionTemplateLiteral(anchor)) && anchor.getLiteralText() === name ? text.indexOf(name) : -1;
-  ctx.report.node(anchor, { token: offset < 0 ? text : name, offset: Math.max(offset, 0), ...(message === undefined ? {} : { message }) });
+  return { node: anchor, token: offset < 0 ? text : name, offset: Math.max(offset, 0) };
+}
+
+export function reportSealedReference(ctx: GatePolicyContext, node: MorphNode, name: string, message?: string): void {
+  const { node: anchor, ...position } = sealedReferenceAnchor(node, name);
+  ctx.report.node(anchor, { ...position, ...(message === undefined ? {} : { message }) });
 }
 
 export interface SealedHome {

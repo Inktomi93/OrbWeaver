@@ -30,13 +30,22 @@
 // admits 1,488 and final `population` admits 1,488. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
-import type { Node as MorphNode } from "ts-morph";
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import type { ModuleOriginServices, OriginReferenceServices } from "../contract/origin-verdict.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import {
+  possibleSealedReference,
+  prepareSealedReference,
+  readSealedOrigin,
+  reportSealedReference,
+  sealedOriginReports,
+  sealedReferenceServices,
+} from "../lib/sealed-origin.ts";
 
 /** The six primary vector tables, sealed by their declaration home in the db schema. */
 const VECTOR_TABLE_HOME: SealedHome = {
@@ -99,7 +108,7 @@ const SERVER_POPULATION = { in: ["@server"] } as const;
 
 /** A reference SPELLED like a vector table: an import specifier (whose `getName()` is the exported name even
  *  under an alias) or a member read of that name. The NAME is the candidate gate; the origin is the verdict. */
-function vectorCandidate(node: MorphNode): { readonly name: string; readonly anchor: MorphNode } | null {
+function vectorCandidate(node: MorphNode, services: OriginReferenceServices): { readonly name: string; readonly anchor: MorphNode } | null {
   if (Node.isImportSpecifier(node)) {
     const name = node.getName();
     return VECTOR_TABLE_HOME.exportedNames.has(name) ? { name, anchor: node } : null;
@@ -107,7 +116,7 @@ function vectorCandidate(node: MorphNode): { readonly name: string; readonly anc
   if (!(Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
     return null;
   }
-  const member = readMemberReference(node);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   return member.kind === "resolved" && VECTOR_TABLE_HOME.exportedNames.has(member.value.name) ? { name: member.value.name, anchor: node } : null;
 }
 
@@ -116,8 +125,8 @@ function vectorCandidate(node: MorphNode): { readonly name: string; readonly anc
  *  spellings are prefiltered by `vectorCandidate`, and the bare-identifier spelling had no gate at all
  *  because it only ever ACQUITTED. Fail-closing it without one would turn every unreadable argument of
  *  every insert/update/delete in `@server` into an accusation. */
-function namesVectorTable(node: MorphNode): boolean {
-  return [...VECTOR_TABLE_HOME.exportedNames].some((name) => referenceNamesExport(node, name));
+function namesVectorTable(node: MorphNode, services: OriginReferenceServices): boolean {
+  return [...VECTOR_TABLE_HOME.exportedNames].some((name) => referenceNamesExport(node, name, services));
 }
 
 /** Is this write aimed at a vector table? The NAME is the candidate gate; the shared DECISION is the
@@ -130,20 +139,49 @@ function namesVectorTable(node: MorphNode): boolean {
  *  "read the same way" as the import arm (#2057). That is a FOURTH polarity the guide's §4.6 table did not
  *  name: not accusing-with-verdict, not accusing-with-decision, not the acquitting shape — an ACCUSING arm
  *  whose predicate is an identity ACQUITTAL, which fails OPEN exactly where the import arm fails closed. */
-function writeVerdict(anchor: MorphNode): "sealed" | "unreadable" | null {
-  const verdict = readSealedOrigin(anchor, VECTOR_TABLE_HOME);
-  if (!sealedOriginReports(verdict, anchor)) {
+function writeVerdict(anchor: MorphNode, services: ModuleOriginServices): "sealed" | "unreadable" | null {
+  const verdict = readSealedOrigin(anchor, VECTOR_TABLE_HOME, services.moduleOrigin);
+  if (!sealedOriginReports(verdict, anchor, services.declarations)) {
     return null;
   }
   return verdict.kind === "sealed" ? "sealed" : "unreadable";
 }
 
-function vectorTableWrite(argument: MorphNode): "sealed" | "unreadable" | null {
-  const candidate = vectorCandidate(argument);
+function vectorTableWrite(argument: MorphNode, services: ModuleOriginServices): "sealed" | "unreadable" | null {
+  const candidate = vectorCandidate(argument, services);
   if (candidate !== null) {
-    return writeVerdict(candidate.anchor);
+    return writeVerdict(candidate.anchor, services);
   }
-  return Node.isIdentifier(argument) && namesVectorTable(argument) ? writeVerdict(argument) : null;
+  return Node.isIdentifier(argument) && namesVectorTable(argument, services) ? writeVerdict(argument, services) : null;
+}
+
+function reportVectorWrite(node: CallExpression, ctx: GatePolicyContext): void {
+  const callee = node.getExpression();
+  const services = sealedReferenceServices(ctx, callee);
+  const member = readMemberReferenceWithName(callee, services.readComputedName);
+  if (member.kind !== "resolved" || !WRITE_METHODS.has(member.value.name)) {
+    return;
+  }
+  const argument = node.getArguments()[0];
+  const target = argument === undefined ? null : vectorTableWrite(argument, sealedReferenceServices(ctx, argument));
+  if (target !== null) {
+    reportSealedReference(ctx, callee, member.value.name, target === "unreadable" ? UNREADABLE_WRITE : undefined);
+  }
+}
+
+function reportVectorReference(node: MorphNode, ctx: GatePolicyContext): void {
+  const services = sealedReferenceServices(ctx, node);
+  const candidate = vectorCandidate(node, services);
+  if (candidate === null) {
+    return;
+  }
+  // FAIL-CLOSED THROUGH THE SHARED DECISION: a vector-table NAME whose IMPORT DOOR cannot be
+  // read is reported (the chokepoint must not be walkable through an unreadable barrel), while a
+  // candidate that provably binds a non-module declaration is not a subject. `readSealedOrigin`
+  // returns the VERDICT; `sealedOriginReports` is the decision.
+  if (sealedOriginReports(readSealedOrigin(candidate.anchor, VECTOR_TABLE_HOME, services.moduleOrigin), candidate.anchor, services.declarations)) {
+    reportSealedReference(ctx, candidate.anchor, candidate.name);
+  }
 }
 
 export const gate = defineGate({
@@ -160,6 +198,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     let path = "";
+    const pending: MorphNode[] = [];
     return {
       visitFile: (sourceFile) => {
         path = ctx.relativePath(sourceFile);
@@ -168,16 +207,9 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node) => {
-            const candidate = vectorCandidate(node);
-            if (candidate === null || IMPORT_ROLE_ROOTS.some((home) => path.startsWith(home))) {
-              return;
-            }
-            // FAIL-CLOSED THROUGH THE SHARED DECISION: a vector-table NAME whose IMPORT DOOR cannot be
-            // read is reported (the chokepoint must not be walkable through an unreadable barrel), while a
-            // candidate that provably binds a non-module declaration is not a subject. `readSealedOrigin`
-            // returns the VERDICT; `sealedOriginReports` is the decision.
-            if (sealedOriginReports(readSealedOrigin(candidate.anchor, VECTOR_TABLE_HOME), candidate.anchor)) {
-              ctx.report.node(candidate.anchor, { token: candidate.name, offset: candidate.anchor.getText().indexOf(candidate.name) });
+            if (!IMPORT_ROLE_ROOTS.some((home) => path.startsWith(home)) && possibleSealedReference(node, VECTOR_TABLE_HOME.exportedNames)) {
+              pending.push(node);
+              prepareSealedReference(ctx, node);
             }
           },
         },
@@ -187,17 +219,18 @@ export const gate = defineGate({
             if (!Node.isCallExpression(node) || path.startsWith(WRITE_SANCTIONED)) {
               return;
             }
-            const callee = readMemberReference(node.getExpression());
-            if (callee.kind !== "resolved" || !WRITE_METHODS.has(callee.value.name)) {
+            const callee = node.getExpression();
+            const argument = node.getArguments()[0];
+            if (
+              !possibleSealedReference(referenceResolutionServices.unwrapExpression(callee), WRITE_METHODS) ||
+              argument === undefined ||
+              !(Node.isIdentifier(argument) || possibleSealedReference(argument, VECTOR_TABLE_HOME.exportedNames))
+            ) {
               return;
             }
-            const argument = node.getArguments()[0];
-            const target = argument === undefined ? null : vectorTableWrite(argument);
-            if (target !== null) {
-              const nameNode = callee.value.nameNode;
-              const details = { token: callee.value.name, offset: nameNode.getText().indexOf(callee.value.name) };
-              ctx.report.node(nameNode, target === "unreadable" ? { ...details, message: UNREADABLE_WRITE } : details);
-            }
+            pending.push(node);
+            prepareSealedReference(ctx, callee);
+            prepareSealedReference(ctx, argument);
           },
         },
         {
@@ -211,6 +244,15 @@ export const gate = defineGate({
           },
         },
       ],
+      evaluate: () => {
+        for (const node of pending) {
+          if (Node.isCallExpression(node)) {
+            reportVectorWrite(node, ctx);
+            continue;
+          }
+          reportVectorReference(node, ctx);
+        }
+      },
     };
   },
   mustFlag: [

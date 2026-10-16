@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 11;
+const STORAGE_SCHEMA_VERSION = 12;
+const EXPORT_SCHEMA_VERSION = 11;
 const INVOCATION_SCHEMA_VERSION = 10;
 const GLOBAL_SCHEMA_VERSION = 9;
 const COMPUTED_SCHEMA_VERSION = 8;
@@ -65,6 +66,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== COMPUTED_SCHEMA_VERSION &&
     version !== GLOBAL_SCHEMA_VERSION &&
     version !== INVOCATION_SCHEMA_VERSION &&
+    version !== EXPORT_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -126,6 +128,8 @@ function initializeStorageSchema(db: DatabaseSync): void {
         "invocationSource",
         "exportDeclaration",
         "exportDeclarationNode",
+        "drizzleEvidence",
+        "drizzleAtom",
       ] as const) {
         db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`);
       }

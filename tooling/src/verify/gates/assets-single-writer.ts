@@ -4,16 +4,25 @@
 // grant granularity exact. Central grant liveness replaces the legacy directory stale sweep.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import type { DrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence-contract.ts";
+import { readMemberReferenceWithName, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaQuery } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
+import { classifyDrizzleClientCall } from "../lib/drizzle-client-call.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
 import type { SealedHome } from "../lib/sealed-origin.ts";
-import { readSealedOrigin, sealedOriginReports } from "../lib/sealed-origin.ts";
+import {
+  possibleSealedReference,
+  prepareSealedReference,
+  readSealedOrigin,
+  sealedOriginReports,
+  sealedReferenceAnchor,
+  sealedReferenceServices,
+} from "../lib/sealed-origin.ts";
 
 const STORE_BLOB_HOME: SealedHome = {
   pathInfix: "/packages/server/src/domain/assets/persistence/queries.ts",
@@ -25,32 +34,32 @@ const MESSAGE =
   "an assets-table write or storeBlob use exists outside the reviewed CAS-coherence sites; every asset write must remain explicit and singular (D21). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "route the write through the existing domain/assets storeBlob seam, then review the exact calling module if it is a legitimate CAS-coherence site.";
 
-function storeBlobReference(node: MorphNode): MorphNode | undefined {
+function storeBlobReference(ctx: GatePolicyContext, node: MorphNode): MorphNode | undefined {
+  const services = sealedReferenceServices(ctx, node);
   if (Node.isImportSpecifier(node)) {
-    return node.getName() === "storeBlob" && sealedOriginReports(readSealedOrigin(node, STORE_BLOB_HOME), node) ? node : undefined;
+    return node.getName() === "storeBlob" && sealedOriginReports(readSealedOrigin(node, STORE_BLOB_HOME, services.moduleOrigin), node, services.declarations)
+      ? node
+      : undefined;
   }
-  if (!Node.isCallExpression(node)) {
-    return;
-  }
-  const callee = node.getExpression();
-  const member = readMemberReference(callee);
+  const member = readMemberReferenceWithName(node, services.readComputedName);
   if (member.kind !== "resolved" || member.value.name !== "storeBlob") {
     return;
   }
-  return sealedOriginReports(readSealedOrigin(callee, STORE_BLOB_HOME), callee) ? callee : undefined;
+  return sealedOriginReports(readSealedOrigin(node, STORE_BLOB_HOME, services.moduleOrigin), node, services.declarations) ? node : undefined;
 }
 
-function assetWriteCandidate(node: import("ts-morph").CallExpression, schema: SchemaQuery): { readonly node: MorphNode; readonly token: string } | undefined {
-  const call = readDrizzleClientCall(node);
+function assetWriteCandidate(
+  node: import("ts-morph").CallExpression,
+  evidence: DrizzleCallEvidence,
+): { readonly node: MorphNode; readonly token: string } | undefined {
+  if (evidence.mode !== "called-member") {
+    throw new Error("assets-single-writer received a foreign native projection");
+  }
+  const call = classifyDrizzleClientCall(evidence.member);
   if (call.kind === "foreign" || call.method === null || !WRITE_METHODS.has(call.method)) {
     return;
   }
-  const tableNode = node.getArguments()[0];
-  if (tableNode === undefined) {
-    return;
-  }
-  const table = schema.table(tableNode);
-  return table.kind === "resolved" && table.value.sqlName === "assets" ? { node: call.nameNode ?? node, token: call.method } : undefined;
+  return evidence.table?.kind === "resolved" && evidence.table.value.sqlName === "assets" ? { node: node.getExpression(), token: call.method } : undefined;
 }
 
 export const gate = defineGate({
@@ -61,40 +70,53 @@ export const gate = defineGate({
   population: { in: ["@server", "@db"], under: ["packages/server/src/**", "packages/db/src/schema/**"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaIdentityFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
     const candidates = new Map<string, ReviewedGrantCandidate>();
     const calls: import("ts-morph").CallExpression[] = [];
+    const stores: MorphNode[] = [];
     return {
       visitors: [
         {
           kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
-          visit: (node, sourceFile) => {
-            const path = ctx.relativePath(sourceFile);
-            const storeBlob = storeBlobReference(node);
-            if (storeBlob !== undefined) {
-              if (!candidates.has(path)) {
-                candidates.set(path, { node: storeBlob, subject: path, operation: OPERATION, token: "storeBlob", offset: 0 });
-              }
-              return;
+          visit: (node) => {
+            const reference = Node.isCallExpression(node) ? referenceResolutionServices.unwrapExpression(node.getExpression()) : node;
+            if (possibleSealedReference(reference, STORE_BLOB_HOME.exportedNames)) {
+              stores.push(reference);
+              prepareSealedReference(ctx, reference);
             }
-            if (Node.isCallExpression(node)) {
+            if (Node.isCallExpression(node) && possibleSealedReference(reference, WRITE_METHODS)) {
+              if (ctx.nativeTypes === undefined) {
+                throw new Error("native asset-write context is unavailable");
+              }
               calls.push(node);
+              ctx.nativeTypes.request({ kind: "drizzle-identities", nodes: [node], mode: "called-member" });
             }
           },
         },
       ],
       evaluate: () => {
-        const schema = ctx.fact(drizzleSchemaFact).schema();
+        const schema = ctx.fact(drizzleSchemaIdentityFact);
         recordReadySchemaFact(ctx, schema);
+        for (const node of stores) {
+          const storeBlob = storeBlobReference(ctx, node);
+          const path = ctx.relativePath(node.getSourceFile());
+          if (storeBlob !== undefined && !candidates.has(path)) {
+            candidates.set(path, { ...sealedReferenceAnchor(storeBlob, "storeBlob"), subject: path, operation: OPERATION });
+          }
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native asset-write context is unavailable");
+        }
+        const facts = ctx.nativeTypes.drizzleEvidence(calls, "called-member");
         for (const node of calls) {
           const path = ctx.relativePath(node.getSourceFile());
-          const candidate = assetWriteCandidate(node, ctx.fact(drizzleSchemaFact));
+          const candidate = assetWriteCandidate(node, requiredInvocationFact(facts, node));
           if (candidate !== undefined && !candidates.has(path)) {
-            candidates.set(path, { node: candidate.node, subject: path, operation: OPERATION, token: candidate.token, offset: 0 });
+            candidates.set(path, { ...sealedReferenceAnchor(candidate.node, candidate.token), subject: path, operation: OPERATION });
           }
         }
         reportReviewedGrantCandidates(ctx.report, [...candidates.values()], { message: MESSAGE, fix: FIX, unreadableMessage: MESSAGE });

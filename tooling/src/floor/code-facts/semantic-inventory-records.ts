@@ -18,6 +18,8 @@ import {
   callableDeclarationSchema,
   castRelationResultSchema,
   computedNameSchema,
+  drizzleQueryKey,
+  drizzleSchemas,
   exportDeclarationsSchema,
   globalOriginSchema,
   INVENTORY_FAMILIES,
@@ -49,6 +51,16 @@ const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product',
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 
 export const inventoryRecordTables = {
+  drizzleEvidence: {
+    name: "inventory_drizzle_evidence",
+    columns: "ordinal,key,atomCount",
+    definition: `${PARTITION},${ORDINAL},key TEXT NOT NULL,atomCount INTEGER NOT NULL CHECK(atomCount>0),PRIMARY KEY(partition,ordinal),UNIQUE(partition,key)`,
+  },
+  drizzleAtom: {
+    name: "inventory_drizzle_atom",
+    columns: "owner,ordinal,parent,key,kind,text,number,size",
+    definition: `${PARTITION},owner INTEGER NOT NULL,${ORDINAL},parent INTEGER,key TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('object','array','string','number','boolean','null')),text TEXT,number REAL,size INTEGER NOT NULL CHECK(size>=0),PRIMARY KEY(partition,owner,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_drizzle_evidence(partition,ordinal),FOREIGN KEY(partition,owner,parent) REFERENCES inventory_drizzle_atom(partition,owner,ordinal)`,
+  },
   exportDeclaration: {
     name: "inventory_export_declaration",
     columns: "ordinal,file,name,present,declarationCount",
@@ -465,6 +477,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     }
   });
   writeExportDeclarations(write, spanId, partition.exportDeclarations);
+  writeDrizzleFacts(partition, emit);
   partition.invocationEvidence.forEach((entry, ordinal) => {
     const fact = invocationEvidenceSchema.parse(entry);
     assertInvocationEvidence(fact);
@@ -616,6 +629,25 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   partition.references.forEach((entry, ordinal) => {
     const fact = referenceRecordSchema.parse(entry);
     emit("reference", ordinal, spanId(entry.declaration), spanId(entry.reference), fact.consumerClass);
+  });
+}
+
+function writeDrizzleFacts(partition: InventoryPartition, emit: (table: InventoryRecordTable, ...values: InventoryRecord["values"]) => void): void {
+  if (partition.schemaIdentity !== undefined && !partition.families.includes("drizzle-identities")) {
+    throw new Error("native schema identity catalog has no declared owner");
+  }
+  const facts = [
+    ...(partition.schemaIdentity === undefined
+      ? []
+      : [{ key: "catalog", value: jsonValueSchema.parse(drizzleSchemas.catalog.parse(partition.schemaIdentity)) }]),
+    ...(partition.drizzleCalls ?? []).map((entry) => ({ key: drizzleQueryKey(entry.query), value: jsonValueSchema.parse(drizzleSchemas.call.parse(entry)) })),
+  ];
+  facts.forEach(({ key, value }, ordinal) => {
+    const atoms = [...invocationAtoms(value)];
+    emit("drizzleEvidence", ordinal, inventoryString(key), atoms.length);
+    for (const atom of atoms) {
+      emit("drizzleAtom", ordinal, atom.ordinal, atom.parent, inventoryString(atom.key), atom.kind, atom.text, atom.number, atom.size);
+    }
   });
 }
 

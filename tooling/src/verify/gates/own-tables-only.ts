@@ -1,19 +1,21 @@
 // Foreign reads belong in persistence or a sanctioned bulk view; foreign writes never do.
 // Ownership derives from the canonical Drizzle schema fact. Shared invocation facts retain bound calls.
-// Singleton ownership judgment shares the drizzle-schema family fact with producer-stamp policies.
+// Its type-free schema projection retains the complete extractor's status and receipt.
 // Native writes use canonical table declarations through aliases; namespace foreign reads remain a declared limit.
 
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
-import { resolveStableExpression, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
-import type { InstanceMethodInvocation } from "../../floor/code-facts/reference-fact-contract.ts";
-import { readCallableInvocation, readInstanceMethodInvocation } from "../../floor/code-facts/reference-fact-invocation.ts";
+import type { DrizzleCallEvidence, InstanceMethodIdentity } from "../../floor/code-facts/drizzle-evidence-contract.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityTable } from "../../floor/code-facts/schema-identity-contract.ts";
+import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
+import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaModel, SchemaTable } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
 
 const DOMAIN_ROOT = "packages/server/src/domain/";
 const PERSISTENCE_SEG = "/persistence/";
@@ -22,6 +24,7 @@ const DB_SPECIFIER_RE = /^@orb\/db(?:\/(?:schema|index))?$/u;
 const DOMAIN_OF_RE = /packages\/server\/src\/domain\/(?<name>[^/]+)\//u;
 const SCHEMA_FILE_RE = /packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
 const WRITE_METHODS = new Set(["insert", "update", "delete"]);
+const WRITE_INVOCATION_PLAN: InventoryInvocationPlan = { mode: "invocation", facets: [], arguments: [] };
 const GATE_SELF = "tooling/src/verify/gates/own-tables-only.ts";
 
 /** One ruling row. Deliberately not a reusable "exemption" shape (§ header): these decide whether a touch
@@ -169,8 +172,8 @@ function domainOf(rel: string): string | undefined {
 }
 
 /** Every schema table grouped by its declaring source file (repo-relative). */
-function tablesByFile(model: SchemaModel): ReadonlyMap<string, readonly SchemaTable[]> {
-  const byFile = new Map<string, SchemaTable[]>();
+function tablesByFile(model: SchemaIdentityModel): ReadonlyMap<string, readonly SchemaIdentityTable[]> {
+  const byFile = new Map<string, SchemaIdentityTable[]>();
   for (const table of model.tables) {
     const list = byFile.get(table.identity.sourcePath) ?? [];
     list.push(table);
@@ -190,7 +193,7 @@ interface Ownership {
  *  policy's own effective population (`report.file` validates against it) — the schema file itself lives
  *  only in the drizzle-schema FACT's population, so a whole-schema-derivation finding like this one cannot
  *  anchor there. */
-function deriveOwnership(ctx: GatePolicyContext, model: SchemaModel, anchor: string): Ownership {
+function deriveOwnership(ctx: GatePolicyContext, model: SchemaIdentityModel, anchor: string): Ownership {
   const domainRoots = new Set<string>();
   for (const sf of ctx.files) {
     const name = domainOf(ctx.relativePath(sf));
@@ -231,7 +234,7 @@ function deriveOwnership(ctx: GatePolicyContext, model: SchemaModel, anchor: str
   return { tableOwners, schemaFiles, declaredTables };
 }
 
-function nativeWrittenTable(invocation: InstanceMethodInvocation): Node | undefined {
+function nativeWrittenTable(invocation: InstanceMethodIdentity): Node | undefined {
   if (invocation.invocation !== "call") {
     return;
   }
@@ -243,11 +246,18 @@ function nativeWrittenTable(invocation: InstanceMethodInvocation): Node | undefi
 }
 
 /** The `X` in `db.insert(X)` / `tx.update(X)` / `db.delete(X)`, or undefined. */
-function writtenTableIdentifier(node: Node): { readonly table: Node; readonly native: boolean } | undefined {
+function writtenTableIdentifier(
+  node: Node,
+  evidence: DrizzleCallEvidence,
+  fallback: NativeInvocationEvidence,
+): { readonly table: Node; readonly native: boolean } | undefined {
   if (!node.isKind(SyntaxKind.CallExpression)) {
     return;
   }
-  const instance = readInstanceMethodInvocation(node);
+  if (evidence.mode !== "instance") {
+    throw new Error("own-tables-only received a foreign native projection");
+  }
+  const instance = evidence.invocation;
   if (
     instance.kind === "resolved" &&
     WRITE_METHODS.has(instance.value.target.member.name) &&
@@ -256,9 +266,12 @@ function writtenTableIdentifier(node: Node): { readonly table: Node; readonly na
     const table = nativeWrittenTable(instance.value);
     return table === undefined ? undefined : { table, native: true };
   }
-  const invoked = readCallableInvocation(node);
+  const invoked = fallback.invocation;
+  if (invoked === undefined) {
+    throw new Error("own-tables-only native invocation fallback is unavailable");
+  }
   const callee = invoked.kind === "resolved" ? invoked.value.callee : node.getExpression();
-  const member = staticMemberAccess(callee);
+  const member = staticMemberAccess(callee, fallback.computedName);
   if (member === undefined || !WRITE_METHODS.has(member.name) || (invoked.kind === "resolved" && invoked.value.invocation !== "call")) {
     return;
   }
@@ -280,6 +293,7 @@ interface WriteCandidate {
   readonly node: Node; // the original effective table argument
   readonly rel: string;
   readonly native: boolean;
+  readonly evidence: DrizzleTableEvidence | null;
 }
 
 /** A foreign-`@orb/db`-shaped value ImportSpecifier candidate, or undefined (type-only, not a `@orb/db`
@@ -300,13 +314,15 @@ function importCandidate(node: Node, ctx: GatePolicyContext): ImportCandidate | 
   return { node, rel, domain, table: node.getName(), binding: node.getAliasNode()?.getText() ?? node.getName() };
 }
 
-function writeCandidate(node: Node, ctx: GatePolicyContext): WriteCandidate | undefined {
+function writeCandidate(node: Node, ctx: GatePolicyContext, evidence: DrizzleCallEvidence, fallback: NativeInvocationEvidence): WriteCandidate | undefined {
   const rel = ctx.relativePath(node.getSourceFile());
   if (domainOf(rel) === undefined) {
     return;
   }
-  const written = writtenTableIdentifier(node);
-  return written === undefined ? undefined : { node: written.table, rel, native: written.native };
+  const written = writtenTableIdentifier(node, evidence, fallback);
+  return written === undefined
+    ? undefined
+    : { node: written.table, rel, native: written.native, evidence: evidence.mode === "instance" ? evidence.table : null };
 }
 
 interface JudgeState {
@@ -314,7 +330,7 @@ interface JudgeState {
   readonly foreignByFile: Map<string, Set<string>>;
   readonly seenBulkDomain: Set<string>;
   readonly seenAllowlistFile: Set<string>;
-  readonly tables: ReadonlyMap<object, SchemaTable>;
+  readonly tables: ReadonlyMap<string, SchemaIdentityTable>;
 }
 
 function recordForeignImport(state: JudgeState, rel: string, table: string): void {
@@ -344,24 +360,26 @@ function judgeImport(ctx: GatePolicyContext, state: JudgeState, candidate: Impor
   ctx.report.node(candidate.node, { token: candidate.table, offset: 0, message: readMessage(candidate.table) });
 }
 
-function requireStableTable(node: Node): void {
-  const stable = resolveStableExpression(node);
+function requireStableTable(stable: ReferenceFact<Node>): void {
   if (stable.kind === "unresolved" && (["write", "cycle", "ambiguous"].includes(stable.reason) || Node.isBindingElement(stable.node))) {
     throw new Error(`own-tables-only cannot establish stable native write table: ${stable.detail}`);
   }
 }
 
 function judgeNativeWrite(ctx: GatePolicyContext, state: JudgeState, candidate: WriteCandidate): void {
-  requireStableTable(candidate.node);
-  const refs = resolveDrizzleTableRefs(candidate.node, (declaration) => {
-    requireStableTable(declaration.getNameNode());
-    return state.tables.has(declaration.compilerNode);
-  });
+  const evidence = candidate.evidence;
+  if (evidence === null || evidence.node !== candidate.node) {
+    throw new Error("own-tables-only native table evidence is unavailable or foreign");
+  }
+  for (const entry of evidence.stability) {
+    requireStableTable(entry.fact);
+  }
+  const refs = evidence.references;
   for (const ref of refs) {
     if (ref.kind !== "table") {
       throw new Error("own-tables-only cannot establish native write table declaration");
     }
-    const table = state.tables.get(ref.declaration.compilerNode);
+    const table = state.tables.get(schemaDeclarationKey(ref.declaration));
     const owners = table === undefined ? undefined : state.ownership.tableOwners.get(table.identity.declarationName);
     const domain = domainOf(candidate.rel);
     if (table === undefined || owners === undefined || domain === undefined) {
@@ -516,7 +534,7 @@ export const gate = defineGate({
   population: { in: ["@server"], under: ["packages/server/src/domain/**"] },
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaIdentityFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -524,7 +542,7 @@ export const gate = defineGate({
     // The schema fact is not FINISHED until the shared walk completes, so ownership can only be judged in
     // `evaluate`. The walk itself only records pure-AST candidates (no ownership question asked yet).
     const imports: ImportCandidate[] = [];
-    const writes: WriteCandidate[] = [];
+    const calls: import("ts-morph").CallExpression[] = [];
 
     return {
       visitors: [
@@ -540,15 +558,20 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.CallExpression],
           visit: (node) => {
-            const candidate = writeCandidate(node, ctx);
-            if (candidate !== undefined) {
-              writes.push(candidate);
+            if (!Node.isCallExpression(node) || domainOf(ctx.relativePath(node.getSourceFile())) === undefined) {
+              return;
             }
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native table-write context is unavailable");
+            }
+            calls.push(node);
+            ctx.nativeTypes.request({ kind: "drizzle-identities", nodes: [node], mode: "instance" });
+            ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: [node], plan: WRITE_INVOCATION_PLAN });
           },
         },
       ],
       evaluate: () => {
-        const schemaFact = ctx.fact(drizzleSchemaFact).schema();
+        const schemaFact = ctx.fact(drizzleSchemaIdentityFact);
         recordReadySchemaFact(ctx, schemaFact);
         // A real member of THIS policy's own effective population (@server/domain) — `report.file` cannot
         // anchor on a schema path or on the gate's own source, neither of which is in that population.
@@ -562,13 +585,21 @@ export const gate = defineGate({
           foreignByFile: new Map(),
           seenBulkDomain: new Set(),
           seenAllowlistFile: new Set(),
-          tables: new Map(schemaFact.value.tables.map((table) => [table.declaration.compilerNode, table])),
+          tables: new Map(schemaFact.value.tables.map((table) => [schemaDeclarationKey(table.declaration), table])),
         };
         for (const candidate of imports) {
           judgeImport(ctx, state, candidate);
         }
-        for (const candidate of writes) {
-          judgeWrite(ctx, state, candidate);
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native table-write context is unavailable");
+        }
+        const native = ctx.nativeTypes.drizzleEvidence(calls, "instance");
+        const fallback = ctx.nativeTypes.invocationEvidence(calls, WRITE_INVOCATION_PLAN);
+        for (const node of calls) {
+          const candidate = writeCandidate(node, ctx, requiredInvocationFact(native, node), requiredInvocationFact(fallback, node));
+          if (candidate !== undefined) {
+            judgeWrite(ctx, state, candidate);
+          }
         }
         // The stale arms are WHOLE-SCHEMA claims: withheld unless the real production schema — recognised by
         // its barrel — was actually loaded. A conformance mini-project or a scoped run that never resolves

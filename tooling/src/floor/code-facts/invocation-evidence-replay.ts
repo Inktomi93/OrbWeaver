@@ -9,24 +9,31 @@ type Profile = InventoryInvocationEvidence["profiles"][number];
 type WireModule = NonNullable<Profile["module"]> extends InventoryInvocationReference<infer V> ? V : never;
 type WireBinding = NonNullable<Profile["binding"]> extends InventoryInvocationReference<infer V> ? V : never;
 
+/** Restore ordered trace and refusal data without consulting syntax-carrier meaning. */
+export function replayReferenceFact<T, V>(
+  fact: InventoryInvocationReference<T>,
+  value: (input: T) => V,
+  replay: (span: InventorySpan) => MorphNode,
+): ReferenceFact<V> {
+  const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
+  return fact.kind === "resolved"
+    ? { kind: fact.kind, value: value(fact.value), trace }
+    : {
+        kind: fact.kind,
+        reason: fact.reason,
+        detail: fact.detail,
+        node: replay(fact.node),
+        trace,
+        ...(fact.capture === undefined ? {} : { capture: fact.capture }),
+      };
+}
+
 export function replayInvocationEvidence(
   wire: InventoryInvocationEvidence,
   replay: (span: InventorySpan) => MorphNode,
   children: Pick<NativeInvocationEvidence, "declarations" | "computedName" | "globals">,
 ): NativeInvocationEvidence {
-  const restore = <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V): ReferenceFact<V> => {
-    const trace = { origin: replay(fact.trace.origin), declarations: fact.trace.declarations.map(replay) };
-    return fact.kind === "resolved"
-      ? { kind: fact.kind, value: value(fact.value), trace }
-      : {
-          kind: fact.kind,
-          reason: fact.reason,
-          detail: fact.detail,
-          node: replay(fact.node),
-          trace,
-          ...(fact.capture === undefined ? {} : { capture: fact.capture }),
-        };
-  };
+  const restore = <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V): ReferenceFact<V> => replayReferenceFact(fact, value, replay);
   const module = (value: WireModule): ModuleMemberOrigin => {
     const canonical = value.canonical;
     if (canonical.kind === "external-door") {

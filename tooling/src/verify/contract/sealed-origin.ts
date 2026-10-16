@@ -8,7 +8,15 @@
 // It is an OBJECT union carrying the resolved origin, not the three-string identity axis, so it derives
 // from `origin-verdict.ts` no more than `ModuleMemberOrigin` does: its `unresolved` arm carries the whole
 // refusing fact so the caller can report WHAT could not be read.
+
+import type { Node } from "ts-morph";
 import type { ModuleMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+
+export interface SealedReferenceAnchor {
+  readonly node: Node;
+  readonly token: string;
+  readonly offset: number;
+}
 
 /** The verdict for one candidate reference. `unresolved` is never absence: a candidate whose origin cannot
  *  be read is fail-closed evidence for the caller, not a silent pass. */

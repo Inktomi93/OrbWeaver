@@ -8,11 +8,17 @@
 
 import { declaredInDrizzle, readCalledMember } from "@orb/tooling/floor/code-facts/drizzle-write-chain";
 import type { CallExpression } from "ts-morph";
+import type { CalledMember } from "../../floor/code-facts/drizzle-write-chain-contract.ts";
+import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { DrizzleClientCall } from "../contract/drizzle-client-call.ts";
 
 /** Classify one call expression against the installed Drizzle client surface. */
 export function readDrizzleClientCall(call: CallExpression): DrizzleClientCall {
-  const member = readCalledMember(call);
+  return classifyDrizzleClientCall(readCalledMember(call));
+}
+
+/** Live native and captured native member facts share the exact existing declaration-home judgment. */
+export function classifyDrizzleClientCall(member: ReferenceFact<CalledMember>): DrizzleClientCall {
   if (member.kind === "unresolved") {
     return { kind: "unresolved", method: null, nameNode: null, detail: member.detail };
   }
