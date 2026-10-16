@@ -37,7 +37,6 @@ import { gate as policyProofExpectations } from "../../../../tooling/src/verify/
 import { gate as policyRefusalCoverage } from "../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { gate as policyWaiverIdentity } from "../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
-import { gate as policyWaiverSpelling } from "../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -53,7 +52,6 @@ const FAMILY: readonly GatePolicy[] = [
   policyRefusalCoverage,
   policySoundness,
   policyWaiverIdentity,
-  policyWaiverSpelling,
 ];
 /** The second opinions for the two OPEN classes, restated as TEXT tests so each arm's real-corpus findings are
  *  compared against something the arm did not compute (#1969: a hardcoded count rots into a false pin).
@@ -1143,13 +1141,7 @@ test(
       policyRefusalCoverage.id,
       policyFamilyReaders.id,
     ]);
-    const closedAtZero: ReadonlySet<string> = new Set([
-      policySoundness.id,
-      policyFixtureSubstrate.id,
-      policyProofExpectations.id,
-      policyWaiverIdentity.id,
-      policyWaiverSpelling.id,
-    ]);
+    const closedAtZero: ReadonlySet<string> = new Set([policySoundness.id, policyFixtureSubstrate.id, policyProofExpectations.id, policyWaiverIdentity.id]);
     expect(FAMILY.map(({ id }) => id).filter((id) => !(openWithOpinion.has(id) || closedAtZero.has(id)))).toEqual([]);
     for (const id of closedAtZero) {
       expect({ id, accused: accusedBy(id) }).toEqual({ id, accused: [] });

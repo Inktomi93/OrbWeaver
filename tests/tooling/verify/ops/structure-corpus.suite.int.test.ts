@@ -20,6 +20,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { POLICY_PHASES } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { FinalPolicyRow, StructurePolicyReport, StructureReport } from "../../../../tooling/src/verify/contract/structure-report.ts";
@@ -63,7 +64,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message: ${JSON.stringify(WARNING_MESSAGE)},
-  fix: "delete the marker",
+  fix: "delete the marker, or waive with @orb-waive ${WARNING_POLICY_ID}(position): reason",
   create: (ctx) => ({
     visitFile: (sourceFile) => {
       if (sourceFile.getFullText().includes(${JSON.stringify(WARNING_MARKER)})) {
@@ -194,7 +195,16 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
   repoRoot,
   runCli,
 }) => {
+  const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
   const root = await plantedTree({
+    "packages/client/tsconfig.json": JSON.stringify({
+      compilerOptions: { ...compilerOptions, lib: ["ES2022", "DOM"], jsx: "react-jsx", customConditions: ["browser"] },
+      files: ["src/lib/probe.ts", "src/features/probe/x.tsx", "src/features/probe/warned.ts"],
+    }),
+    "tooling/tsconfig.json": JSON.stringify({
+      compilerOptions,
+      files: [`src/verify/gates/${ORDINARY}.ts`, `src/verify/gates/${REVIEWED}.ts`, `src/verify/gates/${WARNING_POLICY_ID}.ts`],
+    }),
     ...mixedTree(repoRoot, {
       [ORDINARY_SUBJECT]: ORDINARY_LINE,
       [STRAY_READ]: INTL_LINE,
@@ -205,9 +215,16 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
     [`${GATES}/${WARNING_POLICY_ID}.ts`]: warningPolicy(repoRoot),
   });
 
+  execFixtureGit(root, ["init", "--quiet", "--template="]);
+  configureFixtureGitIdentity(root);
+  execFixtureGit(root, ["add", "."]);
+  execFixtureGit(root, ["commit", "--quiet", "-m", "Seed structure reconciliation fixture"]);
   const run = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
-  await expect(run).toExitWith(1);
+  expect(existsSync(join(root, "reports", "check-structure.json")), run.stdout + run.stderr).toBe(true);
   const report = readArtifact(root);
+  expect(policyOf(report).toolErrors).toEqual([]);
+  expect(policyOf(report).authority.toolErrors).toEqual([]);
+  await expect(run).toExitWith(1);
   const finalEffective = report.gates.reduce((count, row) => count + row.violations.length, 0);
   const warnings = policyOf(report).authority.verdict.warnings;
   const alarms = policyOf(report).authority.alarms.length;

@@ -267,3 +267,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D318 | [Package exports list their public doors by hand](0318-package-exports-list-public-doors.md) | active |
 | D319 | [Native protocol time stays native in scripted test edges](0319-native-protocol-time-in-scripted-test-edges.md) | active |
 | D320 | [Legacy tests run and typecheck without semantic extraction](0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) | active |
+| D321 | [Native gate replacements and KEEP-only custom analysis](0321-native-gate-replacements-and-keep-only-analysis.md) | active |

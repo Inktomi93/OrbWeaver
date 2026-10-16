@@ -3,7 +3,12 @@ import type { Node, SourceFile } from "ts-morph";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
 import { constInitializerNominations } from "./type-observation-questions.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
-import { assertCompletePropertyCoverage, assertRawParameterCoverage, assertTypeArgumentCoverage } from "./type-observations-coverage.ts";
+import {
+  assertCompletePropertyCoverage,
+  assertPredicateInputCoverage,
+  assertRawParameterCoverage,
+  assertTypeArgumentCoverage,
+} from "./type-observations-coverage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
@@ -110,6 +115,23 @@ export function readTypeObservations(
       }
       row.declarations?.forEach(facts.assertNode);
       return row.declarations;
+    },
+    arrayElement: (selector) => {
+      const index = indexOf(selector);
+      const row = facts.arrayElements?.find((entry) => entry.selector === index);
+      if (row === undefined) {
+        throw new Error("native array element fact was not captured");
+      }
+      return { array: row.array, readonlyArray: row.readonlyArray, element: row.value === null ? null : selectorAt(row.value) };
+    },
+    predicateInputs: (node) => {
+      facts.assertNode(node);
+      const row = facts.predicateInputs?.find((entry) => entry.node === node);
+      if (row === undefined) {
+        throw new Error("native predicate-input fact was not captured");
+      }
+      [...row.predicates, ...row.values].forEach(facts.assertNode);
+      return row;
     },
     primitiveFlags: (selector) => {
       const value = facts.types[indexOf(selector)]?.primitiveFlags;
@@ -460,6 +482,11 @@ export function readTypeObservations(
       (node) => node.getKind(),
     );
   }
+  assertPredicateInputCoverage(
+    facts,
+    (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]),
+    (node) => node.getKind(),
+  );
   return reader;
 }
 

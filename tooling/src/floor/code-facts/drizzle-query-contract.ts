@@ -1,10 +1,17 @@
 // Native Drizzle row-source and statement observations; consumers decide their scoping obligations.
 import type { CallExpression, Node } from "ts-morph";
-import type { MemberReference, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
+import type { MemberReference, ReferenceFact, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
+import type { DrizzleTableEvidence } from "./schema-identity-contract.ts";
 
 export interface DrizzleValueSources {
   readonly members: readonly MemberReference[];
   readonly subselects: readonly Node[];
+}
+
+/** Source and receiver identities share the same complete native schema basis. */
+export interface DrizzleValueSourceEvidence {
+  readonly source: ReferenceFact<DrizzleValueSources>;
+  readonly tables: readonly DrizzleTableEvidence[];
 }
 
 export interface DrizzleBuilderChain {
@@ -29,4 +36,10 @@ export interface ReadStatement {
   readonly innerOns: readonly Node[];
   readonly escapes: boolean;
   readonly refusals: readonly UnresolvedReferenceFact[];
+}
+
+/** A relational WHERE retains its row receiver separately from its actual predicate expression. */
+export interface RelationalWhere {
+  readonly receiver: string;
+  readonly predicate: Node | undefined;
 }

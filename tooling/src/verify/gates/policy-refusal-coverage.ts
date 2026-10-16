@@ -98,7 +98,7 @@
 //
 // FAMILY: `policy-soundness`, shared reader `lib/policy-descriptor-read.ts` (`finalDescriptorOf`,
 // `descriptorValue`, `descriptorProperty`, `policyIdOfPath`) — the same descriptor reader
-// `policy-waiver-identity` and `policy-waiver-spelling` resolve through. NOT a singleton and NOT a `-health`
+// `policy-waiver-identity` resolves through. NOT a singleton and NOT a `-health`
 // split: it differs from its siblings in SUBJECT (the refusal proof rather than the waiver arm), not in
 // authority, so it is one more policy under the shared `family` string.
 // POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `4133d10352`

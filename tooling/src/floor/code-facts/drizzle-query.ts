@@ -3,8 +3,9 @@
 import type { CallExpression, Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "./drizzle-column-reads.ts";
-import { RELATIONAL_VERBS } from "./drizzle-operators.ts";
-import type { DrizzleValueSources, ReadAnchor } from "./drizzle-query-contract.ts";
+import { RELATIONAL_VERBS, relationalWhereCallback } from "./drizzle-operators.ts";
+import type { DrizzleValueSources, ReadAnchor, RelationalWhere } from "./drizzle-query-contract.ts";
+import { unwrapExpression as unwrapValueExpression } from "./expression-value.ts";
 import { resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget as unwrapExpression } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -73,4 +74,24 @@ export function readDrizzleValueSources(node: Node): ReferenceFact<DrizzleValueS
   }
   const members = readMemberUses(value).flatMap((fact) => (fact.kind === "resolved" ? [fact.value] : []));
   return resolved({ members, subselects: [] }, value, source.trace.declarations);
+}
+
+/** Relational callback and direct SQL forms retain the existing source grammar. */
+export function readRelationalWhere(where: Node | undefined, table: string): RelationalWhere | undefined {
+  const value = where === undefined ? undefined : unwrapValueExpression(where);
+  if (value === undefined || !(value.isKind(SyntaxKind.ArrowFunction) || value.isKind(SyntaxKind.FunctionExpression))) {
+    return { receiver: table, predicate: value };
+  }
+  const body = value.getBody();
+  const [row] = value.getParameters();
+  return row === undefined || !relationalWhereCallback(value) || body.isKind(SyntaxKind.Block) ? undefined : { receiver: row.getName(), predicate: body };
+}
+
+/** Preserve shorthand and unreadable property carriers rather than inventing a config value. */
+export function readRelationalConfigProperty(config: Node | undefined, name: string): Node | undefined {
+  const assigned = config?.isKind(SyntaxKind.ObjectLiteralExpression) === true ? config.getProperty(name) : undefined;
+  if (assigned?.isKind(SyntaxKind.ShorthandPropertyAssignment) === true) {
+    return assigned.getNameNode();
+  }
+  return assigned?.isKind(SyntaxKind.PropertyAssignment) === true ? assigned.getInitializer() : assigned;
 }

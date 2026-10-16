@@ -25,11 +25,11 @@ import {
   discriminationOf,
   enclosingStringExpression,
   markerFormIdsOf,
-  mentionsWaiverOf,
   messageAlternatives,
   staticSegments,
   staticText,
 } from "../../../../tooling/src/verify/lib/policy-static-text.ts";
+import { mentionsWaiverOf } from "../../../../tooling/src/verify/lib/waivable-coordinate.ts";
 
 const CONTRACT_STUB = "export function defineGate<const Policy>(policy: Policy): Policy {\n  return policy;\n}\n";
 

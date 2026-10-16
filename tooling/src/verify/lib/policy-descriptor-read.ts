@@ -1,6 +1,6 @@
 // The `policy-soundness` family's shared reader (#1971): what a FINAL `defineGate` module says about itself,
-// read statically and by IDENTITY. Four sibling policies consume it — `policy-soundness`,
-// `policy-proof-expectations`, `policy-waiver-identity`, `policy-waiver-spelling` — so every read here is a
+// read statically and by IDENTITY. Sibling policies consume it — `policy-soundness`,
+// `policy-proof-expectations` and `policy-waiver-identity` — so every read here is a
 // shared reader by consumer count, not by address.
 //
 // Three things a text tool cannot do, which is why this exists (the brief measured each grep at 100% false
@@ -34,7 +34,7 @@
 // inside a certain piece matches every finding that site emits, whatever the dynamic part says.
 //
 // SPLIT AT THE SIZE CAP (2026-09-18): the static-text reads (2) — `staticSegments`, `messageAlternatives`,
-// `staticText`, the waiver-spelling text tests, `enclosingStringExpression`, `discriminationOf` and the
+// `staticText`, marker-form text tests, `enclosingStringExpression`, `discriminationOf` and the
 // family's `unwrapExpression` — are `policy-static-text.ts`; the production-reach walk behind
 // `policyProductionDependencies` is `floor/code-facts/production-reach.ts`. Both are leaves; registration, the
 // descriptor fields, proof rows and the report-site readers (3) stay here.

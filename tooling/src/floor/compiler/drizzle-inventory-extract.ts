@@ -33,7 +33,11 @@ export function extractDrizzleIdentities(
   request: InventoryBuildRequest,
   sources: readonly SourceFile[],
   span: (node: MorphNode) => InventorySpan,
-  owner: { readonly assertSource: (source: SourceFile) => void; readonly ordinarySchema?: (query: SchemaQuery | undefined) => void },
+  owner: {
+    readonly assertSource: (source: SourceFile) => void;
+    readonly ordinarySchema?: (query: SchemaQuery | undefined) => void;
+    readonly valueSourceDeclarations?: (declarations: ReadonlySet<string>) => void;
+  },
 ): Pick<InventoryPartition, "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const byFile = new Map(sources.map((source) => [span(source).file, source]));
   for (const source of sources) {
@@ -57,6 +61,14 @@ export function extractDrizzleIdentities(
   const declarations = catalog === undefined ? new Map<string, InventorySchemaIdentityTable>() : catalogDeclarations(catalog, byFile, span);
   const local = localColumnQuery(request, schema);
   const columns = dependency?.columns === undefined ? undefined : new Map(dependency.columns.map((column) => [column.key, column]));
+  if (catalog?.fact.status === "ready") {
+    owner.valueSourceDeclarations?.(
+      new Set(catalog.fact.value.tables.map((table) => `${table.declaration.file}:${table.declaration.start}:${table.declaration.end}`)),
+    );
+  } else if (schema?.status === "ready") {
+    owner.valueSourceDeclarations?.(new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))));
+  }
+
   const drizzleCalls = (request.drizzleQueries ?? []).map((query) => {
     const node = inventoryQueryNode(byFile.get(query.node.file), query.node);
     if (dependency === undefined && query.mode === "column") {

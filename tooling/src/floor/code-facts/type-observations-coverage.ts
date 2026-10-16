@@ -45,6 +45,8 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
       facts.constInitializers !== undefined ||
       facts.exportDeclarations !== undefined ||
       facts.callableBodies !== undefined ||
+      facts.predicateInputs !== undefined ||
+      facts.arrayElements !== undefined ||
       facts.definitions !== undefined ||
       facts.callParameters !== undefined ||
       facts.signatureParameters !== undefined ||
@@ -71,6 +73,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   assertRawNominations(facts, key);
   assertConstInitializerCoverage(facts, key);
   assertContributionDemand(facts);
+  assertPredicateInputCoverage(facts, key, kind);
   assertNamedPropertyCoverage(facts, key);
   assertSelectedPropertyGraphDemand(facts, key, kind);
   assertCallableBodyNominations(facts, key);
@@ -152,8 +155,11 @@ function selectedGraphExportKeys<Anchor>(
 }
 
 export function assertTypeArgumentCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const arrayArguments = arrayArgumentSelections(facts);
   const remaining = new Set(
-    (facts.selections?.plan.selectors ?? []).flatMap((selector, index) => (selector.steps.at(-1)?.kind === "type-argument" ? [index] : [])),
+    (facts.selections?.plan.selectors ?? []).flatMap((selector, index) =>
+      selector.steps.at(-1)?.kind === "type-argument" && !arrayArguments.has(index) ? [index] : [],
+    ),
   );
   for (const [index, row] of facts.types.entries()) {
     if (row === null || row.typeArguments === undefined) {
@@ -207,6 +213,7 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
           q.kind !== "definition-closure" &&
           q.kind !== "declaration-closure" &&
           q.kind !== "const-initializers" &&
+          q.kind !== "drizzle-predicate-inputs" &&
           q.kind !== "selected-property-graph" &&
           q.kind !== "callable-body-values" &&
           q.kind !== "symbol-closure" &&
@@ -761,6 +768,63 @@ function selectedGraphPropertyOwner<Anchor>(
   );
 }
 
+/** Direct and serialized deliveries retain the same closed predicate-input and array nominations. */
+export function assertPredicateInputCoverage<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  key: (node: Anchor) => string,
+  kind: (node: Anchor) => number,
+): void {
+  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "drizzle-predicate-inputs");
+  if (questions.length > 0 !== (facts.predicateInputs !== undefined) || questions.length > 0 !== (facts.arrayElements !== undefined)) {
+    throw new Error("native predicate-input/array tables are missing or unrequested");
+  }
+  assertPredicateContexts(facts, key, kind);
+  if (questions.length === 0) {
+    return;
+  }
+  const expected = questions.flatMap((question) => question.nodes.map(key));
+  const rows = facts.predicateInputs ?? [];
+  uniqueRawKeys(rows.map((row) => key(row.node)));
+  const observed = new Set(facts.nodes.map((row) => key(row.node)));
+  if (
+    JSON.stringify(expected) !== JSON.stringify(rows.map((row) => key(row.node))) ||
+    rows.some((row) => row.values.some((node) => !observed.has(key(node))))
+  ) {
+    throw new Error("native predicate-input roots or nominated operands are missing or foreign");
+  }
+  for (const row of rows) {
+    uniqueRawKeys(row.values.map(key));
+    uniqueRawKeys(row.predicates.map(key));
+  }
+  assertPredicateArrayCoverage(
+    facts,
+    rows.flatMap((row) => row.values),
+    key,
+  );
+}
+
+function assertPredicateArrayCoverage<Anchor>(facts: TypeObservationValues<Anchor>, values: readonly Anchor[], key: (node: Anchor) => string): void {
+  const selectors = facts.selections?.plan.selectors ?? [];
+  const expected = new Set(
+    values.map((node) => {
+      const index = selectors.findIndex(
+        (selector) => selector.base.kind === "node" && key(selector.base.node) === key(node) && selector.steps.length === 0 && selector.displayAt === null,
+      );
+      if (index < 0) {
+        throw new Error("native predicate-input root Type was not captured");
+      }
+      return index;
+    }),
+  );
+  const rows = facts.arrayElements ?? [];
+  if (rows.length !== expected.size || new Set(rows.map((row) => row.selector)).size !== rows.length || rows.some((row) => !expected.has(row.selector))) {
+    throw new Error("native predicate-input array roots are missing or foreign");
+  }
+  for (const row of rows) {
+    assertPredicateArrayRow(facts, row, key);
+  }
+}
+
 /** Ordered type graph edges retain native counts and exact selector ancestry. */
 export function assertRawTypeGraphCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const indices = observationIndices(facts);
@@ -862,4 +926,64 @@ function assertContributionDemand<Anchor>(facts: TypeObservationValues<Anchor>):
       throw new Error("native contribution relation demand is malformed");
     }
   }
+}
+function assertPredicateContexts<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
+  for (const question of facts.demand.questions ?? []) {
+    const context = question.predicateContext;
+    if ((question.kind === "drizzle-predicate-inputs") !== (context !== undefined)) {
+      throw new Error("native predicate-input context is missing or foreign");
+    }
+    if (context !== undefined) {
+      uniqueRawKeys(context.calls.map(key));
+      uniqueRawKeys(context.references.map(key));
+      const calls = new Set(context.calls.map(key));
+      if (question.properties !== undefined || question.nodes.some((node) => kind(node) !== SyntaxKind.CallExpression || !calls.has(key(node)))) {
+        throw new Error("native predicate-input roots are outside their exact call context");
+      }
+      if (
+        context.calls.some((node) => kind(node) !== SyntaxKind.CallExpression) ||
+        context.references.some(
+          (node) => ![SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression].includes(kind(node)),
+        )
+      ) {
+        throw new Error("native predicate-input context has foreign call/reference kinds");
+      }
+    }
+  }
+}
+
+function assertPredicateArrayRow<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  row: NonNullable<TypeObservationValues<Anchor>["arrayElements"]>[number],
+  key: (node: Anchor) => string,
+): void {
+  const selectors = facts.selections?.plan.selectors ?? [];
+  const indices = observationIndices(facts);
+  indices.presentType(row.selector);
+  if ((row.array || row.readonlyArray) !== (row.value !== null)) {
+    throw new Error("native array-element presence is incomplete");
+  }
+  if (row.value !== null) {
+    indices.type(row.value);
+    const parent = selectors[row.selector];
+    const child = selectors[row.value];
+    const step = child?.steps.at(-1);
+    const matching = row.array ? step?.kind === "array-element" : step?.kind === "type-argument" && step.index === 0;
+    if (
+      !matching ||
+      child === undefined ||
+      parent === undefined ||
+      rawSelectorKey({ ...child, steps: child.steps.slice(0, -1) }, key) !== rawSelectorKey(parent, key)
+    ) {
+      throw new Error("native predicate-input array element selector is foreign");
+    }
+  }
+}
+
+function arrayArgumentSelections<Anchor>(facts: TypeObservationValues<Anchor>): ReadonlySet<number> {
+  return new Set(
+    (facts.arrayElements ?? []).flatMap((row) =>
+      !row.array && row.readonlyArray && row.value !== null && facts.types[row.selector]?.typeArguments === undefined ? [row.value] : [],
+    ),
+  );
 }

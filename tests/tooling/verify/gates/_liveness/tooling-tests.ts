@@ -26,7 +26,6 @@ import { gate as policyFixtureSubstrate } from "../../../../../tooling/src/verif
 import { gate as policyLegacyImports } from "../../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policySoundness } from "../../../../../tooling/src/verify/gates/policy-soundness.ts";
-import { gate as policyWaiverSpelling } from "../../../../../tooling/src/verify/gates/policy-waiver-spelling.ts";
 import { gate as routeTrpcLifoOrder } from "../../../../../tooling/src/verify/gates/route-trpc-lifo-order.ts";
 import { gate as routeTrpcNoBroadSpread } from "../../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as testDeterminism } from "../../../../../tooling/src/verify/gates/test-determinism.ts";
@@ -211,18 +210,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: policySoundness,
     overlays: [probeGate({ id: "liveness-soundness", population: '{ in: ["@client"], ext: ["ts", "tsx"] }' })],
     messageIncludes: "INERT",
-  },
-  {
-    policy: policyWaiverSpelling,
-    overlays: [
-      probeGate({
-        id: "liveness-waiver",
-        authority: "ordinary",
-        create: "(ctx) => ({ visitors: [{ kinds: [1], visit: (node) => ctx.report.node(node) }] })",
-        tail: '  fix: "move it.",\n',
-      }),
-    ],
-    messageIncludes: "does not name its own waiver spelling",
   },
   {
     policy: routeTrpcLifoOrder,

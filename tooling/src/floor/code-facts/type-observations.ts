@@ -15,6 +15,7 @@ import type {
   NativeTypeObservations,
   ObservedProperty,
   ObservedReference,
+  PredicateInputValues,
   TypeObservationCapture,
   TypeObservationCaptureOwner,
   TypeObservationDemand,
@@ -229,6 +230,8 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     exports.set(source, result);
     return result;
   };
+  const arrayElements = new Map<number, NonNullable<NativeTypeObservations["arrayElements"]>[number]>();
+  const predicateInputs = new Map<MorphNode, PredicateInputValues>();
   const reader: TypeObservationCapture["reader"] = {
     callableBody: (node) => {
       admit(node);
@@ -271,6 +274,36 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       }
       return row.declarations;
     },
+    arrayElement: (selector) => {
+      const index = read(selector);
+      if (!rawSlots) {
+        throw new Error("native array element was not requested");
+      }
+      let row = arrayElements.get(index);
+      if (row === undefined) {
+        const type = valueAt(index);
+        const array = type.isArray();
+        const readonlyArray = type.isReadonlyArray();
+        const step = nativeArrayElementStep(array, readonlyArray);
+        const value = step === undefined ? null : read({ ...selector, steps: [...selector.steps, step] });
+        row = { selector: index, array, readonlyArray, value };
+        arrayElements.set(index, row);
+      }
+      return { array: row.array, readonlyArray: row.readonlyArray, element: row.value === null ? null : selectorAt(row.value) };
+    },
+    predicateInputs: (node) => {
+      admit(node);
+      if (owner.predicateInputs === undefined) {
+        throw new Error("native predicate-input demand has no captured canonical context");
+      }
+      let values = predicateInputs.get(node);
+      if (values === undefined) {
+        values = owner.predicateInputs(node);
+        [...values.predicates, ...values.values].forEach(admit);
+        predicateInputs.set(node, values);
+      }
+      return values;
+    },
     primitiveFlags: (selector) => {
       const index = read(selector);
       const metadata = types[index];
@@ -281,6 +314,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       const value = {
         string: type.isString(),
         stringLiteral: type.isStringLiteral(),
+        templateLiteral: type.isTemplateLiteral(),
         number: type.isNumber(),
         numberLiteral: type.isNumberLiteral(),
         boolean: type.isBoolean(),
@@ -683,6 +717,17 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       admit(value.node);
     }
   };
+  const admitPredicateContext = (demand: TypeObservationDemand): void => {
+    for (const question of demand.questions ?? []) {
+      for (const node of [...(question.predicateContext?.calls ?? []), ...(question.predicateContext?.references ?? [])]) {
+        admit(node);
+      }
+    }
+  };
+  const capturedPredicateQuestions = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "predicateInputs" | "arrayElements"> =>
+    demand.questions?.some((question) => question.kind === "drizzle-predicate-inputs") === true
+      ? { arrayElements: [...arrayElements.values()], predicateInputs: [...predicateInputs].map(([node, values]) => ({ node, ...values })) }
+      : {};
   const capturedFunctionExports = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "functionExports"> =>
     demand.questions?.some((question) => question.kind === "function-exports") === true
       ? { functionExports: [...functionExports].map(([node, value]) => ({ node, value })) }
@@ -708,6 +753,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     finish: (demand: TypeObservationDemand, valueProfiles): NativeTypeObservations => {
       admit(owner.anchor);
       admitValueProfiles(valueProfiles);
+      admitPredicateContext(demand);
       for (const node of demand.sources) {
         if (!Node.isSourceFile(node)) {
           throw new Error("native type export source is not a SourceFile");
@@ -726,6 +772,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
         anchor,
         demand,
         ...constInitializers,
+        ...capturedPredicateQuestions(demand),
         ...(valueProfiles === undefined ? {} : { valueProfiles }),
         ...capturedExportDeclarations(demand),
         ...capturedCallableBodies(demand),
@@ -813,4 +860,14 @@ export function captureTypeObservations(demand: TypeObservationDemand, owner: Ty
   );
   readTypeObservations(facts, owner.references, owner.module, owner.node);
   return facts;
+}
+
+function nativeArrayElementStep(array: boolean, readonlyArray: boolean): NativeTypeSelector["steps"][number] | undefined {
+  let step: NativeTypeSelector["steps"][number] | undefined;
+  if (array) {
+    step = { kind: "array-element" };
+  } else if (readonlyArray) {
+    step = { kind: "type-argument", index: 0 };
+  }
+  return step;
 }

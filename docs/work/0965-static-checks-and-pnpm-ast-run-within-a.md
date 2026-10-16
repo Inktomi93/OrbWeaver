@@ -12,7 +12,7 @@ plan: test-foundation
 
 Prioritize structural cuts: D320 legacy analysis eligibility, unnecessary typed-gate removal and AppRouter type-bridge closure isolation. Separate compiler baseline cost from additional analysis work, with runtime and checker concurrency explicit.
 
-Measure checker and pnpm ast peaks against the hosted-runner budget. Diagnose repeated native-program loads. Shared persisted facts serve gates, verbs and codemods without private programs.
+Compare batched TS7 checker extraction with TS6 on matched complete worlds, measuring client and server memory. Keep pins unchanged during external experiments. Shared persisted facts serve consumers without private programs.
 
 ## Why
 
@@ -24,11 +24,9 @@ pnpm check, the structure stage and every pnpm ast verb complete within the host
 
 ## Evidence
 
-Unmanaged production-export attempts exit 134 without a typed verdict. They do not establish shipped-command failure.
-
 The correctly invoked `pnpm ast apisurface --in /src/ --public --json --max 1000000` completes on managed Node 26.10.0. Its timing artifact records exit 0, elapsed 2:37.88 and maximum RSS 15,719,224 KiB, without swaps. The JSON reports complete output, with total and shown equal. This measures one verb; it does not establish every tool's hosted-runner qualification.
 
-A bounded native fixture confirms one workspace and one materialized project per demanded descriptor. Shared and separate collector calls preserve results without duplicating those projects. Historical bare-Node failure causes remain unproven.
+Bounded controls preserve one native project per demanded descriptor across shared collectors.
 
 The sequential native UI export projection completes on managed Node with a released worker per demanded world. Its timing artifact reports exit 0, elapsed 1:58.62 and maximum RSS 2,501,396 KiB without swaps. This measures the bounded UI selector work set, not the full apisurface verb or aggregate concurrent-process memory. It neither diagnoses the earlier wrapper's aborting phase nor establishes a persisted shared store.
 
@@ -41,3 +39,5 @@ The corrected frozen replay reaches its fixed deadline in the tests-DOM native w
 Reviewed `49d607fd3c` removes repeated path resolution and native import-map construction. Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world replay, collector equivalence, concurrent reuse and hosted measurements remain open.
 
 Portable corpus contracts remove the Node and server import closure while retaining exhaustive Node router conformance. Other world totals remain unverified. Declaration bridges need freshness and closure qualification; D320 retains legacy runtime and native typecheck evidence without semantic extraction. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
+
+Kit pilot measures TS6, pinned TS7 and external nightly aggregate memory. Exports agree; type-position context needs adaptation. Nightly adds a schema diagnostic. Full extraction remains unqualified. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.

@@ -23,6 +23,8 @@ import { readSchemaData } from "../../floor/code-facts/schema-projection.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSchemaQuery } from "../../floor/code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
+import type { CapturedInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { invocationNeedsValueSourceCatalog, invocationQueryKey } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
 import { inventoryQueryNode } from "../../floor/compiler/drizzle-inventory-extract.ts";
@@ -545,6 +547,7 @@ export function verifyPolicyProofs(policies: readonly GatePolicy[]): readonly Po
 export function isolatedTypeFacts(project: Project): NativeTypeFacts {
   let program: ReturnType<Project["getProgram"]>["compilerObject"] | undefined;
   const sources = new Map(project.getSourceFiles().map((source) => [source, { node: source.compilerNode, text: source.getFullText() }]));
+  const typeCaptures = new Map<string, CapturedInvocationEvidence>();
   const checkerFor = (nodes: readonly Node[]): TypeChecker => {
     program ??= project.getProgram().compilerObject;
     const capturedProgram = program;
@@ -593,6 +596,64 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
         return [node, node.findReferencesAsNodes()] as const;
       }),
     );
+  };
+  const readTypes = (
+    nodes: readonly Node[],
+    plan: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
+    queries: readonly import("../contract/project-context.ts").NativeTypeRequest[],
+  ): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
+    const first = nodes[0];
+    if (first === undefined) {
+      throw new Error("isolated type cohort has no real source anchor");
+    }
+    const anchor = { file: first.getSourceFile().getFilePath(), start: first.getStart(), end: first.getEnd(), kind: first.getKind() };
+    const key = invocationQueryKey({ ...plan, node: anchor });
+    const registered = queries.find(
+      (request) => request.kind === "invocation-evidence" && request.nodes.includes(first) && invocationQueryKey({ ...request.plan, node: anchor }) === key,
+    );
+    if (registered?.kind !== "invocation-evidence" || registered.plan.typeObservations === undefined) {
+      throw new Error("isolated type cohort has no registered closed demand");
+    }
+    const demand = registered.plan.typeObservations;
+    const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node => {
+      const source = project.getSourceFile(span.file);
+      try {
+        return inventoryQueryNode(source, span);
+      } catch (error) {
+        throw new Error(`isolated type nomination ${JSON.stringify(span)};sourcePresent=${source !== undefined}`, { cause: error });
+      }
+    };
+    checkerFor(demand.sources.map(of));
+    if (invocationNeedsValueSourceCatalog(registered.plan)) {
+      checkerFor(queries.filter((request) => request.kind === "schema-identities").flatMap((request) => [...request.nodes]));
+    }
+    const previous = typeCaptures.get(key);
+    if (previous !== undefined) {
+      if (previous.typeObservations === undefined) {
+        throw new Error("isolated type cohort has no captured type observations");
+      }
+      previous.typeObservations.assertNode(first);
+      return new Map(nodes.map((node) => [node, previous]));
+    }
+    const drizzleSources = isolatedValueSourceSchema(registered.plan, queries, checkerFor);
+    const facts = captureInvocationEvidence(first, registered.plan, undefined, {
+      ...isolatedValueSourceAttachment(drizzleSources),
+      demand: mapTypeObservationDemand(demand, of),
+      node: of,
+      references: (node) => {
+        const importer = node.getSourceFile();
+        if (!queries.some((request) => request.kind === "references" && request.importer === importer && request.nodes.includes(node))) {
+          throw new Error("isolated raw reference closure has no registered strict importer/query");
+        }
+        const value = readReferences([node], importer).get(node);
+        if (value === undefined) {
+          throw new Error("isolated raw reference closure answer is unavailable");
+        }
+        return value;
+      },
+    });
+    typeCaptures.set(key, facts);
+    return new Map(nodes.map((node) => [node, facts]));
   };
   return nativeTypeFactSession(
     (queries): NativeTypeFactReader => ({
@@ -648,35 +709,7 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
         checkerFor(nodes);
         if (plan.mode === "types") {
-          const first = nodes[0];
-          const demand = plan.typeObservations;
-          if (first === undefined || demand === undefined) {
-            throw new Error("isolated type cohort has no real source anchor");
-          }
-          const of = (span: import("../../floor/code-facts/semantic-inventory-contract.ts").InventorySpan): Node => {
-            const source = project.getSourceFile(span.file);
-            try {
-              return inventoryQueryNode(source, span);
-            } catch (error) {
-              throw new Error(`isolated type nomination ${JSON.stringify(span)};sourcePresent=${source !== undefined}`, { cause: error });
-            }
-          };
-          const facts = captureInvocationEvidence(first, plan, undefined, {
-            demand: mapTypeObservationDemand(demand, of),
-            node: of,
-            references: (node) => {
-              const importer = node.getSourceFile();
-              if (!queries.some((request) => request.kind === "references" && request.importer === importer && request.nodes.includes(node))) {
-                throw new Error("isolated raw reference closure has no registered strict importer/query");
-              }
-              const value = readReferences([node], importer).get(node);
-              if (value === undefined) {
-                throw new Error("isolated raw reference closure answer is unavailable");
-              }
-              return value;
-            },
-          });
-          return new Map(nodes.map((node) => [node, facts]));
+          return readTypes(nodes, plan, queries);
         }
         if (plan.mode !== "observations") {
           return new Map(nodes.map((node) => [node, captureInvocationEvidence(node, plan)]));
@@ -763,9 +796,41 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
         );
       },
       [Symbol.dispose]: (): void => {
+        typeCaptures.clear();
         sources.clear();
         program = undefined;
       },
     }),
   );
+}
+
+function isolatedValueSourceSchema(
+  plan: import("../../floor/code-facts/semantic-inventory-contract.ts").InventoryInvocationPlan,
+  queries: readonly import("../contract/project-context.ts").NativeTypeRequest[],
+  checkerFor: (nodes: readonly Node[]) => TypeChecker,
+): import("../../floor/code-facts/type-observations-contract.ts").TypeObservationCaptureRequest["drizzleSources"] {
+  let result: import("../../floor/code-facts/type-observations-contract.ts").TypeObservationCaptureRequest["drizzleSources"];
+  if (invocationNeedsValueSourceCatalog(plan)) {
+    const files = [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+    if (files.length === 0) {
+      throw new Error("isolated value-source demand has no explicit complete schema roster");
+    }
+    const checker = checkerFor(files);
+    const schema = readSchemaIdentities({
+      files,
+      relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+      checker: () => checker,
+    });
+    if (schema.status !== "ready") {
+      throw new Error("isolated value-source catalog is not ready");
+    }
+    result = { declarations: new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))), basis: null };
+  }
+  return result;
+}
+
+function isolatedValueSourceAttachment(
+  value: import("../../floor/code-facts/type-observations-contract.ts").TypeObservationCaptureRequest["drizzleSources"],
+): Pick<import("../../floor/code-facts/type-observations-contract.ts").TypeObservationCaptureRequest, "drizzleSources"> {
+  return value === undefined ? {} : { drizzleSources: value };
 }

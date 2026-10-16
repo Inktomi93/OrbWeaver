@@ -15,12 +15,23 @@ export function mapTypeObservationDemand<From, To>(demand: TypeObservationDemand
     ...base,
     sources: demand.sources.map(node),
     nodes: demand.nodes.map(node),
-    ...(questions === undefined ? {} : { questions: questions.map((q) => ({ ...q, nodes: q.nodes.map(node) })) }),
+    ...(questions === undefined
+      ? {}
+      : {
+          questions: questions.map(({ predicateContext, ...q }) => ({
+            ...q,
+            nodes: q.nodes.map(node),
+            ...(predicateContext === undefined
+              ? {}
+              : { predicateContext: { calls: predicateContext.calls.map(node), references: predicateContext.references.map(node) } }),
+          })),
+        }),
   };
 }
 export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<From>, node: (value: From) => To): TypeObservationValues<To> {
   const {
     constInitializers: _constInitializers,
+    predicateInputs: _predicateInputs,
     signatureDeclarations: _signatureDeclarations,
     definitions: _definitions,
     functionExports: _functionExports,
@@ -40,6 +51,11 @@ export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<
       declarations: symbol.declarations.map(node),
       ...(valueDeclaration === undefined ? {} : { valueDeclaration: valueDeclaration === null ? null : node(valueDeclaration) }),
     })),
+    ...(facts.predicateInputs === undefined
+      ? {}
+      : {
+          predicateInputs: facts.predicateInputs.map((row) => ({ node: node(row.node), predicates: row.predicates.map(node), values: row.values.map(node) })),
+        }),
     ...(facts.constInitializers === undefined
       ? {}
       : { constInitializers: facts.constInitializers.map((row) => ({ node: node(row.node), values: row.values.map(node) })) }),

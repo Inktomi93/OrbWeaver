@@ -1,7 +1,7 @@
 // THE STATIC-TEXT READS of the `policy-soundness` family (#1971, #2040, #2055): which pieces of text are
 // CERTAIN in an expression (`staticSegments`), every distinct text a message site can produce
 // (`messageAlternatives`), the one whole string (`staticText`), the substring judgement against a module's
-// sources (`discriminationOf`), and the waiver-spelling tests over a piece of text. Split out of
+// sources (`discriminationOf`), and marker-form tests over a piece of text. Split out of
 // `policy-descriptor-read.ts` at the size cap (2026-09-18); that module's header states WHY there are two
 // reads and why a hit is certain while an absence is not. `unwrapExpression` here unwraps NonNull as well,
 // which `ast-read.ts`'s does not — the family's own spelling. One-way: this module imports nothing from
@@ -13,8 +13,6 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { Discrimination, StaticSegments } from "../contract/policy-descriptor-read.ts";
 import { staticDerivedText } from "./static-derived-text.ts";
 
-const WAIVE_OPENER = "@orb-waive ";
-const WAIVE_FILE_OPENER = "@orb-waive-file";
 /** A marker-form line: a comment whose CONTENT BEGINS with the opener (guide §8 — a spelling later in prose,
  *  inside a string or a regex is a MENTION, never a marker). The id group is the contract's kebab-case.
  *  Recognises both `@orb-waive` (line-adjacent) and `@orb-waive-file` (file-scoped) grammars. */
@@ -262,13 +260,6 @@ export function messageAlternatives(expression: MorphNode, seen: Set<object> = n
 export function staticText(expression: MorphNode | undefined): string | undefined {
   const read = expression === undefined ? undefined : staticSegments(expression);
   return read?.complete === true && read.segments.length <= 1 ? (read.segments[0] ?? "") : undefined;
-}
-
-/** Does a piece of static text MENTION the waiver spelling for this policy id (`@orb-waive <id>(` or
- *  `@orb-waive-file <id>(`)? The test a `fix` must pass — a mention is what an author needs to type,
- *  wherever in the sentence it sits. Either form satisfies the requirement. */
-export function mentionsWaiverOf(segment: string, policyId: string): boolean {
-  return segment.includes(`${WAIVE_OPENER}${policyId}(`) || segment.includes(`${WAIVE_FILE_OPENER} ${policyId}(`);
 }
 
 /** The policy ids named by MARKER-FORM lines inside a piece of static text: a line whose comment content

@@ -2,11 +2,18 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import type { DrizzleCallEvidence } from "./drizzle-evidence-contract.ts";
-import type { InventoryDrizzleCallEvidence, InventoryDrizzleTableReference, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
+import type {
+  InventoryDrizzleCallEvidence,
+  InventoryDrizzleTableEvidence,
+  InventoryDrizzleTableReference,
+  InventoryDrizzleValueSourceEvidence,
+  InventorySchemaIdentityCatalog,
+} from "./drizzle-inventory-contract.ts";
 import { assertSchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
+import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
 import type { DrizzleTableRef } from "./drizzle-table-ref.ts";
 import { replayReferenceFact } from "./projection-reference-codec.ts";
-import type { SchemaIdentityModel, SchemaIdentityTable } from "./schema-identity-contract.ts";
+import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityTable } from "./schema-identity-contract.ts";
 import type { SchemaColumnIdentity, SchemaFact } from "./schema-model-contract.ts";
 import type { InventorySpan } from "./semantic-inventory-contract.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
@@ -153,13 +160,38 @@ export function replayDrizzleCallEvidence(
       }),
       replay,
     ),
-    table:
-      tableEvidence === null
-        ? null
-        : {
-            node: replay(tableEvidence.node),
-            stability: tableEvidence.stability.map((entry) => ({ node: replay(entry.node), fact: replayReferenceFact(entry.fact, replay, replay) })),
-            references: tableEvidence.references.map((ref) => tableReference(ref, replay)),
-          },
+    table: tableEvidence === null ? null : replayDrizzleTableEvidence(tableEvidence, replay),
+  };
+}
+
+/** Effective argument and value-source delivery retain one table-reference decoder. */
+export function replayDrizzleTableEvidence(wire: InventoryDrizzleTableEvidence, replay: (span: InventorySpan) => MorphNode): DrizzleTableEvidence {
+  return {
+    node: replay(wire.node),
+    stability: wire.stability.map((entry) => ({ node: replay(entry.node), fact: replayReferenceFact(entry.fact, replay, replay) })),
+    references: wire.references.map((ref) => tableReference(ref, replay)),
+  };
+}
+
+/** Missing or foreign source attachment rows are refused before this span-only decoder. */
+export function replayDrizzleValueSourceEvidence(
+  wire: InventoryDrizzleValueSourceEvidence,
+  replay: (span: InventorySpan) => MorphNode,
+): DrizzleValueSourceEvidence {
+  return {
+    source: replayReferenceFact(
+      wire.source,
+      (value) => ({
+        members: value.members.map((member) => ({
+          ...member,
+          receiver: replay(member.receiver),
+          nameNode: replay(member.nameNode),
+          access: replay(member.access),
+        })),
+        subselects: value.subselects.map(replay),
+      }),
+      replay,
+    ),
+    tables: wire.tables.map((table) => replayDrizzleTableEvidence(table, replay)),
   };
 }

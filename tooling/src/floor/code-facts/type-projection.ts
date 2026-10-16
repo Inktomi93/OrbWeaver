@@ -35,7 +35,7 @@ function declarationExportPresence(node: Node): boolean {
   return node.isExported();
 }
 
-function captureTypeDeclarationProjection(node: Node, type: Type, plan: TypeProjectionPlan): NativeTypeProjection {
+function captureTypeDeclarationProjection(node: Node, type: () => Type, plan: TypeProjectionPlan): NativeTypeProjection {
   const symbol = plan.facets.includes("lexical") ? node.getSymbol() : undefined;
   return {
     ...(plan.facets.includes("member-declarations")
@@ -43,8 +43,8 @@ function captureTypeDeclarationProjection(node: Node, type: Type, plan: TypeProj
           "member-declarations": plan.properties.map((name) => ({
             name,
             origin: resolveTypePropertyOrigin(node, name),
-            raw: type.getProperty(name)?.getDeclarations() ?? null,
-            nonnullable: type.getNonNullableType().getProperty(name)?.getDeclarations() ?? null,
+            raw: type().getProperty(name)?.getDeclarations() ?? null,
+            nonnullable: type().getNonNullableType().getProperty(name)?.getDeclarations() ?? null,
           })),
         }
       : {}),
@@ -63,31 +63,35 @@ function captureTypeDeclarationProjection(node: Node, type: Type, plan: TypeProj
 /** Observe only the closed facets requested by a native compiler owner. */
 export function captureTypeProjection(node: Node, input: TypeProjectionPlan): NativeTypeProjection {
   const plan = canonicalTypeProjectionPlan(input);
-  const type = node.getType();
+  let capturedType: Type | undefined;
+  const type = (): Type => {
+    capturedType ??= node.getType();
+    return capturedType;
+  };
   const facts: NativeTypeProjection = {
     ...captureTypeDeclarationProjection(node, type, plan),
-    ...(plan.facets.includes("vocabulary") ? { vocabulary: captureTypeVocabulary(type) } : {}),
+    ...(plan.facets.includes("vocabulary") ? { vocabulary: captureTypeVocabulary(type()) } : {}),
     ...(plan.facets.includes("declaration-export") ? { "declaration-export": declarationExportPresence(node) } : {}),
     ...(plan.facets.includes("origins") ? { origins: captureTypeOriginProjection(node) } : {}),
     ...(plan.facets.includes("runtime-undefined") ? { "runtime-undefined": runtimeUndefinedValue(node) } : {}),
-    ...(plan.facets.includes("string-index") ? { "string-index": type.getStringIndexType() !== undefined } : {}),
-    ...(plan.facets.includes("properties") ? { properties: plan.properties.map((name) => ({ name, present: type.getProperty(name) !== undefined })) } : {}),
-    ...(plan.facets.includes("call-signatures") ? { "call-signatures": type.getCallSignatures().length > 0 } : {}),
+    ...(plan.facets.includes("string-index") ? { "string-index": type().getStringIndexType() !== undefined } : {}),
+    ...(plan.facets.includes("properties") ? { properties: plan.properties.map((name) => ({ name, present: type().getProperty(name) !== undefined })) } : {}),
+    ...(plan.facets.includes("call-signatures") ? { "call-signatures": type().getCallSignatures().length > 0 } : {}),
     ...(plan.facets.includes("scalar")
       ? {
           scalar: {
-            stringLiterals: [type, ...type.getUnionTypes()].flatMap((part) => {
+            stringLiterals: [type(), ...type().getUnionTypes()].flatMap((part) => {
               const literal = part.isStringLiteral() ? part.getLiteralValue() : undefined;
               return typeof literal === "string" ? [literal] : [];
             }),
-            nonNullableObject: type.getNonNullableType().isObject(),
-            any: type.isAny(),
-            unknown: type.isUnknown(),
+            nonNullableObject: type().getNonNullableType().isObject(),
+            any: type().isAny(),
+            unknown: type().isUnknown(),
           },
         }
       : {}),
     ...(plan.facets.includes("type-identity") ? { "type-identity": resolveTypeIdentityOrigin(node) } : {}),
-    ...(plan.facets.includes("type-symbol") ? { "type-symbol": type.getSymbol()?.getDeclarations() ?? null } : {}),
+    ...(plan.facets.includes("type-symbol") ? { "type-symbol": type().getSymbol()?.getDeclarations() ?? null } : {}),
   };
   assertTypeProjectionCoverage(facts, plan);
   return facts;

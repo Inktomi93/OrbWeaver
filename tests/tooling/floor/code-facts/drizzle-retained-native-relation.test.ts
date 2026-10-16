@@ -12,6 +12,7 @@ import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-fa
 import { SyntaxKind } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const HEAD = 'import {and,eq,sql,type SQL} from "drizzle-orm"; import {personas,type Db} from "@orb/db";';
 const QUERY = "db.select().from(personas).where(and(eq(personas.ownerId,ownerId),fragment))";
@@ -75,6 +76,7 @@ for (const scenario of POLICY_CASES) {
       policies: [gate],
       root: fixture.root,
       project: fixture.project,
+      nativeTypeFacts: () => isolatedTypeFacts(fixture.project),
       reviewedGrants: [],
       failOnWarnings: false,
     });
@@ -247,6 +249,7 @@ export async function read(db:Db,ownerId:string,chatId:Parameters<typeof retaine
     policies: [gate],
     root: fixture.root,
     project: fixture.project,
+    nativeTypeFacts: () => isolatedTypeFacts(fixture.project),
     reviewedGrants: [],
     failOnWarnings: false,
   });

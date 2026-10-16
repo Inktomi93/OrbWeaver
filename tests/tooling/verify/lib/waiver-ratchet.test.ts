@@ -99,6 +99,7 @@ function excusingPolicy(id: string, population: GatePolicy["population"], plante
     facts: [],
     resources: [],
     message: `${id} message`,
+    fix: `waive with @orb-waive ${id}(position): reason`,
     create: (ctx) => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (node) => ctx.report.node(node) }] }),
     mustFlag: [{ mode: "source", files: { [planted]: "export const planted = true;\n" }, why: "every declaration is a finding" }],
     mustPass: [{ mode: "source", files: { [planted]: "export {};\n" }, why: "no declaration, no finding" }],

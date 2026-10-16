@@ -53,8 +53,8 @@
 import type { AsExpression, CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { observeCallReturns } from "../../floor/code-facts/call-returns.ts";
-import { RELATIONAL_WHERE, relationalWhereCallback } from "../../floor/code-facts/drizzle-operators.ts";
-import { innerReadAnchorsOf, readAnchorOf } from "../../floor/code-facts/drizzle-query.ts";
+import { RELATIONAL_WHERE } from "../../floor/code-facts/drizzle-operators.ts";
+import { innerReadAnchorsOf, readAnchorOf, readRelationalConfigProperty, readRelationalWhere } from "../../floor/code-facts/drizzle-query.ts";
 import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-select.ts";
 import { readPredicateConsumers, readStatementAnchors, readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
@@ -63,10 +63,11 @@ import type { SchemaModel } from "../../floor/code-facts/schema-model-contract.t
 import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, ValueReceiver } from "../contract/tenancy.ts";
+import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, TenancyPinServices, ValueReceiver } from "../contract/tenancy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { nativeTenancyPins } from "../lib/native-tenancy-pin.ts";
+import { drizzleSchemaFact, drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
 import {
   chainTermsOf,
   conjunctLeaves,
@@ -229,6 +230,7 @@ const UNRESOLVABLE_MESSAGE =
 /** The schema answers `evaluate` needs, derived once per run. */
 interface ReadScope {
   readonly observations: CallReturnObservations;
+  readonly pins: TenancyPinServices;
   readonly schema: SchemaModel;
   readonly ownerTables: ReadonlySet<string>;
   readonly membershipTables: ReadonlySet<string>;
@@ -329,7 +331,7 @@ function bindsRows(judged: Judged, test: (conjunct: Node, bindings: ReadonlyMap<
 
 /** Is the table written `receiver` pinned to a plain value in this statement (optionally on one column)? */
 function pinnedByValue(receiver: string | Node, judged: Judged, scope: ReadScope, column?: string): boolean {
-  return bindsRows(judged, (conjunct, bindings) => valuePinTerm(conjunct, { receiver, ...(column === undefined ? {} : { column }) }, scope.index, bindings));
+  return bindsRows(judged, (conjunct, bindings) => valuePinTerm(conjunct, { receiver, ...(column === undefined ? {} : { column }) }, scope, bindings));
 }
 
 /** Is a membership-class table's row pinned the one way that table's class allows: a plain value on its own id or
@@ -347,7 +349,7 @@ function sourcePinned(source: ValueReceiver, judged: Judged, scope: ReadScope): 
   if (table !== undefined && scope.ownerTables.has(table)) {
     return bindsRows(judged, (conjunct, bindings) => {
       const value = ownerTermValue(conjunct, receiver, bindings);
-      return value !== undefined && isPlainValue(value, scope.index);
+      return value !== undefined && isPlainValue(value, scope.index, scope.pins);
     });
   }
   return table !== undefined && scope.membershipTables.has(table) && membershipPinned(receiver, table, judged, scope);
@@ -365,12 +367,12 @@ function subselectPinned(select: Node, scope: ReadScope): boolean {
 /** An owner term's value scopes the row only when it is a plain value by type, or when every table or subselect it
  *  reads is itself pinned by its class's rule one hop away (Spine-Identity-and-Auth §2b). */
 function ownerValuePinned(value: Node, judged: Judged, scope: ReadScope): boolean {
-  const sources = valueSourcesOf(value, scope.index);
+  const sources = valueSourcesOf(value, scope.index, scope.pins);
   if (sources.unresolved) {
     return false;
   }
   if (sources.receivers.length === 0 && sources.subselects.length === 0) {
-    return isPlainValue(value, scope.index);
+    return isPlainValue(value, scope.index, scope.pins);
   }
   return sources.receivers.every((source) => sourcePinned(source, judged, scope)) && sources.subselects.every((select) => subselectPinned(select, scope));
 }
@@ -546,18 +548,6 @@ function subqueryScoped(select: Node, scope: ReadScope, active: ReadonlySet<obje
   });
 }
 
-/** The predicate a relational `where` carries and the receiver its columns are read through: the table name for
- *  an SQL value, or the callback's first parameter for `where: (t, { eq }) => …`. Undefined when unreadable. */
-function relationalWhere(where: Node | undefined, table: string): { readonly receiver: string; readonly predicate: Node | undefined } | undefined {
-  const value = where === undefined ? undefined : unwrapExpression(where);
-  if (value === undefined || !(value.isKind(SyntaxKind.ArrowFunction) || value.isKind(SyntaxKind.FunctionExpression))) {
-    return { receiver: table, predicate: value };
-  }
-  const body = value.getBody();
-  const [row] = value.getParameters();
-  return row === undefined || !relationalWhereCallback(value) || body.isKind(SyntaxKind.Block) ? undefined : { receiver: row.getName(), predicate: body };
-}
-
 /** The finding a relational-API read owes. A `with:` relation, an unreadable config or an unknown table is unproven;
  *  an owner-scoped table must carry a pinned owner term in `where`, or read no row by id. */
 function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, scope: ReadScope): string | undefined {
@@ -569,20 +559,14 @@ function relationalFinding(anchor: Extract<ReadAnchor, { kind: "relational" }>, 
   if ((config !== undefined && !config.isKind(SyntaxKind.ObjectLiteralExpression)) || !scope.index.idents.has(table)) {
     return UNRESOLVABLE_MESSAGE;
   }
-  const property = (name: string): Node | undefined => {
-    const assigned = config?.getProperty(name);
-    if (assigned?.isKind(SyntaxKind.ShorthandPropertyAssignment) === true) {
-      return assigned.getNameNode();
-    }
-    return assigned?.isKind(SyntaxKind.PropertyAssignment) === true ? assigned.getInitializer() : assigned;
-  };
+  const property = (name: string): Node | undefined => readRelationalConfigProperty(config, name);
   if (property(RELATIONAL_WITH) !== undefined) {
     return RELATIONAL_WITH_MESSAGE;
   }
   if (!scope.ownerTables.has(table)) {
     return;
   }
-  const where = relationalWhere(property(RELATIONAL_WHERE), table);
+  const where = readRelationalWhere(property(RELATIONAL_WHERE), table);
   if (where === undefined) {
     return UNPROVEN_MESSAGE;
   }
@@ -633,7 +617,7 @@ export const gate = defineGate({
   population: "@server",
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaFact, drizzleSchemaIdentityFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
@@ -643,6 +627,7 @@ export const gate = defineGate({
     const calls: CallExpression[] = [];
     const references: Node[] = [];
     const assertions: AsExpression[] = [];
+    const pins = nativeTenancyPins(ctx, anchors, calls, references);
     return {
       visitors: [
         {
@@ -668,6 +653,7 @@ export const gate = defineGate({
           },
         },
       ],
+      prepare: pins.prepare,
       evaluate: () => {
         for (const assertion of assertions) {
           if (assertionAuthorities(assertion).some((authority) => !authorizedAuthorityMint(assertion, authority))) {
@@ -678,6 +664,7 @@ export const gate = defineGate({
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
           observations: observeCallReturns(calls, references, { suppliedCallableTargets: true }),
+          pins,
           schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),
           index: schemaTableIndex(schemaFact.value),
@@ -685,6 +672,7 @@ export const gate = defineGate({
           derivedParents: scopeParentsOfDerivedTables(schemaFact.value),
           membershipTables: membershipScopedTableIdents(schemaFact.value),
         };
+        pins.assertSchema(scope.index);
         for (const anchor of anchors) {
           const message = anchorFinding(anchor, scope);
           if (message !== undefined) {

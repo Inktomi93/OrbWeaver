@@ -40,6 +40,7 @@ import {
   reviewedGrantWitnessFailure,
 } from "./policy-validation-proofs.ts";
 import { assertPopulationExpr, explicitNonePopulation } from "./population-resolver.ts";
+import { mentionsWaiverOf } from "./waivable-coordinate.ts";
 
 // The key sets DERIVE from the contract's vocabularies (`contract/policy.ts`, one table per vocabulary, held
 // two-sided against the interfaces by `tsc`): a field, arm or key added there is refused, required and admitted
@@ -291,6 +292,12 @@ function assertApplicationAdmission(policy: Record<string, unknown>): void {
   }
 }
 
+function assertOrdinaryFix(policy: Readonly<Record<string, unknown>>): void {
+  if (policy["authority"] === "ordinary" && !(typeof policy["fix"] === "string" && mentionsWaiverOf(policy["fix"], policy["id"] as string))) {
+    invalid(`descriptor.fix must mention its own waiver spelling @orb-waive ${String(policy["id"])}( or @orb-waive-file ${String(policy["id"])}(`);
+  }
+}
+
 export function assertGatePolicyDescriptor(value: unknown): asserts value is GatePolicy {
   const policy = record(value, "descriptor");
   assertDirectDescriptor(policy);
@@ -338,6 +345,7 @@ export function assertGatePolicyDescriptor(value: unknown): asserts value is Gat
     assertProofArm(policy[arm], policy["analysis"] as GatePolicyAnalysis, arm, policy["authority"] as GateAuthority);
   }
   assertReviewedGrantWitness(value as GatePolicy);
+  assertOrdinaryFix(policy);
 }
 
 function assertReviewedGrantWitness(policy: GatePolicy): void {

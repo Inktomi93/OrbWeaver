@@ -22,6 +22,7 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           files: z.array(z.string()).optional(),
           relationTargets: z.array(z.strictObject({ file: z.string(), start: index, end: index, kind: index })).optional(),
           callableHomes: z.array(z.strictObject({ name: z.string(), suffix: z.string() })).optional(),
+          predicateContext: z.strictObject({ calls: z.array(span), references: z.array(span) }).optional(),
           properties: z.array(z.string()).optional(),
           receiverMethods: z.array(z.string()).optional(),
           selectedPropertyGraph: z
@@ -69,6 +70,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       demand: typeObservationDemandSchema(span),
       symbols: z.array(symbol),
       nodes: z.array(z.strictObject({ node: span, symbol: index.nullable(), type: index, contextual: observation(index) })),
+      predicateInputs: z.array(z.strictObject({ node: span, predicates: z.array(span), values: z.array(span) })).optional(),
       constInitializers: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       types: z.array(type.nullable()),
       properties: z.array(
@@ -79,6 +81,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
           values: z.array(z.strictObject({ name: z.string(), symbol: index, type: index })),
         }),
       ),
+      arrayElements: z.array(z.strictObject({ selector: index, array: z.boolean(), readonlyArray: z.boolean(), value: index.nullable() })).optional(),
       unions: z.array(z.strictObject({ selector: index, values: z.array(index) })),
       intersections: z.array(z.strictObject({ selector: index, values: z.array(index) })).optional(),
       constraints: z.array(z.strictObject({ selector: index, value: index.nullable() })).optional(),

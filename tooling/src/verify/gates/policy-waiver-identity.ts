@@ -34,10 +34,8 @@
 // error: four ordinary policies carry no arm at mint (#1952 recorded the closure that missed them). Hard:
 // the proof of a waiver door is not itself waivable.
 //
-// FAMILY `policy-soundness` — the shared reader is `lib/policy-descriptor-read.ts` (`mentionsWaiverOf` and
-// `markerFormIdsOf` for the marker grammar, `enclosingTestCall` for the arm join). Reading the waiver
-// grammar from the same module its sibling `policy-waiver-spelling` reads means the two cannot disagree
-// about what a marker IS while disagreeing about where it must be named.
+// FAMILY `policy-soundness` — `policy-descriptor-read.ts` joins proof arms and marker-form fixture text.
+// Actual waiver consumption remains the conformance runner's judgment, not a property-read proof.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
 // `8194754f7c`, the commit that created the family; `git show 8194754f7c^:<this file>` refuses with "exists
 // on disk, but not in 8194754f7c^", and that refusal IS the receipt (the `scrubber-factory-home`

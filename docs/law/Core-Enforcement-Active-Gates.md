@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-13
+updated: 2026-10-16
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -56,7 +56,9 @@ Use a structural gate only for a judgment the compiler and maintained tools cann
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
 
-(337 registered gates)
+Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
+
+(336 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -275,7 +277,6 @@ The test-foundation plan owns reader migration and native replacement qualificat
 | `policy-refusal-coverage` | policy-soundness | hard/error | @tooling,@tests\* | a FINAL policy declares facts or… |
 | `policy-soundness` | — | hard/error | @tooling\* | a final policy module carries… |
 | `policy-waiver-identity` | policy-soundness | hard/error | @tooling,@tests\* | an ORDINARY policy has no positive… |
-| `policy-waiver-spelling` | policy-soundness | hard/error | @tooling\* | an ORDINARY policy's fix does not… |
 | `public-route-body-cap` | — | ordinary/error | @server\* | a mutating non-tRPC public route… |
 | `public-route-body-cap-health` | public-route-body-cap | hard/error | @server\* | public-route-body-cap-health measured… |
 | `query-boundary-reservation` | — | ordinary/error | @client | a QueryBoundary whose fallback is a… |

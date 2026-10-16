@@ -3,7 +3,9 @@
 // verdicts off. Homed in contract/ per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5): `lib/` is plumbing, and an
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
 import type { Node } from "ts-morph";
+import type { DrizzleValueSourceEvidence } from "../../floor/code-facts/drizzle-query-contract.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 
 /** What a drizzle statement's table argument resolved to. The three verdicts a tenancy gate must judge
  *  differently — the fourth state (the argument is a literal) is `undefined`: a literal names no table. */
@@ -70,6 +72,18 @@ export interface TenancySchema {
   readonly index: SchemaTableIndex;
   readonly fkEdges: ReadonlySet<string>;
   readonly observations?: CallReturnObservations;
+  readonly pins?: TenancyPinServices;
+}
+
+/** Native facts retain source rejection and type classification as separate consumer judgments. */
+export interface TenancyPinServices {
+  readonly sourceEvidence: (node: Node) => DrizzleValueSourceEvidence;
+  readonly typeObservations: (node: Node) => TypeObservationReader;
+}
+
+export interface TenancyPinPass extends TenancyPinServices {
+  readonly prepare: () => void;
+  readonly assertSchema: (index: SchemaTableIndex) => void;
 }
 
 /** One row source a predicate value reads a column of: its written receiver, and its declared schema table

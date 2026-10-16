@@ -21,6 +21,7 @@ export function policy(
     facts: options.facts ?? [],
     resources,
     message: `${id} message`,
+    fix: `waive with @orb-waive ${id}(position): reason`,
     create:
       options.create ?? ((): ReturnType<GatePolicy["create"]> => ({ visitors: [{ kinds: [SyntaxKind.VariableDeclaration], visit: (): void => undefined }] })),
     mustFlag: [{ mode: proofMode, files, why: "founding defect" }],

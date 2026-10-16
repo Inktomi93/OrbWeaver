@@ -4,6 +4,7 @@ import type { Node, SourceFile } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
+import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
 import type { NativeTypeObservations, TypeObservationQuestion, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../floor/code-facts/type-observations-read.ts";
@@ -23,12 +24,7 @@ export function typeObservationPlan(
     mode: "types",
     facets: [],
     arguments: [],
-    typeObservations: {
-      profile: TYPE_OBSERVATION_PROFILE,
-      sources: sources.map(span),
-      nodes: nodes.map(span),
-      ...(questions === undefined ? {} : { questions: questions.map((question) => ({ ...question, nodes: question.nodes.map(span) })) }),
-    },
+    typeObservations: mapTypeObservationDemand({ profile: TYPE_OBSERVATION_PROFILE, sources, nodes, ...(questions === undefined ? {} : { questions }) }, span),
   };
 }
 export function typeObservationReaders(delivered: ReadonlyMap<Node, NativeInvocationEvidence>): ReadonlyMap<SourceFile, TypeObservationReader> {

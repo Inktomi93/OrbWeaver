@@ -5,10 +5,19 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { NativeAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
 import { captureAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
 import { encodeAuthoredValueProjection } from "../code-facts/authored-value-projection-codec.ts";
+import { observeCallReturns } from "../code-facts/call-returns.ts";
 import type { IndexedCallParameters } from "../code-facts/drizzle-column-read-contract.ts";
 import { readIndexedCallParameters } from "../code-facts/drizzle-column-reads.ts";
 import type { DrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readDrizzleWrite } from "../code-facts/drizzle-columns.ts";
+import { callsDrizzleOperator } from "../code-facts/drizzle-operators.ts";
+import { readDrizzlePredicate } from "../code-facts/drizzle-predicate.ts";
+import { readPredicateArgument } from "../code-facts/drizzle-predicate-argument.ts";
+import type { DrizzlePredicate } from "../code-facts/drizzle-predicate-contract.ts";
+import { readAnchorOf, readRelationalConfigProperty, readRelationalWhere } from "../code-facts/drizzle-query.ts";
+import type { DrizzleValueSourceEvidence, ReadAnchor } from "../code-facts/drizzle-query-contract.ts";
+import { readStatementOf } from "../code-facts/drizzle-statement.ts";
+import { unwrapExpression } from "../code-facts/expression-value.ts";
 import { readModuleNamespaceDeclarations } from "../code-facts/module-namespace.ts";
 import { encodeModuleOrigin } from "../code-facts/module-origin-codec.ts";
 import { captureOrdinaryObservations } from "../code-facts/ordinary-observations.ts";
@@ -26,8 +35,16 @@ import {
 } from "../code-facts/reference-fact.ts";
 import { lexicalReferenceSymbol } from "../code-facts/reference-fact-alias.ts";
 import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
-import type { CallableBinding, CallableInvocationFact, GlobalMemberOrigin, ModuleMemberOrigin, ReferenceFact } from "../code-facts/reference-fact-contract.ts";
+import type {
+  CallableBinding,
+  CallableInvocationFact,
+  CallReturnObservations,
+  GlobalMemberOrigin,
+  ModuleMemberOrigin,
+  ReferenceFact,
+} from "../code-facts/reference-fact-contract.ts";
 import { readCallableBinding, readCallableInvocation } from "../code-facts/reference-fact-invocation.ts";
+import { readDrizzleValueSourceEvidence } from "../code-facts/schema-identity.ts";
 import type { SchemaQuery } from "../code-facts/schema-model-contract.ts";
 import type {
   CapturedInvocationEvidence,
@@ -40,13 +57,14 @@ import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/se
 import { resolveAuthoredComposite } from "../code-facts/static-authored-value.ts";
 import { captureTypeObservations } from "../code-facts/type-observations.ts";
 import { encodeTypeObservations } from "../code-facts/type-observations-codec.ts";
-import type { TypeObservationCaptureRequest, TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
+import type { TypeObservationCaptureOwner, TypeObservationCaptureRequest, TypeObservationDemand } from "../code-facts/type-observations-contract.ts";
 import { captureTypeProjection } from "../code-facts/type-projection.ts";
 import { encodeTypeProjection } from "../code-facts/type-projection-codec.ts";
 import type { NativeTypeProjection } from "../code-facts/type-projection-contract.ts";
 import { captureColumnRowObservation, captureStoredValueObservation } from "../code-facts/value-observation.ts";
 import { mapColumnRowObservation, mapStoredValueObservation } from "../code-facts/value-observation-codec.ts";
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "../code-facts/value-observation-contract.ts";
+import { encodeDrizzleValueSourceEvidence } from "./drizzle-evidence-encode.ts";
 import { descendantsOfKind } from "./ts-workspace.ts";
 
 /** Capture only requested facets and their finite canonical callee/argument dependencies. */
@@ -72,6 +90,7 @@ export function captureInvocationEvidence(
   const authoredComposites = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
+  const drizzleValueSources = new Map<MorphNode, DrizzleValueSourceEvidence>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
   const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
   const storedValues = new Map<MorphNode, ProjectedStoredValueShape>();
@@ -84,6 +103,13 @@ export function captureInvocationEvidence(
     return subject;
   };
   const readers: Record<InventoryInvocationPlan["facets"][number], (subject: MorphNode) => void> = {
+    "drizzle-value-sources": (subject) => {
+      const schema = typeCapture?.drizzleSources;
+      if (schema === undefined) {
+        throw new Error("native value-source demand has no complete schema-declaration basis");
+      }
+      captureOnce(drizzleValueSources, subject, (value) => readDrizzleValueSourceEvidence(value, schema.declarations));
+    },
     module: (subject) => captureOnce(modules, subject, resolveModuleMemberOrigin),
     global: (subject) => captureOnce(globals, subject, resolveGlobalMemberOrigin),
     binding: (subject) => {
@@ -172,6 +198,7 @@ export function captureInvocationEvidence(
             }
             return value;
           },
+          predicateInputs: capturedPredicateInputs(typeCapture.demand),
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {
@@ -196,6 +223,7 @@ export function captureInvocationEvidence(
     stableValues,
     canonicalValues,
     typeProjections,
+    ...(typeCapture?.drizzleSources === undefined ? {} : { drizzleValueSources, drizzleSourcesBasis: typeCapture.drizzleSources.basis }),
     authoredValues,
     storedValues,
     columnRows,
@@ -219,6 +247,65 @@ export function captureInvocationEvidence(
       return referenceResolutionServices.readComputedName(subject);
     },
   };
+}
+
+function capturedPredicateInputs(demand: TypeObservationDemand): TypeObservationCaptureOwner["predicateInputs"] {
+  const question = demand.questions?.find((value) => value.kind === "drizzle-predicate-inputs");
+  if (question === undefined) {
+    return;
+  }
+  const context = question.predicateContext;
+  if (context === undefined) {
+    throw new Error("native predicate-input demand has no explicit call/reference context");
+  }
+  const calls = context.calls.map((node) => {
+    if (!Node.isCallExpression(node)) {
+      throw new Error("native predicate-input context contains a non-call");
+    }
+    return node;
+  });
+  const observations = observeCallReturns(calls, context.references, { suppliedCallableTargets: true });
+  return (node) => {
+    if (!question.nodes.includes(node)) {
+      throw new Error("native predicate-input root was not registered");
+    }
+    const anchor = readAnchorOf(node);
+    if (anchor === undefined) {
+      throw new Error("native predicate-input seed has no canonical read anchor");
+    }
+    const predicates = capturedPredicateRoots(anchor, observations);
+    return { predicates, values: [...new Set(predicates.flatMap((predicate) => predicateValueInputs(readDrizzlePredicate(predicate, observations))))] };
+  };
+}
+
+function capturedPredicateRoots(anchor: ReadAnchor, observations: CallReturnObservations): readonly MorphNode[] {
+  let predicates: readonly MorphNode[];
+  if (anchor.kind === "relational") {
+    const config = anchor.config === undefined ? undefined : unwrapExpression(anchor.config);
+    const where = readRelationalWhere(readRelationalConfigProperty(config, "where"), anchor.table.getText());
+    predicates = where?.predicate === undefined ? [] : [where.predicate];
+  } else {
+    const statement = readStatementOf(anchor.call, observations);
+    const own = anchor.kind === "join" && anchor.on !== undefined ? [anchor.on] : [];
+    predicates = [...new Set([...own, ...statement.innerOns, ...statement.wheres])];
+  }
+  return predicates;
+}
+
+function predicateValueInputs(fact: DrizzlePredicate): readonly MorphNode[] {
+  if (fact.kind === "and" || fact.kind === "or" || fact.kind === "choice") {
+    return fact.terms.flatMap(predicateValueInputs);
+  }
+  if (fact.kind !== "leaf" || !Node.isCallExpression(fact.node) || !(callsDrizzleOperator(fact.node, "eq") || callsDrizzleOperator(fact.node, "inArray"))) {
+    return [];
+  }
+  return fact.node
+    .getArguments()
+    .slice(0, 2)
+    .flatMap((argument) => {
+      const actual = readPredicateArgument(argument, fact.bindings);
+      return actual.kind === "resolved" ? [actual.value] : [];
+    });
 }
 
 function typeCaptureRequest(demand: TypeObservationDemand | TypeObservationCaptureRequest | undefined): TypeObservationCaptureRequest | undefined {
@@ -328,6 +415,7 @@ export function encodeInvocationEvidence(
       "reference-writes"?: object;
       "authored-composite"?: object;
       canonicalValue?: { declaration: InventorySpan; fact: object };
+      "drizzle-value-sources"?: InventoryInvocationEvidence["profiles"][number]["drizzle-value-sources"];
       "type-projection"?: InventoryTypeProjection;
       "authored-value"?: InventoryAuthoredValueProjection;
       "stored-value"?: InventoryInvocationEvidence["profiles"][number]["stored-value"];
@@ -363,6 +451,7 @@ export function encodeInvocationEvidence(
   for (const [subject, fact] of evidence.stableValues) {
     profile(subject).stable = wireReferenceFact(fact, span, span);
   }
+  encodeSourceProfiles(evidence, span, profile);
   encodeDataProfiles(evidence, plan, span, profile);
   for (const [subject, module] of evidence.modules) {
     const canonical = canonicalVariableFact(module, evidence, span);
@@ -374,6 +463,7 @@ export function encodeInvocationEvidence(
     evidence.invocation === undefined ? null : wireReferenceFact(evidence.invocation, (value) => ({ ...binding(value), invocation: value.invocation }), span);
   return invocationEvidenceSchema.parse({
     ...encodeOrdinaryAttachment(evidence, span),
+    ...encodeSourceBasis(evidence),
     ...(evidence.typeObservations === undefined ? {} : { typeObservations: encodeTypeObservations(evidence.typeObservations, span) }),
     query: { ...plan, node: span(node) },
     callee: plan.mode === "invocation" && (Node.isCallExpression(node) || Node.isNewExpression(node)) ? span(node.getExpression()) : null,
@@ -475,4 +565,16 @@ function encodeAdditionalReferences(
   for (const [subject, fact] of evidence.authoredComposites ?? []) {
     profile(subject)["authored-composite"] = wireReferenceFact(fact, span, span);
   }
+}
+function encodeSourceProfiles(
+  evidence: CapturedInvocationEvidence,
+  span: (node: MorphNode) => InventorySpan,
+  profile: (node: MorphNode) => Pick<InventoryInvocationEvidence["profiles"][number], "drizzle-value-sources">,
+): void {
+  for (const [subject, fact] of evidence.drizzleValueSources ?? []) {
+    profile(subject)["drizzle-value-sources"] = encodeDrizzleValueSourceEvidence(fact, span);
+  }
+}
+function encodeSourceBasis(evidence: CapturedInvocationEvidence): Pick<InventoryInvocationEvidence, "drizzleSourcesBasis"> {
+  return evidence.drizzleSourcesBasis === undefined ? {} : { drizzleSourcesBasis: evidence.drizzleSourcesBasis };
 }

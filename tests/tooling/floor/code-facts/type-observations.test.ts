@@ -728,3 +728,62 @@ test("closed Type constituents retain recursive native identities and exact fini
   source.replaceWithText(source.getFullText());
   expect(() => reader.unions(nodeTypeSelector(node))).toThrow();
 });
+
+test("predicate-input array normalization retains readonly argument ownership and refuses foreign rows or context", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  const source = project.createSourceFile(
+    "/pin-array.ts",
+    "declare function use(...values:readonly string[][]):void;declare const mutable:string[];declare const readonlyIds:readonly string[];use(mutable,readonlyIds);",
+  );
+  const call = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const values = call.getArguments();
+  const demand: TypeObservationDemand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source],
+    nodes: [],
+    questions: [{ kind: "drizzle-predicate-inputs", nodes: [call], predicateContext: { calls: [call], references: [] } }],
+  };
+  const facts = captureTypeObservations(demand, { anchor: source, admit: () => undefined, predicateInputs: () => ({ predicates: [call], values }) });
+  const wire = typeObservationsSchema(spanSchema).parse(encodeTypeObservations(facts, span));
+  const replay = (node: InventorySpan): MorphNode => inventoryQueryNode(project.getSourceFile(node.file), node);
+  const restored = replayTypeObservations(wire, replay);
+  const reader = readTypeObservations(restored);
+  expect(wire.arrayElements?.map((row) => [row.array, row.readonlyArray])).toEqual([
+    [true, false],
+    [true, true],
+  ]);
+  expect(
+    values.map((node) => {
+      const element = reader.arrayElement(nodeTypeSelector(node)).element;
+      if (element === null) {
+        throw new Error("native array element is absent");
+      }
+      return [element.steps.at(-1), reader.primitiveFlags(element).string];
+    }),
+  ).toEqual([
+    [{ kind: "array-element" }, true],
+    [{ kind: "array-element" }, true],
+  ]);
+  expect(() => typeObservationsSchema(spanSchema).parse({ ...wire, arrayElements: wire.arrayElements?.slice(0, 1) })).toThrow("array roots");
+  expect(() =>
+    typeObservationsSchema(spanSchema).parse({ ...wire, arrayElements: wire.arrayElements?.map((row) => ({ ...row, value: row.selector })) }),
+  ).toThrow("selector is foreign");
+  expect(() => readTypeObservations({ ...restored, predicateInputs: restored.predicateInputs?.map((row) => ({ ...row, predicates: [call, call] })) })).toThrow(
+    "ambiguous",
+  );
+  expect(() =>
+    typeObservationsSchema(spanSchema).parse({
+      ...wire,
+      demand: { ...wire.demand, questions: wire.demand.questions?.map((q) => ({ ...q, predicateContext: { calls: [], references: [] } })) },
+    }),
+  ).toThrow("exact call context");
+  expect(() =>
+    captureTypeObservations(
+      { ...demand, questions: demand.questions?.map((q) => ({ ...q, properties: ["foreign"] })) },
+      { anchor: source, admit: () => undefined, predicateInputs: () => ({ predicates: [call], values }) },
+    ),
+  ).toThrow("do not nominate named properties");
+  const plain = captureTypeObservations({ profile: TYPE_OBSERVATION_PROFILE, sources: [source], nodes: [] }, { anchor: source, admit: () => undefined });
+  expect(plain.arrayElements).toBeUndefined();
+  expect(plain.predicateInputs).toBeUndefined();
+});

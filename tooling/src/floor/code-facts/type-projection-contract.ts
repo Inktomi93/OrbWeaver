@@ -170,6 +170,7 @@ export interface NativeTypeSelectionPlan<Anchor = Node> {
 export const nativePrimitiveFlagsSchema = z.strictObject({
   string: z.boolean(),
   stringLiteral: z.boolean(),
+  templateLiteral: z.boolean().optional(),
   number: z.boolean(),
   numberLiteral: z.boolean(),
   boolean: z.boolean(),

@@ -58,6 +58,14 @@ export interface InventoryDrizzleTableEvidence {
   readonly references: readonly InventoryDrizzleTableReference[];
 }
 
+export interface InventoryDrizzleValueSourceEvidence {
+  readonly source: InventoryInvocationReference<{
+    readonly members: readonly { readonly name: string; readonly receiver: InventorySpan; readonly nameNode: InventorySpan; readonly access: InventorySpan }[];
+    readonly subselects: readonly InventorySpan[];
+  }>;
+  readonly tables: readonly InventoryDrizzleTableEvidence[];
+}
+
 export type InventoryDrizzleCallEvidence =
   | { readonly mode: "column"; readonly column: InventoryInvocationReference<string> }
   | {
@@ -84,7 +92,11 @@ export function drizzleInventorySchemas(
   span: z.ZodType<InventorySpan>,
   reference: <Value>(value: z.ZodType<Value>) => z.ZodType<InventoryInvocationReference<Value>>,
   invocation: z.ZodType<InstanceMethodIdentity["invocation"]>,
-): { readonly catalog: z.ZodType<InventorySchemaIdentityCatalog>; readonly call: z.ZodType<InventoryDrizzleCall> } {
+): {
+  readonly catalog: z.ZodType<InventorySchemaIdentityCatalog>;
+  readonly call: z.ZodType<InventoryDrizzleCall>;
+  readonly valueSources: z.ZodType<InventoryDrizzleValueSourceEvidence>;
+} {
   const identity = z.object({ sourcePath: z.string(), declarationName: z.string(), key: z.string() });
   const table = z.object({
     identity,
@@ -135,15 +147,39 @@ export function drizzleInventorySchemas(
     z.object({ kind: z.literal("raw-sql"), text: z.string(), interpolates: z.boolean() }),
     z.object({ kind: z.literal("unresolved"), node: span }),
   ]);
+  const tableEvidence = z.object({
+    node: span,
+    stability: z.array(z.object({ node: span, fact: reference(span) })).min(1),
+    references: z.array(tableReference).min(1),
+  });
+  const valueSources: z.ZodType<InventoryDrizzleValueSourceEvidence> = z
+    .strictObject({
+      source: reference(
+        z.strictObject({
+          members: z.array(z.strictObject({ name: z.string(), receiver: span, nameNode: span, access: span })),
+          subselects: z.array(span),
+        }),
+      ),
+      tables: z.array(tableEvidence),
+    })
+    .superRefine((value, context) => {
+      const key = (node: InventorySpan): string => JSON.stringify([node.file, node.start, node.end, node.kind]);
+      const receivers = new Set(value.source.kind === "resolved" ? value.source.value.members.map((read) => key(read.receiver)) : []);
+      if (
+        value.tables.length !== receivers.size ||
+        new Set(value.tables.map((row) => key(row.node))).size !== value.tables.length ||
+        value.tables.some((row) => !receivers.has(key(row.node)) || key(row.stability[0]?.node ?? row.node) !== key(row.node))
+      ) {
+        context.addIssue({ code: "custom", message: "native value-source receiver table evidence is missing or foreign" });
+      }
+    });
   const evidence = z.discriminatedUnion("mode", [
     z.object({ mode: z.literal("column"), column: reference(z.string()) }),
     z.object({ mode: z.literal("called-member"), member: reference(member), table: reference(z.string()).nullable() }),
     z.object({
       mode: z.literal("instance"),
       invocation: reference(instance),
-      table: z
-        .object({ node: span, stability: z.array(z.object({ node: span, fact: reference(span) })).min(1), references: z.array(tableReference).min(1) })
-        .nullable(),
+      table: tableEvidence.nullable(),
     }),
   ]);
   const call: z.ZodType<InventoryDrizzleCall> = z
@@ -156,7 +192,7 @@ export function drizzleInventorySchemas(
     })
     .refine((value) => value.query.mode === value.evidence.mode, "native Drizzle query projection disagrees with captured evidence")
     .refine((value) => value.basis !== null || value.query.mode === "column", "only native column evidence may use its own catalog partition");
-  return { catalog, call };
+  return { catalog, call, valueSources };
 }
 
 /** Column references require the complete roster from the same full/identity catalog generation. */

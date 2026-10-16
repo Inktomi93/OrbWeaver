@@ -1,5 +1,7 @@
 // Native projection only: canonical complete schema extraction and table-reference algorithms own meaning.
 import type { Node } from "ts-morph";
+import { readDrizzleValueSources } from "./drizzle-query.ts";
+import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
 import { resolveDrizzleTableRefs } from "./drizzle-table-ref.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -51,4 +53,11 @@ export function readDrizzleTableEvidence(node: Node, declarations: ReadonlySet<s
     return declarations.has(schemaDeclarationKey(declaration));
   });
   return { node, stability, references };
+}
+
+/** Receiver table references preserve canonical value-source refusal and explicit empty source sets. */
+export function readDrizzleValueSourceEvidence(node: Node, declarations: ReadonlySet<string>): DrizzleValueSourceEvidence {
+  const source = readDrizzleValueSources(node);
+  const receivers = source.kind === "unresolved" ? [] : [...new Set(source.value.members.map((member) => member.receiver))];
+  return { source, tables: receivers.map((receiver) => readDrizzleTableEvidence(receiver, declarations)) };
 }

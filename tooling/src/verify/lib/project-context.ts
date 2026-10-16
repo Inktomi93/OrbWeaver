@@ -20,7 +20,12 @@ import type { SchemaDataProjection } from "../../floor/code-facts/schema-project
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
 import type { InventoryFamily, InventoryInvocationPlan, SemanticInventoryOptions } from "../../floor/code-facts/semantic-inventory-contract.ts";
-import { invocationPlanSchema, invocationQueryKey, SemanticInventoryError } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import {
+  invocationNeedsValueSourceCatalog,
+  invocationPlanSchema,
+  invocationQueryKey,
+  SemanticInventoryError,
+} from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "../../floor/code-facts/semantic-inventory-inputs.ts";
 import { bindShapeInventory } from "../../floor/code-facts/shape-inventory-scope.ts";
 import { hasTypeObservationValueDemand } from "../../floor/code-facts/type-observations-contract.ts";
@@ -900,11 +905,17 @@ function invocationDemandGroups(
       ...(demand?.reads.map((read) => read.node) ?? []),
       ...(typeDemand?.sources ?? []),
       ...(typeDemand?.nodes ?? []),
-      ...(typeDemand?.questions?.flatMap((q) => [...q.nodes, ...(q.relationTargets ?? [])]) ?? []),
+      ...(typeDemand?.questions?.flatMap((q) => [
+        ...q.nodes,
+        ...(q.relationTargets ?? []),
+        ...(q.predicateContext?.calls ?? []),
+        ...(q.predicateContext?.references ?? []),
+      ]) ?? []),
     ].some((node) => !files.has(node.file))
   ) {
     throw new SemanticInventoryError("native ordinary roots/reads are outside their registered source cohort");
   }
+  assertPredicateImporters(typeDemand, files);
   return [...owners].map(([program, selected]) => {
     const anchor = selected[0];
     if (anchor === undefined) {
@@ -941,10 +952,29 @@ function invocationDemandGroups(
   });
 }
 
+function assertPredicateImporters(demand: InventoryInvocationPlan["typeObservations"], files: ReadonlyMap<string, string>): void {
+  for (const question of demand?.questions ?? []) {
+    if (question.predicateContext === undefined) {
+      continue;
+    }
+    const importing = new Set(question.nodes.map((node) => files.get(node.file)));
+    if (
+      importing.size !== 1 ||
+      [...question.predicateContext.calls, ...question.predicateContext.references].some((node) => !importing.has(files.get(node.file)))
+    ) {
+      throw new SemanticInventoryError("native predicate-input context crosses importing source cohorts");
+    }
+  }
+}
+
 function invocationFamilies(plan: InventoryInvocationPlan): readonly InventoryFamily[] {
   switch (plan.mode) {
     case "types":
-      return hasTypeObservationValueDemand(plan.typeObservations) ? ["invocation-evidence", "global-origins", "computed-names"] : ["invocation-evidence"];
+      return [
+        "invocation-evidence",
+        ...(hasTypeObservationValueDemand(plan.typeObservations) ? ["global-origins" as const, "computed-names" as const] : []),
+        ...(invocationNeedsValueSourceCatalog(plan) ? ["drizzle-identities" as const] : []),
+      ];
     case "observations":
       return ["invocation-evidence", "global-origins", "computed-names", "drizzle-identities"];
     case "value":

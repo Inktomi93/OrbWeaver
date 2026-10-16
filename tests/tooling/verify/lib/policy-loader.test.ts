@@ -454,7 +454,15 @@ test("hard + warning is admitted only with positive warning ownership, alongside
   };
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "warning", workItem: 2346 })).not.toThrow();
   expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "hard", severity: "error" })).not.toThrow();
-  expect(() => assertGatePolicyDescriptor({ ...trunk, authority: "ordinary", severity: "warning", workItem: 2025 })).not.toThrow();
+  expect(() =>
+    assertGatePolicyDescriptor({
+      ...trunk,
+      authority: "ordinary",
+      severity: "warning",
+      workItem: 2025,
+      fix: "waive with @orb-waive authority-severity(position): reason",
+    }),
+  ).not.toThrow();
   expect(() =>
     assertGatePolicyDescriptor({
       ...trunk,
@@ -471,6 +479,7 @@ test("direct descriptor validation requires own enumerable contract fields", () 
   const warning = {
     id: "direct-warning",
     family: "direct-warning",
+    fix: "waive with @orb-waive direct-warning(position): reason",
     authority: "ordinary",
     severity: "warning",
     workItem: 1584,
@@ -739,7 +748,9 @@ test("the GLOBAL witness obligation rejects a missing witness through descriptor
   expect(() => assertGatePolicyDescriptor(witnessless)).toThrow(/carries no grant identity witness.*"grant-witness-trunk".*reviewed-grant policy/su);
   expect(() => assertGatePolicyDescriptor(grantTrunk())).not.toThrow();
   for (const authority of ["hard", "ordinary"]) {
-    expect(() => assertGatePolicyDescriptor(grantTrunk({ authority, mustFlag: WITNESSLESS_FLAG }))).not.toThrow();
+    expect(() =>
+      assertGatePolicyDescriptor(grantTrunk({ authority, mustFlag: WITNESSLESS_FLAG, fix: "waive with @orb-waive grant-witness-trunk(position): reason" })),
+    ).not.toThrow();
   }
 
   writeModules(scratch, {

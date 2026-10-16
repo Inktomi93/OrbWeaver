@@ -1,11 +1,18 @@
 // Span encoding is shared with invocation delivery; canonical producers have already supplied all meaning.
 import type { Node, SourceFile } from "ts-morph";
 import type { DrizzleCallEvidence } from "../code-facts/drizzle-evidence-contract.ts";
-import type { InventoryDrizzleCallEvidence, InventoryDrizzleTableReference, InventorySchemaIdentityCatalog } from "../code-facts/drizzle-inventory-contract.ts";
+import type {
+  InventoryDrizzleCallEvidence,
+  InventoryDrizzleTableEvidence,
+  InventoryDrizzleTableReference,
+  InventoryDrizzleValueSourceEvidence,
+  InventorySchemaIdentityCatalog,
+} from "../code-facts/drizzle-inventory-contract.ts";
 import { assertSchemaIdentityCatalog } from "../code-facts/drizzle-inventory-contract.ts";
+import type { DrizzleValueSourceEvidence } from "../code-facts/drizzle-query-contract.ts";
 import type { DrizzleTableRef } from "../code-facts/drizzle-table-ref.ts";
 import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
-import type { SchemaIdentityModel, SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
+import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityTable } from "../code-facts/schema-identity-contract.ts";
 import type { SchemaFact } from "../code-facts/schema-model-contract.ts";
 import type { InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
 import { contentVersion } from "../code-facts/semantic-inventory-inputs.ts";
@@ -93,13 +100,33 @@ export function encodeDrizzleCallEvidence<Table extends Pick<SchemaIdentityTable
       }),
       span,
     ),
-    table:
-      tableEvidence === null
-        ? null
-        : {
-            node: span(tableEvidence.node),
-            stability: tableEvidence.stability.map((entry) => ({ node: span(entry.node), fact: wireReferenceFact(entry.fact, span, span) })),
-            references: tableEvidence.references.map((ref) => tableReference(ref, span)),
-          },
+    table: tableEvidence === null ? null : encodeDrizzleTableEvidence(tableEvidence, span),
+  };
+}
+
+/** Invocation source facts use the same table-reference codec as effective Drizzle arguments. */
+export function encodeDrizzleTableEvidence(evidence: DrizzleTableEvidence, span: (node: Node) => InventorySpan): InventoryDrizzleTableEvidence {
+  return {
+    node: span(evidence.node),
+    stability: evidence.stability.map((entry) => ({ node: span(entry.node), fact: wireReferenceFact(entry.fact, span, span) })),
+    references: evidence.references.map((ref) => tableReference(ref, span)),
+  };
+}
+
+/** Only anchors change; source and declaration answers remain the captured native ones. */
+export function encodeDrizzleValueSourceEvidence(
+  evidence: DrizzleValueSourceEvidence,
+  span: (node: Node) => InventorySpan,
+): InventoryDrizzleValueSourceEvidence {
+  return {
+    source: wireReferenceFact(
+      evidence.source,
+      (value) => ({
+        members: value.members.map((member) => ({ ...member, receiver: span(member.receiver), nameNode: span(member.nameNode), access: span(member.access) })),
+        subselects: value.subselects.map(span),
+      }),
+      span,
+    ),
+    tables: evidence.tables.map((table) => encodeDrizzleTableEvidence(table, span)),
   };
 }

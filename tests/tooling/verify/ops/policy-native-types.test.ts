@@ -1,12 +1,18 @@
 // @subject tooling/src/verify/ops/policy-conformance.ts
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { resolveTypeIdentityChain } from "@orb/tooling/floor/code-facts/type-member-origin";
-import type { Project } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import type { Node } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
+import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { mapTypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
+import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
+import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
+import { nodeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { readDrizzleClientCall } from "../../../../tooling/src/verify/lib/drizzle-client-call.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const QUERY = "packages/server/src/domain/character/persistence/queries.ts";
 const SCHEMA = {
@@ -20,6 +26,78 @@ const INITIAL_SCHEMA = {
     'ownerId: text("owner_id").notNull(), retired: text("retired")',
   ),
 };
+
+test("isolated type captures reuse only the registered anchor and plan while retaining epoch and session refusals", async () => {
+  const invocation = await import("../../../../tooling/src/floor/compiler/invocation-evidence-extract.ts");
+  const capture = vi.spyOn(invocation, "captureInvocationEvidence");
+  try {
+    for (const changedSource of ["source", "related"] as const) {
+      capture.mockClear();
+      const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, strict: true } });
+      const source = project.createSourceFile("/input.ts", "export declare const value:string;");
+      const related = project.createSourceFile("/related.ts", "export interface Related {id:string}");
+      const value = source.getVariableDeclarationOrThrow("value");
+      const span = (node: Node): InventorySpan => ({
+        file: node.getSourceFile().getFilePath(),
+        start: node.getStart(),
+        end: node.getEnd(),
+        kind: node.getKind(),
+      });
+      const plan: InventoryInvocationPlan = {
+        mode: "types",
+        facets: [],
+        arguments: [],
+        typeObservations: mapTypeObservationDemand(
+          { profile: TYPE_OBSERVATION_PROFILE, sources: [source, related], nodes: [], questions: [{ kind: "primitive-flags", nodes: [value] }] },
+          span,
+        ),
+      };
+      const otherPlan: InventoryInvocationPlan = {
+        ...plan,
+        typeObservations: { ...plan.typeObservations, profile: TYPE_OBSERVATION_PROFILE, sources: [span(source)], nodes: [] },
+      };
+      const foreign = new Project({ useInMemoryFileSystem: true }).createSourceFile(source.getFilePath(), source.getFullText());
+      using session = isolatedTypeFacts(project);
+      session.request("owner", { kind: "invocation-evidence", nodes: [source, related], plan });
+      session.request("owner", { kind: "invocation-evidence", nodes: [source], plan: otherPlan });
+      session.request("foreign", { kind: "invocation-evidence", nodes: [foreign], plan });
+      expect(() => session.invocationEvidence("owner", [source], plan)).toThrow("must be sealed");
+      session.seal(new Set(["owner", "foreign"]));
+      const first = session.invocationEvidence("owner", [source, related], plan).get(source);
+      if (first?.typeObservations === undefined) {
+        throw new Error("the registered native type capture must be delivered");
+      }
+      expect(readTypeObservations(first.typeObservations).primitiveFlags(nodeTypeSelector(value)).string).toBe(true);
+      const cloned = structuredClone(plan);
+      expect(session.invocationEvidence("owner", [source, related], cloned).get(source)).toBe(first);
+      expect(session.invocationEvidence("owner", [source], plan).get(source)).toBe(first);
+      expect(capture).toHaveBeenCalledTimes(1);
+      const otherAnchor = session.invocationEvidence("owner", [related, source], plan);
+      expect(otherAnchor.get(source)).toBe(otherAnchor.get(related));
+      expect(otherAnchor.get(source)).not.toBe(first);
+      expect(session.invocationEvidence("owner", [source], otherPlan).get(source)).not.toBe(first);
+      expect(capture).toHaveBeenCalledTimes(3);
+      expect(() => session.invocationEvidence("wrong-owner", [source], plan)).toThrow("not registered");
+      expect(() =>
+        session.invocationEvidence("owner", [source], {
+          ...plan,
+          typeObservations: { ...cloned.typeObservations, profile: TYPE_OBSERVATION_PROFILE, sources: [], nodes: [] },
+        }),
+      ).toThrow("not registered");
+      expect(() => session.invocationEvidence("foreign", [foreign], plan)).toThrow("outside its captured fixture");
+      expect(() => session.request("owner", { kind: "invocation-evidence", nodes: [source], plan })).toThrow("sealed");
+      expect(capture).toHaveBeenCalledTimes(3);
+      const stale = changedSource === "source" ? source : related;
+      stale.replaceWithText(`${stale.getFullText()}\nexport const changed=1;`);
+      expect(() => session.invocationEvidence("owner", [source], plan)).toThrow(/epoch|forgotten/u);
+      expect(capture).toHaveBeenCalledTimes(3);
+      session[Symbol.dispose]();
+      expect(() => session.invocationEvidence("owner", [source], plan)).toThrow("disposed");
+    }
+  } finally {
+    capture.mockRestore();
+  }
+});
 
 test("the canonical types fixture binds actual schema/client origins without a production Db alias", () => {
   let observed = 0;

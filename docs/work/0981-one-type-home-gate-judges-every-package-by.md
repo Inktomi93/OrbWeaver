@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Consolidate alias, interface and schema placement into one canonical judgment driven by Spine-TypeScript section 7.4. Cover every workspace package, scripts and maintained tests. Native restrictions own covered syntax; shared readers judge semantic origins. Judge declarations by their actual homes, not naming suffixes. Preserve separate hard service-presence and ledger-field claims until successor coverage is proved. Keep component-owned APIs beside components; derive lower-owned data and installed native types. Repair newly covered findings without allowances.
+Implement Spine-TypeScript section 7.4 through D321-selected native restrictions, typed owner data and tests. Cover every package, scripts and maintained tests. Retain shared relational analysis only for KEEP claims; do not build another generic placement prover. Preserve service-presence and ledger-field claims until successors qualify. Keep component APIs beside components and derive lower-owned data/native types. Independent production-home repairs continue; audited enforcement migration follows 1027.
 
 ## Why
 
@@ -18,7 +18,7 @@ A gate narrower than its law lets the drift the law forbids accumulate where nob
 
 ## Done when
 
-One canonical home table and placement judgment cover every workspace package and declaration kind, with discriminating controls. Retire duplicate placement policies only with successor evidence; preserve hard non-placement claims. Newly covered findings have owned repairs without new allowances. Section 7.4 names the actual native and semantic enforcers.
+One canonical home table has qualified native or test enforcement for every package and declaration kind. Retire duplicate placement policies only with successor evidence; preserve hard non-placement claims. Newly covered findings have owned repairs without new allowances. Section 7.4 names the actual native and semantic enforcers.
 
 ## Evidence
 

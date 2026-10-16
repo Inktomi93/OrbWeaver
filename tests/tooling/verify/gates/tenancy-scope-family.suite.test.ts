@@ -10,7 +10,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { TABLE_SCOPING_ROWS, tableScopingClasses } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 test("owner-scoped-reads preserves every declared owned-scope and every-owner authority proof", {
   timeout: policyProofRows(ownerScopedReads).length * 1000,
@@ -29,7 +29,15 @@ function passOf(
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project, reviewedGrants, failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants,
+    failOnWarnings: false,
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------

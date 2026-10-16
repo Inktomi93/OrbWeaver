@@ -25,7 +25,7 @@ refuseDirectInvocation(import.meta.url, REGEN_COMMAND);
 
 /** Bumped by hand only when the STATIC prose below changes; the table itself carries no separate date —
  *  `ledgers:fresh` holds the whole file byte-for-byte against a fresh derivation regardless. */
-const UPDATED = "2026-10-13";
+const UPDATED = "2026-10-16";
 
 const HEADER = `---
 kind: law
@@ -84,6 +84,8 @@ in its own module header, never restated here.
 Use a structural gate only for a judgment the compiler and maintained tools cannot express.
 Shared code-facts readers own remaining typed analysis; gates and code commands consume the same facts.
 The test-foundation plan owns reader migration and native replacement qualification.
+
+Ordinary waiver remediation metadata is validated by \`lib/policy-validation.ts\` at descriptor admission.
 
 `;
 

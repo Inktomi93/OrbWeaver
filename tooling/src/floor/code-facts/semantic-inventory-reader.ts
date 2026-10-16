@@ -32,6 +32,8 @@ import type {
 import {
   INVENTORY_KEY_SEPARATOR,
   INVENTORY_REFERENCE_MODES,
+  inventoryNodeQueryKey,
+  invocationNeedsValueSourceCatalog,
   moduleTargetQueryKey,
   moduleTargetQuerySchema,
   SemanticInventoryError,
@@ -530,6 +532,7 @@ function createInventoryReader(
         readInventorySchemaIdentity(db, catalog.id);
         readInventorySchemaData(db, catalog.id);
       }
+      assertValueSourceBasis(db, wire, partition, indexes);
       const replay = replayFor(node, program, partition, "invocation");
       const bindings = invocationBindings(wire, replay, (file) => lease?.bindings(partition.id, file) ?? readInventoryGlobalBindings(db, partition.id, file));
       const computed = invocationComputed(db, partition.id, wire, replay);
@@ -994,4 +997,31 @@ export function inventoryDeclarationKey(node: Node): string {
   const path = node.getSourceFile().getFilePath();
   const canonical = semanticInventoryOf(node.getSourceFile().compilerNode)?.canonicalPath(path) ?? canonicalInventoryPath(path);
   return `${canonical}${INVENTORY_KEY_SEPARATOR}${String(node.getStart())}`;
+}
+
+function assertValueSourceCatalog(wire: InventoryInvocationEvidence, catalog: import("./drizzle-inventory-contract.ts").InventorySchemaIdentityCatalog): void {
+  const declarations = new Set(catalog.fact.status === "ready" ? catalog.fact.value.tables.map((table) => inventoryNodeQueryKey(table.declaration)) : []);
+  for (const profile of wire.profiles) {
+    for (const table of profile["drizzle-value-sources"]?.tables ?? []) {
+      if (table.references.some((reference) => reference.kind === "table" && !declarations.has(inventoryNodeQueryKey(reference.declaration)))) {
+        throw new SemanticInventoryError("native value-source table declaration is foreign to its complete catalog");
+      }
+    }
+  }
+}
+
+function assertValueSourceBasis(
+  db: DatabaseSync,
+  wire: InventoryInvocationEvidence,
+  partition: StoredInventoryPartition,
+  indexes: readonly StoredInventoryPartition[],
+): void {
+  if (invocationNeedsValueSourceCatalog(wire.query)) {
+    const basis = wire.drizzleSourcesBasis;
+    const catalog = basis === null ? partition : indexes.find((candidate) => candidate.program === basis?.program && candidate.id === basis.partition);
+    if (catalog === undefined || basis === undefined || !catalog.families.includes("drizzle-identities")) {
+      throw new SemanticInventoryError("native value-source catalog basis is outside the pinned generation");
+    }
+    assertValueSourceCatalog(wire, readInventorySchemaIdentity(db, catalog.id));
+  }
 }

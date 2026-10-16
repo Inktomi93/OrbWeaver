@@ -7,7 +7,18 @@ import { SyntaxKind } from "ts-morph";
 import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
 import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import { readDrizzleValueSources } from "../../floor/code-facts/drizzle-query.ts";
-import type { ForeignKeyParentRead, SchemaTableIndex, TenancySchema, ValuePinTarget, ValueReceiver, ValueSources } from "../contract/tenancy.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import type {
+  ForeignKeyParentRead,
+  SchemaTableIndex,
+  TenancyPinServices,
+  TenancySchema,
+  ValuePinTarget,
+  ValueReceiver,
+  ValueSources,
+} from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { readsTable } from "./tenancy-join.ts";
 import { declaredTableOf, sameReadReceiver, tableRefsOf } from "./tenancy-read.ts";
@@ -18,17 +29,22 @@ const IN_ARRAY_OPERATOR = "inArray";
 const ID_COL = "id";
 const CHATS_SQL_NAME = "chats";
 /** Project canonical native source facts onto the tenancy classification index. */
-export function valueSourcesOf(value: Node, index: SchemaTableIndex): ValueSources {
-  const fact = readDrizzleValueSources(value);
+export function valueSourcesOf(value: Node, index: SchemaTableIndex, services?: TenancyPinServices): ValueSources {
+  const evidence = services?.sourceEvidence(value);
+  const fact = evidence?.source ?? readDrizzleValueSources(value);
   if (fact.kind === "unresolved") {
     return { receivers: [], subselects: [], unresolved: true };
   }
   const receivers = new Map<string, ValueReceiver>();
   for (const member of fact.value.members) {
-    const refs = tableRefsOf(member.receiver, index);
+    const native = evidence?.tables.find((table) => table.node === member.receiver);
+    if (evidence !== undefined && native === undefined) {
+      throw new Error("native pin receiver table evidence is unavailable");
+    }
+    const refs = tableRefsOf(member.receiver, index, native?.references);
     if (refs.some((ref) => ref.kind === "table" || ref.kind === "subquery")) {
       const receiver = member.receiver.getText();
-      receivers.set(receiver, { receiver, table: declaredTableOf(member.receiver, index), node: member.receiver });
+      receivers.set(receiver, { receiver, table: declaredTableOf(member.receiver, index, native?.references), node: member.receiver });
     }
   }
   return { receivers: [...receivers.values()], subselects: fact.value.subselects, unresolved: false };
@@ -46,13 +62,46 @@ function isStringLike(type: Type): boolean {
 
 /** Is this value a plain caller value by its TYPE: a string or branded string id, or an array of them? A column,
  *  a builder, an untyped parameter and a nullable id are not. */
-export function isPlainValue(value: Node, index: SchemaTableIndex): boolean {
-  const sources = valueSourcesOf(value, index);
+export function isPlainValue(value: Node, index: SchemaTableIndex, services?: TenancyPinServices): boolean {
+  const sources = valueSourcesOf(value, index, services);
   if (sources.unresolved || sources.receivers.length > 0 || sources.subselects.length > 0) {
     return false;
   }
+  if (services !== undefined) {
+    const readers = services.typeObservations(value);
+    const root = nodeTypeSelector(value);
+    const element = readers.arrayElement(root).element;
+    return observedStringLike(element !== null && readers.select(element) !== null ? element : root, readers, new Map());
+  }
   const type = value.getType();
   return isStringLike(arrayElementOf(type) ?? type);
+}
+
+function observedStringLike(selector: NativeTypeSelector, readers: TypeObservationReader, answers: Map<object, boolean>): boolean {
+  const selected = readers.select(selector);
+  if (selected === null) {
+    return false;
+  }
+  const identity = readers.type(selected).key;
+  const prior = answers.get(identity);
+  if (prior !== undefined) {
+    return prior;
+  }
+  const flags = readers.primitiveFlags(selector);
+  if (flags.templateLiteral === undefined) {
+    throw new Error("native pin template-literal flag was not captured");
+  }
+  answers.set(identity, false);
+  let value = flags.string || flags.stringLiteral || flags.templateLiteral;
+  if (!value) {
+    const intersections = readers.intersections(selector);
+    value =
+      intersections.length > 0
+        ? intersections.some((member) => observedStringLike(member, readers, answers))
+        : readers.type(selected).unionCount > 0 && readers.unions(selector).every((member) => observedStringLike(member, readers, answers));
+  }
+  answers.set(identity, value);
+  return value;
 }
 
 function arrayElementOf(type: Type): Type | undefined {
@@ -74,7 +123,7 @@ export function membershipPinColumns(table: string, index: SchemaTableIndex, fkE
 export function valuePinTerm(
   conjunct: Node,
   { receiver, column }: ValuePinTarget,
-  index: SchemaTableIndex,
+  { index, pins }: Pick<TenancySchema, "index" | "pins">,
   bindings: ReadonlyMap<Node, Node> = new Map(),
 ): boolean {
   if (!conjunct.isKind(SyntaxKind.CallExpression)) {
@@ -85,7 +134,7 @@ export function valuePinTerm(
     return false;
   }
   const [left, right] = conjunct.getArguments();
-  const pins = (side: Node | undefined, value: Node | undefined): boolean => {
+  const pinsSide = (side: Node | undefined, value: Node | undefined): boolean => {
     const columnSource = side === undefined ? undefined : readPredicateColumn(side, bindings);
     const read = columnSource?.kind === "resolved" ? staticMemberAccess(unwrapExpression(columnSource.value)) : undefined;
     const actualReceiver = read === undefined ? undefined : readPredicateArgument(read.receiver, bindings);
@@ -97,10 +146,10 @@ export function valuePinTerm(
       sameReadReceiver(actualReceiver.value, receiver) &&
       (column === undefined || read.name === column) &&
       !readsTable(actualValue.value, receiver) &&
-      isPlainValue(actualValue.value, index)
+      isPlainValue(actualValue.value, index, pins)
     );
   };
-  return pins(left, right) || (isEq && pins(right, left));
+  return pinsSide(left, right) || (isEq && pinsSide(right, left));
 }
 
 /** The written receiver of a `parent` row this conjunct binds to the bound row along one declared foreign key
@@ -131,7 +180,7 @@ export function parentReadOf(
 export function currentMemberRoomPinned(
   room: Node,
   boundTables: readonly Node[],
-  { index, fkEdges }: TenancySchema,
+  { index, fkEdges, pins }: TenancySchema,
   binds: (test: (conjunct: Node, bindings: ReadonlyMap<Node, Node>) => boolean) => boolean,
 ): boolean {
   const chats = index.identBySqlName.get("chats");
@@ -149,7 +198,9 @@ export function currentMemberRoomPinned(
   return boundTables.some(
     (table) =>
       declaredTableOf(table, index) === participants &&
-      binds((conjunct, bindings) => valuePinTerm(conjunct, { receiver: table, column: "userId" }, index, bindings)) &&
+      binds((conjunct, bindings) =>
+        valuePinTerm(conjunct, { receiver: table, column: "userId" }, { index, ...(pins === undefined ? {} : { pins }) }, bindings),
+      ) &&
       binds((conjunct, bindings) => {
         if (!(conjunct.isKind(SyntaxKind.CallExpression) && callsDrizzleOperator(conjunct, "isNull"))) {
           return false;

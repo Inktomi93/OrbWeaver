@@ -5,6 +5,8 @@ import type { NativeAuthoredValueProjection } from "./authored-value-projection.
 import { replayAuthoredValueProjection } from "./authored-value-projection-codec.ts";
 import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
 import type { DrizzleWrite } from "./drizzle-columns.ts";
+import { replayDrizzleValueSourceEvidence } from "./drizzle-evidence-replay.ts";
+import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
 import { replayModuleOrigin } from "./module-origin-codec.ts";
 import { replayOrdinaryObservations } from "./ordinary-observations-codec.ts";
 import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
@@ -52,6 +54,7 @@ export function replayInvocationEvidence(
   const authoredComposites = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const stableValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
+  const drizzleValueSources = new Map<MorphNode, DrizzleValueSourceEvidence>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
   const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
   const storedValues = new Map<MorphNode, ProjectedStoredValueShape>();
@@ -60,6 +63,7 @@ export function replayInvocationEvidence(
   const indexedParameters = new Map<MorphNode, readonly IndexedCallParameters[]>();
   for (const profile of wire.profiles) {
     const node = replay(profile.node);
+    replaySourceProfile(profile, node, replay, drizzleValueSources);
     if (profile.module !== undefined) {
       modules.set(node, restore(profile.module, module));
     }
@@ -112,6 +116,7 @@ export function replayInvocationEvidence(
     stableValues,
     canonicalValues,
     typeProjections,
+    ...sourceAttachment(wire, drizzleValueSources),
     authoredValues,
     storedValues,
     columnRows,
@@ -292,4 +297,20 @@ function replayAdditionalReferences(
   if (profile["authored-composite"] !== undefined) {
     context.authoredComposites.set(node, context.restore(profile["authored-composite"], context.replay));
   }
+}
+function replaySourceProfile(
+  profile: Profile,
+  node: MorphNode,
+  replay: (span: InventorySpan) => MorphNode,
+  sources: Map<MorphNode, DrizzleValueSourceEvidence>,
+): void {
+  if (profile["drizzle-value-sources"] !== undefined) {
+    sources.set(node, replayDrizzleValueSourceEvidence(profile["drizzle-value-sources"], replay));
+  }
+}
+function sourceAttachment(
+  wire: InventoryInvocationEvidence,
+  sources: ReadonlyMap<MorphNode, DrizzleValueSourceEvidence>,
+): Pick<NativeInvocationEvidence, "drizzleValueSources"> {
+  return wire.drizzleSourcesBasis === undefined ? {} : { drizzleValueSources: sources };
 }

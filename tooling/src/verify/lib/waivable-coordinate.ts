@@ -82,3 +82,10 @@ export function waivableCoordinate(value: string): string | undefined {
   const cut = head.trimEnd();
   return cut !== "" && cut === cut.trimStart() ? cut : undefined;
 }
+
+/** Does a piece of static text MENTION the waiver spelling for this policy id (`@orb-waive <id>(` or
+ *  `@orb-waive-file <id>(`)? The test a `fix` must pass — a mention is what an author needs to type,
+ *  wherever in the sentence it sits. Either form satisfies the requirement. */
+export function mentionsWaiverOf(segment: string, policyId: string): boolean {
+  return segment.includes(`@orb-waive ${policyId}(`) || segment.includes(`@orb-waive-file ${policyId}(`);
+}

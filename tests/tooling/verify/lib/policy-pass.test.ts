@@ -44,6 +44,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     facts: [],
     resources: analysis === "resource" ? [{ kind: "package-metadata", id: "root" }] : [],
     message: `${id} message`,
+    fix: `waive with @orb-waive ${id}(position): reason`,
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode, files: { [path]: "export const clean = true;\n" }, why: "nearest legal shape" }],

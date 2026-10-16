@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Audit gate necessity before further native migration. Move covered claims to maintained tools and separate syntax/module-only work from deep semantics. D320 excludes legacy typed populations without removing CI regression execution or native typechecking.
+Finish the remaining assigned native delivery before the D321 migration in item 1041. Do not expand delivery into new MOVE or DELETE fact-store ports. D320 excludes legacy typed populations while preserving regression execution and native typechecking.
 
 Route maintained verifier typed reads through canonical native source and checker views. Preserve the separate cheap syntax scan and importing-world meaning. Reuse the run-owned lazy workspace without eager world enumeration or private compiler programs.
 
@@ -38,4 +38,6 @@ Fixture provenance and browser mounting preserve native helper, alias, signature
 
 Finite role, tuple, factory, union and store-selector consumers pass ordinary controls and review. Value capture follows selected demand; export ambiguity remains complete. Evidence: `reports/review/1027-native-finite-ordinary.md`.
 
-Owner-scoped SQL and remaining checker governance remain open. Complete consumer equivalence, real-tree censuses, memory and hosted-runner cost remain unqualified.
+The gate-necessity audit classifies the complete assigned population and shared providers. Evidence: `reports/review/typed-gate-necessity-census.md`.
+
+Plain-value pins, session capture reuse, evaluated waiver metadata and lazy lexical projections pass review and scoped controls. SQL containment and existing complete-proof failures remain open. Evidence: `reports/review/1027-native-reduction-wave.md`. Consumer equivalence and hosted cost remain unqualified.

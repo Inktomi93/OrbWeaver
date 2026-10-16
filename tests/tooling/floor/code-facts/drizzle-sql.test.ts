@@ -18,6 +18,7 @@ import { SyntaxKind } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { readDrizzleClientCall } from "../../../../tooling/src/verify/lib/drizzle-client-call.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const R1_GENERATION_HELPER = `import { characterEmbeddings, embedSpaceState, embedGenerationTargets } from "@orb/db";
 import type { SQLWrapper } from "drizzle-orm";
@@ -256,6 +257,7 @@ for (const scenario of R1_CASES) {
       policies: [gate],
       root: fixture.root,
       project: fixture.project,
+      nativeTypeFacts: () => isolatedTypeFacts(fixture.project),
       reviewedGrants: [],
       failOnWarnings: false,
     });

@@ -58,6 +58,26 @@ function constInitializers(question: TypeObservationQuestion, readers: TypeObser
   }
 }
 
+function drizzlePredicateInputs(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  if (question.properties !== undefined) {
+    throw new Error("native predicate inputs do not nominate named properties");
+  }
+  for (const seed of question.nodes) {
+    for (const node of readers.predicateInputs(seed).values) {
+      readers.symbol(node);
+      const root = nodeTypeSelector(node);
+      const element = readers.arrayElement(root).element;
+      const selector = element !== null && readers.select(element) !== null ? element : root;
+      for (const part of observeTypeConstituentRoots([selector], readers, [])) {
+        if (readers.primitiveFlags(part).templateLiteral === undefined) {
+          throw new Error("native predicate-input template-literal flag was not captured");
+        }
+      }
+      valueProfile(question, node, profile);
+    }
+  }
+}
+
 function propertyLiterals(readers: TypeObservationReader, selector: NativeTypeSelector, at: MorphNode, names: readonly string[]): void {
   if (readers.select(selector) === null) {
     return;
@@ -704,6 +724,7 @@ const questions: Record<
   },
   "ct-mounting": ctMounting,
   "ct-contributions": ctContributions,
+  "drizzle-predicate-inputs": drizzlePredicateInputs,
   "declaration-closure": declarationClosure,
   "literal-values": (question, readers): void => {
     for (const node of question.nodes) {

@@ -13,6 +13,7 @@ import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "./drizzle-evidenc
 import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleQuery, InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { drizzleInventorySchemas } from "./drizzle-inventory-contract.ts";
+import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
 import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
 import type { InventoryOrdinaryObservations } from "./ordinary-observations-inventory.ts";
 import { ordinaryObservationDemandSchema, ordinaryObservationsSchema } from "./ordinary-observations-inventory.ts";
@@ -136,6 +137,7 @@ export const INVOCATION_VALUE_FACETS = [
   "authored-composite",
   "stable",
   "type-projection",
+  "drizzle-value-sources",
   "authored-value",
   ...VALUE_OBSERVATION_FACETS,
 ] as const;
@@ -172,6 +174,15 @@ export type InventoryInvocationQuery = z.infer<typeof invocationQuerySchema>;
 export interface InventoryNativeInvocationQuery {
   readonly program: string;
   readonly query: InventoryInvocationQuery;
+}
+
+/** Value-source table identities borrow the one explicit complete native schema catalog. */
+export function invocationNeedsValueSourceCatalog(plan: InventoryInvocationPlan): boolean {
+  return (
+    plan.facets.includes("drizzle-value-sources") ||
+    plan.arguments.some((argument) => argument.facets.includes("drizzle-value-sources")) ||
+    plan.typeObservations?.questions?.some((question) => question.valueFacets?.includes("drizzle-value-sources") === true) === true
+  );
 }
 
 export function invocationQueryKey(query: InventoryInvocationQuery): string {
@@ -266,6 +277,7 @@ export const typeObservationWireSchema = typeObservationsSchema(spanSchema);
 export const invocationEvidenceSchema = z.object({
   typeObservations: typeObservationWireSchema.optional(),
   observations: ordinaryObservationWireSchema.optional(),
+  drizzleSourcesBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
   observationBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
   query: invocationQuerySchema,
   callee: spanSchema.nullable(),
@@ -283,6 +295,7 @@ export const invocationEvidenceSchema = z.object({
       "reference-writes": inventoryReferenceSchema(z.literal(true)).optional(),
       "authored-composite": nodeFactSchema.optional(),
       "type-projection": typeProjectionWireSchema.optional(),
+      "drizzle-value-sources": drizzleSchemas.valueSources.optional(),
       "authored-value": authoredValueProjectionSchema.optional(),
       "stored-value": storedValueObservationSchema(spanSchema).optional(),
       "row-column": columnRowObservationSchema(spanSchema).optional(),
@@ -317,6 +330,7 @@ export interface NativeInvocationEvidence {
   readonly stableValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly canonicalValues: ReadonlyMap<Node, ReferenceFact<Node>>;
   readonly typeProjections: ReadonlyMap<Node, NativeTypeProjection>;
+  readonly drizzleValueSources?: ReadonlyMap<Node, DrizzleValueSourceEvidence> | undefined;
   readonly authoredValues: ReadonlyMap<Node, NativeAuthoredValueProjection>;
   readonly storedValues: ReadonlyMap<Node, ProjectedStoredValueShape>;
   readonly columnRows: ReadonlyMap<Node, NativeColumnRowObservation>;
@@ -327,6 +341,7 @@ export interface NativeInvocationEvidence {
 }
 export interface CapturedInvocationEvidence extends NativeInvocationEvidence {
   readonly captureSource?: (node: Node) => void;
+  readonly drizzleSourcesBasis?: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   readonly observationBasis?: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null;
   readonly sources: readonly SourceFile[];
 }
@@ -343,6 +358,9 @@ export type InventoryInvocationAtom = z.infer<typeof invocationAtomSchema>;
 
 /** Coverage is derived from the captured argument fact and requested facets, never family presence alone. */
 export function assertInvocationEvidence(entry: InventoryInvocationEvidence): void {
+  if (invocationNeedsValueSourceCatalog(entry.query) !== (entry.drizzleSourcesBasis !== undefined)) {
+    throw new SemanticInventoryError("native value-source schema basis is missing or unrequested");
+  }
   const profiles = new Map(entry.profiles.map((profile) => [inventoryNodeQueryKey(profile.node), profile]));
   if (profiles.size !== entry.profiles.length) {
     throw new SemanticInventoryError("native invocation profile identity is ambiguous");

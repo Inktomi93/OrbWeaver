@@ -222,7 +222,7 @@ export const POLICY_FIELDS = keysOf(POLICY_FIELD_TABLE);
 export type PolicyField = keyof typeof POLICY_FIELD_TABLE;
 
 /** The fields a descriptor may OMIT: `workItem` is required exactly when `severity` is `warning` (the union
- *  above), `fix` is owed by the ordinary door and read by a soundness arm rather than by the loader, and
+ *  above), `fix` is owed by the ordinary door and its evaluated waiver spelling is validated by the loader, and
  *  `mustRefuse` is the optional third proof arm (§6.3). Everything else is required. The table is exhaustive
  *  over optional properties of the descriptor type; accepting only valid field names would miss omissions. */
 type OptionalPolicyField = {

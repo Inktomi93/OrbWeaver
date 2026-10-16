@@ -1607,6 +1607,7 @@ function maintainedRulePacks() {
       files: vitestTests,
       ignores: playwrightTests,
       plugins: { vitest },
+      settings: { vitest: { vitestImports: ["@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts"] } },
       rules: {
         ...packRules(vitest.configs.recommended, "vitest/"),
         "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],

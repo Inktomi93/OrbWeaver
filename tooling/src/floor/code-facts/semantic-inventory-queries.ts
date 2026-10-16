@@ -35,6 +35,7 @@ import {
   inputSchema,
   invocationAtomSchema,
   invocationEvidenceSchema,
+  invocationNeedsValueSourceCatalog,
   invocationQueryKey,
   memberOriginSchema,
   partitionSchema,
@@ -586,7 +587,11 @@ export function hasInventoryInvocationCoverage(
     const snapshot = invocationSnapshot(db);
     const covered = queries.every((query) => {
       const matches = [...invocationEvidence(db, id, query, snapshot)];
-      return matches.length === 1 && (query.mode !== "observations" || JSON.stringify(matches[0]?.observationBasis) === JSON.stringify(observationBasis));
+      return (
+        matches.length === 1 &&
+        (query.mode !== "observations" || JSON.stringify(matches[0]?.observationBasis) === JSON.stringify(observationBasis)) &&
+        (!invocationNeedsValueSourceCatalog(query) || JSON.stringify(matches[0]?.drizzleSourcesBasis) === JSON.stringify(observationBasis))
+      );
     });
     if (ownsSnapshot) {
       db.exec("COMMIT");

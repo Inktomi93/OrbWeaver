@@ -22,15 +22,17 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 ### Recovery priority and analysis scope
 
-Read this section before dispatching more deep-reader work. Gate necessity comes before further semantic expansion: audit the complete gate/provider population, move maintained-tool coverage, and retain only unmatched judgments. Classify syntax, module identity and actual inferred-type work separately. Shared providers count once when measuring removed extraction work.
+Finish the remaining assigned 1027 delivery before the audited gate migration. D321 records the owner rulings; item 1041 owns that migration. After delivery, custom gate analysis serves the KEEP set, not every currently typed descriptor. Do not port MOVE or DELETE rows into the fact store. Shared providers count once for cost.
 
 [D320](../../adr/0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) makes legacy tests run/typecheck-only. Keep their CI regression execution and native typecheck programs. Exclude legacy worlds from semantic extraction and legacy files from typed gate/provider populations and type-aware lint. Preserve cheap admission and boundary checks.
 
-That exclusion is not yet implemented or qualified. Its source and evidence work belongs to items 1002 and 1027. Derive eligibility from canonical world/test-kind metadata. Preserve complete native options, roots and resolved closure inside every selected eligible program. Demand, generation identity and completeness must state the changed analysis scope; old all-world evidence remains historical evidence for its original scope.
+The exclusion is implemented and reviewed in its lane; ordinary integration remains open. Its source and evidence work belongs to items 1002 and 1027. Derive eligibility from canonical world/test-kind metadata. Preserve complete native options, roots and resolved closure inside every selected eligible program. Demand, generation identity and completeness must state the changed analysis scope; old all-world evidence remains historical evidence for its original scope.
 
 Reduce structural cost before more micro-optimization: remove legacy deep analysis, eliminate unnecessary typed claims, and isolate accidental server closures through the AppRouter type bridge. Declaration bridges require fresh generated output and qualified transitive closure; do not replace them with copied shapes. Compiler baselines guide cost diagnosis but do not establish equivalent analysis work.
 
-The [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns classification evidence. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
+The completed [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns source classification, not successor qualification. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
+
+The pinned TS7 package exposes a checker API with batched queries. Measure complete matched-world extraction and combined client/server memory before choosing the backend. Keep cold acquisition, queried facts and warmed reuse separate. A Program-open probe does not qualify the persisted store. An external nightly comparison changes no repository pin.
 
 ### Execution sequence
 
@@ -132,7 +134,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 
 Gate families fold onto the shared readers:
 
-- Type homes: the inline alias and interface policies converge on one Spine-TypeScript section 7.4 placement judgment and home table. Native restrictions own covered syntax. Service-presence and ledger field bans retain separate hard enforcement until successor coverage is proved. Component-owned APIs stay beside their components; lower-owned data stays derived.
+- Type homes: Spine-TypeScript section 7.4 owns the canonical home table. Native restrictions, typed owner data and tests replace placement proxies under D321. KEEP relational analysis stays shared. Preserve service-presence and ledger-field claims until their successors qualify. Component APIs stay beside components; lower-owned data stays derived.
 - JSON columns: json-column-read-parsed, json-column-write-parity and open-json-column-key-parity become one JSON-column fact with three judgements.
 - Copies: contract-structural-copy, contract-derives-not-respells, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
 
@@ -186,32 +188,27 @@ Contextual sharing, optional invocation and native resource registration pass bo
 
 Prove native world differences, alias and dynamic-import identity, complete population and separated consumer classes through bounded controls. Prove change invalidation, atomic publication, worker release and reuse by concurrent readers. Change inputs during extraction and prove publication refuses them. Read during a cross-world update and prove readers never receive a mixed generation. Compare existing collector output on the same controls. Replay the frozen inventory only after these controls and the consumer migration pass review. Record peak memory during that replay; a heap limit is not a measurement.
 
-### Gates move to the tool that already does the job
+### Gates move to native enforcement
 
-Maintained tools own every rule they can express. Replace custom gates about names, imports, globals, JSX elements or syntax with native configuration. Needing types does not justify a custom gate when an installed typed rule covers the claim.
+[D321](../../adr/0321-native-gate-replacements-and-keep-only-analysis.md) owns the migration rulings. [The migration item](../../work/1041-replace-audited-gates-with-native-enforcement.md) follows 1027. The canonical external audit is in /home/inktomi/Desktop/gate-audit. Read its README, folder CSVs and raw results; loose Desktop copies are obsolete.
 
-| Claim | Preferred owner |
-| - | - |
-| React hooks, compiler correctness, effects, browser-resource cleanup and accessibility | Maintained React, hooks, browser API and accessibility ESLint plugins |
-| Query-client usage, schema syntax and database write syntax | Installed query, Zod and Drizzle ESLint rules, within their actual coverage |
-| Restricted names, globals, APIs, imports and JSX syntax | Biome or native ESLint restrictions |
-| Resolved package doors, tier direction and forbidden import reach | Dependency-cruiser and package resolution |
+The audit asks whether a custom engine is necessary after changing the enforcement mechanism. The earlier typed-necessity census describes current implementations. A genuine Type dependency can move to a type change, native typed lint or a production test. Neither census alone proves a successor correct.
 
-Read the [enforced inventory](../../law/Core-Enforcement-Active-Gates.md) and each candidate implementation before choosing its replacement. Check installed rule behavior and effective configuration, not similar rule names. Move the covered claim and delete its custom implementation, registration and redundant proofs in the same assignment. For partial coverage, retain only the unmatched semantic claim. Custom grant, counting and certification machinery does not itself justify retention. Judge recurring exceptions against their actual production subjects before carrying them into native configuration.
+Run the migration in this order: security replacements; mechanical native lint/import moves; typed production registries; runtime/type tests; stylelint and CSS moves; obsolete family scaffolding; KEEP-only engine qualification and memory measurement. Security-executor lands real composition-root tests and native boundaries before deleting a security gate. A planted violation must fail.
 
-Batch React, syntax and import replacements by shared configuration and policy. Use bounded positive and rejection controls for the changed claims. Reuse matching evidence; do not start a repository-wide checker recertification campaign. Keep custom analysis only when no maintained tool expresses the required judgment.
+Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 
-Native radius and shadow resets reject stock classes while preserving supported token output. Effective native ESLint covers their class carriers. Native syntax also owns direct JSX nonempty literal splices and initial dark variants. Shared semantic policies retain imported, composed and permission-sensitive cases. Arbitrary-value replacement remains unsupported by the installed rule. Prove each remaining token claim before deleting its gate; namespace configuration alone does not establish coverage. World purity stays native: per-world tsconfigs written by the type-config generator, checked by `tsc`, plus `noNodejsModules` and the dependency-cruiser world rules; both stay by owner ruling. Replace config-liveness parsers and the ESLint selector model only where native APIs cover their actual claims. Keep dependency-cruiser budget validation and genuine runner membership checks. Native unused-suppression reporting does not prove config-path liveness; a generic dead-path check is not yet built. Preserve the root development-dependency judgment when removing registry parity. Examine other health checks and gates about gates last, one by one. A blanket deletion is not approved.
+Required producers cannot disappear with their audit row. Replace bus definitions, schema/catalog data, static-class and floorless-control inputs before removing an upstream producer used by KEEP consumers. Preserve meaningful unavailable-data and lifecycle refusal. Retire redundant certification, not the remaining consumer's failure behavior.
 
-Native configuration owns tooling sibling import boundaries in `.dependency-cruiser.cjs` and PNG engine restrictions in `eslint.config.js`. Native Drizzle deletion checks cover neighboring scoped writes; deliberate full replacements use statement-local permissions. ESLint discovery uses its installed `calculateConfigForFile` API. `root-development-dependencies` preserves root manifest ownership without a second script registry. Native snapshot transactions, runner membership and dependency-cruiser budget validation remain. Config-liveness parsers and the private Biome rule prober are deleted.
+Move law tables into their production owners and type total registries against canonical unions. CI V8 coverage replaces contract-verb-presence and executes every domain verb implementation. A numbered database migration and migration test replace freeze-provenance-write-pairing with a CHECK or trigger. Make the compose query capability import-restricted before retiring its query detector; retain per-call analysis.
 
-Evaluate package/test reach, capability provenance, ambient aliases and shadows, imported/composed classes, suppression taxonomy, Zod identity and CT scheduling/live reads separately. These are candidate semantic remainders, not a blanket retention list. Native syntax coverage alone does not establish their judgments; the shared-reader work consolidates any remaining analysis. Other token-scale replacements remain unqualified, and generic config-path liveness remains unbuilt. CSS-file tooling proposals remain unapproved dependencies. D307 and D317 retain weekly checker cadence.
+Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Item 1006 owns that disposition. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
 
-Installed Zod replacements differ in call grammar, binding identity and literal-union remedies. Preserve those judgments until a native replacement proves their actual accepted population. React and query plugins do not replace application selection taint, invalidation reach or window recovery. Native ESLint owns direct React memo named imports and direct numeric reservation counts. Custom policies retain unmatched origins, constants and TypeScript wrappers. Shared subject vocabulary preserves actual file-level memo permissions and their custom authority.
+Preserve D1/D40 request and turn construction boundaries and D118 subscription placement, not only runtime procedure names. Native prose restrictions and real delivery tests preserve D132's slot invariant. A typed reservation-key object does not prove unique mount use; qualify the actual successor before dropping that claim.
 
-Tooling tests follow one rule: test verdict logic and lifecycle or concurrency rules (caps, races, reaping, ownership, slots, bands) fast against the decision code; an instrument's plumbing is proven by use; a test that reruns a gate over the real tree is deleted, because CI's structure stage already does it.
+World purity remains with native per-world compiler programs, Biome and dependency-cruiser. Keep selected native options, roots and closure complete. D320 excludes legacy semantic worlds and typed subjects, not cheap legacy admission/boundary checks or native typechecks.
 
-Keep the semantic CT live-read assertion checker alongside maintained Playwright lint. Native rules do not follow imported snapshots, recursive aliases and the typed live-read cases. Their direct syntax coverage does not replace that invariant; population shrink does not establish equivalence.
+Tooling tests exercise verdict logic and resource/process lifetimes on bounded inputs. Remove repeated live-tree certification with its qualified successor. General checker cleanup stays in item 1012; it does not delay security or native replacements.
 
 ### Public doors and production usage
 
@@ -322,7 +319,7 @@ The test-mirror plan: item 890 server harness rows move here, item 901 hosts the
 
 ## Late tooling cleanup
 
-The [checker-recertification cleanup](../../work/1012-remove-whole-tree-checker-recertification-from-tooling-tests.md) follows foundation and replacement-suite work. Remove redundant live-tree reruns and certification scaffolding while preserving bounded verdict, refusal and lifecycle tests. Adjudicate static tooling-certification claims individually; move native-expressible restrictions and retain genuine failure semantics. This cleanup does not delay required production fixes or dependent harness and corpus qualification. Real-corpus certification overlays do not block native reader delivery. Inventory transaction overlays still require current facts and isolated generations.
+General [checker-recertification cleanup](../../work/1012-remove-whole-tree-checker-recertification-from-tooling-tests.md) follows foundation and replacement-suite work. D321 family-owned obsolete checks retire with their qualified replacements. Remove redundant live-tree reruns and certification scaffolding while preserving bounded verdict, refusal and lifecycle tests. Adjudicate static tooling-certification claims individually; move native-expressible restrictions and retain genuine failure semantics. This cleanup does not delay required production fixes or dependent harness and corpus qualification. Real-corpus certification overlays do not block native reader delivery. Inventory transaction overlays still require current facts and isolated generations.
 
 ## Test plan
 

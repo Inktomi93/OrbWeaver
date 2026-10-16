@@ -10,6 +10,7 @@ export const ZOD_OUTPUT_PROPERTY = "_output";
 export const TYPE_OBSERVATION_VALUE_FACETS = [
   "module",
   "global",
+  "drizzle-value-sources",
   "binding",
   "string",
   "stable",
@@ -28,6 +29,7 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "literal-values",
   "property-symbols",
   "const-initializers",
+  "drizzle-predicate-inputs",
   "declaration-closure",
   "type-properties",
   "type-constituents",
@@ -60,6 +62,7 @@ export interface TypeObservationQuestion<Anchor = Node> {
   readonly files?: readonly string[] | undefined;
   readonly relationTargets?: readonly InventorySpan[] | undefined;
   readonly callableHomes?: readonly { readonly name: string; readonly suffix: string }[] | undefined;
+  readonly predicateContext?: { readonly calls: readonly Anchor[]; readonly references: readonly Anchor[] } | undefined;
   readonly properties?: readonly string[] | undefined;
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
@@ -84,7 +87,8 @@ export function typeObservationNeedsSourceBindings(demand: TypeObservationDemand
     demand?.questions?.some(
       (question) =>
         question.valueFacets !== undefined &&
-        (question.kind !== "const-initializers" || question.valueFacets.some((facet) => facet !== "module" && facet !== "global")),
+        ((question.kind !== "const-initializers" && question.kind !== "drizzle-predicate-inputs") ||
+          question.valueFacets.some((facet) => facet !== "module" && facet !== "global" && facet !== "drizzle-value-sources")),
     ) === true
   );
 }
@@ -149,6 +153,7 @@ export interface TypeObservationValues<Anchor = Node> {
   readonly demand: TypeObservationDemand<Anchor>;
   readonly symbols: readonly NativeObservedSymbol<Anchor>[];
   readonly nodes: readonly NativeObservedNode<Anchor>[];
+  readonly predicateInputs?: readonly { readonly node: Anchor; readonly predicates: readonly Anchor[]; readonly values: readonly Anchor[] }[] | undefined;
   readonly constInitializers?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
   readonly types: readonly (NativeObservedType | null)[];
   readonly properties: readonly {
@@ -157,6 +162,9 @@ export interface TypeObservationValues<Anchor = Node> {
     readonly propertyCount?: number | undefined;
     readonly values: readonly { readonly name: string; readonly symbol: number; readonly type: number }[];
   }[];
+  readonly arrayElements?:
+    | readonly { readonly selector: number; readonly array: boolean; readonly readonlyArray: boolean; readonly value: number | null }[]
+    | undefined;
   readonly unions: readonly { readonly selector: number; readonly values: readonly number[] }[];
   readonly intersections?: readonly { readonly selector: number; readonly values: readonly number[] }[] | undefined;
   readonly constraints?: readonly { readonly selector: number; readonly value: number | null }[] | undefined;
@@ -202,6 +210,7 @@ export interface NativeTypeObservations extends TypeObservationValues {
 export interface TypeObservationCaptureOwner {
   readonly anchor: SourceFile;
   readonly admit: (node: Node) => void;
+  readonly predicateInputs?: ((node: Node) => PredicateInputValues) | undefined;
   readonly profile?: ((node: Node, facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][]) => void) | undefined;
   readonly references?: ((node: Node) => readonly Node[]) | undefined;
   readonly callableDeclaration?: ((node: Node) => ReferenceFact<CallableDeclaration>) | undefined;
@@ -210,6 +219,9 @@ export interface TypeObservationCaptureOwner {
 }
 
 export interface TypeObservationCaptureRequest {
+  readonly drizzleSources?:
+    | { readonly declarations: ReadonlySet<string>; readonly basis: import("./drizzle-inventory-contract.ts").InventorySchemaBasis | null }
+    | undefined;
   readonly demand: TypeObservationDemand;
   readonly references?: TypeObservationCaptureOwner["references"];
   readonly node?: TypeObservationCaptureOwner["node"];
@@ -249,6 +261,17 @@ export interface ObservedSignature {
   readonly parameters: readonly NativeTypeSelector[];
 }
 
+export interface PredicateInputValues {
+  readonly predicates: readonly Node[];
+  readonly values: readonly Node[];
+}
+
+export interface ObservedArrayElement {
+  readonly array: boolean;
+  readonly readonlyArray: boolean;
+  readonly element: NativeTypeSelector | null;
+}
+
 /** Only registered node/selector operations may be answered by a delivered reader. */
 export interface TypeObservationReader {
   readonly select: (selector: NativeTypeSelector) => ObservedReference<"type"> | null;
@@ -284,6 +307,8 @@ export interface TypeObservationReader {
   readonly literalValue: (selector: NativeTypeSelector) => ObservedLiteralValue | undefined;
   readonly typeArguments: (selector: NativeTypeSelector) => readonly NativeTypeSelector[];
   readonly functionExport: (node: Node) => boolean;
+  readonly predicateInputs: (node: Node) => PredicateInputValues;
+  readonly arrayElement: (selector: NativeTypeSelector) => ObservedArrayElement;
 }
 
 export interface TypeObservationCapture {

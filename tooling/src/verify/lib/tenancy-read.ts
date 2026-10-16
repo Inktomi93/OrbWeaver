@@ -51,10 +51,10 @@ function identOfRef(ref: DrizzleTableRef, index: SchemaTableIndex): string | und
 /** The schema tables a reference can name, through the ONE table resolver `pnpm ast columns` shares
  *  (`floor/code-facts/drizzle-table-ref.ts`): declarations, renaming and namespace imports, drizzle `alias()`/
  *  `aliasedTable()`, both arms of a conditional, a subquery's inner select, and the drizzle type's table name. */
-export function tableRefsOf(node: Node, index: SchemaTableIndex): readonly TableRef[] {
+export function tableRefsOf(node: Node, index: SchemaTableIndex, nativeReferences?: readonly DrizzleTableRef[]): readonly TableRef[] {
   const isTable = (declaration: VariableDeclaration): boolean =>
     index.idents.has(declaration.getName()) && declaration.getSourceFile().getFilePath().includes(SCHEMA_DIR);
-  return resolveDrizzleTableRefs(node, isTable).map((ref): TableRef => {
+  return (nativeReferences ?? resolveDrizzleTableRefs(node, isTable)).map((ref): TableRef => {
     if (ref.kind === "subquery") {
       return { kind: "subquery", select: ref.select };
     }
@@ -83,8 +83,8 @@ export function tableTargetOf(node: Node | undefined, classTableIdents: Readonly
 }
 
 /** The ONE declared table a reference names, or undefined when it names none or more than one. */
-export function declaredTableOf(node: Node, index: SchemaTableIndex): string | undefined {
-  const refs = tableRefsOf(node, index);
+export function declaredTableOf(node: Node, index: SchemaTableIndex, nativeReferences?: readonly DrizzleTableRef[]): string | undefined {
+  const refs = tableRefsOf(node, index, nativeReferences);
   const [first] = refs;
   return refs.length === 1 && first?.kind === "table" ? first.ident : undefined;
 }

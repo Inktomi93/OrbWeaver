@@ -1,6 +1,7 @@
 // Native projection observations preserve TypeScript's own lookup semantics before persistence or policy classification.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { typeProjectionWireSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { captureTypeProjection } from "../../../../tooling/src/floor/code-facts/type-projection.ts";
@@ -302,4 +303,58 @@ test("native lexical observations distinguish shorthand property symbols from th
   const plan = canonicalTypeProjectionPlan({ facets: ["lexical"], properties: [] });
   const facts = captureTypeProjection(shorthand, plan);
   expect(replayTypeProjection(encodeTypeProjection(facts, plan, span), plan, replay)).toEqual(facts);
+});
+
+test("lexical-only projection keeps the native overload value declaration without acquiring its Type", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/lexical-overload.ts",
+    "function helper(value: string): string;\nfunction helper(value: string) { return value; }\nexport const result = helper('value');\n",
+  );
+  const reference = source.getVariableDeclarationOrThrow("result").getInitializerIfKindOrThrow(SyntaxKind.CallExpression).getExpression();
+  const expected = reference.getSymbol()?.getValueDeclaration();
+  expect(expected).toBe(source.getStatements()[0]);
+  expect(reference.getSymbol()?.getDeclarations()).toHaveLength(2);
+  const original = Node.prototype.getType;
+  const types = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+    if (this === reference) {
+      throw new Error("lexical-only projection acquired an unnecessary Type");
+    }
+    return original.call(this);
+  });
+  try {
+    const read = typeProjectionFacet(captureTypeProjection(reference, { facets: ["lexical"], properties: [] }), "lexical");
+    expect(read.value).toMatchObject({ kind: "resolved", value: expected });
+    expect(read.declarations).toEqual(reference.getSymbol()?.getDeclarations());
+  } finally {
+    types.mockRestore();
+  }
+});
+
+test("Type-demanding scalar and member projections still acquire actual native Types", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  const source = project.createSourceFile(
+    "/demanded-type.ts",
+    'interface Base { readonly value: "native" } interface Child extends Base {} declare const child: Child;\n',
+  );
+  const node = source.getVariableDeclarationOrThrow("child").getNameNode();
+  const original = Node.prototype.getType;
+  let reads = 0;
+  const types = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+    if (this === node) {
+      reads += 1;
+    }
+    return original.call(this);
+  });
+  try {
+    const scalar = typeProjectionFacet(captureTypeProjection(node, { facets: ["scalar"], properties: [] }), "scalar");
+    expect(reads).toBe(1);
+    expect(scalar).toEqual({ stringLiterals: [], nonNullableObject: true, any: false, unknown: false });
+    const members = typeProjectionFacet(captureTypeProjection(node, { facets: ["member-declarations"], properties: ["value"] }), "member-declarations");
+    expect(reads).toBeGreaterThan(1);
+    const property = source.getInterfaceOrThrow("Base").getPropertyOrThrow("value");
+    expect(members).toMatchObject([{ name: "value", raw: [property], nonnullable: [property], origin: { kind: "resolved", value: [property] } }]);
+  } finally {
+    types.mockRestore();
+  }
 });

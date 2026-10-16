@@ -13,7 +13,7 @@ plan: test-foundation
 
 Remove live-tree gate reruns and repeated checker pipeline certification. Start with real-corpus liveness partitions, caught-failure census replay, spelling-twin census, dangling-reference repository replay and broad AST CLI scans. Preserve useful decision and lifecycle controls on bounded inputs.
 
-Include static tooling-certification gates. Separate marker and proof-roster requirements from actual failure, process, import and verdict behavior. Move covered restrictions to maintained tools or canonical runtime contracts before deleting custom enforcement.
+Follow D321 and item 1041 for family-owned certification removal during migration. Keep broader live-tree recertification cleanup late in the foundation plan. Preserve actual failure, process, import and verdict behavior; replace its owner before deleting enforcement.
 
 ## Why
 

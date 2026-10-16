@@ -20,6 +20,8 @@ The work items own live status. Contract, stored-value and current wire-boundary
 
 ### Recovery priority
 
+D321 and the test-foundation plan own the audited gate migration after 1027. Runtime replacement tests call production; they do not revive this inventory as a fake-harness retrofit queue.
+
 Follow [test-foundation's current analysis priorities](../test-foundation/design.md#recovery-priority-and-analysis-scope) before dispatch. D320 keeps legacy regression execution and native typechecking, not deep fact extraction or typed analysis. Replacement still preserves meaningful cases before legacy deletion. Audit maintained-tool and syntax coverage before expanding custom semantic readers; this inventory does not authorize another legacy retrofit or prover campaign.
 
 ### Using the inventory
