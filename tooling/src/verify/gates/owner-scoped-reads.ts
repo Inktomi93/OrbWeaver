@@ -663,7 +663,7 @@ export const gate = defineGate({
         const schemaFact = ctx.fact(drizzleSchemaFact).schema();
         recordReadySchemaFact(ctx, schemaFact);
         const scope: ReadScope = {
-          observations: observeCallReturns(calls, references, { suppliedCallableTargets: true }),
+          observations: { ...observeCallReturns(calls, references, { suppliedCallableTargets: true }), drizzleSql: pins.sql },
           pins,
           schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),

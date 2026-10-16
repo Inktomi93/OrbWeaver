@@ -7,6 +7,7 @@ import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
 import type { DrizzleWrite } from "./drizzle-columns.ts";
 import { replayDrizzleValueSourceEvidence } from "./drizzle-evidence-replay.ts";
 import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
+import { replayDrizzleSqlFacts } from "./drizzle-sql-facts-codec.ts";
 import { replayModuleOrigin } from "./module-origin-codec.ts";
 import { replayOrdinaryObservations } from "./ordinary-observations-codec.ts";
 import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
@@ -116,7 +117,7 @@ export function replayInvocationEvidence(
     stableValues,
     canonicalValues,
     typeProjections,
-    ...sourceAttachment(wire, drizzleValueSources),
+    ...sourceAttachment(wire, drizzleValueSources, replay),
     authoredValues,
     storedValues,
     columnRows,
@@ -311,6 +312,10 @@ function replaySourceProfile(
 function sourceAttachment(
   wire: InventoryInvocationEvidence,
   sources: ReadonlyMap<MorphNode, DrizzleValueSourceEvidence>,
-): Pick<NativeInvocationEvidence, "drizzleValueSources"> {
-  return wire.drizzleSourcesBasis === undefined ? {} : { drizzleValueSources: sources };
+  replay: (span: InventorySpan) => MorphNode,
+): Pick<NativeInvocationEvidence, "drizzleValueSources" | "drizzleSql"> {
+  return {
+    ...(wire.drizzleSourcesBasis === undefined ? {} : { drizzleValueSources: sources }),
+    ...(wire.drizzleSql === undefined ? {} : { drizzleSql: replayDrizzleSqlFacts(wire.drizzleSql, replay) }),
+  };
 }

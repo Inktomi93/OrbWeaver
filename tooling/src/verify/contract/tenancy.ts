@@ -84,6 +84,7 @@ export interface TenancyPinServices {
 export interface TenancyPinPass extends TenancyPinServices {
   readonly prepare: () => void;
   readonly assertSchema: (index: SchemaTableIndex) => void;
+  readonly sql: import("../../floor/code-facts/drizzle-sql-facts-contract.ts").DrizzleSqlReader;
 }
 
 /** One row source a predicate value reads a column of: its written receiver, and its declared schema table

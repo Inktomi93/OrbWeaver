@@ -296,6 +296,9 @@ function readPredicate(node: Node, context: SqlReadContext, active: ReadonlySet<
 
 /** Read one predicate without collapsing universal scope and existential selection into the same judgment. */
 export function readDrizzlePredicate(node: Node, observations?: CallReturnObservations): DrizzlePredicate {
+  if (observations?.drizzleSql !== undefined) {
+    return observations.drizzleSql.predicate(node);
+  }
   const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
   return captured?.kind === "unresolved"
     ? { kind: "unresolved", node, contained: false, presence: "optional" }
