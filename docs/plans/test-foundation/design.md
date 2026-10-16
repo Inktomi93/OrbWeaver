@@ -146,7 +146,7 @@ Exact Program source admission preserves compiler redirects and physical host in
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture requires explicit reference inputs and stages complete observations under native lifetime validation. Ordinary installed controls qualify this source, its dependency integration and defaulted binding provenance. Destructured receiver origins retain mutation checks. The actual env-parser control still refuses inherited descriptor exposure at identity dispatch. Item 1002 owns that unresolved boundary, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture requires explicit reference inputs and stages complete observations under native lifetime validation. Ordinary installed controls qualify this source, its dependency integration and defaulted binding provenance. Destructured receivers retain mutation checks; harmless sibling reads require native value and descriptor proof. The actual env-parser control still refuses inherited descriptor exposure at identity dispatch. Item 1002 owns that unresolved boundary, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -300,7 +300,7 @@ The test-mirror plan: item 890 server harness rows move here, item 901 hosts the
 
 ## Late tooling cleanup
 
-The [checker-recertification cleanup](../../work/1012-remove-whole-tree-checker-recertification-from-tooling-tests.md) follows foundation and replacement-suite work. Remove redundant live-tree reruns and certification scaffolding while preserving bounded verdict, refusal and lifecycle tests. Adjudicate static tooling-certification claims individually; move native-expressible restrictions and retain genuine failure semantics. This cleanup does not delay required production fixes or dependent harness and corpus qualification.
+The [checker-recertification cleanup](../../work/1012-remove-whole-tree-checker-recertification-from-tooling-tests.md) follows foundation and replacement-suite work. Remove redundant live-tree reruns and certification scaffolding while preserving bounded verdict, refusal and lifecycle tests. Adjudicate static tooling-certification claims individually; move native-expressible restrictions and retain genuine failure semantics. This cleanup does not delay required production fixes or dependent harness and corpus qualification. Real-corpus certification overlays do not block native reader delivery. Inventory transaction overlays still require current facts and isolated generations.
 
 ## Test plan
 

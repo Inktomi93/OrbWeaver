@@ -512,15 +512,63 @@ function returnedBindingElement(
   return returnedValue(initializer, [key, ...path], context);
 }
 
-function defaultBindingUseRefusal(
+function defaultBindingSiblingRead(
+  use: Node,
+  fields: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+  context: ReturnedValueContext,
+): ReferenceFact<true> | undefined {
+  const member = use.getParent();
+  const access = member === undefined ? undefined : staticMemberAccess(member);
+  if (context.program === undefined || member === undefined || access?.receiver !== use || isReferenceWriteTarget(use) || !terminalDataRead(member)) {
+    return;
+  }
+  for (const field of fields.value) {
+    const values = callableSuppliedLeaves(use, [access.name], context.program, {
+      bindings: field.bindings,
+      active: context.active,
+      activeValues: context.active,
+    });
+    if (values.kind === "unresolved") {
+      return values;
+    }
+    if (values.value.length === 0) {
+      return valueRefusal(member, "missing", "a binding sibling read has no actual value alternatives");
+    }
+    for (const value of values.value) {
+      const closed = defaultBindingSiblingValue(value, context);
+      if (closed.kind === "unresolved") {
+        return closed;
+      }
+    }
+  }
+  return { kind: "resolved", value: true, trace: { declarations: [], origin: use } };
+}
+
+function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext): ReferenceFact<true> {
+  if (!source.present) {
+    const key = source.path[0];
+    const own =
+      source.path.length === 1 && key !== undefined && context.program !== undefined
+        ? ownDataPresence(source, key, context.program, context.active)
+        : undefined;
+    return own !== undefined
+      ? nativeInheritedEffects(source.value, { ...context, bindings: source.bindings })
+      : valueRefusal(source.value, "unsupported", "a binding sibling has no closed ordinary absent descriptor");
+  }
+  const scalar = readStaticAuthoredValue(source.value);
+  const undefinedValue =
+    runtimeUndefinedValue(source.value) && (!N.isVoidExpression(source.value) || readStaticAuthoredValue(source.value.getExpression()).kind === "resolved");
+  return source.path.length === 0 && (undefinedValue || (scalar.kind === "resolved" && scalar.value.kind === "scalar"))
+    ? { kind: "resolved", value: true, trace: { declarations: [], origin: source.value } }
+    : valueRefusal(source.value, "unsupported", "a binding sibling read may carry a mutable or opaque value");
+}
+
+function defaultBindingEndpoints(
   element: import("ts-morph").BindingElement,
   readSite: Identifier,
   fields: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
-  context: ReturnedValueContext,
-): UnresolvedReferenceFact | undefined {
+): ReadonlySet<Node> {
   const initializer = element.getParent().getParentIfKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  const fallback = element.getInitializer();
-  const unusedFallback = fields.value.length > 0 && fields.value.every((field) => field.present && field.path.length === 0 && definedBindingValue(field.value));
   const endpoints = new Set(inheritedReceiverEndpoints(initializer ?? readSite, fields));
   endpoints.add(readSite);
   for (const declaration of fields.trace.declarations.filter(N.isBindingElement)) {
@@ -534,6 +582,27 @@ function defaultBindingUseRefusal(
       endpoints.add(descriptor.value);
     }
   }
+  return endpoints;
+}
+
+function unrelatedDefaultBindingReference(value: Node, binding: Identifier, program: CallReturnProgram | undefined): boolean {
+  if (!N.isIdentifier(value) || program === undefined) {
+    return false;
+  }
+  const expected = callableCarrierSymbol(binding);
+  const actual = callableCarrierSymbol(value);
+  return expected !== undefined && actual !== undefined && expected !== actual && readCallReturnProgram(value, { programs: [program] }).kind === "resolved";
+}
+
+function defaultBindingUseRefusal(
+  element: import("ts-morph").BindingElement,
+  readSite: Identifier,
+  fields: ResolvedReferenceFact<readonly ReturnedValueSource[]>,
+  context: ReturnedValueContext,
+): UnresolvedReferenceFact | undefined {
+  const fallback = element.getInitializer();
+  const unusedFallback = fields.value.length > 0 && fields.value.every((field) => field.present && field.path.length === 0 && definedBindingValue(field.value));
+  const endpoints = defaultBindingEndpoints(element, readSite, fields);
   const names = [
     element.getNameNode(),
     ...fields.trace.declarations
@@ -546,25 +615,23 @@ function defaultBindingUseRefusal(
       continue;
     }
     seen.add(name.compilerNode);
+    let refusal: UnresolvedReferenceFact | undefined;
     const escaped = unprovenReferenceUse(name, (use, binding) => {
       const value = unwrapTarget(use);
       if (endpoints.has(value) || (unusedFallback && fallback !== undefined && (value === fallback || value.getAncestors().includes(fallback)))) {
         return true;
       }
-      if (N.isIdentifier(value) && context.program !== undefined) {
-        const expected = callableCarrierSymbol(binding);
-        const actual = callableCarrierSymbol(value);
-        return (
-          expected !== undefined &&
-          actual !== undefined &&
-          expected !== actual &&
-          readCallReturnProgram(value, { programs: [context.program] }).kind === "resolved"
-        );
+      if (unrelatedDefaultBindingReference(value, binding, context.program)) {
+        return true;
       }
-      return false;
+      const sibling = defaultBindingSiblingRead(value, fields, context);
+      if (sibling?.kind === "unresolved") {
+        refusal ??= sibling;
+      }
+      return sibling?.kind === "resolved";
     });
     if (escaped !== undefined) {
-      return valueRefusal(escaped, "unsupported", "a defaulted binding or its supplied receiver has an unclosed use");
+      return refusal ?? valueRefusal(escaped, "unsupported", "a defaulted binding or its supplied receiver has an unclosed use");
     }
   }
   return undefined;
@@ -1397,7 +1464,7 @@ function closedCallableRecord(receiver: ReturnedValueSource, key: string, progra
     spreads.length === 1 &&
     spread !== undefined &&
     ordinaryCallableRecord(receiver.value, spread, program) &&
-    ordinarySpreadDataPresence(spread.getExpression(), key, receiver, program) !== undefined
+    ordinarySpreadDataPresence(spread.getExpression(), key, receiver, { program, activeValues: undefined }) !== undefined
   );
 }
 
@@ -1542,8 +1609,18 @@ function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proo
   return callableProjectionUse(site, next);
 }
 
-function ordinarySpreadDataPresence(expression: Node, key: string, receiver: ReturnedValueSource, program: CallReturnProgram): readonly boolean[] | undefined {
-  const sources = callableSuppliedLeaves(expression, [], program, { bindings: receiver.bindings, active: new Set() });
+function ordinarySpreadDataPresence(
+  expression: Node,
+  key: string,
+  receiver: ReturnedValueSource,
+  inputs: { readonly program: CallReturnProgram; readonly activeValues: ReadonlySet<ts.Node> | undefined },
+): readonly boolean[] | undefined {
+  const { program, activeValues } = inputs;
+  const sources = callableSuppliedLeaves(expression, [], program, {
+    bindings: receiver.bindings,
+    active: activeValues ?? new Set(),
+    ...(activeValues === undefined ? {} : { activeValues }),
+  });
   if (
     sources.kind === "unresolved" ||
     sources.value.length === 0 ||
@@ -1568,28 +1645,36 @@ function spreadOwnData(
   previous: readonly boolean[] | undefined,
   expression: Node,
   key: string,
-  inputs: { readonly receiver: ReturnedValueSource; readonly program: CallReturnProgram },
+  inputs: { readonly receiver: ReturnedValueSource; readonly program: CallReturnProgram; readonly activeValues: ReadonlySet<ts.Node> | undefined },
 ): readonly boolean[] | undefined {
-  const { receiver, program } = inputs;
-  const present = ordinarySpreadDataPresence(expression, key, receiver, program);
+  const { receiver, program, activeValues } = inputs;
+  const present = ordinarySpreadDataPresence(expression, key, receiver, inputs);
   if (present !== undefined) {
     if (present.every(Boolean)) {
       return [true];
     }
     return present.some(Boolean) && previous !== undefined ? [true, ...previous.filter((value) => !value)] : previous;
   }
+  if (activeValues !== undefined) {
+    return;
+  }
   const projected = readReturnedValue(expression, [key], { programs: [program] }, { terminals: new Set(), bindings: receiver.bindings });
   return projected.kind === "resolved" && projected.value.every((source) => !source.present) ? previous : undefined;
 }
 
-function ownDataPresence(receiver: ReturnedValueSource, key: string, program: CallReturnProgram): readonly boolean[] | undefined {
+function ownDataPresence(
+  receiver: ReturnedValueSource,
+  key: string,
+  program: CallReturnProgram,
+  activeValues?: ReadonlySet<ts.Node>,
+): readonly boolean[] | undefined {
   if (!N.isObjectLiteralExpression(receiver.value)) {
     return;
   }
   let presence: readonly boolean[] | undefined = [false];
   for (const property of receiver.value.getProperties()) {
     if (N.isSpreadAssignment(property)) {
-      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program });
+      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program, activeValues });
       continue;
     }
     const name = returnedPropertyName(property, program);
