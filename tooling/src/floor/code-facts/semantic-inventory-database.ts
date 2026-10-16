@@ -21,6 +21,7 @@ const MEMBER_ORIGIN_SCHEMA_VERSION = 6;
 const DECLARATION_OUTPUT_SCHEMA_VERSION = 5;
 const SHAPE_SCHEMA_VERSION = 4;
 const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
+const SOURCE_FILE_INDEX = "inventory_source_file";
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -74,9 +75,16 @@ function storageSchemaVersion(db: DatabaseSync): number {
   return version;
 }
 
+function storageSchemaReady(db: DatabaseSync): boolean {
+  return (
+    storageSchemaVersion(db) === STORAGE_SCHEMA_VERSION &&
+    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(SOURCE_FILE_INDEX) !== undefined
+  );
+}
+
 function initializeStorageSchema(db: DatabaseSync): void {
-  // Current readers must not wait for a publication writer holding another connection.
-  if (storageSchemaVersion(db) === STORAGE_SCHEMA_VERSION) {
+  // Ready readers do not wait for another writer; older current stores add the lookup index once below.
+  if (storageSchemaReady(db)) {
     return;
   }
   beginInventoryWrite(db);
@@ -143,6 +151,9 @@ function initializeStorageSchema(db: DatabaseSync): void {
     if (version < SHAPE_SCHEMA_VERSION) {
       upgradeShapeStorage(db);
     }
+    // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
+    // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
+    db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
     if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
     }

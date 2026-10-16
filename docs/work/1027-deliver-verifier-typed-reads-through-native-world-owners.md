@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-15
+updated: 2026-10-16
 priority: P1
 area: tooling
 lane: codex/wire-chat-rpg-959
@@ -39,3 +39,5 @@ Strict export-home policies use sealed source/name demand, explicit absence and 
 Reviewed `dc6700ee7f` delivers complete context-utility identity through sealed global/module and lexical facts. Actual entrypoints preserve native world meaning under ordinary checker poison. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/1027-no-context-returntype-independent-review.md`.
 
 Reviewed `a62c1f7e7e` delivers native schema identities and effective Drizzle arguments to assets, table ownership and vector policies. Atomic catalog/consumer publication tracks executable helper inputs; selected native and freshness controls pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-drizzle-independent-review.md`. Full-schema consumers, virtual-overlay liveness, type projections and native cost remain open. Root types retain off-owned errors.
+
+Reviewed `50851d3d53` adds an ownership lookup index without changing refusals. Complete invocation cost remains unqualified.

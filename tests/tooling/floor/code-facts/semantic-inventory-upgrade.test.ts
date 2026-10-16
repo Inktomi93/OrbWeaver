@@ -18,6 +18,7 @@ import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import {
+  readInventoryBindings,
   readInventoryBrands,
   readInventoryDeclarationOutputs,
   readInventoryExportDeclarations,
@@ -242,6 +243,77 @@ function familyDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
 function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_input'").get();
 }
+
+const SOURCE_LOOKUP = "SELECT ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file=?";
+
+test.for([11, 12] as const)("source-file lookup upgrades physical schema %s without replacing old rows or blocking indexed readers", (version, { scratch }) => {
+  const path = join(scratch, "source-lookup.sqlite");
+  const before = createPriorStorage(path, 11);
+  if (version === 12) {
+    using existing = openInventoryDatabase(path);
+    existing.exec("DROP INDEX IF EXISTS inventory_source_file");
+  }
+  using pinned = new DatabaseSync(path, { readOnly: true });
+  pinned.exec("BEGIN");
+  expect(legacyRows(pinned)).toEqual(before);
+  using current = openInventoryDatabase(path);
+  const details = current.prepare(`EXPLAIN QUERY PLAN ${SOURCE_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/legacy.ts"));
+  expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_source USING INDEX inventory_source_file (partition=? AND file=?)");
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 12 });
+  expect(legacyRows(current)).toEqual(before);
+  expect(legacyRows(pinned)).toEqual(before);
+  expect(pinned.prepare("SELECT name FROM sqlite_schema WHERE name='inventory_source_file'").get()).toBeUndefined();
+  beginInventoryWrite(current);
+  const execute = DatabaseSync.prototype.exec;
+  const readerLock = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
+    if (sql === "BEGIN IMMEDIATE") {
+      throw new Error("indexed current-schema reader attempted a writer lock");
+    }
+    execute.call(this, sql);
+  });
+  try {
+    using reader = openInventoryDatabase(path);
+    expect(legacyRows(reader)).toEqual(before);
+  } finally {
+    readerLock.mockRestore();
+    current.exec("ROLLBACK");
+    pinned.exec("ROLLBACK");
+  }
+});
+
+test("source-file lookup remains nonunique and preserves public missing/duplicate ownership refusals", ({ scratch }) => {
+  using db = openInventoryDatabase(join(scratch, "ownership.sqlite"));
+  const base = brandPartition("tsconfig.lookup.json");
+  beginInventoryWrite(db);
+  const generation = publishInventoryGeneration(db, [{ ...base, families: [...base.families, "bindings"] }]);
+  db.exec("COMMIT");
+  const partition = readInventoryGeneration(db, generation)[0];
+  const file = base.sources[0];
+  if (partition === undefined || file === undefined) {
+    throw new Error("source ownership control is missing");
+  }
+  const node = { file: file.file, start: 0, end: file.text.length, kind: SyntaxKind.SourceFile };
+  expect(
+    db
+      .prepare("PRAGMA index_list(inventory_source)")
+      .all()
+      .find((row) => row["name"] === "inventory_source_file"),
+  ).toMatchObject({ unique: 0 });
+  expect([...readInventoryBindings(db, partition.id, node)]).toEqual([]);
+  for (const sql of [
+    "INSERT INTO inventory_source(partition,ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts) SELECT partition,ordinal+1,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=?",
+    "DELETE FROM inventory_source WHERE partition=?",
+  ]) {
+    db.exec("BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;");
+    try {
+      db.prepare(sql).run(partition.id);
+      expect(() => [...readInventoryBindings(db, partition.id, node)]).toThrow("binding source ownership is unavailable");
+    } finally {
+      db.exec("ROLLBACK");
+    }
+  }
+  expect([...readInventoryBindings(db, partition.id, node)]).toEqual([]);
+});
 
 test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
   "physical schema %s accepts current authored inputs and brands while old reader snapshots and identities survive",
