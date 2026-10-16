@@ -21,6 +21,7 @@ import {
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
 import type { ModuleOriginServices, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
@@ -57,32 +58,61 @@ export function locateProjectHome(
   files: readonly SourceFile[],
   relativePath: (sourceFile: SourceFile) => string,
   home: ProjectHomeDeclaration,
+  hasExport: (sourceFile: SourceFile, name: string) => boolean = exportsName,
 ): LocatedProjectHome {
   const sourceFile = files.find((file) => relativePath(file) === home.path);
   const names = new Set(home.names);
   if (sourceFile === undefined) {
     return { sourceFile: undefined, names, members: 0, unresolved: 0 };
   }
-  const missing = home.names.filter((name) => !exportsName(sourceFile, name));
+  const missing = home.names.filter((name) => !hasExport(sourceFile, name));
   return { sourceFile, names, members: home.names.length - missing.length, unresolved: missing.length };
 }
 
 /** Judge one reference against a located home: the canonical declaration must live in the home FILE and
  *  carry one of the home's export names. An alias, a namespace member and a name-preserving re-export all
  *  resolve to the same canonical pair; a same-named export of another module does not. */
-export function classifyProjectHomeOrigin(node: MorphNode, home: LocatedProjectHome): ProjectHomeVerdict {
+export function classifyProjectHomeOrigin(node: MorphNode, home: LocatedProjectHome, services?: ModuleOriginServices): ProjectHomeVerdict {
   if (home.sourceFile === undefined) {
     return "unreadable";
   }
-  const origin = resolveModuleMemberOrigin(node);
+  const origin = services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node);
   if (origin.kind === "unresolved") {
-    return classifyOriginRefusal(origin.reason, node);
+    return classifyOriginRefusal(origin.reason, node, services?.declarations);
   }
   const { canonical } = origin.value;
   if (canonical.kind !== "project") {
     return "other";
   }
   return canonical.sourceFile.compilerNode === home.sourceFile.compilerNode && home.names.has(canonical.exportedName) ? "home" : "other";
+}
+
+/** Register exact home names, including type-only exports, before the shared native generation seals. */
+export function prepareProjectHome(ctx: GatePolicyContext, home: ProjectHomeDeclaration): void {
+  const source = ctx.files.find((file) => ctx.relativePath(file) === home.path);
+  if (source === undefined) {
+    return;
+  }
+  if (ctx.nativeTypes === undefined) {
+    throw new Error("native project home evidence is unavailable");
+  }
+  for (const name of home.names) {
+    ctx.nativeTypes.request({ kind: "export-declarations", nodes: [source], name });
+  }
+}
+
+/** Absent exports remain receipt data; absent source/name evidence refuses the native read. */
+export function nativeProjectHome(ctx: GatePolicyContext, home: ProjectHomeDeclaration): LocatedProjectHome {
+  return locateProjectHome(ctx.files, ctx.relativePath, home, (source, name) => {
+    if (ctx.nativeTypes === undefined) {
+      throw new Error("native project home evidence is unavailable");
+    }
+    const declarations = ctx.nativeTypes.exportDeclarations([source], name);
+    if (!declarations.has(source)) {
+      throw new Error("native project home export coverage is unavailable");
+    }
+    return declarations.get(source) !== null;
+  });
 }
 
 /** Judge one reference against a third-party package's own EXPORT: the canonical declaration must live

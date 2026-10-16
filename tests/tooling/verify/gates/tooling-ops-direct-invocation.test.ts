@@ -21,7 +21,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tooling-ops-direct-invocation";
 const GUARD_HOME = "tooling/src/floor/cli/entrypoint.ts";
@@ -41,11 +41,13 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
 }
 
 function passOf(files: Readonly<Record<string, string>>, requestedPaths?: readonly string[]): ReturnType<typeof runPolicyPass> {
+  const project = projectOf(files);
   return runPolicyPass({
     knownPolicies: [gate],
     policies: [gate],
     root: ROOT,
-    project: projectOf(files),
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     ...(requestedPaths === undefined ? {} : { requestedPaths }),
     reviewedGrants: [],
     failOnWarnings: false,

@@ -58,7 +58,6 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
-import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { NODE_TYPES_HOME, nodeTypesProof } from "../../../../tooling/src/verify/gates/_proof/node-types.ts";
@@ -73,8 +72,9 @@ import { gate as processExitHome } from "../../../../tooling/src/verify/gates/to
 import { gate as projectHome } from "../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as runnerConfigLiterals } from "../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/tooling-plumbing-family";
@@ -139,11 +139,13 @@ interface PassOptions {
 }
 
 function passOf(policies: readonly GatePolicy[], files: Readonly<Record<string, string>>, options: PassOptions = {}): ReturnType<typeof runPolicyPass> {
+  const project = projectOf(files);
   return runPolicyPass({
     knownPolicies: ALL,
     policies,
     root: ROOT,
-    project: projectOf(files),
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     ...(options.requestedPaths === undefined ? {} : { requestedPaths: options.requestedPaths }),
     reviewedGrants: options.grants ?? [],
     failOnWarnings: false,
@@ -495,8 +497,17 @@ test(
   "the ten policies over this checkout: no findings, every plumbing grant consumed once, the translated clock waiver bound",
   () => {
     const root = process.cwd();
-    const project = getWorkspace({ root });
-    const result = runPolicyPass({ knownPolicies: ALL, policies: ALL, root, project, reviewedGrants: reviewedGrantsFor(ALL), failOnWarnings: false });
+    const context = projectCtx(root);
+    const project = context.project;
+    const result = runPolicyPass({
+      knownPolicies: ALL,
+      policies: ALL,
+      root,
+      project,
+      ...nativeTypeFactOptions(context),
+      reviewedGrants: reviewedGrantsFor(ALL),
+      failOnWarnings: false,
+    });
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings).toEqual([]);
     const subject = "tests/tooling/tool-guard.int.test.ts";

@@ -18,9 +18,10 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const DOOR = "createGatedStore";
 const OPERATION = "raw-gated-store-mint";
@@ -76,6 +77,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    prepareProjectHome(ctx, DOOR_HOME);
     const candidates: { readonly node: MorphNode; readonly subject: string; readonly spelling: string }[] = [];
     // The alias index: an ImportSpecifier's `getName()` is the EXPORT name even when aliased, so a local
     // rename of the door still enters the candidate set without resolving every call in the population.
@@ -110,12 +112,13 @@ export const gate = defineGate({
             if (name === null || !(name === DOOR || aliasesOf(sourceFile).has(name))) {
               return;
             }
+            prepareSealedReference(ctx, callee);
             candidates.push({ node: callee, subject: ctx.relativePath(sourceFile), spelling: name });
           },
         },
       ],
       evaluate: (): void => {
-        const home = locateProjectHome(ctx.files, ctx.relativePath, DOOR_HOME);
+        const home = nativeProjectHome(ctx, DOOR_HOME);
         // ZERO members is a REFUSAL: the raw door this policy seals was renamed or moved, so "who mints it"
         // is a question with no honest answer.
         ctx.receipt({ kind: "population", source: DOOR_HOME.path, members: home.members, unresolved: home.unresolved });
@@ -124,7 +127,7 @@ export const gate = defineGate({
         }
         const findings: ReviewedGrantCandidate[] = [];
         for (const { node, subject, spelling } of candidates) {
-          const verdict = classifyProjectHomeOrigin(node, home);
+          const verdict = classifyProjectHomeOrigin(node, home, sealedReferenceServices(ctx, node));
           if (verdict !== "other") {
             findings.push({
               node,

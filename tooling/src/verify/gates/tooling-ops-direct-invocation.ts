@@ -54,9 +54,11 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { SourceFile } from "ts-morph";
 import { moduleScopeCalls } from "../../floor/compiler/module-entry.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { LocatedProjectHome } from "../lib/project-home-origin.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 /** The two floor homes whose exports make a module a guarded library or a program. */
 const GUARD_HOME = { path: "tooling/src/floor/cli/entrypoint.ts", names: ["refuseDirectInvocation"] } as const;
@@ -80,8 +82,10 @@ const missing = (rel: string): string =>
   `${rel} is an ops/ LIBRARY module with no module-scope \`refuseDirectInvocation(…)\` call resolving to floor/cli/entrypoint.ts and no module-scope \`runTool(…)\` resolving to floor/cli/run-tool.ts — running it directly would load it, execute nothing and exit 0.`;
 
 /** Does any module-scope call PROVABLY enter one of the two homes? An unreadable callee is no proven guard. */
-function entersHome(sourceFile: SourceFile, home: LocatedProjectHome): boolean {
-  return moduleScopeCalls(sourceFile).some((call) => classifyProjectHomeOrigin(call.getExpression(), home) === "home");
+function entersHome(sourceFile: SourceFile, home: LocatedProjectHome, ctx: GatePolicyContext): boolean {
+  return moduleScopeCalls(sourceFile).some(
+    (call) => classifyProjectHomeOrigin(call.getExpression(), home, sealedReferenceServices(ctx, call.getExpression())) === "home",
+  );
 }
 
 export const gate = defineGate({
@@ -97,21 +101,30 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const guard = locateProjectHome(ctx.files, ctx.relativePath, GUARD_HOME);
-    const runner = locateProjectHome(ctx.files, ctx.relativePath, RUNNER_HOME);
+    prepareProjectHome(ctx, GUARD_HOME);
+    prepareProjectHome(ctx, RUNNER_HOME);
+    const subjects: SourceFile[] = [];
     return {
       visitFile: (sourceFile) => {
         const rel = ctx.relativePath(sourceFile);
         if (rel === GUARD_HOME.path || rel === RUNNER_HOME.path) {
           return;
         }
-        if (entersHome(sourceFile, guard) || entersHome(sourceFile, runner)) {
-          return;
+        subjects.push(sourceFile);
+        for (const call of moduleScopeCalls(sourceFile)) {
+          prepareSealedReference(ctx, call.getExpression());
         }
-        // An ABSENT statement has no node to anchor on, so this is file-level by construction and hard.
-        ctx.report.file(rel, { line: 1, column: 1, message: missing(rel), fix: FIX });
       },
       evaluate: () => {
+        const guard = nativeProjectHome(ctx, GUARD_HOME);
+        const runner = nativeProjectHome(ctx, RUNNER_HOME);
+        for (const sourceFile of subjects) {
+          if (entersHome(sourceFile, guard, ctx) || entersHome(sourceFile, runner, ctx)) {
+            continue;
+          }
+          const rel = ctx.relativePath(sourceFile);
+          ctx.report.file(rel, { line: 1, column: 1, message: missing(rel), fix: FIX });
+        }
         // One receipt PER home: an absent home is `members: 0` and a renamed export `unresolved: 1`, and
         // either refuses the run on its own — a summed pair would let one absent home read as `members: 1`.
         ctx.receipt({ kind: "population", source: GUARD_RECEIPT, members: guard.members, unresolved: guard.unresolved });

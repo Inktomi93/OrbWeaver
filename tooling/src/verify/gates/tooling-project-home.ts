@@ -28,12 +28,15 @@
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm A + HOMES +
 // PROJECT_SITES). No private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at
 // conversion (rg over packages/, tests/, tooling/, scripts/), so no translation was owed.
+import type { NewExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const TS_MORPH: readonly string[] = ["ts-morph"];
 const PROJECT = "Project";
@@ -49,11 +52,11 @@ const FIX =
 
 /** The constructor's spelled name — the identifier, or the member name of `ns.Project` — so only a
  *  callee that LOOKS like the door is ever carried to the identity readers (fail-closure stays honest). */
-function constructorName(expression: Node): string | undefined {
+function constructorName(expression: Node, readComputedName: OriginReferenceServices["readComputedName"]): string | undefined {
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  const member = readMemberReference(expression);
+  const member = readMemberReferenceWithName(expression, readComputedName);
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
@@ -71,6 +74,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
+    const constructions: { readonly node: NewExpression; readonly sourceFile: SourceFile }[] = [];
     return {
       visitors: [
         {
@@ -79,24 +83,29 @@ export const gate = defineGate({
             if (!Node.isNewExpression(node)) {
               return;
             }
-            const expression = node.getExpression();
-            const { verdict } = readPackageExportOrigin(expression, TS_MORPH, PROJECT_EXPORT);
-            if (verdict === "other" || (verdict === "unreadable" && constructorName(expression) !== PROJECT)) {
-              return;
-            }
-            candidates.push({
-              node,
-              subject: ctx.relativePath(sourceFile),
-              operation: OPERATION,
-              // `new <callee>` exactly as written: from the construct's start to the callee's end.
-              token: node.getText().slice(0, expression.getEnd() - node.getStart()),
-              offset: 0,
-              ...(verdict === "unreadable" ? { unreadable: true } : {}),
-            });
+            prepareSealedReference(ctx, node.getExpression());
+            constructions.push({ node, sourceFile });
           },
         },
       ],
       evaluate: () => {
+        for (const { node, sourceFile } of constructions) {
+          const expression = node.getExpression();
+          const services = sealedReferenceServices(ctx, expression);
+          const { verdict } = readPackageExportOrigin(expression, TS_MORPH, PROJECT_EXPORT, services);
+          if (verdict === "other" || (verdict === "unreadable" && constructorName(expression, services.readComputedName) !== PROJECT)) {
+            continue;
+          }
+          candidates.push({
+            node,
+            subject: ctx.relativePath(sourceFile),
+            operation: OPERATION,
+            // `new <callee>` exactly as written: from the construct's start to the callee's end.
+            token: node.getText().slice(0, expression.getEnd() - node.getStart()),
+            offset: 0,
+            ...(verdict === "unreadable" ? { unreadable: true } : {}),
+          });
+        }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

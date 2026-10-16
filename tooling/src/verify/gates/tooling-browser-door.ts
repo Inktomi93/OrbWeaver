@@ -29,12 +29,14 @@
 //
 // Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arms B + H). No
 // private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
-import { SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import type { CallExpression, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { readMemberReferenceWithName, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readPackageExportOrigin } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 /** The doors that ship the engine objects; `@playwright/test` re-exports `playwright`, which re-exports
  *  `playwright-core`, and the canonical declaration lands in whichever the checker reaches. */
@@ -44,6 +46,7 @@ const LAUNCH = "launch";
 /** Playwright's two attach verbs on a browser type — matched as a SET, so a third spelling is a loophole
  *  only until it joins. */
 const ATTACH: ReadonlySet<string> = new Set(["connect", "connectOverCDP"]);
+const METHODS: ReadonlySet<string> = new Set([LAUNCH, ...ATTACH]);
 const LAUNCH_OPERATION = "browser-launch";
 const ATTACH_OPERATION = "browser-attach";
 
@@ -67,7 +70,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const candidates: ReviewedGrantCandidate[] = [];
+    const calls: { readonly node: CallExpression; readonly sourceFile: SourceFile }[] = [];
     return {
       visitors: [
         {
@@ -76,20 +79,36 @@ export const gate = defineGate({
             if (!node.isKind(SyntaxKind.CallExpression)) {
               return;
             }
-            const callee = node.getExpression();
-            const member = readMemberReference(callee);
-            if (member.kind === "unresolved") {
+            const callee = referenceResolutionServices.unwrapExpression(node.getExpression());
+            if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
               return;
             }
-            const method = member.value.name;
-            if (method !== LAUNCH && !ATTACH.has(method)) {
+            if (Node.isPropertyAccessExpression(callee) && callee.getName() !== LAUNCH && !ATTACH.has(callee.getName())) {
               return;
             }
-            const { verdict } = readPackageExportOrigin(member.value.receiver, PLAYWRIGHT_DOORS, ENGINES);
-            if (verdict === "other") {
-              return;
-            }
-            candidates.push({
+            prepareSealedReference(ctx, node.getExpression());
+            prepareSealedReference(ctx, callee.getExpression());
+            calls.push({ node, sourceFile });
+          },
+        },
+      ],
+      evaluate: () => {
+        const candidates = calls.flatMap(({ node, sourceFile }): ReviewedGrantCandidate[] => {
+          const callee = node.getExpression();
+          const member = readMemberReferenceWithName(callee, sealedReferenceServices(ctx, callee).readComputedName);
+          if (member.kind === "unresolved") {
+            return [];
+          }
+          const method = member.value.name;
+          if (!METHODS.has(method)) {
+            return [];
+          }
+          const { verdict } = readPackageExportOrigin(member.value.receiver, PLAYWRIGHT_DOORS, ENGINES, sealedReferenceServices(ctx, member.value.receiver));
+          if (verdict === "other") {
+            return [];
+          }
+          return [
+            {
               node,
               subject: ctx.relativePath(sourceFile),
               operation: method === LAUNCH ? LAUNCH_OPERATION : ATTACH_OPERATION,
@@ -97,11 +116,9 @@ export const gate = defineGate({
               token: callee.getText(),
               offset: 0,
               ...(verdict === "unreadable" ? { unreadable: true } : {}),
-            });
-          },
-        },
-      ],
-      evaluate: () => {
+            },
+          ];
+        });
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },
     };

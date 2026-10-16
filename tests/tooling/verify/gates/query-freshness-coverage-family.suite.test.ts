@@ -1,12 +1,12 @@
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as coverage } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
@@ -54,11 +54,13 @@ test("every production classification is an exact central grant and listChatActi
   expect(grants).toHaveLength(STATIC_SUBJECTS.length);
   expect(grants.map(({ subject }) => subject).toSorted()).toEqual([...STATIC_SUBJECTS].toSorted());
   expect(grants.every(({ operation }) => operation === "uncovered-query-freshness")).toBe(true);
+  const context = projectCtx(process.cwd());
   const result = runPolicyPass({
     knownPolicies: POLICIES,
     policies: POLICIES,
     root: process.cwd(),
-    project: getWorkspace({ root: process.cwd() }),
+    project: context.project,
+    ...nativeTypeFactOptions(context),
     reviewedGrants: grants,
     failOnWarnings: false,
   });

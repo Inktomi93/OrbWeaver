@@ -42,10 +42,12 @@
 // cli shape by regex inside `visitFile`. final − legacy = ∅. Controls: inside: no virtual sibling fits the exact-path
 // population, so the real shared member `tooling/src/floor/cli/run-tool.ts` is the control, admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { isToolCli } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const RUNNER_HOME = { path: "tooling/src/floor/cli/run-tool.ts", names: ["runTool"] } as const;
 const RUNNER_RECEIPT = "program-entry home: run-tool";
@@ -70,7 +72,8 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const runner = locateProjectHome(ctx.files, ctx.relativePath, RUNNER_HOME);
+    prepareProjectHome(ctx, RUNNER_HOME);
+    const calls: { readonly node: Node; readonly path: string }[] = [];
     const entered = new Set<string>();
     return {
       visitors: [
@@ -81,13 +84,20 @@ export const gate = defineGate({
               return;
             }
             const rel = ctx.relativePath(sourceFile);
-            if (isToolCli(rel) && classifyProjectHomeOrigin(node.getExpression(), runner) === "home") {
-              entered.add(rel);
+            if (isToolCli(rel)) {
+              prepareSealedReference(ctx, node.getExpression());
+              calls.push({ node: node.getExpression(), path: rel });
             }
           },
         },
       ],
       evaluate: () => {
+        const runner = nativeProjectHome(ctx, RUNNER_HOME);
+        for (const { node, path } of calls) {
+          if (classifyProjectHomeOrigin(node, runner, sealedReferenceServices(ctx, node)) === "home") {
+            entered.add(path);
+          }
+        }
         ctx.receipt({ kind: "population", source: RUNNER_RECEIPT, members: runner.members, unresolved: runner.unresolved });
         for (const sourceFile of ctx.files) {
           const rel = ctx.relativePath(sourceFile);

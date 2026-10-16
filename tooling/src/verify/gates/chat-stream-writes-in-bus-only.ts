@@ -24,9 +24,10 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import type { ProjectHomeDeclaration } from "../lib/project-home-origin.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const HANDLE = "chatStream";
 const OPERATION = "chat-stream-write-handle";
@@ -81,6 +82,7 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    prepareProjectHome(ctx, STREAM_HOME);
     const candidates: { readonly node: MorphNode; readonly subject: string }[] = [];
     return {
       visitors: [
@@ -89,13 +91,14 @@ export const gate = defineGate({
           visit: (node, sourceFile): void => {
             const candidate = candidateNode(node);
             if (candidate !== null) {
+              prepareSealedReference(ctx, candidate);
               candidates.push({ node: candidate, subject: ctx.relativePath(sourceFile) });
             }
           },
         },
       ],
       evaluate: (): void => {
-        const home = locateProjectHome(ctx.files, ctx.relativePath, STREAM_HOME);
+        const home = nativeProjectHome(ctx, STREAM_HOME);
         // ZERO members is a REFUSAL: the write api this policy fences was renamed or moved, so no verdict
         // about "who holds it" can be honest.
         ctx.receipt({ kind: "population", source: STREAM_HOME.path, members: home.members, unresolved: home.unresolved });
@@ -104,7 +107,7 @@ export const gate = defineGate({
         }
         const findings: ReviewedGrantCandidate[] = [];
         for (const { node, subject } of candidates) {
-          const verdict = classifyProjectHomeOrigin(node, home);
+          const verdict = classifyProjectHomeOrigin(node, home, sealedReferenceServices(ctx, node));
           if (verdict !== "other") {
             findings.push({
               node,

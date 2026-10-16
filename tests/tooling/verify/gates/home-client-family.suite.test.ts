@@ -17,7 +17,7 @@ import { gate as renderErrorViaBattery } from "../../../../tooling/src/verify/ga
 import { gate as selectionStoreViaFactory } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as themeOverrideOnlyViaScope } from "../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const FAMILY: readonly GatePolicy[] = [
   boundFieldViaHook,
@@ -51,7 +51,16 @@ function passOf(
   files: Readonly<Record<string, string>>,
   grants: Parameters<typeof runPolicyPass>[0]["reviewedGrants"] = [],
 ): ReturnType<typeof runPolicyPass> {
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root: ROOT, project: projectOf(files), reviewedGrants: grants, failOnWarnings: false });
+  const project = projectOf(files);
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: grants,
+    failOnWarnings: false,
+  });
 }
 
 /** Every relative specifier a single proof row authored, paired with whether it reached a file. */

@@ -328,6 +328,25 @@ function createInventoryReader(
       }
       return nodeOf(value, [program], original ?? captured);
     };
+  const nativeModuleTarget = (node: Node, program: string): SourceFile | undefined => {
+    const { partition, span } = nativeSpan(node, program, "modules");
+    if (!(TsNode.isImportDeclaration(node) || (TsNode.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined))) {
+      throw new SemanticInventoryError("native module target requires an authored import or export door");
+    }
+    const entries = [...readInventoryModules(db, partition.id, span)];
+    const entry = entries[0];
+    if (entries.length !== 1 || entry === undefined) {
+      throw new SemanticInventoryError("native module target coverage is unavailable in its captured native partition");
+    }
+    if (entry.target === null) {
+      return undefined;
+    }
+    const target = sourceFile(entry.target, [program]);
+    if (target === undefined) {
+      throw new SemanticInventoryError("native module target source is unavailable");
+    }
+    return replayFor(node, program, partition, "module target")(capturedSpan(target)).getSourceFile();
+  };
   // biome-ignore lint/nursery/useDisposables: the returned corpus delegates ownership to the same caller-owned inventory.
   const corpus: InventorySourceCorpus = {
     getSourceFiles: () =>
@@ -676,7 +695,10 @@ function createInventoryReader(
       const context = selected.map((partition) => partition.program);
       return new Map(exports.map((entry) => [entry.name, entry.declarations.map((span) => nodeOf(span, context))]));
     },
-    moduleTarget: (node) => {
+    moduleTarget: (node, program) => {
+      if (program !== undefined) {
+        return nativeModuleTarget(node, program);
+      }
       const key = spanKey(capturedSpan(node));
       const selected = worlds(node);
       requireFamily(selected, "modules");

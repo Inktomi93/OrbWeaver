@@ -253,6 +253,8 @@ function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntim
         sources: Parameters<NativeTypeContext["exportDeclarations"]>[0],
         name: string,
       ): ReturnType<NativeTypeContext["exportDeclarations"]> => nativeFacts(sources).exportDeclarations(input.ownerId, sources, name),
+      moduleTargets: (nodes: Parameters<NativeTypeContext["moduleTargets"]>[0]): ReturnType<NativeTypeContext["moduleTargets"]> =>
+        nativeFacts(nodes).moduleTargets(input.ownerId, nodes),
       invocationEvidence: (
         nodes: Parameters<NativeTypeContext["invocationEvidence"]>[0],
         plan: Parameters<NativeTypeContext["invocationEvidence"]>[1],

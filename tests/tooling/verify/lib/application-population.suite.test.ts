@@ -11,6 +11,7 @@ import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schem
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { policy } from "./_policy-plan-fixture.ts";
 
 const APP = "packages/client/src/view.ts";
@@ -28,7 +29,15 @@ test("application helper reach does not synthesize an instrument lifecycle, whil
       project.createSourceFile(`${root}/${path}`, text);
     }
     project.createSourceFile(`${root}/${APP}`, "export const app = true;\n");
-    const input = { knownPolicies: [artifactSlot], policies: [artifactSlot], root, project, reviewedGrants: [], failOnWarnings: false };
+    const input = {
+      knownPolicies: [artifactSlot],
+      policies: [artifactSlot],
+      root,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    };
     expect(policyPassExitCode(runPolicyPass(input))).toBe(globalExit);
     const helperReach = [APP, ...Object.keys(proof.files).filter((path) => !path.endsWith("/cli.ts"))];
     const application = runPolicyPass({ ...input, applicationPaths: helperReach });

@@ -598,6 +598,10 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
         checkerFor(requested);
         return new Map(requested.map((source) => [source, source.getExportedDeclarations().get(name) ?? null]));
       },
+      moduleTargets: (nodes): ReturnType<NativeTypeFactReader["moduleTargets"]> => {
+        checkerFor(nodes);
+        return new Map(nodes.map((node) => [node, node.getModuleSpecifierSourceFile()]));
+      },
       invocationEvidence: (nodes, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
         checkerFor(nodes);
         if (plan.mode === "types") {

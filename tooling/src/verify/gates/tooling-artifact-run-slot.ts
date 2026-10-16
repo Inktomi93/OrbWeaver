@@ -40,12 +40,13 @@
 // inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 
-import type { Node as MorphNode } from "ts-morph";
+import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { isToolCli, TOOLING_PREFIX, toolOf } from "../../floor/code-facts/module-specifier.ts";
 import { defineGate } from "../contract/policy.ts";
 import { ARTIFACT_FILERS, classifyFilingCall, RUN_SLOT_DOOR } from "../lib/artifact-filing.ts";
-import { locateProjectHome } from "../lib/project-home-origin.ts";
+import { nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const FILERS_RECEIPT = "artifact home: filers";
 const SLOT_RECEIPT = "artifact home: run slot";
@@ -75,8 +76,9 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const filers = locateProjectHome(ctx.files, ctx.relativePath, ARTIFACT_FILERS);
-    const slot = locateProjectHome(ctx.files, ctx.relativePath, RUN_SLOT_DOOR);
+    prepareProjectHome(ctx, ARTIFACT_FILERS);
+    prepareProjectHome(ctx, RUN_SLOT_DOOR);
+    const calls: { readonly node: CallExpression; readonly rel: string; readonly tool: string }[] = [];
     /** tool → its first filing call and the file it sits in (walk order, so the anchor is stable). */
     const filing = new Map<string, { readonly node: MorphNode; readonly site: string }>();
     const slotted = new Set<string>();
@@ -93,18 +95,25 @@ export const gate = defineGate({
             if (tool === FLOOR_DIR) {
               return;
             }
-            // A filer the readers cannot place still files: fail-closed, the tool owes a slot.
-            if (classifyFilingCall(node, filers) !== "other" && !filing.has(tool)) {
-              filing.set(tool, { node, site: rel });
-            }
-            // A slot opener the readers cannot place opens nothing: fail-closed the other way.
-            if (isToolCli(rel) && classifyFilingCall(node, slot) === "home") {
-              slotted.add(tool);
-            }
+            prepareSealedReference(ctx, node.getExpression());
+            calls.push({ node, rel, tool });
           },
         },
       ],
       evaluate: () => {
+        const filers = nativeProjectHome(ctx, ARTIFACT_FILERS);
+        const slot = nativeProjectHome(ctx, RUN_SLOT_DOOR);
+        for (const { node, rel, tool } of calls) {
+          const services = sealedReferenceServices(ctx, node.getExpression());
+          // A filer the readers cannot place still files: fail-closed, the tool owes a slot.
+          if (classifyFilingCall(node, filers, services) !== "other" && !filing.has(tool)) {
+            filing.set(tool, { node, site: rel });
+          }
+          // A slot opener the readers cannot place opens nothing: fail-closed the other way.
+          if (isToolCli(rel) && classifyFilingCall(node, slot, services) === "home") {
+            slotted.add(tool);
+          }
+        }
         ctx.receipt({ kind: "population", source: FILERS_RECEIPT, members: filers.members, unresolved: filers.unresolved });
         ctx.receipt({ kind: "population", source: SLOT_RECEIPT, members: slot.members, unresolved: slot.unresolved });
         for (const [tool, { node, site }] of filing) {
