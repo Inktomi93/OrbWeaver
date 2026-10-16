@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/native-reference-reuse-1002
+lane: codex/default-binding-continuations-1002
 plan: test-foundation
 ---
 
@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Apply D320 analysis eligibility before further full extraction. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
+Preserve D320 analysis eligibility. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
 
 Implement the persisted native-world inventory store and worker lifecycle. Collectors consume shared export origins, module targets, bindings and physical references without retaining every native program. Keep unported typed consumers on native views.
 
@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The original callable diagnosis completes unresolved at a re-export missing captured-source membership, not observed source staleness or Program mismatch. Full store qualification stays open. Evidence: `reports/review/1002-original-preservation-diagnostic.md`. Item 1027 owns typed delivery.
+The original callable query refuses an unresolved `ctx.backgroundSignal` origin after nested optional sibling preservation stops supplied mode projection. No mutation is observed. Evidence: `reports/review/1002-original-callable-current/9299c01cfd-diagnosis.md`. Target and cost remain unqualified.
 
 Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.
 

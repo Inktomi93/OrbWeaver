@@ -8,6 +8,7 @@ const TOOLING_TESTS = `**/${TOOLING_TEST_ROOT}/**`;
 /** Tests not yet rebuilt (`docs/plans/test-foundation/design.md`, the legacy folder). They run in CI's legacy jobs
  *  and stay out of the inner loop: lane floors, commit hooks and the strict gates. */
 export const LEGACY_TEST_ROOT = "tests/legacy";
+export const LEGACY_ANALYSIS_EXCLUSION_REASON = "legacy tests support execution and typecheck only";
 const LEGACY_TESTS = `**/${LEGACY_TEST_ROOT}/**`;
 /** `pnpm test:scoped` and `pnpm test:ct` refuse a legacy path unless the caller passes this flag on purpose. */
 export const LEGACY_SCOPED_FLAG = "--legacy";

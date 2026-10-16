@@ -1814,8 +1814,10 @@ test("failed native prepare owners are excluded from the one seal and their depe
     }),
   });
   const bad = policy("prepare-failed-policy", {
-    create: () => ({
+    analysis: "types",
+    create: (ctx) => ({
       prepare: () => {
+        expect(ctx.nativeTypes).toBeDefined();
         prepared.push("policy");
         throw new Error("closed policy preparation failed");
       },
@@ -1839,4 +1841,95 @@ test("failed native prepare owners are excluded from the one seal and their depe
   } finally {
     seal.mockRestore();
   }
+});
+
+test("legacy analysis eligibility excludes typed providers while retaining syntax boundaries", () => {
+  const maintained = "packages/client/src/current.ts";
+  const legacy = "tests/legacy/client/old.test.ts";
+  const project = projectOf({ [maintained]: "export const current=1;", [legacy]: "export const old=1;" });
+  const provider = defineFact({
+    id: "legacy-eligibility-provider",
+    population: { of: "all", why: "eligible source population" },
+    analysis: "types",
+    resources: [],
+    create: (ctx) => ({
+      finish: () => {
+        const paths = ctx.files.map(ctx.relativePath);
+        ctx.receipt({ kind: "population", source: "eligible-provider", members: paths.length });
+        return paths;
+      },
+    }),
+  });
+  const visited: string[] = [];
+  const typed = policy("legacy-eligible-typed", {
+    population: { of: "all", why: "eligible typed subjects" },
+    analysis: "types",
+    execution: "entire-population",
+    facts: [provider],
+    create: (ctx) => ({
+      evaluate: () => {
+        visited.push(...ctx.files.map(ctx.relativePath));
+        expect(ctx.fact(provider)).toEqual([maintained]);
+        ctx.receipt({ kind: "population", source: "eligible-policy", members: ctx.files.length });
+      },
+    }),
+  });
+  const boundary = policy("legacy-syntax-boundary", {
+    population: "@legacy-tests",
+    create: (ctx) => ({ visitFile: (source) => ctx.report.node(source) }),
+  });
+  const result = run([typed, boundary], project, { nativeTypeFacts: () => isolatedTypeFacts(project) });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(visited).toEqual([maintained]);
+  expect(result.policies.find(({ id }) => id === typed.id)?.population).toMatchObject({
+    declaredSourcePaths: [maintained],
+    excludedLegacySourcePaths: [legacy],
+  });
+  expect(result.facts[0]?.population).toMatchObject({ declaredSourcePaths: [maintained], excludedLegacySourcePaths: [legacy] });
+  expect(result.policies.find(({ id }) => id === boundary.id)?.findings.map(({ file }) => file)).toEqual([legacy]);
+  const native = vi.fn(() => isolatedTypeFacts(project));
+  const syntaxConsumer = policy("syntax-with-typed-provider", {
+    population: "@client",
+    execution: "entire-population",
+    facts: [provider],
+    create: (ctx) => ({
+      evaluate: () => {
+        expect(ctx.fact(provider)).toEqual([maintained]);
+        ctx.receipt({ kind: "population", source: "syntax-consumer", members: ctx.files.length });
+      },
+    }),
+  });
+  const dependencyOnly = run([syntaxConsumer], project, { nativeTypeFacts: native });
+  expect(dependencyOnly.toolErrors).toEqual([]);
+  expect(dependencyOnly.factErrors).toEqual([]);
+  expect(native).toHaveBeenCalledTimes(1);
+});
+
+test("legacy analysis eligibility skips a legacy-only typed owner before native acquisition", () => {
+  const legacy = "tests/legacy/server/old.test.ts";
+  const project = projectOf({ [legacy]: "export const old=1;" });
+  const create = vi.fn(() => ({ evaluate: () => undefined }));
+  const native = vi.fn(() => isolatedTypeFacts(project));
+  const typed = policy("legacy-only-typed", { population: "@legacy-tests", analysis: "types", execution: "entire-population", create });
+  const result = run([typed], project, { nativeTypeFacts: native });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.policies[0]?.owner.status).toBe("not-applicable");
+  expect(result.policies[0]?.population).toMatchObject({ declaredSourcePaths: [], effectiveSourcePaths: [], excludedLegacySourcePaths: [legacy] });
+  expect(create).not.toHaveBeenCalled();
+  expect(native).not.toHaveBeenCalled();
+});
+
+test("legacy analysis eligibility withholds a maintained consumer of an ineligible typed provider", () => {
+  const maintained = "packages/client/src/current.ts";
+  const legacy = "tests/legacy/client/old.test.ts";
+  const project = projectOf({ [maintained]: "export const current=1;", [legacy]: "export const old=1;" });
+  const create = vi.fn(() => ({ finish: () => true }));
+  const provider = defineFact({ id: "excluded-typed-provider", population: "@legacy-tests", analysis: "types", resources: [], create });
+  const consumer = policy("maintained-with-excluded-input", { analysis: "types", execution: "entire-population", facts: [provider] });
+  const result = run([consumer], project, { nativeTypeFacts: () => isolatedTypeFacts(project) });
+  expect(create).not.toHaveBeenCalled();
+  expect(result.factErrors.length).toBe(1);
+  expect(result.facts[0]?.population).toMatchObject({ declaredSourcePaths: [], excludedLegacySourcePaths: [legacy] });
+  expect(result.policies[0]?.owner.status).toBe("incomplete");
 });

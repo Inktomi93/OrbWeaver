@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/shared-references-955
+lane: codex/drizzle-native-953
 plan: test-foundation
 ---
 
@@ -40,4 +40,6 @@ Finite role, tuple, factory, union and store-selector consumers pass ordinary co
 
 The gate-necessity audit classifies the complete assigned population and shared providers. Evidence: `reports/review/typed-gate-necessity-census.md`.
 
-Plain-value pins, session capture reuse, evaluated waiver metadata and lazy lexical projections pass review and scoped controls. SQL containment and existing complete-proof failures remain open. Evidence: `reports/review/1027-native-reduction-wave.md`. Consumer equivalence and hosted cost remain unqualified.
+Plain-value pins, session capture reuse, evaluated waiver metadata, lazy lexical projections and native SQL statement/predicate capture pass review and ordinary controls. Complete owner-proof failures remain open. Evidence: `reports/review/1027-native-sql-containment-ordinary.md`. Consumer equivalence and hosted cost remain unqualified.
+
+D320 eligibility is integrated. Ordinary controls retain native closure, runtime/typecheck worlds, syntax boundaries and historical generations. Store metadata failures remain unchanged. Evidence: `reports/review/1002-legacy-analysis-current-integration.md`. Complete owner-proof adjudication remains assigned.

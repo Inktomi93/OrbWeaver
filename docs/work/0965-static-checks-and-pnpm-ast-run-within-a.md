@@ -40,4 +40,4 @@ Reviewed `49d607fd3c` removes repeated path resolution and native import-map con
 
 Portable corpus contracts remove the Node and server import closure while retaining exhaustive Node router conformance. Other world totals remain unverified. Declaration bridges need freshness and closure qualification; D320 retains legacy runtime and native typecheck evidence without semantic extraction. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-Kit pilot measures TS6, pinned TS7 and external nightly aggregate memory. Exports agree; type-position context needs adaptation. Nightly adds a schema diagnostic. Full extraction remains unqualified. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+Matched tests-DOM bindings complete on TS6 and both TS7 backends. Canonical differences remain; full extraction and root comparison are unqualified. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.

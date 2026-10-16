@@ -21,10 +21,9 @@ import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts
 import { createSemanticInventory } from "../code-facts/semantic-inventory.ts";
 import { descriptorVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { declarationBindingKeySets, inventoryDeclarationKey, semanticInventoryOf } from "../code-facts/semantic-inventory-reader.ts";
-
 import { readCompilerPrograms } from "./compiler-programs.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
-import { HELPER_WORLD_DIRS, predictedProgram } from "./project-worlds.ts";
+import { assertSemanticAnalysisProgram, HELPER_WORLD_DIRS, isSemanticAnalysisProgram, predictedProgram } from "./project-worlds.ts";
 import type {
   CoLocatedSemanticNodes,
   NativeReferenceRead,
@@ -160,7 +159,9 @@ function nativeMeaningVersion(project: Project, descriptor: CompilerProgram): st
 /** Read the invocation's canonical config meaning, retaining only its registered filename overlay. */
 export function canonicalSemanticPrograms(root: string, project: Project): readonly CompilerProgram[] {
   const workspace = semanticWorkspaces.get(project);
-  return readCompilerPrograms(root, workspace === undefined ? undefined : semanticWorkspaceOverlays.get(workspace));
+  return readCompilerPrograms(root, workspace === undefined ? undefined : semanticWorkspaceOverlays.get(workspace)).filter(({ config }) =>
+    isSemanticAnalysisProgram(config),
+  );
 }
 
 /** Registration retains construction meaning; neither a descriptor label nor mutable Project options grant it. */
@@ -512,9 +513,12 @@ export function coLocatedSemanticNodes(left: Node, right: Node): readonly CoLoca
 
 export function createSemanticWorkspace(options: SemanticWorkspaceOptions): SemanticWorkspace {
   const root = realpathSync(options.root);
-  const descriptors = options.programs ?? readCompilerPrograms(root, options.overlay);
+  for (const { config } of options.programs ?? []) {
+    assertSemanticAnalysisProgram(config);
+  }
+  const descriptors = options.programs ?? readCompilerPrograms(root, options.overlay).filter(({ config }) => isSemanticAnalysisProgram(config));
   if (descriptors.length === 0) {
-    throw new Error(`semantic workspace found no runnable TypeScript programs under ${root}`);
+    throw new Error(`semantic workspace found no runnable TypeScript programs eligible for semantic analysis under ${root}`);
   }
   const ownerConfigs = (path: string): readonly string[] => descriptors.filter(({ files }) => files.includes(path)).map(({ config }) => config);
   const primaryConfig = (path: string): string | undefined => {
@@ -619,7 +623,11 @@ export function createSemanticWorkspace(options: SemanticWorkspaceOptions): Sema
       }
       return usage;
     },
-    program: (config): SemanticProgram | undefined => byConfig.get(repoRelative(root, config)),
+    program: (config): SemanticProgram | undefined => {
+      const configPath = repoRelative(root, config);
+      assertSemanticAnalysisProgram(configPath);
+      return byConfig.get(configPath);
+    },
     primaryOwner: (path): SemanticProgram | undefined => {
       const config = primaryConfig(repoRelative(root, path));
       return config === undefined ? undefined : byConfig.get(config);

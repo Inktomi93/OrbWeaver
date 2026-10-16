@@ -1,6 +1,5 @@
 import { dirname } from "node:path";
 import type { CompilerSourceOverlay } from "@orb/tooling/floor/compiler/compiler-programs";
-import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import type { SemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { canonicalCompilerPath, createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { FileSystemHost, Project, RuntimeDirEntry, SourceFile } from "ts-morph";
@@ -97,7 +96,6 @@ export function createCodemodSemanticWorkspace(opts: {
   readonly overlay: CompilerSourceOverlay;
 }): SemanticWorkspace {
   const { project, repoRoot, overlay } = opts;
-  const programs = readCompilerPrograms(repoRoot, overlay);
   const sources = currentSources(project, repoRoot);
-  return createSemanticWorkspace({ root: repoRoot, programs, overlay, fileSystem: overlayFileSystem(project.getFileSystem(), sources, overlay, repoRoot) });
+  return createSemanticWorkspace({ root: repoRoot, overlay, fileSystem: overlayFileSystem(project.getFileSystem(), sources, overlay, repoRoot) });
 }

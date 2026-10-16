@@ -336,3 +336,21 @@ test("an all-none bounded union cannot bypass resource-only descriptor semantics
     "valid only for resource analysis",
   );
 });
+
+test("legacy analysis eligibility leaves syntax expressions and invalid-population refusals intact", () => {
+  const legacy = "tests/legacy/server/old.test.ts";
+  const maintained = "tests/server/current.test.ts";
+  const all = { of: "all", why: "complete eligible subjects" } as const;
+  expect(resolvePopulation(all, [legacy, maintained], "types")).toMatchObject({
+    paths: [maintained],
+    excludedLegacySourcePaths: [legacy],
+    candidates: 2,
+    admitted: 1,
+    rejected: 1,
+  });
+  expect(resolvePopulation(all, [legacy, maintained], "syntax").paths).toEqual([legacy, maintained]);
+  expect(populationIncludes("@legacy-tests", legacy, "types")).toBe(false);
+  expect(populationIncludes("@legacy-tests", legacy, "syntax")).toBe(true);
+  expect(() => resolvePopulation("@server", [legacy], "types")).toThrow("zero");
+  expect(() => resolvePopulation(all, [], "types")).toThrow();
+});

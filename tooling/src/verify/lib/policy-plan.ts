@@ -1,5 +1,6 @@
 // Deterministic final-policy planner. It consumes the loader roster, reviewed six-kind scope manifest,
 // and the external ResourceHost population manifest without owning another registry or path predicate.
+import { LEGACY_ANALYSIS_EXCLUSION_REASON } from "../../floor/testing/test-population.ts";
 import type { GateFact } from "../contract/fact.ts";
 import { factProvider } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
@@ -158,7 +159,8 @@ export function factsForPolicies(policies: readonly GatePolicy[]): readonly Gate
 }
 
 function planFact(fact: GateFact, sourceCandidates: readonly string[], resources: readonly string[], resourceFailure: string | undefined): PlannedFact {
-  const declaredSourcePaths = resolvePopulation(fact.population, sourceCandidates).paths;
+  const resolved = resolvePopulation(fact.population, sourceCandidates, fact.analysis);
+  const declaredSourcePaths = resolved.paths;
   if (fact.analysis !== "resource" && resources.length > 0) {
     throw new Error(`non-resource fact ${fact.id} received a resource population`);
   }
@@ -168,12 +170,18 @@ function planFact(fact: GateFact, sourceCandidates: readonly string[], resources
   if (explicitNonePopulation(fact.population) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only fact ${fact.id} unexpectedly resolved source files`);
   }
-  if (declaredSourcePaths.length + resources.length === 0 && !permitsEmptyResourcePaths(fact) && resourceFailure === undefined) {
+  if (
+    declaredSourcePaths.length + resources.length === 0 &&
+    resolved.excludedLegacySourcePaths === undefined &&
+    !permitsEmptyResourcePaths(fact) &&
+    resourceFailure === undefined
+  ) {
     throw new Error(`fact ${fact.id} resolved an empty declared population`);
   }
   return {
     factId: fact.id,
     population: {
+      ...(resolved.excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths: resolved.excludedLegacySourcePaths }),
       declaredSourcePaths,
       declaredResourcePaths: resources,
       requestedPaths: null,
@@ -207,7 +215,7 @@ function semanticSelectionTouchesPolicy(
   const resourceSet = new Set(resources);
   return semanticPaths.some((semantic) =>
     [semantic.path, ...(semantic.previousPath === null ? [] : [semantic.previousPath])].some(
-      (path) => resourceSet.has(path) || factPaths.has(path) || (isPolicySourceCandidate(path) && populationIncludes(policy.population, path)),
+      (path) => resourceSet.has(path) || factPaths.has(path) || (isPolicySourceCandidate(path) && populationIncludes(policy.population, path, policy.analysis)),
     ),
   );
 }
@@ -246,6 +254,15 @@ function assertApplicationPolicyAdmission(policy: GatePolicy, declaredSourcePath
   }
 }
 
+function assertPlanResources(policy: GatePolicy, resources: readonly string[], resourceFailure: string | undefined, implementationOnly: boolean): void {
+  if (policy.analysis !== "resource" && resources.length > 0) {
+    throw new Error(`non-resource policy ${policy.id} received a resource population`);
+  }
+  if (!implementationOnly && policy.analysis === "resource" && resources.length === 0 && !permitsEmptyResourcePaths(policy) && resourceFailure === undefined) {
+    throw new Error(`resource policy ${policy.id} received an empty resource population`);
+  }
+}
+
 function planOne({
   policy,
   sourceCandidates,
@@ -258,14 +275,14 @@ function planOne({
   applicationPaths,
 }: PlanOneInput): PlannedPolicy {
   const implementationOnly = applicationPaths !== undefined && policy.application === "implementation";
-  const declaredSourcePaths = implementationOnly ? [] : resolvePopulation(policy.population, sourceCandidates).paths;
-  assertApplicationPolicyAdmission(policy, declaredSourcePaths, applicationPaths);
-  if (policy.analysis !== "resource" && resources.length > 0) {
-    throw new Error(`non-resource policy ${policy.id} received a resource population`);
+  const resolved = implementationOnly ? undefined : resolvePopulation(policy.population, sourceCandidates, policy.analysis);
+  const declaredSourcePaths = resolved?.paths ?? [];
+  const excludedLegacySourcePaths = resolved?.excludedLegacySourcePaths;
+  const legacyOnly = declaredSourcePaths.length === 0 && excludedLegacySourcePaths !== undefined;
+  if (!legacyOnly) {
+    assertApplicationPolicyAdmission(policy, declaredSourcePaths, applicationPaths);
   }
-  if (!implementationOnly && policy.analysis === "resource" && resources.length === 0 && !permitsEmptyResourcePaths(policy) && resourceFailure === undefined) {
-    throw new Error(`resource policy ${policy.id} received an empty resource population`);
-  }
+  assertPlanResources(policy, resources, resourceFailure, implementationOnly);
   if (explicitNonePopulation(policy.population) && declaredSourcePaths.length > 0) {
     throw new Error(`resource-only policy ${policy.id} unexpectedly resolved source files`);
   }
@@ -274,6 +291,7 @@ function planOne({
   // here because these declared paths come from the SCOPE MANIFEST's program membership, which still lists a
   // deleted file — see `PolicyRequestedSelection`.
   const selection = resolveEffectivePopulation({
+    ...(excludedLegacySourcePaths === undefined ? {} : { excludedLegacySourcePaths }),
     execution: policy.execution,
     declaredSourcePaths,
     declaredResourcePaths: resources,
@@ -281,6 +299,9 @@ function planOne({
     requested: requestedPaths === null ? null : { identity: requestedPaths, current: currentPaths },
     ...(applicationPaths === undefined ? {} : { applicationPaths, ...(policy.application === undefined ? {} : { applicationAdmission: policy.application }) }),
   });
+  if (legacyOnly) {
+    return { policyId: policy.id, family: policy.family, mode: "skipped", reason: LEGACY_ANALYSIS_EXCLUSION_REASON, population: selection.population };
+  }
   const { mode, reason } =
     applicationPaths !== undefined && selection.disposition === "empty-intersection"
       ? { mode: "skipped" as const, reason: "outside application subjects" }
@@ -372,6 +393,13 @@ function runPlan(
     ),
   );
   const facts = plannedFacts.filter(({ factId }) => runningFactIds.has(factId));
+  const excludedFact = facts.find(
+    ({ population }) =>
+      population.declaredSourcePaths.length + population.declaredResourcePaths.length === 0 && population.excludedLegacySourcePaths !== undefined,
+  );
+  if (excludedFact !== undefined) {
+    return toolError(`fact ${excludedFact.factId} has no eligible typed inputs: ${LEGACY_ANALYSIS_EXCLUSION_REASON}`);
+  }
   const factOwners = selectedFacts.filter(({ id }) => runningFactIds.has(id));
   return {
     ok: true,

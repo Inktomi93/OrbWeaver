@@ -4,7 +4,7 @@ import { join, resolve } from "node:path";
 import { SyntaxKind } from "ts-morph";
 import { readAuthoredRepositoryInventory } from "../compiler/authored-repository.ts";
 import { readCompilerPrograms } from "../compiler/compiler-programs.ts";
-import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
+import { assertSemanticAnalysisProgram, isSemanticAnalysisProgram, isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY, schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
@@ -118,7 +118,7 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     const initialAuthored = authoredVersion(root);
     const descriptors = currentDemandDescriptors({ ...options, root });
     if (descriptors.length === 0) {
-      throw new Error(`native semantic inventory found no runnable TypeScript programs under ${root}`);
+      throw new Error(`native semantic inventory found no runnable TypeScript programs eligible for semantic analysis under ${root}`);
     }
     const families = inventoryFamilies(options.families);
     assertReferenceDemand(options, descriptors, families);
@@ -188,12 +188,13 @@ function inventoryFailure(error: unknown, writerCommitted: boolean): SemanticInv
 }
 
 function currentDemandDescriptors(options: SemanticInventoryOptions): readonly InventoryBuildRequest["descriptor"][] {
-  const current = readCompilerPrograms(options.root, options.overlay);
+  const current = readCompilerPrograms(options.root, options.overlay).filter(({ config }) => isSemanticAnalysisProgram(config));
   if (options.programs === undefined) {
     return current;
   }
   const nativeById = new Map(current.map((descriptor) => [descriptor.id, descriptor]));
   const selected = options.programs.map((supplied) => {
+    assertSemanticAnalysisProgram(supplied.config);
     const native = nativeById.get(supplied.id);
     if (native === undefined || descriptorVersion(native) !== descriptorVersion(supplied)) {
       throw new Error(`native semantic inventory descriptor snapshot is stale: ${supplied.id}; no current verdict`);

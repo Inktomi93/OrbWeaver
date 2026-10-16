@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { castStringLiteralsByDiagnostic, createCodemodProject, deleteFiles, isTestFile, moveFiles, runCodemod } from "@orb/tooling/codemod";
+import { LEGACY_TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -120,8 +121,13 @@ test(
   SEMANTIC_RUN_TIMEOUT_MS,
 );
 
-test("fresh semantic queries see an unsaved move and do not resurrect its deleted origin", async ({ scratch }) => {
+test("legacy analysis eligibility preserves unsaved codemod moves and deletions", async ({ scratch }) => {
   initializeGit(scratch);
+  mkdirSync(join(scratch, "tests/legacy"), { recursive: true });
+  writeFileSync(join(scratch, "tests/legacy/old.test.ts"), "export const old=1;");
+  for (const config of Object.values(LEGACY_TEST_WORLD_PROGRAMS)) {
+    writeFileSync(join(scratch, config), JSON.stringify({ files: ["tests/legacy/old.test.ts"], compilerOptions: { noLib: true, types: [] } }));
+  }
   writeFileSync(
     join(scratch, "tsconfig.json"),
     JSON.stringify({ compilerOptions: { module: "esnext", moduleResolution: "bundler", noEmit: true, strict: true }, include: ["*.ts", "moved/*.ts"] }),
@@ -134,6 +140,7 @@ test("fresh semantic queries see an unsaved move and do not resurrect its delete
     (ctx) => {
       ctx.plan(moveFiles(ctx, [["value.ts", "moved/value.ts"]]));
       const moved = ctx.semantic();
+      expect(moved.programs.map(({ descriptor }) => descriptor.config)).toEqual(["tsconfig.json"]);
       expect(moved.sourceViews("value.ts")).toEqual([]);
       expect(moved.sourceViews("moved/value.ts")).toHaveLength(1);
       expect(moved.programs.flatMap((program) => program.project().getPreEmitDiagnostics())).toEqual([]);

@@ -2391,3 +2391,25 @@ test.for(["identical", "different", "symlink"] as const)(
     expect(membership.inputs.some(({ kind, path }) => kind === "exists" && path.endsWith("absent.ts"))).toBe(true);
   },
 );
+
+test("legacy analysis eligibility preserves the complete native closure of an eligible importing world", ({ scratch }) => {
+  const write = (path: string, text: string): void => {
+    const absolute = join(scratch, path);
+    mkdirSync(dirname(absolute), { recursive: true });
+    writeFileSync(absolute, text);
+  };
+  write(".gitignore", ".cache/\n");
+  write(
+    "tsconfig.json",
+    JSON.stringify({ files: ["entry.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler", strict: true } }),
+  );
+  write("entry.ts", "import {dependency} from './tests/legacy/dependency';export const value=dependency;");
+  write("tests/legacy/dependency.ts", "export const dependency=1;");
+  execFixtureGit(scratch, ["init", "-q"]);
+  const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
+  const partition = extractInventoryPartition({ root: scratch, descriptor, families: ["bindings"], destination: join(scratch, "unused.sqlite") });
+  expect(partition.roots).toEqual([join(scratch, "entry.ts")]);
+  expect(partition.nativeRoots).toEqual(partition.roots);
+  expect(partition.available.toSorted()).toEqual([join(scratch, "entry.ts"), join(scratch, "tests/legacy/dependency.ts")].toSorted());
+  expect(JSON.parse(partition.compilerOptionsJson)).toEqual(descriptor.commandLine.options);
+});

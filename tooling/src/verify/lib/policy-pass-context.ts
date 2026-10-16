@@ -345,7 +345,7 @@ function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string, d
     if (providers.length === 0 || repoRelativePath.startsWith("/") || repoRelativePath.includes("\\")) {
       return "";
     }
-    const admitting = providers.filter((provider) => populationIncludes(provider.population, repoRelativePath)).map(({ id }) => id);
+    const admitting = providers.filter((provider) => populationIncludes(provider.population, repoRelativePath, provider.analysis)).map(({ id }) => id);
     return admitting.length === 0
       ? ""
       : `; it IS inside the population of this policy's declared fact ${admitting.join(", ")}, which is wider than the policy's own. ` +
