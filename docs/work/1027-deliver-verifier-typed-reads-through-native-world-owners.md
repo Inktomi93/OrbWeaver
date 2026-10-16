@@ -42,4 +42,4 @@ Native schema, column and configuration facts serve assets, table ownership, vec
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Zod ownership and output parity use persisted native type observations; ordinary projection, upgrade and command controls pass. Bus delivery follows; other families and cost remain open. Evidence: `reports/review/1027-native-zod-ordinary.md`.
+Zod ownership/parity and body caps use sealed native facts. Ordinary controls pass. Bus, other families and cost remain open. Evidence: `reports/review/1027-native-zod-ordinary.md` and `reports/review/1027-native-body-cap-ordinary.md`.
