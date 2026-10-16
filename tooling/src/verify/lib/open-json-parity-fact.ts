@@ -14,12 +14,22 @@ import type {
   TaggedTemplateExpression,
 } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { NativeValueObservationReaders } from "../../floor/code-facts/value-observation-contract.ts";
+import type { GateFactContext } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
-import type { SchemaModel } from "../contract/schema-fact.ts";
+import {
+  nativeColumnRow,
+  nativeDrizzleWrite,
+  nativeIndexedParameters,
+  nativeStoredValue,
+  prepareNativeColumnRow,
+  prepareNativeValueObservation,
+} from "./native-value-projection.ts";
 import type { ReaderHit } from "./open-json-reader-shapes.ts";
 import { collectAccessReads, collectHelperReads, collectSqlReads } from "./open-json-reader-shapes.ts";
 import type { OpenJsonColumn, Vocab } from "./open-json-vocabulary.ts";
-import { colKey, collectAccumulatorWrites, collectPropertyWrites, deriveSchema } from "./open-json-vocabulary.ts";
+import { colKey, collectAccumulatorWrites, collectPropertyWrites, deriveSchema, enclosingWriteCall } from "./open-json-vocabulary.ts";
 
 // ── the verdict ─────────────────────────────────────────────────────────────────────────────────────────
 /** The pooled writer vocabulary of a reader's target columns: a TYPED column contributes its own declared
@@ -111,7 +121,7 @@ export interface OpenJsonAnalysis {
 }
 
 export interface OpenJsonParityFact {
-  readonly analyze: (schema: SchemaModel) => OpenJsonAnalysis;
+  readonly analyze: (schema: SchemaProjectedModel) => OpenJsonAnalysis;
 }
 
 export const openJsonParityFact = defineFact({
@@ -154,22 +164,29 @@ export const openJsonParityFact = defineFact({
             } else if (Node.isTaggedTemplateExpression(node)) {
               templates.push(node);
             }
+            prepareObservation(ctx, node);
           },
         },
       ],
       finish: (): OpenJsonParityFact => {
         ctx.receipt({ kind: "population", source: "open-json-parity-sources", members: ctx.files.length });
         return Object.freeze({
-          analyze: (model: SchemaModel): OpenJsonAnalysis => {
+          analyze: (model: SchemaProjectedModel): OpenJsonAnalysis => {
             const schema = deriveSchema(model);
             const byProp = indexByProp(schema.columns);
             const vocabs = new Map<string, Vocab>();
             const hits: ReaderHit[] = [];
-            collectPropertyWrites(properties, byProp, vocabs);
-            collectAccumulatorWrites(binaries, byProp, vocabs);
+            const observations: NativeValueObservationReaders = {
+              storedValue: (node) => nativeStoredValue(ctx, node),
+              drizzleWrite: (node) => nativeDrizzleWrite(ctx, node),
+              columnRow: (node) => nativeColumnRow(ctx, node),
+              indexedParameters: (node) => nativeIndexedParameters(ctx, node),
+            };
+            collectPropertyWrites(properties, byProp, vocabs, observations);
+            collectAccumulatorWrites(binaries, byProp, vocabs, observations.storedValue);
             collectSqlReads(templates, schema, hits, vocabs);
-            collectAccessReads(elements, accesses, byProp, hits);
-            collectHelperReads(calls, byProp, hits);
+            collectAccessReads(elements, accesses, byProp, { out: hits, readColumn: observations.columnRow });
+            collectHelperReads(calls, byProp, hits, observations);
             return Object.freeze({ columns: schema.columns, verdict: judge(hits, vocabs) });
           },
         });
@@ -177,3 +194,36 @@ export const openJsonParityFact = defineFact({
     };
   },
 });
+
+function prepareObservation(ctx: Pick<GateFactContext, "nativeTypes">, node: import("ts-morph").Node): void {
+  if (Node.isPropertyAssignment(node)) {
+    preparePropertyObservation(ctx, node);
+  } else if (Node.isBinaryExpression(node)) {
+    if (node.getOperatorToken().getText() === "=" && Node.isPropertyAccessExpression(node.getLeft())) {
+      prepareNativeValueObservation(ctx, node.getRight(), "stored-value");
+    }
+  } else if (Node.isElementAccessExpression(node)) {
+    if (Node.isStringLiteral(node.getArgumentExpression())) {
+      prepareNativeColumnRow(ctx, node.getExpression());
+    }
+  } else if (Node.isPropertyAccessExpression(node)) {
+    prepareNativeColumnRow(ctx, node.getExpression());
+  } else if (Node.isCallExpression(node)) {
+    for (const argument of node.getArguments()) {
+      prepareNativeColumnRow(ctx, argument);
+    }
+    if (node.getArguments().some(Node.isStringLiteral)) {
+      prepareNativeValueObservation(ctx, node, "indexed-parameters");
+    }
+  }
+}
+function preparePropertyObservation(ctx: Pick<GateFactContext, "nativeTypes">, node: PropertyAssignment): void {
+  const call = enclosingWriteCall(node);
+  if (call !== undefined) {
+    prepareNativeValueObservation(ctx, call, "drizzle-write");
+    const value = node.getInitializer();
+    if (value !== undefined) {
+      prepareNativeValueObservation(ctx, value, "stored-value");
+    }
+  }
+}

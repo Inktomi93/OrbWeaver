@@ -121,7 +121,7 @@ test(
         onDelete: { kind: "specified", value: "restrict" },
       },
     ]);
-    const wire = encodeSchemaDataCatalog(options.files, projected, span, options.relativePath);
+    const wire = encodeSchemaDataCatalog(options.files, projected, span, { relativePath: options.relativePath });
     const carriers = new Project({ useInMemoryFileSystem: true });
     const replay = replayFrom(fixture.project, carriers);
     const symbols = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(() => {
@@ -132,7 +132,9 @@ test(
     });
     try {
       const restored = replaySchemaDataCatalog(wire, replay);
-      expect(encodeSchemaDataCatalog([carriers.getSourceFileOrThrow(source.getFilePath())], restored, span, options.relativePath)).toEqual(wire);
+      expect(encodeSchemaDataCatalog([carriers.getSourceFileOrThrow(source.getFilePath())], restored, span, { relativePath: options.relativePath })).toEqual(
+        wire,
+      );
       if (restored.status !== "ready") {
         throw new Error("schema replay is unavailable");
       }
@@ -221,9 +223,101 @@ test(
       expect(full.status).toBe("unresolved");
       expect(readSchemaData(options)).toEqual(full);
       const projected = readSchemaData(options);
-      const wire = encodeSchemaDataCatalog(options.files, projected, span, options.relativePath);
+      const wire = encodeSchemaDataCatalog(options.files, projected, span, { relativePath: options.relativePath });
       expect(replaySchemaDataCatalog(wire, replayFrom(fixture.project, new Project({ useInMemoryFileSystem: true })))).toEqual(projected);
     }
   },
   scaledBudget(30_000),
+);
+
+test(
+  "selected canonical schema Types supply opted-in vocabulary and default catalog data remains identical",
+  async ({ plantedTree, repoRoot }) => {
+    const fixture = await nativeFixture(
+      { plantedTree, repoRoot },
+      { producer: `${SCOPE_HEAD}export const read=(db:Db)=>db.select().from(assets);`, recipient: "" },
+    );
+    const source = fixture.project.getSourceFileOrThrow(join(fixture.root, "packages/db/src/schema/persona.ts"));
+    source.addStatements(
+      "interface NamedBag { readonly [key:string]:unknown; fixed?:string }\nexport const selected=sqliteTable('selected',{value:text('value',{mode:'json'}).$type<NamedBag>(), scalar:text('scalar',{mode:'json'}).$type<string|{key:number}|null>()});",
+    );
+    const options = {
+      files: [source],
+      relativePath: (file: SourceFile): string => file.getFilePath().slice(fixture.root.length + 1),
+      checker: () => fixture.project.getTypeChecker(),
+    };
+    const canonical = createSchemaQuery(options).schema();
+    expect(canonical.status).toBe("ready");
+    const ordinary = projectSchemaData(canonical);
+    const getType = Node.prototype.getType;
+    const syntaxType = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+      if (this.getProject() === fixture.project) {
+        throw new Error("schema override node Type read instead of canonical selected Type");
+      }
+      return getType.call(this);
+    });
+    try {
+      const projection = { typeVocabulary: true } as const;
+      const full = projectSchemaData(canonical, projection);
+      if (full.status !== "ready") {
+        throw new Error("selected-Type catalog unavailable");
+      }
+      const selected = full.value.tables.find((table) => table.sqlName === "selected");
+      expect(selected?.columns[0]?.typeOverride?.vocabulary).toMatchObject({
+        properties: ["fixed"],
+        arms: [{ symbolName: "NamedBag", stringIndex: true, unknown: false, properties: ["fixed"] }],
+      });
+      expect(selected?.columns[1]?.typeOverride?.vocabulary?.arms.map((arm) => ({ null: arm.null, string: arm.string, properties: arm.properties }))).toEqual(
+        expect.arrayContaining([
+          { null: true, string: false, properties: [] },
+          { null: false, string: false, properties: ["key"] },
+        ]),
+      );
+      const wire = encodeSchemaDataCatalog(options.files, full, span, { relativePath: options.relativePath, projection });
+      const carriers = new Project({ useInMemoryFileSystem: true });
+      const replay = replayFrom(fixture.project, carriers);
+      expect(replaySchemaDataCatalog(wire, replay, {})).toEqual(
+        replaySchemaDataCatalog(encodeSchemaDataCatalog(options.files, ordinary, span, { relativePath: options.relativePath }), replay),
+      );
+      const restored = replaySchemaDataCatalog(wire, replay, projection);
+      expect(
+        restored.status === "ready" ? restored.value.tables.find((table) => table.sqlName === "selected")?.columns[0]?.typeOverride?.vocabulary : undefined,
+      ).toEqual(selected?.columns[0]?.typeOverride?.vocabulary);
+      expect(() =>
+        replaySchemaDataCatalog(encodeSchemaDataCatalog(options.files, ordinary, span, { relativePath: options.relativePath }), replay, projection),
+      ).toThrow("vocabulary was not captured");
+      const invalid = structuredClone(wire);
+      if (invalid.fact.status !== "ready") {
+        throw new Error("wire schema unavailable");
+      }
+      const override = invalid.fact.value.tables.find((table) => table.sqlName === "selected")?.columns[0]?.typeOverride;
+      if (override === undefined || override === null) {
+        throw new Error("wire override unavailable");
+      }
+      expect(
+        schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog).safeParse({
+          ...invalid,
+          fact: {
+            ...invalid.fact,
+            value: {
+              tables: invalid.fact.value.tables.map((table) => ({
+                ...table,
+                columns: table.columns.map((column) =>
+                  column.typeOverride === null
+                    ? column
+                    : {
+                        ...column,
+                        typeOverride: { node: column.typeOverride.node, display: column.typeOverride.display, idBrand: column.typeOverride.idBrand },
+                      },
+                ),
+              })),
+            },
+          },
+        }).success,
+      ).toBe(false);
+    } finally {
+      syntaxType.mockRestore();
+    }
+  },
+  scaledBudget(60_000),
 );

@@ -1,7 +1,7 @@
 // Encode complete canonical schema data through the existing inventory span and roster vocabulary.
 import type { Node, SourceFile } from "ts-morph";
 import type { SchemaFact } from "../code-facts/schema-model-contract.ts";
-import type { SchemaProjectedColumn, SchemaProjectedModel } from "../code-facts/schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedModel } from "../code-facts/schema-projection-contract.ts";
 import type { InventorySchemaProjectedCatalog, InventorySchemaProjectedColumn } from "../code-facts/schema-projection-inventory-contract.ts";
 import { schemaProjectionInventorySchema } from "../code-facts/schema-projection-inventory-contract.ts";
 import type { InventorySpan } from "../code-facts/semantic-inventory-contract.ts";
@@ -38,11 +38,13 @@ export function encodeSchemaDataCatalog(
   sources: readonly SourceFile[],
   fact: SchemaFact<SchemaProjectedModel>,
   span: (node: Node) => InventorySpan,
-  relativePath: (source: SourceFile) => string,
+  options: { readonly relativePath: (source: SourceFile) => string; readonly projection?: SchemaDataProjection | undefined },
 ): InventorySchemaProjectedCatalog {
+  const { relativePath, projection = {} } = options;
   const identity = encodeSchemaIdentityCatalog(sources, fact, span, relativePath);
   return catalogSchema.parse({
     ...identity,
+    ...(projection.typeVocabulary === true ? { projection } : {}),
     fact:
       fact.status === "ready"
         ? {

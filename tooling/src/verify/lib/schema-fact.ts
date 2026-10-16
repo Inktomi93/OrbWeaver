@@ -3,8 +3,9 @@ import type { CallExpression, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SchemaIdentityModel } from "../../floor/code-facts/schema-identity-contract.ts";
 import type { SchemaFact } from "../../floor/code-facts/schema-model-contract.ts";
-import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { SchemaDataProjection, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { queryForCalls, schemaTableCall, unresolvedDiscovery } from "../../floor/code-facts/schema-query.ts";
+import type { GateFact } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import type { SchemaQuery } from "../contract/schema-fact.ts";
 
@@ -125,26 +126,32 @@ export const drizzleSchemaIdentityFact = defineFact({
   },
 });
 
-/** Type-free consumers retain the complete extractor's census, while its native DB world owns extraction. */
-export const drizzleSchemaDataFact = defineFact({
-  id: "drizzle-schema-data",
-  population: DRIZZLE_SCHEMA_POPULATION,
-  analysis: "types",
-  resources: [],
-  create: (ctx) => {
-    if (ctx.nativeTypes === undefined) {
-      throw new Error("native full schema data context is unavailable");
-    }
-    ctx.nativeTypes.request({ kind: "schema-data", nodes: ctx.files });
-    return {
-      finish: (): SchemaFact<SchemaProjectedModel> => {
-        if (ctx.nativeTypes === undefined) {
-          throw new Error("native full schema data context is unavailable");
-        }
-        const fact = ctx.nativeTypes.schemaData(ctx.files);
-        ctx.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: ctx.files.length });
-        return fact;
-      },
-    };
-  },
-});
+/** Type-free catalog consumers do not request extra selected-Type observations. */
+export const drizzleSchemaDataFact = schemaDataFact("drizzle-schema-data");
+/** JSON vocabulary requests bind the actual canonical override Type inside its native catalog owner. */
+export const drizzleSchemaVocabularyFact = schemaDataFact("drizzle-schema-vocabulary", { typeVocabulary: true });
+
+function schemaDataFact(id: string, projection: SchemaDataProjection = {}): GateFact<SchemaFact<SchemaProjectedModel>> {
+  return defineFact({
+    id,
+    population: DRIZZLE_SCHEMA_POPULATION,
+    analysis: "types",
+    resources: [],
+    create: (ctx) => {
+      if (ctx.nativeTypes === undefined) {
+        throw new Error("native full schema data context is unavailable");
+      }
+      ctx.nativeTypes.request({ kind: "schema-data", nodes: ctx.files, ...(projection.typeVocabulary === true ? { projection } : {}) });
+      return {
+        finish: (): SchemaFact<SchemaProjectedModel> => {
+          if (ctx.nativeTypes === undefined) {
+            throw new Error("native full schema data context is unavailable");
+          }
+          const fact = ctx.nativeTypes.schemaData(ctx.files, projection);
+          ctx.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: ctx.files.length });
+          return fact;
+        },
+      };
+    },
+  });
+}

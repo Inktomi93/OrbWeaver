@@ -17,6 +17,7 @@ export function encodeTypeProjection(facts: NativeTypeProjection, input: TypePro
   return typeProjectionWireSchema.parse({
     plan,
     values: {
+      ...(facts.vocabulary === undefined ? {} : { vocabulary: facts.vocabulary }),
       ...(facts["declaration-export"] === undefined ? {} : { "declaration-export": facts["declaration-export"] }),
       ...(facts.origins === undefined ? {} : { origins: encodeTypeOriginProjection(facts.origins, span) }),
       ...(facts["runtime-undefined"] === undefined ? {} : { "runtime-undefined": facts["runtime-undefined"] }),
@@ -45,6 +46,7 @@ export function replayTypeProjection(wire: InventoryTypeProjection, input: TypeP
   const identity = values["type-identity"];
   const symbol = values["type-symbol"];
   const facts: NativeTypeProjection = {
+    ...(values.vocabulary === undefined ? {} : { vocabulary: values.vocabulary }),
     ...(values["declaration-export"] === undefined ? {} : { "declaration-export": values["declaration-export"] }),
     ...(values.origins === undefined ? {} : { origins: replayTypeOriginProjection(values.origins, replay) }),
     ...(values["runtime-undefined"] === undefined ? {} : { "runtime-undefined": values["runtime-undefined"] }),

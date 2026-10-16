@@ -5,16 +5,21 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
-import { Project } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
 import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { openInventoryDatabase, readInventoryGeneration } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
+import {
+  latestInventoryGeneration,
+  openInventoryDatabase,
+  readInventoryGeneration,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { inputsCurrent, inventoryAuthoredFiles } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
 import { readInventoryInputs } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { typeProjectionFacet } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
+import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -172,4 +177,111 @@ test(
     expect(reused.generation).toBe(inventory.generation);
   },
   scaledBudget(30_000),
+);
+
+test(
+  "canonical value observations keep exact facet coverage, related nodes and failed-publication ownership",
+  ({ scratch }) => {
+    const fixture = setup(scratch);
+    fixture.source.addStatements(`const prefix={first:1};function factory(){return {...prefix,last:2};}export const stored=factory();
+declare const table:{$inferSelect:{value:{[key:string]:unknown}}};
+function helper(skip:number,blob:{[key:string]:unknown},key:string){return blob[key];}
+function consume(row:typeof table.$inferSelect){const {value:blob}=row;helper(0,blob,"first");return blob;}`);
+    writeFileSync(join(scratch, SOURCE), fixture.source.getFullText());
+    const stored = fixture.source.getVariableDeclarationOrThrow("stored").getInitializerOrThrow();
+    const consume = fixture.source.getFunctionOrThrow("consume");
+    const blob = consume.getDescendantsOfKind(SyntaxKind.ReturnStatement)[0]?.getExpression();
+    const helper = consume.getDescendantsOfKind(SyntaxKind.CallExpression)[0];
+    if (blob === undefined || helper === undefined) {
+      throw new Error("value observation controls missing");
+    }
+    const valuePlan: InventoryInvocationPlan = { mode: "value", facets: ["stored-value"], arguments: [] };
+    const rowPlan: InventoryInvocationPlan = { mode: "value", facets: ["row-column"], arguments: [] };
+    const helperPlan: InventoryInvocationPlan = { mode: "value", facets: ["indexed-parameters", "drizzle-write"], arguments: [] };
+    const options = {
+      ...fixture.options,
+      invocationQueries: (fixture.options.programs ?? []).flatMap(({ id }) => [
+        { program: id, query: { ...valuePlan, node: anchor(stored) } },
+        { program: id, query: { ...rowPlan, node: anchor(blob) } },
+        { program: id, query: { ...helperPlan, node: anchor(helper) } },
+      ]),
+    };
+    using inventory = createSemanticInventory(options);
+    for (const world of ["node", "browser"]) {
+      const program = `tsconfig.${world}.json`;
+      expect(inventory.invocationEvidence(stored, program, valuePlan).storedValues.get(stored)).toMatchObject({
+        kind: "call",
+        values: [
+          {
+            kind: "object",
+            members: [
+              { kind: "spread", value: { kind: "binding", values: [{ kind: "object", members: [{ kind: "named", name: "first" }] }] } },
+              { kind: "named", name: "last" },
+            ],
+          },
+        ],
+      });
+      const row = inventory.invocationEvidence(blob, program, rowPlan).columnRows.get(blob);
+      expect(row).toMatchObject({ kind: "resolved", column: { property: "value" } });
+      expect(row?.kind === "resolved" ? row.declarations : []).toEqual([fixture.source.getVariableDeclarationOrThrow("table")]);
+      const evidence = inventory.invocationEvidence(helper, program, helperPlan);
+      expect(evidence.drizzleWrites.get(helper)).toMatchObject({ kind: "resolved", value: null });
+      expect(evidence.indexedParameters.get(helper)?.map((item) => [item.receiverIndex, item.keyIndex, item.node.getText()])).toEqual([[1, 2, "blob[key]"]]);
+    }
+    expect(() => inventory.invocationEvidence(stored, "tsconfig.node.json", { ...valuePlan, facets: ["drizzle-write"] })).toThrow("query is unavailable");
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, inventory.generation);
+    using reader = inventoryReader(scratch, inventory.generation, partitions, { db, dispose: () => undefined });
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      expect(Number(db.prepare("UPDATE inventory_invocation_atom SET key='\"foreign\"' WHERE key='\"stored-value\"'").run().changes)).toBeGreaterThan(0);
+      expect(() => reader.invocationEvidence(stored, "tsconfig.node.json", valuePlan)).toThrow("facet coverage is incomplete");
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    const dependencies = [
+      "value-carrier.ts",
+      "value-carrier-native.ts",
+      "value-observation.ts",
+      "value-observation-contract.ts",
+      "value-observation-codec.ts",
+      "stored-value-shape.ts",
+      "drizzle-row-origin.ts",
+      "drizzle-row-type.ts",
+      "drizzle-column-reads.ts",
+    ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
+    const authored = inventoryAuthoredFiles(scratch);
+    for (const partition of partitions) {
+      const inputs = [...readInventoryInputs(db, partition.id)];
+      for (const path of dependencies) {
+        expect(
+          inputs.some((input) => input.kind === "file" && input.path === path),
+          path,
+        ).toBe(true);
+        const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
+          root: scratch,
+          files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
+          deleted: [],
+        });
+        expect(inputsCurrent(inputs, { authored, fileSystem }), path).toBe(false);
+      }
+    }
+    const extra = { program: "tsconfig.node.json", query: { ...helperPlan, node: anchor(stored) } };
+    expect(() =>
+      createSemanticInventory({
+        ...options,
+        invocationQueries: [...options.invocationQueries, extra],
+        buildPartition: (request) => {
+          runInventoryPartitionWorker(request);
+          using staging = openInventoryDatabase(request.destination);
+          staging.prepare("UPDATE inventory_invocation_atom SET key='\"foreign\"' WHERE key='\"stored-value\"'").run();
+        },
+      }),
+    ).toThrow("facet coverage is incomplete");
+    expect(latestInventoryGeneration(db)).toBe(inventory.generation);
+    expect(inventory.invocationEvidence(stored, "tsconfig.node.json", valuePlan).storedValues.get(stored)).toMatchObject({ kind: "call" });
+    inventory[Symbol.dispose]();
+    expect(() => inventory.invocationEvidence(stored, "tsconfig.node.json", valuePlan)).toThrow("disposed");
+  },
+  scaledBudget(60_000),
 );

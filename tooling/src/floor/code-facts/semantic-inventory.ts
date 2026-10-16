@@ -8,6 +8,7 @@ import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY } from "./drizzle-inventory-contract.ts";
+import { schemaDataProjectionSchema } from "./schema-projection-contract.ts";
 import type {
   InventoryBuildRequest,
   InventoryExportDeclarationQuery,
@@ -582,6 +583,7 @@ function nativeDemandRequest(
   | "drizzleQueries"
   | "schemaSources"
   | "schemaDataSources"
+  | "schemaDataProjection"
   | "schemaDependency"
 > {
   return {
@@ -595,7 +597,12 @@ function nativeDemandRequest(
           ...(options.schemaQuery?.program === program ? { schemaSources: options.schemaQuery.sources } : {}),
         }
       : {}),
-    ...(families.includes("schema-data") && options.schemaDataQuery?.program === program ? { schemaDataSources: options.schemaDataQuery.sources } : {}),
+    ...(families.includes("schema-data") && options.schemaDataQuery?.program === program
+      ? {
+          schemaDataSources: options.schemaDataQuery.sources,
+          ...(options.schemaDataQuery.projection === undefined ? {} : { schemaDataProjection: options.schemaDataQuery.projection }),
+        }
+      : {}),
     ...(families.includes("export-declarations") ? { exportQueries: exportDemand(options, program) } : {}),
     ...(families.includes("invocation-evidence") ? { invocationQueries: invocationDemand(options, program) } : {}),
     ...(families.includes("callable-declarations") ? { callableQueries: callableDemand(options, program) } : {}),
@@ -622,6 +629,7 @@ function coversNativeDemand(
     | "drizzleQueries"
     | "schemaSources"
     | "schemaDataSources"
+    | "schemaDataProjection"
     | "schemaDependency"
   >,
 ): boolean {
@@ -653,6 +661,7 @@ function assertDrizzleDemand(
     throw new Error("native full schema data requires an explicit closed source demand");
   }
   if (data !== undefined) {
+    schemaDataProjectionSchema.parse(data.projection ?? {});
     const descriptor = descriptors.find(({ id }) => id === data.program);
     if (
       descriptor === undefined ||
@@ -708,7 +717,7 @@ function withSchemaDependency(
 function coversDrizzleDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  demand: Pick<InventoryBuildRequest, "drizzleQueries" | "schemaSources" | "schemaDataSources" | "schemaDependency">,
+  demand: Pick<InventoryBuildRequest, "drizzleQueries" | "schemaSources" | "schemaDataSources" | "schemaDataProjection" | "schemaDependency">,
 ): boolean {
   if (demand.drizzleQueries === undefined && demand.schemaDataSources === undefined && !partition.families.includes("schema-data")) {
     return true;
@@ -735,7 +744,7 @@ function coversDrizzleDemand(
       return false;
     }
   }
-  if (!coversSchemaDataDemand(db, partition, demand.schemaDataSources)) {
+  if (!coversSchemaDataDemand(db, partition, demand)) {
     return false;
   }
   for (const query of demand.drizzleQueries ?? []) {
@@ -819,13 +828,16 @@ function assertExportCoverage(db: ReturnType<typeof openInventoryDatabase>, cand
 function coversSchemaDataDemand(
   db: ReturnType<typeof openInventoryDatabase>,
   partition: StoredInventoryPartition,
-  sources: readonly InventorySpan[] | undefined,
+  demand: Pick<InventoryBuildRequest, "schemaDataSources" | "schemaDataProjection">,
 ): boolean {
+  const sources = demand.schemaDataSources;
   if (sources === undefined) {
     return true;
   }
   const captured = readInventorySchemaData(db, partition.id);
   return (
+    JSON.stringify(schemaDataProjectionSchema.parse(captured.projection ?? {})) ===
+      JSON.stringify(schemaDataProjectionSchema.parse(demand.schemaDataProjection ?? {})) &&
     JSON.stringify(captured.sources.map(({ node }) => inventoryNodeQueryKey(node)).toSorted()) === JSON.stringify(sources.map(inventoryNodeQueryKey).toSorted())
   );
 }

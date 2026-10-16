@@ -5,6 +5,10 @@ import { Node, SyntaxKind } from "ts-morph";
 import type { NativeAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
 import { captureAuthoredValueProjection } from "../code-facts/authored-value-projection.ts";
 import { encodeAuthoredValueProjection } from "../code-facts/authored-value-projection-codec.ts";
+import type { IndexedCallParameters } from "../code-facts/drizzle-column-read-contract.ts";
+import { readIndexedCallParameters } from "../code-facts/drizzle-column-reads.ts";
+import type { DrizzleWrite } from "../code-facts/drizzle-columns.ts";
+import { readDrizzleWrite } from "../code-facts/drizzle-columns.ts";
 import { readModuleNamespaceDeclarations } from "../code-facts/module-namespace.ts";
 import type { InventoryAuthoredValueProjection, InventoryTypeProjection } from "../code-facts/projection-inventory-contract.ts";
 import { wireReferenceFact } from "../code-facts/projection-reference-codec.ts";
@@ -28,6 +32,9 @@ import { invocationEvidenceSchema, invocationPlanSchema } from "../code-facts/se
 import { captureTypeProjection } from "../code-facts/type-projection.ts";
 import { encodeTypeProjection } from "../code-facts/type-projection-codec.ts";
 import type { NativeTypeProjection } from "../code-facts/type-projection-contract.ts";
+import { captureColumnRowObservation, captureStoredValueObservation } from "../code-facts/value-observation.ts";
+import { mapColumnRowObservation, mapStoredValueObservation } from "../code-facts/value-observation-codec.ts";
+import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "../code-facts/value-observation-contract.ts";
 import { descendantsOfKind } from "./ts-workspace.ts";
 
 /** Capture only requested facets and their finite canonical callee/argument dependencies. */
@@ -43,7 +50,15 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
   const canonicalValues = new Map<MorphNode, ReferenceFact<MorphNode>>();
   const typeProjections = new Map<MorphNode, NativeTypeProjection>();
   const authoredValues = new Map<MorphNode, NativeAuthoredValueProjection>();
+  const storedValues = new Map<MorphNode, ProjectedStoredValueShape>();
+  const columnRows = new Map<MorphNode, NativeColumnRowObservation>();
+  const drizzleWrites = new Map<MorphNode, ReferenceFact<DrizzleWrite | null>>();
+  const indexedParameters = new Map<MorphNode, readonly IndexedCallParameters[]>();
   const sources = new Set<SourceFile>([node.getSourceFile()]);
+  const related = (subject: MorphNode): MorphNode => {
+    sources.add(subject.getSourceFile());
+    return subject;
+  };
   const readers: Record<InventoryInvocationPlan["facets"][number], (subject: MorphNode) => void> = {
     module: (subject) => captureOnce(modules, subject, resolveModuleMemberOrigin),
     global: (subject) => captureOnce(globals, subject, resolveGlobalMemberOrigin),
@@ -66,6 +81,20 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
         return captureTypeProjection(value, plan.typeProjection);
       }),
     "authored-value": (subject) => captureOnce(authoredValues, subject, captureAuthoredValueProjection),
+    "stored-value": (subject) => captureOnce(storedValues, subject, (value) => mapStoredValueObservation(captureStoredValueObservation(value), related)),
+    "row-column": (subject) => captureOnce(columnRows, subject, (value) => mapColumnRowObservation(captureColumnRowObservation(value), related)),
+    "drizzle-write": (subject) => captureOnce(drizzleWrites, subject, (value) => captureWrite(value, related)),
+    "indexed-parameters": (subject) =>
+      captureOnce(indexedParameters, subject, (value) => {
+        if (!Node.isCallExpression(value)) {
+          throw new Error("native indexed-parameter demand is not a call");
+        }
+        const indexed = readIndexedCallParameters(value);
+        for (const item of indexed) {
+          related(item.node);
+        }
+        return indexed;
+      }),
   };
   const capture = (subject: MorphNode, facets: InventoryInvocationPlan["facets"]): void => {
     sources.add(subject.getSourceFile());
@@ -96,6 +125,10 @@ export function captureInvocationEvidence(node: MorphNode, rawPlan: InventoryInv
     canonicalValues,
     typeProjections,
     authoredValues,
+    storedValues,
+    columnRows,
+    drizzleWrites,
+    indexedParameters,
     sources: [...sources],
     declarations: (subject): readonly MorphNode[] => {
       admitted(subject);
@@ -214,6 +247,10 @@ export function encodeInvocationEvidence(
       canonicalValue?: { declaration: InventorySpan; fact: object };
       "type-projection"?: InventoryTypeProjection;
       "authored-value"?: InventoryAuthoredValueProjection;
+      "stored-value"?: InventoryInvocationEvidence["profiles"][number]["stored-value"];
+      "row-column"?: InventoryInvocationEvidence["profiles"][number]["row-column"];
+      "drizzle-write"?: InventoryInvocationEvidence["profiles"][number]["drizzle-write"];
+      "indexed-parameters"?: InventoryInvocationEvidence["profiles"][number]["indexed-parameters"];
     }
   >();
   const profile = (subject: MorphNode): NonNullable<ReturnType<typeof profiles.get>> => {
@@ -264,7 +301,12 @@ function encodeDataProfiles(
   evidence: CapturedInvocationEvidence,
   plan: InventoryInvocationPlan,
   span: (node: MorphNode) => InventorySpan,
-  profile: (node: MorphNode) => Pick<InventoryInvocationEvidence["profiles"][number], "type-projection" | "authored-value">,
+  profile: (
+    node: MorphNode,
+  ) => Pick<
+    InventoryInvocationEvidence["profiles"][number],
+    "type-projection" | "authored-value" | "stored-value" | "row-column" | "drizzle-write" | "indexed-parameters"
+  >,
 ): void {
   for (const [subject, fact] of evidence.typeProjections) {
     if (plan.typeProjection === undefined) {
@@ -274,6 +316,22 @@ function encodeDataProfiles(
   }
   for (const [subject, fact] of evidence.authoredValues) {
     profile(subject)["authored-value"] = encodeAuthoredValueProjection(fact, span);
+  }
+  for (const [subject, fact] of evidence.storedValues) {
+    profile(subject)["stored-value"] = mapStoredValueObservation(fact, span);
+  }
+  for (const [subject, fact] of evidence.columnRows) {
+    profile(subject)["row-column"] = mapColumnRowObservation(fact, span);
+  }
+  for (const [subject, fact] of evidence.drizzleWrites) {
+    profile(subject)["drizzle-write"] = wireReferenceFact(
+      fact,
+      (value) => (value === null ? null : { ...value, target: span(value.target), arg: value.arg === undefined ? null : span(value.arg) }),
+      span,
+    );
+  }
+  for (const [subject, fact] of evidence.indexedParameters) {
+    profile(subject)["indexed-parameters"] = fact.map((item) => ({ ...item, node: span(item.node) }));
   }
 }
 
@@ -288,4 +346,19 @@ function canonicalVariableFact(
   const declaration = module.value.canonical.declaration;
   const fact = evidence.canonicalValues.get(declaration);
   return fact === undefined ? undefined : { declaration: span(declaration), fact: wireReferenceFact(fact, span, span) };
+}
+
+function captureWrite(node: MorphNode, related: (node: MorphNode) => MorphNode): ReferenceFact<DrizzleWrite | null> {
+  const fact = readDrizzleWrite(node);
+  related(fact.trace.origin);
+  fact.trace.declarations.forEach(related);
+  if (fact.kind === "unresolved") {
+    related(fact.node);
+  } else if (fact.value !== null) {
+    related(fact.value.target);
+    if (fact.value.arg !== undefined) {
+      related(fact.value.arg);
+    }
+  }
+  return fact;
 }

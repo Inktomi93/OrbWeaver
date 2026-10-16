@@ -183,8 +183,13 @@ function callbackOrigins(parameter: TsNode | undefined, seen = new Set<TsNode>()
   return sources.map((source) => ({ ...source, partitionType }));
 }
 
+/** Canonical row narrowing refusal remains distinct from compiler/infrastructure failure. */
+export class DrizzleRowOriginRefusal extends Error {}
+
 function mixedOriginError(site: TsNode): never {
-  throw new Error(`open-json parity: cannot prove schema-row origin of mixed read at ${site.getSourceFile().getFilePath()}:${site.getStartLineNumber()}`);
+  throw new DrizzleRowOriginRefusal(
+    `open-json parity: cannot prove schema-row origin of mixed read at ${site.getSourceFile().getFilePath()}:${site.getStartLineNumber()}`,
+  );
 }
 
 export function narrowedTable(receiver: TsNode, sources: readonly RowOrigin[], liveType: Type = receiver.getType()): TsNode | undefined {

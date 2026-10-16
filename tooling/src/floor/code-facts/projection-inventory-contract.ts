@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { InventoryInvocationReference, InventorySpan } from "./semantic-inventory-contract.ts";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
 import type { NativeTypeProjection, TypeProjectionPlan } from "./type-projection-contract.ts";
-import { typeProjectionPlanSchema } from "./type-projection-contract.ts";
+import { nativeTypeVocabularySchema, typeProjectionPlanSchema } from "./type-projection-contract.ts";
 /** Numeric text retains negative zero and nonfinite canonical answers across JSON/SQLite encoding. */
 export function authoredNumberText(value: number): string {
   return Object.is(value, -0) ? "-0" : String(value);
@@ -117,6 +117,7 @@ export function typeProjectionSchema(
   return z.strictObject({
     plan: typeProjectionPlanSchema,
     values: z.strictObject({
+      vocabulary: nativeTypeVocabularySchema.optional(),
       "declaration-export": z.boolean().optional(),
       origins: typeOriginProjectionSchema(span, reference, identity).optional(),
       "runtime-undefined": z.boolean().optional(),
