@@ -274,6 +274,13 @@ function requireAuxiliaryBindingSource(db: DatabaseSync, id: string, file: strin
 /** Closed global binding metadata never grants the complete default binding family. */
 export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node: InventorySpan | string): Iterable<InventoryPartition["bindings"][number]> {
   requireInventoryFamily(db, id, "global-origins");
+  const bindingFact = db.prepare(
+    `SELECT f.kind,f.ordinal,f.file,f.name,f.node,f.target,f.dynamic,f.specifier FROM inventory_fact f
+    WHERE f.partition=? AND f.kind='bindings' AND f.node=(SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?) ORDER BY f.ordinal`,
+  );
+  const declarationRows = db.prepare(
+    "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.kind='bindings' AND d.owner=? AND d.role=? ORDER BY d.ordinal",
+  );
   for (const row of db
     .prepare(
       `SELECT s.file,s.start,s.end,s.kind,b.lexicalCount,b.originCount FROM inventory_global_binding b JOIN inventory_span s ON s.partition=b.partition AND s.ordinal=b.node WHERE b.partition=? AND s.file=?${typeof node === "string" ? "" : " AND s.start=? AND s.end=? AND s.kind=?"}`,
@@ -283,17 +290,16 @@ export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node:
     if (!capturedInventorySource(db, id, selectedSpan.file).authored) {
       requireAuxiliaryBindingSource(db, id, selectedSpan.file);
     }
-    const matches = [...facts(db, id, "bindings", { node: selectedSpan, family: "global-origins" })];
+    requireInventoryFamily(db, id, "global-origins");
+    const matches = bindingFact
+      .all(id, id, inventoryString(selectedSpan.file), selectedSpan.start, selectedSpan.end, selectedSpan.kind)
+      .map((value) => factRow.parse(value));
     const fact = matches[0];
     if (matches.length !== 1 || fact === undefined) {
       throw new SemanticInventoryError("native global binding record is unavailable");
     }
     const read = (role: string, count: number): InventorySpan[] => {
-      const rows = db
-        .prepare(
-          "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.kind='bindings' AND d.owner=? AND d.role=? ORDER BY d.ordinal",
-        )
-        .all(id, fact.ordinal, role);
+      const rows = declarationRows.all(id, fact.ordinal, role);
       if (rows.length !== count || rows.some((value, index) => value["ordinal"] !== index)) {
         throw new SemanticInventoryError("native global binding declarations are incomplete");
       }
@@ -473,6 +479,46 @@ export function readInventoryDrizzleCall(db: DatabaseSync, id: string, query: In
 
 /** One closed query and its related-value graph; absent rows never stand in for empty facts. */
 export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, query: InventoryInvocationQuery): Iterable<InventoryInvocationEvidence> {
+  // Public iterators yield control to callers; only the synchronous batch below can reuse validation.
+  yield* invocationEvidence(db, id, query, undefined);
+}
+
+/** Shared-source validation is reusable only within this synchronous, transaction-pinned demand batch. */
+export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, queries: readonly InventoryInvocationQuery[]): boolean {
+  if (queries.length === 0) {
+    return true;
+  }
+  const ownsSnapshot = !db.isTransaction;
+  if (ownsSnapshot) {
+    db.exec("BEGIN");
+  }
+  try {
+    const bindingCounts = new Map<string, number>();
+    const covered = queries.every((query) => [...invocationEvidence(db, id, query, bindingCounts)].length === 1);
+    if (ownsSnapshot) {
+      db.exec("COMMIT");
+    }
+    return covered;
+  } catch (error) {
+    if (ownsSnapshot) {
+      rollbackReadSnapshot(db);
+    }
+    throw error;
+  }
+}
+
+function rollbackReadSnapshot(db: DatabaseSync): void {
+  if (db.isTransaction) {
+    db.exec("ROLLBACK");
+  }
+}
+
+function* invocationEvidence(
+  db: DatabaseSync,
+  id: string,
+  query: InventoryInvocationQuery,
+  bindingCounts: Map<string, number> | undefined,
+): Iterable<InventoryInvocationEvidence> {
   requireInventoryFamily(db, id, "invocation-evidence");
   const key = invocationQueryKey(query);
   for (const row of db
@@ -512,7 +558,7 @@ export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, q
     ) {
       throw new SemanticInventoryError("native invocation source ownership is incomplete");
     }
-    assertInvocationChildren(db, id, fact);
+    assertInvocationChildren(db, id, fact, bindingCounts);
     yield fact;
   }
 }
@@ -546,10 +592,15 @@ function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue): 
   }
 }
 
-function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence): void {
+function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence, bindingCounts: Map<string, number> | undefined): void {
   for (const source of fact.sources) {
-    capturedInventorySource(db, id, source.file);
-    if ([...readInventoryGlobalBindings(db, id, source.file)].length !== source.bindings) {
+    let count = bindingCounts?.get(source.file);
+    if (count === undefined) {
+      capturedInventorySource(db, id, source.file);
+      count = [...readInventoryGlobalBindings(db, id, source.file)].length;
+      bindingCounts?.set(source.file, count);
+    }
+    if (count !== source.bindings) {
       throw new SemanticInventoryError("native invocation binding-source coverage is incomplete");
     }
     if (source.computed.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1)) {
