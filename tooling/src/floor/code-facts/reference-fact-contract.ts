@@ -32,6 +32,9 @@ export interface UnresolvedReferenceFact {
 /** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
 export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
 
+/** A reader admits the use or supplies an exact proven alias whose actual uses must still close. */
+export type ReferenceUseAdmission = boolean | Identifier;
+
 /** Source-local effects share the reference pass lifetime; prototype exposure is not an own-field write. */
 export interface SourceWriteFacts {
   readonly written: ReadonlySet<object>;

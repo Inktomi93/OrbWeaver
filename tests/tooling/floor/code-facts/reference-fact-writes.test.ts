@@ -66,6 +66,27 @@ test("erased types are harmless; initializer readability remains a separate quer
   expect(query({ "source.ts": "declare const VALUES: unknown; const sink = { data: VALUES };" })).toBeUndefined();
 });
 
+for (const scenario of ["closed", "escaped", "written"] as const) {
+  test(`an explicit proven alias queues actual reference closure: ${scenario}`, () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    project.createSourceFile("/repo/leaf.ts", "export function pick(){return 1;}");
+    const continuations = { closed: "", escaped: "escape(alias);", written: "alias=()=>2;" };
+    const source = project.createSourceFile("/repo/use.ts", `const {pick:alias}=await import("./leaf.ts");${continuations[scenario]}alias();`);
+    const declaration = project.getSourceFileOrThrow("/repo/leaf.ts").getFunctionOrThrow("pick").getNameNodeOrThrow();
+    const binding = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const alias = binding.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    const property = binding.getPropertyNameNodeOrThrow();
+    const refusal = unprovenReferenceUse(declaration, (use) => {
+      if (use === property) {
+        return alias;
+      }
+      const parent = use.getParent();
+      return Node.isCallExpression(parent) && parent.getExpression() === use && use.getText() === "alias";
+    });
+    expect(refusal === undefined).toBe(scenario === "closed");
+  });
+}
+
 function effectContext(project: Project, sources = project.getSourceFiles()): InheritedReadEffectContext {
   const observed = observeCallReturns(
     sources.flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression)),

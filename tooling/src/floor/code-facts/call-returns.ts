@@ -9,7 +9,7 @@ import {
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
-import { isDocumentationLinkReference, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
+import { isDocumentationLinkReference, readModuleAliasBinding, readStaticString, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
 import {
   resolveCallableAlternatives,
@@ -463,6 +463,10 @@ function referenceCandidate(node: MorphNode): boolean {
 }
 
 function admittedReference(node: MorphNode, target: MorphNode, calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>): boolean {
+  const moduleAlias = readModuleAliasBinding(node, target);
+  if (moduleAlias !== undefined) {
+    return moduleAlias.kind === "resolved";
+  }
   const invocation = node.getFirstAncestorByKind(SyntaxKind.CallExpression);
   if (invocation !== undefined && unwrapTarget(invocation.getExpression()) === node) {
     const observed = calls.get(invocation.compilerNode);
