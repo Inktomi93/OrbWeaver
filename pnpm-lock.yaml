@@ -589,7 +589,7 @@ patchedDependencies:
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
   libsql@0.6.0-pre.43: 7b48aa0bd500a46194e7b41b77327ba74b34e5a0d6717f366ea745b4e7978031
   node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
-  ts-morph@28.0.0: 4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37
+  ts-morph@28.0.0: 3d180f51815155f7820ed801a0587a3fc70e27f6650e9bf680bbab1dbbb3c723
 
 importers:
 
@@ -798,7 +798,7 @@ importers:
         version: 4.3.3
       ts-morph:
         specifier: 'catalog:'
-        version: 28.0.0(patch_hash=4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37)
+        version: 28.0.0(patch_hash=3d180f51815155f7820ed801a0587a3fc70e27f6650e9bf680bbab1dbbb3c723)
       ts7:
         specifier: 'catalog:'
         version: typescript@7.0.2
@@ -1312,7 +1312,7 @@ importers:
         version: 0.35.5(@types/node@26.6.2)
       ts-morph:
         specifier: 'catalog:'
-        version: 28.0.0(patch_hash=4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37)
+        version: 28.0.0(patch_hash=3d180f51815155f7820ed801a0587a3fc70e27f6650e9bf680bbab1dbbb3c723)
       typeid-js:
         specifier: 'catalog:'
         version: 1.2.0
@@ -1373,7 +1373,7 @@ importers:
         version: 13.1.3
       ts-morph:
         specifier: 'catalog:'
-        version: 28.0.0(patch_hash=4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37)
+        version: 28.0.0(patch_hash=3d180f51815155f7820ed801a0587a3fc70e27f6650e9bf680bbab1dbbb3c723)
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -15484,7 +15484,7 @@ snapshots:
     dependencies:
       typescript: 6.0.3
 
-  ts-morph@28.0.0(patch_hash=4f99d1111d1538dd0d85eb3a63a13ab431df81c9bafbfd0ddced9d5b7615eb37):
+  ts-morph@28.0.0(patch_hash=3d180f51815155f7820ed801a0587a3fc70e27f6650e9bf680bbab1dbbb3c723):
     dependencies:
       '@ts-morph/common': 0.29.0(patch_hash=44b04ec8a4b2104ff365e1b83aa704d2d1530c78f8c183ef9d8f044f6d340708)
       code-block-writer: 13.0.3

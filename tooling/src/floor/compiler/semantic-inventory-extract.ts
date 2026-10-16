@@ -446,7 +446,9 @@ function extractTypedFacts(
   } = input;
   const needsProject = invocationQueries.length > 0 || input.drizzle.schemaSources !== undefined || (input.drizzle.drizzleQueries?.length ?? 0) > 0;
   const invocationProgram = needsProject ? project.getProgram().compilerObject : undefined;
-  const invocationSources = needsProject ? nativeCompilerSourceFiles(project) : [];
+  // Physical input metadata retains host parses; semantic reads require the exact Program-admitted AST,
+  // including compiler-owned package redirects whose descendants belong to their canonical target.
+  const invocationSources = invocationProgram?.getSourceFiles().map((source) => project.getProgramSourceFile(source, invocationProgram)) ?? [];
   const service = project.getLanguageService().compilerObject;
   const program = service.getProgram();
   if (program === undefined) {
@@ -462,7 +464,7 @@ function extractTypedFacts(
           if (invocationProgram === undefined) {
             throw new Error("native Drizzle Project owner is unavailable");
           }
-          assertInvocationSource(source, invocationProgram);
+          assertInvocationSource(source, invocationProgram, "drizzle-capture");
         })
       : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
@@ -488,7 +490,7 @@ function extractTypedFacts(
       if (invocationProgram === undefined) {
         throw new Error("native invocation owner Program is unavailable");
       }
-      assertInvocationSource(source, invocationProgram);
+      assertInvocationSource(source, invocationProgram, "after-families");
     }
     return facts;
   } finally {
@@ -1096,28 +1098,35 @@ function collectInvocationFacts(
     globalKeys: new Set(context.values.globalOrigins.map((fact) => inventoryNodeQueryKey(fact.node))),
   };
   for (const source of sources) {
-    assertInvocationSource(source, program);
+    assertInvocationSource(source, program, "before-queries");
   }
   for (const query of queries) {
     collectInvocationQuery(query, state);
   }
-  for (const source of sources) {
-    assertInvocationSource(source, program);
+  for (const [index, source] of sources.entries()) {
+    assertInvocationSource(source, program, "after-queries", index);
     source.forgetDescendants();
   }
 }
-function assertInvocationSource(source: SourceFile, program: ts.Program): void {
-  if (source.getProject().getProgram().compilerObject !== program || program.getSourceFile(source.getFilePath()) !== source.compilerNode) {
-    throw new Error("native invocation Project source differs from its captured native Program");
+function assertInvocationSource(source: SourceFile, program: ts.Program, phase: string, cleanupIndex?: number): void {
+  const current = source.getProject().getProgram().compilerObject;
+  const path = source.getFilePath();
+  const expectedSource = program.getSourceFile(path);
+  const actualSource = source.compilerNode;
+  if (current !== program || expectedSource !== actualSource) {
+    const currentSource = current.getSourceFile(path);
+    throw new Error(
+      `native invocation Project source differs from its captured native Program: phase=${phase}; cleanupIndex=${cleanupIndex ?? "none"}; priorForget=${cleanupIndex !== undefined && cleanupIndex > 0}; source=${path}; programSame=${current === program}; expectedSourceSame=${expectedSource === actualSource}; currentSourceSame=${currentSource === actualSource}; expectedTextSame=${expectedSource?.text === actualSource.text}; currentTextSame=${currentSource?.text === actualSource.text}; optionsSame=${current.getCompilerOptions() === program.getCompilerOptions()}; expectedRoots=${program.getRootFileNames().length}; currentRoots=${current.getRootFileNames().length}`,
+    );
   }
 }
 function collectInvocationQuery(query: InventoryInvocationQuery, state: InvocationCollection): void {
   const { context, byFile, program } = state;
   const source = byFile.get(query.node.file);
   const node = inventoryQueryNode(source, query.node);
-  assertInvocationSource(node.getSourceFile(), program);
+  assertInvocationSource(node.getSourceFile(), program, "before-query");
   const evidence = captureInvocationEvidence(node, query);
-  assertInvocationSource(node.getSourceFile(), program);
+  assertInvocationSource(node.getSourceFile(), program, "after-query");
   const wire = encodeInvocationEvidence(node, query, evidence, context.spans.node);
   const closed = closeInvocationSources(evidence.sources, state);
   for (const [subject, fact] of evidence.globals) {
