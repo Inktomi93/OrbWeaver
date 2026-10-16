@@ -37,6 +37,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
     readFile: (file) => files.get(file),
     fileExists: (file) => files.has(file),
   };
+  // @orb-waive test-determinism(performance.now): Native language-service phase telemetry measures the live Program lifetime; remove with that telemetry.
   const started = performance.now();
   const service = ts.createLanguageService(host);
   const program = service.getProgram();
@@ -59,6 +60,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
     return indexOf.call(this, search, start);
   };
   const event = (phase, detail = {}) => {
+    // @orb-waive test-determinism(performance.now): Native lexical phase completion reports actual elapsed time, not business time; remove with that telemetry.
     const row = { phase, elapsedMs: performance.now() - started, ...detail };
     if (phase === "complete") {
       writeFileSync(process.argv[2], JSON.stringify(row));
