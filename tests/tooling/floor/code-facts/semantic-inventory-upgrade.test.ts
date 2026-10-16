@@ -240,6 +240,23 @@ function familyDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_family'").get();
 }
 
+test("metadata decoding rejects malformed JSON and encoded non-string values", ({ scratch }) => {
+  using db = openInventoryDatabase(join(scratch, "metadata.sqlite"));
+  const generation = publishInventoryGeneration(db, [brandPartition("tsconfig.metadata.json")]);
+  const before = readInventoryGeneration(db, generation);
+  const partition = before[0];
+  if (partition === undefined) {
+    throw new Error("metadata decoding partition missing");
+  }
+  const change = db.prepare("UPDATE inventory_descriptor SET descriptorVersion=? WHERE partition=?");
+  for (const encoded of ["{", "null", "0", "false", "[]", "{}"] as const) {
+    change.run(encoded, partition.id);
+    expect(() => readInventoryGeneration(db, generation)).toThrow(encoded === "{" ? SyntaxError : "expected string");
+  }
+  change.run(inventoryString(partition.descriptorVersion), partition.id);
+  expect(readInventoryGeneration(db, generation)).toEqual(before);
+});
+
 function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_input'").get();
 }

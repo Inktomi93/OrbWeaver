@@ -280,7 +280,8 @@ export function* invocationAtoms(value: JsonValue): Iterable<InventoryInvocation
   yield* visit(value, null, "");
 }
 
-export const inventoryStringSchema = z.string().transform((value) => z.string().parse(JSON.parse(value)));
+const decodedStringSchema = z.string();
+export const inventoryStringSchema = z.string().transform((value) => decodedStringSchema.parse(JSON.parse(value)));
 
 /** JSON is bounded to one source-text fragment, never a source collection or a partition. */
 export function* inventoryTextParts(text: string): Iterable<string> {
