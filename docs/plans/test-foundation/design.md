@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # Tests on one harness and one code-facts engine
@@ -139,6 +139,8 @@ Use the native SQLite platform for committed facts. A writer compares input vers
 Track source, config, package-resolution and dependency inputs with content versions. Changed inputs invalidate their affected native partitions. Added files and failed module lookups also participate in invalidation. Reconcile removed declarations and references when publishing an update. Cross-world reference and export unions demand one input snapshot for every participating world. Publish their generation together only after every demanded partition passes the final input check. Readers pin that generation; they never combine independently published old and new partitions. A failed worker leaves the previous generation intact and supplies no current verdict.
 
 Keep transaction overlays separate from committed facts. Derive their roots from the compiler overlay and their content from the transaction filesystem. Changed overlay content selects new facts; it never changes the repository generation. Discard overlay partitions when their transaction ends.
+
+Exact Program source admission preserves compiler redirects and physical host input metadata. Ordinary installed controls qualify this dependency; complete invocation and full-schema qualification remain open.
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 

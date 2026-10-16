@@ -24,13 +24,13 @@ Actual structure and scoped entrypoints preserve native options, roots, closure 
 
 ## Evidence
 
-Generated tokens, value casts, ID brands and runtime-export callability use guarded native owners. Naming and firehose judgments remain distinct. Missing, stale, foreign, failed or disposed ownership refuses. Evidence: `reports/review/native-brand-integrated.md` and `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`.
+Generated token, cast, ID-brand and callable-export facts use guarded native owners. Naming and firehose remain distinct; missing, stale, foreign or disposed owners refuse. Evidence: `reports/review/native-brand-integrated.md` and `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`.
 
-Native shape catalogs and closed pair demand preserve complete descriptor membership. Copy, hand-shape, AST exact/near and component lower-data consumers share that path. Excluded-world changes refuse publication. Evidence: `reports/review/shape-binding-integrated.md`. Declaration-output delivery preserves opaque-fixture selection and unknown judgment: `reports/review/1027-declaration-output-delivery.md`.
+Native shape catalogs preserve descriptor membership for copy, hand-shape, AST exact/near and component lower-data consumers. Excluded-world changes refuse publication. Evidence: `reports/review/shape-binding-integrated.md`. Declaration-output delivery preserves opaque-fixture selection and unknown judgment: `reports/review/1027-declaration-output-delivery.md`.
 
-Invoked-member, callable-body and computed-name delivery preserves declaration identity, await semantics, ordered traces, refusal and authored coordinates. Plugin guards and client assertions consume the shared native facts. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-computed-normalization-review.md` and its linked reviews.
+Invoked-member, callable-body and computed-name facts preserve identity, await, traces, refusal and coordinates for plugin guards and client assertions. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-computed-normalization-review.md` and its linked reviews.
 
-Clock and random policies use native global origins without claiming complete bindings. Determinism and mock policies share sealed invocation facts with exact arguments, binding coverage and refusal replay. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-global-origin-review.md` and `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-invocation-independent-review.md`.
+Clock/random native origins do not claim complete bindings. Determinism and mock policies share guarded invocation facts with arguments, bindings and refusals. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-global-origin-review.md` and `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-invocation-independent-review.md`.
 
 Sealed-reference policies preserve candidate grammar, authority and authored coordinates through native value/module facts. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-sealed-reference-independent-review.md`.
 
@@ -40,4 +40,4 @@ Reviewed `dc6700ee7f` delivers complete context-utility identity through sealed 
 
 Reviewed `a62c1f7e7e` delivers native schema identities and effective Drizzle arguments to assets, table ownership and vector policies. Atomic catalog/consumer publication tracks executable helper inputs; selected native and freshness controls pass. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/stickler/2026-10-15-native-drizzle-independent-review.md`. Full-schema consumers, virtual-overlay liveness, type projections and native cost remain open. Root types retain off-owned errors.
 
-Reviewed `50851d3d53` adds an ownership lookup index without changing refusals. Complete invocation cost remains unqualified.
+Reviewed `50851d3d53` indexes source ownership without changing refusals. Reviewed `c0c129a28b` admits Program sources while preserving host parses. Ordinary controls pass; types have no owned failures. Evidence: `reports/review/1027-program-source-admission-ordinary.md`. Complete invocation cost remains unqualified.

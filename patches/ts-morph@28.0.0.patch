@@ -1,8 +1,161 @@
+diff --git a/dist/ts-morph.js b/dist/ts-morph.js
+--- a/dist/ts-morph.js
++++ b/dist/ts-morph.js
+@@ -14139,6 +14139,7 @@
+             this.#isSaved = true;
+         }
+         #getTextForSave() {
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             const text = this.getFullText();
+             return this._hasBom ? "\uFEFF" + text : text;
+         }
+@@ -14274,10 +14275,12 @@
+             });
+         }
+         async refreshFromFileSystem() {
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             const fileReadResult = await this._context.fileSystemWrapper.readFileOrNotExists(this.getFilePath(), this._context.getEncoding());
+             return this.#refreshFromFileSystemInternal(fileReadResult);
+         }
+         refreshFromFileSystemSync() {
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             const fileReadResult = this._context.fileSystemWrapper.readFileOrNotExistsSync(this.getFilePath(), this._context.getEncoding());
+             return this.#refreshFromFileSystemInternal(fileReadResult);
+         }
+@@ -14303,6 +14306,7 @@
+             return this;
+         }
+         _firePreModified() {
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             this.#preModifiedEventContainer.fire(this);
+         }
+         organizeImports(formatSettings = {}, userPreferences = {}) {
+@@ -14348,6 +14352,7 @@
+         applyTextChanges(textChanges) {
+             if (textChanges.length === 0)
+                 return this;
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             this.forgetDescendants();
+             replaceNodeText({
+                 sourceFile: this._sourceFile,
+@@ -14382,6 +14387,7 @@
+             return this.compilerNode.fileName.startsWith(common.libFolderInMemoryPath);
+         }
+         _throwIfIsInMemoryLibFile() {
++            this._context.compilerFactory.throwIfProgramSourceFile(this);
+             if (this._isLibFileInMemory())
+                 throw new common.errors.InvalidOperationError(`This operation is not permitted on an in memory lib folder file.`);
+         }
+@@ -18672,6 +18678,7 @@
+         return this.#createdCompilerObject != null;
+     }
+     _reset(rootNames, host) {
++        this.#context.compilerFactory.forgetProgramSourceFiles();
+         const compilerOptions = this.#context.compilerOptions.get();
+         this.#getOrCreateCompilerObject = () => {
+             if (this.#createdCompilerObject == null) {
+@@ -20264,6 +20271,7 @@
+ class CompilerFactory {
+     #context;
+     #sourceFileCacheByFilePath = new Map();
++    #programSourceFiles = new Map();
+     #diagnosticCache = new common.WeakCache();
+     #definitionInfoCache = new common.WeakCache();
+     #documentSpanCache = new common.WeakCache();
+@@ -20376,14 +20384,14 @@
+         dirPath = this.#context.fileSystemWrapper.getStandardizedAbsolutePath(dirPath);
+         return this.#directoryCache.has(dirPath);
+     }
+-    getSourceFileForNode(compilerNode) {
++    getSourceFileForNode(compilerNode, program) {
+         let currentNode = compilerNode;
+         while (currentNode.kind !== common.SyntaxKind.SourceFile) {
+             if (currentNode.parent == null)
+                 return undefined;
+             currentNode = currentNode.parent;
+         }
+-        return this.getSourceFile(currentNode, { markInProject: false });
++        return program == null ? this.getSourceFile(currentNode, { markInProject: false }) : this.getProgramSourceFile(currentNode, program);
+     }
+     hasCompilerNode(compilerNode) {
+         return this.#nodeCache.has(compilerNode);
+@@ -20392,6 +20400,12 @@
+         return this.#nodeCache.get(compilerNode);
+     }
+     getNodeFromCompilerNode(compilerNode, sourceFile) {
++        const admission = sourceFile == null ? undefined : this.#programSourceFiles.get(sourceFile.compilerNode);
++        if (admission != null && admission.sourceFile === sourceFile) {
++            sourceFile = this.getSourceFileForNode(compilerNode, admission.program);
++            if (sourceFile == null)
++                throw new common.errors.InvalidOperationError("Program node has no admitted native source parent.");
++        }
+         if (compilerNode.kind === common.SyntaxKind.SourceFile)
+             return this.getSourceFile(compilerNode, { markInProject: false });
+         return this.#nodeCache.getOrCreate(compilerNode, () => {
+@@ -20447,7 +20461,31 @@
+     createCompilerSourceFileFromText(filePath, text, scriptKind) {
+         return this.documentRegistry.createOrUpdateSourceFile(filePath, this.#context.compilerOptions.get(), common.ts.ScriptSnapshot.fromString(text), scriptKind);
+     }
++    getProgramSourceFile(compilerSourceFile, program) {
++        if (this.#context.program.compilerObject !== program || program.getSourceFile(compilerSourceFile.fileName) !== compilerSourceFile)
++            throw new common.errors.InvalidOperationError("Source file is not admitted by this Project's current Program.");
++        const admitted = this.#programSourceFiles.get(compilerSourceFile);
++        if (admitted != null)
++            return admitted.sourceFile;
++        const host = this.#sourceFileCacheByFilePath.get(compilerSourceFile.fileName);
++        if (host != null && host.compilerNode === compilerSourceFile)
++            return host;
++        const sourceFile = this.#nodeCache.getOrCreate(compilerSourceFile, () => new SourceFile(this.#context, compilerSourceFile));
++        this.#programSourceFiles.set(compilerSourceFile, { sourceFile, program });
++        return sourceFile;
++    }
++    forgetProgramSourceFiles() {
++        for (const admission of this.#programSourceFiles.values())
++            admission.sourceFile._forgetOnlyThis();
++    }
++    throwIfProgramSourceFile(sourceFile) {
++        if (this.#programSourceFiles.get(sourceFile.compilerNode)?.sourceFile === sourceFile)
++            throw new common.errors.InvalidOperationError("Program-admitted source files are read-only; mutate the Project host source instead.");
++    }
+     getSourceFile(compilerSourceFile, options) {
++        const admission = this.#programSourceFiles.get(compilerSourceFile);
++        if (admission != null)
++            return admission.sourceFile;
+         let wasAdded = false;
+         const sourceFile = this.#sourceFileCacheByFilePath.get(compilerSourceFile.fileName)
+             ?? this.#nodeCache.getOrCreate(compilerSourceFile, () => {
+@@ -20549,6 +20587,8 @@
+     replaceCompilerNode(oldNode, newNode) {
+         const nodeToReplace = oldNode instanceof Node ? oldNode.compilerNode : oldNode;
+         const node = oldNode instanceof Node ? oldNode : this.#nodeCache.get(oldNode);
++        if (nodeToReplace.kind === common.SyntaxKind.SourceFile && node != null)
++            this.throwIfProgramSourceFile(node);
+         if (nodeToReplace.kind === common.SyntaxKind.SourceFile && nodeToReplace.fileName !== newNode.fileName) {
+             const sourceFile = node;
+             this.#removeCompilerNodeFromCache(nodeToReplace);
+@@ -20568,6 +20608,8 @@
+     }
+     #removeCompilerNodeFromCache(compilerNode) {
+         this.#nodeCache.removeByKey(compilerNode);
++        if (this.#programSourceFiles.delete(compilerNode))
++            return;
+         if (compilerNode.kind === common.SyntaxKind.SourceFile) {
+             const sourceFile = compilerNode;
+             const standardizedFilePath = this.#context.fileSystemWrapper.getStandardizedAbsolutePath(sourceFile.fileName);
+@@ -21027,6 +21069,9 @@
+         else {
+             throw new common.errors.InvalidOperationError(`Could not find source file in project based on the provided condition.`);
+         }
++    }
++    getProgramSourceFile(compilerSourceFile, program) {
++        return this._context.compilerFactory.getProgramSourceFile(compilerSourceFile, program);
+     }
+     getSourceFile(fileNameOrSearchFunction) {
+         const filePathOrSearchFunction = getFilePathOrSearchFunction(this._context.fileSystemWrapper);
 diff --git a/lib/ts-morph.d.ts b/lib/ts-morph.d.ts
-index db463d483ac69df3fe98cd2a2bb292848ff003b4..f471308f53fc9f72486c345a4776987d5c09a5c2 100644
 --- a/lib/ts-morph.d.ts
 +++ b/lib/ts-morph.d.ts
-@@ -124,6 +124,7 @@ export declare class InMemoryFileSystemHost implements FileSystemHost {
+@@ -124,6 +124,7 @@
  
  /** Host for implementing custom module and/or type reference directive resolution. */
  export interface ResolutionHost {
@@ -10,3 +163,17 @@ index db463d483ac69df3fe98cd2a2bb292848ff003b4..f471308f53fc9f72486c345a4776987d
    resolveModuleNames?: ts.LanguageServiceHost["resolveModuleNames"];
    getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
    resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
+@@ -609,6 +610,13 @@
+    * @param searchFunction - Search function.
+    */
+   getSourceFileOrThrow(searchFunction: (file: SourceFile) => boolean): SourceFile;
++  /**
++   * Borrow an exact SourceFile admitted by this Project's current compiler Program.
++   * The host filename/directory/document registry remains unchanged. Compiler-owned redirect views are
++   * read-only and forgotten on Project Program reset. Descendants preserve their native parents and
++   * may share mutable Project wrappers; callers must guard the same Program before and after reads.
++   */
++  getProgramSourceFile(compilerSourceFile: ts.SourceFile, program: ts.Program): SourceFile;
+   /**
+    * Gets a source file by a file name or file path. Returns undefined if none exists.
+    * @param fileNameOrPath - File name or path that the path could end with or equal.

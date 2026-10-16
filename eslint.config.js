@@ -1711,9 +1711,9 @@ function maintainedRulePacks() {
       rules: { "regexp/no-misleading-capturing-group": "off" },
     },
     {
-      // Helper/test exemptions do not establish bounded input. Review-mirror's parsers keep the native backtracking rule.
+      // Helper/test exemptions do not establish bounded input. Maintained review-mirror, AST and codemod tools keep the native backtracking rule.
       files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
-      ignores: ["tooling/src/review-mirror/**"],
+      ignores: ["tooling/src/review-mirror/**", "tooling/src/ast/**", "tooling/src/codemod/**"],
       rules: { "regexp/no-super-linear-backtracking": "off" },
     },
   ];

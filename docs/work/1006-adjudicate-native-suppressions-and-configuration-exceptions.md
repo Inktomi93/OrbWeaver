@@ -28,7 +28,7 @@ Native `Response.formData` permissions reject adjacent calls. Reviewed tracing p
 
 CSS/SQL mirror scanners consume quoted and comment spans without complexity exceptions. Native boundary, corrupt-span and differential controls preserve bytes, directive positions and dispatch. Review: `159dd24975`.
 
-Sources `1e387becf6` and `51207ba4a2` restore native backtracking checks for review-mirror and remove an inert setting. Scanners remain unchanged. Native controls, exact lint and Biome pass; Node retains only off-owned errors. Exact exceptions remain; broader helper permissions stay unresolved. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-regexp-disposition.md`.
+Sources `1e387becf6`, `51207ba4a2` and `edeb660a11` restore native backtracking for review-mirror, AST and codemod tools. Scanners remain unchanged. Native controls and exact lint pass; Node retains only off-owned errors. Exact exceptions remain; broader helper permissions stay unresolved. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`.
 
 Reviewed `375e0c81e6` restores native duplicate-dependency errors while preserving peer and development declarations. Native controls pass; integration retains off-owned root diagnostics: `reports/review/ready-train-root-types.log`.
 
