@@ -824,7 +824,7 @@ function isolatedValueSourceSchema(
     if (schema.status !== "ready") {
       throw new Error("isolated value-source catalog is not ready");
     }
-    result = { declarations: new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))), basis: null };
+    result = { declarations: new Set(schema.value.tables.map((table) => schemaDeclarationKey(table.declaration))), basis: null, tables: schema.value.tables };
   }
   return result;
 }

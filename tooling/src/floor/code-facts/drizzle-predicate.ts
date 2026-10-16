@@ -295,12 +295,15 @@ function readPredicate(node: Node, context: SqlReadContext, active: ReadonlySet<
 }
 
 /** Read one predicate without collapsing universal scope and existential selection into the same judgment. */
-export function readDrizzlePredicate(node: Node, observations?: CallReturnObservations): DrizzlePredicate {
+export function readDrizzlePredicate(node: Node, observations?: CallReturnObservations, bindings: ReadonlyMap<Node, Node> = new Map()): DrizzlePredicate {
   if (observations?.drizzleSql !== undefined) {
+    if (bindings.size > 0) {
+      throw new Error("captured native predicate bindings cannot be replaced");
+    }
     return observations.drizzleSql.predicate(node);
   }
   const captured = observations === undefined ? undefined : readCallReturnProgram(node, observations);
   return captured?.kind === "unresolved"
     ? { kind: "unresolved", node, contained: false, presence: "optional" }
-    : readPredicate(node, { bindings: new Map(), program: captured?.value }, new Set());
+    : readPredicate(node, { bindings, program: captured?.value }, new Set());
 }

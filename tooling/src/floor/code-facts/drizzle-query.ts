@@ -84,7 +84,9 @@ export function readRelationalWhere(where: Node | undefined, table: string): Rel
   }
   const body = value.getBody();
   const [row] = value.getParameters();
-  return row === undefined || !relationalWhereCallback(value) || body.isKind(SyntaxKind.Block) ? undefined : { receiver: row.getName(), predicate: body };
+  return row === undefined || value.isAsync() || !relationalWhereCallback(value) || body.isKind(SyntaxKind.Block)
+    ? undefined
+    : { receiver: row.getName(), predicate: body };
 }
 
 /** Preserve shorthand and unreadable property carriers rather than inventing a config value. */

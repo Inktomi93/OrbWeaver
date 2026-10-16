@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: blocked
+status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-blocked: on 1027
+lane: codex/drizzle-native-953
 plan: test-foundation
 ---
 
@@ -27,3 +27,5 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 D321 records the owner rulings. The canonical audit and raw-output crosswalk are in `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances; their different totals do not establish missing coverage.
 
 Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
+
+The assigned SQL delivery passes independent review and ordinary controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Retained schema, clone and compose gaps remain in 1027; they do not block this migration. The foundation plan owns the separate qualification order.

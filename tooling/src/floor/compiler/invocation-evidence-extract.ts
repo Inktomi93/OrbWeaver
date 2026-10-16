@@ -191,7 +191,7 @@ export function captureInvocationEvidence(
             }
             return value;
           },
-          predicateInputs: captureDrizzleSqlInputs(typeCapture.demand, drizzleSql),
+          predicateInputs: captureDrizzleSqlInputs(typeCapture.demand, drizzleSql, typeCapture.drizzleSources?.tables),
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {

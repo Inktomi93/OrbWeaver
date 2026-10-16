@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-16
 priority: P1
 area: tooling
-lane: codex/default-binding-continuations-1002
+lane: codex/module-namespace-continuations-1002
 plan: test-foundation
 ---
 
@@ -38,10 +38,10 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The original callable query refuses an unresolved `ctx.backgroundSignal` origin after nested optional sibling preservation stops supplied mode projection. No mutation is observed. Evidence: `reports/review/1002-original-callable-current/9299c01cfd-diagnosis.md`. Target and cost remain unqualified.
+The original callable query remains unresolved at `ctx.backgroundSignal`. Actual caller/default proof refuses the `createLifecycle` dynamic-module binding in entry. Evidence: `reports/review/1002-original-callable-current/4e53d3ee02/diagnosis.md`. Target and cost remain unqualified.
 
 Source lookup, transient supplied contexts, callable-proof epochs and examined refusals pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 
 Missing-reference admission passes review and ordinary controls except the partial-env failure. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.
 
-Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Original-target resolution requires a fresh diagnostic.
+Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
