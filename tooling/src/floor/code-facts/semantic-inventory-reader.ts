@@ -169,6 +169,12 @@ function createInventoryReader(
   const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
   const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
+  // Only the factory-owned lease supplies private immutable partition metadata.
+  const available = new Map<StoredInventoryPartition, ReadonlySet<string>>(
+    lease === undefined ? [] : partitions.map((partition) => [partition, new Set(partition.available)]),
+  );
+  const hasAvailableSource = (partition: StoredInventoryPartition, file: string): boolean =>
+    available.get(partition)?.has(file) ?? partition.available.includes(file);
   const contextProject = (context: readonly string[] | undefined): Project => {
     if (context === undefined) {
       return project;
@@ -297,7 +303,7 @@ function createInventoryReader(
   const replayFor =
     (node: Node, program: string, partition: StoredInventoryPartition, label: string) =>
     (value: InventorySpan): Node => {
-      if (!partition.available.includes(value.file)) {
+      if (!hasAvailableSource(partition, value.file)) {
         throw new SemanticInventoryError(`native ${label} source is outside its native closure`);
       }
       const captured = sourceFile(value.file, [program]);
@@ -718,6 +724,7 @@ function createInventoryReader(
       }
       open = false;
       indexes = [];
+      available.clear();
       texts.clear();
       capturedTexts.clear();
       projections.clear();
