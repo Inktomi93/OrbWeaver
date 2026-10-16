@@ -146,7 +146,7 @@ Exact Program source admission preserves compiler redirects and physical host in
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture requires explicit reference inputs and stages complete observations under native lifetime validation. Ordinary installed controls qualify this source and its dependency integration. The actual env-parser control still refuses inherited descriptor exposure at identity dispatch. Item 1002 owns that unresolved boundary, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture requires explicit reference inputs and stages complete observations under native lifetime validation. Ordinary installed controls qualify this source, its dependency integration and defaulted binding provenance. Destructured receiver origins retain mutation checks. The actual env-parser control still refuses inherited descriptor exposure at identity dispatch. Item 1002 owns that unresolved boundary, measured proof cost, target qualification and dependent replay order. Complete store qualification remains open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
