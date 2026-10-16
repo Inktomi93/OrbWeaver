@@ -908,6 +908,9 @@ class RefinementMembership extends Set<ts.CallExpression> {
     this.#ledger.opaque();
     return super.size;
   }
+  get proofSize(): number {
+    return super.size;
+  }
   override entries(): ReturnType<Set<ts.CallExpression>["entries"]> {
     this.#ledger.opaque();
     return super.entries();
@@ -1627,6 +1630,18 @@ export function observeCallReturns(
           ? {
               suppliedCallableTargets: true as const,
               callableContext,
+              callableProofEpoch: () => ({
+                ...indexes,
+                callCount: indexes.calls.length,
+                sourceCount: group.sources.size,
+                admittedCount: admitted.proofSize,
+                referenceRevision: observedReferences.length,
+                demandRevision: demandedOwners.size,
+                directRevision: directCalls.size,
+                settledDemandRevision: settledDemandCount,
+                refining,
+                dependencyOwner: ledger.active,
+              }),
               suppliedCallableUses: suppliedCallableUseReader(() => captured, { activeOwners, demand, opaque: () => ledger.opaque() }),
               suppliedCallableValue: (node: MorphNode) => captureCallableValue(node, captured, group),
             }

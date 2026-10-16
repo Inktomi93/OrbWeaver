@@ -674,6 +674,83 @@ test("captured epoch validation visits every source without materializing map en
   expect({ kind: refused.kind, reason: refused.kind === "unresolved" ? refused.reason : undefined }).toEqual({ kind: "unresolved", reason: "unsupported" });
 });
 
+for (const dependency of ["guard only", "whole index", "negative membership"] as const) {
+  test(`callable guard inspection preserves ${dependency} dependencies across unrelated captured growth`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile(
+      "/composed-dependencies.ts",
+      "function selected(){return 1;}function invoke(deps){deps.data;deps.data;return deps.selected();}const deps={selected,data:{}};invoke(deps);const first={selected:()=>2};first.selected();function unrelated(){return 3;}const later=unrelated();",
+    );
+    const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+    const selected = calls.find((call) => call.getExpression().getText() === "deps.selected");
+    const later = source.getVariableDeclarationOrThrow("later").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+    const owner = source.getVariableDeclarationOrThrow("first").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+    if (selected === undefined) {
+      throw new Error("the supplied callable dependency is missing");
+    }
+    let program: CallReturnProgram | undefined;
+    let computations = 0;
+    let wholeReads = 0;
+    const membership: boolean[] = [];
+    const callee = selected.getExpression();
+    const getSymbol = callee.getSymbol.bind(callee);
+    const priorLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 100;
+    const resolution = vi.spyOn(callee, "getSymbol").mockImplementation(() => {
+      if (new Error("composed callable computation").stack?.includes("at refinedObservation") === true) {
+        computations++;
+        if (dependency === "whole index" && program !== undefined) {
+          wholeReads += program.calls.length;
+        }
+      }
+      return getSymbol();
+    });
+    const data = source.getFunctionOrThrow("invoke").getFirstDescendantByKindOrThrow(SyntaxKind.PropertyAccessExpression).getExpression();
+    const ancestors = data.getAncestors.bind(data);
+    const uses = vi.spyOn(data, "getAncestors").mockImplementation(() => {
+      if (dependency === "negative membership" && new Error("inner proof dependency").stack?.includes("at computeCallableClosedUses") === true) {
+        const admitted = program?.callableContext?.admitted;
+        if (admitted !== undefined) {
+          membership.push(admitted.has(later.compilerNode));
+        }
+      }
+      return ancestors();
+    });
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        calls.filter((call) => call !== later),
+        source.getDescendants(),
+        { suppliedCallableTargets: true },
+      );
+      program = observed.programs[0];
+      if (program?.demandValueCall === undefined) {
+        throw new Error("the captured value demand owner is missing");
+      }
+      expect(readObservedCallableConsumers(owner, program).kind).toBe("resolved");
+      const before = program.byCall.get(selected.compilerNode)?.targets;
+      expect(before?.kind === "resolved" && before.value[0] === source.getFunctionOrThrow("selected")).toBe(true);
+      expect(computations).toBeGreaterThan(0);
+      expect(program.byCall.has(later.compilerNode)).toBe(false);
+      expect(membership.includes(false)).toBe(dependency === "negative membership");
+      computations = 0;
+      expect(program.demandValueCall(later).kind).toBe("resolved");
+      expect(program.byCall.has(later.compilerNode)).toBe(true);
+      expect(capturedFactText(program.byCall.get(selected.compilerNode)?.targets, (nodes) => nodes.map(capturedNodeText))).toBe(
+        capturedFactText(before, (nodes) => nodes.map(capturedNodeText)),
+      );
+      expect(computations > 0).toBe(dependency !== "guard only");
+      expect(wholeReads > 0).toBe(dependency === "whole index");
+      expect(membership.includes(true)).toBe(dependency === "negative membership");
+    } finally {
+      endReferencePass();
+      resolution.mockRestore();
+      uses.mockRestore();
+      Error.stackTraceLimit = priorLimit;
+    }
+  });
+}
+
 for (const native of [false, true]) {
   for (const mode of ["tracked", "opaque index read", "missing validation"] as const) {
     test(`unrelated callable demand preserves ${native ? "native-query" : "no-native-query"} ${mode} semantics`, () => {

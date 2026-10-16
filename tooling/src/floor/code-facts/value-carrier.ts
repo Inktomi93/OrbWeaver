@@ -19,6 +19,7 @@ import type {
   CallReturnObservations,
   CallReturnProgram,
   CallReturnProofContext,
+  CallReturnProofEpoch,
   NativeValueTransferServices,
   ReferenceFact,
   ResolvedReferenceFact,
@@ -1321,14 +1322,7 @@ interface CallableUseState {
   readonly sharing: CallableUseSharing | undefined;
 }
 
-interface CallableUseEpoch extends Pick<CallReturnProgram, "calls" | "byCall" | "callers" | "escapingReferences"> {
-  readonly callCount: number;
-  readonly sourceCount: number;
-  readonly admittedCount: number;
-  readonly referenceRevision: number;
-  readonly demandRevision: number;
-  readonly directRevision: number;
-  readonly settledDemandRevision: number;
+interface CallableUseEpoch extends CallReturnProofEpoch {
   readonly membership: CallReturnProgram["byCall"] | CallReturnProofContext["admitted"] | undefined;
 }
 
@@ -1440,6 +1434,9 @@ function callableUseEpoch(sharing: CallableUseSharing): CallableUseEpoch {
   if (admission !== undefined) {
     membership = "captured" in admission ? admission.captured.byCall : admission.admitted.admitted;
   }
+  if (program.callableProofEpoch !== undefined) {
+    return { ...program.callableProofEpoch(), membership };
+  }
   return {
     calls: program.calls,
     callCount: program.calls.length,
@@ -1452,6 +1449,8 @@ function callableUseEpoch(sharing: CallableUseSharing): CallableUseEpoch {
     demandRevision: context.demandRevision,
     directRevision: context.directRevision,
     settledDemandRevision: context.settledDemandRevision,
+    refining: context.refining,
+    dependencyOwner: undefined,
     membership,
   };
 }
@@ -1469,6 +1468,8 @@ function sameCallableUseEpoch(left: CallableUseEpoch, right: CallableUseEpoch): 
     left.demandRevision === right.demandRevision &&
     left.directRevision === right.directRevision &&
     left.settledDemandRevision === right.settledDemandRevision &&
+    left.refining === right.refining &&
+    left.dependencyOwner === right.dependencyOwner &&
     left.membership === right.membership
   );
 }
@@ -1506,12 +1507,12 @@ function sameCallableBindings(left: ReadonlyMap<Node, Node>, right: ReadonlyMap<
   return true;
 }
 
-function matchesCallableUse(completed: CallableUseCompletion, proof: CallableUseProof, sharing: CallableUseSharing): boolean {
+function matchesCallableUse(completed: CallableUseCompletion, proof: CallableUseProof, sharing: CallableUseSharing, epoch: CallableUseEpoch): boolean {
   return (
     completed.selectedKey === proof.selectedKey &&
     completed.selectedValue === (proof.selectedValue === true) &&
     completed.completeInvocations === (proof.completeInvocations === true) &&
-    completed.refining === sharing.context.refining &&
+    completed.refining === epoch.refining &&
     completed.path.length === proof.path.length &&
     completed.path.every((part, index) => part === proof.path[index]) &&
     sameCallableBindings(completed.bindings, proof.bindings) &&
@@ -1522,7 +1523,12 @@ function matchesCallableUse(completed: CallableUseCompletion, proof: CallableUse
   );
 }
 
-function captureCallableUse(name: Identifier, proof: CallableUseProof, sharing: CallableUseSharing): CallableUseCompletion | undefined {
+function captureCallableUse(
+  name: Identifier,
+  proof: CallableUseProof,
+  sharing: CallableUseSharing,
+  epoch: CallableUseEpoch,
+): CallableUseCompletion | undefined {
   const parts =
     CALLABLE_COMPLETION_FIELDS + proof.bindings.size * CALLABLE_BINDING_PARTS + proof.active.size + sharing.context.activeOwners.size + proof.path.length;
   const units = proof.path.reduce((sum, part) => sum + part.length, proof.selectedKey?.length ?? 0);
@@ -1549,7 +1555,7 @@ function captureCallableUse(name: Identifier, proof: CallableUseProof, sharing: 
     selectedKey: proof.selectedKey,
     selectedValue: proof.selectedValue === true,
     completeInvocations: proof.completeInvocations === true,
-    refining: sharing.context.refining,
+    refining: epoch.refining,
     parts,
     units,
   };
@@ -1574,15 +1580,15 @@ function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean 
     sharing.units = 0;
   }
   sharing.epoch = epoch;
-  const previous = sharing.completed.get(name)?.find((stored) => matchesCallableUse(stored, proof, sharing));
+  const previous = sharing.completed.get(name)?.find((stored) => matchesCallableUse(stored, proof, sharing, epoch));
   if (previous !== undefined && readCallReturnProgram(name, { programs: [sharing.program] }).kind === "resolved") {
     // The original root query keeps native pass freshness and cancellation ahead of completed descendant reuse.
     nativeReferenceNodes(name);
-    if (proof.state.refusal === undefined && sameCallableUseEpoch(epoch, callableUseEpoch(sharing)) && matchesCallableUse(previous, proof, sharing)) {
+    if (proof.state.refusal === undefined && sameCallableUseEpoch(epoch, callableUseEpoch(sharing)) && matchesCallableUse(previous, proof, sharing, epoch)) {
       return true;
     }
   }
-  const candidate = captureCallableUse(name, proof, sharing);
+  const candidate = captureCallableUse(name, proof, sharing, epoch);
   const complete = computeCallableClosedUses(name, proof);
   if (
     complete &&
@@ -1592,7 +1598,7 @@ function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean 
     sharing.parts + candidate.parts <= MAX_CALLABLE_COMPLETION_PARTS &&
     sharing.units + candidate.units <= MAX_CALLABLE_COMPLETION_UNITS &&
     sameCallableUseEpoch(epoch, callableUseEpoch(sharing)) &&
-    matchesCallableUse(candidate, proof, sharing) &&
+    matchesCallableUse(candidate, proof, sharing, epoch) &&
     readCallReturnProgram(name, { programs: [sharing.program] }).kind === "resolved"
   ) {
     const bucket = sharing.completed.get(name) ?? [];

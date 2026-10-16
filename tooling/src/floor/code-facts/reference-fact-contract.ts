@@ -207,6 +207,23 @@ export interface CallReturnProofContext {
   readonly refining: boolean;
 }
 
+/** Inner proof freshness is bookkeeping; completed reads belong to one enclosing refinement read-set. */
+export interface CallReturnProofEpoch {
+  readonly calls: object;
+  readonly byCall: object;
+  readonly callers: object;
+  readonly escapingReferences: object;
+  readonly callCount: number;
+  readonly sourceCount: number;
+  readonly admittedCount: number;
+  readonly referenceRevision: number;
+  readonly demandRevision: number;
+  readonly directRevision: number;
+  readonly settledDemandRevision: number;
+  readonly refining: boolean;
+  readonly dependencyOwner: object | undefined;
+}
+
 /** Opaque predicates retain ordinary invocation semantics; structured memberships are owned native inputs. */
 export type CallableAdmission = ((call: CallExpression) => boolean) | { readonly captured: CallReturnProgram } | { readonly admitted: CallReturnProofContext };
 
@@ -220,6 +237,8 @@ export interface CallReturnProgram {
     services: NativeValueTransferServices,
   ) => ReferenceFact<readonly ReturnedValueSource[]> | undefined;
   readonly callableContext?: CallReturnProofContext;
+  /** Only completed-proof freshness may inspect this snapshot; semantic reads use the tracked views. */
+  readonly callableProofEpoch?: () => CallReturnProofEpoch;
   readonly nativeStatementReachable?: (node: Node) => ReferenceFact<true>;
   readonly nativeSymbolServices?: {
     readonly callableOrigin: typeof import("./reference-fact-call.ts").resolveCallableValueOrigin;

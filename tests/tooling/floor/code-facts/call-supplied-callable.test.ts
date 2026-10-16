@@ -1520,20 +1520,25 @@ for (const change of ["cancellation", "source replacement", "compiler options", 
   });
 }
 
-for (const revision of ["referenceRevision", "demandRevision", "directRevision", "settledDemandRevision"] as const) {
+for (const revision of ["referenceRevision", "demandRevision", "directRevision", "settledDemandRevision", "dependencyOwner"] as const) {
   test(`completed callable sharing observes the capture's ${revision} without changing its result`, () => {
     const counts = [false, true].map((changing) => {
       const { source, call, first } = repeatedCallableControl();
       beginReferencePass();
       try {
         const observed = observeCallReturns(source.getDescendantsOfKind(SyntaxKind.CallExpression), source.getDescendants(), { suppliedCallableTargets: true });
-        const context = observed.programs[0]?.callableContext;
-        if (context === undefined) {
-          throw new Error("the native callable capture context is missing");
+        const program = observed.programs[0];
+        if (program?.callableProofEpoch === undefined) {
+          throw new Error("the native callable proof epoch is missing");
         }
-        const initial = context[revision];
+        const readEpoch = program.callableProofEpoch.bind(program);
         let advances = 0;
-        const change = changing ? vi.spyOn(context, revision, "get").mockImplementation(() => initial + advances++) : undefined;
+        const change = changing
+          ? vi.spyOn(program, "callableProofEpoch").mockImplementation(() => {
+              const epoch = readEpoch();
+              return revision === "dependencyOwner" ? { ...epoch, dependencyOwner: {} } : { ...epoch, [revision]: epoch[revision] + advances++ };
+            })
+          : undefined;
         const visits = vi.spyOn(first, "getAncestors");
         try {
           const target = readAuthoredCallableSources(call.getExpression(), undefined, observed);
