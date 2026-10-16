@@ -24,7 +24,7 @@ Actual structure and scoped entrypoints preserve native options, roots, closure 
 
 ## Evidence
 
-Generated token, cast, ID-brand and callable-export facts use guarded native owners. Naming and firehose remain distinct; missing, stale, foreign or disposed owners refuse. Evidence: `reports/review/native-brand-integrated.md` and `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`.
+Token, cast, ID-brand and callable-export facts use guarded native owners. Missing, stale, foreign or disposed owners refuse. Evidence: `reports/review/native-brand-integrated.md` and `.claude/worktrees/codex-type-homes-981/reports/stickler/2026-10-15-1027-runtime-exports-independent-review.md`.
 
 Native shape catalogs preserve descriptor membership for copy, hand-shape, AST exact/near and component lower-data consumers. Excluded-world changes refuse publication. Evidence: `reports/review/shape-binding-integrated.md`. Declaration-output delivery preserves opaque-fixture selection and unknown judgment: `reports/review/1027-declaration-output-delivery.md`.
 
@@ -42,4 +42,4 @@ Native schema, column and configuration facts serve assets, table ownership, vec
 
 JSON read, write and health policies consume native cohorts with parser membership and atomic catalogs. Evidence: `reports/review/1027-json-three-ordinary.md`.
 
-Zod, body-cap and selected origin/query consumers use sealed native facts. Module targets retain importing-world meaning. Bus, retained origin branches and cost stay open. Evidence: `reports/review/1027-native-origins-ordinary.md`.
+Zod, body-cap and selected origin/query consumers use native facts. Module targets retain importing-world meaning. Exact ID-brand demand and ID matcher consumers pass ordinary qualification and security review. Bus, strict references and cost stay open. Evidence: `reports/review/1027-native-id-ordinary.md`.
