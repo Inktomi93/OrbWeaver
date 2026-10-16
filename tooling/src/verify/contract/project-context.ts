@@ -8,7 +8,7 @@
 // `requestedPaths` and acquires the checker through the policy context, so re-exposing either here would
 // be a second spelling of a decision `lib/policy-pass.ts` already owns.
 
-import type { AsExpression, CallExpression, Node, Project, SourceFile, TypeNode } from "ts-morph";
+import type { AsExpression, CallExpression, ExportDeclaration, ImportDeclaration, Node, Project, SourceFile, TypeNode } from "ts-morph";
 import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "../../floor/code-facts/drizzle-evidence-contract.ts";
 import type { CallableDeclaration, GlobalMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
@@ -29,6 +29,7 @@ export type NativeTypeRequest =
   | { readonly kind: "schema-identities"; readonly nodes: readonly SourceFile[] }
   | { readonly kind: "drizzle-identities"; readonly nodes: readonly Node[]; readonly mode: DrizzleEvidenceMode }
   | { readonly kind: "export-declarations"; readonly nodes: readonly SourceFile[]; readonly name: string }
+  | { readonly kind: "module-targets"; readonly nodes: readonly (ImportDeclaration | ExportDeclaration)[] }
   | { readonly kind: "invocation-evidence"; readonly nodes: readonly Node[]; readonly plan: InventoryInvocationPlan }
   | { readonly kind: "global-origins"; readonly nodes: readonly Node[] }
   | { readonly kind: "global-bindings"; readonly nodes: readonly Node[] }
@@ -47,6 +48,7 @@ export interface NativeTypeFactReader extends Disposable {
   readonly schemaIdentity: (sources: readonly SourceFile[]) => SchemaFact<SchemaIdentityModel>;
   readonly drizzleEvidence: (nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReadonlyMap<Node, DrizzleCallEvidence>;
   readonly exportDeclarations: (sources: readonly SourceFile[], name: string) => ReadonlyMap<SourceFile, readonly Node[] | null>;
+  readonly moduleTargets: (nodes: readonly (ImportDeclaration | ExportDeclaration)[]) => ReadonlyMap<Node, SourceFile | undefined>;
   readonly invocationEvidence: (nodes: readonly Node[], plan: InventoryInvocationPlan) => ReadonlyMap<Node, NativeInvocationEvidence>;
   readonly globalOrigins: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
   readonly globalBindings: (nodes: readonly Node[]) => ReadonlyMap<Node, readonly Node[]>;
@@ -65,6 +67,7 @@ export interface NativeTypeContext {
   readonly schemaIdentity: NativeTypeFactReader["schemaIdentity"];
   readonly drizzleEvidence: NativeTypeFactReader["drizzleEvidence"];
   readonly exportDeclarations: NativeTypeFactReader["exportDeclarations"];
+  readonly moduleTargets: NativeTypeFactReader["moduleTargets"];
   readonly invocationEvidence: NativeTypeFactReader["invocationEvidence"];
   readonly globalOrigins: NativeTypeFactReader["globalOrigins"];
   readonly globalBindings: NativeTypeFactReader["globalBindings"];
@@ -85,6 +88,7 @@ export interface NativeTypeFacts extends Disposable {
   readonly schemaIdentity: (owner: string, sources: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["schemaIdentity"]>;
   readonly drizzleEvidence: (owner: string, nodes: readonly Node[], mode: DrizzleEvidenceMode) => ReturnType<NativeTypeFactReader["drizzleEvidence"]>;
   readonly exportDeclarations: (owner: string, sources: readonly SourceFile[], name: string) => ReturnType<NativeTypeFactReader["exportDeclarations"]>;
+  readonly moduleTargets: (owner: string, nodes: Parameters<NativeTypeFactReader["moduleTargets"]>[0]) => ReturnType<NativeTypeFactReader["moduleTargets"]>;
   readonly invocationEvidence: (owner: string, nodes: readonly Node[], plan: InventoryInvocationPlan) => ReturnType<NativeTypeFactReader["invocationEvidence"]>;
   readonly globalOrigins: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalOrigins"]>;
   readonly globalBindings: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalBindings"]>;

@@ -10,17 +10,26 @@
 // widened accusing side alone would have turned correctly invalidated bracket-spelled reads into findings.
 // The visitor subscribes `MEMBER_ACCESS_KINDS`, not half the family.
 
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { Node as MorphNode, SourceFile } from "ts-morph";
+import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineFact } from "../contract/fact.ts";
+import { requiredInvocationFact } from "./native-invocation.ts";
 
 const SEAM_FACTORY = "createInvalidation";
 const SEAM_ANCHOR = "Invalidation";
 const SEAM_SIBLING = /\/packages\/client\/src\/data\/invalidation[^/]*\.ts$/u;
 const READ_TERMINALS = new Set(["queryOptions", "infiniteQueryOptions"]);
 const FILTER_TERMINALS = new Set(["pathFilter", "queryFilter"]);
+const REACH_PLAN: InventoryInvocationPlan = {
+  mode: "value",
+  facets: ["module", "type-projection"],
+  arguments: [],
+  typeProjection: { facets: ["lexical"], properties: [] },
+};
 
 interface QueryKey {
   readonly router: string;
@@ -93,15 +102,15 @@ function topLevelBinding(node: MorphNode): MorphNode | undefined {
   return current;
 }
 
-function sameDeclaration(reference: MorphNode, declaration: MorphNode): boolean {
+function sameDeclaration(reference: MorphNode, declaration: MorphNode, evidence: NativeInvocationEvidence): boolean {
   if (!Node.isIdentifier(reference)) {
     return false;
   }
-  const lexical = resolveLexicalValueDeclaration(reference);
+  const lexical = typeProjectionFacet(requiredInvocationFact(evidence.typeProjections, reference), "lexical").value;
   if (lexical.kind === "resolved" && lexical.value === declaration) {
     return true;
   }
-  const origin = resolveModuleMemberOrigin(reference);
+  const origin = requiredInvocationFact(evidence.modules, reference);
   return origin.kind === "resolved" && origin.value.canonical.kind === "project" && origin.value.canonical.declaration === declaration;
 }
 
@@ -120,14 +129,19 @@ export const queryFreshnessFact = defineFact({
   analysis: "types",
   resources: [],
   create: (ctx) => {
+    const native = ctx.nativeTypes;
+    if (native === undefined) {
+      throw new Error("native query freshness evidence is unavailable");
+    }
     const sources = new Map<string, SourceFile>();
     const declarations = new Set<MorphNode>();
     const declarationsBySource = new Map<SourceFile, MorphNode[]>();
-    const importsBySource = new Map<SourceFile, SourceFile[]>();
+    const importsBySource = new Map<SourceFile, ImportDeclaration[]>();
     const anchorSources = new Set<SourceFile>();
     const consumed = new Map<string, MorphNode>();
     const filters: LocatedFilter[] = [];
     const identifiers: IdentifierUse[] = [];
+    const nominated: MorphNode[] = [];
     let anchor: MorphNode | undefined;
 
     const addDeclaration = (node: MorphNode, source: SourceFile): void => {
@@ -167,10 +181,7 @@ export const queryFreshnessFact = defineFact({
               return;
             }
             if (Node.isImportDeclaration(node)) {
-              const target = node.getModuleSpecifierSourceFile();
-              if (target !== undefined) {
-                importsBySource.set(source, [...(importsBySource.get(source) ?? []), target]);
-              }
+              importsBySource.set(source, [...(importsBySource.get(source) ?? []), node]);
               return;
             }
             if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
@@ -197,6 +208,30 @@ export const queryFreshnessFact = defineFact({
           },
         },
       ],
+      prepare: () => {
+        const seams = [...sources.values()].filter(
+          (source) =>
+            anchorSources.has(source) &&
+            (declarationsBySource.get(source) ?? []).some(
+              (node) => (Node.isFunctionDeclaration(node) || Node.isVariableDeclaration(node)) && node.getName() === SEAM_FACTORY,
+            ),
+        );
+        const candidates = new Set(seams);
+        for (const source of sources.values()) {
+          if (SEAM_SIBLING.test(source.getFilePath())) {
+            candidates.add(source);
+          }
+        }
+        for (const source of seams) {
+          native.request({ kind: "module-targets", nodes: importsBySource.get(source) ?? [] });
+        }
+        for (const use of identifiers) {
+          if (use.owner !== undefined && candidates.has(use.owner.getSourceFile())) {
+            nominated.push(use.node);
+          }
+        }
+        native.request({ kind: "invocation-evidence", nodes: nominated, plan: REACH_PLAN });
+      },
       // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: finish closes one graph from the collected declarations, edges and filters.
       finish: (): QueryFreshnessFact => {
         const seam = [...sources.values()].find((source) => {
@@ -208,8 +243,14 @@ export const queryFreshnessFact = defineFact({
         const roots = new Set<string>();
         if (seam !== undefined) {
           const modules = new Set<SourceFile>([seam]);
-          for (const target of importsBySource.get(seam) ?? []) {
-            if (SEAM_SIBLING.test(target.getFilePath())) {
+          const imports = importsBySource.get(seam) ?? [];
+          const targets = native.moduleTargets(imports);
+          for (const declaration of imports) {
+            if (!targets.has(declaration)) {
+              throw new Error("native query import target coverage is unavailable");
+            }
+            const target = targets.get(declaration);
+            if (target !== undefined && SEAM_SIBLING.test(target.getFilePath())) {
               modules.add(target);
             }
           }
@@ -219,6 +260,7 @@ export const queryFreshnessFact = defineFact({
               (Node.isFunctionDeclaration(node) || Node.isVariableDeclaration(node)) && node.getSourceFile() === seam && node.getName() === SEAM_FACTORY,
           );
           const reachable = new Set<MorphNode>();
+          const evidence = native.invocationEvidence(nominated, REACH_PLAN);
           const pending = factory === undefined ? [] : [factory];
           while (pending.length > 0) {
             const owner = pending.pop();
@@ -231,7 +273,7 @@ export const queryFreshnessFact = defineFact({
                 continue;
               }
               for (const candidate of bindings) {
-                if (candidate !== owner && sameDeclaration(use.node, candidate) && !reachable.has(candidate)) {
+                if (candidate !== owner && sameDeclaration(use.node, candidate, requiredInvocationFact(evidence, use.node)) && !reachable.has(candidate)) {
                   pending.push(candidate);
                 }
               }

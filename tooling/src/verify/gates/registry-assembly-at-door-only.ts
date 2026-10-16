@@ -45,7 +45,8 @@
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { referenceNamesExport } from "../lib/origin-verdict.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const REGISTRY_HOME = { path: "packages/client/src/lib/registry.ts", names: ["createRegistry", "createContributorRegistry"] } as const;
 const FACTORY_POPULATION = "registry factories";
@@ -77,7 +78,8 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const home = locateProjectHome(ctx.files, ctx.relativePath, REGISTRY_HOME);
+    prepareProjectHome(ctx, REGISTRY_HOME);
+    const callees: Node[] = [];
     return {
       visitors: [
         {
@@ -87,26 +89,32 @@ export const gate = defineGate({
               return;
             }
             const callee = node.getExpression();
-            // The NAME PREFILTER that makes fail-closure honest: only a reference that could name one of the
-            // two factories is ever resolved, so an unreadable verdict accuses a candidate rather than every
-            // opaque call in the client tree.
-            if (!REGISTRY_HOME.names.some((name) => referenceNamesExport(callee, name))) {
-              return;
-            }
-            const verdict = classifyProjectHomeOrigin(callee, home);
-            if (verdict !== "other") {
-              const token = callee.getText();
-              ctx.report.node(callee, {
-                token: token.slice(token.lastIndexOf(".") + 1),
-                offset: token.lastIndexOf(".") + 1,
-                message: verdict === "home" ? MESSAGE : UNREADABLE,
-                fix: FIX,
-              });
-            }
+            prepareSealedReference(ctx, callee);
+            callees.push(callee);
           },
         },
       ],
       evaluate: (): void => {
+        const home = nativeProjectHome(ctx, REGISTRY_HOME);
+        for (const callee of callees) {
+          const services = sealedReferenceServices(ctx, callee);
+          // The NAME PREFILTER that makes fail-closure honest: only a reference that could name one of the
+          // two factories is ever resolved, so an unreadable verdict accuses a candidate rather than every
+          // opaque call in the client tree.
+          if (!REGISTRY_HOME.names.some((name) => referenceNamesExport(callee, name, services))) {
+            continue;
+          }
+          const verdict = classifyProjectHomeOrigin(callee, home, services);
+          if (verdict !== "other") {
+            const token = callee.getText();
+            ctx.report.node(callee, {
+              token: token.slice(token.lastIndexOf(".") + 1),
+              offset: token.lastIndexOf(".") + 1,
+              message: verdict === "home" ? MESSAGE : UNREADABLE,
+              fix: FIX,
+            });
+          }
+        }
         ctx.receipt({ kind: "population", source: FACTORY_POPULATION, members: home.members, unresolved: home.unresolved });
       },
     };

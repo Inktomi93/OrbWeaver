@@ -42,6 +42,12 @@ export function projectCtx(root: string): ProjectContext {
   };
 }
 
+function requireModuleTargetDoors(nodes: readonly Node[]): void {
+  if (nodes.some((node) => !(MorphNode.isImportDeclaration(node) || (MorphNode.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined)))) {
+    throw new Error("native module target requires an authored import or export door");
+  }
+}
+
 /** One request ledger is shared by production and the existing isolated proof adapter. */
 export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequest[]) => NativeTypeFactReader): NativeTypeFacts {
   const requests = new Map<string, NativeTypeRequest[]>();
@@ -192,6 +198,10 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "global-bindings":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
+          case "module-targets":
+            requireModuleTargetDoors(query.nodes);
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
           case "shape-relations":
             rows.push({ kind: query.kind, nodes: [...query.nodes], prepare: query.prepare });
             break;
@@ -219,6 +229,13 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "export-declarations", sources, { name }).exportDeclarations(sources, name);
+    },
+    moduleTargets: (owner, nodes): ReturnType<NativeTypeContext["moduleTargets"]> => {
+      if (nodes.length === 0) {
+        assertReadable();
+        return new Map();
+      }
+      return selected(owner, "module-targets", nodes).moduleTargets(nodes);
     },
     schemaData: (owner, sources, projection = {}): ReturnType<NativeTypeContext["schemaData"]> => {
       if (sources.length === 0) {
@@ -408,6 +425,9 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
         if (query.kind === "global-bindings") {
           return ["global-origins"] as const;
         }
+        if (query.kind === "module-targets") {
+          return ["modules"] as const;
+        }
         return query.kind === "type-member-origins" ? ([query.kind, "bindings"] as const) : [query.kind];
       }),
     ),
@@ -566,6 +586,8 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
       new Map(subjects.map((node) => [node, inventory.drizzleEvidence(node, owner(node), mode)])),
     exportDeclarations: (sources, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> =>
       new Map(sources.map((source) => [source, inventory.exportDeclarations(source, owner(source), name)])),
+    moduleTargets: (subjects): ReturnType<NativeTypeFactReader["moduleTargets"]> =>
+      new Map(subjects.map((node) => [node, inventory.moduleTarget(node, owner(node))])),
     invocationEvidence: (subjects, plan): ReturnType<NativeTypeFactReader["invocationEvidence"]> => {
       const result = new Map<Node, import("../../floor/code-facts/semantic-inventory-contract.ts").NativeInvocationEvidence>();
       for (const group of invocationDemandGroups(subjects, plan, owner)) {

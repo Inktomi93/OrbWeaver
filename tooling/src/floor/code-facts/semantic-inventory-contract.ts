@@ -764,7 +764,7 @@ export interface SemanticInventory extends Disposable {
   readonly bindingUsage: (source: SourceFile) => SourceBindingUsage;
   readonly sourceCorpus: () => InventorySourceCorpus;
   readonly exports: (source: SourceFile, importer?: Node) => ReadonlyMap<string, readonly Node[]>;
-  readonly moduleTarget: (node: Node) => SourceFile | undefined;
+  readonly moduleTarget: (node: Node, program?: string) => SourceFile | undefined;
   readonly symbols: (node: Node) => InventorySymbols;
   readonly references: (node: Node) => readonly Node[];
   readonly witnessOrigins: (node: Node) => readonly Node[];

@@ -42,12 +42,15 @@
 // legacy − final = 497 — `tests/tooling/**` (482) and `tests/e2e/support/**` (15): arms F/F2 fenced to `tooling/src`
 // inside `visit`. final − legacy = ∅. Controls: inside `tooling/src/floor/appearance/__cbbhr_in_appearance-flags.ts` (virtual)
 // admitted by both; outside `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
+import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";
+import type { OriginReferenceServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
-import { classifyProjectHomeOrigin, locateProjectHome } from "../lib/project-home-origin.ts";
+import { classifyProjectHomeOrigin, nativeProjectHome, prepareProjectHome } from "../lib/project-home-origin.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
+import { prepareSealedReference, sealedReferenceServices } from "../lib/sealed-origin.ts";
 
 const PROC_HOME = { path: "tooling/src/floor/process/proc.ts", names: ["spawnFullPrioritySync", "spawnFullPriorityChild"] } as const;
 const PROC_RECEIPT = "child-process home: proc";
@@ -64,11 +67,11 @@ const FIX =
   "spawn through `spawnNiced`/`runNicedSync`/`spawnNicedChild` from floor/process/proc.ts; a process that genuinely must not be niced (a boot a human waits on, a server that IS the workload) takes an exact reviewed grant `(file, full-priority-spawn)` in lib/reviewed-grants.ts stating why nice is wrong there and what ends it.";
 
 /** The callee's spelled name, so only a call that LOOKS like a door is carried to the identity readers. */
-function calleeName(expression: Node): string | undefined {
+function calleeName(expression: Node, readComputedName: OriginReferenceServices["readComputedName"]): string | undefined {
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  const member = readMemberReference(expression);
+  const member = readMemberReferenceWithName(expression, readComputedName);
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
@@ -85,8 +88,9 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const proc = locateProjectHome(ctx.files, ctx.relativePath, PROC_HOME);
+    prepareProjectHome(ctx, PROC_HOME);
     const candidates: ReviewedGrantCandidate[] = [];
+    const calls: { readonly node: CallExpression; readonly sourceFile: SourceFile }[] = [];
     return {
       visitors: [
         {
@@ -112,29 +116,36 @@ export const gate = defineGate({
             if (rel === PROC_HOME.path) {
               return;
             }
-            const callee = node.getExpression();
-            // Identity FIRST (an aliased door spells a different local name); the spelled name gates only the
-            // fail-closed answer, so an unplaceable callee is reported only when it is spelled like a door.
-            const verdict = classifyProjectHomeOrigin(callee, proc);
-            if (verdict === "other") {
-              return;
-            }
-            const name = calleeName(callee);
-            if (verdict === "unreadable" && (name === undefined || !proc.names.has(name))) {
-              return;
-            }
-            candidates.push({
-              node,
-              subject: rel,
-              operation: SPAWN_OPERATION,
-              token: callee.getText(),
-              offset: 0,
-              ...(verdict === "unreadable" ? { unreadable: true } : {}),
-            });
+            prepareSealedReference(ctx, node.getExpression());
+            calls.push({ node, sourceFile });
           },
         },
       ],
       evaluate: () => {
+        const proc = nativeProjectHome(ctx, PROC_HOME);
+        for (const { node, sourceFile } of calls) {
+          const rel = ctx.relativePath(sourceFile);
+          const callee = node.getExpression();
+          const services = sealedReferenceServices(ctx, callee);
+          // Identity FIRST (an aliased door spells a different local name); the spelled name gates only the
+          // fail-closed answer, so an unplaceable callee is reported only when it is spelled like a door.
+          const verdict = classifyProjectHomeOrigin(callee, proc, services);
+          if (verdict === "other") {
+            continue;
+          }
+          const name = calleeName(callee, services.readComputedName);
+          if (verdict === "unreadable" && (name === undefined || !proc.names.has(name))) {
+            continue;
+          }
+          candidates.push({
+            node,
+            subject: rel,
+            operation: SPAWN_OPERATION,
+            token: callee.getText(),
+            offset: 0,
+            ...(verdict === "unreadable" ? { unreadable: true } : {}),
+          });
+        }
         ctx.receipt({ kind: "population", source: PROC_RECEIPT, members: proc.members, unresolved: proc.unresolved });
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
       },

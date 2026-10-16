@@ -14,11 +14,11 @@
 //
 // A pure reader over delivered nodes: no walk, no Project, no filesystem, no cache.
 
-import { readMemberReference, readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readMemberReference, readMemberReferenceWithName, readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
 import { resolveCallableOrigin } from "@orb/tooling/floor/code-facts/reference-fact-call";
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { PathCalleeVerdict, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
+import type { ModuleOriginServices, OriginReferenceServices, PathCalleeVerdict, ProjectHomeVerdict } from "../contract/origin-verdict.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 import type { LocatedProjectHome, ProjectHomeDeclaration } from "./project-home-origin.ts";
 import { classifyProjectHomeOrigin } from "./project-home-origin.ts";
@@ -37,12 +37,12 @@ const REPORTS_PREFIX = `${REPORTS}/`;
 /** The name a callee is spelled with — the identifier, or the member name of a property access — so a
  *  policy can PREFILTER by name before any identity work (the prefilter is what keeps fail-closure honest:
  *  only a callee that LOOKS like the door is ever reported as unreadable). */
-function calleeName(call: CallExpression): string | undefined {
+function calleeName(call: CallExpression, services?: OriginReferenceServices): string | undefined {
   const expression = call.getExpression();
   if (Node.isIdentifier(expression)) {
     return expression.getText();
   }
-  const member = readMemberReference(expression);
+  const member = services === undefined ? readMemberReference(expression) : readMemberReferenceWithName(expression, services.readComputedName);
   return member.kind === "resolved" ? member.value.name : undefined;
 }
 
@@ -81,11 +81,11 @@ export function classifyPathCallee(call: CallExpression): PathCalleeVerdict {
  *  different local name and must still resolve to the door); the spelled name gates only the FAIL-CLOSED
  *  answer, so a callee the readers cannot place is reported only when it is spelled like the door —
  *  otherwise every unplaceable call in the tree would be a finding. */
-export function classifyFilingCall(call: CallExpression, home: LocatedProjectHome): ProjectHomeVerdict {
-  const verdict = classifyProjectHomeOrigin(call.getExpression(), home);
+export function classifyFilingCall(call: CallExpression, home: LocatedProjectHome, services?: ModuleOriginServices): ProjectHomeVerdict {
+  const verdict = classifyProjectHomeOrigin(call.getExpression(), home, services);
   if (verdict !== "unreadable") {
     return verdict;
   }
-  const name = calleeName(call);
+  const name = calleeName(call, services);
   return name !== undefined && home.names.has(name) ? "unreadable" : "other";
 }
