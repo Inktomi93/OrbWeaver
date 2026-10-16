@@ -77,6 +77,21 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     return value;
   };
   const reader: TypeObservationReader = {
+    primitiveFlags: (selector) => {
+      const value = facts.types[indexOf(selector)]?.primitiveFlags;
+      if (value === undefined) {
+        throw new Error("native primitive flags were not captured");
+      }
+      return value;
+    },
+    propertySymbol: (selector, name) => {
+      const index = indexOf(selector);
+      const value = facts.propertySymbols?.find((row) => row.selector === index && row.name === name);
+      if (value === undefined) {
+        throw new Error("native named property symbol was not captured");
+      }
+      return value.symbol === null ? null : symbolRef(value.symbol);
+    },
     defaultDisplay: (selector) => {
       const value = facts.types[indexOf(selector)]?.defaultDisplay;
       if (value === undefined) {
@@ -284,6 +299,8 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     const displays = new Set<number>();
     const literals = new Set<number>();
     const argumentsUsed = new Set<number>();
+    const primitives = new Set<number>();
+    const namedProperties = new Set<string>();
     const values = new Map<Node, Set<string>>();
     observeAuthoredTypeSlots(
       facts.demand,
@@ -292,6 +309,14 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
         definitions: (node) => {
           usedDefinitions.add(node);
           return reader.definitions(node);
+        },
+        primitiveFlags: (selector) => {
+          primitives.add(indexOf(selector));
+          return reader.primitiveFlags(selector);
+        },
+        propertySymbol: (selector, name) => {
+          namedProperties.add(JSON.stringify([indexOf(selector), name]));
+          return reader.propertySymbol(selector, name);
         },
         defaultDisplay: (selector) => {
           displays.add(indexOf(selector));
@@ -317,6 +342,12 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
       references,
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
+    if (
+      facts.types.some((row, index) => (row?.primitiveFlags !== undefined) !== primitives.has(index)) ||
+      (facts.propertySymbols ?? []).some((row) => !namedProperties.has(JSON.stringify([row.selector, row.name])))
+    ) {
+      throw new Error("native primitive/property question coverage is foreign");
+    }
     assertTypeArgumentCoverage(facts, (node) => JSON.stringify([node.getSourceFile().getFilePath(), node.getStart(), node.getEnd(), node.getKind()]));
     if (facts.definitions.some((row) => !usedDefinitions.has(row.node))) {
       throw new Error("native definition-node question is foreign to the registered closure");

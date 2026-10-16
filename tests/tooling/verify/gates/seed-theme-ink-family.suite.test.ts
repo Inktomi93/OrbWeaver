@@ -7,11 +7,15 @@ import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/p
 import { gate } from "../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 import { collectCssFacts } from "../../../../tooling/src/verify/lib/css-resource-facts.ts";
 import { parseCssStylesheet } from "../../../../tooling/src/verify/lib/css-rules.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { runPolicyPass as nativePass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { readSeedPalettes } from "../../../../tooling/src/verify/lib/seed-theme-ink.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+function runPolicyPass(input: Parameters<typeof nativePass>[0]): ReturnType<typeof nativePass> {
+  return nativePass({ ...input, nativeTypeFacts: () => isolatedTypeFacts(input.project) });
+}
 
 // The resource-backed proof costs 6 s inside an affected-instrument cohort; double that loaded lower bound
 // through the house load scaler so contention cannot impersonate a policy failure.

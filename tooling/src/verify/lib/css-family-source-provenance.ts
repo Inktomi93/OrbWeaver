@@ -44,15 +44,25 @@ import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
-import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassEvaluation, StaticClassSegment } from "../contract/static-class-expression.ts";
+import type {
+  RuntimeClassPrefix,
+  StaticClassCandidate,
+  StaticClassEvaluation,
+  StaticClassNativeContext,
+  StaticClassNativeRead,
+  StaticClassSegment,
+} from "../contract/static-class-expression.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
 import type { SelectorWriterCensus, SelectorWriterPass } from "./css-selector-writers.ts";
 import { createSelectorWriterPass } from "./css-selector-writers.ts";
+import { requiredInvocationFact } from "./native-invocation.ts";
 import { readyResourceValue } from "./resource-declaration.ts";
 import type { StaticClassCollector, StaticClassWork } from "./static-class-expression.ts";
 import { StaticClassCollector as ClassCollector, STATIC_CLASS_KINDS } from "./static-class-expression.ts";
+import { nativeStaticClassRead } from "./static-class-native.ts";
+import { classDomProperty, classDomTokenList } from "./static-class-semantic.ts";
 
 type SourceOwner = "ui" | "client";
 
@@ -182,14 +192,14 @@ function jsxValue(attribute: import("ts-morph").JsxAttribute): Node | undefined 
 /** A property NAME in every authored spelling. The computed arm reads its expression through the shared
  *  stable-binding resolver (`floor/code-facts/reference-fact.ts`), so `{ [DATA_SHELL_RAIL]: true }` is the same fact as
  *  `{ "data-shell-rail": true }` — a widening over the legacy `unwrapExpression`-only strip. */
-function propertyName(node: Node): string | undefined {
+function propertyName(node: Node, native?: StaticClassNativeContext): string | undefined {
   if (Node.isIdentifier(node) || Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
     return Node.isIdentifier(node) ? node.getText() : node.getLiteralText();
   }
   if (!Node.isComputedPropertyName(node)) {
     return;
   }
-  const fact = readStaticString(node.getExpression());
+  const fact = native === undefined ? readStaticString(node.getExpression()) : requiredInvocationFact(native.evidence.strings, node.getExpression());
   return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
@@ -241,7 +251,7 @@ function recordJsxSpread(
 }
 
 /** The accessed member name in either spelling; the computed arm resolves through the shared reader. */
-function accessedPropertyName(node: Node): string | undefined {
+function accessedPropertyName(node: Node, native?: StaticClassNativeContext): string | undefined {
   if (Node.isPropertyAccessExpression(node)) {
     return node.getName();
   }
@@ -252,7 +262,7 @@ function accessedPropertyName(node: Node): string | undefined {
   if (argument === undefined) {
     return;
   }
-  const fact = readStaticString(argument);
+  const fact = native === undefined ? readStaticString(argument) : requiredInvocationFact(native.evidence.strings, argument);
   return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
@@ -269,7 +279,10 @@ function isDomDeclaration(node: Node): boolean {
   return normalizedPath(node).endsWith(TYPESCRIPT_DOM_LIB);
 }
 
-function isDomTokenListExpression(node: Node): boolean {
+function isDomTokenListExpression(node: Node, native?: StaticClassNativeContext): boolean {
+  if (native !== undefined) {
+    return classDomTokenList(node, native);
+  }
   const types = meaningfulTypes(node.getType());
   return (
     types.length > 0 &&
@@ -280,14 +293,27 @@ function isDomTokenListExpression(node: Node): boolean {
   );
 }
 
-function isDomClassNameReceiver(node: Node): boolean {
+function isDomClassNameReceiver(node: Node, native?: StaticClassNativeContext): boolean {
+  if (native !== undefined) {
+    return classDomProperty(node, "className", native);
+  }
   const types = meaningfulTypes(node.getType());
   return types.length > 0 && types.every((type) => type.getProperty("className")?.getDeclarations().some(isDomDeclaration) === true);
 }
 
-function recordCall(map: Map<string, HookOwners>, call: import("ts-morph").CallExpression, owner: SourceOwner, collector: StaticClassCollector): void {
+function recordCall(
+  map: Map<string, HookOwners>,
+  call: import("ts-morph").CallExpression,
+  owner: SourceOwner,
+  read: { readonly collector: StaticClassCollector; readonly native: StaticClassNativeContext | undefined },
+): void {
+  const { collector, native } = read;
   const receiver = accessReceiver(call.getExpression());
-  if (receiver === undefined || !CLASS_LIST_MUTATORS.has(accessedPropertyName(call.getExpression()) ?? "") || !isDomTokenListExpression(receiver)) {
+  if (
+    receiver === undefined ||
+    !CLASS_LIST_MUTATORS.has(accessedPropertyName(call.getExpression(), native) ?? "") ||
+    !isDomTokenListExpression(receiver, native)
+  ) {
     return;
   }
   for (const argument of call.getArguments()) {
@@ -299,17 +325,18 @@ function recordAssignment(
   map: Map<string, HookOwners>,
   binary: import("ts-morph").BinaryExpression,
   owner: SourceOwner,
-  collector: StaticClassCollector,
+  read: { readonly collector: StaticClassCollector; readonly native: StaticClassNativeContext | undefined },
 ): void {
+  const { collector, native } = read;
   // The STRUCTURAL strip stays `unwrapExpression`: an assignment TARGET is a member access, never a value,
   // and `resolveStableExpression` correctly refuses one as a dynamic terminal. This is the same layering
   // `reference-fact.ts` itself uses — it calls `unwrapExpression` and then resolves.
   const left = unwrapExpression(binary.getLeft());
   const receiver = accessReceiver(left);
   if (
-    accessedPropertyName(left) === "className" &&
+    accessedPropertyName(left, native) === "className" &&
     receiver !== undefined &&
-    isDomClassNameReceiver(receiver) &&
+    isDomClassNameReceiver(receiver, native) &&
     CLASS_NAME_ASSIGNMENT_OPERATORS.has(binary.getOperatorToken().getText())
   ) {
     recordCandidates(map, collector.evaluate(binary.getRight(), binary), owner);
@@ -322,6 +349,7 @@ function recordTerminals(
   owners: Map<string, HookOwners>,
   collector: StaticClassCollector,
   terminals: readonly { readonly node: Node; readonly owner: SourceOwner }[],
+  native?: StaticClassNativeRead,
 ): void {
   for (const { node } of terminals) {
     collector.visit(node);
@@ -331,9 +359,9 @@ function recordTerminals(
     if (Node.isJsxAttribute(node)) {
       recordDirectJsxAttribute(owners, node, owner, collector);
     } else if (Node.isCallExpression(node)) {
-      recordCall(owners, node, owner, collector);
+      recordCall(owners, node, owner, { collector, native: native?.at(node.getSourceFile()) });
     } else if (Node.isBinaryExpression(node)) {
-      recordAssignment(owners, node, owner, collector);
+      recordAssignment(owners, node, owner, { collector, native: native?.at(node.getSourceFile()) });
     }
   }
 }
@@ -345,7 +373,7 @@ interface HookOwnerPass {
 
 /** Accumulate hook terminals during the dispatcher's shared walk; spreads wait until every data-shell key
  *  is known. The object IS the state — nothing survives the invocation that created it. */
-function createHookOwnerPass(collector: StaticClassCollector): HookOwnerPass {
+function createHookOwnerPass(collector: StaticClassCollector, native?: StaticClassNativeRead): HookOwnerPass {
   const owners = new Map<string, HookOwners>();
   const dataShellNames = new Set<string>();
   const spreads: Array<{ readonly spread: import("ts-morph").JsxSpreadAttribute; readonly owner: SourceOwner }> = [];
@@ -357,7 +385,7 @@ function createHookOwnerPass(collector: StaticClassCollector): HookOwnerPass {
       if (result !== undefined) {
         throw new Error("hook-owner pass received a node after its result was read");
       }
-      collector.index(node);
+
       if (visited.has(node)) {
         return;
       }
@@ -365,12 +393,6 @@ function createHookOwnerPass(collector: StaticClassCollector): HookOwnerPass {
       const owner = ownerForPath(source.getFilePath().replaceAll("\\", "/"));
       if (owner === undefined) {
         return;
-      }
-      if (Node.isPropertyAssignment(node)) {
-        const name = propertyName(node.getNameNode());
-        if (name?.startsWith("data-shell-") === true) {
-          dataShellNames.add(name);
-        }
       }
       if (Node.isJsxSpreadAttribute(node)) {
         spreads.push({ spread: node, owner });
@@ -381,7 +403,16 @@ function createHookOwnerPass(collector: StaticClassCollector): HookOwnerPass {
       if (result !== undefined) {
         return result;
       }
-      recordTerminals(owners, collector, terminals);
+      for (const { node } of terminals) {
+        collector.index(node);
+        if (Node.isPropertyAssignment(node)) {
+          const name = propertyName(node.getNameNode(), native?.at(node.getSourceFile()));
+          if (name?.startsWith("data-shell-") === true) {
+            dataShellNames.add(name);
+          }
+        }
+      }
+      recordTerminals(owners, collector, terminals, native);
       for (const { spread, owner } of spreads) {
         recordJsxSpread(owners, spread, { owner, collector }, [...dataShellNames]);
       }
@@ -424,14 +455,18 @@ export const cssHookProvenanceFact = defineFact({
   analysis: "resource",
   resources: [{ kind: "product-css" }],
   create: (ctx) => {
-    const collector = new ClassCollector(ctx.files);
-    const ownerPass = createHookOwnerPass(collector);
-    const writerPass = createSelectorWriterPass(collector);
+    const nodes: Node[] = [];
+    const native = nativeStaticClassRead(ctx, () => nodes, true);
+    const collector = new ClassCollector(ctx.files, native);
+    const ownerPass = createHookOwnerPass(collector, native);
+    const writerPass = createSelectorWriterPass(collector, native);
     return {
+      prepare: native.prepare,
       visitors: [
         {
           kinds: STATIC_CLASS_KINDS,
           visit: (node, source): void => {
+            nodes.push(node);
             ownerPass.visit(node, source);
             writerPass.visit(node);
           },

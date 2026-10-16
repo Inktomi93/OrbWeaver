@@ -1,23 +1,28 @@
 // Declaration-proven tailwind-variants result provenance. A recipe call is trusted only when its
 // defining initializer calls a composer already proven to be the real tv export.
 import { Node } from "ts-morph";
+import type { StaticClassNativeContext } from "../contract/static-class-expression.ts";
 import type { ComposerResolver } from "./static-class-composer.ts";
 import type { StaticClassSourceIndex } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, literalValue, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
+import { assertClassNode, classDeclarations } from "./static-class-semantic.ts";
 
 export class StaticVariantResolver {
   private readonly cache = new Map<Node, readonly import("ts-morph").CallExpression[]>();
+  private readonly native: (() => StaticClassNativeContext | undefined) | undefined;
   private readonly sourceIndex: StaticClassSourceIndex;
   private readonly composers: ComposerResolver;
 
-  constructor(sourceIndex: StaticClassSourceIndex, composers: ComposerResolver) {
+  constructor(sourceIndex: StaticClassSourceIndex, composers: ComposerResolver, native?: () => StaticClassNativeContext | undefined) {
     this.sourceIndex = sourceIndex;
+    this.native = native;
     this.composers = composers;
   }
 
   definitionsOf(raw: Node, path: Set<Node> = new Set()): readonly import("ts-morph").CallExpression[] {
     const node = unwrap(raw);
-    const cached = this.cache.get(node);
+    assertClassNode(node, this.native?.());
+    const cached = this.native?.() === undefined ? this.cache.get(node) : undefined;
     if (cached !== undefined) {
       return cached;
     }
@@ -27,7 +32,9 @@ export class StaticVariantResolver {
     path.add(node);
     try {
       const definitions = uniqueNodes(this.expressionDefinitions(node, path)).filter(Node.isCallExpression);
-      this.cache.set(node, definitions);
+      if (this.native?.() === undefined) {
+        this.cache.set(node, definitions);
+      }
       return definitions;
     } finally {
       path.delete(node);
@@ -53,6 +60,7 @@ export class StaticVariantResolver {
   }
 
   private declarationDefinitions(declaration: Node, path: Set<Node>): Node[] {
+    assertClassNode(declaration, this.native?.());
     if (path.has(declaration)) {
       return [];
     }
@@ -115,7 +123,7 @@ export class StaticVariantResolver {
     const source = importedSource(this.sourceIndex, from, moduleName);
     return source === undefined
       ? []
-      : exportedDeclarations(this.sourceIndex, source, imported).flatMap((declaration) => this.declarationDefinitions(declaration, path));
+      : exportedDeclarations(this.sourceIndex, source, imported, this.native?.()).flatMap((declaration) => this.declarationDefinitions(declaration, path));
   }
 
   private exportedSpecifierDefinitions(specifier: import("ts-morph").ExportSpecifier, path: Set<Node>): Node[] {
@@ -196,6 +204,6 @@ export class StaticVariantResolver {
   }
 
   private identifierDeclarations(node: import("ts-morph").Identifier): Node[] {
-    return uniqueNodes(node.getSymbol()?.getDeclarations() ?? []).filter((declaration) => declaration !== node);
+    return uniqueNodes(classDeclarations(node, this.native?.())).filter((declaration) => declaration !== node);
   }
 }

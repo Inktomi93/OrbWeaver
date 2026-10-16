@@ -5,6 +5,7 @@ import type { InventorySpan } from "./semantic-inventory-contract.ts";
 import type { NativeTypeObservation, TypeObservationDemand, TypeObservationValues } from "./type-observations-contract.ts";
 import { TYPE_OBSERVATION_PROFILE, TYPE_OBSERVATION_QUESTION_KINDS, TYPE_OBSERVATION_VALUE_FACETS } from "./type-observations-contract.ts";
 import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
+import { nativePrimitiveFlagsSchema } from "./type-projection-contract.ts";
 
 export type InventoryTypeObservations = TypeObservationValues<InventorySpan>;
 const index = z.number().int().nonnegative();
@@ -20,6 +21,7 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           nodes: z.array(span),
           files: z.array(z.string()).optional(),
           properties: z.array(z.string()).optional(),
+          receiverMethods: z.array(z.string()).optional(),
           valueFacets: z.array(z.enum(TYPE_OBSERVATION_VALUE_FACETS)).optional(),
         }),
       )
@@ -42,6 +44,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
     typeParameter: z.boolean(),
     unionCount: index,
     tupleCount: index,
+    primitiveFlags: nativePrimitiveFlagsSchema.optional(),
     stringLiteral: z.string().nullable().optional(),
     defaultDisplay: z.string().optional(),
     literalValue: observation(z.union([z.string(), z.number(), z.boolean(), z.strictObject({ negative: z.boolean(), base10Value: z.string() })])).optional(),
@@ -60,6 +63,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       callReturns: z.array(z.strictObject({ node: span, values: z.array(index) })),
       computedNames: z.array(z.strictObject({ selector: index, values: z.array(z.strictObject({ declaration: span, names: z.array(span) })) })),
       signatures: z.array(z.strictObject({ call: span, fact: observation(z.strictObject({ declaration: span, parameters: z.array(index) })) })),
+      propertySymbols: z.array(z.strictObject({ selector: index, name: z.string(), symbol: index.nullable() })).optional(),
       definitions: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       functionExports: z.array(z.strictObject({ node: span, value: z.boolean() })).optional(),
       callParameters: z.array(z.strictObject({ call: span, parameterCount: index.nullable(), values: z.array(index).nullable() })).optional(),

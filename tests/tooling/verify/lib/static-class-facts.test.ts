@@ -3,8 +3,13 @@ import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph"
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { StaticClassFactResult } from "../../../../tooling/src/verify/contract/static-class-expression.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { runPolicyPass as nativePass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { createStaticClassFactReader, STATIC_CLASS_FACT_KINDS, staticClassFact } from "../../../../tooling/src/verify/lib/static-class-facts.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+
+function runPolicyPass(input: Parameters<typeof nativePass>[0]): ReturnType<typeof nativePass> {
+  return nativePass({ ...input, nativeTypeFacts: () => isolatedTypeFacts(input.project) });
+}
 
 const ROOT = "/static-class-facts";
 

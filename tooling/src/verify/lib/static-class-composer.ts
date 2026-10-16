@@ -2,8 +2,10 @@
 // namespaces, aliases, re-exports, createTV/merge factories, and simple parameter-forwarding wrappers do.
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression, ImportDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
+import type { StaticClassNativeContext } from "../contract/static-class-expression.ts";
 import type { Composer, StaticClassSourceIndex } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, literalValue, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
+import { assertClassNode, classDeclarations } from "./static-class-semantic.ts";
 
 type FunctionLike = FunctionDeclaration | FunctionExpression | ArrowFunction;
 
@@ -29,14 +31,16 @@ function moduleComposer(moduleName: string, exportName: string): Composer | unde
 }
 
 export class ComposerResolver {
+  private readonly native: (() => StaticClassNativeContext | undefined) | undefined;
   private readonly sourceIndex: StaticClassSourceIndex;
   private readonly expressionCache = new Map<Node, Composer | null>();
   private readonly declarationCache = new Map<Node, Composer | null>();
   private readonly callsByFunction = new Map<FunctionLike, import("ts-morph").CallExpression[]>();
   private readonly identifiersByCall = new Map<import("ts-morph").CallExpression, import("ts-morph").Identifier[]>();
 
-  constructor(sourceIndex: StaticClassSourceIndex) {
+  constructor(sourceIndex: StaticClassSourceIndex, native?: () => StaticClassNativeContext | undefined) {
     this.sourceIndex = sourceIndex;
+    this.native = native;
   }
 
   visit(node: Node): void {
@@ -63,7 +67,8 @@ export class ComposerResolver {
 
   composerOf(raw: Node, path: Set<Node> = new Set()): Composer | undefined {
     const node = unwrap(raw);
-    const cached = this.expressionCache.get(node);
+    assertClassNode(node, this.native?.());
+    const cached = this.native?.() === undefined ? this.expressionCache.get(node) : undefined;
     if (cached !== undefined) {
       return cached ?? undefined;
     }
@@ -73,7 +78,9 @@ export class ComposerResolver {
     path.add(node);
     try {
       const composer = this.composerInner(node, path);
-      this.expressionCache.set(node, composer ?? null);
+      if (this.native?.() === undefined) {
+        this.expressionCache.set(node, composer ?? null);
+      }
       return composer;
     } finally {
       path.delete(node);
@@ -124,7 +131,8 @@ export class ComposerResolver {
   }
 
   private composerFromDeclaration(declaration: Node, path: Set<Node>): Composer | undefined {
-    const cached = this.declarationCache.get(declaration);
+    assertClassNode(declaration, this.native?.());
+    const cached = this.native?.() === undefined ? this.declarationCache.get(declaration) : undefined;
     if (cached !== undefined) {
       return cached ?? undefined;
     }
@@ -134,7 +142,9 @@ export class ComposerResolver {
     path.add(declaration);
     try {
       const composer = this.declarationInner(declaration, path);
-      this.declarationCache.set(declaration, composer ?? null);
+      if (this.native?.() === undefined) {
+        this.declarationCache.set(declaration, composer ?? null);
+      }
       return composer;
     } finally {
       path.delete(declaration);
@@ -173,7 +183,7 @@ export class ComposerResolver {
       return direct;
     }
     const source = importedSource(this.sourceIndex, specifier.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported), path);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported, this.native?.()), path);
   }
 
   private defaultImportComposer(declaration: Node): Composer | undefined {
@@ -203,7 +213,7 @@ export class ComposerResolver {
       return direct;
     }
     const source = importedSource(this.sourceIndex, specifier.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported), path);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, imported, this.native?.()), path);
   }
 
   private firstDeclarationComposer(declarations: readonly Node[], path: Set<Node>): Composer | undefined {
@@ -259,7 +269,7 @@ export class ComposerResolver {
       return direct;
     }
     const source = importedSource(this.sourceIndex, declaration.getSourceFile(), moduleName);
-    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, exportName), path);
+    return source === undefined ? undefined : this.firstDeclarationComposer(exportedDeclarations(this.sourceIndex, source, exportName, this.native?.()), path);
   }
 
   private staticScalars(raw: Node, path: Set<Node>): string[] {
@@ -361,7 +371,7 @@ export class ComposerResolver {
   }
 
   private identifierDeclarations(node: import("ts-morph").Identifier): Node[] {
-    const direct = node.getSymbol()?.getDeclarations() ?? [];
+    const direct = classDeclarations(node, this.native?.());
     return uniqueNodes(direct).filter(
       (declaration) => declaration !== node && !(Node.isShorthandPropertyAssignment(declaration) && declaration.getNameNode().getStart() === node.getStart()),
     );

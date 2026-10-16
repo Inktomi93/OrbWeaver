@@ -78,7 +78,9 @@ function joinDeclarationInner(host: CollectionHost, declaration: Node, path: Set
     const source = importedSource(host.sourceIndex, declaration.getSourceFile(), declaration.getImportDeclaration().getModuleSpecifierValue());
     return source === undefined
       ? []
-      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
+      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText(), host.native?.()).flatMap((target) =>
+          joinDeclarationValues(host, target, path),
+        );
   }
   return joinExportDeclaration(host, declaration, path);
 }
@@ -94,7 +96,9 @@ function joinExportDeclaration(host: CollectionHost, declaration: Node, path: Se
     const source = importedSource(host.sourceIndex, declaration.getSourceFile(), moduleName);
     return source === undefined
       ? []
-      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText()).flatMap((target) => joinDeclarationValues(host, target, path));
+      : exportedDeclarations(host.sourceIndex, source, declaration.getNameNode().getText(), host.native?.()).flatMap((target) =>
+          joinDeclarationValues(host, target, path),
+        );
   }
   if (Node.isExportAssignment(declaration)) {
     return evalJoin(host, declaration.getExpression(), path);
@@ -103,7 +107,9 @@ function joinExportDeclaration(host: CollectionHost, declaration: Node, path: Se
     const importDeclaration = declaration.getFirstAncestor(Node.isImportDeclaration);
     const source =
       importDeclaration === undefined ? undefined : importedSource(host.sourceIndex, declaration.getSourceFile(), importDeclaration.getModuleSpecifierValue());
-    return source === undefined ? [] : exportedDeclarations(host.sourceIndex, source, "default").flatMap((target) => joinDeclarationValues(host, target, path));
+    return source === undefined
+      ? []
+      : exportedDeclarations(host.sourceIndex, source, "default", host.native?.()).flatMap((target) => joinDeclarationValues(host, target, path));
   }
   return [];
 }

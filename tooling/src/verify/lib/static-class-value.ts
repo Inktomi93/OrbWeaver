@@ -5,6 +5,9 @@
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ImportClause, ImportDeclaration, SourceFile } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import type { StaticClassNativeContext } from "../contract/static-class-expression.ts";
+import { STATIC_CLASS_TRIM_METHODS } from "../contract/static-class-expression.ts";
+import { requiredInvocationFact } from "./native-invocation.ts";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
 import type { RuntimeClassPrefix, StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
@@ -22,6 +25,7 @@ import {
 import { JsxBindingResolver } from "./static-class-jsx.ts";
 import type { CollectionHost } from "./static-class-object.ts";
 import { evalObjectMember, propertyName, resolveObjects, staticScalars } from "./static-class-object.ts";
+import { assertClassNode, classDeclarations, classStringReceiver } from "./static-class-semantic.ts";
 import { StaticVariantResolver } from "./static-class-variant.ts";
 
 interface ImportTarget {
@@ -46,19 +50,26 @@ export class StaticClassEvaluator implements CollectionHost {
   readonly jsxBindings: JsxBindingResolver;
   readonly variants: StaticVariantResolver;
 
+  readonly native: (() => StaticClassNativeContext | undefined) | undefined;
   private readonly diagnosticKeys = new Set<string>();
   private opaqueEvents = 0;
   private unresolvedEvents = 0;
   private readonly sourceSet: ReadonlySet<SourceFile>;
   private readonly importDefinitionCache = new Map<string, readonly Node[]>();
 
-  constructor(sourceIndex: StaticClassSourceIndex, files: readonly import("ts-morph").SourceFile[], resolvers?: StaticClassResolvers) {
+  constructor(
+    sourceIndex: StaticClassSourceIndex,
+    files: readonly import("ts-morph").SourceFile[],
+    resolvers?: StaticClassResolvers,
+    native?: () => StaticClassNativeContext | undefined,
+  ) {
     this.sourceIndex = sourceIndex;
+    this.native = native;
     this.sourceSet = new Set(files);
     if (resolvers === undefined) {
-      this.composers = new ComposerResolver(sourceIndex);
-      this.jsxBindings = new JsxBindingResolver(sourceIndex);
-      this.variants = new StaticVariantResolver(sourceIndex, this.composers);
+      this.composers = new ComposerResolver(sourceIndex, native);
+      this.jsxBindings = new JsxBindingResolver(sourceIndex, native);
+      this.variants = new StaticVariantResolver(sourceIndex, this.composers, native);
     } else {
       this.composers = resolvers.composers;
       this.jsxBindings = resolvers.jsxBindings;
@@ -82,6 +93,7 @@ export class StaticClassEvaluator implements CollectionHost {
 
   evalClass = (raw: Node, path: Set<Node>): StaticValue[] => {
     const node = unwrap(raw);
+    assertClassNode(node, this.native?.());
     if (path.has(node)) {
       this.diagnose("unresolved", node, "static class-expression cycle");
       return [];
@@ -190,13 +202,11 @@ export class StaticClassEvaluator implements CollectionHost {
       return;
     }
     const operation = expression.getName();
-    if (operation !== "trim" && operation !== "trimStart" && operation !== "trimEnd") {
+    if (!STATIC_CLASS_TRIM_METHODS.includes(operation)) {
       return;
     }
     const receiver = expression.getExpression();
-    const type = receiver.getType();
-    const stringReceiver =
-      type.isString() || type.isStringLiteral() || (type.isUnion() && type.getUnionTypes().every((member) => member.isString() || member.isStringLiteral()));
+    const stringReceiver = classStringReceiver(receiver, this.native?.());
     if (!stringReceiver) {
       return;
     }
@@ -279,7 +289,8 @@ export class StaticClassEvaluator implements CollectionHost {
   evalIdentifier = (node: import("ts-morph").Identifier, path: Set<Node>): StaticValue[] => {
     const declarations = this.identifierDeclarations(node);
     if (declarations.length === 0) {
-      const stable = resolveStableExpression(node);
+      const native = this.native?.();
+      const stable = native === undefined ? resolveStableExpression(node) : requiredInvocationFact(native.evidence.stableValues, node);
       if (stable.kind === "resolved" && stable.value.compilerNode !== node.compilerNode) {
         return this.evalClass(stable.value, path);
       }
@@ -290,6 +301,7 @@ export class StaticClassEvaluator implements CollectionHost {
   };
 
   private evalDeclaration(declaration: Node, path: Set<Node>): StaticValue[] {
+    assertClassNode(declaration, this.native?.());
     if (Node.isVariableDeclaration(declaration)) {
       return this.evalVariable(declaration, path);
     }
@@ -377,7 +389,7 @@ export class StaticClassEvaluator implements CollectionHost {
   private evalImport(target: ImportTarget, path: Set<Node>): StaticValue[] {
     const source = importedSource(this.sourceIndex, target.from, target.moduleName);
     const declarations =
-      source === undefined ? this.workspaceImportDeclarations(target.anchor) : exportedDeclarations(this.sourceIndex, source, target.imported);
+      source === undefined ? this.workspaceImportDeclarations(target.anchor) : exportedDeclarations(this.sourceIndex, source, target.imported, this.native?.());
     if (source === undefined && declarations.length === 0) {
       this.diagnose("opaque", target.anchor, `external class value import from ${target.moduleName}`);
       return [];
@@ -393,7 +405,7 @@ export class StaticClassEvaluator implements CollectionHost {
    * collector's admitted workspace set. Third-party declarations remain opaque. */
   private workspaceImportDeclarations(anchor: Node): readonly Node[] {
     const key = `${anchor.getSourceFile().getFilePath()}:${anchor.getStart()}`;
-    const cached = this.importDefinitionCache.get(key);
+    const cached = this.native?.() === undefined ? this.importDefinitionCache.get(key) : undefined;
     if (cached !== undefined) {
       return cached;
     }
@@ -405,12 +417,13 @@ export class StaticClassEvaluator implements CollectionHost {
       identifier = (anchor as ImportClause).getDefaultImport();
     }
     const declarations = uniqueNodes(
-      (identifier?.getDefinitions() ?? []).flatMap((definition) => {
-        const declaration = definition.getDeclarationNode();
-        return declaration !== undefined && this.sourceSet.has(declaration.getSourceFile()) ? [declaration] : [];
-      }),
+      (identifier === undefined ? [] : (this.native?.()?.types.definitions(identifier) ?? identifier.getDefinitionNodes())).filter((declaration) =>
+        this.sourceSet.has(declaration.getSourceFile()),
+      ),
     );
-    this.importDefinitionCache.set(key, declarations);
+    if (this.native?.() === undefined) {
+      this.importDefinitionCache.set(key, declarations);
+    }
     return declarations;
   }
 
@@ -425,7 +438,7 @@ export class StaticClassEvaluator implements CollectionHost {
   }
 
   identifierDeclarations = (node: import("ts-morph").Identifier): Node[] => {
-    const direct = node.getSymbol()?.getDeclarations() ?? [];
+    const direct = classDeclarations(node, this.native?.());
     return uniqueNodes(direct).filter(
       (declaration) => declaration !== node && !(Node.isShorthandPropertyAssignment(declaration) && declaration.getNameNode().getStart() === node.getStart()),
     );

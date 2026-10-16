@@ -1,10 +1,13 @@
 // Static object provenance shared by class-member access, join maps, and variant configurations.
 // Object KEYS become classes only in join semantics; ordinary member access evaluates selected VALUES.
 import { Node } from "ts-morph";
+import type { StaticClassNativeContext } from "../contract/static-class-expression.ts";
 import type { StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
 import { dedupeValues, exportedDeclarations, importedSource, literalValue, localDeclarations, unwrap } from "./static-class-expression-model.ts";
+import { assertClassNode, classAliasDeclarations } from "./static-class-semantic.ts";
 
 export interface CollectionHost {
+  readonly native?: (() => StaticClassNativeContext | undefined) | undefined;
   readonly sourceIndex: StaticClassSourceIndex;
   diagnose: (kind: "unresolved" | "opaque", node: Node, reason: string) => void;
   evalClass: (node: Node, path: Set<Node>) => StaticValue[];
@@ -20,6 +23,7 @@ interface ImportedObjectTarget {
 
 export function staticScalars(host: CollectionHost, raw: Node, path: Set<Node>): string[] {
   const node = unwrap(raw);
+  assertClassNode(node, host.native?.());
   const literal = literalValue(node);
   if (literal !== undefined) {
     return [literal.value];
@@ -36,8 +40,7 @@ function identifierScalars(host: CollectionHost, node: import("ts-morph").Identi
   }
   path.add(node);
   const values: string[] = [];
-  const symbol = node.getSymbol();
-  const declarations = [...host.identifierDeclarations(node), ...(symbol?.getAliasedSymbol()?.getDeclarations() ?? [])];
+  const declarations = [...host.identifierDeclarations(node), ...classAliasDeclarations(node, host.native?.())];
   for (const declaration of new Set(declarations)) {
     if (Node.isVariableDeclaration(declaration)) {
       const initializer = declaration.getInitializer();
@@ -67,6 +70,7 @@ export function propertyName(host: CollectionHost, node: Node, path: Set<Node>):
 
 export function resolveObjects(host: CollectionHost, raw: Node, path: Set<Node>): import("ts-morph").ObjectLiteralExpression[] {
   const node = unwrap(raw);
+  assertClassNode(node, host.native?.());
   if (path.has(node)) {
     host.diagnose("unresolved", node, "static object-expression cycle");
     return [];
@@ -138,7 +142,9 @@ function resolveImportedObjects(host: CollectionHost, target: ImportedObjectTarg
   const source = importedSource(host.sourceIndex, target.from, target.moduleName);
   return source === undefined
     ? []
-    : exportedDeclarations(host.sourceIndex, source, target.imported).flatMap((declaration) => resolveDeclarationObjects(host, declaration, path));
+    : exportedDeclarations(host.sourceIndex, source, target.imported, host.native?.()).flatMap((declaration) =>
+        resolveDeclarationObjects(host, declaration, path),
+      );
 }
 
 export function evalObjectMember(host: CollectionHost, raw: Node, names: readonly string[] | undefined, path: Set<Node>): StaticValue[] {

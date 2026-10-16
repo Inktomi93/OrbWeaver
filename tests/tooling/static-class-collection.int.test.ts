@@ -6,8 +6,9 @@ import type { GatePolicy } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import type { CssHookProvenance } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
 import { cssHookProvenanceFact } from "../../tooling/src/verify/lib/css-family-source-provenance.ts";
-import { runPolicyPass } from "../../tooling/src/verify/lib/policy-pass.ts";
+import { runPolicyPass as nativePass } from "../../tooling/src/verify/lib/policy-pass.ts";
 import { __resetStaticClassCollectorMints, StaticClassCollector, staticClassCollectorMints } from "../../tooling/src/verify/lib/static-class-expression.ts";
+import { isolatedTypeFacts } from "../../tooling/src/verify/ops/policy-conformance.ts";
 
 // THE SUCCESSOR PROOF for the retired `beginHookOwnerCollection` lifecycle test (#1584, 2026-09-13).
 //
@@ -38,6 +39,7 @@ import { __resetStaticClassCollectorMints, StaticClassCollector, staticClassColl
 /** The policy runtime derives every source path RELATIVE TO ITS ROOT and refuses one outside it
  *  (`policy-pass.ts#sourcePath`), so the in-memory project is rooted at the test's own scratch directory
  *  rather than at a synthetic `/repo`. The overlay supplies the CSS identity from the same root. */
+
 const classesPath = (root: string): string => `${root}/packages/ui/src/classes.ts`;
 const OVERLAY = {
   "packages/ui/src/styles/theme.css": "@theme {\n  --color-background: black;\n}\n",
@@ -124,6 +126,7 @@ test("one invocation gives two consumers ONE collector doing identical work, and
   const files = workspace.getSourceFiles();
   const counter = { sourceWalks: 0 };
   let projectArrays = 0;
+  let admissionSnapshots = 0;
   for (const source of files) {
     countWalk(source, counter);
   }
@@ -136,12 +139,18 @@ test("one invocation gives two consumers ONE collector doing identical work, and
   const seen: CssHookProvenance[] = [];
   __resetStaticClassCollectorMints();
   const policies = [consumer("probe-static-class-a", seen), consumer("probe-static-class-b", seen)];
-  const drive = (): ReturnType<typeof runPolicyPass> =>
-    runPolicyPass({
+  const drive = (): ReturnType<typeof nativePass> =>
+    nativePass({
       knownPolicies: policies,
       policies,
       root: scratch,
       project: workspace,
+      nativeTypeFacts: () => {
+        const before = projectArrays;
+        const owner = isolatedTypeFacts(workspace);
+        admissionSnapshots += projectArrays - before;
+        return owner;
+      },
       resourceOptions: { overlay: OVERLAY },
       reviewedGrants: [],
       failOnWarnings: false,
@@ -157,13 +166,9 @@ test("one invocation gives two consumers ONE collector doing identical work, and
   // legacy's 3). The property is unchanged and is now asserted in the runtime's own terms below —
   // `work.dispatchedNodes` is the number of nodes the ONE shared collector was handed.
   expect(counter.sourceWalks).toBe(0);
-  // THE PROJECT-WIDE ARRAY CLAIM IS NOW A CEILING RATHER THAN A ZERO, and the change is the guarantee
-  // getting stronger. The legacy assertion was "no gate reaches a project-wide array" and had to be zero
-  // because a `GateRunCtx` HANDED a gate the `Project`. A final policy cannot reach one at all
-  // (`GatePolicyContext` has no `project`), so the only remaining caller is the RUNTIME resolving its
-  // population — measured at EXACTLY ONE per invocation, which is what "one collector over one resolved
-  // fileset" means in the new runtime's terms.
-  expect(projectArrays).toBe(1);
+  // Native admission snapshots source epochs once; the runtime still resolves its population exactly once.
+  expect(admissionSnapshots).toBe(1);
+  expect(projectArrays - admissionSnapshots).toBe(1);
   // BOTH consumers read the SAME object — the one-collector claim, in the strongest form available.
   expect(seen).toHaveLength(2);
   expect(seen[0]).toBe(seen[1]);
@@ -185,7 +190,8 @@ test("one invocation gives two consumers ONE collector doing identical work, and
   const second = drive();
 
   expect(second.toolErrors).toEqual([]);
-  expect(projectArrays).toBe(2);
+  expect(admissionSnapshots).toBe(2);
+  expect(projectArrays - admissionSnapshots).toBe(2);
   expect(seen).toHaveLength(4);
   expect(seen[2]).toBe(seen[3]);
   expect(seen[2]).not.toBe(seen[0]);

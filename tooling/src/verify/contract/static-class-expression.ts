@@ -65,6 +65,8 @@ export interface StaticValue {
   readonly segments: readonly StaticClassSegment[];
 }
 
+export const STATIC_CLASS_TRIM_METHODS = ["trim", "trimStart", "trimEnd"] as const;
+
 const COMPOSERS = ["join", "tv", "cva", "tv-factory", "join-factory"] as const;
 export type Composer = (typeof COMPOSERS)[number];
 
@@ -104,4 +106,16 @@ export interface StaticClassFactResult extends StaticClassEvaluation {
   readonly carriers: readonly StaticClassCarrierFact[];
   readonly tokens: readonly StaticClassTokenFact[];
   readonly styleProperties: readonly StaticJsxStylePropertyFact[];
+}
+
+/** Existing raw observations and value evidence retain one importing root during related-source evaluation. */
+export interface StaticClassNativeContext {
+  readonly types: import("../../floor/code-facts/type-observations-contract.ts").TypeObservationReader;
+  readonly evidence: import("../../floor/code-facts/semantic-inventory-contract.ts").NativeInvocationEvidence;
+  readonly references: (node: Node) => readonly Node[];
+}
+
+export interface StaticClassNativeRead {
+  readonly prepare: () => void;
+  readonly at: (source: SourceFile) => StaticClassNativeContext;
 }

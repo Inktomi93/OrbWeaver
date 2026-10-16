@@ -61,6 +61,71 @@ function definitionClosure(question: TypeObservationQuestion, readers: TypeObser
     }
   }
 }
+function declarationClosure(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  if (question.files === undefined) {
+    throw new Error("native declaration closure has no admitted source roster");
+  }
+  const admitted = new Set(question.files);
+  const inside = (node: MorphNode): boolean => admitted.has(node.getSourceFile().getFilePath().replaceAll("\\", "/"));
+  if (question.nodes.some((node) => !inside(node))) {
+    throw new Error("native declaration closure root is outside its admitted roster");
+  }
+  const seen = new Set<MorphNode>();
+  const sources = new Set<MorphNode>();
+  const pending = [...question.nodes];
+  for (const root of pending) {
+    if (seen.has(root)) {
+      continue;
+    }
+    closureSourceSymbols(root.getSourceFile(), sources, readers);
+    for (const node of [root, ...root.getDescendants()]) {
+      if (seen.has(node) || Node.isOmittedExpression(node)) {
+        continue;
+      }
+      seen.add(node);
+      pending.push(...closureDeclarations(node, readers).filter(inside));
+      if (Node.isIdentifier(node)) {
+        valueProfile(question, node, profile);
+      }
+      closureReceiver(node, question, readers);
+    }
+  }
+}
+function closureSourceSymbols(source: import("ts-morph").SourceFile, sources: Set<MorphNode>, readers: TypeObservationReader): void {
+  if (sources.has(source)) {
+    return;
+  }
+  sources.add(source);
+  for (const declaration of [...source.getFunctions(), ...source.getVariableStatements()]) {
+    readers.symbol(declaration);
+  }
+}
+function closureDeclarations(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  if (!(Node.isIdentifier(node) || Node.isFunctionDeclaration(node) || Node.isVariableStatement(node))) {
+    return [];
+  }
+  const symbol = readers.symbol(node);
+  const declarations = symbol === null ? [] : [symbol, readers.symbolData(symbol).canonical].flatMap((value) => readers.symbolData(value).declarations);
+  return [...declarations, ...(Node.isIdentifier(node) ? readers.definitions(node) : [])];
+}
+function closureReceiver(node: MorphNode, question: TypeObservationQuestion, readers: TypeObservationReader): void {
+  if (!Node.isCallExpression(node) || node.getArguments().length > 0) {
+    return;
+  }
+  const callee = node.getExpression();
+  if (Node.isPropertyAccessExpression(callee) && question.receiverMethods?.includes(callee.getName()) === true) {
+    primitiveFlags(readers, nodeTypeSelector(callee.getExpression()));
+  }
+}
+function primitiveFlags(readers: TypeObservationReader, selector: NativeTypeSelector): void {
+  if (readers.select(selector) === null) {
+    return;
+  }
+  readers.primitiveFlags(selector);
+  for (const part of readers.unions(selector)) {
+    readers.primitiveFlags(part);
+  }
+}
 function isValueNode(node: MorphNode): boolean {
   return !Node.isOmittedExpression(node) && (Node.isExpression(node) || Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node));
 }
@@ -164,6 +229,40 @@ const questions: Record<
     references?: TypeObservationCaptureOwner["references"],
   ) => void
 > = {
+  "declaration-closure": declarationClosure,
+  "literal-values": (question, readers): void => {
+    for (const node of question.nodes) {
+      const selector = nodeTypeSelector(node);
+      if (readers.select(selector) === null) {
+        continue;
+      }
+      for (const part of [selector, ...readers.unions(selector)]) {
+        readers.literalValue(part);
+        if (readers.primitiveFlags(part).booleanLiteral) {
+          readers.defaultDisplay(part);
+        }
+      }
+    }
+  },
+  "primitive-flags": (question, readers): void => {
+    for (const node of question.nodes) {
+      primitiveFlags(readers, nodeTypeSelector(node));
+    }
+  },
+  "property-symbols": (question, readers): void => {
+    for (const node of question.nodes) {
+      const selector = nodeTypeSelector(node);
+      if (readers.select(selector) === null) {
+        continue;
+      }
+      for (const part of [selector, ...readers.unions(selector)]) {
+        readers.primitiveFlags(part);
+        for (const name of question.properties ?? []) {
+          readers.propertySymbol(part, name);
+        }
+      }
+    }
+  },
   "reference-closure": (question, readers, _profile, references): void => {
     if (references === undefined) {
       throw new Error("native raw reference closure has no strict reference owner");

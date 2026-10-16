@@ -2,6 +2,7 @@
 // evaluator caches and cycle fences live for one walk and never leak across conformance phases.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { StaticClassNativeContext, StaticClassNativeRead } from "../contract/static-class-expression.ts";
 import { evalComposerCall } from "./static-class-collections.ts";
 import { ComposerResolver } from "./static-class-composer.ts";
 import type {
@@ -76,6 +77,23 @@ export function __resetStaticClassCollectorMints(): void {
 
 /** One resolver graph over an exact source set; callers either stream nodes through visit or call walk. */
 export class StaticClassCollector {
+  private readonly native: StaticClassNativeRead | undefined;
+  private readContext: StaticClassNativeContext | undefined;
+  private readonly currentRead = (): StaticClassNativeContext | undefined => {
+    if (this.native !== undefined && this.readContext === undefined) {
+      throw new Error("native static-class read has no importing root");
+    }
+    return this.readContext;
+  };
+  private withRead<Value>(node: Node, read: () => Value): Value {
+    const previous = this.readContext;
+    this.readContext ??= this.native?.at(node.getSourceFile());
+    try {
+      return read();
+    } finally {
+      this.readContext = previous;
+    }
+  }
   private readonly files: readonly SourceFile[];
   private readonly sourceIndex: ReturnType<typeof staticClassSourceIndex>;
   private readonly resolvers: StaticClassResolvers;
@@ -86,18 +104,24 @@ export class StaticClassCollector {
   private readonly state: WalkState;
   private walked: StaticClassWalk | undefined;
 
-  constructor(files: readonly SourceFile[]) {
+  constructor(files: readonly SourceFile[], native?: StaticClassNativeRead) {
     collectorMints += 1;
+    this.native = native;
     this.files = files;
     this.sourceSet = new Set(files);
     this.sourceIndex = staticClassSourceIndex(files);
-    const composers = new ComposerResolver(this.sourceIndex);
+    const composers = new ComposerResolver(this.sourceIndex, this.currentRead);
     this.resolvers = {
       composers,
-      jsxBindings: new JsxBindingResolver(this.sourceIndex),
-      variants: new StaticVariantResolver(this.sourceIndex, composers),
+      jsxBindings: new JsxBindingResolver(this.sourceIndex, this.currentRead),
+      variants: new StaticVariantResolver(this.sourceIndex, composers, this.currentRead),
     };
-    this.state = { evaluator: new StaticClassEvaluator(this.sourceIndex, files, this.resolvers), candidateByKey: new Map(), prefixByKey: new Map(), roots: 0 };
+    this.state = {
+      evaluator: new StaticClassEvaluator(this.sourceIndex, files, this.resolvers, this.currentRead),
+      candidateByKey: new Map(),
+      prefixByKey: new Map(),
+      roots: 0,
+    };
     this.mutableWork.evaluators += 1;
   }
 
@@ -107,7 +131,7 @@ export class StaticClassCollector {
 
   private evaluator(): StaticClassEvaluator {
     this.mutableWork.evaluators += 1;
-    return new StaticClassEvaluator(this.sourceIndex, this.files, this.resolvers);
+    return new StaticClassEvaluator(this.sourceIndex, this.files, this.resolvers, this.currentRead);
   }
 
   walk(): StaticClassWalk {
@@ -135,7 +159,7 @@ export class StaticClassCollector {
     this.index(node);
     this.mutableWork.dispatchedNodes += 1;
     const before = this.state.roots;
-    walkNode(this.state, node);
+    this.withRead(node, () => walkNode(this.state, node));
     this.mutableWork.rootEvaluations += this.state.roots - before;
   }
 
@@ -144,37 +168,45 @@ export class StaticClassCollector {
       return;
     }
     this.indexed.add(node);
-    this.resolvers.composers.visit(node);
-    this.resolvers.jsxBindings.visit(node);
+    this.withRead(node, () => {
+      this.resolvers.composers.visit(node);
+      this.resolvers.jsxBindings.visit(node);
+    });
   }
 
-  evaluate(expression: Node, consumer: Node): StaticClassEvaluation {
+  evaluate(expression: Node, consumer: Node, importer: SourceFile = consumer.getSourceFile()): StaticClassEvaluation {
     const evaluator = this.evaluator();
-    return evaluation(evaluator, evaluator.evalClass(expression, new Set()), consumer);
+    return this.withRead(importer, () => evaluation(evaluator, evaluator.evalClass(expression, new Set()), consumer));
   }
 
   evaluateClassProperties(expression: Node, consumer: Node): StaticClassEvaluation {
     const evaluator = this.evaluator();
-    const properties = findObjectProperties(evaluator, expression, new Set(["class", "className"]), new Set());
-    return evaluation(
-      evaluator,
-      properties.flatMap((property) => evaluator.evalClass(property.value, new Set())),
-      consumer,
-    );
+    return this.withRead(consumer, () => {
+      const properties = findObjectProperties(evaluator, expression, new Set(["class", "className"]), new Set());
+      return evaluation(
+        evaluator,
+        properties.flatMap((property) => evaluator.evalClass(property.value, new Set())),
+        consumer,
+      );
+    });
   }
 
   evaluateObjectProperties(expression: Node, consumer: Node, names: readonly string[]): StaticObjectPropertyEvaluation {
     const evaluator = this.evaluator();
-    const properties = findObjectProperties(evaluator, expression, new Set(names), new Set()).map((property) => ({ ...property, consumer }));
-    return { properties, unresolved: evaluator.unresolved, opaque: evaluator.opaque };
+    return this.withRead(consumer, () => {
+      const properties = findObjectProperties(evaluator, expression, new Set(names), new Set()).map((property) => ({ ...property, consumer }));
+      return { properties, unresolved: evaluator.unresolved, opaque: evaluator.opaque };
+    });
   }
 
   composerOf(call: import("ts-morph").CallExpression): Exclude<Composer, "tv-factory" | "join-factory"> | undefined {
-    const composer = this.state.evaluator.composers.composerOf(call.getExpression());
-    if (concreteComposer(composer)) {
-      return composer;
-    }
-    return this.state.evaluator.variants.definitionsOf(call.getExpression()).length > 0 ? "tv" : undefined;
+    return this.withRead(call, () => {
+      const composer = this.state.evaluator.composers.composerOf(call.getExpression());
+      if (concreteComposer(composer)) {
+        return composer;
+      }
+      return this.state.evaluator.variants.definitionsOf(call.getExpression()).length > 0 ? "tv" : undefined;
+    });
   }
 }
 

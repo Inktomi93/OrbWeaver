@@ -2,10 +2,12 @@
 // into a class carrier; it does not guess component factories, render-prop calls, or arbitrary functions.
 import type { ArrowFunction, FunctionDeclaration, FunctionExpression } from "ts-morph";
 import { Node } from "ts-morph";
+import type { StaticClassNativeContext } from "../contract/static-class-expression.ts";
 import type { StaticClassSourceIndex, StaticValue } from "./static-class-expression-model.ts";
 import { exportedDeclarations, importedSource, localDeclarations, uniqueNodes, unwrap } from "./static-class-expression-model.ts";
 import type { CollectionHost } from "./static-class-object.ts";
 import { findObjectProperties } from "./static-class-object.ts";
+import { assertClassNode } from "./static-class-semantic.ts";
 
 type FunctionLike = FunctionDeclaration | FunctionExpression | ArrowFunction;
 type JsxElement = import("ts-morph").JsxOpeningElement | import("ts-morph").JsxSelfClosingElement;
@@ -49,11 +51,13 @@ function jsxValue(host: CollectionHost, attribute: import("ts-morph").JsxAttribu
 }
 
 export class JsxBindingResolver {
+  private readonly native: (() => StaticClassNativeContext | undefined) | undefined;
   private readonly sourceIndex: StaticClassSourceIndex;
   private readonly elementIndex = new Map<string, JsxElement[]>();
 
-  constructor(sourceIndex: StaticClassSourceIndex) {
+  constructor(sourceIndex: StaticClassSourceIndex, native?: () => StaticClassNativeContext | undefined) {
     this.sourceIndex = sourceIndex;
+    this.native = native;
   }
 
   visit(node: Node): void {
@@ -106,6 +110,7 @@ export class JsxBindingResolver {
   }
 
   private elementValues(query: BindingQuery, element: JsxElement): StaticValue[] {
+    assertClassNode(element, this.native?.());
     let selected: StaticValue[] | undefined;
     for (const attribute of element.getAttributes()) {
       if (Node.isJsxAttribute(attribute) && attribute.getNameNode().getText() === query.property) {
@@ -147,7 +152,7 @@ export class JsxBindingResolver {
     const source = this.namespaceSource(receiver, path);
     return source === undefined
       ? []
-      : exportedDeclarations(this.sourceIndex, source, tag.getName()).flatMap((declaration) => this.declarationTargets(declaration, path));
+      : exportedDeclarations(this.sourceIndex, source, tag.getName(), this.native?.()).flatMap((declaration) => this.declarationTargets(declaration, path));
   }
 
   private namespaceSource(reference: import("ts-morph").Identifier, path: Set<Node>): import("ts-morph").SourceFile | undefined {
@@ -235,6 +240,6 @@ export class JsxBindingResolver {
     const source = importedSource(this.sourceIndex, from, moduleName);
     return source === undefined
       ? []
-      : exportedDeclarations(this.sourceIndex, source, name).flatMap((declaration) => this.declarationTargets(declaration, path));
+      : exportedDeclarations(this.sourceIndex, source, name, this.native?.()).flatMap((declaration) => this.declarationTargets(declaration, path));
   }
 }

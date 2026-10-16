@@ -1,4 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { Project } from "ts-morph";
+import { vi } from "vitest";
+import { defineFact } from "../../tooling/src/verify/contract/fact.ts";
+import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
 import { gate as lengthTokens } from "../../tooling/src/verify/gates/css-length-tokens.ts";
 import { gate as lengthTokenGrants } from "../../tooling/src/verify/gates/css-length-tokens-grants.ts";
 import { gate as lengthTokenHealth } from "../../tooling/src/verify/gates/css-length-tokens-health.ts";
@@ -34,3 +38,70 @@ test(
   },
   PROOF_BUDGET_MS,
 );
+
+test("source proofs do not acquire a CSS native owner from a lookalike provider id", () => {
+  const enumerate = Project.prototype.getSourceFiles;
+  let reads = 0;
+  const count = vi.spyOn(Project.prototype, "getSourceFiles").mockImplementation(function (this: Project) {
+    reads += 1;
+    return enumerate.bind(this)();
+  });
+  const measure = (id: string): number => {
+    const provider = defineFact({
+      id,
+      population: "@frontend",
+      analysis: "syntax",
+      resources: [],
+      create: (context) => ({
+        finish: (): boolean => {
+          context.receipt({ kind: "population", source: id, members: context.files.length });
+          return true;
+        },
+      }),
+    });
+    const policy = defineGate({
+      id: "css-source-proof-boundary",
+      family: "css-source-proof-boundary",
+      authority: "hard",
+      severity: "error",
+      population: "@frontend",
+      analysis: "syntax",
+      execution: "entire-population",
+      facts: [provider],
+      resources: [],
+      message: "source proof boundary",
+      create: (ctx) => ({
+        evaluate: (): void => {
+          ctx.fact(provider);
+          const bad = ctx.files[0]?.getVariableDeclaration("bad");
+          if (bad !== undefined) {
+            ctx.report.node(bad);
+          }
+          ctx.receipt({ kind: "population", source: "css-source-proof-boundary", members: 1 });
+        },
+      }),
+      mustFlag: [
+        {
+          mode: "source",
+          files: { "packages/client/src/x.ts": "const bad=1;" },
+          expect: { count: 1 },
+          why: "the actual syntax assertion runs in both admission measurements",
+        },
+      ],
+      mustPass: [
+        { mode: "source", files: { "packages/client/src/x.ts": "const good=1;" }, why: "the actual syntax assertion runs in both admission measurements" },
+      ],
+    });
+    const before = reads;
+    expect(verifyPolicyProofs([policy])).toEqual([]);
+    return reads - before;
+  };
+  try {
+    const ordinary = measure("not-a-css-provider");
+    const lookalike = measure("static-class");
+    expect(ordinary).toBeGreaterThan(0);
+    expect(lookalike).toBe(ordinary);
+  } finally {
+    count.mockRestore();
+  }
+});

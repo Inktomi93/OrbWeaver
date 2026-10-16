@@ -60,7 +60,7 @@ import type { AuthoredCssFile } from "../contract/resource-tree.ts";
 import { atRulesContaining } from "../lib/css-rules.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
-import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { staticClassFact } from "../lib/static-class-facts.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
@@ -368,19 +368,19 @@ export const gate = defineGate({
   population: { in: ["@client", "@ui"] },
   analysis: "resource",
   execution: "entire-population",
-  facts: [],
+  facts: [staticClassFact],
   resources: [{ kind: "authored-css" }],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
       const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));
-      const walked = walkStaticClassExpressions(ctx.files);
+      const walked = ctx.fact(staticClassFact);
       const census: TransformCensus = { tokens: 0 };
       for (const candidate of walked.candidates) {
         judgeCandidate({ ctx, census, segments: candidate.segments }, candidate.value);
       }
-      for (const unresolved of walked.unresolved) {
+      for (const unresolved of walked.classUnresolved) {
         ctx.report.node(unresolved.node, { message: `${MESSAGE} (class expression unresolved: ${unresolved.reason})` });
       }
       const declarationsByFile = Map.groupBy(inventory.declarations, (declaration) => declaration.file);

@@ -1,8 +1,11 @@
 // Public final-runtime class/JSX fact boundary; allocate once in GatePolicy.create and stream visitors.
+
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import type { StaticClassFactReader } from "./static-class-fact-collector.ts";
 import { createStaticClassFactReader as createReader } from "./static-class-fact-collector.ts";
+import { nativeStaticClassRead } from "./static-class-native.ts";
 
 export const STATIC_CLASS_FACT_KINDS = [
   SyntaxKind.JsxAttribute,
@@ -43,9 +46,20 @@ export const staticClassFact = defineFact({
   analysis: "types",
   resources: [],
   create: (context) => {
-    const reader = createReader(context.files);
+    const nodes: Node[] = [];
+    const native = nativeStaticClassRead(context, () => nodes);
+    const reader = createReader(context.files, native);
     return {
-      visitors: [{ kinds: STATIC_CLASS_FACT_KINDS, visit: reader.visit }],
+      prepare: native.prepare,
+      visitors: [
+        {
+          kinds: STATIC_CLASS_FACT_KINDS,
+          visit: (node): void => {
+            nodes.push(node);
+            reader.visit(node);
+          },
+        },
+      ],
       finish: () => {
         const facts = reader.finish();
         context.receipt({ kind: "population", source: "static-class-sources", members: context.files.length });

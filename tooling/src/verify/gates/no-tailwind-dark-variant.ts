@@ -40,7 +40,7 @@ import { SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { RuntimeClassPrefix, StaticClassCandidate, StaticClassSegment } from "../lib/static-class-expression.ts";
-import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { staticClassFact } from "../lib/static-class-facts.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const MESSAGE =
@@ -232,13 +232,14 @@ export const gate = defineGate({
   population: ["@client", "@ui"],
   analysis: "syntax",
   execution: "entire-population",
-  facts: [],
+  facts: [staticClassFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const walked = walkStaticClassExpressions(ctx.files);
+      const walked = ctx.fact(staticClassFact);
+      ctx.receipt({ kind: "population", source: staticClassFact.id, members: 1 });
       const scanner = new Scanner({ sources: [] });
       for (const candidate of walked.candidates) {
         for (const anchored of exactTokens(scanner, candidate)) {
@@ -251,7 +252,7 @@ export const gate = defineGate({
           reportAnchored(ctx.report, anchored);
         }
       }
-      for (const unresolved of walked.unresolved) {
+      for (const unresolved of walked.classUnresolved) {
         // The `unresolved:<reason>` label is synthetic (never literal node text), so it cannot carry a
         // token/offset anchor — the runtime requires an anchored token to be an exact slice of the node's
         // own text. The reason still reaches the report through `message`.

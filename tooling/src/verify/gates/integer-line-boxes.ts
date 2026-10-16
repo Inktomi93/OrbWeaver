@@ -72,7 +72,7 @@ import type { CssDeclarationFact, CssFacts } from "../contract/resource-css.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
-import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { staticClassFact } from "../lib/static-class-facts.ts";
 
 const MESSAGE =
   "A line box off the integer-px grid (or a leading outside the token vocabulary) — fractional boxes walk " +
@@ -592,7 +592,7 @@ export const gate = defineGate({
   population: { in: ["@client", "@ui"] },
   analysis: "resource",
   execution: "entire-population",
-  facts: [],
+  facts: [staticClassFact],
   resources: [{ kind: "authored-css" }, { kind: "json", id: "tokens" }, { kind: "authored-text" }],
   message: MESSAGE,
   fix: FIX,
@@ -610,12 +610,12 @@ export const gate = defineGate({
           message: `${problem.message} (docs/law/integer-line-boxes.md)`,
         });
       }
-      const walked = walkStaticClassExpressions(ctx.files);
+      const walked = ctx.fact(staticClassFact);
       const census: PairingCensus = { textCandidates: 0, distinctPairs: new Set() };
       for (const candidate of walked.candidates) {
         judgeCandidate({ ctx, scale, census, segments: candidate.segments }, candidate.value);
       }
-      for (const unresolved of walked.unresolved) {
+      for (const unresolved of walked.classUnresolved) {
         ctx.report.node(unresolved.node, { message: `${MESSAGE} (class expression unresolved: ${unresolved.reason})` });
       }
       judgeStylesheets(ctx, inventory, scale);

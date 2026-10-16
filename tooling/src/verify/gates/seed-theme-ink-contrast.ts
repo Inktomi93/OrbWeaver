@@ -118,7 +118,7 @@ import type { SeedPalette } from "../lib/seed-theme-ink.ts";
 import { readSeedPalettes } from "../lib/seed-theme-ink.ts";
 import type { InkUse } from "../lib/seed-theme-ink-census.ts";
 import { collectInkUses, compositeOver, toRgb, worstContrast } from "../lib/seed-theme-ink-census.ts";
-import { walkStaticClassExpressions } from "../lib/static-class-expression.ts";
+import { staticClassFact } from "../lib/static-class-facts.ts";
 
 const PERCENT = 100;
 const MESSAGE =
@@ -287,7 +287,7 @@ function sweep(report: Report, uses: readonly InkUse[], palettes: readonly SeedP
 
 function censusInks(ctx: GatePolicyContext): readonly InkUse[] {
   const relative = new Map(ctx.files.map((file) => [file.getFilePath(), ctx.relativePath(file)]));
-  return collectInkUses(walkStaticClassExpressions(ctx.files).candidates, (candidate) => {
+  return collectInkUses(ctx.fact(staticClassFact).candidates, (candidate) => {
     const anchor = candidate.segments[0];
     return anchor === undefined ? null : (relative.get(anchor.node.getSourceFile().getFilePath()) ?? null);
   });
@@ -301,7 +301,7 @@ export const gate = defineGate({
   population: { in: ["@client", "@ui"] },
   analysis: "resource",
   execution: "entire-population",
-  facts: [],
+  facts: [staticClassFact],
   resources: [{ kind: "product-css" }],
   message: MESSAGE,
   fix: "give the token a polarity-aware light-dark() arm in the family's own band, lower the self-tint alpha, or paint the text with an ink token instead of a surface/mark token",
@@ -329,11 +329,11 @@ export const gate = defineGate({
               theme,
               css.declarations.filter((declaration) => declaration.file === theme.path),
             );
+      const uses = censusInks(ctx);
       if (palettes.length === 0) {
         reportBlind(report, anchor, "zero-palettes", "resolved zero seed palettes from theme.css");
         return;
       }
-      const uses = censusInks(ctx);
       const { measured, unresolved } = sweep(report, uses, palettes);
       if (uses.length === 0) {
         reportBlind(report, anchor, "zero-inks", "found zero text-<token> inks across the ui + client sources");

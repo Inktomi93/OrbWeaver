@@ -30,11 +30,15 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as integerLineBoxes } from "../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as restTransformGrid } from "../../../../tooling/src/verify/gates/rest-transform-grid.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { runPolicyPass as nativePass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 import { loadAuthoredCss } from "../../../../tooling/src/verify/ops/resource-tree.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+function runPolicyPass(input: Parameters<typeof nativePass>[0]): ReturnType<typeof nativePass> {
+  return nativePass({ ...input, nativeTypeFacts: () => isolatedTypeFacts(input.project) });
+}
 
 const TOKENS_JSON_REL = "packages/ui/src/tokens/tokens.json";
 const ANCHOR_REL = "packages/ui/src/lib/class-merge.ts";

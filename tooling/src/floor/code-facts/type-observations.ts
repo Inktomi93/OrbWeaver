@@ -90,6 +90,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
   const exports = new Map<SourceFile, NativeTypeObservations["exports"][number]>();
   const locals = new Map<MorphNode, number | null>();
   const computed = new Map<number, NativeTypeObservations["computedNames"][number]>();
+  const propertySymbols = new Map<string, NonNullable<NativeTypeObservations["propertySymbols"]>[number]>();
   const definitions = new Map<MorphNode, readonly MorphNode[]>();
   const callParameters = new Map<MorphNode, NonNullable<NativeTypeObservations["callParameters"]>[number]>();
   const signatureParameters: NonNullable<NativeTypeObservations["signatureParameters"]>[number][] = [];
@@ -221,6 +222,35 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     return result;
   };
   const reader: TypeObservationCapture["reader"] = {
+    primitiveFlags: (selector) => {
+      const index = read(selector);
+      const metadata = types[index];
+      if (!rawSlots || metadata === undefined || metadata === null) {
+        throw new Error("native primitive flags were not captured");
+      }
+      const type = valueAt(index);
+      const value = {
+        string: type.isString(),
+        stringLiteral: type.isStringLiteral(),
+        number: type.isNumber(),
+        numberLiteral: type.isNumberLiteral(),
+        boolean: type.isBoolean(),
+        booleanLiteral: type.isBooleanLiteral(),
+        null: type.isNull(),
+        undefined: type.isUndefined(),
+      };
+      types[index] = { ...metadata, primitiveFlags: value };
+      return value;
+    },
+    propertySymbol: (selector, name) => {
+      const index = read(selector);
+      if (!rawSlots) {
+        throw new Error("native named property symbol was not captured");
+      }
+      const symbol = symbolOf(valueAt(index).getProperty(name));
+      propertySymbols.set(JSON.stringify([index, name]), { selector: index, name, symbol });
+      return symbol === null ? null : symbolRef(symbol);
+    },
     defaultDisplay: (selector) => {
       const index = read(selector);
       const metadata = types[index];
@@ -614,6 +644,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
             }
           : {}),
         localTargets: [...locals].map(([node, symbol]) => ({ node, symbol })),
+        ...(demand.questions?.some((question) => question.kind === "property-symbols") === true ? { propertySymbols: [...propertySymbols.values()] } : {}),
         signatures: [...signatures.values()],
         dependencies: [...dependencies.values()],
         exports: [...exports.values()],

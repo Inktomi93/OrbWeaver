@@ -21,12 +21,16 @@ import {
   VENDOR_SURFACE_FIXTURE,
 } from "../../../../tooling/src/verify/lib/css-family-proof-fixtures.ts";
 import { cssHookProvenanceFact } from "../../../../tooling/src/verify/lib/css-family-source-provenance.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { runPolicyPass as nativePass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { waivableCoordinate } from "../../../../tooling/src/verify/lib/waivable-coordinate.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
+
+function runPolicyPass(input: Parameters<typeof nativePass>[0]): ReturnType<typeof nativePass> {
+  return nativePass({ ...input, nativeTypeFacts: () => isolatedTypeFacts(input.project) });
+}
 
 /** The five `mode: "resource"` policies each materialise a temp repository per row. Measured well over
  *  vitest's 5s default on a loaded box. */

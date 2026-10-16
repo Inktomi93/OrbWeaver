@@ -3,7 +3,8 @@
 import { posix } from "node:path";
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { StaticClassSegment, StaticClassSourceIndex, StaticValue } from "../contract/static-class-expression.ts";
+import type { StaticClassNativeContext, StaticClassSegment, StaticClassSourceIndex, StaticValue } from "../contract/static-class-expression.ts";
+import { assertClassNode, classExported } from "./static-class-semantic.ts";
 
 export type {
   Composer,
@@ -79,15 +80,23 @@ export function localDeclarations(source: SourceFile, name: string): Node[] {
   return uniqueNodes(found);
 }
 
-function directExports(source: SourceFile, name: string): Node[] {
+function directExports(source: SourceFile, name: string, native?: StaticClassNativeContext): Node[] {
   const found: Node[] = [];
   if (name === "default") {
     found.push(...source.getExportAssignments());
-    found.push(...source.getFunctions().filter((fn) => fn.isDefaultExport()));
+    found.push(
+      ...source
+        .getFunctions()
+        .filter((fn) => (native === undefined ? fn.isDefaultExport() : fn.hasDefaultKeyword() || classExported(fn, source, native, true))),
+    );
   }
   for (const declaration of localDeclarations(source, name)) {
-    const exportedVariable = Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.isExported() === true;
-    const exportedFunction = Node.isFunctionDeclaration(declaration) && declaration.isExported();
+    const statement = Node.isVariableDeclaration(declaration) ? declaration.getVariableStatement() : undefined;
+    const exportedVariable =
+      statement !== undefined && (native === undefined ? statement.isExported() : statement.hasExportKeyword() || classExported(statement, source, native));
+    const exportedFunction =
+      Node.isFunctionDeclaration(declaration) &&
+      (native === undefined ? declaration.isExported() : declaration.hasExportKeyword() || classExported(declaration, source, native));
     if (exportedVariable || exportedFunction) {
       found.push(declaration);
     }
@@ -95,7 +104,12 @@ function directExports(source: SourceFile, name: string): Node[] {
   return found;
 }
 
-function reExports(index: StaticClassSourceIndex, source: SourceFile, name: string, seen: Set<string>): Node[] {
+interface ExportRead {
+  readonly seen: Set<string>;
+  readonly native: StaticClassNativeContext | undefined;
+}
+
+function reExports(index: StaticClassSourceIndex, source: SourceFile, name: string, context: ExportRead): Node[] {
   const found: Node[] = [];
   for (const declaration of source.getExportDeclarations()) {
     const moduleName = declaration.getModuleSpecifierValue();
@@ -103,7 +117,7 @@ function reExports(index: StaticClassSourceIndex, source: SourceFile, name: stri
     if (named.length === 0 && moduleName !== undefined) {
       const target = importedSource(index, source, moduleName);
       if (target !== undefined) {
-        found.push(...exportedDeclarations(index, target, name, seen));
+        found.push(...collectExportedDeclarations(index, target, name, context));
       }
       continue;
     }
@@ -113,13 +127,19 @@ function reExports(index: StaticClassSourceIndex, source: SourceFile, name: stri
 }
 
 /** Syntax-owned export resolution avoids asking TypeScript to serialize large recursive public types. */
-export function exportedDeclarations(index: StaticClassSourceIndex, source: SourceFile, name: string, seen: Set<string> = new Set()): Node[] {
+export function exportedDeclarations(index: StaticClassSourceIndex, source: SourceFile, name: string, native?: StaticClassNativeContext): Node[] {
+  assertClassNode(source, native);
+  return collectExportedDeclarations(index, source, name, { native, seen: new Set() });
+}
+function collectExportedDeclarations(index: StaticClassSourceIndex, source: SourceFile, name: string, context: ExportRead): Node[] {
+  const { native, seen } = context;
+  assertClassNode(source, native);
   const key = `${source.getFilePath()}:${name}`;
   if (seen.has(key)) {
     return [];
   }
   seen.add(key);
-  return uniqueNodes([...directExports(source, name), ...reExports(index, source, name, seen)]);
+  return uniqueNodes([...directExports(source, name, native), ...reExports(index, source, name, context)]);
 }
 
 export function literalValue(node: Node): StaticValue | undefined {

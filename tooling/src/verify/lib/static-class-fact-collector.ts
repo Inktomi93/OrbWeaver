@@ -6,12 +6,15 @@ import type { StaticAuthoredObjectValue, StaticAuthoredValue } from "../../floor
 import type {
   StaticClassCarrierFact,
   StaticClassFactResult,
+  StaticClassNativeContext,
+  StaticClassNativeRead,
   StaticClassSegment,
   StaticClassTokenFact,
   StaticJsxStylePropertyFact,
   StaticValue,
 } from "../contract/static-class-expression.ts";
 import { StaticClassCollector } from "./static-class-expression.ts";
+import { classAuthored } from "./static-class-semantic.ts";
 
 export interface StaticClassFactReader {
   readonly visit: (node: MorphNode) => void;
@@ -71,6 +74,7 @@ type Diagnose = (kind: "unresolved" | "opaque", node: MorphNode, reason: string)
 
 interface FactTargets {
   readonly admitted: ReadonlySet<object>;
+  readonly native?: StaticClassNativeRead | undefined;
   readonly carriers: StaticClassCarrierFact[];
   readonly diagnose: Diagnose;
   readonly styleProperties: StaticJsxStylePropertyFact[];
@@ -86,8 +90,13 @@ function authoredNodes(value: StaticAuthoredValue): MorphNode[] {
   return [value.node, ...value.properties.flatMap((property) => [property.keyNode, ...authoredNodes(property.value)])];
 }
 
-function authoredObject(expression: MorphNode, admitted: ReadonlySet<object>, diagnose: Diagnose): StaticAuthoredObjectValue | undefined {
-  const fact = readStaticAuthoredValue(expression);
+function authoredObject(
+  expression: MorphNode,
+  admitted: ReadonlySet<object>,
+  diagnose: Diagnose,
+  native?: StaticClassNativeContext,
+): StaticAuthoredObjectValue | undefined {
+  const fact = native === undefined ? readStaticAuthoredValue(expression) : classAuthored(expression, native);
   if (fact.kind === "unresolved") {
     diagnose(fact.reason === "dynamic" || fact.reason === "missing" ? "opaque" : "unresolved", fact.node, fact.detail);
     return;
@@ -116,7 +125,7 @@ function recordJsxAttribute(node: import("ts-morph").JsxAttribute, target: FactT
   if (name === "className") {
     target.carriers.push({ kind: "jsx-class", node });
   } else if (name === "style" && expression !== undefined) {
-    const object = authoredObject(expression, target.admitted, target.diagnose);
+    const object = authoredObject(expression, target.admitted, target.diagnose, target.native?.at(node.getSourceFile()));
     if (object !== undefined) {
       appendStyleProperties(target.styleProperties, node, object);
     }
@@ -127,7 +136,7 @@ function recordJsxSpread(node: import("ts-morph").JsxSpreadAttribute, rooted: bo
   if (rooted) {
     target.carriers.push({ kind: "jsx-spread", node });
   }
-  const object = authoredObject(node.getExpression(), target.admitted, target.diagnose);
+  const object = authoredObject(node.getExpression(), target.admitted, target.diagnose, target.native?.at(node.getSourceFile()));
   const style = object === undefined ? undefined : selectedProperties(object, new Set(["style"]))[0];
   if (style?.value.kind === "object") {
     appendStyleProperties(target.styleProperties, node, style.value);
@@ -149,12 +158,12 @@ function recordRootCarrier(node: MorphNode, rooted: boolean, carriers: StaticCla
 }
 
 /** Allocate inside one shared fact provider; feed only nodes delivered by the shared dispatcher. */
-export function createStaticClassFactReader(files: readonly SourceFile[]): StaticClassFactReader {
+export function createStaticClassFactReader(files: readonly SourceFile[], native?: StaticClassNativeRead): StaticClassFactReader {
   if (files.length === 0) {
     throw new Error("static class fact reader requires a nonempty exact source population");
   }
   const admitted = new Set(files.map((file) => file.compilerNode));
-  const collector = new StaticClassCollector(files);
+  const collector = new StaticClassCollector(files, native);
   const nodes: MorphNode[] = [];
   const carriers: StaticClassCarrierFact[] = [];
   const styleProperties: StaticJsxStylePropertyFact[] = [];
@@ -167,7 +176,7 @@ export function createStaticClassFactReader(files: readonly SourceFile[]): Stati
       target.push({ node, reason });
     }
   };
-  const targets = { admitted, carriers, diagnose, styleProperties } satisfies FactTargets;
+  const targets = { admitted, native, carriers, diagnose, styleProperties } satisfies FactTargets;
   const visit = (node: MorphNode): void => {
     if (finished) {
       throw new Error("static class fact reader received a node after finish");
@@ -176,12 +185,14 @@ export function createStaticClassFactReader(files: readonly SourceFile[]): Stati
       throw new Error(`static class fact reader received an out-of-population node: ${node.getSourceFile().getFilePath()}`);
     }
     nodes.push(node);
-    collector.index(node);
   };
   return {
     visit,
     finish: (): StaticClassFactResult => {
       finished = true;
+      for (const node of nodes) {
+        collector.index(node);
+      }
       for (const node of nodes) {
         const rootsBefore = collector.work.rootEvaluations;
         collector.visit(node);

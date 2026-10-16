@@ -1,12 +1,16 @@
 // One closed capture owns scalar Type/Symbol relationships; no checker object survives publication.
 import type { Node, SourceFile } from "ts-morph";
-import type { NativeScalarTypeSelections, NativeTypeSelector } from "./type-projection-contract.ts";
+import type { NativePrimitiveFlags, NativeScalarTypeSelections, NativeTypeSelector } from "./type-projection-contract.ts";
 
 export const TYPE_OBSERVATION_PROFILE = "authored-type-slots-v1";
 export const ZOD_OUTPUT_PROPERTY = "_output";
 export const TYPE_OBSERVATION_VALUE_FACETS = ["module", "binding", "string", "stable", "authored-value"] as const;
 export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "node-types",
+  "primitive-flags",
+  "literal-values",
+  "property-symbols",
+  "declaration-closure",
   "type-properties",
   "definition-nodes",
   "definition-closure",
@@ -24,6 +28,8 @@ export interface TypeObservationQuestion<Anchor = Node> {
   readonly nodes: readonly Anchor[];
   readonly files?: readonly string[] | undefined;
   readonly properties?: readonly string[] | undefined;
+  /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
+  readonly receiverMethods?: readonly string[] | undefined;
   readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;
 }
 
@@ -55,6 +61,7 @@ export interface NativeObservedType {
   readonly typeParameter: boolean;
   readonly unionCount: number;
   readonly tupleCount: number;
+  readonly primitiveFlags?: NativePrimitiveFlags | undefined;
   readonly stringLiteral?: string | null | undefined;
   readonly defaultDisplay?: string | undefined;
   readonly literalValue?: NativeTypeObservation<ObservedLiteralValue> | undefined;
@@ -101,6 +108,7 @@ export interface TypeObservationValues<Anchor = Node> {
     readonly values: readonly { readonly declaration: Anchor; readonly names: readonly Anchor[] }[];
   }[];
   readonly signatures: readonly NativeObservedSignature<Anchor>[];
+  readonly propertySymbols?: readonly { readonly selector: number; readonly name: string; readonly symbol: number | null }[] | undefined;
   readonly definitions?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
   readonly functionExports?: readonly { readonly node: Anchor; readonly value: boolean }[] | undefined;
   readonly callParameters?: readonly { readonly call: Anchor; readonly parameterCount: number | null; readonly values: readonly number[] | null }[] | undefined;
@@ -191,6 +199,8 @@ export interface TypeObservationReader {
   readonly relation: (left: NativeTypeSelector, right: NativeTypeSelector) => import("./assignability-contract.ts").TypeRelation | null;
   readonly display: (selector: NativeTypeSelector, at: Node) => string | null;
   readonly computedNames: (selector: NativeTypeSelector) => readonly { readonly declaration: Node; readonly names: readonly Node[] }[];
+  readonly primitiveFlags: (selector: NativeTypeSelector) => NativePrimitiveFlags;
+  readonly propertySymbol: (selector: NativeTypeSelector, name: string) => ObservedReference<"symbol"> | null;
   readonly definitions: (node: Node) => readonly Node[];
   readonly callParameters: (call: Node) => readonly NativeTypeSelector[] | null;
   readonly signatureParameters: (selector: NativeTypeSelector, at: Node) => readonly (readonly NativeTypeSelector[])[];

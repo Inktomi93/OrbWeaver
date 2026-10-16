@@ -34,6 +34,7 @@ function uniqueRawKeys(keys: readonly string[]): void {
 function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
   if (facts.demand.questions === undefined) {
     if (
+      facts.propertySymbols !== undefined ||
       facts.definitions !== undefined ||
       facts.callParameters !== undefined ||
       facts.signatureParameters !== undefined ||
@@ -41,7 +42,12 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
       facts.functionExports !== undefined ||
       facts.symbols.some((row) => row.valueDeclaration !== undefined) ||
       facts.types.some(
-        (row) => row?.stringLiteral !== undefined || row?.defaultDisplay !== undefined || row?.literalValue !== undefined || row?.typeArguments !== undefined,
+        (row) =>
+          row?.primitiveFlags !== undefined ||
+          row?.stringLiteral !== undefined ||
+          row?.defaultDisplay !== undefined ||
+          row?.literalValue !== undefined ||
+          row?.typeArguments !== undefined,
       )
     ) {
       throw new Error("native raw questions are foreign to the registered demand");
@@ -52,6 +58,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
     throw new Error("native raw question tables are missing");
   }
   assertRawNominations(facts, key);
+  assertNamedPropertyCoverage(facts, key);
   assertTypeArgumentCoverage(facts, key);
   const functions = facts.demand.questions
     .filter((q) => q.kind === "function-exports")
@@ -127,7 +134,13 @@ function assertTypeArgumentIdentity<Anchor>(
 }
 function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = facts.demand.questions ?? [];
-  if (questions.some((q) => (q.kind === "value-profiles" ? q.valueFacets === undefined : q.kind !== "definition-closure" && q.valueFacets !== undefined))) {
+  if (
+    questions.some((q) =>
+      q.kind === "value-profiles"
+        ? q.valueFacets === undefined
+        : q.kind !== "definition-closure" && q.kind !== "declaration-closure" && q.valueFacets !== undefined,
+    )
+  ) {
     throw new Error("native value facets have no closed nomination");
   }
   for (const q of questions) {
@@ -135,7 +148,13 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
       uniqueRawKeys(q.valueFacets);
     }
   }
-  if (questions.some((q) => (q.kind === "definition-closure" ? q.files === undefined || new Set(q.files).size !== q.files.length : q.files !== undefined))) {
+  if (
+    questions.some((q) =>
+      q.kind === "definition-closure" || q.kind === "declaration-closure"
+        ? q.files === undefined || new Set(q.files).size !== q.files.length
+        : q.files !== undefined,
+    )
+  ) {
     throw new Error("native raw question source roster is missing or foreign");
   }
   if (questions.some((q) => q.properties !== undefined && new Set(q.properties).size !== q.properties.length)) {
@@ -147,6 +166,15 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
     for (const node of q.nodes) {
       assertRawNominationNode(facts, q, node, key);
     }
+  }
+  if (
+    questions.some(
+      (question) =>
+        question.receiverMethods !== undefined &&
+        (question.kind !== "declaration-closure" || new Set(question.receiverMethods).size !== question.receiverMethods.length),
+    )
+  ) {
+    throw new Error("native receiver-method nomination is ambiguous or foreign");
   }
   const calls = questions
     .filter((q) => q.kind === "call-parameters")
@@ -495,4 +523,51 @@ function matchesContextualBase<Anchor>(
     return value === null;
   }
   return entry.contextual.value === index && value !== undefined && value !== null;
+}
+
+function indicesForPropertySymbol<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  row: NonNullable<TypeObservationValues<Anchor>["propertySymbols"]>[number],
+): void {
+  const indices = observationIndices(facts);
+  indices.presentType(row.selector);
+  indices.symbol(row.symbol);
+}
+
+function namedPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node: Anchor, key: (node: Anchor) => string): readonly number[] {
+  const index = facts.selections?.plan.selectors.findIndex(
+    (selector) => selector.base.kind === "node" && key(selector.base.node) === key(node) && selector.steps.length === 0 && selector.displayAt === null,
+  );
+  if (index === undefined || index < 0) {
+    throw new Error("native named property owner was not captured");
+  }
+  if (facts.types[index] === null) {
+    return [];
+  }
+  const parts = facts.unions.find((row) => row.selector === index);
+  if (parts === undefined) {
+    throw new Error("native named property union coverage is missing");
+  }
+  return [index, ...parts.values];
+}
+function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "property-symbols");
+  if (questions.length > 0 !== (facts.propertySymbols !== undefined)) {
+    throw new Error("native named property symbols are missing or unrequested");
+  }
+  const expected = new Set(
+    questions.flatMap((question) =>
+      question.nodes.flatMap((node) =>
+        namedPropertyOwners(facts, node, key).flatMap((selector) => (question.properties ?? []).map((name) => JSON.stringify([selector, name]))),
+      ),
+    ),
+  );
+  const actual = (facts.propertySymbols ?? []).map((row) => JSON.stringify([row.selector, row.name]));
+  uniqueRawKeys(actual);
+  for (const row of facts.propertySymbols ?? []) {
+    indicesForPropertySymbol(facts, row);
+  }
+  if (actual.length !== expected.size || actual.some((name) => !expected.has(name))) {
+    throw new Error("native named property coverage is missing or foreign");
+  }
 }

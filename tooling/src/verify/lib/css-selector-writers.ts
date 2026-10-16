@@ -30,7 +30,12 @@
 import { readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Type } from "ts-morph";
 import { Node } from "ts-morph";
+import type { StaticClassNativeContext, StaticClassNativeRead } from "../contract/static-class-expression.ts";
+import { requiredInvocationFact } from "./native-invocation.ts";
 import type { StaticClassCollector } from "./static-class-expression.ts";
+import { classDomProperty, classLiteralTypes } from "./static-class-semantic.ts";
+
+const ATTRIBUTE_METHODS = new Set(["setAttribute", "toggleAttribute"]);
 
 const DOM_LIB = "/typescript/lib/lib.dom.d.ts";
 
@@ -76,13 +81,34 @@ function valuesAt(
   node: Node,
   consumer: Node,
   collector: StaticClassCollector,
+  native?: StaticClassNativeContext,
 ): { readonly values: readonly string[]; readonly opaque: number; readonly unresolved: number } {
-  const evaluated = collector.evaluate(node, consumer);
+  const evaluated = collector.evaluate(node, consumer, native?.evidence.typeObservations?.anchor ?? consumer.getSourceFile());
   const values = new Set(evaluated.candidates.map((candidate) => candidate.value));
-  for (const value of stringLiteralTypes(node.getType())) {
+  for (const value of native === undefined ? stringLiteralTypes(node.getType()) : classLiteralTypes(node, native)) {
     values.add(value);
   }
   return { values: [...values], opaque: evaluated.opaque.length, unresolved: evaluated.unresolved.length };
+}
+
+/** Potential value questions use the writer's actual terminal grammar before native DOM admission. */
+export function selectorWriterValueNominees(node: Node): readonly Node[] {
+  if (Node.isJsxAttribute(node) && node.getNameNode().getText().startsWith("data-")) {
+    const value = jsxValue(node);
+    return value === undefined ? [] : [value];
+  }
+  if (Node.isPropertyAssignment(node)) {
+    const name = node.getNameNode();
+    const value = node.getInitializer();
+    return value !== undefined && (Node.isComputedPropertyName(name) || propertyName(name)?.startsWith("data-") === true) ? [value] : [];
+  }
+  if (!Node.isCallExpression(node)) {
+    return [];
+  }
+  const callee = node.getExpression();
+  return Node.isElementAccessExpression(callee) || (Node.isPropertyAccessExpression(callee) && ATTRIBUTE_METHODS.has(callee.getName()))
+    ? node.getArguments()
+    : [];
 }
 
 function propertyName(node: Node): string | undefined {
@@ -94,7 +120,7 @@ function propertyName(node: Node): string | undefined {
 
 /** The accessed member name in either spelling. The computed arm reads its argument through the shared
  *  stable-binding resolver, so `el[DATA_SLOT]` resolves exactly as `el["data-slot"]` does. */
-function accessedName(node: Node): string | undefined {
+function accessedName(node: Node, native?: StaticClassNativeContext): string | undefined {
   if (Node.isPropertyAccessExpression(node)) {
     return node.getName();
   }
@@ -105,7 +131,7 @@ function accessedName(node: Node): string | undefined {
   if (argument === undefined) {
     return;
   }
-  const fact = readStaticString(argument);
+  const fact = native === undefined ? readStaticString(argument) : requiredInvocationFact(native.evidence.strings, argument);
   return fact.kind === "unresolved" ? undefined : fact.value;
 }
 
@@ -118,7 +144,10 @@ function meaningfulTypes(type: Type): readonly Type[] {
   return parts.filter((part) => !(part.isNull() || part.isUndefined()));
 }
 
-function isDomAttributeReceiver(node: Node): boolean {
+function isDomAttributeReceiver(node: Node, native?: StaticClassNativeContext): boolean {
+  if (native !== undefined) {
+    return classDomProperty(node, "setAttribute", native);
+  }
   const types = meaningfulTypes(node.getType());
   return (
     types.length > 0 &&
@@ -141,6 +170,8 @@ interface WriterAccumulator {
 interface WriterContext {
   readonly state: WriterAccumulator;
   readonly collector: StaticClassCollector;
+  readonly native?: StaticClassNativeRead | undefined;
+  readonly read?: StaticClassNativeContext | undefined;
 }
 
 function record(state: WriterAccumulator, name: string, values: readonly string[]): void {
@@ -157,7 +188,7 @@ function recordValue(context: WriterContext, name: string, value: Node | undefin
     record(context.state, name, ["true"]);
     return;
   }
-  const result = valuesAt(value, consumer, context.collector);
+  const result = valuesAt(value, consumer, context.collector, context.read ?? context.native?.at(consumer.getSourceFile()));
   record(context.state, name, result.values);
   context.state.opaque += result.opaque;
   context.state.unresolved += result.unresolved;
@@ -175,22 +206,23 @@ function recordJsxSpread(spread: import("ts-morph").JsxSpreadAttribute, context:
   context.state.opaque += evaluation.opaque.length;
   context.state.unresolved += evaluation.unresolved.length;
   for (const property of evaluation.properties) {
-    recordValue(context, property.name, property.value, spread);
+    recordValue({ ...context, read: context.native?.at(spread.getSourceFile()) }, property.name, property.value, spread);
   }
 }
 
 function recordDomCall(call: import("ts-morph").CallExpression, context: WriterContext): void {
   const expression = call.getExpression();
   const receiver = accessReceiver(expression);
-  const method = accessedName(expression);
-  if (receiver === undefined || !isDomAttributeReceiver(receiver) || (method !== "setAttribute" && method !== "toggleAttribute")) {
+  const native = context.native?.at(call.getSourceFile());
+  const method = accessedName(expression, native);
+  if (receiver === undefined || !isDomAttributeReceiver(receiver, native) || !ATTRIBUTE_METHODS.has(method ?? "")) {
     return;
   }
   const [nameNode, valueNode] = call.getArguments();
   if (nameNode === undefined) {
     return;
   }
-  const names = valuesAt(nameNode, call, context.collector);
+  const names = valuesAt(nameNode, call, context.collector, native);
   context.state.opaque += names.opaque;
   context.state.unresolved += names.unresolved;
   for (const name of names.values.filter((candidate) => candidate.startsWith("data-"))) {
@@ -204,12 +236,15 @@ function recordDomCall(call: import("ts-morph").CallExpression, context: WriterC
 
 /** The HAST element's `properties` object, resolved through the shared stable-binding reader so a shared
  *  const (`properties: CODE_BLOCK_PROPS`) is a writer exactly as an inline literal is. */
-function hastPropertiesObject(property: import("ts-morph").PropertyAssignment): import("ts-morph").ObjectLiteralExpression | undefined {
+function hastPropertiesObject(
+  property: import("ts-morph").PropertyAssignment,
+  native?: StaticClassNativeContext,
+): import("ts-morph").ObjectLiteralExpression | undefined {
   const raw = property.getInitializer();
   if (raw === undefined) {
     return;
   }
-  const fact = resolveStableExpression(raw);
+  const fact = native === undefined ? resolveStableExpression(raw) : requiredInvocationFact(native.evidence.stableValues, raw);
   const resolved = fact.kind === "unresolved" ? undefined : fact.value;
   return resolved !== undefined && Node.isObjectLiteralExpression(resolved) ? resolved : undefined;
 }
@@ -231,7 +266,8 @@ function recordHastObject(property: import("ts-morph").PropertyAssignment, conte
   if (!Node.isStringLiteral(typeInitializer) || typeInitializer.getLiteralText() !== "element") {
     return;
   }
-  const initializer = hastPropertiesObject(property);
+  const read = context.native?.at(property.getSourceFile());
+  const initializer = hastPropertiesObject(property, read);
   if (initializer === undefined) {
     return;
   }
@@ -241,7 +277,7 @@ function recordHastObject(property: import("ts-morph").PropertyAssignment, conte
     }
     const name = propertyName(child.getNameNode());
     if (name?.startsWith("data-") === true) {
-      recordValue(context, name, child.getInitializer(), child);
+      recordValue({ ...context, read }, name, child.getInitializer(), child);
     }
   }
 }
@@ -260,10 +296,23 @@ export interface SelectorWriterPass {
   readonly finish: (classes: ReadonlySet<string>, dataNames: readonly string[]) => SelectorWriterCensus;
 }
 
+function recordWriterNode(node: Node, context: WriterContext, spreads: import("ts-morph").JsxSpreadAttribute[]): void {
+  if (Node.isJsxAttribute(node)) {
+    recordJsxAttribute(node, context);
+  } else if (Node.isJsxSpreadAttribute(node)) {
+    spreads.push(node);
+  } else if (Node.isCallExpression(node)) {
+    recordDomCall(node, context);
+  } else if (Node.isPropertyAssignment(node)) {
+    recordHastProperty(node, context);
+  }
+}
+
 /** Collect exact class/data writers from live terminals; arbitrary object properties and prose are inert. */
-export function createSelectorWriterPass(collector: StaticClassCollector): SelectorWriterPass {
+export function createSelectorWriterPass(collector: StaticClassCollector, native?: StaticClassNativeRead): SelectorWriterPass {
   const state: WriterAccumulator = { data: new Map(), opaque: 0, unresolved: 0 };
-  const context: WriterContext = { state, collector };
+  const context: WriterContext = { state, collector, native };
+  const pending: Node[] = [];
   const spreads: import("ts-morph").JsxSpreadAttribute[] = [];
   const visited = new WeakSet<Node>();
   let census: SelectorWriterCensus | undefined;
@@ -276,19 +325,14 @@ export function createSelectorWriterPass(collector: StaticClassCollector): Selec
         return;
       }
       visited.add(node);
-      if (Node.isJsxAttribute(node)) {
-        recordJsxAttribute(node, context);
-      } else if (Node.isJsxSpreadAttribute(node)) {
-        spreads.push(node);
-      } else if (Node.isCallExpression(node)) {
-        recordDomCall(node, context);
-      } else if (Node.isPropertyAssignment(node)) {
-        recordHastProperty(node, context);
-      }
+      pending.push(node);
     },
     finish: (classes, dataNames): SelectorWriterCensus => {
       if (census !== undefined) {
         return census;
+      }
+      for (const node of pending) {
+        recordWriterNode(node, context, spreads);
       }
       for (const spread of spreads) {
         recordJsxSpread(spread, context, dataNames);

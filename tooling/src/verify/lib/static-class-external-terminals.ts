@@ -48,15 +48,13 @@ function isLucideFactory(call: CallExpression): boolean {
   );
 }
 
-function constDeclaration(identifier: Identifier): VariableDeclaration | undefined {
-  const declarations = identifier
-    .getDefinitionNodes()
-    .filter(
-      (node): node is VariableDeclaration =>
-        Node.isVariableDeclaration(node) &&
-        node.getSourceFile() === identifier.getSourceFile() &&
-        node.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
-    );
+function constDeclaration(evaluator: StaticClassEvaluator, identifier: Identifier): VariableDeclaration | undefined {
+  const declarations = (evaluator.native?.()?.types.definitions(identifier) ?? identifier.getDefinitionNodes()).filter(
+    (node): node is VariableDeclaration =>
+      Node.isVariableDeclaration(node) &&
+      node.getSourceFile() === identifier.getSourceFile() &&
+      node.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const,
+  );
   return declarations.length === 1 ? declarations[0] : undefined;
 }
 
@@ -116,7 +114,7 @@ function resolveArray(evaluator: StaticClassEvaluator, raw: MorphNode, path: Set
       evaluator.diagnose("opaque", node, "runtime lucide IconNode array");
       return;
     }
-    const declaration = constDeclaration(node);
+    const declaration = constDeclaration(evaluator, node);
     const initializer = declaration?.getInitializer();
     if (declaration === undefined || initializer === undefined) {
       evaluator.diagnose("opaque", node, "lucide IconNode array is not a local const");
@@ -201,7 +199,7 @@ function pushedElements(evaluator: StaticClassEvaluator, declarations: ReadonlyS
       evaluator.diagnose("opaque", declaration, "destructured lucide IconNode array alias");
       return;
     }
-    for (const reference of name.findReferencesAsNodes()) {
+    for (const reference of evaluator.native?.()?.references(name) ?? name.findReferencesAsNodes()) {
       const result = inspectReference(evaluator, reference);
       if (!result.valid) {
         return;

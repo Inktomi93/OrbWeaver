@@ -33,6 +33,7 @@ import { POLICY_REFUSAL_PREFIXES } from "../contract/policy-conformance.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { NativeTypeFactReader, NativeTypeFacts } from "../contract/project-context.ts";
 import type { ResourceHostOptions } from "../contract/resource-host.ts";
+import { cssHookProvenanceFact } from "../lib/css-family-source-provenance.ts";
 import { originRefusalDeclarations } from "../lib/origin-verdict.ts";
 import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
@@ -40,6 +41,7 @@ import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
 import { columnSchemaSources, nativeTypeFactSession } from "../lib/project-context.ts";
 import { ROOT } from "../lib/repo-paths.ts";
+import { staticClassFact } from "../lib/static-class-facts.ts";
 import { invocationPolicies, messageOf } from "./policy-conformance-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
@@ -181,7 +183,15 @@ function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GR
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
     }
-    yield* runPasses({ policy, root, project: shared }, grantSets);
+    yield* runPasses(
+      {
+        policy,
+        root,
+        project: shared,
+        ...(policy.facts.includes(staticClassFact) || policy.facts.includes(cssHookProvenanceFact) ? { nativeTypeFacts: () => isolatedTypeFacts(shared) } : {}),
+      },
+      grantSets,
+    );
   } catch (error) {
     yield { thrown: messageOf(error), root };
   } finally {

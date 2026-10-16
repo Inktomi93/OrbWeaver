@@ -517,3 +517,106 @@ test("raw call parameter absence remains distinct from a true zero-arity answer"
     unavailable.mockRestore();
   }
 });
+
+test("finite raw primitive and named-property questions preserve union arms, absence and corruption refusal", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, strict: true } });
+  const source = project.createSourceFile(
+    "/primitive-properties.ts",
+    'interface First {className:string} interface Second {setAttribute(name:string,value:string):void} declare const target:First|Second|null;declare const value:"yes"|42|true|null;',
+  );
+  const target = source.getVariableDeclarationOrThrow("target");
+  const value = source.getVariableDeclarationOrThrow("value");
+  const demand: TypeObservationDemand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source],
+    nodes: [],
+    questions: [
+      { kind: "property-symbols", nodes: [target], properties: ["className", "setAttribute"] },
+      { kind: "literal-values", nodes: [value] },
+    ],
+  };
+  const facts = captureTypeObservations(demand, { anchor: source, admit: () => undefined });
+  const wire = typeObservationsSchema(spanSchema).parse(encodeTypeObservations(facts, span));
+  const replay = (node: InventorySpan): MorphNode => inventoryQueryNode(project.getSourceFile(node.file), node);
+  const read = readTypeObservations(replayTypeObservations(wire, replay));
+  const parts = read.unions(nodeTypeSelector(target));
+  const classNames = parts
+    .map((part) => read.propertySymbol(part, "className"))
+    .filter((symbol) => symbol !== null)
+    .flatMap((symbol) => read.symbolData(symbol).declarations);
+  expect(classNames).toEqual([source.getInterfaceOrThrow("First").getPropertyOrThrow("className")]);
+  expect(parts.filter((part) => read.propertySymbol(part, "className") === null)).toHaveLength(2);
+  expect(read.unions(nodeTypeSelector(value)).map(read.literalValue)).toEqual(
+    value
+      .getType()
+      .getUnionTypes()
+      .map((part) => part.getLiteralValue()),
+  );
+  expect(read.unions(nodeTypeSelector(value)).map((part) => read.primitiveFlags(part).null)).toEqual(
+    value
+      .getType()
+      .getUnionTypes()
+      .map((part) => part.isNull()),
+  );
+  expect(() => read.propertySymbol(nodeTypeSelector(target), "missing")).toThrow("not captured");
+  expect(() => read.primitiveFlags(nodeTypeSelector(source))).toThrow("not captured");
+  expect(() => typeObservationsSchema(spanSchema).parse({ ...wire, propertySymbols: [] })).toThrow("coverage is missing");
+  expect(() => typeObservationsSchema(spanSchema).parse({ ...wire, propertySymbols: undefined })).toThrow("missing or unrequested");
+  expect(() =>
+    typeObservationsSchema(spanSchema).parse({ ...wire, propertySymbols: wire.propertySymbols?.map((row) => ({ ...row, symbol: 999_999 })) }),
+  ).toThrow("foreign");
+  expect(() => readTypeObservations({ ...facts, types: facts.types.map((row) => (row === null ? null : { ...row, primitiveFlags: undefined })) })).toThrow(
+    "not captured",
+  );
+  expect(fixture().facts.types.every((row) => row?.primitiveFlags === undefined)).toBe(true);
+  expect(fixture().facts.propertySymbols).toBeUndefined();
+  source.replaceWithText(source.getFullText());
+  expect(() => read.primitiveFlags(parts[0] ?? nodeTypeSelector(target))).toThrow();
+});
+
+test("closed declaration nominations retain related definitions and exact receiver methods without widening their roster", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, strict: true } });
+  const related = project.createSourceFile("/decl-related.ts", 'interface String {trim():string} export const text=" fixed ";export const held=text.trim();');
+  const source = project.createSourceFile("/decl-root.ts", 'import{held}from"./decl-related";export const chosen=held;');
+  const root = source.getVariableDeclarationOrThrow("chosen").getInitializerOrThrow();
+  const receiver = related
+    .getVariableDeclarationOrThrow("held")
+    .getInitializerOrThrow()
+    .getFirstDescendantByKindOrThrow(SyntaxKind.PropertyAccessExpression)
+    .getExpression();
+  const demand: TypeObservationDemand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source, related],
+    nodes: [],
+    questions: [{ kind: "declaration-closure", nodes: [root], files: [source.getFilePath(), related.getFilePath()], receiverMethods: ["trim"] }],
+  };
+  const facts = captureTypeObservations(demand, { anchor: source, admit: () => undefined });
+  const read = readTypeObservations(facts);
+  expect(read.definitions(receiver)).toEqual([related.getVariableDeclarationOrThrow("text")]);
+  expect(read.primitiveFlags(nodeTypeSelector(receiver)).stringLiteral).toBe(true);
+  expect(() => readTypeObservations({ ...facts, definitions: facts.definitions?.filter((row) => row.node !== receiver) })).toThrow("not captured");
+  const bounded = captureTypeObservations(
+    { ...demand, questions: demand.questions?.map((question) => ({ ...question, files: [source.getFilePath()] })) },
+    { anchor: source, admit: () => undefined },
+  );
+  expect(readTypeObservations(bounded).definitions(root)).toHaveLength(1);
+  expect(() => readTypeObservations(bounded).symbol(receiver)).toThrow("not captured");
+  const plan = { mode: "types" as const, facets: [], arguments: [], node: span(source), typeObservations: mapTypeObservationDemand(demand, span) };
+  const changed = {
+    ...plan,
+    typeObservations: { ...plan.typeObservations, questions: plan.typeObservations.questions?.map((question) => ({ ...question, receiverMethods: [] })) },
+  };
+  expect(invocationQueryKey(plan)).not.toBe(invocationQueryKey(changed));
+  expect(() =>
+    assertInvocationEvidence({
+      query: changed,
+      typeObservations: encodeTypeObservations(facts, span),
+      invocation: null,
+      callee: null,
+      profiles: [],
+      sources: [],
+    }),
+  ).toThrow("missing or foreign");
+  related.replaceWithText(related.getFullText());
+  expect(() => read.symbol(root)).toThrow("epoch");
+});
