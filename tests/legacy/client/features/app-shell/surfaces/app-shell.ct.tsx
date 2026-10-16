@@ -1052,7 +1052,7 @@ for (const modalId of MODAL_SLOT_IDS) {
     // 3) PINNED HEADER — scrolling the interior region to the bottom leaves the modal header's box put
     //    (the dialog header is a SIBLING of the scroll region; the drawer header pins via `sticky top-0`).
     //    This is the proof the title + close never scroll away with the content.
-    const header = page.locator(".shell-modal-header");
+    const header = page.locator('[data-slot="dialog-header"]');
     await expect.poll(async () => header.boundingBox()).not.toBeNull();
     const beforeBox = await header.boundingBox();
     await scrollInteriorToBottom(page);
@@ -1065,14 +1065,14 @@ test("the drawer's sticky modal header resolves the raised stratum and paints ab
   await mount(<ModalScrollStory modalId="you" />);
   await page.getByTestId("tall-modal-body").waitFor({ state: "attached" });
 
-  const header = page.locator(".shell-modal-header");
+  const header = page.locator('[data-slot="dialog-header"]');
   await expect.poll(() => header.evaluate((element) => getComputedStyle(element).position)).toBe("sticky");
   await expect.poll(() => header.evaluate((element) => getComputedStyle(element).zIndex)).toBe(TOKENS["z.raised"].value);
   await scrollInteriorToBottom(page);
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const headerElement = document.querySelector<HTMLElement>(".shell-modal-header");
+        const headerElement = document.querySelector<HTMLElement>('[data-slot="dialog-header"]');
         const probe = document.querySelector<HTMLElement>('[data-testid="modal-stacking-probe"]');
         if (headerElement === null || probe === null) {
           return "missing";
@@ -1166,7 +1166,7 @@ for (const modalId of ["command", "you"] as const) {
     const grid = page.locator(".shell-grid");
     const portalRoot = page.locator('[data-slot="portal-root"]');
     const popup = page.locator('[data-slot="dialog-popup"], [data-slot="drawer-popup"]');
-    const header = page.locator(".shell-modal-header");
+    const header = page.locator('[data-slot="dialog-header"]');
     const customCssProbe = page.getByTestId("tall-modal-body");
     const nestedThemePreview = page.getByTestId("nested-theme-preview");
     await expect(popup).toBeVisible();

@@ -38,6 +38,7 @@ export function ContextToggle(): ReactElement {
       // sheet CLOSED this is still the only phone door onto it, which is why the shed is state-keyed and
       // not a width-keyed removal.
       marker={CONTEXT_TOGGLE_MARKER}
+      focusReturnMarker={CONTEXT_TOGGLE_MARKER}
       label={contextToggleLabel(collapsed)}
       icon={collapsed ? PanelRightOpen : PanelRightClose}
       expanded={!collapsed}

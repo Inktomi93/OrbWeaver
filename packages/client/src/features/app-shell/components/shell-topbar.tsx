@@ -58,6 +58,7 @@ export interface TopbarIconButtonProps {
   readonly pressed?: boolean;
   readonly expanded?: boolean;
   readonly onClick: () => void;
+  readonly focusReturnMarker?: string;
   /** A shell MARKER class for this button, so `shell.css` can reason about ONE topbar control by name
    *  (the `.shell-chat-member-chip` precedent). Deliberately not `className`:
    *  this is a handle for the shell's own rules, never a styling hatch for a caller. */
@@ -67,7 +68,7 @@ export interface TopbarIconButtonProps {
 /** One tooltip-wrapped topbar icon button — the label is both the tooltip text AND the aria-label.
  *  Exported so the fullscreen/context-toggle chrome widgets (features/app-shell/lib) render the SAME
  *  affordance shape the list-panel toggle uses. */
-export function TopbarIconButton({ label, icon, pressed, expanded, onClick, marker }: TopbarIconButtonProps): ReactElement {
+export function TopbarIconButton({ label, icon, pressed, expanded, onClick, marker, focusReturnMarker }: TopbarIconButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -79,6 +80,7 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick, mark
             aria-label={label}
             aria-pressed={pressed}
             aria-expanded={expanded}
+            data-focus-return-marker={focusReturnMarker}
             onClick={onClick}
           >
             <Icon icon={icon} size="sm" />
@@ -126,7 +128,7 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
       }
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}
-      marker={LIST_TOGGLE_MARKER}
+      focusReturnMarker={LIST_TOGGLE_MARKER}
       onClick={onToggleList}
     />
   );

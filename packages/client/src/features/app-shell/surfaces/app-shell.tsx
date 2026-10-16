@@ -59,7 +59,7 @@ function useOverlayFocus(
   mode: PanelMode,
   pane: RefObject<HTMLElement | null>,
   frame: { readonly grid: RefObject<HTMLElement | null>; readonly scrim: RefObject<HTMLElement | null> },
-  toggleMarker: string,
+  focusReturnMarker: string,
 ): void {
   const { grid, scrim } = frame;
   const overlay = mode === "overlay";
@@ -84,11 +84,11 @@ function useOverlayFocus(
       const active = document.activeElement;
       const lost = active === null || active === document.body || active === scrim.current || pane.current?.contains(active) === true;
       if (lost) {
-        grid.current?.querySelector<HTMLElement>(`.${toggleMarker}`)?.focus();
+        grid.current?.querySelector<HTMLElement>(`[data-focus-return-marker="${focusReturnMarker}"]`)?.focus();
       }
     });
     return (): void => clearTimeout(timer);
-  }, [overlay, open, pane, grid, scrim, toggleMarker]);
+  }, [overlay, open, pane, grid, scrim, focusReturnMarker]);
 }
 
 /** The context pane's own way out, handed to the bracket to seat as the header row's trailing ×. It closes the

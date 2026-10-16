@@ -34,7 +34,7 @@ export function ContentDialog({
   return (
     <Dialog {...root}>
       <DialogPopup {...popupProps} className={`gap-block ${popupProps?.className ?? ""}`}>
-        <DialogHeader className="shell-modal-header">
+        <DialogHeader>
           <Row align="center" gap="row" className="min-w-0">
             {headerLeading}
             <DialogTitle {...titleProps}>{title}</DialogTitle>
