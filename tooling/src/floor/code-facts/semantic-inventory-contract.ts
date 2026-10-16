@@ -14,6 +14,8 @@ import { DRIZZLE_EVIDENCE_MODES } from "./drizzle-evidence-contract.ts";
 import type { InventoryDrizzleQuery, InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { drizzleInventorySchemas } from "./drizzle-inventory-contract.ts";
 import type { DrizzleValueSourceEvidence } from "./drizzle-query-contract.ts";
+import type { NativeDrizzleSqlFacts } from "./drizzle-sql-facts-contract.ts";
+import { assertDrizzleSqlCoverage, drizzleSqlFactsSchema } from "./drizzle-sql-facts-contract.ts";
 import type { NativeOrdinaryObservations } from "./ordinary-observations-contract.ts";
 import type { InventoryOrdinaryObservations } from "./ordinary-observations-inventory.ts";
 import { ordinaryObservationDemandSchema, ordinaryObservationsSchema } from "./ordinary-observations-inventory.ts";
@@ -276,6 +278,7 @@ export const ordinaryObservationWireSchema = ordinaryObservationsSchema(
 export const typeObservationWireSchema = typeObservationsSchema(spanSchema);
 export const invocationEvidenceSchema = z.object({
   typeObservations: typeObservationWireSchema.optional(),
+  drizzleSql: drizzleSqlFactsSchema(spanSchema, invocationRefusalSchema, inventoryReferenceSchema).optional(),
   observations: ordinaryObservationWireSchema.optional(),
   drizzleSourcesBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
   observationBasis: z.strictObject({ program: z.string(), partition: z.string() }).nullable().optional(),
@@ -317,6 +320,7 @@ export const invocationEvidenceSchema = z.object({
 export type InventoryInvocationEvidence = z.infer<typeof invocationEvidenceSchema>;
 export interface NativeInvocationEvidence {
   readonly typeObservations?: NativeTypeObservations;
+  readonly drizzleSql?: NativeDrizzleSqlFacts | undefined;
   readonly observations?: NativeOrdinaryObservations;
   readonly invocation: CallableInvocationFact | undefined;
   readonly modules: ReadonlyMap<Node, ReferenceFact<ModuleMemberOrigin>>;
@@ -382,6 +386,7 @@ export function assertInvocationEvidence(entry: InventoryInvocationEvidence): vo
     }
   };
   assertInvocationProjection(entry, requireFacets);
+  assertInvocationSqlEvidence(entry);
   for (const profile of entry.profiles) {
     assertValueObservationDemand(profile, demanded);
     const projection = profile["type-projection"];
@@ -402,6 +407,15 @@ export function assertInvocationEvidence(entry: InventoryInvocationEvidence): vo
     }
     assertCanonicalVariableProfile(profile);
   }
+}
+function assertInvocationSqlEvidence(entry: InventoryInvocationEvidence): void {
+  const questions = entry.query.typeObservations?.questions?.filter((question) => question.kind === "drizzle-predicate-inputs") ?? [];
+  assertDrizzleSqlCoverage(
+    entry.drizzleSql,
+    questions.length === 0 ? undefined : questions.flatMap((question) => question.nodes),
+    entry.typeObservations?.predicateInputs?.flatMap((row) => row.predicates) ?? [],
+    inventoryNodeQueryKey,
+  );
 }
 function assertTypeValueProfiles(
   entry: InventoryInvocationEvidence,

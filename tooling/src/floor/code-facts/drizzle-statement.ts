@@ -296,6 +296,9 @@ function priorCalls(anchor: Node): readonly CallExpression[] {
 /** The predicates a read statement carries: every `.where` the chain (or its split builder) applies, and every
  *  inner join's ON. Several `.where` calls are several candidates for the effective filter, never a conjunction. */
 export function readStatementOf(anchor: Node, observations?: CallReturnObservations): ReadStatement {
+  if (observations?.drizzleSql !== undefined) {
+    return observations.drizzleSql.statement(anchor);
+  }
   const program = observations === undefined ? undefined : readCallReturnProgram(anchor, observations);
   if (program?.kind === "unresolved") {
     return { wheres: [], innerOns: [], escapes: true, refusals: [program] };
@@ -411,6 +414,9 @@ function predicateUses(value: Node, program: CallReturnProgram, active: Readonly
 /** All filtering consumers of a native EXISTS, including authored predicate-return helpers. One escape,
  * unknown continuation or mismatched compiler epoch refuses the complete correlation proof. */
 export function readPredicateConsumers(anchor: Node, observations: CallReturnObservations): ReferenceFact<readonly CallExpression[]> {
+  if (observations.drizzleSql !== undefined) {
+    return observations.drizzleSql.consumers(anchor);
+  }
   const program = readCallReturnProgram(anchor, observations);
   if (program.kind === "unresolved") {
     return program;

@@ -278,6 +278,7 @@ export interface CallReturnProgram {
 
 export interface CallReturnObservations {
   readonly programs: readonly CallReturnProgram[];
+  readonly drizzleSql?: import("./drizzle-sql-facts-contract.ts").DrizzleSqlReader | undefined;
 }
 
 /** Actual callback element provenance, without inventing a runtime array index or trusting its fields. */

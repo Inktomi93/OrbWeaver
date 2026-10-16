@@ -1,5 +1,6 @@
 // Pin inputs retain their importing capture even when the operand is supplied through another source.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
+import type { NativeDrizzleSqlFacts } from "../../floor/code-facts/drizzle-sql-facts-contract.ts";
 import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
@@ -37,7 +38,28 @@ export function nativeTenancyPins(
     selected.typeObservations.assertNode(node);
     return selected;
   };
+  const sqlOf = (node: Node, facet: keyof NativeDrizzleSqlFacts): NativeDrizzleSqlFacts => {
+    if (plan === undefined) {
+      throw new Error("native tenancy SQL inputs were not prepared");
+    }
+    const delivered = [...new Set(native().invocationEvidence(files, plan).values())];
+    if (delivered.some((fact) => fact.drizzleSql === undefined)) {
+      throw new Error("native tenancy SQL facts are unavailable");
+    }
+    const matches = delivered.filter((fact) => fact.drizzleSql?.[facet].has(node) === true);
+    const selected = matches[0];
+    if (matches.length !== 1 || selected?.drizzleSql === undefined || selected.typeObservations === undefined) {
+      throw new Error("native tenancy SQL input has no unique registered importing context");
+    }
+    selected.typeObservations.assertNode(node);
+    return selected.drizzleSql;
+  };
   return {
+    sql: {
+      statement: (node) => requiredInvocationFact(sqlOf(node, "statements").statements, node),
+      predicate: (node) => requiredInvocationFact(sqlOf(node, "predicates").predicates, node),
+      consumers: (node) => requiredInvocationFact(sqlOf(node, "consumers").consumers, node),
+    },
     prepare: (): void => {
       const seeds = [...new Set(anchors.map((anchor) => anchor.call))];
       if (seeds.length === 0) {

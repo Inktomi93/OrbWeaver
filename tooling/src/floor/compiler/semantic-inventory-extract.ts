@@ -1636,6 +1636,9 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
   return families.includes("invocation-evidence") || families.includes("drizzle-identities") || families.includes("schema-data")
     ? [
         "./invocation-evidence-extract.ts",
+        "./drizzle-sql-facts-capture.ts",
+        "../code-facts/drizzle-sql-facts-codec.ts",
+        "../code-facts/drizzle-sql-facts-contract.ts",
         "../code-facts/ordinary-observations.ts",
         "../code-facts/ordinary-observations-contract.ts",
         "../code-facts/ordinary-observations-codec.ts",

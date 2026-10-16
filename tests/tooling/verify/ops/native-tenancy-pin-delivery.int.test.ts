@@ -99,6 +99,145 @@ test("native canonical predicate bindings retain the imported helper's actual ca
 });
 
 test(
+  "native SQL containment does not consult ordinary Types or Symbols through predicates and statements",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const context = projectCtx(scratch);
+    const readType = Node.prototype.getType;
+    const readSymbol = Node.prototype.getSymbol;
+    const previousLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 100;
+    const sqlFrame = (): boolean => /\/drizzle-(?:sql[^/]*|predicate|statement)\.ts:/u.test(new Error("SQL frame").stack ?? "");
+    const typePoison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+      if (this.getProject() === context.project && sqlFrame()) {
+        throw new Error("ordinary SQL containment Type read");
+      }
+      return readType.call(this);
+    });
+    const symbolPoison = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
+      if (this.getProject() === context.project && sqlFrame()) {
+        throw new Error("ordinary SQL containment Symbol read");
+      }
+      return readSymbol.call(this);
+    });
+    try {
+      const result = runPolicyPass({
+        root: scratch,
+        project: context.project,
+        ...nativeTypeFactOptions(context),
+        policies: [gate],
+        knownPolicies: [gate],
+        reviewedGrants: [],
+        failOnWarnings: false,
+      });
+      expect(result.toolErrors).toEqual([]);
+      expect(result.factErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+    } finally {
+      symbolPoison.mockRestore();
+      typePoison.mockRestore();
+      Error.stackTraceLimit = previousLimit;
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "missing native SQL facts withhold the real owner judgment without ordinary fallback",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const context = projectCtx(scratch);
+    let restore: (() => void) | undefined;
+    try {
+      const result = runPolicyPass({
+        root: scratch,
+        project: context.project,
+        policies: [gate],
+        knownPolicies: [gate],
+        reviewedGrants: [],
+        failOnWarnings: false,
+        nativeTypeFacts: () => {
+          const session = context.nativeTypeFacts?.();
+          if (session === undefined) {
+            throw new Error("fixture has no native owner session");
+          }
+          const read = session.invocationEvidence;
+          const spy = vi
+            .spyOn(session, "invocationEvidence")
+            .mockImplementation(
+              (owner, nodes, plan) => new Map([...read(owner, nodes, plan)].map(([node, fact]) => [node, { ...fact, drizzleSql: undefined }])),
+            );
+          restore = () => spy.mockRestore();
+          return session;
+        },
+      });
+      expect(result.factErrors).toEqual([]);
+      expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: "native tenancy SQL facts are unavailable" }]);
+      expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+    } finally {
+      restore?.();
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test(
+  "native SQL facts preserve supplied alternatives, optional absence and mutable aliases",
+  ({ scratch, repoRoot }) => {
+    fixture(
+      scratch,
+      repoRoot,
+      `
+import type {BaseSQLiteDatabase} from "drizzle-orm/sqlite-core";
+import {and, eq, sql, type SQL} from "drizzle-orm";
+import {personas} from "../../../../../db/src/schema/persona.ts";
+import {owned} from "./predicate.ts";
+declare const db: BaseSQLiteDatabase<"async", void>;
+function identity(value: SQL | undefined) { return value; }
+export async function safe(id: string, owner: string) {
+  return db.select().from(personas).where(and(eq(personas.id, id), owned(owner)));
+}
+export async function optional(id: string, owner: string, flag: boolean) {
+  return db.select().from(personas).where(and(eq(personas.id, id), identity(flag ? eq(personas.ownerId, owner) : undefined)));
+}
+export async function aliased(id: string, owner: string) {
+  const held = owner;
+  return db.select().from(personas).where(and(eq(personas.id, id), owned(held)));
+}
+export async function opaque(id: string, owner: string, emitted: SQL) {
+  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), emitted));
+}
+export async function mutated(id: string, owner: string) {
+  const child = sql\`1\`;
+  child.append(sql.raw(id));
+  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), child));
+}
+`,
+    );
+    const context = projectCtx(scratch);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      ...nativeTypeFactOptions(context),
+      policies: [gate],
+      knownPolicies: [gate],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
+      { token: "personas", line: 12 },
+      { token: "personas", line: 19 },
+      { token: "personas", line: 24 },
+    ]);
+  },
+  scaledBudget(60_000),
+);
+
+test(
   "the maintained pin route does not ask the ordinary carrier for the supplied owner Type",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
@@ -307,14 +446,25 @@ return db.select().from(personas).where(and(${expected.map(([text]) => `${text =
               throw new Error("native pin control has no operand");
             }
             expect(() => pins.sourceEvidence(operand)).toThrow("not prepared");
+            expect(() => pins.sql.statement(operand)).toThrow("not prepared");
             pins.prepare();
             expect(() => pins.sourceEvidence(operand)).toThrow("must be sealed");
+            expect(() => pins.sql.statement(operand)).toThrow("must be sealed");
           },
           evaluate: () => {
             const schema = ctx.fact(drizzleSchemaFact).schema();
             recordReadySchemaFact(ctx, schema);
             const index = schemaTableIndex(schema.value);
             pins.assertSchema(index);
+            const anchor = anchors[0];
+            if (anchor === undefined) {
+              throw new Error("native SQL control has no read anchor");
+            }
+            const where = pins.sql.statement(anchor.call).wheres[0];
+            if (where === undefined) {
+              throw new Error("native SQL control has no WHERE predicate");
+            }
+            expect(pins.sql.predicate(where).kind).toBe("and");
             expect(operands.map((node) => [node.getText(), isPlainValue(node, index)])).toEqual(expected);
             const readType = Node.prototype.getType;
             const readSymbol = Node.prototype.getSymbol;
@@ -338,6 +488,7 @@ return db.select().from(personas).where(and(${expected.map(([text]) => `${text =
                 throw new Error("native pin control parameter is missing");
               }
               expect(() => pins.sourceEvidence(parameter.getNameNode())).toThrow("no unique registered importing context");
+              expect(() => pins.sql.predicate(parameter.getNameNode())).toThrow("no unique registered importing context");
               expect(() => pins.prepare()).toThrow("registration is sealed");
               expect(() => pins.assertSchema({ idents: new Set(), identBySqlName: new Map() })).toThrow("disagree");
             } finally {
@@ -367,6 +518,7 @@ return db.select().from(personas).where(and(${expected.map(([text]) => `${text =
       throw new Error("native pin service was not exercised");
     }
     expect(() => service.sourceEvidence(value)).toThrow("disposed");
+    expect(() => service.sql.statement(value)).toThrow("disposed");
   },
   scaledBudget(60_000),
 );
@@ -435,6 +587,23 @@ test(
     if (wire === undefined || basis === undefined || basis === null) {
       throw new Error("native pin lacks its independent complete catalog basis");
     }
+    const sqlFacts = wire.drizzleSql;
+    if (sqlFacts === undefined || sqlFacts.predicates.length === 0) {
+      throw new Error("native SQL facts lack their complete registered predicate roots");
+    }
+    expect(() => assertInvocationEvidence({ ...wire, drizzleSql: undefined })).toThrow("native SQL facts are missing");
+    expect(() => assertInvocationEvidence({ ...wire, drizzleSql: { ...sqlFacts, statements: sqlFacts.statements.slice(1) } })).toThrow(
+      "native SQL seed or predicate coverage",
+    );
+    expect(() => assertInvocationEvidence({ ...wire, drizzleSql: { ...sqlFacts, predicates: sqlFacts.predicates.slice(1) } })).toThrow(
+      "native SQL seed or predicate coverage",
+    );
+    expect(() =>
+      assertInvocationEvidence({
+        ...wire,
+        drizzleSql: { ...sqlFacts, predicates: sqlFacts.predicates.map((row) => ({ ...row, root: sqlFacts.terms.length })) },
+      }),
+    ).toThrow("native SQL predicate term");
     expect(basis.program).toBe("packages/db/tsconfig.json");
     expect(partition.families).not.toContain("bindings");
     const inputs = [...readInventoryInputs(db, partition.id)];
