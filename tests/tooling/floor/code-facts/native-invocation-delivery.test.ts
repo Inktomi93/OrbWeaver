@@ -506,6 +506,16 @@ test(
     expect(selected).toHaveLength(3);
     let enumerations = 0;
     let declarationPreparations = 0;
+    let closureLookups = 0;
+    const closureKeys = new Set<string>();
+    const get = StatementSync.prototype.get;
+    const membership = vi.spyOn(StatementSync.prototype, "get").mockImplementation(function (this: StatementSync, ...args) {
+      if (this.sourceSQL.includes("kind='available' AND value=?")) {
+        closureLookups++;
+        closureKeys.add(JSON.stringify(args));
+      }
+      return get.apply(this, args);
+    });
     const prepare = DatabaseSync.prototype.prepare;
     const preparations = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
       if (args[0].includes("d.kind='bindings'") && args[0].includes("d.role=?")) {
@@ -534,6 +544,7 @@ test(
     } finally {
       observation.mockRestore();
       preparations.mockRestore();
+      membership.mockRestore();
     }
     using retained = inventory;
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
@@ -546,6 +557,8 @@ test(
     expect(facts.reduce((count, fact) => count + fact.sources.length, 0)).toBeGreaterThan(uniqueSources.size);
     expect(enumerations).toBe(uniqueSources.size);
     expect(declarationPreparations).toBe(uniqueSources.size);
+    expect(closureKeys.size).toBeGreaterThan(0);
+    expect(closureLookups).toBe(closureKeys.size);
     const queries = selected.map((call) => ({ ...PLAN, node: span(call) }));
     expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
     expect(db.isTransaction).toBe(false);
@@ -554,6 +567,8 @@ test(
     for (const [change, error] of [
       ["UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=?", "declarations are incomplete"],
       ["DELETE FROM inventory_source WHERE partition=?", "binding source ownership is unavailable"],
+      ["DELETE FROM inventory_list WHERE partition=? AND kind='available'", "span is outside its captured source closure"],
+      ["UPDATE inventory_source SET textLength=0 WHERE partition=?", "span is outside its captured source closure"],
       ["DELETE FROM inventory_fact WHERE partition=? AND kind='bindings'", "binding record is unavailable"],
       [
         "INSERT INTO inventory_source SELECT partition,ordinal+100000,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file IN (SELECT file FROM inventory_invocation_source WHERE partition=inventory_source.partition) LIMIT 1",
@@ -584,6 +599,16 @@ test(
       ).run(partition.id, partition.id, JSON.stringify("bindings"));
       expect(() => hasInventoryInvocationCoverage(db, partition.id, queries)).toThrow("binding-source coverage is incomplete");
       expect(db.isTransaction).toBe(true);
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.prepare(
+        "UPDATE inventory_invocation_atom SET number=1000000 WHERE partition=? AND owner=(SELECT MAX(ordinal) FROM inventory_invocation_evidence WHERE partition=?) AND key=? AND kind='number'",
+      ).run(partition.id, partition.id, JSON.stringify("end"));
+      expect(() => hasInventoryInvocationCoverage(db, partition.id, queries)).toThrow("span is outside its captured source closure");
     } finally {
       db.exec("ROLLBACK");
     }

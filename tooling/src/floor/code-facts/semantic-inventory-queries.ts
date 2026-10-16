@@ -1,6 +1,6 @@
 // Indexed queries read one native fact family or origin; no adapter reconstructs a complete partition.
 
-import type { DatabaseSync, SQLInputValue } from "node:sqlite";
+import type { DatabaseSync, SQLInputValue, StatementSync } from "node:sqlite";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
 import type { InventoryDrizzleCall, InventoryDrizzleQuery, InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
@@ -483,6 +483,13 @@ export function* readInventoryInvocationEvidence(db: DatabaseSync, id: string, q
   yield* invocationEvidence(db, id, query, undefined);
 }
 
+const INVOCATION_AVAILABLE_SQL = "SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?";
+interface InvocationReadSnapshot {
+  readonly bindingCounts: Map<string, number>;
+  readonly spanSources: Map<string, { readonly source: StoredInventorySource; readonly membership: NonNullable<ReturnType<StatementSync["get"]>> }>;
+  readonly available: StatementSync;
+}
+
 /** Shared-source validation is reusable only within this synchronous, transaction-pinned demand batch. */
 export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, queries: readonly InventoryInvocationQuery[]): boolean {
   if (queries.length === 0) {
@@ -493,8 +500,8 @@ export function hasInventoryInvocationCoverage(db: DatabaseSync, id: string, que
     db.exec("BEGIN");
   }
   try {
-    const bindingCounts = new Map<string, number>();
-    const covered = queries.every((query) => [...invocationEvidence(db, id, query, bindingCounts)].length === 1);
+    const snapshot: InvocationReadSnapshot = { bindingCounts: new Map(), spanSources: new Map(), available: db.prepare(INVOCATION_AVAILABLE_SQL) };
+    const covered = queries.every((query) => [...invocationEvidence(db, id, query, snapshot)].length === 1);
     if (ownsSnapshot) {
       db.exec("COMMIT");
     }
@@ -517,7 +524,7 @@ function* invocationEvidence(
   db: DatabaseSync,
   id: string,
   query: InventoryInvocationQuery,
-  bindingCounts: Map<string, number> | undefined,
+  snapshot: InvocationReadSnapshot | undefined,
 ): Iterable<InventoryInvocationEvidence> {
   requireInventoryFamily(db, id, "invocation-evidence");
   const key = invocationQueryKey(query);
@@ -532,7 +539,7 @@ function* invocationEvidence(
       throw new SemanticInventoryError("native invocation fact graph is incomplete");
     }
     const decoded = invocationValue(atoms);
-    assertInvocationSpans(db, id, decoded);
+    assertInvocationSpans(db, id, decoded, snapshot);
     const fact = invocationEvidenceSchema.parse(decoded);
     if (invocationQueryKey({ ...fact.query, node: spanOf(db, id, integer.parse(row["node"])) }) !== key) {
       throw new SemanticInventoryError("native invocation root span is foreign");
@@ -558,37 +565,43 @@ function* invocationEvidence(
     ) {
       throw new SemanticInventoryError("native invocation source ownership is incomplete");
     }
-    assertInvocationChildren(db, id, fact, bindingCounts);
+    assertInvocationChildren(db, id, fact, snapshot?.bindingCounts);
     yield fact;
   }
 }
 
-function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue): void {
+function assertInvocationSpans(db: DatabaseSync, id: string, value: JsonValue, snapshot?: InvocationReadSnapshot): void {
   if (typeof value !== "object" || value === null) {
     return;
   }
   if (Array.isArray(value)) {
     for (const child of value) {
-      assertInvocationSpans(db, id, child);
+      assertInvocationSpans(db, id, child, snapshot);
     }
     return;
   }
   const parsed = spanSchema.safeParse(value);
   if (parsed.success) {
-    const span = parsed.data;
-    const source = capturedInventorySource(db, id, span.file);
-    if (
-      span.start < 0 ||
-      span.end < span.start ||
-      span.end > source.textLength ||
-      db.prepare("SELECT ordinal FROM inventory_list WHERE partition=? AND kind='available' AND value=?").get(id, inventoryString(span.file)) === undefined
-    ) {
-      throw new SemanticInventoryError("native invocation span is outside its captured source closure");
-    }
+    assertInvocationSpan(db, id, parsed.data, snapshot);
     return;
   }
   for (const child of Object.values(value)) {
-    assertInvocationSpans(db, id, child);
+    assertInvocationSpans(db, id, child, snapshot);
+  }
+}
+
+function assertInvocationSpan(db: DatabaseSync, id: string, span: InventorySpan, snapshot: InvocationReadSnapshot | undefined): void {
+  const captured = snapshot?.spanSources.get(span.file);
+  const source = captured?.source ?? capturedInventorySource(db, id, span.file);
+  if (span.start < 0 || span.end < span.start || span.end > source.textLength) {
+    throw new SemanticInventoryError("native invocation span is outside its captured source closure");
+  }
+  const membership = captured?.membership ?? (snapshot?.available ?? db.prepare(INVOCATION_AVAILABLE_SQL)).get(id, inventoryString(span.file));
+  if (membership === undefined) {
+    throw new SemanticInventoryError("native invocation span is outside its captured source closure");
+  }
+  if (captured === undefined) {
+    snapshot?.spanSources.set(span.file, { source, membership });
   }
 }
 
