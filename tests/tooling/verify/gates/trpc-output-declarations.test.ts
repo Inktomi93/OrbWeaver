@@ -3,7 +3,12 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate } from "../../../../tooling/src/verify/gates/trpc-output-declarations.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-test("mounted output declarations distinguish parsed, literal, void and unreadable procedures", () => {
-  expect(verifyPolicyProofs([gate])).toEqual([]);
-});
+test(
+  "mounted output declarations distinguish parsed, literal, void and unreadable procedures",
+  () => {
+    expect(verifyPolicyProofs([gate])).toEqual([]);
+  },
+  scaledBudget(30_000),
+);

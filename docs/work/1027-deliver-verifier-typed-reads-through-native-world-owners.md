@@ -47,3 +47,5 @@ Native Zod, body-cap, selected origin, ID, reference, bus and failure consumers 
 CSS providers retain separate populations and authority through the existing evaluator. Native world and lifetime controls pass review and ordinary qualification. Census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
 
 Retained origins preserve direct and uncast declarations through bounded const-initializer questions. Ordinary controls and security review pass. Evidence: `reports/review/1027-retained-origins-ordinary.md`.
+
+Mounted tRPC outputs consume exact native export, property and callable-body observations. Ordinary qualification and independent review pass. Real-router census and cost remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md`.

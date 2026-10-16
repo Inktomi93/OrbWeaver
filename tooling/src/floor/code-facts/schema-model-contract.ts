@@ -1,6 +1,11 @@
 // Native Drizzle schema data and refusal outcomes; provider authority remains with each consumer.
 import type { CallExpression, Node, SourceFile, Type, TypeChecker, VariableDeclaration } from "ts-morph";
-import type { ReferenceFact } from "./reference-fact-contract.ts";
+import type { ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
+
+export interface SchemaBuilderReadServices {
+  readonly stable: (node: Node) => ReferenceFact<Node>;
+  readonly moduleOrigin: (node: Node) => ReferenceFact<ModuleMemberOrigin>;
+}
 
 /** @public knip type-face false positive — the one-home vocabulary tuple behind the exported `SchemaFactStatus` union —
  *  the ONE importable spelling of this axis, which nothing outside this module enumerates YET; un-exporting it would invite the

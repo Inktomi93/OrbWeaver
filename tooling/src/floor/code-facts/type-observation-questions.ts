@@ -3,6 +3,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { uncastReceiver } from "./type-member-origin-core.ts";
 import type {
+  SelectedPropertyGraph,
   TypeObservationCaptureOwner,
   TypeObservationDemand,
   TypeObservationQuestion,
@@ -11,6 +12,7 @@ import type {
 } from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
+import { unwrapTypeExpression } from "./type-slot-syntax.ts";
 
 /** Capture and replay follow the same bounded raw lexical initializer relationships. */
 export function constInitializerNominations(
@@ -239,10 +241,10 @@ function observeClosureNode(node: MorphNode, question: TypeObservationQuestion, 
   questions["type-details"]({ ...question, kind: "type-details", nodes: [node] }, readers);
   return bodies;
 }
-function symbolClosure(question: TypeObservationQuestion, readers: TypeObservationReader): void {
+function walkSymbolClosure(roots: readonly MorphNode[], observe: (node: MorphNode) => readonly MorphNode[]): void {
   const seen = new Set<MorphNode>();
   const sources = new Set<MorphNode>();
-  const pending = [...question.nodes];
+  const pending = [...roots];
   for (const root of pending) {
     const source = root.getSourceFile();
     if (!sources.has(source)) {
@@ -254,9 +256,130 @@ function symbolClosure(question: TypeObservationQuestion, readers: TypeObservati
         continue;
       }
       seen.add(node);
-      pending.push(...observeClosureNode(node, question, readers));
+      pending.push(...observe(node));
     }
   }
+}
+function symbolClosure(question: TypeObservationQuestion, readers: TypeObservationReader): void {
+  walkSymbolClosure(question.nodes, (node) => observeClosureNode(node, question, readers));
+}
+function graphPath(selector: NativeTypeSelector, path: readonly string[], at: MorphNode): NativeTypeSelector {
+  return { ...selector, steps: [...selector.steps, ...path.map((name) => ({ kind: "property" as const, name, at }))] };
+}
+function graphFlags(selector: NativeTypeSelector, readers: TypeObservationReader): void {
+  if (readers.select(selector) === null) {
+    return;
+  }
+  for (const part of [selector, ...readers.unions(selector)]) {
+    readers.primitiveFlags(part);
+    readers.categoryFlags(part);
+  }
+}
+function graphLeaves(selector: NativeTypeSelector, at: MorphNode, graph: SelectedPropertyGraph, readers: TypeObservationReader): void {
+  for (const path of graph.leafPaths) {
+    const leaf = graphPath(selector, path, at);
+    if (readers.select(leaf) !== null) {
+      graphFlags(leaf, readers);
+      readers.literalValue(leaf);
+    }
+  }
+}
+function selectedPropertyGraph(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  const graph = question.selectedPropertyGraph;
+  if (graph === undefined || graph.stopPath.length === 0) {
+    throw new Error("native selected-property graph descriptor is missing or unbounded");
+  }
+  const roots = question.nodes.flatMap((node) => {
+    if (graph.exportName === undefined) {
+      return [node];
+    }
+    if (!Node.isSourceFile(node)) {
+      throw new Error("native selected-property export root is not a source file");
+    }
+    return readers.exportDeclarations(node, graph.exportName) ?? [];
+  });
+  const values = new Set(roots);
+  const active = new Set<object>();
+  const children = (selector: NativeTypeSelector, at: MorphNode): void => {
+    for (const property of readers.properties(selector, at)) {
+      const declarations = readers.symbolData(property.symbol).declarations;
+      const declaration = declarations.length === 1 ? declarations[0] : undefined;
+      if (declaration !== undefined) {
+        values.add(declaration);
+        walk(graphPath(selector, [property.name], declaration), declaration);
+      }
+    }
+  };
+  const walk = (selector: NativeTypeSelector, at: MorphNode): void => {
+    const selected = readers.select(selector);
+    if (selected === null) {
+      return;
+    }
+    graphFlags(selector, readers);
+    const stop = graphPath(selector, graph.stopPath, at);
+    if (readers.select(stop) !== null) {
+      graphLeaves(selector, at, graph, readers);
+      return;
+    }
+    const type = readers.type(selected);
+    if (!readers.categoryFlags(selector).object || type.any || type.unknown || type.never || active.has(type.key)) {
+      return;
+    }
+    active.add(type.key);
+    children(selector, at);
+    active.delete(type.key);
+  };
+  for (const root of roots) {
+    walk(graphPath(nodeTypeSelector(root), graph.rootPath, root), root);
+  }
+  walkSymbolClosure([...values], (node) => graphValueNode(node, question, readers, profile));
+}
+function graphDataDeclaration(declaration: MorphNode): boolean {
+  if (!Node.isVariableDeclaration(declaration)) {
+    return false;
+  }
+  const initial = declaration.getInitializer();
+  if (initial === undefined) {
+    return false;
+  }
+  const value = unwrapTypeExpression(initial);
+  return !(Node.isArrowFunction(value) || Node.isFunctionExpression(value) || Node.isClassExpression(value));
+}
+function graphValueNode(
+  node: MorphNode,
+  question: TypeObservationQuestion,
+  readers: TypeObservationReader,
+  profile: TypeObservationCaptureOwner["profile"],
+): readonly MorphNode[] {
+  if (!isValueNode(node)) {
+    return [];
+  }
+  graphFlags(nodeTypeSelector(node), readers);
+  valueProfile(question, node, profile);
+  if (question.properties !== undefined && (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))) {
+    const receiver = { ...nodeTypeSelector(node.getExpression()), steps: [{ kind: "nonnullable" as const }] };
+    if (readers.select(receiver) !== null) {
+      for (const name of question.properties) {
+        readers.propertySymbol(receiver, name);
+      }
+    }
+  }
+  return symbolBodies(node, readers).filter(graphDataDeclaration);
+}
+function callableBodyValues(question: TypeObservationQuestion, readers: TypeObservationReader, profile?: TypeObservationCaptureOwner["profile"]): void {
+  if (question.files === undefined) {
+    throw new Error("native callable-body values have no admitted source roster");
+  }
+  const admitted = new Set(question.files);
+  if (question.nodes.some((node) => !admitted.has(node.getSourceFile().getFilePath().replaceAll("\\", "/")))) {
+    throw new Error("native callable-body root is outside its admitted roster");
+  }
+  const bodies = question.nodes.flatMap((node) => {
+    const body = readers.callableBody(node);
+    return body !== null && admitted.has(body.getSourceFile().getFilePath().replaceAll("\\", "/")) ? [body] : [];
+  });
+  // Only nominated callable bodies open executable syntax; reached data bindings never open callees.
+  walkSymbolClosure(bodies, (node) => graphValueNode(node, question, readers, profile));
 }
 function rawPropertyLiterals(readers: TypeObservationReader, selector: NativeTypeSelector, at: MorphNode, names: readonly string[]): void {
   for (const name of names) {
@@ -279,6 +402,8 @@ const questions: Record<
   ) => void
 > = {
   "const-initializers": constInitializers,
+  "callable-body-values": callableBodyValues,
+  "selected-property-graph": selectedPropertyGraph,
   "declaration-closure": declarationClosure,
   "literal-values": (question, readers): void => {
     for (const node of question.nodes) {

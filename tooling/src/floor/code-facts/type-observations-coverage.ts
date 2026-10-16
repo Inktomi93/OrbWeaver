@@ -1,7 +1,8 @@
 // Coverage checks prove the fixed raw-question profile, never Zod ownership or output parity.
 import { SyntaxKind } from "ts-morph";
 import { MAX_RECEIVER_HOPS } from "./type-member-origin-core.ts";
-import type { NativeObservedNode, TypeObservationValues } from "./type-observations-contract.ts";
+import type { NativeObservedNode, TypeObservationQuestion, TypeObservationValues } from "./type-observations-contract.ts";
+import { hasCompleteTypePropertyDemand } from "./type-observations-contract.ts";
 import { assertScalarTypeSelectionCoverage } from "./type-projection-contract.ts";
 
 export function assertTypeObservationCoverage<Anchor>(
@@ -13,6 +14,7 @@ export function assertTypeObservationCoverage<Anchor>(
   const indices = observationIndices(facts);
   assertBaseIndices(facts, indices);
   assertPropertyIndices(facts, indices);
+  assertCompletePropertyCoverage(facts);
   assertOtherIndices(facts, indices);
   assertContextualSlots(facts, key);
   assertTypeObservationRows(facts, key);
@@ -37,6 +39,8 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
     if (
       facts.propertySymbols !== undefined ||
       facts.constInitializers !== undefined ||
+      facts.exportDeclarations !== undefined ||
+      facts.callableBodies !== undefined ||
       facts.definitions !== undefined ||
       facts.callParameters !== undefined ||
       facts.signatureParameters !== undefined ||
@@ -46,6 +50,7 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
       facts.types.some(
         (row) =>
           row?.primitiveFlags !== undefined ||
+          row?.categoryFlags !== undefined ||
           row?.stringLiteral !== undefined ||
           row?.defaultDisplay !== undefined ||
           row?.literalValue !== undefined ||
@@ -62,6 +67,8 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   assertRawNominations(facts, key);
   assertConstInitializerCoverage(facts, key);
   assertNamedPropertyCoverage(facts, key);
+  assertSelectedPropertyGraphDemand(facts, key, kind);
+  assertCallableBodyNominations(facts, key);
   assertTypeArgumentCoverage(facts, key);
   const functions = facts.demand.questions
     .filter((q) => q.kind === "function-exports")
@@ -89,6 +96,54 @@ function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (
   if (facts.definitions.some((row) => kind(row.node) !== SyntaxKind.Identifier)) {
     throw new Error("native definition-node query is not an identifier");
   }
+}
+
+function assertCallableBodyNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "callable-body-values");
+  const expected = questions.flatMap((question) => question.nodes).map(key);
+  const actual = (facts.callableBodies ?? []).map((row) => key(row.node));
+  if (questions.length > 0 !== (facts.callableBodies !== undefined) || JSON.stringify(expected) !== JSON.stringify(actual)) {
+    throw new Error("native callable body nomination coverage is missing or foreign");
+  }
+  uniqueRawKeys(actual);
+}
+
+function assertSelectedPropertyGraphDemand<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
+  const questions = facts.demand.questions ?? [];
+  const exports = new Set(questions.flatMap((question) => selectedGraphExportKeys(question, key, kind)));
+  const requestedExports = questions.some((question) => question.selectedPropertyGraph?.exportName !== undefined);
+  const actual = (facts.exportDeclarations ?? []).map((row) => JSON.stringify([key(row.source), row.name]));
+  if (requestedExports !== (facts.exportDeclarations !== undefined) || actual.length !== exports.size || actual.some((value) => !exports.has(value))) {
+    throw new Error("native selected-property export coverage is missing or foreign");
+  }
+  uniqueRawKeys(actual);
+}
+function selectedGraphExportKeys<Anchor>(
+  question: TypeObservationQuestion<Anchor>,
+  key: (node: Anchor) => string,
+  kind: (node: Anchor) => number,
+): readonly string[] {
+  const graph = question.selectedPropertyGraph;
+  if ((question.kind === "selected-property-graph") !== (graph !== undefined)) {
+    throw new Error("native selected-property graph descriptor is missing or foreign");
+  }
+  if (graph === undefined) {
+    return [];
+  }
+  if (
+    graph.stopPath.length === 0 ||
+    [...graph.rootPath, ...graph.stopPath, ...graph.leafPaths.flat()].some((name) => name.length === 0) ||
+    graph.leafPaths.some((path) => path.length === 0)
+  ) {
+    throw new Error("native selected-property graph path is empty");
+  }
+  if (graph.exportName === undefined) {
+    return [];
+  }
+  if (graph.exportName.length === 0 || question.nodes.some((node) => kind(node) !== SyntaxKind.SourceFile)) {
+    throw new Error("native selected-property export root is malformed");
+  }
+  return question.nodes.map((source) => JSON.stringify([key(source), graph.exportName]));
 }
 
 export function assertTypeArgumentCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
@@ -141,7 +196,12 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
     questions.some((q) =>
       q.kind === "value-profiles"
         ? q.valueFacets === undefined
-        : q.kind !== "definition-closure" && q.kind !== "declaration-closure" && q.kind !== "const-initializers" && q.valueFacets !== undefined,
+        : q.kind !== "definition-closure" &&
+          q.kind !== "declaration-closure" &&
+          q.kind !== "const-initializers" &&
+          q.kind !== "selected-property-graph" &&
+          q.kind !== "callable-body-values" &&
+          q.valueFacets !== undefined,
     )
   ) {
     throw new Error("native value facets have no closed nomination");
@@ -153,7 +213,7 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
   }
   if (
     questions.some((q) =>
-      q.kind === "definition-closure" || q.kind === "declaration-closure"
+      q.kind === "definition-closure" || q.kind === "declaration-closure" || q.kind === "callable-body-values"
         ? q.files === undefined || new Set(q.files).size !== q.files.length
         : q.files !== undefined,
     )
@@ -602,7 +662,8 @@ function constPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node:
 
 function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "property-symbols" || question.kind === "const-initializers");
-  if (questions.length > 0 !== (facts.propertySymbols !== undefined)) {
+  const graphs = (facts.demand.questions ?? []).filter((question) => question.kind === "selected-property-graph");
+  if (questions.length + graphs.length > 0 !== (facts.propertySymbols !== undefined)) {
     throw new Error("native named property symbols are missing or unrequested");
   }
   const expected = new Set(
@@ -621,7 +682,38 @@ function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor
   for (const row of facts.propertySymbols ?? []) {
     indicesForPropertySymbol(facts, row);
   }
-  if (actual.length !== expected.size || actual.some((name) => !expected.has(name))) {
+  if (
+    [...expected].some((name) => !actual.includes(name)) ||
+    (facts.propertySymbols ?? []).some((row) => !(expected.has(JSON.stringify([row.selector, row.name])) || selectedGraphPropertyOwner(facts, row)))
+  ) {
     throw new Error("native named property coverage is missing or foreign");
+  }
+}
+
+function selectedGraphPropertyOwner<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  row: NonNullable<TypeObservationValues<Anchor>["propertySymbols"]>[number],
+): boolean {
+  const selector = facts.selections?.plan.selectors[row.selector];
+  return (
+    selector?.base.kind === "node" &&
+    selector.steps.length === 1 &&
+    selector.steps[0]?.kind === "nonnullable" &&
+    selector.displayAt === null &&
+    (facts.demand.questions ?? []).some((question) => question.kind === "selected-property-graph" && question.properties?.includes(row.name) === true)
+  );
+}
+
+/** Native arity supplements ordered member identities; it never reconstructs omitted members. */
+export function assertCompletePropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor>): void {
+  const required = hasCompleteTypePropertyDemand(facts.demand);
+  for (const row of facts.properties) {
+    if (required) {
+      if (!Number.isSafeInteger(row.propertyCount) || (row.propertyCount ?? -1) < 0 || row.propertyCount !== row.values.length) {
+        throw new Error("native complete property coverage is missing or truncated");
+      }
+    } else if (row.propertyCount !== undefined) {
+      throw new Error("native complete property count is unrequested");
+    }
   }
 }

@@ -22,6 +22,14 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           files: z.array(z.string()).optional(),
           properties: z.array(z.string()).optional(),
           receiverMethods: z.array(z.string()).optional(),
+          selectedPropertyGraph: z
+            .strictObject({
+              exportName: z.string().min(1).optional(),
+              rootPath: z.array(z.string().min(1)),
+              stopPath: z.array(z.string().min(1)).min(1),
+              leafPaths: z.array(z.array(z.string().min(1)).min(1)),
+            })
+            .optional(),
           valueFacets: z.array(z.enum(TYPE_OBSERVATION_VALUE_FACETS)).optional(),
         }),
       )
@@ -45,6 +53,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
     unionCount: index,
     tupleCount: index,
     primitiveFlags: nativePrimitiveFlagsSchema.optional(),
+    categoryFlags: z.strictObject({ object: z.boolean(), void: z.boolean() }).optional(),
     stringLiteral: z.string().nullable().optional(),
     defaultDisplay: z.string().optional(),
     literalValue: observation(z.union([z.string(), z.number(), z.boolean(), z.strictObject({ negative: z.boolean(), base10Value: z.string() })])).optional(),
@@ -59,12 +68,21 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       nodes: z.array(z.strictObject({ node: span, symbol: index.nullable(), type: index, contextual: observation(index) })),
       constInitializers: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       types: z.array(type.nullable()),
-      properties: z.array(z.strictObject({ selector: index, at: span, values: z.array(z.strictObject({ name: z.string(), symbol: index, type: index })) })),
+      properties: z.array(
+        z.strictObject({
+          selector: index,
+          at: span,
+          propertyCount: index.optional(),
+          values: z.array(z.strictObject({ name: z.string(), symbol: index, type: index })),
+        }),
+      ),
       unions: z.array(z.strictObject({ selector: index, values: z.array(index) })),
       callReturns: z.array(z.strictObject({ node: span, values: z.array(index) })),
       computedNames: z.array(z.strictObject({ selector: index, values: z.array(z.strictObject({ declaration: span, names: z.array(span) })) })),
       signatures: z.array(z.strictObject({ call: span, fact: observation(z.strictObject({ declaration: span, parameters: z.array(index) })) })),
       propertySymbols: z.array(z.strictObject({ selector: index, name: z.string(), symbol: index.nullable() })).optional(),
+      exportDeclarations: z.array(z.strictObject({ source: span, name: z.string(), declarations: z.array(span).nullable() })).optional(),
+      callableBodies: z.array(z.strictObject({ node: span, body: span.nullable() })).optional(),
       definitions: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       functionExports: z.array(z.strictObject({ node: span, value: z.boolean() })).optional(),
       callParameters: z.array(z.strictObject({ call: span, parameterCount: index.nullable(), values: z.array(index).nullable() })).optional(),

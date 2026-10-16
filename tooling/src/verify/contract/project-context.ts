@@ -39,7 +39,7 @@ export type NativeTypeRequest =
   | { readonly kind: "runtime-exports"; readonly nodes: readonly SourceFile[] }
   | { readonly kind: "declaration-outputs"; readonly nodes: readonly Node[] }
   | { readonly kind: "type-member-origins"; readonly nodes: readonly CallExpression[] }
-  | { readonly kind: "callable-declarations"; readonly nodes: readonly CallExpression[] }
+  | { readonly kind: "callable-declarations"; readonly nodes: readonly Node[] }
   | { readonly kind: "computed-names"; readonly nodes: readonly Node[] }
   | { readonly kind: "shape-relations"; readonly nodes: readonly SourceFile[]; readonly prepare: () => readonly InventoryShapeQuery[] };
 
@@ -55,7 +55,7 @@ export interface NativeTypeFactReader extends Disposable {
   readonly globalOrigins: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>>;
   readonly globalBindings: (nodes: readonly Node[]) => ReadonlyMap<Node, readonly Node[]>;
   readonly computedNames: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<string>>;
-  readonly callableDeclarations: (nodes: readonly CallExpression[]) => ReadonlyMap<CallExpression, ReferenceFact<CallableDeclaration>>;
+  readonly callableDeclarations: (nodes: readonly Node[]) => ReadonlyMap<Node, ReferenceFact<CallableDeclaration>>;
   readonly callMemberOrigins: (nodes: readonly CallExpression[]) => ReadonlyMap<CallExpression, NativeCallMemberOrigin>;
   readonly declarationOutputs: (nodes: readonly Node[]) => ReadonlyMap<Node, boolean | null>;
   readonly prepareShapes: (sources: readonly SourceFile[]) => void;
@@ -101,7 +101,7 @@ export interface NativeTypeFacts extends Disposable {
   readonly globalOrigins: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalOrigins"]>;
   readonly globalBindings: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["globalBindings"]>;
   readonly computedNames: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["computedNames"]>;
-  readonly callableDeclarations: (owner: string, nodes: readonly CallExpression[]) => ReturnType<NativeTypeFactReader["callableDeclarations"]>;
+  readonly callableDeclarations: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["callableDeclarations"]>;
   readonly callMemberOrigins: (owner: string, nodes: readonly CallExpression[]) => ReturnType<NativeTypeFactReader["callMemberOrigins"]>;
   readonly declarationOutputs: (owner: string, nodes: readonly Node[]) => ReturnType<NativeTypeFactReader["declarationOutputs"]>;
   readonly prepareShapes: (owner: string, sources: readonly SourceFile[]) => void;

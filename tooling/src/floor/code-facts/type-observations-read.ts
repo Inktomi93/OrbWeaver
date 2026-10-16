@@ -3,11 +3,12 @@ import type { Node, SourceFile } from "ts-morph";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
 import { constInitializerNominations } from "./type-observation-questions.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
-import { assertRawParameterCoverage, assertTypeArgumentCoverage } from "./type-observations-coverage.ts";
+import { assertCompletePropertyCoverage, assertRawParameterCoverage, assertTypeArgumentCoverage } from "./type-observations-coverage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
 export function readTypeObservations(facts: NativeTypeObservations, references?: TypeObservationCaptureOwner["references"]): TypeObservationReader {
+  assertCompletePropertyCoverage(facts);
   const scope = {};
   const selectedIndex = facts.selections === null ? undefined : typeSelectorIndex(facts.selections.plan);
   const typeKeys = new Map<number, object>();
@@ -78,6 +79,33 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     return value;
   };
   const reader: TypeObservationReader = {
+    callableBody: (node) => {
+      facts.assertNode(node);
+      const row = facts.callableBodies?.find((entry) => entry.node === node);
+      if (row === undefined) {
+        throw new Error("native callable body question was not captured");
+      }
+      if (row.body !== null) {
+        facts.assertNode(row.body);
+      }
+      return row.body;
+    },
+    categoryFlags: (selector) => {
+      const value = facts.types[indexOf(selector)]?.categoryFlags;
+      if (value === undefined) {
+        throw new Error("native category flags were not captured");
+      }
+      return value;
+    },
+    exportDeclarations: (source, name) => {
+      facts.assertNode(source);
+      const row = facts.exportDeclarations?.find((entry) => entry.source === source && entry.name === name);
+      if (row === undefined) {
+        throw new Error("native exported declaration question was not captured");
+      }
+      row.declarations?.forEach(facts.assertNode);
+      return row.declarations;
+    },
     primitiveFlags: (selector) => {
       const value = facts.types[indexOf(selector)]?.primitiveFlags;
       if (value === undefined) {
@@ -301,6 +329,9 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     const literals = new Set<number>();
     const argumentsUsed = new Set<number>();
     const primitives = new Set<number>();
+    const categories = new Set<number>();
+    const exported = new Set<string>();
+    const callableBodies = new Set<Node>();
     const namedProperties = new Set<string>();
     const values = new Map<Node, Set<string>>();
     observeAuthoredTypeSlots(
@@ -314,6 +345,18 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
         primitiveFlags: (selector) => {
           primitives.add(indexOf(selector));
           return reader.primitiveFlags(selector);
+        },
+        categoryFlags: (selector) => {
+          categories.add(indexOf(selector));
+          return reader.categoryFlags(selector);
+        },
+        exportDeclarations: (source, name) => {
+          exported.add(JSON.stringify([source.getFilePath(), name]));
+          return reader.exportDeclarations(source, name);
+        },
+        callableBody: (node) => {
+          callableBodies.add(node);
+          return reader.callableBody(node);
         },
         propertySymbol: (selector, name) => {
           namedProperties.add(JSON.stringify([indexOf(selector), name]));
@@ -344,8 +387,11 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
     assertConstInitializerRelationships(facts, reader);
+    assertCallableBodyUsage(facts, callableBodies);
     if (
       facts.types.some((row, index) => (row?.primitiveFlags !== undefined) !== primitives.has(index)) ||
+      facts.types.some((row, index) => (row?.categoryFlags !== undefined) !== categories.has(index)) ||
+      (facts.exportDeclarations ?? []).some((row) => !exported.has(JSON.stringify([row.source.getSourceFile().getFilePath(), row.name]))) ||
       (facts.propertySymbols ?? []).some((row) => !namedProperties.has(JSON.stringify([row.selector, row.name])))
     ) {
       throw new Error("native primitive/property question coverage is foreign");
@@ -371,6 +417,12 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     );
   }
   return reader;
+}
+
+function assertCallableBodyUsage(facts: NativeTypeObservations, used: ReadonlySet<Node>): void {
+  if ((facts.callableBodies ?? []).some((row) => !used.has(row.node))) {
+    throw new Error("native callable body question is foreign");
+  }
 }
 
 function assertDetailCoverage(

@@ -5,22 +5,23 @@
 // FAMILY: singleton — only this policy owns the mounted AppRouter population and parser-presence relation.
 // POPULATION: the entire tRPC transport closure; native record types retain nested/imported/spread mounts.
 // RETIRED MARKERS: none (new policy). Hard zero, not a source-derived numeric ratchet or an exemption table.
-import type { Node as MorphNode, SourceFile, Type } from "ts-morph";
+import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { readMemberReference, resolveExportedDeclarations, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { terminalCall } from "../../floor/code-facts/schema-value.ts";
-import { symbolDeclarations } from "../../floor/code-facts/type-member-origin-core.ts";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import { observedTypeIdentityOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { observedTypePropertyOrigin } from "../../floor/code-facts/type-member-origin-core.ts";
+import type { ObservedReference } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
+import type { TrpcOutputRead } from "../contract/trpc-output.ts";
+import { TRPC_OUTPUT_CHAIN_METHODS, TRPC_OUTPUT_ROOT } from "../contract/trpc-output.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
-import { declaredByPackage, resolveTypeIdentityOrigin, resolveTypeMemberOrigin } from "../lib/type-member-origin.ts";
+import { nativeTrpcOutputRead } from "../lib/trpc-output-native.ts";
+import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { trpcOutputProof } from "./_proof/trpc-output.ts";
 
-const ROOT_PATH = "packages/server/src/transport/trpc/router.ts";
-const ROOT_NAME = "appRouter";
 const TRPC_SERVER = "@trpc/server";
-const CHAIN_METHODS = ["input", "output", "use", "meta"] as const;
 const MESSAGE =
   "A mounted AppRouter query/mutation returns a service-built value without .output(); declare its canonical schema beside the view type and wire it at the procedure (docs/law/Tier-4-Transport.md).";
 const FIX =
@@ -29,26 +30,27 @@ const FIX =
 function refuse(detail: string): never {
   throw new Error(`trpc-output-declarations: ${detail}`);
 }
-function property(type: Type, name: string, at: MorphNode): Type | undefined {
-  return type.getProperty(name)?.getTypeAtLocation(at);
+function property(type: NativeTypeSelector, name: string, at: MorphNode, reads: TrpcOutputRead): NativeTypeSelector | undefined {
+  const selected = { ...type, steps: [...type.steps, { kind: "property" as const, name, at }] };
+  return reads.types.select(selected) === null ? undefined : selected;
 }
-function invocation(raw: MorphNode): import("ts-morph").CallExpression {
-  const fact = terminalCall(raw);
+function invocation(raw: MorphNode, reads: TrpcOutputRead): import("ts-morph").CallExpression {
+  const fact = terminalCall(raw, reads.builder);
   return fact.kind === "resolved" ? fact.value : refuse(`unreadable builder (${fact.reason}): ${fact.detail}`);
 }
-function nativeMethod(callee: MorphNode, name: string): boolean {
-  const member = readMemberReference(callee);
+function nativeMethod(callee: MorphNode, name: string, reads: TrpcOutputRead): boolean {
+  const member = reads.member(callee);
   if (member.kind === "unresolved" || member.value.name !== name) {
     return false;
   }
-  const origin = resolveTypeMemberOrigin(callee);
-  return origin.kind === "resolved" && declaredByPackage(origin.value.declarations, TRPC_SERVER);
+  const origin = observedTypePropertyOrigin(member.value.receiver, name, reads.types);
+  return origin.kind === "resolved" && declaredByPackage(origin.value, TRPC_SERVER);
 }
-function rootFactory(callee: MorphNode): boolean {
-  if (nativeMethod(callee, "router")) {
+function rootFactory(callee: MorphNode, reads: TrpcOutputRead): boolean {
+  if (nativeMethod(callee, "router", reads)) {
     return true;
   }
-  const origin = resolveTypeIdentityOrigin(callee);
+  const origin = observedTypeIdentityOrigin(callee, reads.types);
   return origin.kind === "resolved" && declaredByPackage(origin.value.declarations, TRPC_SERVER);
 }
 function declarationValue(node: MorphNode): MorphNode {
@@ -60,8 +62,8 @@ function declarationValue(node: MorphNode): MorphNode {
   }
   return refuse(`unreadable mounted leaf declaration: ${node.getKindName()}`);
 }
-function declaredOutput(call: import("ts-morph").CallExpression): boolean {
-  const terminal = readMemberReference(call.getExpression());
+function declaredOutput(call: import("ts-morph").CallExpression, reads: TrpcOutputRead): boolean {
+  const terminal = reads.member(call.getExpression());
   if (terminal.kind === "unresolved") {
     return refuse(`unreadable procedure terminal: ${terminal.detail}`);
   }
@@ -69,39 +71,32 @@ function declaredOutput(call: import("ts-morph").CallExpression): boolean {
   let declared = false;
   for (;;) {
     const direct = unwrapExpression(current);
-    if (nativeMethod(direct, "procedure")) {
+    if (nativeMethod(direct, "procedure", reads)) {
       return declared;
     }
-    const node = invocation(direct);
-    const member = readMemberReference(node.getExpression());
-    if (member.kind === "unresolved" || !CHAIN_METHODS.some((name) => name === member.value.name)) {
+    const node = invocation(direct, reads);
+    const member = reads.member(node.getExpression());
+    if (member.kind === "unresolved" || !TRPC_OUTPUT_CHAIN_METHODS.some((name) => name === member.value.name)) {
       return refuse("unsupported procedure-builder composition");
     }
-    if (!nativeMethod(node.getExpression(), member.value.name)) {
+    if (!nativeMethod(node.getExpression(), member.value.name, reads)) {
       return refuse(`builder ${member.value.name} is not declared by @trpc/server`);
     }
     declared ||= member.value.name === "output";
     current = member.value.receiver;
   }
 }
-function scalar(type: Type): boolean {
-  if (type.isUnion()) {
-    return type.getUnionTypes().every(scalar);
+function scalar(type: NativeTypeSelector, reads: TrpcOutputRead): boolean {
+  const selected = reads.types.select(type) ?? refuse("authored scalar Type disappeared");
+  if (reads.types.type(selected).unionCount > 0) {
+    return reads.types.unions(type).every((part) => scalar(part, reads));
   }
-  return (
-    type.isString() ||
-    type.isStringLiteral() ||
-    type.isNumber() ||
-    type.isNumberLiteral() ||
-    type.isBoolean() ||
-    type.isBooleanLiteral() ||
-    type.isNull() ||
-    type.isUndefined()
-  );
+  const flags = reads.types.primitiveFlags(type);
+  return flags.string || flags.stringLiteral || flags.number || flags.numberLiteral || flags.boolean || flags.booleanLiteral || flags.null || flags.undefined;
 }
-function authoredLiteral(raw: MorphNode, home: SourceFile): boolean {
+function authoredLiteral(raw: MorphNode, home: SourceFile, reads: TrpcOutputRead): boolean {
   const direct = unwrapExpression(raw);
-  const fact = resolveStableExpression(direct);
+  const fact = reads.builder.stable(direct);
   if (fact.kind === "unresolved") {
     return false;
   }
@@ -114,16 +109,20 @@ function authoredLiteral(raw: MorphNode, home: SourceFile): boolean {
       if (Node.isPropertyAssignment(member)) {
         const value = member.getInitializerOrThrow();
         const unwrapped = unwrapExpression(value);
-        return Node.isObjectLiteralExpression(unwrapped) || Node.isArrayLiteralExpression(unwrapped) ? authoredLiteral(value, home) : scalar(value.getType());
+        return Node.isObjectLiteralExpression(unwrapped) || Node.isArrayLiteralExpression(unwrapped)
+          ? authoredLiteral(value, home, reads)
+          : scalar(nodeTypeSelector(value), reads);
       }
       if (Node.isShorthandPropertyAssignment(member)) {
-        return scalar(member.getNameNode().getType());
+        return scalar(nodeTypeSelector(member.getNameNode()), reads);
       }
       return false;
     });
   }
   if (Node.isArrayLiteralExpression(node)) {
-    return node.getElements().every((element) => !Node.isSpreadElement(element) && (authoredLiteral(element, home) || scalar(element.getType())));
+    return node
+      .getElements()
+      .every((element) => !Node.isSpreadElement(element) && (authoredLiteral(element, home, reads) || scalar(nodeTypeSelector(element), reads)));
   }
   return (
     Node.isStringLiteral(node) ||
@@ -135,64 +134,70 @@ function authoredLiteral(raw: MorphNode, home: SourceFile): boolean {
   );
 }
 
-function mountedRoot(ctx: GatePolicyContext): readonly [MorphNode, Type] {
-  const rootFile = ctx.files.find((file) => ctx.relativePath(file) === ROOT_PATH) ?? refuse("AppRouter root is missing from the admitted population");
-  const exported = resolveExportedDeclarations(rootFile, ROOT_NAME);
-  if (exported.kind === "unresolved" || exported.value.length !== 1) {
+function mountedRoot(reads: TrpcOutputRead): readonly [MorphNode, NativeTypeSelector] {
+  const exported = reads.root;
+  if (exported === null || exported.length !== 1) {
     refuse("AppRouter export cannot be resolved uniquely");
   }
-  const root = exported.value[0];
+  const root = exported[0];
   if (root === undefined || !Node.isVariableDeclaration(root)) {
     refuse("AppRouter export is not an authored variable");
   }
-  const rootCall = invocation(root.getNameNode());
-  if (!rootFactory(rootCall.getExpression())) {
+  const rootCall = invocation(root.getNameNode(), reads);
+  if (!rootFactory(rootCall.getExpression(), reads)) {
     refuse("AppRouter factory is not declared by @trpc/server");
   }
-  const def = property(root.getType(), "_def", root);
-  const record = def === undefined ? undefined : property(def, "record", root);
-  if (record === undefined || record.isAny() || record.isUnknown()) {
+  const def = property(nodeTypeSelector(root), "_def", root, reads);
+  const record = def === undefined ? undefined : property(def, "record", root, reads);
+  const selected = record === undefined ? null : reads.types.select(record);
+  if (record === undefined || selected === null || reads.types.type(selected).any || reads.types.type(selected).unknown) {
     refuse("AppRouter mounted record is unreadable");
   }
   return [root, record];
 }
 
-function memberDeclaration(symbol: import("ts-morph").Symbol, root: MorphNode, path: string): MorphNode {
-  const declarations = symbolDeclarations(symbol, root, path);
-  if (declarations.kind === "unresolved" || declarations.value.length !== 1) {
+function memberDeclaration(symbol: ObservedReference<"symbol">, path: string, reads: TrpcOutputRead): MorphNode {
+  const declarations = reads.types.symbolData(symbol).declarations;
+  if (declarations.length !== 1) {
     refuse(`unreadable mounted leaf origin at ${path}`);
   }
-  return declarations.value[0] ?? refuse("mounted member origin disappeared");
+  return declarations[0] ?? refuse("mounted member origin disappeared");
 }
-function leafOutput(member: Type, declaration: MorphNode, path: string): Type | undefined {
-  const def = property(member, "_def", declaration);
+function leafOutput(member: NativeTypeSelector, declaration: MorphNode, path: string, reads: TrpcOutputRead): NativeTypeSelector | undefined {
+  const def = property(member, "_def", declaration, reads);
   if (def === undefined) {
     return;
   }
-  const types = property(def, "$types", declaration) ?? refuse(`unreadable procedure output at ${path}`);
-  return property(types, "output", declaration) ?? refuse(`unreadable procedure output at ${path}`);
+  const types = property(def, "$types", declaration, reads) ?? refuse(`unreadable procedure output at ${path}`);
+  return property(types, "output", declaration, reads) ?? refuse(`unreadable procedure output at ${path}`);
 }
-function procedureCall(member: Type, declaration: MorphNode, path: string, admitted: ReadonlySet<object>): import("ts-morph").CallExpression | undefined {
-  const def = property(member, "_def", declaration) ?? refuse("procedure definition disappeared");
-  const kind = property(def, "type", declaration)?.getLiteralValue();
+function procedureCall(member: NativeTypeSelector, declaration: MorphNode, path: string, reads: TrpcOutputRead): import("ts-morph").CallExpression | undefined {
+  const def = property(member, "_def", declaration, reads) ?? refuse("procedure definition disappeared");
+  const kindType = property(def, "type", declaration, reads);
+  const kind = kindType === undefined ? undefined : reads.types.literalValue(kindType);
   if (kind === "subscription") {
     return;
   }
   if (kind !== "query" && kind !== "mutation") {
     refuse(`unreadable procedure kind at ${path}`);
   }
-  if (!admitted.has(declaration.getSourceFile().compilerNode)) {
+  if (!reads.admittedSources.has(declaration.getSourceFile().compilerNode)) {
     refuse(`mounted procedure source is outside the transport population: ${path}`);
   }
-  const call = invocation(declarationValue(declaration));
-  if (!nativeMethod(call.getExpression(), kind)) {
+  const call = invocation(declarationValue(declaration), reads);
+  if (!nativeMethod(call.getExpression(), kind, reads)) {
     refuse(`mounted ${kind} builder is unreadable at ${path}`);
   }
   return call;
 }
 
-function readableRecord(type: Type, active: ReadonlySet<Type>): boolean {
-  return !(type.isAny() || type.isUnknown() || type.isNever()) && type.isObject() && !active.has(type);
+function readableRecord(type: NativeTypeSelector, active: ReadonlySet<object>, reads: TrpcOutputRead): boolean {
+  const selected = reads.types.select(type);
+  if (selected === null) {
+    return false;
+  }
+  const value = reads.types.type(selected);
+  return !(value.any || value.unknown || value.never) && reads.types.categoryFlags(type).object && !active.has(value.key);
 }
 
 export const gate = defineGate({
@@ -209,8 +214,22 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const returns = new Map<object, MorphNode[]>();
+    const handlers: MorphNode[] = [];
+    const native = nativeTrpcOutputRead(ctx, () => handlers);
     return {
+      prepare: native.prepare,
       visitors: [
+        {
+          kinds: [SyntaxKind.CallExpression],
+          visit: (node) => {
+            if (Node.isCallExpression(node)) {
+              const handler = node.getArguments()[0];
+              if (handler !== undefined) {
+                handlers.push(handler);
+              }
+            }
+          },
+        },
         {
           kinds: [SyntaxKind.ReturnStatement],
           visit: (node) => {
@@ -230,38 +249,38 @@ export const gate = defineGate({
         },
       ],
       evaluate: () => {
-        ctx.checker();
-        const [root, record] = mountedRoot(ctx);
-        const admitted = new Set(ctx.files.map((file) => file.compilerNode));
-        const active = new Set<Type>();
+        const reads = native.read();
+        const [root, record] = mountedRoot(reads);
+        const active = new Set<object>();
         const missing = new Map<object, { node: MorphNode; paths: string[] }>();
         let members = 0;
         const literalHandler = (handler: MorphNode | undefined): boolean => {
           if (handler === undefined) {
             return false;
           }
-          const callable = resolveCallableDeclaration(handler);
-          if (callable.kind === "unresolved" || callable.value.body === undefined || !admitted.has(callable.value.sourceFile.compilerNode)) {
+          const callable = reads.callable(handler);
+          if (callable.kind === "unresolved" || callable.value.body === undefined || !reads.admittedSources.has(callable.value.sourceFile.compilerNode)) {
             return false;
           }
           const { declaration, body, sourceFile } = callable.value;
           const values = Node.isBlock(body) ? (returns.get(declaration.compilerNode) ?? []) : [body];
-          return values.length > 0 && values.every((value) => authoredLiteral(value, sourceFile));
+          return values.length > 0 && values.every((value) => authoredLiteral(value, sourceFile, reads));
         };
-        const inspectLeaf = (declaration: MorphNode, member: Type, path: readonly string[]): boolean => {
-          const output = leafOutput(member, declaration, path.join("."));
+        const inspectLeaf = (declaration: MorphNode, member: NativeTypeSelector, path: readonly string[]): boolean => {
+          const output = leafOutput(member, declaration, path.join("."), reads);
           if (output === undefined) {
             return false;
           }
           members++;
-          const call = procedureCall(member, declaration, path.join("."), admitted);
+          const call = procedureCall(member, declaration, path.join("."), reads);
           if (call === undefined) {
             return true;
           }
-          const declared = declaredOutput(call);
-          const noValue = output.isUnion()
-            ? output.getUnionTypes().every((part) => part.isVoid() || part.isUndefined())
-            : output.isVoid() || output.isUndefined();
+          const declared = declaredOutput(call, reads);
+          const union = reads.types.unions(output);
+          const noValue = (union.length > 0 ? union : [output]).every(
+            (part) => reads.types.categoryFlags(part).void || reads.types.primitiveFlags(part).undefined,
+          );
           if (declared || noValue || literalHandler(call.getArguments()[0])) {
             return true;
           }
@@ -271,22 +290,24 @@ export const gate = defineGate({
           missing.set(key, finding);
           return true;
         };
-        const walk = (type: Type, parts: readonly string[]): void => {
-          if (!readableRecord(type, active)) {
-            refuse(`unreadable mounted record at ${parts.join(".") || ROOT_NAME}`);
+        const walk = (type: NativeTypeSelector, at: MorphNode, parts: readonly string[]): void => {
+          if (!readableRecord(type, active, reads)) {
+            refuse(`unreadable mounted record at ${parts.join(".") || TRPC_OUTPUT_ROOT.name}`);
           }
-          active.add(type);
-          for (const symbol of type.getProperties()) {
-            const path = [...parts, symbol.getName()];
-            const declaration = memberDeclaration(symbol, root, path.join("."));
-            const member = symbol.getTypeAtLocation(declaration);
+          const selected = reads.types.select(type) ?? refuse("mounted record disappeared");
+          const key = reads.types.type(selected).key;
+          active.add(key);
+          for (const propertyValue of reads.types.properties(type, at)) {
+            const path = [...parts, propertyValue.name];
+            const declaration = memberDeclaration(propertyValue.symbol, path.join("."), reads);
+            const member = property(type, propertyValue.name, declaration, reads) ?? refuse("mounted member disappeared");
             if (!inspectLeaf(declaration, member, path)) {
-              walk(member, path);
+              walk(member, declaration, path);
             }
           }
-          active.delete(type);
+          active.delete(key);
         };
-        walk(record, []);
+        walk(record, root, []);
         if (members === 0) {
           return refuse("AppRouter mounted procedure population is empty");
         }

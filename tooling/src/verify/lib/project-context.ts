@@ -241,6 +241,8 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
           case "type-member-origins":
+            rows.push({ kind: query.kind, nodes: [...query.nodes] });
+            break;
           case "callable-declarations":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;

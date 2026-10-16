@@ -24,6 +24,7 @@ import {
   resolveStableExpression,
 } from "../code-facts/reference-fact.ts";
 import { lexicalReferenceSymbol } from "../code-facts/reference-fact-alias.ts";
+import { resolveCallableDeclaration } from "../code-facts/reference-fact-call.ts";
 import type { CallableBinding, CallableInvocationFact, GlobalMemberOrigin, ModuleMemberOrigin, ReferenceFact } from "../code-facts/reference-fact-contract.ts";
 import { readCallableBinding, readCallableInvocation } from "../code-facts/reference-fact-invocation.ts";
 import type { SchemaQuery } from "../code-facts/schema-model-contract.ts";
@@ -150,6 +151,7 @@ export function captureInvocationEvidence(
           },
           profile: (subject, facets) => capture(subject, [...facets]),
           references: typeCapture.references,
+          callableDeclaration: resolveCallableDeclaration,
         });
   const invocation = plan.mode === "observations" || plan.mode === "types" ? undefined : captureRequestedInvocation(node, plan, capture);
   if (plan.mode !== "observations" && plan.mode !== "types") {

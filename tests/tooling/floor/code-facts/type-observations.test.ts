@@ -620,3 +620,55 @@ test("closed declaration nominations retain related definitions and exact receiv
   related.replaceWithText(related.getFullText());
   expect(() => read.symbol(root)).toThrow("epoch");
 });
+
+test("complete native property vectors refuse truncation without dropping inherited and merged declarations", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, strict: true } });
+  const source = project.createSourceFile(
+    "/complete-properties.ts",
+    "interface Base {inherited:string} interface Base {merged:number} interface Surface extends Base {local:boolean} interface Empty {}",
+  );
+  const surface = source.getInterfaceOrThrow("Surface");
+  const empty = source.getInterfaceOrThrow("Empty");
+  const demand: TypeObservationDemand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source],
+    nodes: [],
+    questions: [{ kind: "type-properties", nodes: [surface, empty] }],
+  };
+  const facts = captureTypeObservations(demand, { anchor: source, admit: () => undefined });
+  const wire = encodeTypeObservations(facts, span);
+  const replay = (node: InventorySpan): MorphNode => inventoryQueryNode(project.getSourceFile(node.file), node);
+  const reader = readTypeObservations(replayTypeObservations(wire, replay));
+  const properties = reader.properties(nodeTypeSelector(surface), surface);
+  expect(properties.map(({ name }) => name)).toEqual(
+    surface
+      .getType()
+      .getProperties()
+      .map((property) => property.getName()),
+  );
+  expect(properties.map(({ symbol }) => reader.symbolData(symbol).declarations.map((node) => node.getText()))).toEqual(
+    surface
+      .getType()
+      .getProperties()
+      .map((property) => property.getDeclarations().map((node) => node.getText())),
+  );
+  expect(properties).toHaveLength(3);
+  expect(reader.properties(nodeTypeSelector(empty), empty)).toEqual([]);
+  const truncated = {
+    ...wire,
+    properties: wire.properties.map((row) => (row.values.length > 0 ? { ...row, values: [] } : row)),
+  };
+  expect(() => typeObservationsSchema(spanSchema).parse(truncated)).toThrow("property");
+  expect(() => readTypeObservations(replayTypeObservations(truncated, replay))).toThrow("property");
+  expect(() => typeObservationsSchema(spanSchema).parse(wire)).not.toThrow();
+  const omitted = { ...wire, properties: wire.properties.map(({ propertyCount: _count, ...row }) => row) };
+  expect(() => typeObservationsSchema(spanSchema).parse(omitted)).toThrow("property");
+  expect(() => readTypeObservations(replayTypeObservations(omitted, replay))).toThrow("property");
+  for (const count of [-1, Number.NaN, 0.5]) {
+    const malformed = { ...wire, properties: wire.properties.map((row) => ({ ...row, propertyCount: count })) };
+    expect(() => typeObservationsSchema(spanSchema).parse(malformed)).toThrow();
+    expect(() => readTypeObservations(replayTypeObservations(malformed, replay))).toThrow("property");
+  }
+  expect(wire.properties.map(({ propertyCount }) => propertyCount)).toEqual([3, 3, 0, 0]);
+  expect(fixture().facts.properties.every((row) => !("propertyCount" in row))).toBe(true);
+});

@@ -14,6 +14,8 @@ import type {
   TypeMemberOrigin,
 } from "./type-member-origin-contract.ts";
 import { annotationReferenceOrigin, normalizedPath, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
+import type { TypeObservationReader } from "./type-observations-contract.ts";
+import { nodeTypeSelector } from "./type-projection-contract.ts";
 
 /** The refusal classifier deliberately treats only a dotted member's name as its binding leaf. */
 export function originRefusalLeaf(node: MorphNode): MorphNode {
@@ -100,6 +102,23 @@ function typeIdentityOrigin(type: Type, node: MorphNode): ReferenceFact<TypeIden
  *  checker kept one (`GatedStoreHook<T>`), otherwise the structural symbol. */
 export function resolveTypeIdentityOrigin(node: MorphNode): ReferenceFact<TypeIdentityOrigin> {
   return typeIdentityOrigin(node.getType(), node);
+}
+
+/** Preserve the native alias-before-symbol identity in the explicitly supplied importing capture. */
+export function observedTypeIdentityOrigin(node: MorphNode, readers: TypeObservationReader): ReferenceFact<TypeIdentityOrigin> {
+  const selected = readers.select(nodeTypeSelector(node));
+  if (selected === null) {
+    return unresolved("missing", node, `the checker resolved no named type for ${node.getText()}`);
+  }
+  const type = readers.type(selected);
+  const symbol = type.aliasSymbol ?? type.symbol;
+  if (symbol === null) {
+    return unresolved("missing", node, `the checker resolved no named type for ${node.getText()}`);
+  }
+  const data = readers.symbolData(symbol);
+  return data.declarations.length === 0
+    ? unresolved("missing", node, `type ${data.name} has no declaration`)
+    : resolved({ name: data.name, node, aliased: type.aliasSymbol !== null, declarations: data.declarations }, node, data.declarations);
 }
 
 // The callable owner, not a selected overload guess, supplies both result queries.

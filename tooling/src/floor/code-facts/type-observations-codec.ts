@@ -25,6 +25,8 @@ export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<
     functionExports: _functionExports,
     callParameters: _callParameters,
     signatureParameters: _signatureParameters,
+    exportDeclarations: _exportDeclarations,
+    callableBodies: _callableBodies,
     valueProfiles: _valueProfiles,
     ...base
   } = facts;
@@ -41,6 +43,18 @@ export function mapTypeObservationValues<From, To>(facts: TypeObservationValues<
       ? {}
       : { constInitializers: facts.constInitializers.map((row) => ({ node: node(row.node), values: row.values.map(node) })) }),
     ...(facts.definitions === undefined ? {} : { definitions: facts.definitions.map((entry) => ({ node: node(entry.node), values: entry.values.map(node) })) }),
+    ...(facts.callableBodies === undefined
+      ? {}
+      : { callableBodies: facts.callableBodies.map((entry) => ({ node: node(entry.node), body: entry.body === null ? null : node(entry.body) })) }),
+    ...(facts.exportDeclarations === undefined
+      ? {}
+      : {
+          exportDeclarations: facts.exportDeclarations.map((entry) => ({
+            ...entry,
+            source: node(entry.source),
+            declarations: entry.declarations?.map(node) ?? null,
+          })),
+        }),
     ...(facts.functionExports === undefined ? {} : { functionExports: facts.functionExports.map((entry) => ({ ...entry, node: node(entry.node) })) }),
     ...(facts.callParameters === undefined ? {} : { callParameters: facts.callParameters.map((entry) => ({ ...entry, call: node(entry.call) })) }),
     ...(facts.signatureParameters === undefined ? {} : { signatureParameters: facts.signatureParameters.map((entry) => ({ ...entry, at: node(entry.at) })) }),

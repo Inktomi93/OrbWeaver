@@ -688,6 +688,7 @@ interface SourceFactCollection {
   readonly checker: AssignabilityChecker | undefined;
   readonly exportQueries: Map<string, InventoryExportDeclarationQuery[]>;
   readonly callableQueries: Set<string>;
+  readonly callableKinds: ReadonlySet<SyntaxKind>;
   readonly computedNameQueries: Set<string>;
   readonly computedKinds: ReadonlySet<SyntaxKind>;
   readonly globalOriginQueries: Set<string>;
@@ -926,6 +927,14 @@ function collectFileFacts(sf: SourceFile, context: SourceFactCollection): void {
   }
 }
 
+function addCallableVisitors(visitors: Map<SyntaxKind, ((node: MorphNode) => void)[]>, context: SourceFactCollection): void {
+  if (context.families.has("callable-declarations")) {
+    for (const kind of context.callableKinds) {
+      visitors.set(kind, [...(visitors.get(kind) ?? []), (node): void => collectCallableDeclarationFact(node, context)]);
+    }
+  }
+}
+
 function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
   const { families, spans, values } = context;
   collectFileFacts(sf, context);
@@ -968,12 +977,7 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   if (families.has("type-member-origins")) {
     visitors.set(SyntaxKind.CallExpression, [(node): void => collectMemberOriginFact(node, context)]);
   }
-  if (families.has("callable-declarations")) {
-    visitors.set(SyntaxKind.CallExpression, [
-      ...(visitors.get(SyntaxKind.CallExpression) ?? []),
-      (node): void => collectCallableDeclarationFact(node, context),
-    ]);
-  }
+  addCallableVisitors(visitors, context);
   addComputedVisitors(visitors, context);
   addGlobalVisitors(visitors, context);
   collectByKinds([sf], visitors);
@@ -1057,6 +1061,7 @@ function extractSourceFacts(
     authored,
     exportQueries: exportDemandBySource(input.exportQueries),
     callableQueries: new Set(input.callableQueries.map(inventoryNodeQueryKey)),
+    callableKinds: new Set(input.callableQueries.map(({ kind }) => kind)),
     computedNameQueries: new Set(input.computedNameQueries.map(inventoryNodeQueryKey)),
     computedKinds: new Set(input.computedNameQueries.map(({ kind }) => kind)),
     globalOriginQueries: new Set(input.globalOriginQueries.map(inventoryNodeQueryKey)),

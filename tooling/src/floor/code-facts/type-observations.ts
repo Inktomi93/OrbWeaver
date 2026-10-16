@@ -20,6 +20,7 @@ import type {
   TypeObservationDemand,
   TypeObservationReader,
 } from "./type-observations-contract.ts";
+import { hasCompleteTypePropertyDemand } from "./type-observations-contract.ts";
 import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
 import { readTypeObservations } from "./type-observations-read.ts";
 import { captureScalarTypeSelections, readNativeSignatureSlots, readNativeTypeSelection, readNativeTypeSelectionStep } from "./type-projection.ts";
@@ -90,6 +91,8 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
   };
   const dependencies = new Map<string, NativeObservedDependency>();
   const exports = new Map<SourceFile, NativeTypeObservations["exports"][number]>();
+  const exportedDeclarations: NonNullable<NativeTypeObservations["exportDeclarations"]>[number][] = [];
+  const callableBodies = new Map<MorphNode, MorphNode | null>();
   const locals = new Map<MorphNode, number | null>();
   const computed = new Map<number, NativeTypeObservations["computedNames"][number]>();
   const propertySymbols = new Map<string, NonNullable<NativeTypeObservations["propertySymbols"]>[number]>();
@@ -224,6 +227,47 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     return result;
   };
   const reader: TypeObservationCapture["reader"] = {
+    callableBody: (node) => {
+      admit(node);
+      if (!rawSlots || owner.callableDeclaration === undefined) {
+        throw new Error("native callable body question has no canonical callable owner");
+      }
+      if (!callableBodies.has(node)) {
+        const fact = owner.callableDeclaration(node);
+        [fact.trace.origin, ...fact.trace.declarations].forEach(admit);
+        const body = fact.kind === "resolved" ? (fact.value.body ?? null) : null;
+        if (body !== null) {
+          admit(body);
+        }
+        callableBodies.set(node, body);
+      }
+      return callableBodies.get(node) ?? null;
+    },
+    categoryFlags: (selector) => {
+      const index = read(selector);
+      const metadata = types[index];
+      if (!rawSlots || metadata === undefined || metadata === null) {
+        throw new Error("native category flags were not captured");
+      }
+      const type = valueAt(index);
+      const value = { object: type.isObject(), void: type.isVoid() };
+      types[index] = { ...metadata, categoryFlags: value };
+      return value;
+    },
+    exportDeclarations: (source, name) => {
+      admit(source);
+      if (!rawSlots) {
+        throw new Error("native exported declaration question was not captured");
+      }
+      let row = exportedDeclarations.find((entry) => entry.source === source && entry.name === name);
+      if (row === undefined) {
+        const declarations = source.getExportedDeclarations().get(name) ?? null;
+        declarations?.forEach(admit);
+        row = { source, name, declarations };
+        exportedDeclarations.push(row);
+      }
+      return row.declarations;
+    },
     primitiveFlags: (selector) => {
       const index = read(selector);
       const metadata = types[index];
@@ -376,10 +420,11 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       }
       const shared = byLocation.get(at);
       if (shared !== undefined) {
-        properties.set(key, { selector: index, at, values: shared });
+        properties.set(key, { selector: index, at, values: shared, propertyCount: shared.length });
         return shared.map((entry) => ({ name: entry.name, symbol: symbolRef(entry.symbol), selector: selectorAt(entry.type) }));
       }
-      const rows = value.getProperties().map((property) => {
+      const nativeProperties = value.getProperties();
+      const rows = nativeProperties.map((property) => {
         const symbol = symbolOf(property);
         if (symbol === null) {
           throw new Error("native property has no symbol");
@@ -388,7 +433,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
         return { name: property.getName(), symbol, type: read(child) };
       });
       byLocation.set(at, rows);
-      properties.set(key, { selector: index, at, values: rows });
+      properties.set(key, { selector: index, at, values: rows, propertyCount: nativeProperties.length });
       return rows.map((entry) => ({ name: entry.name, symbol: symbolRef(entry.symbol), selector: selectorAt(entry.type) }));
     },
     unions: (selector) => {
@@ -597,6 +642,16 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     demand.questions?.some((question) => question.kind === "function-exports") === true
       ? { functionExports: [...functionExports].map(([node, value]) => ({ node, value })) }
       : {};
+  const capturedPropertySymbols = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "propertySymbols"> =>
+    demand.questions?.some((question) => ["property-symbols", "const-initializers", "selected-property-graph"].includes(question.kind)) === true
+      ? { propertySymbols: [...propertySymbols.values()] }
+      : {};
+  const capturedExportDeclarations = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "exportDeclarations"> =>
+    demand.questions?.some((question) => question.selectedPropertyGraph?.exportName !== undefined) === true ? { exportDeclarations: exportedDeclarations } : {};
+  const capturedCallableBodies = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "callableBodies"> =>
+    demand.questions?.some((question) => question.kind === "callable-body-values") === true
+      ? { callableBodies: [...callableBodies].map(([node, body]) => ({ node, body })) }
+      : {};
   return {
     reader,
     finish: (demand: TypeObservationDemand, valueProfiles): NativeTypeObservations => {
@@ -621,6 +676,8 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
         demand,
         ...constInitializers,
         ...(valueProfiles === undefined ? {} : { valueProfiles }),
+        ...capturedExportDeclarations(demand),
+        ...capturedCallableBodies(demand),
         assertNode: (node): void => {
           for (const [source, epoch] of epochs) {
             if (source.wasForgotten() || source.compilerNode !== epoch) {
@@ -636,7 +693,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
         nodes: [...nodes.values()],
         types,
         unions: [...unions.values()],
-        properties: [...properties.values()],
+        properties: [...properties.values()].map(({ propertyCount, ...row }) => (hasCompleteTypePropertyDemand(demand) ? { ...row, propertyCount } : row)),
         callReturns: [...callReturns.values()],
         computedNames: [...computed.values()],
         ...(rawSlots
@@ -648,9 +705,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
             }
           : {}),
         localTargets: [...locals].map(([node, symbol]) => ({ node, symbol })),
-        ...(demand.questions?.some((question) => ["property-symbols", "const-initializers"].includes(question.kind)) === true
-          ? { propertySymbols: [...propertySymbols.values()] }
-          : {}),
+        ...capturedPropertySymbols(demand),
         signatures: [...signatures.values()],
         dependencies: [...dependencies.values()],
         exports: [...exports.values()],

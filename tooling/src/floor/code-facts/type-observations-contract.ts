@@ -1,5 +1,6 @@
 // One closed capture owns scalar Type/Symbol relationships; no checker object survives publication.
 import type { Node, SourceFile } from "ts-morph";
+import type { CallableDeclaration, ReferenceFact } from "./reference-fact-contract.ts";
 import type { NativePrimitiveFlags, NativeScalarTypeSelections, NativeTypeSelector } from "./type-projection-contract.ts";
 
 export const TYPE_OBSERVATION_PROFILE = "authored-type-slots-v1";
@@ -23,7 +24,19 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "function-exports",
   "symbol-closure",
   "reference-closure",
+  "selected-property-graph",
+  "callable-body-values",
 ] as const;
+export interface SelectedPropertyGraph {
+  readonly exportName?: string | undefined;
+  readonly rootPath: readonly string[];
+  readonly stopPath: readonly string[];
+  readonly leafPaths: readonly (readonly string[])[];
+}
+export interface ObservedCategoryFlags {
+  readonly object: boolean;
+  readonly void: boolean;
+}
 export interface TypeObservationQuestion<Anchor = Node> {
   readonly kind: (typeof TYPE_OBSERVATION_QUESTION_KINDS)[number];
   readonly nodes: readonly Anchor[];
@@ -32,6 +45,7 @@ export interface TypeObservationQuestion<Anchor = Node> {
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
   readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;
+  readonly selectedPropertyGraph?: SelectedPropertyGraph | undefined;
 }
 
 export interface TypeObservationDemand<Anchor = Node> {
@@ -56,6 +70,13 @@ export function typeObservationNeedsSourceBindings(demand: TypeObservationDemand
   );
 }
 
+const COMPLETE_PROPERTY_QUESTION_KINDS: readonly string[] = ["type-properties", "selected-property-graph"];
+
+/** Complete native member requests retain their native arity, including a real empty answer. */
+export function hasCompleteTypePropertyDemand<Anchor>(demand: TypeObservationDemand<Anchor>): boolean {
+  return demand.questions?.some((question) => COMPLETE_PROPERTY_QUESTION_KINDS.includes(question.kind)) === true;
+}
+
 /** Numeric references are local to this exact capture/world/generation, never declaration or display substitutes. */
 export interface NativeObservedSymbol<Anchor = Node> {
   readonly name: string;
@@ -74,6 +95,7 @@ export interface NativeObservedType {
   readonly unionCount: number;
   readonly tupleCount: number;
   readonly primitiveFlags?: NativePrimitiveFlags | undefined;
+  readonly categoryFlags?: ObservedCategoryFlags | undefined;
   readonly stringLiteral?: string | null | undefined;
   readonly defaultDisplay?: string | undefined;
   readonly literalValue?: NativeTypeObservation<ObservedLiteralValue> | undefined;
@@ -112,6 +134,7 @@ export interface TypeObservationValues<Anchor = Node> {
   readonly properties: readonly {
     readonly selector: number;
     readonly at: Anchor;
+    readonly propertyCount?: number | undefined;
     readonly values: readonly { readonly name: string; readonly symbol: number; readonly type: number }[];
   }[];
   readonly unions: readonly { readonly selector: number; readonly values: readonly number[] }[];
@@ -122,6 +145,8 @@ export interface TypeObservationValues<Anchor = Node> {
   }[];
   readonly signatures: readonly NativeObservedSignature<Anchor>[];
   readonly propertySymbols?: readonly { readonly selector: number; readonly name: string; readonly symbol: number | null }[] | undefined;
+  readonly exportDeclarations?: readonly { readonly source: Anchor; readonly name: string; readonly declarations: readonly Anchor[] | null }[] | undefined;
+  readonly callableBodies?: readonly { readonly node: Anchor; readonly body: Anchor | null }[] | undefined;
   readonly definitions?: readonly { readonly node: Anchor; readonly values: readonly Anchor[] }[] | undefined;
   readonly functionExports?: readonly { readonly node: Anchor; readonly value: boolean }[] | undefined;
   readonly callParameters?: readonly { readonly call: Anchor; readonly parameterCount: number | null; readonly values: readonly number[] | null }[] | undefined;
@@ -154,6 +179,7 @@ export interface TypeObservationCaptureOwner {
   readonly admit: (node: Node) => void;
   readonly profile?: ((node: Node, facets: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][]) => void) | undefined;
   readonly references?: ((node: Node) => readonly Node[]) | undefined;
+  readonly callableDeclaration?: ((node: Node) => ReferenceFact<CallableDeclaration>) | undefined;
 }
 
 export interface TypeObservationCaptureRequest {
@@ -213,6 +239,10 @@ export interface TypeObservationReader {
   readonly display: (selector: NativeTypeSelector, at: Node) => string | null;
   readonly computedNames: (selector: NativeTypeSelector) => readonly { readonly declaration: Node; readonly names: readonly Node[] }[];
   readonly primitiveFlags: (selector: NativeTypeSelector) => NativePrimitiveFlags;
+  readonly categoryFlags: (selector: NativeTypeSelector) => ObservedCategoryFlags;
+  readonly exportDeclarations: (source: SourceFile, name: string) => readonly Node[] | null;
+  /** Null is the canonical reader's absence of a unique authored body, never an unrequested answer. */
+  readonly callableBody: (node: Node) => Node | null;
   readonly propertySymbol: (selector: NativeTypeSelector, name: string) => ObservedReference<"symbol"> | null;
   readonly definitions: (node: Node) => readonly Node[];
   readonly callParameters: (call: Node) => readonly NativeTypeSelector[] | null;

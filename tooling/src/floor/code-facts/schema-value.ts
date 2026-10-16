@@ -12,7 +12,15 @@ import type {
 import type { CallExpression, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
 import { canonicalIdBrand } from "./id-brand.ts";
-import type { SchemaColumn, SchemaColumnIdentity, SchemaJsonShape, SchemaQueryOptions, SchemaTable, SchemaTableIdentity } from "./schema-model-contract.ts";
+import type {
+  SchemaBuilderReadServices,
+  SchemaColumn,
+  SchemaColumnIdentity,
+  SchemaJsonShape,
+  SchemaQueryOptions,
+  SchemaTable,
+  SchemaTableIdentity,
+} from "./schema-model-contract.ts";
 import { SCHEMA_COLUMN_DEFAULT_OPERATIONS } from "./schema-model-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import type { SchemaObjectEntry } from "./schema-object-contract.ts";
@@ -103,8 +111,8 @@ function resolvedDrizzleTarget(
   return resolved({ moduleSpecifier, exportedName: name }, call, declarations);
 }
 
-export function terminalCall(node: MorphNode): ReferenceFact<CallExpression> {
-  const fact = resolveStableExpression(node);
+export function terminalCall(node: MorphNode, services?: SchemaBuilderReadServices): ReferenceFact<CallExpression> {
+  const fact = services === undefined ? resolveStableExpression(node) : services.stable(node);
   if (fact.kind === "resolved") {
     return Node.isCallExpression(fact.value)
       ? resolved(fact.value, fact.trace.origin, fact.trace.declarations)
@@ -113,13 +121,13 @@ export function terminalCall(node: MorphNode): ReferenceFact<CallExpression> {
   if (fact.reason === "dynamic" && Node.isCallExpression(fact.node)) {
     return resolved(fact.node, fact.node, fact.trace.declarations);
   }
-  const origin = resolveModuleMemberOrigin(node);
+  const origin = services === undefined ? resolveModuleMemberOrigin(node) : services.moduleOrigin(node);
   const declaration = origin.kind === "resolved" && origin.value.canonical.kind === "project" ? origin.value.canonical.declaration : undefined;
   if (!Node.isVariableDeclaration(declaration) || declaration.getInitializer() === undefined) {
     return fact;
   }
   // A module home does not prove binding stability; re-enter that proof before following its initializer.
-  return terminalCall(declaration.getNameNode());
+  return terminalCall(declaration.getNameNode(), services);
 }
 
 export function operationChain(expression: MorphNode): {
