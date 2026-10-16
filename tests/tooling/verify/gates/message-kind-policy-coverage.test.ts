@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/message-kind-policy";
 const HOME = "packages/contracts/src/chat/participants.ts";
@@ -16,7 +17,15 @@ function passOf(files: Readonly<Record<string, string>>): ReturnType<typeof runP
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${path}`, source);
   }
-  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("an `extends` clause that resolves to no interface REFUSES instead of judging a smaller axis set", () => {
@@ -80,4 +89,8 @@ test("merged interface declarations retain every inherited policy axis", () => {
     "prompt",
     "wire",
   ]);
+});
+
+test("native delivery retains every declared member-policy proof", () => {
+  expect(verifyPolicyProofs([gate])).toEqual([]);
 });

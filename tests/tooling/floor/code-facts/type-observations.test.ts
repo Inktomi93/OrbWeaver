@@ -672,3 +672,59 @@ test("complete native property vectors refuse truncation without dropping inheri
   expect(wire.properties.map(({ propertyCount }) => propertyCount)).toEqual([3, 3, 0, 0]);
   expect(fixture().facts.properties.every((row) => !("propertyCount" in row))).toBe(true);
 });
+
+test("closed Type constituents retain recursive native identities and exact finite property symbols", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, strict: true } });
+  const source = project.createSourceFile(
+    "/constituents.ts",
+    "interface Service {run():void} type Surface=(Service & {extra:true})|{other:true};declare const value:Surface;",
+  );
+  const node = source.getVariableDeclarationOrThrow("value");
+  const demand: TypeObservationDemand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source],
+    nodes: [],
+    questions: [{ kind: "type-constituents", nodes: [node], properties: ["run", "missing"] }],
+  };
+  const facts = captureTypeObservations(demand, { anchor: source, admit: () => undefined });
+  const wire = encodeTypeObservations(facts, span);
+  const replay = (anchor: InventorySpan): MorphNode => inventoryQueryNode(project.getSourceFile(anchor.file), anchor);
+  const reader = readTypeObservations(replayTypeObservations(typeObservationsSchema(spanSchema).parse(wire), replay));
+  const pending = [nodeTypeSelector(node)];
+  const seen = new Set<object>();
+  const declarations = new Set<MorphNode>();
+  for (const selector of pending) {
+    const reference = reader.select(selector);
+    if (reference === null) {
+      throw new Error("constituent fixture Type absent");
+    }
+    const type = reader.type(reference);
+    const symbol = reader.propertySymbol(selector, "run");
+    if (symbol !== null) {
+      for (const declaration of reader.symbolData(symbol).declarations) {
+        declarations.add(declaration);
+      }
+    }
+    expect(reader.propertySymbol(selector, "missing")).toBeNull();
+    if (!seen.has(type.key)) {
+      seen.add(type.key);
+      pending.push(...reader.unions(selector), ...reader.intersections(selector));
+    }
+  }
+  expect([...declarations]).toEqual([source.getInterfaceOrThrow("Service").getMethodOrThrow("run")]);
+  expect(wire.intersections?.some((row) => row.values.length === 2)).toBe(true);
+  const missing = { ...wire, propertySymbols: wire.propertySymbols?.slice(1) };
+  expect(() => typeObservationsSchema(spanSchema).parse(missing)).toThrow("coverage");
+  expect(() => readTypeObservations(replayTypeObservations(missing, replay))).toThrow("not captured");
+  const edge = { ...wire, intersections: wire.intersections?.filter((row) => row.values.length === 0) };
+  expect(() => typeObservationsSchema(spanSchema).parse(edge)).toThrow("coverage");
+  expect(() => readTypeObservations(replayTypeObservations(edge, replay))).toThrow("incomplete");
+  const plan = { mode: "types" as const, facets: [], arguments: [], node: span(source), typeObservations: wire.demand };
+  const changed = {
+    ...plan,
+    typeObservations: { ...wire.demand, questions: wire.demand.questions?.map((question) => ({ ...question, properties: ["run"] })) },
+  };
+  expect(invocationQueryKey(changed)).not.toBe(invocationQueryKey(plan));
+  source.replaceWithText(source.getFullText());
+  expect(() => reader.unions(nodeTypeSelector(node))).toThrow();
+});

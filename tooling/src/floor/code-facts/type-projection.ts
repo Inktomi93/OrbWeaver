@@ -144,6 +144,8 @@ export function readNativeTypeSelectionStep(type: Type, step: NativeTypeSelector
       return type.getProperty(step.name)?.getTypeAtLocation(step.at);
     case "signature-parameter":
       return type.getCallSignatures()[step.signature]?.getParameters()[step.index]?.getTypeAtLocation(step.at);
+    case "constraint":
+      return type.getConstraint();
     case "nonnullable":
       return type.getNonNullableType();
     case "array-element-or-self":

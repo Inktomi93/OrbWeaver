@@ -50,6 +50,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
     aliasSymbol: index.nullable(),
     never: z.boolean(),
     typeParameter: z.boolean(),
+    intersectionCount: index.optional(),
     unionCount: index,
     tupleCount: index,
     primitiveFlags: nativePrimitiveFlagsSchema.optional(),
@@ -77,6 +78,11 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
         }),
       ),
       unions: z.array(z.strictObject({ selector: index, values: z.array(index) })),
+      intersections: z.array(z.strictObject({ selector: index, values: z.array(index) })).optional(),
+      constraints: z.array(z.strictObject({ selector: index, value: index.nullable() })).optional(),
+      signatureDeclarations: z
+        .array(z.strictObject({ selector: index, kind: z.enum(["call", "construct"]), declarationCount: index, declarations: z.array(span) }))
+        .optional(),
       callReturns: z.array(z.strictObject({ node: span, values: z.array(index) })),
       computedNames: z.array(z.strictObject({ selector: index, values: z.array(z.strictObject({ declaration: span, names: z.array(span) })) })),
       signatures: z.array(z.strictObject({ call: span, fact: observation(z.strictObject({ declaration: span, parameters: z.array(index) })) })),

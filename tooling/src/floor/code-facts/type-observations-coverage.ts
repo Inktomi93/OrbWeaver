@@ -20,6 +20,7 @@ export function assertTypeObservationCoverage<Anchor>(
   assertTypeObservationRows(facts, key);
   assertRootSlots(facts, key, kind);
   assertRawQuestions(facts, key, kind);
+  assertRawTypeGraphCoverage(facts, key);
 }
 function rawSelectorKey<Anchor>(selector: import("./type-projection-contract.ts").NativeTypeSelector<Anchor>, key: (node: Anchor) => string): string {
   return JSON.stringify({
@@ -37,6 +38,9 @@ function uniqueRawKeys(keys: readonly string[]): void {
 function assertRawQuestions<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string, kind: (node: Anchor) => number): void {
   if (facts.demand.questions === undefined) {
     if (
+      facts.intersections !== undefined ||
+      facts.constraints !== undefined ||
+      facts.signatureDeclarations !== undefined ||
       facts.propertySymbols !== undefined ||
       facts.constInitializers !== undefined ||
       facts.exportDeclarations !== undefined ||
@@ -613,6 +617,37 @@ function namedPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node:
   }
   return [index, ...parts.values];
 }
+function constituentPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node: Anchor, key: (node: Anchor) => string): readonly number[] {
+  const root = facts.selections?.plan.selectors.findIndex(
+    (selector) => selector.base.kind === "node" && key(selector.base.node) === key(node) && selector.steps.length === 0 && selector.displayAt === null,
+  );
+  if (root === undefined || root < 0) {
+    throw new Error("native constituent property owner was not captured");
+  }
+  const seen = new Set<number>();
+  const owners = new Set<number>();
+  const pending = [root];
+  for (const selector of pending) {
+    const type = facts.selections?.values[selector];
+    if (type === null) {
+      continue;
+    }
+    if (type === undefined) {
+      throw new Error("native constituent Type identity is missing");
+    }
+    owners.add(selector);
+    const unions = facts.unions.find((row) => row.selector === selector);
+    const intersections = facts.intersections?.find((row) => row.selector === selector);
+    if (unions === undefined || intersections === undefined) {
+      throw new Error("native constituent edge coverage is missing");
+    }
+    if (!seen.has(type.identity)) {
+      seen.add(type.identity);
+      pending.push(...unions.values, ...intersections.values);
+    }
+  }
+  return [...owners];
+}
 function assertConstInitializerCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "const-initializers");
   if (questions.length > 0 !== (facts.constInitializers !== undefined)) {
@@ -660,8 +695,25 @@ function constPropertyOwners<Anchor>(facts: TypeObservationValues<Anchor>, node:
   });
 }
 
+function questionPropertyOwners<Anchor>(
+  facts: TypeObservationValues<Anchor>,
+  question: TypeObservationQuestion<Anchor>,
+  node: Anchor,
+  key: (node: Anchor) => string,
+): readonly number[] {
+  if (question.kind === "const-initializers") {
+    return constPropertyOwners(facts, node, key);
+  }
+  if (question.kind === "type-constituents") {
+    return constituentPropertyOwners(facts, node, key);
+  }
+  return namedPropertyOwners(facts, node, key);
+}
+
 function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
-  const questions = (facts.demand.questions ?? []).filter((question) => question.kind === "property-symbols" || question.kind === "const-initializers");
+  const questions = (facts.demand.questions ?? []).filter(
+    (question) => question.kind === "property-symbols" || question.kind === "const-initializers" || question.kind === "type-constituents",
+  );
   const graphs = (facts.demand.questions ?? []).filter((question) => question.kind === "selected-property-graph");
   if (questions.length + graphs.length > 0 !== (facts.propertySymbols !== undefined)) {
     throw new Error("native named property symbols are missing or unrequested");
@@ -672,7 +724,7 @@ function assertNamedPropertyCoverage<Anchor>(facts: TypeObservationValues<Anchor
         if (question.kind === "const-initializers" && (question.properties?.length ?? 0) === 0) {
           return [];
         }
-        const owners = question.kind === "const-initializers" ? constPropertyOwners(facts, node, key) : namedPropertyOwners(facts, node, key);
+        const owners = questionPropertyOwners(facts, question, node, key);
         return owners.flatMap((selector) => (question.properties ?? []).map((name) => JSON.stringify([selector, name])));
       }),
     ),
@@ -702,6 +754,75 @@ function selectedGraphPropertyOwner<Anchor>(
     selector.displayAt === null &&
     (facts.demand.questions ?? []).some((question) => question.kind === "selected-property-graph" && question.properties?.includes(row.name) === true)
   );
+}
+
+/** Ordered type graph edges retain native counts and exact selector ancestry. */
+export function assertRawTypeGraphCoverage<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
+  const indices = observationIndices(facts);
+  const plan = facts.selections?.plan;
+  const selectors = plan?.selectors ?? [];
+  const expected = new Set(
+    selectors.flatMap((selector, index) => (["intersection-part", "constraint"].includes(selector.steps.at(-1)?.kind ?? "") ? [index] : [])),
+  );
+  const child = (parent: number, index: number, step: import("./type-projection-contract.ts").NativeTypeSelectionStep<Anchor>): void => {
+    indices.type(index);
+    const base = selectors[parent];
+    const actual = selectors[index];
+    if (base === undefined || actual === undefined || rawSelectorKey(actual, key) !== rawSelectorKey({ ...base, steps: [...base.steps, step] }, key)) {
+      throw new Error("native Type graph selector identity is foreign");
+    }
+    expected.delete(index);
+  };
+  uniqueRawKeys((facts.intersections ?? []).map((row) => String(row.selector)));
+  uniqueRawKeys((facts.constraints ?? []).map((row) => String(row.selector)));
+  uniqueRawKeys((facts.signatureDeclarations ?? []).map((row) => JSON.stringify([row.selector, row.kind])));
+  assertIntersectionRows(facts, child);
+  assertConstraintRows(facts, child, key);
+  for (const row of facts.signatureDeclarations ?? []) {
+    indices.presentType(row.selector);
+    if (!Number.isSafeInteger(row.declarationCount) || row.declarationCount < 0 || row.declarations.length !== row.declarationCount) {
+      throw new Error("native signature declaration coverage is incomplete");
+    }
+  }
+  if (expected.size > 0) {
+    throw new Error("native Type graph edge coverage is incomplete");
+  }
+}
+
+type TypeGraphChild<Anchor> = (parent: number, index: number, step: import("./type-projection-contract.ts").NativeTypeSelectionStep<Anchor>) => void;
+function assertIntersectionRows<Anchor>(facts: TypeObservationValues<Anchor>, child: TypeGraphChild<Anchor>): void {
+  const indices = observationIndices(facts);
+  for (const row of facts.intersections ?? []) {
+    indices.presentType(row.selector);
+    if (row.values.length !== facts.types[row.selector]?.intersectionCount) {
+      throw new Error("native intersection-slot coverage is incomplete");
+    }
+    row.values.forEach((value, index) => {
+      indices.presentType(value);
+      child(row.selector, value, { kind: "intersection-part", index });
+    });
+  }
+  for (const [index, row] of facts.types.entries()) {
+    if (row?.intersectionCount !== undefined && !(facts.intersections ?? []).some((entry) => entry.selector === index)) {
+      throw new Error("native intersection count has no registered question");
+    }
+  }
+}
+function assertConstraintRows<Anchor>(facts: TypeObservationValues<Anchor>, child: TypeGraphChild<Anchor>, key: (node: Anchor) => string): void {
+  const indices = observationIndices(facts);
+  const selectors = facts.selections?.plan.selectors ?? [];
+  for (const row of facts.constraints ?? []) {
+    indices.presentType(row.selector);
+    const base = selectors[row.selector];
+    const constraint =
+      base === undefined
+        ? undefined
+        : selectors.findIndex((selector) => rawSelectorKey(selector, key) === rawSelectorKey({ ...base, steps: [...base.steps, { kind: "constraint" }] }, key));
+    if (constraint === undefined || constraint < 0 || (row.value === null ? facts.types[constraint] !== null : row.value !== constraint)) {
+      throw new Error("native constraint absence or identity is foreign");
+    }
+    child(row.selector, constraint, { kind: "constraint" });
+  }
 }
 
 /** Native arity supplements ordered member identities; it never reconstructs omitted members. */

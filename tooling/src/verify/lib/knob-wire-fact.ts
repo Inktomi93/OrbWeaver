@@ -23,11 +23,14 @@
 // authored-object reader, the interface/tuple readers, arm C's leaf population, the source constants and
 // anchors) are `knob-wire-members.ts`; the CONSUMER CORPORA (per-file scope, the one-pass read/presence
 // collection) are `knob-wire-corpora.ts`; the belts, the reconcile and the fact stay here. Both are leaves.
-import type { Node, SourceFile } from "ts-morph";
+import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { defineFact } from "../contract/fact.ts";
+import type { NativeTypeContext } from "../contract/project-context.ts";
 import type { Corpora, FileScope } from "./knob-wire-corpora.ts";
-import { newCorpora, scopeOf, visitNode } from "./knob-wire-corpora.ts";
+import { collectConfigRead, configReadReceiver, newCorpora, scopeOf, visitNode } from "./knob-wire-corpora.ts";
 import {
   ANCHOR_GET_EFFECTIVE_CONFIG,
   ANCHOR_PARSE_METADATA,
@@ -47,6 +50,7 @@ import {
   USER_SETTINGS_SCHEMA,
   USER_SETTINGS_SECTIONS,
 } from "./knob-wire-members.ts";
+import { typeObservationPlan, typeObservationReaders } from "./type-observation-context.ts";
 
 /** The arm vocabulary. `operation` is the reviewed-grant discriminator, so arm F's two belts over ONE
  *  authored node are independently licensable and §6.2's identical-carrier ban is never reached. */
@@ -121,7 +125,21 @@ function assertMemberSourcePresent(memberCount: number, anchor: string, source: 
   }
 }
 
-function reconcile(files: readonly SourceFile[], corpora: Corpora): KnobWirePopulation {
+function reconcile(
+  files: readonly SourceFile[],
+  corpora: Corpora,
+  readers: ReadonlyMap<SourceFile, TypeObservationReader>,
+  native: NativeTypeContext,
+): KnobWirePopulation {
+  const moduleSource =
+    (importer: SourceFile) =>
+    (door: ImportDeclaration): SourceFile | undefined => {
+      const values = native.moduleTargets([door], importer);
+      if (!values.has(door)) {
+        throw new Error("native knob module target was not captured");
+      }
+      return values.get(door);
+    };
   const settings = files.find((sf) => SETTINGS_CONTRACTS.test(sf.getFilePath()));
   const preset = files.find((sf) => PRESET_CONTRACTS.test(sf.getFilePath()));
   const metadata = files.find((sf) => METADATA_PARSER.test(sf.getFilePath()));
@@ -139,10 +157,17 @@ function reconcile(files: readonly SourceFile[], corpora: Corpora): KnobWirePopu
 
   if (settings !== undefined) {
     sources += 1;
-    const fieldMembers = interfaceFields(settings, EFFECTIVE_APP_CONFIG);
-    const sectionMembers = tupleMembers(settings, USER_SETTINGS_SECTIONS);
-    const appKeyMembers = [...declaredMembers(settings, APP_SETTINGS_SCHEMA)].map(([name, member]): readonly [string, Node] => [name, member.nameNode]);
-    const leafPopulation = settingsLeaves(settings, corpora.settingsCalls, new Set(sectionMembers.map(([name]) => name)));
+    const reader = readers.get(settings);
+    if (reader === undefined) {
+      throw new Error("settings contract has no native importing owner");
+    }
+    const fieldMembers = interfaceFields(settings, EFFECTIVE_APP_CONFIG, reader);
+    const sectionMembers = tupleMembers(settings, USER_SETTINGS_SECTIONS, moduleSource(settings));
+    const appKeyMembers = [...declaredMembers(settings, APP_SETTINGS_SCHEMA, moduleSource(settings))].map(([name, member]): readonly [string, Node] => [
+      name,
+      member.nameNode,
+    ]);
+    const leafPopulation = settingsLeaves(settings, corpora.settingsCalls, new Set(sectionMembers.map(([name]) => name)), moduleSource(settings));
     assertMemberSourcePresent(fieldMembers.length, ANCHOR_GET_EFFECTIVE_CONFIG, EFFECTIVE_APP_CONFIG, corpora);
     assertMemberSourcePresent(sectionMembers.length, ANCHOR_UPDATE_SECTION, USER_SETTINGS_SECTIONS, corpora);
     fields = runBelt(
@@ -192,7 +217,10 @@ function reconcile(files: readonly SourceFile[], corpora: Corpora): KnobWirePopu
 
   if (preset !== undefined) {
     sources += 1;
-    const formatMembers = [...declaredMembers(preset, DEFAULT_FORMAT_STRINGS)].map(([name, member]): readonly [string, Node] => [name, member.nameNode]);
+    const formatMembers = [...declaredMembers(preset, DEFAULT_FORMAT_STRINGS, moduleSource(preset))].map(([name, member]): readonly [string, Node] => [
+      name,
+      member.nameNode,
+    ]);
     assertMemberSourcePresent(formatMembers.length, ANCHOR_PRESET_SCHEMA, DEFAULT_FORMAT_STRINGS, corpora);
     formatStrings = runBelt(
       {
@@ -210,7 +238,10 @@ function reconcile(files: readonly SourceFile[], corpora: Corpora): KnobWirePopu
 
   if (metadata !== undefined) {
     sources += 1;
-    const metaMembers = [...declaredMembers(metadata, CHAT_METADATA_SCHEMA)].map(([name, member]): readonly [string, Node] => [name, member.nameNode]);
+    const metaMembers = [...declaredMembers(metadata, CHAT_METADATA_SCHEMA, moduleSource(metadata))].map(([name, member]): readonly [string, Node] => [
+      name,
+      member.nameNode,
+    ]);
     assertMemberSourcePresent(metaMembers.length, ANCHOR_PARSE_METADATA, CHAT_METADATA_SCHEMA, corpora);
     metadataKeys = runBelt(
       {
@@ -265,6 +296,8 @@ export const knobWireFact = defineFact({
   create: (ctx) => {
     const corpora = newCorpora();
     const scopes = new Map<string, FileScope>();
+    const configReads: Node[] = [];
+    let plan: InventoryInvocationPlan | undefined;
     const scopeFor = (sourceFile: SourceFile): FileScope => {
       const path = sourceFile.getFilePath();
       const hit = scopes.get(path);
@@ -276,10 +309,62 @@ export const knobWireFact = defineFact({
       return scope;
     };
     return {
-      visitors: [{ kinds: [...KNOB_WIRE_KINDS], visit: (node, sourceFile) => visitNode(node, scopeFor(sourceFile), corpora) }],
+      visitors: [
+        {
+          kinds: [...KNOB_WIRE_KINDS],
+          visit: (node, sourceFile): void => {
+            const scope = scopeFor(sourceFile);
+            visitNode(node, scope, corpora);
+            if (configReadReceiver(node, scope) !== undefined) {
+              configReads.push(node);
+            }
+          },
+        },
+      ],
+      prepare: (): void => {
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native knob facts are unavailable");
+        }
+        const settings = ctx.files.find((source) => SETTINGS_CONTRACTS.test(source.getFilePath()));
+        const iface = settings?.getInterface(EFFECTIVE_APP_CONFIG);
+        plan = typeObservationPlan(
+          ctx.files,
+          [],
+          [
+            { kind: "type-properties", nodes: iface === undefined ? [] : [iface] },
+            {
+              kind: "node-types",
+              nodes: [
+                ...new Set([
+                  ...(iface?.getExtends().map((clause) => clause.getExpression()) ?? []),
+                  ...configReads.flatMap((node) => configReadReceiver(node, scopeFor(node.getSourceFile())) ?? []),
+                ]),
+              ],
+            },
+          ],
+        );
+        ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+        const doors = ctx.files.flatMap((source) => source.getImportDeclarations());
+        for (const importer of ctx.files.filter((source) =>
+          [SETTINGS_CONTRACTS, PRESET_CONTRACTS, METADATA_PARSER].some((pattern) => pattern.test(source.getFilePath())),
+        )) {
+          ctx.nativeTypes.request({ kind: "module-targets", nodes: doors, importer });
+        }
+      },
       finish: (): KnobWirePopulation => {
         ctx.receipt({ kind: "population", source: "knob-wire-corpus-files", members: ctx.files.length });
-        return reconcile(ctx.files, corpora);
+        if (plan === undefined || ctx.nativeTypes === undefined) {
+          throw new Error("native knob demand was not prepared");
+        }
+        const readers = typeObservationReaders(ctx.nativeTypes.invocationEvidence(ctx.files, plan));
+        for (const node of configReads) {
+          const reader = readers.get(node.getSourceFile());
+          if (reader === undefined) {
+            throw new Error("config consumer has no native importing owner");
+          }
+          collectConfigRead(node, reader, corpora);
+        }
+        return reconcile(ctx.files, corpora, readers, ctx.nativeTypes);
       },
     };
   },

@@ -56,9 +56,12 @@
 // `packages/db/src/client/__cbbhr_out_index.ts` rejected by both.
 import type { InterfaceDeclaration, Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import { resolveTypeIdentityOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { typeObservationPlan, typeObservationReaders } from "../lib/type-observation-context.ts";
 
 const HOME = "packages/contracts/src/chat/participants.ts";
 const RECORD = "MESSAGE_KIND_POLICY";
@@ -89,27 +92,32 @@ function isReaderScope(path: string): boolean {
   return READER_ROOTS.some((root) => path.startsWith(root));
 }
 
-function resolvesInterface(expression: MorphNode): boolean {
-  const origin = resolveModuleMemberOrigin(expression);
-  const lexical = Node.isIdentifier(expression) ? referenceResolutionServices.declarationOf(expression) : undefined;
-  let declaration = lexical?.kind === "resolved" ? lexical.value : undefined;
+function resolvesInterface(expression: MorphNode, reader: TypeObservationReader, evidence: NativeInvocationEvidence): boolean {
+  const origin = requiredInvocationFact(evidence.modules, expression);
+  const lexical = Node.isIdentifier(expression) ? evidence.declarations(expression) : [];
+  let declaration = lexical.length === 1 ? lexical[0] : undefined;
   if (origin.kind === "resolved" && origin.value.canonical.kind === "project") {
     declaration = origin.value.canonical.declaration;
   }
-  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || (lexical?.kind === "unresolved" && lexical.reason === "ambiguous")) {
+  if ((origin.kind === "unresolved" && origin.reason === "ambiguous") || lexical.length > 1) {
     // A merged interface has several declarations but still one checker type. A type ALIAS must
     // not be flattened here: the non-ambiguous lexical declaration above owns that refusal.
-    const type = resolveTypeIdentityOrigin(expression);
-    return type.kind === "resolved" && type.value.declarations.some(Node.isInterfaceDeclaration);
+    const reference = reader.select(nodeTypeSelector(expression));
+    if (reference === null) {
+      return false;
+    }
+    const type = reader.type(reference);
+    const symbol = type.aliasSymbol ?? type.symbol;
+    return symbol !== null && reader.symbolData(symbol).declarations.some(Node.isInterfaceDeclaration);
   }
   return Node.isInterfaceDeclaration(declaration);
 }
 
 /** Every `extends` clause must RESOLVE. A base binding no interface would silently contribute zero axes,
  *  which is exactly the shrunken-denominator failure this policy exists to make impossible. */
-function assertHeritageResolves(iface: InterfaceDeclaration): void {
+function assertHeritageResolves(iface: InterfaceDeclaration, reader: TypeObservationReader, evidence: NativeInvocationEvidence): void {
   for (const clause of iface.getExtends()) {
-    const interfaceResolved = resolvesInterface(clause.getExpression());
+    const interfaceResolved = resolvesInterface(clause.getExpression(), reader, evidence);
     if (!interfaceResolved) {
       throw new Error(`${IFACE} extends "${clause.getText()}", which resolves to no interface declaration — its inherited axes cannot be enumerated`);
     }
@@ -121,25 +129,24 @@ function declaringInterface(declaration: MorphNode): string {
 }
 
 /** The policy's axes: the RESOLVED type's properties, each keeping its own declaring interface. */
-function readAxes(iface: InterfaceDeclaration): readonly Axis[] {
-  assertHeritageResolves(iface);
-  return iface
-    .getType()
-    .getProperties()
-    .map((property) => {
-      const origin = resolveTypePropertyOrigin(iface, property.getName());
-      const declaration = origin.kind === "resolved" ? origin.value[0] : undefined;
-      if (declaration === undefined) {
-        throw new Error(`axis "${property.getName()}" of ${IFACE} resolves to no declaration — its arity cannot be established`);
-      }
-      return {
-        name: property.getName(),
-        declaration,
-        offset: Math.max(declaration.getText().indexOf(property.getName()), 0),
-        singleArm: declaration.asKind(SyntaxKind.PropertySignature)?.getTypeNode()?.getKind() === SyntaxKind.LiteralType,
-        declaredIn: declaringInterface(declaration),
-      };
-    });
+function readAxes(iface: InterfaceDeclaration, reader: TypeObservationReader, evidence: NativeInvocationEvidence): readonly Axis[] {
+  assertHeritageResolves(iface, reader, evidence);
+  const properties = reader.properties(nodeTypeSelector(iface), iface);
+  const nonnullable = reader.properties({ ...nodeTypeSelector(iface), steps: [{ kind: "nonnullable" }] }, iface);
+  return properties.map((property) => {
+    const member = nonnullable.find(({ name }) => name === property.name);
+    const declaration = member === undefined ? undefined : reader.symbolData(member.symbol).declarations[0];
+    if (declaration === undefined) {
+      throw new Error(`axis "${property.name}" of ${IFACE} resolves to no declaration — its arity cannot be established`);
+    }
+    return {
+      name: property.name,
+      declaration,
+      offset: Math.max(declaration.getText().indexOf(property.name), 0),
+      singleArm: declaration.asKind(SyntaxKind.PropertySignature)?.getTypeNode()?.getKind() === SyntaxKind.LiteralType,
+      declaredIn: declaringInterface(declaration),
+    };
+  });
 }
 
 /** Every property name read above one record reference, across dotted and indexed spellings. */
@@ -158,14 +165,29 @@ function accessedNames(identifier: MorphNode): readonly string[] {
 }
 
 /** The top-level exported const one record reference is authored inside, or undefined. */
-function enclosingCarrier(identifier: MorphNode): VariableDeclaration | undefined {
+function enclosingCarrier(identifier: MorphNode, reader: TypeObservationReader): VariableDeclaration | undefined {
   const declaration = identifier.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-  return declaration !== undefined && declaration.getName() !== RECORD && declaration.getVariableStatement()?.isExported() === true ? declaration : undefined;
+  const statement = declaration?.getVariableStatement();
+  if (declaration === undefined || declaration.getName() === RECORD || statement === undefined) {
+    return;
+  }
+  if (statement.hasExportKeyword()) {
+    return declaration;
+  }
+  const symbol = reader.symbol(statement);
+  if (symbol === null) {
+    return;
+  }
+  const own = reader.symbolData(symbol).key;
+  const exported = reader
+    .exports(statement.getSourceFile())
+    .some((value) => reader.symbolData(value).key === own || reader.symbolData(reader.symbolData(value).canonical).key === own);
+  return exported ? declaration : undefined;
 }
 
 /** Is this reference the CANONICAL record, proven through the shared module-origin reader? */
-function isCanonicalRecordReference(identifier: MorphNode): boolean {
-  const origin = resolveModuleMemberOrigin(identifier);
+function isCanonicalRecordReference(identifier: MorphNode, evidence: NativeInvocationEvidence): boolean {
+  const origin = requiredInvocationFact(evidence.modules, identifier);
   return origin.kind === "resolved" && origin.value.canonical.exportedName === RECORD;
 }
 
@@ -175,10 +197,17 @@ interface RecordReference {
 }
 
 /** Home-file consts that DERIVE from the record: their names are the axes' carrier symbols. */
-function homeCarriers(references: readonly RecordReference[]): ReadonlyMap<string, ReadonlySet<string>> {
+function homeCarriers(
+  references: readonly RecordReference[],
+  readers: ReadonlyMap<SourceFile, TypeObservationReader>,
+): ReadonlyMap<string, ReadonlySet<string>> {
   const carriers = new Map<string, Set<string>>();
   for (const reference of references.filter(({ path }) => path === HOME)) {
-    const carrier = enclosingCarrier(reference.identifier);
+    const reader = readers.get(reference.identifier.getSourceFile());
+    if (reader === undefined) {
+      throw new Error("message-kind carrier has no native importing owner");
+    }
+    const carrier = enclosingCarrier(reference.identifier, reader);
     if (carrier === undefined) {
       continue;
     }
@@ -192,10 +221,14 @@ function homeCarriers(references: readonly RecordReference[]): ReadonlyMap<strin
 }
 
 /** Axes a behavior tier reads straight off the canonical record. */
-function directAxes(references: readonly RecordReference[]): ReadonlySet<string> {
+function directAxes(references: readonly RecordReference[], delivered: ReadonlyMap<MorphNode, NativeInvocationEvidence>): ReadonlySet<string> {
   const names = new Set<string>();
   for (const reference of references.filter(({ path }) => isReaderScope(path))) {
-    if (isCanonicalRecordReference(reference.identifier)) {
+    const evidence = delivered.get(reference.identifier.getSourceFile());
+    if (evidence === undefined) {
+      throw new Error("message-kind record reference has no native importing owner");
+    }
+    if (isCanonicalRecordReference(reference.identifier, evidence)) {
       for (const name of accessedNames(reference.identifier)) {
         names.add(name);
       }
@@ -267,12 +300,35 @@ export const gate = defineGate({
   create: (ctx) => {
     const state: Collected = { interfaces: [], records: [], references: [], importedNames: new Set(), recordNames: new Set([RECORD]) };
 
-    /** Every axis a behavior tier proves it reads — directly off the canonical record, or by importing a
-     *  home-file carrier const that derives from it. */
-    const coveredAxes = (): ReadonlySet<string> =>
-      new Set([...directAxes(state.references), ...carriedAxes(homeCarriers(state.references), state.importedNames)]);
+    let plan: InventoryInvocationPlan | undefined;
 
     return {
+      prepare: (): void => {
+        if (state.interfaces.length !== 1 || state.records.length !== 1) {
+          return;
+        }
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native message-kind facts are unavailable");
+        }
+        const heritage = state.interfaces.flatMap((iface) => iface.getExtends().map((clause) => clause.getExpression()));
+        const statements = state.references.flatMap(({ identifier, path }) =>
+          path === HOME ? (identifier.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getVariableStatement() ?? []) : [],
+        );
+        plan = typeObservationPlan(
+          ctx.files,
+          [],
+          [
+            { kind: "type-properties", nodes: state.interfaces },
+            { kind: "node-types", nodes: [...new Set([...heritage, ...statements])] },
+            {
+              kind: "value-profiles",
+              nodes: [...new Set([...heritage, ...state.references.map(({ identifier }) => identifier)])],
+              valueFacets: ["module", "binding"],
+            },
+          ],
+        );
+        ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
       visitors: [
         {
           kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.VariableDeclaration, SyntaxKind.Identifier, SyntaxKind.ImportSpecifier],
@@ -287,9 +343,16 @@ export const gate = defineGate({
           ctx.receipt({ kind: "population", source: AXIS_POPULATION, members: 0, unresolved: 0 });
           return;
         }
-        const axes = readAxes(iface);
+        if (plan === undefined || ctx.nativeTypes === undefined) {
+          throw new Error("native message-kind demand was not prepared");
+        }
+        const delivered = ctx.nativeTypes.invocationEvidence(ctx.files, plan);
+        const readers = typeObservationReaders(delivered);
+        const evidence = requiredInvocationFact(delivered, iface.getSourceFile());
+        const reader = requiredInvocationFact(readers, iface.getSourceFile());
+        const axes = readAxes(iface, reader, evidence);
         ctx.receipt({ kind: "population", source: AXIS_POPULATION, members: axes.length, unresolved: 0 });
-        const covered = coveredAxes();
+        const covered = new Set([...directAxes(state.references, delivered), ...carriedAxes(homeCarriers(state.references, readers), state.importedNames)]);
         for (const axis of axes) {
           if (!(axis.singleArm || covered.has(axis.name))) {
             ctx.report.node(axis.declaration, {

@@ -3,6 +3,7 @@ import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/cont
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { ctxFor } from "../../_support.ts";
 
 const CONTRACT = "packages/server/src/domain/hub/contract/service.ts";
@@ -14,7 +15,15 @@ function findings(testSource: string, extraFiles: Readonly<Record<string, string
     [TEST]: testSource,
     ...extraFiles,
   });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
@@ -80,7 +89,15 @@ const BASE = "packages/server/src/domain/hub/contract/verbs.ts";
 
 function passOf(files: Readonly<Record<string, string>>): PolicyPassResult {
   const { project, root } = ctxFor(files);
-  return runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  return runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 function inheritedCase(testSource: string, baseMember = "inherited(): void;"): PolicyPassResult {
@@ -120,4 +137,16 @@ test("an `extends` clause that resolves to no interface REFUSES loudly instead o
   );
   expect(pass.authority.effectiveFindings).toEqual([]);
   expect(pass.authority.withheldPolicyIds).toEqual([gate.id]);
+});
+
+test("native delivery retains every declared member-policy proof", () => {
+  expect(verifyPolicyProofs([gate])).toEqual([]);
+});
+
+test("union and intersection service receivers retain exact contract declaration identity", () => {
+  expect(
+    findings(
+      'import type {HubService} from "../../../../packages/server/src/domain/hub/contract/service.ts"; declare const receiver:(HubService & {left:true}) | (HubService & {right:true});receiver.coveredVerb();',
+    ),
+  ).toEqual([]);
 });

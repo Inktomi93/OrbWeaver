@@ -44,8 +44,10 @@ JSON read, write and health policies consume native cohorts with parser membersh
 
 Native Zod, body-cap, selected origin, ID, reference, bus and failure consumers pass ordinary qualification and independent review. Missing native evidence refuses. Remaining families and cost stay open. Evidence: `reports/review/1027-native-bus-ordinary.md` and `reports/review/1027-native-failure-ordinary.md`.
 
-CSS providers retain separate populations and authority through the existing evaluator. Native world and lifetime controls pass review and ordinary qualification. Census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
+CSS providers preserve population and authority. Review and ordinary controls pass; census and cost remain open. Evidence: `reports/review/1027-native-css-ordinary.md`.
 
-Retained origins preserve direct and uncast declarations through bounded const-initializer questions. Ordinary controls and security review pass. Evidence: `reports/review/1027-retained-origins-ordinary.md`.
+Retained direct and uncast origins pass ordinary controls and security review. Evidence: `reports/review/1027-retained-origins-ordinary.md`.
 
-Mounted tRPC outputs consume exact native export, property and callable-body observations. Ordinary qualification and independent review pass. Real-router census and cost remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md`.
+Mounted tRPC outputs pass review and ordinary controls. Real-router census and cost remain open. Evidence: `reports/review/1027-native-trpc-ordinary.md`.
+
+Inherited service, config and policy members preserve native order and complete populations. Review and ordinary controls pass; grant census remains open. Evidence: `reports/review/1027-native-inherited-members-ordinary.md`.

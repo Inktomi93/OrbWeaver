@@ -1,9 +1,15 @@
 // Visitor-fed service-contract and domain-test call reconciliation for contract verb coverage.
-import type { CallExpression, InterfaceDeclaration, Node, Type } from "ts-morph";
+import type { CallExpression, InterfaceDeclaration, Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector, typeProjectionFacet } from "../../floor/code-facts/type-projection-contract.ts";
 import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import { defineFact } from "../contract/fact.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { nativeTypeProjection, prepareNativeTypeProjection } from "./native-value-projection.ts";
+import { typeObservationPlan, typeObservationReaders } from "./type-observation-context.ts";
 
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
 // A legacy domain test (`LEGACY_TEST_ROOT`) still proves its verbs until the rebuilt suite replaces it.
@@ -65,36 +71,62 @@ function isServiceFactoryCall(call: CallExpression): boolean {
   return name !== undefined && SERVICE_FACTORY_RE.test(name);
 }
 
-function typeComesFromService(type: Type, service: InterfaceDeclaration): boolean {
-  const declarations = [type.getAliasSymbol(), type.getSymbol()].flatMap((symbol) => symbol?.getDeclarations() ?? []);
-  if (declarations.includes(service)) {
-    return true;
+function typeComesFromService(reader: TypeObservationReader, selector: NativeTypeSelector, service: InterfaceDeclaration, seen = new Set<object>()): boolean {
+  const reference = reader.select(selector);
+  if (reference === null) {
+    return false;
   }
-  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeComesFromService(member, service));
+  const type = reader.type(reference);
+  if (seen.has(type.key)) {
+    return false;
+  }
+  seen.add(type.key);
+  const declarations = [type.aliasSymbol, type.symbol].flatMap((symbol) => (symbol === null ? [] : reader.symbolData(symbol).declarations));
+  return (
+    declarations.includes(service) ||
+    [...reader.unions(selector), ...reader.intersections(selector)].some((member) => typeComesFromService(reader, member, service, seen))
+  );
 }
 
-function typeVerbComesFromDomain(type: Type, service: InterfaceDeclaration, verb: string): boolean {
+interface ServiceVerbRead {
+  readonly reader: TypeObservationReader;
+  readonly service: InterfaceDeclaration;
+  readonly verb: string;
+}
+
+function typeVerbComesFromDomain(selector: NativeTypeSelector, context: ServiceVerbRead, seen = new Set<object>()): boolean {
+  const { reader, service, verb } = context;
+  const reference = reader.select(selector);
+  if (reference === null) {
+    return false;
+  }
+  const type = reader.type(reference);
+  if (seen.has(type.key)) {
+    return false;
+  }
+  seen.add(type.key);
   const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
-  const property = type.getProperty(verb);
+  const property = reader.propertySymbol(selector, verb);
   if (
-    property?.getDeclarations().some((declaration) => {
+    property !== null &&
+    reader.symbolData(property).declarations.some((declaration) => {
       const path = declaration.getSourceFile().getFilePath();
       return path.startsWith(domainRoot) && (path.includes("/verbs/") || path.endsWith("/service.ts"));
-    }) === true
+    })
   ) {
     return true;
   }
-  return [...type.getUnionTypes(), ...type.getIntersectionTypes()].some((member) => typeVerbComesFromDomain(member, service, verb));
+  return [...reader.unions(selector), ...reader.intersections(selector)].some((member) => typeVerbComesFromDomain(member, context, seen));
 }
 
-function isDomainVerbBundleFactory(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
+function isDomainVerbBundleFactory(call: CallExpression, service: InterfaceDeclaration, verb: string, reader: TypeObservationReader): boolean {
   const name = calledName(call);
-  if (name?.startsWith("create") !== true || call.getType().getProperty(verb) === undefined) {
+  if (name?.startsWith("create") !== true || reader.propertySymbol(nodeTypeSelector(call), verb) === null) {
     return false;
   }
   const callee = unwrapExpression(call.getExpression());
-  const symbol = callee.getSymbol();
-  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  const symbol = reader.symbol(callee);
+  const declarations = symbol === null ? [] : reader.symbolData(reader.symbolData(symbol).canonical).declarations;
   const domainRoot = service.getSourceFile().getFilePath().replace(SERVICE_CONTRACT_SUFFIX_RE, "/");
   return declarations.some((declaration) => {
     const path = declaration.getSourceFile().getFilePath();
@@ -102,13 +134,14 @@ function isDomainVerbBundleFactory(call: CallExpression, service: InterfaceDecla
   });
 }
 
-function isAssembledServiceExpression(node: Node, service: InterfaceDeclaration, verb: string, seen = new Set<string>()): boolean {
+function isAssembledServiceExpression(node: Node, context: ServiceVerbRead, seen = new Set<string>()): boolean {
+  const { reader, service, verb } = context;
   const expression = unwrapExpression(node);
-  if (typeComesFromService(expression.getType(), service) || typeVerbComesFromDomain(expression.getType(), service, verb)) {
+  if (typeComesFromService(reader, nodeTypeSelector(expression), service) || typeVerbComesFromDomain(nodeTypeSelector(expression), context)) {
     return true;
   }
   if (MorphNode.isCallExpression(expression)) {
-    if (isServiceFactoryCall(expression) || isDomainVerbBundleFactory(expression, service, verb)) {
+    if (isServiceFactoryCall(expression) || isDomainVerbBundleFactory(expression, service, verb, reader)) {
       return true;
     }
     const helperName = calledName(expression);
@@ -119,7 +152,7 @@ function isAssembledServiceExpression(node: Node, service: InterfaceDeclaration,
     return (
       helper?.getDescendantsOfKind(SyntaxKind.ReturnStatement).some((statement) => {
         const returned = statement.getExpression();
-        return returned !== undefined && isAssembledServiceExpression(returned, service, verb, seen);
+        return returned !== undefined && isAssembledServiceExpression(returned, context, seen);
       }) === true
     );
   }
@@ -137,25 +170,37 @@ function isAssembledServiceExpression(node: Node, service: InterfaceDeclaration,
     .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
     .find((candidate) => candidate.getName() === name);
   const initializer = declaration?.getInitializer();
-  return initializer !== undefined && isAssembledServiceExpression(initializer, service, verb, seen);
+  return initializer !== undefined && isAssembledServiceExpression(initializer, context, seen);
 }
 
-function isAssembledServiceCall(call: CallExpression, service: InterfaceDeclaration, verb: string): boolean {
+function isAssembledServiceCall(call: CallExpression, service: InterfaceDeclaration, verb: string, reader: TypeObservationReader): boolean {
   const expression = unwrapExpression(call.getExpression());
   if (MorphNode.isPropertyAccessExpression(expression) || MorphNode.isElementAccessExpression(expression)) {
-    return isAssembledServiceExpression(expression.getExpression(), service, verb);
+    return isAssembledServiceExpression(expression.getExpression(), { service, verb, reader });
   }
   return false;
 }
 
-function isCovered(calls: readonly CallExpression[], service: InterfaceDeclaration, verb: string): boolean {
+function isCovered(
+  calls: readonly CallExpression[],
+  service: InterfaceDeclaration,
+  verb: string,
+  readers: ReadonlyMap<import("ts-morph").SourceFile, TypeObservationReader>,
+): boolean {
   const factory = factoryName(verb);
   return calls.some((call) => {
     const name = calledName(call);
     if (name === factory) {
       return true;
     }
-    return name === verb && (isAssembledServiceCall(call, service, verb) || isFactoryBoundVerb(call, verb));
+    if (name !== verb) {
+      return false;
+    }
+    const reader = readers.get(call.getSourceFile());
+    if (reader === undefined) {
+      throw new Error("contract-verb test source has no native importing owner");
+    }
+    return isAssembledServiceCall(call, service, verb, reader) || isFactoryBoundVerb(call, verb);
   });
 }
 
@@ -182,10 +227,10 @@ function declaringInterfaceName(declaration: Node, fallback: string): string {
 /** Every `extends` clause of a service interface must RESOLVE. A base whose expression binds no interface
  *  declaration would silently contribute zero members — the exact shrunken-denominator failure this gate was
  *  repaired for (#943) — so it is a tool error instead. */
-function assertHeritageResolves(iface: InterfaceDeclaration): void {
+function assertHeritageResolves(iface: InterfaceDeclaration, reader: TypeObservationReader): void {
   for (const clause of iface.getExtends()) {
-    const symbol = clause.getExpression().getSymbol();
-    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    const symbol = reader.symbol(clause.getExpression());
+    const declarations = symbol === null ? [] : reader.symbolData(reader.symbolData(symbol).canonical).declarations;
     if (!declarations.some((declaration) => MorphNode.isInterfaceDeclaration(declaration))) {
       throw new Error(
         `contract-verb-presence: ${iface.getName()} in ${iface.getSourceFile().getFilePath()} extends "${clause.getText()}", which resolves to no interface declaration — its inherited verbs cannot be enumerated`,
@@ -206,14 +251,14 @@ interface ResolvedVerb {
 /** Every verb a `*Service` interface EXPOSES — the resolved type's properties, not the local declaration
  *  list, so an inherited base's verbs stay obligations (#943). A property that resolves to no declaration at
  *  all is unsupported composition, and refuses loudly rather than quietly leaving the denominator. */
-function resolvedVerbs(iface: InterfaceDeclaration): ResolvedVerb[] {
-  assertHeritageResolves(iface);
+function resolvedVerbs(iface: InterfaceDeclaration, reader: TypeObservationReader): ResolvedVerb[] {
+  assertHeritageResolves(iface, reader);
   const verbs: ResolvedVerb[] = [];
-  for (const property of iface.getType().getProperties()) {
-    const declarations = property.getDeclarations();
+  for (const property of reader.properties(nodeTypeSelector(iface), iface)) {
+    const declarations = reader.symbolData(property.symbol).declarations;
     if (declarations.length === 0) {
       throw new Error(
-        `contract-verb-presence: member "${property.getName()}" of ${iface.getName()} (${iface.getSourceFile().getFilePath()}) resolves to no declaration — its verb shape cannot be established`,
+        `contract-verb-presence: member "${property.name}" of ${iface.getName()} (${iface.getSourceFile().getFilePath()}) resolves to no declaration — its verb shape cannot be established`,
       );
     }
     const declaration = declarations[0];
@@ -221,18 +266,26 @@ function resolvedVerbs(iface: InterfaceDeclaration): ResolvedVerb[] {
       continue;
     }
     const declaredIn = declaringInterfaceName(declaration, iface.getName());
-    verbs.push({ service: iface, declaration, verb: property.getName(), declaredIn, inherited: declaredIn !== iface.getName() });
+    verbs.push({ service: iface, declaration, verb: property.name, declaredIn, inherited: declaredIn !== iface.getName() });
   }
   return verbs;
 }
 
 /** Every verb exposed by the domain's `*Service` interfaces (name ends exactly in `Service` — excludes
  *  `*ServiceDeps`, which is a DI bundle, not the verb surface). */
-function serviceVerbs(interfaces: readonly InterfaceDeclaration[]): ResolvedVerb[] {
+function serviceVerbs(
+  interfaces: readonly InterfaceDeclaration[],
+  readers: ReadonlyMap<import("ts-morph").SourceFile, TypeObservationReader>,
+  exported: (iface: InterfaceDeclaration) => boolean,
+): ResolvedVerb[] {
   const verbs: ResolvedVerb[] = [];
   for (const iface of interfaces) {
-    if (iface.isExported() && iface.getName().endsWith("Service")) {
-      verbs.push(...resolvedVerbs(iface));
+    if (iface.getName().endsWith("Service") && exported(iface)) {
+      const reader = readers.get(iface.getSourceFile());
+      if (reader === undefined) {
+        throw new Error("service interface has no native importing owner");
+      }
+      verbs.push(...resolvedVerbs(iface, reader));
     }
   }
   return verbs;
@@ -253,7 +306,12 @@ export interface ContractVerbPopulation {
   readonly sources: number;
 }
 
-function reconcileContractVerbPresence(interfaces: readonly InterfaceDeclaration[], calls: readonly CallExpression[]): ContractVerbPopulation {
+function reconcileContractVerbPresence(
+  interfaces: readonly InterfaceDeclaration[],
+  calls: readonly CallExpression[],
+  readers: ReadonlyMap<import("ts-morph").SourceFile, TypeObservationReader>,
+  exported: (iface: InterfaceDeclaration) => boolean,
+): ContractVerbPopulation {
   const candidates: ContractVerbCandidate[] = [];
   const services = new Set<string>();
   let local = 0;
@@ -267,20 +325,51 @@ function reconcileContractVerbPresence(interfaces: readonly InterfaceDeclaration
       continue;
     }
     const corpus = callsByDomain.get(domain) ?? [];
-    for (const { service, declaration, verb, declaredIn, inherited: isInherited } of serviceVerbs(domainInterfaces)) {
+    for (const { service, declaration, verb, declaredIn, inherited: isInherited } of serviceVerbs(domainInterfaces, readers, exported)) {
       services.add(`${domain}.${service.getName()}`);
       if (isInherited) {
         inherited += 1;
       } else {
         local += 1;
       }
-      if (isCovered(corpus, service, verb)) {
+      if (isCovered(corpus, service, verb, readers)) {
         continue;
       }
       candidates.push({ node: declaration, subject: `${domain}.${verb}`, verb, declaredIn });
     }
   }
   return { candidates, services: services.size, local, inherited, sources: interfaces.length + calls.length };
+}
+
+function assembledExpressionNominees(calls: readonly CallExpression[]): readonly Node[] {
+  const pending: Node[] = calls.flatMap((call) => {
+    const callee = unwrapExpression(call.getExpression());
+    return MorphNode.isPropertyAccessExpression(callee) || MorphNode.isElementAccessExpression(callee) ? [callee.getExpression()] : [];
+  });
+  const seen = new Set<Node>();
+  for (const value of pending) {
+    const expression = unwrapExpression(value);
+    if (seen.has(expression)) {
+      continue;
+    }
+    seen.add(expression);
+    if (MorphNode.isCallExpression(expression)) {
+      seen.add(unwrapExpression(expression.getExpression()));
+      const name = calledName(expression);
+      const helper = name === undefined ? undefined : expression.getSourceFile().getFunction(name);
+      pending.push(...(helper?.getDescendantsOfKind(SyntaxKind.ReturnStatement).flatMap((statement) => statement.getExpression() ?? []) ?? []));
+    } else if (MorphNode.isIdentifier(expression)) {
+      const declaration = expression
+        .getSourceFile()
+        .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+        .find((candidate) => candidate.getName() === expression.getText());
+      const initializer = declaration?.getInitializer();
+      if (initializer !== undefined) {
+        pending.push(initializer);
+      }
+    }
+  }
+  return [...seen];
 }
 
 export const contractVerbPresenceFact = defineFact({
@@ -294,7 +383,28 @@ export const contractVerbPresenceFact = defineFact({
   create: (ctx) => {
     const interfaces: InterfaceDeclaration[] = [];
     const calls: CallExpression[] = [];
+    let plan: InventoryInvocationPlan | undefined;
     return {
+      prepare: (): void => {
+        const services = interfaces.filter((iface) => SERVICE_CONTRACT_RE.test(iface.getSourceFile().getFilePath()) && iface.getName().endsWith("Service"));
+        for (const iface of services) {
+          prepareNativeTypeProjection(ctx, iface, { facets: ["declaration-export"], properties: [] });
+        }
+        const expressions = assembledExpressionNominees(calls);
+        plan = typeObservationPlan(
+          ctx.files,
+          [],
+          [
+            { kind: "type-properties", nodes: services },
+            { kind: "node-types", nodes: services.flatMap((iface) => iface.getExtends().map((clause) => clause.getExpression())) },
+            { kind: "type-constituents", nodes: expressions, properties: [...new Set(calls.flatMap((call) => calledName(call) ?? []))] },
+          ],
+        );
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native contract-verb facts are unavailable");
+        }
+        ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
+      },
       visitors: [
         {
           kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.CallExpression],
@@ -309,7 +419,13 @@ export const contractVerbPresenceFact = defineFact({
       ],
       finish: (): ContractVerbPopulation => {
         ctx.receipt({ kind: "population", source: "contract-verb-sources", members: ctx.files.length });
-        return reconcileContractVerbPresence(interfaces, calls);
+        if (plan === undefined || ctx.nativeTypes === undefined) {
+          throw new Error("native contract-verb demand was not prepared");
+        }
+        const readers = typeObservationReaders(ctx.nativeTypes.invocationEvidence(ctx.files, plan));
+        return reconcileContractVerbPresence(interfaces, calls, readers, (iface) =>
+          typeProjectionFacet(nativeTypeProjection(ctx, iface, { facets: ["declaration-export"], properties: [] }), "declaration-export"),
+        );
       },
     };
   },

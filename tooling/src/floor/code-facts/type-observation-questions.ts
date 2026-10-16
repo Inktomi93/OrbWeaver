@@ -198,6 +198,46 @@ function properties(question: TypeObservationQuestion, readers: TypeObservationR
     }
   }
 }
+/** Record immediate edges per encountered selector; expand each native Type once per nominated root. */
+export function observeTypeConstituentRoots(
+  selectors: readonly NativeTypeSelector[],
+  readers: TypeObservationReader,
+  names: readonly string[],
+): readonly NativeTypeSelector[] {
+  const encountered: NativeTypeSelector[] = [];
+  for (const root of selectors) {
+    const seen = new Set<object>();
+    const pending = [root];
+    for (const selector of pending) {
+      const reference = readers.select(selector);
+      if (reference === null) {
+        continue;
+      }
+      const type = readers.type(reference);
+      encountered.push(selector);
+      const parts = [...readers.unions(selector), ...readers.intersections(selector)];
+      for (const name of names) {
+        readers.propertySymbol(selector, name);
+      }
+      if (!seen.has(type.key)) {
+        seen.add(type.key);
+        pending.push(...parts);
+      }
+    }
+  }
+  return encountered;
+}
+function observeTypeConstituents(question: TypeObservationQuestion, readers: TypeObservationReader): void {
+  for (const node of question.nodes) {
+    readers.symbol(node);
+  }
+  observeTypeConstituentRoots(
+    question.nodes.map((node) => nodeTypeSelector(node)),
+    readers,
+    question.properties ?? [],
+  );
+}
+
 function valueSlot(readers: TypeObservationReader, node: MorphNode, names: readonly string[]): void {
   const symbol = readers.symbol(node);
   if (symbol === null) {
@@ -482,6 +522,7 @@ const questions: Record<
     }
   },
   "type-properties": properties,
+  "type-constituents": observeTypeConstituents,
   "definition-nodes": (question, readers): void => {
     for (const node of question.nodes) {
       readers.definitions(node);

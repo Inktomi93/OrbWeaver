@@ -229,6 +229,29 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
       }
       return row.values.map(selectorAt);
     },
+    intersections: (selector) => {
+      const index = indexOf(selector);
+      const row = facts.intersections?.find((entry) => entry.selector === index);
+      if (row === undefined || row.values.length !== facts.types[index]?.intersectionCount) {
+        throw new Error("native intersection-slot question was not captured or is incomplete");
+      }
+      return row.values.map(selectorAt);
+    },
+    constraint: (selector) => {
+      const row = facts.constraints?.find((entry) => entry.selector === indexOf(selector));
+      if (row === undefined) {
+        throw new Error("native constraint question was not captured");
+      }
+      return row.value === null ? null : selectorAt(row.value);
+    },
+    signatureDeclarations: (selector, kind) => {
+      const row = facts.signatureDeclarations?.find((entry) => entry.selector === indexOf(selector) && entry.kind === kind);
+      if (row === undefined || row.declarationCount !== row.declarations.length) {
+        throw new Error("native signature declarations were not captured or are incomplete");
+      }
+      row.declarations.forEach(facts.assertNode);
+      return row.declarations;
+    },
     callReturns: (node) => {
       facts.assertNode(node);
       const row = returns.get(node);
@@ -334,10 +357,25 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     const callableBodies = new Set<Node>();
     const namedProperties = new Set<string>();
     const values = new Map<Node, Set<string>>();
+    const intersectionQuestions = new Set<number>();
+    const constraintQuestions = new Set<number>();
+    const declarationQuestions = new Set<string>();
     observeAuthoredTypeSlots(
       facts.demand,
       {
         ...reader,
+        intersections: (selector) => {
+          intersectionQuestions.add(indexOf(selector));
+          return reader.intersections(selector);
+        },
+        constraint: (selector) => {
+          constraintQuestions.add(indexOf(selector));
+          return reader.constraint(selector);
+        },
+        signatureDeclarations: (selector, kind) => {
+          declarationQuestions.add(JSON.stringify([indexOf(selector), kind]));
+          return reader.signatureDeclarations(selector, kind);
+        },
         definitions: (node) => {
           usedDefinitions.add(node);
           return reader.definitions(node);
@@ -388,6 +426,7 @@ export function readTypeObservations(facts: NativeTypeObservations, references?:
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
     assertConstInitializerRelationships(facts, reader);
     assertCallableBodyUsage(facts, callableBodies);
+    assertGraphQuestionUsage(facts, intersectionQuestions, constraintQuestions, declarationQuestions);
     if (
       facts.types.some((row, index) => (row?.primitiveFlags !== undefined) !== primitives.has(index)) ||
       facts.types.some((row, index) => (row?.categoryFlags !== undefined) !== categories.has(index)) ||
@@ -464,5 +503,20 @@ function assertConstInitializerRelationships(facts: NativeTypeObservations, read
     })
   ) {
     throw new Error("native const initializer relationships are missing or foreign");
+  }
+}
+
+function assertGraphQuestionUsage(
+  facts: NativeTypeObservations,
+  intersections: ReadonlySet<number>,
+  constraints: ReadonlySet<number>,
+  declarations: ReadonlySet<string>,
+): void {
+  if (
+    (facts.intersections ?? []).some((row) => !intersections.has(row.selector)) ||
+    (facts.constraints ?? []).some((row) => !constraints.has(row.selector)) ||
+    (facts.signatureDeclarations ?? []).some((row) => !declarations.has(JSON.stringify([row.selector, row.kind])))
+  ) {
+    throw new Error("native Type graph question coverage is foreign");
   }
 }

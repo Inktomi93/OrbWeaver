@@ -5,6 +5,8 @@
 // `knob-wire-members.ts` and nothing from `knob-wire-fact.ts`.
 import type { Node } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { EFFECTIVE_APP_CONFIG, METADATA_PARSER, SETTINGS_CONTRACTS } from "./knob-wire-members.ts";
 
 /** Arm B2: the admin write surfaces (the config host + the user-admin feature dir). The settings feature
@@ -148,13 +150,23 @@ function presenceName(node: Node): string | undefined {
 
 /** Arm A: a name read off an `EffectiveAppConfig`-TYPED receiver. Type-keyed (`analysis: "types"`), so an
  *  unrelated `.rateLimits` on some other object never counts as consumption. */
-function configReadName(node: Node, scope: FileScope): string | undefined {
-  if (!(scope.configRead && MorphNode.isPropertyAccessExpression(node))) {
-    return;
+export function configReadReceiver(node: Node, scope: FileScope): Node | undefined {
+  return scope.configRead && MorphNode.isPropertyAccessExpression(node) ? node.getExpression() : undefined;
+}
+
+export function collectConfigRead(node: Node, reader: TypeObservationReader, corpora: Corpora): void {
+  if (!MorphNode.isPropertyAccessExpression(node)) {
+    throw new Error("config read candidate is not a property access");
   }
-  // AppSettings-typed resolver defaults are not consumption; EffectiveAppConfig reload reads remain in scope.
-  const type = node.getExpression().getType();
-  return (type.getSymbol() ?? type.getAliasSymbol())?.getName() === EFFECTIVE_APP_CONFIG ? node.getName() : undefined;
+  const reference = reader.select(nodeTypeSelector(node.getExpression()));
+  if (reference === null) {
+    throw new Error("native config receiver Type is unavailable");
+  }
+  const type = reader.type(reference);
+  const symbol = type.symbol ?? type.aliasSymbol;
+  if (symbol !== null && reader.symbolData(symbol).name === EFFECTIVE_APP_CONFIG) {
+    corpora.configReads.add(node.getName());
+  }
 }
 
 export function visitNode(node: Node, scope: FileScope, corpora: Corpora): void {
@@ -167,10 +179,6 @@ export function visitNode(node: Node, scope: FileScope, corpora: Corpora): void 
     if (MorphNode.isIdentifier(node)) {
       corpora.identifiers.add(presence);
     }
-  }
-  const configRead = configReadName(node, scope);
-  if (configRead !== undefined) {
-    corpora.configReads.add(configRead);
   }
   if (MorphNode.isCallExpression(node)) {
     if (scope.isSettingsContract) {

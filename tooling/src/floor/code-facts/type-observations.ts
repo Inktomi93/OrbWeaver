@@ -78,6 +78,9 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
   const properties = new Map<string, NativeTypeObservations["properties"][number]>();
   const unions = new Map<number, NativeTypeObservations["unions"][number]>();
   const unionTypes = new Map<object, readonly number[]>();
+  const intersections = new Map<number, NonNullable<NativeTypeObservations["intersections"]>[number]>();
+  const constraints = new Map<number, NonNullable<NativeTypeObservations["constraints"]>[number]>();
+  const declarationSignatures = new Map<string, NonNullable<NativeTypeObservations["signatureDeclarations"]>[number]>();
   const propertyTypes = new Map<object, Map<MorphNode, NativeTypeObservations["properties"][number]["values"]>>();
   const callReturns = new Map<MorphNode, NativeTypeObservations["callReturns"][number]>();
   const signatures = new Map<MorphNode, NativeObservedSignature>();
@@ -451,6 +454,48 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       unions.set(index, { selector: index, values: children });
       return children.map(selectorAt);
     },
+    intersections: (selector) => {
+      const index = read(selector);
+      let row = intersections.get(index);
+      if (row === undefined) {
+        const value = valueAt(index);
+        const values = value
+          .getIntersectionTypes()
+          .map((_part, ordinal) => read({ ...selector, steps: [...selector.steps, { kind: "intersection-part", index: ordinal }] }));
+        const metadata = types[index];
+        if (metadata === undefined || metadata === null) {
+          throw new Error("native intersection owner is absent");
+        }
+        types[index] = { ...metadata, intersectionCount: values.length };
+        row = { selector: index, values };
+        intersections.set(index, row);
+      }
+      return row.values.map(selectorAt);
+    },
+    constraint: (selector) => {
+      const index = read(selector);
+      let row = constraints.get(index);
+      if (row === undefined) {
+        const child = { ...selector, steps: [...selector.steps, { kind: "constraint" as const }] };
+        const value = read(child);
+        row = { selector: index, value: selected[value] === undefined ? null : value };
+        constraints.set(index, row);
+      }
+      return row.value === null ? null : selectorAt(row.value);
+    },
+    signatureDeclarations: (selector, kind) => {
+      const index = read(selector);
+      const key = JSON.stringify([index, kind]);
+      let row = declarationSignatures.get(key);
+      if (row === undefined) {
+        const type = valueAt(index);
+        const declarations = (kind === "call" ? type.getCallSignatures() : type.getConstructSignatures()).map((signature) => signature.getDeclaration());
+        declarations.forEach(admit);
+        row = { selector: index, kind, declarationCount: declarations.length, declarations };
+        declarationSignatures.set(key, row);
+      }
+      return row.declarations;
+    },
     callReturns: (node) => {
       const previous = callReturns.get(node);
       if (previous !== undefined) {
@@ -643,7 +688,8 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       ? { functionExports: [...functionExports].map(([node, value]) => ({ node, value })) }
       : {};
   const capturedPropertySymbols = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "propertySymbols"> =>
-    demand.questions?.some((question) => ["property-symbols", "const-initializers", "selected-property-graph"].includes(question.kind)) === true
+    demand.questions?.some((question) => ["property-symbols", "const-initializers", "selected-property-graph", "type-constituents"].includes(question.kind)) ===
+    true
       ? { propertySymbols: [...propertySymbols.values()] }
       : {};
   const capturedExportDeclarations = (demand: TypeObservationDemand): Pick<NativeTypeObservations, "exportDeclarations"> =>
@@ -652,6 +698,11 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
     demand.questions?.some((question) => question.kind === "callable-body-values") === true
       ? { callableBodies: [...callableBodies].map(([node, body]) => ({ node, body })) }
       : {};
+  const capturedGraphQuestions = (): Pick<NativeTypeObservations, "intersections" | "constraints" | "signatureDeclarations"> => ({
+    ...(intersections.size === 0 ? {} : { intersections: [...intersections.values()] }),
+    ...(constraints.size === 0 ? {} : { constraints: [...constraints.values()] }),
+    ...(declarationSignatures.size === 0 ? {} : { signatureDeclarations: [...declarationSignatures.values()] }),
+  });
   return {
     reader,
     finish: (demand: TypeObservationDemand, valueProfiles): NativeTypeObservations => {
@@ -693,6 +744,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
         nodes: [...nodes.values()],
         types,
         unions: [...unions.values()],
+        ...capturedGraphQuestions(),
         properties: [...properties.values()].map(({ propertyCount, ...row }) => (hasCompleteTypePropertyDemand(demand) ? { ...row, propertyCount } : row)),
         callReturns: [...callReturns.values()],
         computedNames: [...computed.values()],

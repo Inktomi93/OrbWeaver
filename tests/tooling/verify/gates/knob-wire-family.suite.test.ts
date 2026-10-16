@@ -17,10 +17,15 @@ import { gate } from "../../../../tooling/src/verify/gates/knob-wire-coverage.ts
 import { KNOB_WIRE_OPERATIONS } from "../../../../tooling/src/verify/lib/knob-wire-fact.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-test("every declared row conforms", () => {
-  expect(verifyPolicyProofs([gate])).toEqual([]);
-});
+test(
+  "every declared row conforms",
+  () => {
+    expect(verifyPolicyProofs([gate])).toEqual([]);
+  },
+  scaledBudget(15_000),
+);
 
 // ── §6.4 conversion differential: all 23 legacy fixtures, both engines, the same bytes ─────────────────
 

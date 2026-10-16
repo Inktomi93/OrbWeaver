@@ -14,6 +14,7 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "const-initializers",
   "declaration-closure",
   "type-properties",
+  "type-constituents",
   "definition-nodes",
   "definition-closure",
   "call-parameters",
@@ -92,6 +93,7 @@ export interface NativeObservedType {
   readonly aliasSymbol: number | null;
   readonly never: boolean;
   readonly typeParameter: boolean;
+  readonly intersectionCount?: number | undefined;
   readonly unionCount: number;
   readonly tupleCount: number;
   readonly primitiveFlags?: NativePrimitiveFlags | undefined;
@@ -138,6 +140,11 @@ export interface TypeObservationValues<Anchor = Node> {
     readonly values: readonly { readonly name: string; readonly symbol: number; readonly type: number }[];
   }[];
   readonly unions: readonly { readonly selector: number; readonly values: readonly number[] }[];
+  readonly intersections?: readonly { readonly selector: number; readonly values: readonly number[] }[] | undefined;
+  readonly constraints?: readonly { readonly selector: number; readonly value: number | null }[] | undefined;
+  readonly signatureDeclarations?:
+    | readonly { readonly selector: number; readonly kind: "call" | "construct"; readonly declarationCount: number; readonly declarations: readonly Anchor[] }[]
+    | undefined;
   readonly callReturns: readonly { readonly node: Anchor; readonly values: readonly number[] }[];
   readonly computedNames: readonly {
     readonly selector: number;
@@ -232,6 +239,9 @@ export interface TypeObservationReader {
   readonly localTarget: (node: Node) => ObservedReference<"symbol"> | null;
   readonly properties: (selector: NativeTypeSelector, at: Node) => readonly ObservedProperty[];
   readonly unions: (selector: NativeTypeSelector) => readonly NativeTypeSelector[];
+  readonly intersections: (selector: NativeTypeSelector) => readonly NativeTypeSelector[];
+  readonly constraint: (selector: NativeTypeSelector) => NativeTypeSelector | null;
+  readonly signatureDeclarations: (selector: NativeTypeSelector, kind: "call" | "construct") => readonly Node[];
   readonly callReturns: (node: Node) => readonly NativeTypeSelector[];
   readonly signature: (call: Node) => ObservedSignature | null;
   readonly depends: (selector: NativeTypeSelector, owner: Node, at: Node) => Node | null;

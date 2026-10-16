@@ -6,8 +6,10 @@
 // (2026-09-18); one-way — this module imports nothing from `knob-wire-fact.ts` or `knob-wire-corpora.ts`.
 
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { InterfaceDeclaration, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
+import type { ImportDeclaration, InterfaceDeclaration, Node, ObjectLiteralExpression, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { readStringValue, unwrapExpression } from "./ast-read.ts";
 import { readTupleDeclaration } from "./tuple-read.ts";
 
@@ -87,6 +89,7 @@ interface SchemaWalk {
   readonly label: string;
   readonly seen: ReadonlySet<string>;
   readonly tally: MemberTally;
+  readonly moduleSource: (declaration: ImportDeclaration) => SourceFile | undefined;
 }
 
 /** One declared member: the expression it carries (`undefined` for a shorthand) and the AUTHORED NAME NODE
@@ -103,7 +106,7 @@ type SchemaMembers = Map<string, SchemaMember>;
 /** The declaration a schema identifier names: this file's own const, or the one a named import points at —
  *  the local-or-named-import hop, spelled per member source so each keeps its own refusal vocabulary
  *  (`lib/tuple-read.ts`'s `spreadSource` is the twin). */
-function schemaBinding(owner: SourceFile, localName: string): VariableDeclaration | undefined {
+function schemaBinding(owner: SourceFile, localName: string, moduleSource: SchemaWalk["moduleSource"]): VariableDeclaration | undefined {
   const local = owner.getVariableDeclaration(localName);
   if (local !== undefined) {
     return local;
@@ -112,7 +115,11 @@ function schemaBinding(owner: SourceFile, localName: string): VariableDeclaratio
     .getImportDeclarations()
     .flatMap((declaration) => declaration.getNamedImports().map((specifier) => ({ declaration, specifier })))
     .find(({ specifier }) => (specifier.getAliasNode()?.getText() ?? specifier.getName()) === localName);
-  return imported === undefined ? undefined : imported.declaration.getModuleSpecifierSourceFile()?.getVariableDeclaration(imported.specifier.getName());
+  if (imported === undefined) {
+    return;
+  }
+  const source = moduleSource(imported.declaration);
+  return source?.getVariableDeclaration(imported.specifier.getName());
 }
 
 /** A member's KEY: an identifier / quoted name read through any wrapper, or a COMPUTED key whose expression
@@ -163,7 +170,7 @@ function collectObjectMembers(object: ObjectLiteralExpression, out: SchemaMember
 
 /** Follow an identifier to the members of the declaration it binds — local or named import, cycle-fenced. */
 function collectBoundMembers(identifier: Node, out: SchemaMembers, walk: SchemaWalk): void {
-  const declaration = schemaBinding(identifier.getSourceFile(), identifier.getText());
+  const declaration = schemaBinding(identifier.getSourceFile(), identifier.getText(), walk.moduleSource);
   if (declaration === undefined) {
     throw new Error(`knob-wire-coverage: ${walk.label} binding "${identifier.getText()}" resolves to no local declaration or named import`);
   }
@@ -242,27 +249,27 @@ function collectSchemaMembers(expression: Node, out: SchemaMembers, walk: Schema
 /** Every top-level member an authored object shape declares — a `z.object` schema chain or an `as const`
  *  map — key → its value expression and authored name node, resolving object spreads, `.shape` spreads,
  *  `.extend`/`.merge` composition and local/imported bindings. Every other shape throws. */
-function schemaMembers(expression: Node, label: string): SchemaMembers {
+function schemaMembers(expression: Node, label: string, moduleSource: SchemaWalk["moduleSource"]): SchemaMembers {
   const out: SchemaMembers = new Map();
-  collectSchemaMembers(expression, out, { label, seen: new Set(), tally: { declared: 0 } });
+  collectSchemaMembers(expression, out, { label, seen: new Set(), tally: { declared: 0 }, moduleSource });
   return out;
 }
 
 /** The members of the authored object a NAMED declaration owns. EMPTY when the file declares no such name:
  *  a conformance mini-tree legitimately omits a member source, and `assertMemberSourcePresent` owns the
  *  "the real source was renamed away" direction. */
-export function declaredMembers(sf: SourceFile, varName: string): SchemaMembers {
+export function declaredMembers(sf: SourceFile, varName: string, moduleSource: SchemaWalk["moduleSource"]): SchemaMembers {
   const initializer = sf.getVariableDeclaration(varName)?.getInitializer();
-  return initializer === undefined ? new Map() : schemaMembers(initializer, varName);
+  return initializer === undefined ? new Map() : schemaMembers(initializer, varName, moduleSource);
 }
 
 /** Every `extends` clause of the member-source interface must RESOLVE. A base binding no interface
  *  declaration would silently contribute zero fields — the shrunken-denominator failure verbatim — so it is
  *  a refusal instead (the `contract-verb-presence` #943 precedent). */
-function assertHeritageResolves(iface: InterfaceDeclaration): void {
+function assertHeritageResolves(iface: InterfaceDeclaration, reader: TypeObservationReader): void {
   for (const clause of iface.getExtends()) {
-    const symbol = clause.getExpression().getSymbol();
-    const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+    const symbol = reader.symbol(clause.getExpression());
+    const declarations = symbol === null ? [] : reader.symbolData(reader.symbolData(symbol).canonical).declarations;
     if (!declarations.some((declaration) => MorphNode.isInterfaceDeclaration(declaration))) {
       throw new Error(
         `knob-wire-coverage: ${iface.getName()} in ${iface.getSourceFile().getFilePath()} extends "${clause.getText()}", which resolves to no interface declaration — its inherited fields cannot be enumerated`,
@@ -275,33 +282,30 @@ function assertHeritageResolves(iface: InterfaceDeclaration): void {
  *  list, so a field inherited through `extends` is still a knob that owes a consumer (#1094 G2). Each keeps
  *  its DECLARING node, so an inherited field's finding lands on the base interface that owns it. A property
  *  resolving to no declaration at all is unsupported composition, and refuses. */
-export function interfaceFields(sf: SourceFile, name: string): readonly (readonly [string, Node])[] {
+export function interfaceFields(sf: SourceFile, name: string, reader: TypeObservationReader): readonly (readonly [string, Node])[] {
   const iface = sf.getInterface(name);
   if (iface === undefined) {
     return [];
   }
-  assertHeritageResolves(iface);
-  return iface
-    .getType()
-    .getProperties()
-    .map((property): readonly [string, Node] => {
-      const declaration = property.getDeclarations()[0];
-      if (declaration === undefined) {
-        throw new Error(`knob-wire-coverage: member "${property.getName()}" of ${name} resolves to no declaration — its field shape cannot be established`);
-      }
-      return [property.getName(), declaration];
-    });
+  assertHeritageResolves(iface, reader);
+  return reader.properties(nodeTypeSelector(iface), iface).map((property): readonly [string, Node] => {
+    const declaration = reader.symbolData(property.symbol).declarations[0];
+    if (declaration === undefined) {
+      throw new Error(`knob-wire-coverage: member "${property.name}" of ${name} resolves to no declaration — its field shape cannot be established`);
+    }
+    return [property.name, declaration];
+  });
 }
 
 /** The members of the `<CONST> = [...] as const` section tuple (arm B) — through `lib/tuple-read.ts`, the
  *  ONE home for that question, so a member arriving through a local/imported SPREAD counts (with the node of
  *  the declaration that CONTRIBUTED it) and every other element shape refuses (#1094 G3). */
-export function tupleMembers(sf: SourceFile, varName: string): readonly (readonly [string, Node])[] {
+export function tupleMembers(sf: SourceFile, varName: string, moduleSource: SchemaWalk["moduleSource"]): readonly (readonly [string, Node])[] {
   const decl = sf.getVariableDeclaration(varName);
   if (decl === undefined || decl.getInitializer() === undefined) {
     return [];
   }
-  return readTupleDeclaration(decl).entries.map((entry): readonly [string, Node] => [entry.value, entry.node]);
+  return readTupleDeclaration(decl, moduleSource).entries.map((entry): readonly [string, Node] => [entry.value, entry.node]);
 }
 
 // ── arm C's leaf population ─────────────────────────────────────────────────────────────────────────────
@@ -322,13 +326,18 @@ interface SettingsLeafPopulation {
 /** Local `z.object({...})` leaves in the settings contract, minus section names and `schemaVersion`.
  *  Through the shared member reader, so a leaf reaching a LOCAL z.object through an object spread is in the
  *  denominator instead of dropped (#1094 G4 — the same key was silently missing from arms B2 AND C). */
-function localSettingsLeaves(settingsCalls: readonly Node[], sections: ReadonlySet<string>, into: Map<string, Node>): void {
+function localSettingsLeaves(
+  settingsCalls: readonly Node[],
+  sections: ReadonlySet<string>,
+  into: Map<string, Node>,
+  moduleSource: SchemaWalk["moduleSource"],
+): void {
   for (const call of settingsCalls) {
     const obj = zObjectArg(call);
     if (obj === undefined) {
       continue;
     }
-    for (const [name, member] of schemaMembers(obj, "settings schema leaf")) {
+    for (const [name, member] of schemaMembers(obj, "settings schema leaf", moduleSource)) {
       if (!(sections.has(name) || name === "schemaVersion" || into.has(name))) {
         into.set(name, member.nameNode);
       }
@@ -336,8 +345,8 @@ function localSettingsLeaves(settingsCalls: readonly Node[], sections: ReadonlyS
   }
 }
 
-function importedSettingsLeaves(settings: SourceFile, into: Map<string, Node>): number {
-  const userSettings = declaredMembers(settings, USER_SETTINGS_SCHEMA);
+function importedSettingsLeaves(settings: SourceFile, into: Map<string, Node>, moduleSource: SchemaWalk["moduleSource"]): number {
+  const userSettings = declaredMembers(settings, USER_SETTINGS_SCHEMA, moduleSource);
   let imported = 0;
   for (const source of IMPORTED_SETTINGS_SCHEMA_SOURCES) {
     const composed = userSettings.get(source.section);
@@ -357,7 +366,7 @@ function importedSettingsLeaves(settings: SourceFile, into: Map<string, Node>): 
         `knob-wire-coverage Arm C: ${USER_SETTINGS_SCHEMA}.${source.section} must compose the semantic source ${source.symbol}, got ${localName.getText()}`,
       );
     }
-    const members = schemaMembers(localName, source.symbol);
+    const members = schemaMembers(localName, source.symbol, moduleSource);
     if (members.size === 0) {
       throw new Error(`knob-wire-coverage Arm C: semantic source ${source.symbol} resolved to zero leaves`);
     }
@@ -371,16 +380,21 @@ function importedSettingsLeaves(settings: SourceFile, into: Map<string, Node>): 
   return imported;
 }
 
-export function settingsLeaves(settings: SourceFile, settingsCalls: readonly Node[], sections: ReadonlySet<string>): SettingsLeafPopulation {
+export function settingsLeaves(
+  settings: SourceFile,
+  settingsCalls: readonly Node[],
+  sections: ReadonlySet<string>,
+  moduleSource: SchemaWalk["moduleSource"],
+): SettingsLeafPopulation {
   const into = new Map<string, Node>();
-  localSettingsLeaves(settingsCalls, sections, into);
+  localSettingsLeaves(settingsCalls, sections, into, moduleSource);
   if (settings.getVariableDeclaration(USER_SETTINGS_SCHEMA) === undefined) {
     if (settings.getVariableDeclaration(DEFAULT_USER_SETTINGS) !== undefined) {
       throw new Error(`knob-wire-coverage Arm C: ${DEFAULT_USER_SETTINGS} exists but ${USER_SETTINGS_SCHEMA} is missing`);
     }
     return { leaves: [...into], importedLeafCount: 0, importedSources: 0 };
   }
-  const importedLeafCount = importedSettingsLeaves(settings, into);
+  const importedLeafCount = importedSettingsLeaves(settings, into, moduleSource);
   if (into.size === 0) {
     throw new Error("knob-wire-coverage Arm C: settings semantic leaf population resolved to zero");
   }
