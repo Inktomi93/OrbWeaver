@@ -2,13 +2,14 @@
 import type { Node } from "ts-morph";
 import { resolveDrizzleTableRefs } from "./drizzle-table-ref.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
+import type { ReferenceFact } from "./reference-fact-contract.ts";
 import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityQuery, SchemaIdentityTable } from "./schema-identity-contract.ts";
-import type { SchemaFact, SchemaModel, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
+import type { SchemaColumnIdentity, SchemaFact, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
 import { createSchemaQuery, unavailableSchemaReference } from "./schema-query.ts";
-import { tableFromReference } from "./schema-resolve.ts";
+import { columnFromReference, tableFromReference } from "./schema-resolve.ts";
 import { schemaDeclarationKey } from "./schema-value.ts";
 
-function tableIdentity(table: SchemaTable): SchemaIdentityTable {
+function tableIdentity(table: SchemaIdentityTable): SchemaIdentityTable {
   return { identity: table.identity, declaration: table.declaration, call: table.call, sqlName: table.sqlName };
 }
 
@@ -18,19 +19,26 @@ export function readSchemaIdentities(options: SchemaQueryOptions): SchemaFact<Sc
 }
 
 /** Identity and full-data demand can share one complete native extraction. */
-export function projectSchemaIdentities(schema: SchemaFact<SchemaModel>): SchemaFact<SchemaIdentityModel> {
+export function projectSchemaIdentities(schema: SchemaFact<SchemaIdentityModel>): SchemaFact<SchemaIdentityModel> {
   return schema.status === "ready" ? { ...schema, value: { tables: schema.value.tables.map(tableIdentity) } } : schema;
 }
 
 /** Re-enter the canonical table-reference algorithm with explicitly projected native table values. */
-export function schemaIdentityQuery<Table>(
+export function schemaIdentityQuery<Table extends Pick<SchemaTable, "identity">>(
   schema: SchemaFact<SchemaIdentityModel<Table>>,
   declarations: ReadonlyMap<string, Table>,
+  columns?: ReadonlyMap<string, SchemaColumnIdentity>,
 ): SchemaIdentityQuery<Table> {
   return {
     schema: () => schema,
     declarations: new Set(declarations.keys()),
     table: (node) => (schema.status === "ready" ? tableFromReference(node, declarations) : unavailableSchemaReference(schema, node)),
+    column: (node): ReferenceFact<SchemaColumnIdentity> => {
+      if (columns === undefined) {
+        throw new Error("native Drizzle column catalog was not requested");
+      }
+      return schema.status === "ready" ? columnFromReference(node, declarations, columns) : unavailableSchemaReference(schema, node);
+    },
   };
 }
 

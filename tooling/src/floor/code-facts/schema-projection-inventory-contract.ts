@@ -4,6 +4,7 @@ import { SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import type { InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import { assertSchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
+import type { InventorySchemaConfiguration } from "./schema-configuration-inventory-contract.ts";
 import type { SchemaFact, SchemaForeignKey, SchemaIndex, SchemaJsonShape, SchemaTableForeignKey } from "./schema-model-contract.ts";
 import { SCHEMA_COLUMN_DEFAULT_OPERATIONS, SCHEMA_FACT_STATUSES } from "./schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedColumn, SchemaProjectedTable, SchemaProjectedTypeOverride } from "./schema-projection-contract.ts";
@@ -17,11 +18,13 @@ type InventorySchemaJsonShape =
   | { readonly kind: "open"; readonly typeNode: InventorySpan | null }
   | SpanFields<Exclude<SchemaJsonShape, { readonly kind: "open" }>>;
 
-export interface InventorySchemaProjectedColumn extends Omit<SpanFields<SchemaProjectedColumn>, "builder" | "typeOverride" | "json" | "foreignKey"> {
+export interface InventorySchemaProjectedColumn
+  extends Omit<SpanFields<SchemaProjectedColumn>, "builder" | "typeOverride" | "json" | "foreignKey" | "configuration"> {
   readonly builder: SpanFields<SchemaProjectedColumn["builder"]>;
   readonly typeOverride: SpanFields<SchemaProjectedTypeOverride> | null;
   readonly json: { readonly mode: "json"; readonly shape: InventorySchemaJsonShape } | null;
   readonly foreignKey: SpanFields<SchemaForeignKey> | null;
+  readonly configuration?: InventorySchemaConfiguration | null | undefined;
 }
 
 type InventorySchemaIndex = Omit<SpanFields<SchemaIndex>, "terms"> & {
@@ -44,6 +47,7 @@ export interface InventorySchemaProjectedCatalog {
 export function schemaProjectionInventorySchema(
   span: z.ZodType<InventorySpan>,
   identityCatalog: z.ZodType<InventorySchemaIdentityCatalog>,
+  configuration: z.ZodType<InventorySchemaConfiguration>,
 ): z.ZodType<InventorySchemaProjectedCatalog> {
   const tableIdentity = z.object({ sourcePath: z.string(), declarationName: z.string(), key: z.string() });
   const columnIdentity = z.object({ table: tableIdentity, propertyName: z.string(), key: z.string() });
@@ -81,6 +85,7 @@ export function schemaProjectionInventorySchema(
     notNull: z.boolean(),
     json: z.object({ mode: z.literal("json"), shape }).nullable(),
     foreignKey: z.object({ child: columnIdentity, parent, onDelete, call }).nullable(),
+    configuration: configuration.nullable().optional(),
   });
   const term = z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("column"), column: columnIdentity }),
@@ -148,18 +153,9 @@ export function assertSchemaProjectedCatalog(catalog: InventorySchemaProjectedCa
   if (fact.status !== "ready") {
     return;
   }
-  for (const table of fact.value.tables) {
-    for (const column of table.columns) {
-      if (
-        column.typeOverride !== null &&
-        (column.typeOverride.vocabulary !== undefined) !== (catalog.projection?.typeVocabulary === true && column.json !== null)
-      ) {
-        throw new Error("native schema selected-Type vocabulary coverage is incomplete or foreign");
-      }
-    }
-  }
   const tables = fact.value.tables;
   const columns = tables.flatMap((table) => table.columns);
+  assertProjectionCoverage(columns, catalog.projection ?? {});
   const indexes = tables.flatMap((table) => table.indexes);
   const json = columns.filter((column) => column.json !== null);
   if (
@@ -178,6 +174,17 @@ export function assertSchemaProjectedCatalog(catalog: InventorySchemaProjectedCa
   for (const table of tables) {
     assertColumns(table, byKey);
     assertConstraints(table, byKey);
+  }
+}
+
+function assertProjectionCoverage(columns: readonly InventorySchemaProjectedColumn[], projection: SchemaDataProjection): void {
+  for (const column of columns) {
+    if ((column.configuration !== undefined) !== (projection.builderConfig === true)) {
+      throw new Error("native schema builder configuration coverage is incomplete or foreign");
+    }
+    if (column.typeOverride !== null && (column.typeOverride.vocabulary !== undefined) !== (projection.typeVocabulary === true && column.json !== null)) {
+      throw new Error("native schema selected-Type vocabulary coverage is incomplete or foreign");
+    }
   }
 }
 

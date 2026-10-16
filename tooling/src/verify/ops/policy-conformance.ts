@@ -16,8 +16,10 @@ import { referenceResolutionServices, resolveGlobalMemberOrigin } from "../../fl
 import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-alias.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
 import { readRuntimeExports } from "../../floor/code-facts/runtime-export.ts";
-import { readSchemaIdentities, schemaIdentityQuery } from "../../floor/code-facts/schema-identity.ts";
+import { projectSchemaIdentities, readSchemaIdentities, schemaIdentityQuery } from "../../floor/code-facts/schema-identity.ts";
+import type { SchemaColumnIdentity, SchemaFact } from "../../floor/code-facts/schema-model-contract.ts";
 import { readSchemaData } from "../../floor/code-facts/schema-projection.ts";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDeclarationKey } from "../../floor/code-facts/schema-value.ts";
 import { readCallMemberDeclarationOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { captureInvocationEvidence } from "../../floor/compiler/invocation-evidence-extract.ts";
@@ -33,13 +35,21 @@ import { declaresModuleName } from "../lib/policy-descriptor-read.ts";
 import { runPolicyPass } from "../lib/policy-pass.ts";
 import { policyProofRows } from "../lib/policy-proof-rows.ts";
 import { isPolicySourceCandidate } from "../lib/policy-source-candidate.ts";
-import { nativeTypeFactSession } from "../lib/project-context.ts";
+import { columnSchemaSources, nativeTypeFactSession } from "../lib/project-context.ts";
 import { ROOT } from "../lib/repo-paths.ts";
 import { invocationPolicies, messageOf } from "./policy-conformance-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm test:scoped tests/tooling/verify/ops/policy-conformance.test.ts");
 
 const countFromProject = new Project({ useInMemoryFileSystem: true });
+
+function projectedColumns(full: SchemaFact<SchemaProjectedModel> | undefined): ReadonlyMap<string, SchemaColumnIdentity> | undefined {
+  return full === undefined
+    ? undefined
+    : new Map(
+        (full.status === "ready" ? full.value.tables : []).flatMap((table) => table.columns.map((column) => [column.identity.key, column.identity] as const)),
+      );
+}
 const VIRTUAL_ROOT = "/orb-policy-conformance";
 /** The resource-proof temp root names its OWNING PROCESS. `tmpdir()` is a SHARED namespace — every
  *  checkout on the box mkdtemps into the same directory — so a census over `orb-policy-conformance-*`
@@ -566,15 +576,21 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       },
       drizzleEvidence: (nodes, mode): ReturnType<NativeTypeFactReader["drizzleEvidence"]> => {
         checkerFor(nodes);
-        const requested = [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
+        const requested =
+          mode === "column"
+            ? columnSchemaSources(queries)
+            : [...new Set(queries.filter((query) => query.kind === "schema-identities").flatMap((query) => [...query.nodes]))];
         const checker = checkerFor(requested);
-        const fact = readSchemaIdentities({
+        const options = {
           files: requested,
-          relativePath: (source) => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
+          relativePath: (source: SourceFile): string => source.getFilePath().slice(source.getFilePath().indexOf("packages/")),
           checker: () => checker,
-        });
+        };
+        const full = mode === "column" ? readSchemaData(options) : undefined;
+        const fact = full === undefined ? readSchemaIdentities(options) : projectSchemaIdentities(full);
         const declarations = new Map((fact.status === "ready" ? fact.value.tables : []).map((table) => [schemaDeclarationKey(table.declaration), table]));
-        return new Map(nodes.map((node) => [node, readDrizzleCallEvidence(node, mode, schemaIdentityQuery(fact, declarations))]));
+        const columns = projectedColumns(full);
+        return new Map(nodes.map((node) => [node, readDrizzleCallEvidence(node, mode, schemaIdentityQuery(fact, declarations, columns))]));
       },
       exportDeclarations: (requested, name): ReturnType<NativeTypeFactReader["exportDeclarations"]> => {
         checkerFor(requested);

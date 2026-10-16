@@ -7,7 +7,7 @@ import { readCompilerPrograms } from "../compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
-import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY } from "./drizzle-inventory-contract.ts";
+import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY, schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
 import { schemaDataProjectionSchema } from "./schema-projection-contract.ts";
 import type {
   InventoryBuildRequest,
@@ -685,7 +685,11 @@ function assertDrizzleDemand(
   if (
     catalog === undefined ||
     schema.sources.some((node) => !catalog.files.some((file) => canonicalInventoryPath(resolve(options.root, file)) === node.file)) ||
-    (options.drizzleQueries ?? []).some((entry) => entry.program === schema.program || !descriptors.some(({ id }) => id === entry.program))
+    (options.drizzleQueries ?? []).some(
+      (entry) =>
+        (entry.program === schema.program && (entry.query.mode !== "column" || data?.program !== schema.program)) ||
+        !descriptors.some(({ id }) => id === entry.program),
+    )
   ) {
     throw new Error("native Drizzle demand has no independent admitted catalog/consumer owner");
   }
@@ -700,6 +704,17 @@ function withSchemaDependency(
   if ((demand.drizzleQueries?.length ?? 0) === 0) {
     return demand;
   }
+  if (demand.schemaSources !== undefined || demand.schemaDataSources !== undefined) {
+    if (
+      demand.drizzleQueries?.some((query) => query.mode !== "column") === true ||
+      demand.schemaSources === undefined ||
+      demand.schemaDataSources === undefined ||
+      JSON.stringify(demand.schemaSources) !== JSON.stringify(demand.schemaDataSources)
+    ) {
+      throw new Error("native local column demand requires complete matching catalog rosters");
+    }
+    return demand;
+  }
   const catalog = partitions.find(({ program }) => program === options.schemaQuery?.program);
   if (catalog === undefined) {
     throw new Error("native Drizzle catalog must be captured before consumer extraction");
@@ -711,6 +726,10 @@ function withSchemaDependency(
     inputs: [...readInventoryInputs(db, catalog.id)],
     catalog: readInventorySchemaIdentity(db, catalog.id),
   };
+  if (demand.drizzleQueries?.some((query) => query.mode === "column") === true) {
+    const columns = schemaCatalogColumns(dependency.catalog, readInventorySchemaData(db, catalog.id));
+    return { ...demand, schemaDependency: { ...dependency, columns } };
+  }
   return { ...demand, schemaDependency: dependency };
 }
 
@@ -747,11 +766,43 @@ function coversDrizzleDemand(
   if (!coversSchemaDataDemand(db, partition, demand)) {
     return false;
   }
-  for (const query of demand.drizzleQueries ?? []) {
+  return (demand.drizzleQueries ?? []).every((query) => {
     const call = readInventoryDrizzleCall(db, partition.id, query);
-    if (call.basis.program !== demand.schemaDependency?.program || call.basis.partition !== demand.schemaDependency.partition) {
-      return false;
+    if (call.basis === null) {
+      return coversLocalColumn(db, partition, demand, call);
     }
+    return call.basis.program === demand.schemaDependency?.program && call.basis.partition === demand.schemaDependency.partition;
+  });
+}
+
+function coversLocalColumn(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partition: StoredInventoryPartition,
+  demand: Pick<InventoryBuildRequest, "schemaDependency" | "schemaSources" | "schemaDataSources">,
+  call: import("./drizzle-inventory-contract.ts").InventoryDrizzleCall,
+): boolean {
+  if (
+    call.query.mode !== "column" ||
+    demand.schemaDependency !== undefined ||
+    demand.schemaSources === undefined ||
+    demand.schemaDataSources === undefined ||
+    !partition.families.includes("schema-data") ||
+    !partition.families.includes("drizzle-identities")
+  ) {
+    return false;
+  }
+  const identity = readInventorySchemaIdentity(db, partition.id);
+  const full = readInventorySchemaData(db, partition.id);
+  if (identity.fact.status !== "ready" || full.fact.status !== "ready") {
+    return false;
+  }
+  const columns = schemaCatalogColumns(identity, full);
+  if (call.evidence.mode !== "column") {
+    return false;
+  }
+  const column = call.evidence.column;
+  if (column.kind === "resolved" && !columns.some(({ key }) => key === column.value)) {
+    return false;
   }
   return true;
 }

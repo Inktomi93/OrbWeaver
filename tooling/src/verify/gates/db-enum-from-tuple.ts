@@ -6,10 +6,9 @@
 // HARD: zero live `@orb-gate-ignore db-enum-from-tuple` markers exist on the tree (rg, 2026-09-05, with a
 // positive control proving the search reached packages/db), so the row has no suppression door to preserve.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`, which owns
-// Drizzle builder identity and the table/column model) plus `lib/schema-fact-value.ts`
-// (`effectiveObjectProperty`, `unwrapSchemaExpression`, `SchemaRefusal`), consumed identically by all
-// fifteen members, so no member re-derives "which call is a column builder" from a name.
+// FAMILY `drizzle-schema` — `lib/schema-fact.ts` owns complete native builder/table/column data. Its opt-in
+// configuration observation preserves canonical effective properties and module/stable/scalar facts;
+// this policy alone judges tuple home and freezing, without resolving ordinary syntax carriers.
 // POPULATION PORT: byte-identical. The legacy descriptor (faf2dc3857, the parent of 229652060f) scoped with
 // `scanRoot: (p) => /\/packages\/db\/src\/schema\//u.test(`/${p}`)`; the final declares
 // `DRIZZLE_SCHEMA_POPULATION` = `{ in: ["@db"], under: ["packages/db/src/schema/**"] }`, the same set. The
@@ -33,13 +32,13 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
-import { effectiveObjectProperty, SchemaRefusal, unwrapSchemaExpression } from "../../floor/code-facts/schema-value.ts";
-import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
+import type { SchemaConfigurationValue } from "../../floor/code-facts/schema-configuration-contract.ts";
+import { unwrapSchemaExpression } from "../../floor/code-facts/schema-expression.ts";
+import type { SchemaProjectedColumn } from "../../floor/code-facts/schema-projection-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaColumn } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { DRIZZLE_SCHEMA_POPULATION, drizzleSchemaConfigurationFact } from "../lib/schema-fact.ts";
 
 const ENUM_KEY = "enum";
 const MESSAGE =
@@ -54,8 +53,8 @@ const CANONICAL_TUPLE_MODULES: readonly string[] = ["@orb/contracts", "@orb/kit"
 
 // Does this identifier resolve to a member of a canonical vocabulary package? Origin, not spelling: a
 // same-named `KINDS` imported from `./local-vocab` is a DIFFERENT tuple and does not satisfy D34.
-function fromCanonicalModule(node: MorphNode): boolean {
-  const origin = resolveModuleMemberOrigin(node);
+function fromCanonicalModule(node: MorphNode, values: ReadonlyMap<MorphNode, SchemaConfigurationValue>): boolean {
+  const origin = requiredInvocationFact(values, node).module;
   if (origin.kind !== "resolved") {
     return false;
   }
@@ -92,15 +91,21 @@ function isFrozen(terminal: import("ts-morph").ArrayLiteralExpression): boolean 
  *  therefore satisfy the same proof recursively, and each ordinary element must be an authored literal. A
  *  composed tuple whose base is proven (the live `AUTOMATION_FIRE_STORAGE_OUTCOMES` shape) still passes;
  *  one whose base is a call result or a widened array does not. */
-function elementsProven(array: import("ts-morph").ArrayLiteralExpression, home: SourceFile, active: Set<object>): boolean {
+function elementsProven(
+  array: import("ts-morph").ArrayLiteralExpression,
+  home: SourceFile,
+  active: Set<object>,
+  values: ReadonlyMap<MorphNode, SchemaConfigurationValue>,
+): boolean {
   for (const element of array.getElements()) {
     if (Node.isSpreadElement(element)) {
-      if (!derivesFromTuple(element.getExpression(), home, active)) {
+      if (!derivesFromTuple(element.getExpression(), home, active, values)) {
         return false;
       }
       continue;
     }
-    if (readStaticAuthoredScalar(element).kind !== "resolved") {
+    const authored = requiredInvocationFact(values, element).authored.value;
+    if (authored.kind !== "resolved" || authored.value.kind !== "scalar") {
       return false;
     }
   }
@@ -115,11 +120,11 @@ function elementsProven(array: import("ts-morph").ArrayLiteralExpression, home: 
  *  import to its declaration, so without the fence a real `as const` tuple imported from a db-local
  *  `./local-vocab` would pass — a tuple that is nobody's one home, spelled exactly like one that is. The
  *  sanctioned local form is the co-located `as const` the db authors when no contracts home exists. */
-function derivesFromTuple(value: MorphNode, home: SourceFile, active: Set<object>): boolean {
-  if (fromCanonicalModule(value)) {
+function derivesFromTuple(value: MorphNode, home: SourceFile, active: Set<object>, values: ReadonlyMap<MorphNode, SchemaConfigurationValue>): boolean {
+  if (fromCanonicalModule(value, values)) {
     return true;
   }
-  const stable = resolveStableExpression(value);
+  const stable = requiredInvocationFact(values, value).stable;
   if (stable.kind !== "resolved") {
     return false;
   }
@@ -131,13 +136,13 @@ function derivesFromTuple(value: MorphNode, home: SourceFile, active: Set<object
     return false;
   }
   active.add(terminal.compilerNode);
-  const proven = elementsProven(terminal, home, active);
+  const proven = elementsProven(terminal, home, active, values);
   active.delete(terminal.compilerNode);
   return proven;
 }
 
-function derivesFromCanonicalTuple(value: MorphNode, home: SourceFile): boolean {
-  return derivesFromTuple(value, home, new Set<object>());
+function derivesFromCanonicalTuple(value: MorphNode, home: SourceFile, values: ReadonlyMap<MorphNode, SchemaConfigurationValue>): boolean {
+  return derivesFromTuple(value, home, new Set<object>(), values);
 }
 
 type EnumVerdict =
@@ -149,21 +154,19 @@ type EnumVerdict =
  *  re-spelling the tuple AT THE COLUMN. A NAME then has to earn its pass through the shared readers —
  *  canonical `@orb/contracts` / `@orb/kit` origin, or a local `as const` array literal — because the SPELLING
  *  of an identifier says nothing about its identity (#1584 review, 2026-09-06). */
-function enumVerdict(column: SchemaColumn): EnumVerdict | null {
-  const config = column.builder.call.getArguments()[1];
+function enumVerdict(column: SchemaProjectedColumn): EnumVerdict | null {
+  const config = column.configuration;
   if (config === undefined) {
+    throw new Error("native builder configuration was not captured");
+  }
+  if (config === null) {
     return null;
   }
-  let value: MorphNode | null;
-  try {
-    value = effectiveObjectProperty(config, ENUM_KEY, `Drizzle column ${column.identity.key} config`);
-  } catch (error) {
-    if (error instanceof SchemaRefusal) {
-      return { kind: "unreadable", node: error.fact.node };
-    }
-    throw error;
+  if (config.entries.kind === "unresolved") {
+    return { kind: "unreadable", node: config.entries.node };
   }
-  if (value === null) {
+  const value = config.entries.value.findLast((entry) => entry.name === ENUM_KEY)?.value;
+  if (value === undefined) {
     return null;
   }
   const authored = unwrapSchemaExpression(value);
@@ -171,7 +174,10 @@ function enumVerdict(column: SchemaColumn): EnumVerdict | null {
     return { kind: "inline", node: authored };
   }
   const named = Node.isIdentifier(authored) || Node.isPropertyAccessExpression(authored) || Node.isElementAccessExpression(authored);
-  return named && derivesFromCanonicalTuple(authored, column.builder.call.getSourceFile()) ? { kind: "derived" } : { kind: "unreadable", node: authored };
+  const values = new Map(config.values.map((entry) => [entry.node, entry]));
+  return named && derivesFromCanonicalTuple(authored, column.builder.call.getSourceFile(), values)
+    ? { kind: "derived" }
+    : { kind: "unreadable", node: authored };
 }
 
 export const gate = defineGate({
@@ -182,13 +188,13 @@ export const gate = defineGate({
   population: DRIZZLE_SCHEMA_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaConfigurationFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
-      const fact = ctx.fact(drizzleSchemaFact).schema();
+      const fact = ctx.fact(drizzleSchemaConfigurationFact);
       recordReadySchemaFact(ctx, fact);
       for (const table of fact.value.tables) {
         for (const column of table.columns) {
@@ -203,6 +209,15 @@ export const gate = defineGate({
     },
   }),
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/overridden.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst KINDS = ["a", "b"] as const;\nconst CONFIG = { enum: KINDS };\nexport const t = sqliteTable("t", { k: text("k", { ...CONFIG, enum: ["a"] as const }) });\n',
+      },
+      expect: { count: 1 },
+      why: "the last authored property wins over a tuple-bearing spread; keeping an earlier canonical tuple would hide the inline enum that actually reaches Drizzle",
+    },
     {
       mode: "types",
       files: {
@@ -320,6 +335,22 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/overridden.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst KINDS = ["a", "b"] as const;\nconst CONFIG = { enum: ["old"] };\nexport const t = sqliteTable("t", { k: text("k", { ...CONFIG, enum: KINDS }) });\n',
+      },
+      why: "a final named tuple replaces the earlier inline value; configuration capture must retain override order rather than accuse a value that never reaches Drizzle",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/wrapped.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nconst KINDS = ["a", "b"] as const;\nexport const t = sqliteTable("t", { k: text("k", { enum: (((KINDS) as readonly string[]) satisfies readonly string[])! }) });\n',
+      },
+      why: "transparent authored wrappers retain the named frozen tuple's native observations; capturing only the config entry node must not lose the unwrapped reference the policy judges",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/y.ts":
           'import { KINDS } from "@orb/contracts";\nimport { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { k: text("k", { enum: KINDS }) });\n',
       },
@@ -355,7 +386,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/db/src/schema/compose.ts":
-          'import { OUTCOMES } from "@orb/contracts/automation";\n' +
+          'import { AUTOMATION_FIRE_OUTCOMES as OUTCOMES } from "@orb/contracts/automation";\n' +
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
           'const STORAGE_OUTCOMES = [...OUTCOMES, "reserved"] as const;\n' +
           'export const t = sqliteTable("t", { k: text("k", { enum: STORAGE_OUTCOMES }) });\n',

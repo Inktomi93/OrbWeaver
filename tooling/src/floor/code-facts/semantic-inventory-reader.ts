@@ -7,9 +7,13 @@ import { predictedProgram } from "../compiler/project-worlds.ts";
 import { createSourceBindingUsage } from "./binding-usage.ts";
 import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage-contract.ts";
 import { replayDrizzleCallEvidence, replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
+import type { InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
+import { schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
 import { replayInvocationEvidence } from "./invocation-evidence-replay.ts";
 import type { GlobalMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
-import { replaySchemaDataCatalog } from "./schema-projection-replay.ts";
+import type { SchemaColumnIdentity } from "./schema-model-contract.ts";
+import type { InventorySchemaProjectedCatalog } from "./schema-projection-inventory-contract.ts";
+import { assertSchemaProjection, replaySchemaDataCatalog } from "./schema-projection-replay.ts";
 import type {
   InventoryFamily,
   InventoryInvocationEvidence,
@@ -24,6 +28,7 @@ import type {
 } from "./semantic-inventory-contract.ts";
 import { INVENTORY_KEY_SEPARATOR, SemanticInventoryError, shapePairKey } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
+
 import {
   readInventoryBindings,
   readInventoryBrands,
@@ -50,6 +55,17 @@ import {
   readInventoryWitnesses,
 } from "./semantic-inventory-queries.ts";
 import { inventoryTextParts, inventoryTextVersion } from "./semantic-inventory-records.ts";
+
+function columnCatalog(
+  identity: InventorySchemaIdentityCatalog,
+  full: InventorySchemaProjectedCatalog | undefined,
+  local: boolean,
+): readonly SchemaColumnIdentity[] | undefined {
+  if (local && (identity.fact.status !== "ready" || full?.fact.status !== "ready")) {
+    throw new SemanticInventoryError("native local column basis has no ready paired catalog");
+  }
+  return full === undefined ? undefined : schemaCatalogColumns(identity, full);
+}
 
 const inventories = new WeakMap<object, SemanticInventory>();
 
@@ -319,9 +335,7 @@ export function inventoryReader(
       if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
         throw new SemanticInventoryError("native full schema data source demand is incomplete or foreign");
       }
-      if (projection.typeVocabulary === true && catalog.projection?.typeVocabulary !== true) {
-        throw new SemanticInventoryError("native schema selected-Type vocabulary was not captured");
-      }
+      assertSchemaProjection(catalog.projection ?? {}, projection);
       const first = sources[0];
       if (first === undefined) {
         if (catalog.fact.status !== "missing") {
@@ -333,19 +347,27 @@ export function inventoryReader(
     },
     drizzleEvidence: (node, program, mode) => {
       const { partition, span } = nativeSpan(node, program, "drizzle-identities");
-      if (!TsNode.isCallExpression(node)) {
+      if (mode !== "column" && !TsNode.isCallExpression(node)) {
         throw new SemanticInventoryError("native Drizzle query is not a call");
       }
       const fact = readInventoryDrizzleCall(db, partition.id, { node: span, mode });
-      const catalogPartition = indexes.find((candidate) => candidate.id === fact.basis.partition && candidate.program === fact.basis.program);
+      const basis = fact.basis;
+      const catalogPartition =
+        basis === null ? partition : indexes.find((candidate) => candidate.id === basis.partition && candidate.program === basis.program);
       if (catalogPartition === undefined) {
         throw new SemanticInventoryError("native Drizzle catalog dependency is outside the pinned generation");
       }
-      const catalog = replaySchemaIdentityCatalog(
-        readInventorySchemaIdentity(db, catalogPartition.id),
-        replayFor(node, catalogPartition.program, catalogPartition, "schema identity"),
-      );
-      return replayDrizzleCallEvidence(fact.evidence, catalog, replayFor(node, program, partition, "Drizzle call"), node);
+      if (basis === null) {
+        requireFamily([partition], "schema-data");
+      }
+      const identity = readInventorySchemaIdentity(db, catalogPartition.id);
+      const catalog = replaySchemaIdentityCatalog(identity, replayFor(node, catalogPartition.program, catalogPartition, "schema identity"));
+      const full = mode === "column" ? readInventorySchemaData(db, catalogPartition.id) : undefined;
+      const columns = columnCatalog(identity, full, basis === null);
+      if (full !== undefined) {
+        replaySchemaDataCatalog(full, replayFor(node, catalogPartition.program, catalogPartition, "schema data"), {});
+      }
+      return replayDrizzleCallEvidence(fact.evidence, catalog, replayFor(node, program, partition, "Drizzle call"), { node, columns });
     },
     invocationEvidence: (node, program, plan) => {
       const { partition, span } = nativeSpan(node, program, "invocation-evidence");

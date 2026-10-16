@@ -5,9 +5,9 @@
 // drizzle callee identity from the shared module-origin reader, so a local same-named `ne` is not SQL and an
 // aliased/namespaced import still is. DECLARED LIMITS live in the mustPass rows.
 //
-// FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
-// the column model this policy's nullability verdict rests on; the drizzle callee identity comes from the
-// other shared reader, `floor/code-facts/reference-fact.ts` (`resolveModuleMemberOrigin`). The POPULATION is this
+// FAMILY `drizzle-schema` — `lib/schema-fact.ts` (`drizzleSchemaDataFact`) owns the complete native column
+// model. Sealed module and column observations retain the canonical reference readers' importing-world
+// identity without resolving ordinary syntax carriers. The POPULATION is this
 // policy's own rather than the provider's, because the SUBJECT is a query anywhere in the cake while the
 // FACT is the schema directory — the derivation and its measured delta are at
 // `NULLABLE_INEQUALITY_POPULATION` below.
@@ -26,11 +26,15 @@
 // `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import type { DrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence-contract.ts";
+import type { ModuleMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import type { SchemaColumnIdentity } from "../../floor/code-facts/schema-model-contract.ts";
+import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import { drizzleSchemaFact } from "../lib/schema-fact.ts";
+import { requiredInvocationFact } from "../lib/native-invocation.ts";
+import { drizzleSchemaDataFact } from "../lib/schema-fact.ts";
 
 const DRIZZLE_MODULE = "drizzle-orm";
 /** The two predicates whose SQL form is an INEQUALITY over a column — the shapes NULL silently defeats.
@@ -43,6 +47,7 @@ const NULL_GUARD_FNS = new Set(["isNull", "isNotNull"]);
 /** The drizzle boolean COMBINATORS. A guard only guards through one of these: it has to participate in the
  *  same controlling boolean expression as the inequality, not merely sit near it. */
 const COMBINATOR_FNS = new Set(["and", "or"]);
+const MODULE_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["module"], arguments: [] };
 
 const MESSAGE =
   "an inequality predicate (`ne` / `notInArray`) is applied to a column that is NULLABLE in " +
@@ -134,8 +139,8 @@ function calleeSpellings(sourceFile: SourceFile): ReadonlySet<string> {
 /** The exported drizzle name this call resolves to, or null. Spelling-independent: a named import, an
  *  alias, a namespace member and a re-export all resolve to the same origin, and a same-named LOCAL
  *  helper resolves to none of them. */
-function drizzleCallee(call: CallExpression): string | null {
-  const origin = resolveModuleMemberOrigin(call.getExpression());
+function drizzleCallee(call: CallExpression, modules: ReadonlyMap<MorphNode, ReferenceFact<ModuleMemberOrigin>>): string | null {
+  const origin = requiredInvocationFact(modules, call.getExpression());
   if (origin.kind !== "resolved") {
     return null;
   }
@@ -164,14 +169,19 @@ function enclosingStatement(node: MorphNode): object {
  *  reaches the predicate's truth value. Sharing a drizzle `and`/`or` ANCESTOR is the exact relation that
  *  makes `or(isNull(c), ne(c, x))` total, and it composes: nesting inside further and/or still shares one.
  *  The callee is resolved through the shared origin reader (memoized per call), never matched by name. */
-function combinatorChain(call: CallExpression, statement: object, resolved: Map<object, string | null>): readonly object[] {
+function combinatorChain(
+  call: CallExpression,
+  statement: object,
+  resolved: Map<object, string | null>,
+  modules: ReadonlyMap<MorphNode, ReferenceFact<ModuleMemberOrigin>>,
+): readonly object[] {
   const chain: object[] = [];
   let node = call.getParent();
   while (node !== undefined && node.compilerNode !== statement) {
     if (Node.isCallExpression(node)) {
       const identity: object = node.compilerNode;
       if (!resolved.has(identity)) {
-        resolved.set(identity, drizzleCallee(node));
+        resolved.set(identity, drizzleCallee(node, modules));
       }
       const name = resolved.get(identity) ?? null;
       if (name !== null && COMBINATOR_FNS.has(name)) {
@@ -186,7 +196,7 @@ function combinatorChain(call: CallExpression, statement: object, resolved: Map<
 /** Column keys the schema declares NULLABLE: no `.notNull()`, not a `.primaryKey()`, and not a term of a
  *  composite primary key. A `.primaryKey()` column counts NOT NULL — SQLite's legacy quirk allows NULL in a
  *  non-INTEGER PK, but every PK here is an app-minted TypeID written on insert (a mustPass records it). */
-function nullableColumnKeys(schema: SchemaModel): ReadonlySet<string> {
+function nullableColumnKeys(schema: SchemaProjectedModel): ReadonlySet<string> {
   const composite = new Set(
     schema.tables.flatMap((table) =>
       table.indexes.filter((index) => index.kind === "primary-key").flatMap((index) => index.columns.map((column) => column.key)),
@@ -202,23 +212,28 @@ function nullableColumnKeys(schema: SchemaModel): ReadonlySet<string> {
 /** Guards keyed (drizzle combinator call → the column keys guarded beneath it). A guard on a SIBLING
  *  column cannot absolve this column, and a guard that reaches no shared combinator absolves nothing at
  *  all. Built fresh per invocation from `create`-local state; no module binding survives the pass. */
-function guardedColumnsByCombinator(
-  fact: { readonly column: (node: MorphNode) => { readonly kind: string; readonly value?: SchemaColumn } },
-  guards: readonly Guard[],
-): ReadonlyMap<object, ReadonlySet<string>> {
+function guardedColumnsByCombinator(columns: ReadonlyMap<MorphNode, DrizzleCallEvidence>, guards: readonly Guard[]): ReadonlyMap<object, ReadonlySet<string>> {
   const guarded = new Map<object, Set<string>>();
   for (const guard of guards) {
-    const column = fact.column(guard.node);
-    if (column.kind !== "resolved" || column.value === undefined) {
+    const column = columnReference(columns, guard.node);
+    if (column.kind !== "resolved") {
       continue;
     }
     for (const combinator of guard.combinators) {
       const keys = guarded.get(combinator) ?? new Set<string>();
-      keys.add(column.value.identity.key);
+      keys.add(column.value.key);
       guarded.set(combinator, keys);
     }
   }
   return guarded;
+}
+
+function columnReference(columns: ReadonlyMap<MorphNode, DrizzleCallEvidence>, node: MorphNode): ReferenceFact<SchemaColumnIdentity> {
+  const evidence = requiredInvocationFact(columns, node);
+  if (evidence.mode !== "column") {
+    throw new Error("nullable inequality received a foreign native column projection");
+  }
+  return evidence.column;
 }
 
 export const gate = defineGate({
@@ -229,16 +244,40 @@ export const gate = defineGate({
   population: NULLABLE_INEQUALITY_POPULATION,
   analysis: "types",
   execution: "entire-population",
-  facts: [drizzleSchemaFact],
+  facts: [drizzleSchemaDataFact],
   resources: [],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
+    const candidates: CallExpression[] = [];
+    const moduleNodes = new Set<MorphNode>();
+    const columnNodes = new Set<MorphNode>();
     const operands: Operand[] = [];
     const guards: Guard[] = [];
     /** Ancestor callee identities resolved once per invocation — an `and(...)` wrapping ten predicates is
      *  otherwise re-resolved ten times. */
     const resolvedCallees = new Map<object, string | null>();
+    const collectPredicate = (node: CallExpression, modules: ReadonlyMap<MorphNode, ReferenceFact<ModuleMemberOrigin>>): void => {
+      const callee = drizzleCallee(node, modules);
+      if (callee === null) {
+        return;
+      }
+      if (NULL_GUARD_FNS.has(callee)) {
+        const argument = node.getArguments()[0];
+        if (argument !== undefined) {
+          guards.push({ node: argument, combinators: combinatorChain(node, enclosingStatement(node), resolvedCallees, modules) });
+        }
+        return;
+      }
+      const columnArgs = COLUMN_ARG_COUNT[callee];
+      if (columnArgs === undefined) {
+        return;
+      }
+      const combinators = combinatorChain(node, enclosingStatement(node), resolvedCallees, modules);
+      for (const argument of node.getArguments().slice(0, columnArgs)) {
+        operands.push({ node: argument, combinators });
+      }
+    };
     let spellings: ReadonlySet<string> = RECOGNIZED;
     return {
       visitFile: (sourceFile) => {
@@ -251,42 +290,52 @@ export const gate = defineGate({
             if (!(Node.isCallExpression(node) && spellings.has(node.getExpression().getText()))) {
               return;
             }
-            const callee = drizzleCallee(node);
-            if (callee === null) {
-              return;
+            if (ctx.nativeTypes === undefined) {
+              throw new Error("native nullable inequality context is unavailable");
             }
-            if (NULL_GUARD_FNS.has(callee)) {
-              const argument = node.getArguments()[0];
-              if (argument !== undefined) {
-                guards.push({ node: argument, combinators: combinatorChain(node, enclosingStatement(node), resolvedCallees) });
+            candidates.push(node);
+            const references = [node.getExpression()];
+            const statement = enclosingStatement(node);
+            let parent = node.getParent();
+            while (parent !== undefined && parent.compilerNode !== statement) {
+              if (Node.isCallExpression(parent)) {
+                references.push(parent.getExpression());
               }
-              return;
+              parent = parent.getParent();
             }
-            const columnArgs = COLUMN_ARG_COUNT[callee];
-            if (columnArgs === undefined) {
-              return;
+            for (const reference of references) {
+              moduleNodes.add(reference);
             }
-            const combinators = combinatorChain(node, enclosingStatement(node), resolvedCallees);
-            for (const argument of node.getArguments().slice(0, columnArgs)) {
-              operands.push({ node: argument, combinators });
+            const arguments_ = node.getArguments().slice(0, 2);
+            for (const argument of arguments_) {
+              columnNodes.add(argument);
             }
+            ctx.nativeTypes.request({ kind: "invocation-evidence", nodes: references, plan: MODULE_PLAN });
+            ctx.nativeTypes.request({ kind: "drizzle-identities", nodes: arguments_, mode: "column" });
           },
         },
       ],
       evaluate: () => {
-        const fact = ctx.fact(drizzleSchemaFact);
-        const schema = fact.schema();
+        if (ctx.nativeTypes === undefined) {
+          throw new Error("native nullable inequality context is unavailable");
+        }
+        const modules = new Map([...ctx.nativeTypes.invocationEvidence([...moduleNodes], MODULE_PLAN).values()].flatMap((evidence) => [...evidence.modules]));
+        const columns = ctx.nativeTypes.drizzleEvidence([...columnNodes], "column");
+        for (const candidate of candidates) {
+          collectPredicate(candidate, modules);
+        }
+        const schema = ctx.fact(drizzleSchemaDataFact);
         recordReadySchemaFact(ctx, schema);
         const nullable = nullableColumnKeys(schema.value);
-        const guarded = guardedColumnsByCombinator(fact, guards);
+        const guarded = guardedColumnsByCombinator(columns, guards);
         for (const operand of operands) {
-          const column = fact.column(operand.node);
+          const column = columnReference(columns, operand.node);
           // A table this run's schema fact does not carry is UNKNOWN, not nullable — the reader fails QUIET
           // rather than flagging every alias or subquery it cannot resolve (a DECLARED LIMIT with its row).
-          if (column.kind !== "resolved" || !nullable.has(column.value.identity.key)) {
+          if (column.kind !== "resolved" || !nullable.has(column.value.key)) {
             continue;
           }
-          const key = column.value.identity.key;
+          const key = column.value.key;
           if (operand.combinators.some((combinator) => guarded.get(combinator)?.has(key) === true)) {
             continue;
           }

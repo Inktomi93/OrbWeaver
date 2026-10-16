@@ -5,6 +5,7 @@ import type { CallExpression, Node as MorphNode, SourceFile, VariableDeclaration
 import { Node, SyntaxKind } from "ts-morph";
 import type { SemanticProgram, SourceCorpus } from "../compiler/ts-workspace.ts";
 import { semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
+import { unwrapSchemaExpression } from "./schema-expression.ts";
 import type { SchemaFact, SchemaFactReceipt, SchemaModel, SchemaQuery, SchemaQueryOptions, SchemaTable } from "./schema-model-contract.ts";
 import { columnFromReference, foreignKeyOf, indexesOf, tableForeignKeysOf, tableFromReference } from "./schema-resolve.ts";
 import {
@@ -18,7 +19,6 @@ import {
   tableDraft,
   terminalCall,
   unresolved,
-  unwrapSchemaExpression,
 } from "./schema-value.ts";
 
 export function schemaTableCall(declaration: VariableDeclaration, sourceFile: SourceFile): CallExpression | null {

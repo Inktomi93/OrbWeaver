@@ -3,8 +3,11 @@ import { relative } from "node:path";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { readDrizzleCallEvidence } from "../code-facts/drizzle-evidence.ts";
-import type { InventorySchemaIdentityCatalog, InventorySchemaIdentityTable } from "../code-facts/drizzle-inventory-contract.ts";
+import type { InventorySchemaDependency, InventorySchemaIdentityCatalog, InventorySchemaIdentityTable } from "../code-facts/drizzle-inventory-contract.ts";
+import { assertSchemaColumnRoster } from "../code-facts/drizzle-inventory-contract.ts";
 import { projectSchemaIdentities, schemaIdentityQuery } from "../code-facts/schema-identity.ts";
+import type { SchemaIdentityQuery } from "../code-facts/schema-identity-contract.ts";
+import type { SchemaFact, SchemaModel } from "../code-facts/schema-model-contract.ts";
 import { projectSchemaData } from "../code-facts/schema-projection.ts";
 import { createSchemaQuery } from "../code-facts/schema-query.ts";
 import { schemaDeclarationKey } from "../code-facts/schema-value.ts";
@@ -73,15 +76,25 @@ export function extractDrizzleIdentities(
   const dependency = request.schemaDependency;
   const catalog = dependency === undefined ? undefined : drizzleSchemas.catalog.parse(dependency.catalog);
   const declarations = catalog === undefined ? new Map<string, InventorySchemaIdentityTable>() : catalogDeclarations(catalog, byFile, span);
+  const local = localColumnQuery(request, schema);
+  const columns = dependency?.columns === undefined ? undefined : new Map(dependency.columns.map((column) => [column.key, column]));
   const drizzleCalls = (request.drizzleQueries ?? []).map((query) => {
+    const node = inventoryQueryNode(byFile.get(query.node.file), query.node);
+    if (dependency === undefined && query.mode === "column") {
+      if (local === undefined) {
+        throw new Error("native local column demand has no ready complete paired catalog");
+      }
+      const evidence = readDrizzleCallEvidence(node, query.mode, local);
+      return { query, basis: null, evidence: encodeDrizzleCallEvidence(evidence, span) };
+    }
     if (dependency === undefined || catalog === undefined) {
       throw new Error("native Drizzle consumer has no atomic catalog dependency");
     }
-    const node = inventoryQueryNode(byFile.get(query.node.file), query.node);
-    if (!Node.isCallExpression(node)) {
+    if (query.mode !== "column" && !Node.isCallExpression(node)) {
       throw new Error("native Drizzle demand is not a call");
     }
-    const evidence = readDrizzleCallEvidence(node, query.mode, schemaIdentityQuery(catalog.fact, declarations));
+    assertColumnDependency(query.mode, dependency, catalog);
+    const evidence = readDrizzleCallEvidence(node, query.mode, schemaIdentityQuery(catalog.fact, declarations, columns));
     return { query, basis: { program: dependency.program, partition: dependency.partition }, evidence: encodeDrizzleCallEvidence(evidence, span) };
   });
   for (const source of sources) {
@@ -92,6 +105,32 @@ export function extractDrizzleIdentities(
     ...(schemaIdentity === undefined ? {} : { schemaIdentity }),
     ...(request.drizzleQueries === undefined ? {} : { drizzleCalls }),
   };
+}
+
+function assertColumnDependency(
+  mode: import("../code-facts/drizzle-evidence-contract.ts").DrizzleEvidenceMode,
+  dependency: InventorySchemaDependency,
+  catalog: InventorySchemaIdentityCatalog,
+): void {
+  if (mode !== "column") {
+    return;
+  }
+  if (dependency.columns === undefined) {
+    throw new Error("native Drizzle column demand has no complete catalog dependency");
+  }
+  assertSchemaColumnRoster(catalog, dependency.columns);
+}
+
+function localColumnQuery(request: InventoryBuildRequest, schema: SchemaFact<SchemaModel> | undefined): SchemaIdentityQuery | undefined {
+  if (request.schemaDependency !== undefined || request.drizzleQueries?.some((query) => query.mode === "column") !== true) {
+    return;
+  }
+  if (schema?.status !== "ready" || request.schemaSources === undefined || request.schemaDataSources === undefined) {
+    throw new Error("native local column demand has no ready complete paired catalog");
+  }
+  const tables = new Map(schema.value.tables.map((table) => [schemaDeclarationKey(table.declaration), table]));
+  const columns = new Map(schema.value.tables.flatMap((table) => table.columns.map((column) => [column.identity.key, column.identity] as const)));
+  return schemaIdentityQuery(projectSchemaIdentities(schema), tables, columns);
 }
 
 function catalogDeclarations(

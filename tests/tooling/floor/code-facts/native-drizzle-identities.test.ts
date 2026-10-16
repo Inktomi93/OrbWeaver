@@ -6,10 +6,10 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
+import { assertSchemaColumnRoster, SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
 import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryBuildRequest, InventorySpan, SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
-import { drizzleQueryKey } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { drizzleQueryKey, drizzleSchemas } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   latestInventoryGeneration,
   openInventoryDatabase,
@@ -46,6 +46,8 @@ function span(node: MorphNode): InventorySpan {
 function setup(
   root: string,
   repoRoot: string,
+  entryText = ENTRY_TEXT,
+  assetText = ASSET_TEXT,
 ): {
   readonly options: SemanticInventoryOptions;
   readonly sources: readonly SourceFile[];
@@ -53,10 +55,10 @@ function setup(
   readonly bound: import("ts-morph").CallExpression;
 } {
   const files = {
-    [ASSETS]: ASSET_TEXT,
+    [ASSETS]: assetText,
     [UNRELATED]: UNRELATED_TEXT,
     "packages/db/src/index.ts": "export {assets} from './schema/assets.ts';",
-    [ENTRY]: ENTRY_TEXT,
+    [ENTRY]: entryText,
     [PREFIX]:
       "import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';import {assets} from '@orb/db';declare const db:BaseSQLiteDatabase<'async',void>;export const held=db.insert.bind(db,assets);",
   };
@@ -110,6 +112,149 @@ function setup(
     },
   };
 }
+
+test(
+  "native column evidence retains canonical selected columns, unknowns and old call modes under one complete catalog",
+  ({ scratch, repoRoot }) => {
+    const fixture = setup(
+      scratch,
+      repoRoot,
+      `${ENTRY_TEXT}\nexport const selected=assets.meta;export const unknown=({meta:'foreign'}).meta;`,
+      `${ASSET_TEXT}\nexport const local=assets.meta;`,
+    );
+    const source = fixture.direct.getSourceFile();
+    const selected = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow();
+    const unknown = source.getVariableDeclarationOrThrow("unknown").getInitializerOrThrow();
+    const local = fixture.sources[0]?.getVariableDeclarationOrThrow("local").getInitializerOrThrow();
+    if (local === undefined) {
+      throw new Error("native local column fixture is missing");
+    }
+    const options: SemanticInventoryOptions = {
+      ...fixture.options,
+      families: ["drizzle-identities", "schema-data"],
+      schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
+      drizzleQueries: [
+        ...(fixture.options.drizzleQueries ?? []),
+        ...[selected, unknown].map((node) => ({ program: SERVER, query: { node: span(node), mode: "column" as const } })),
+        { program: DB, query: { node: span(local), mode: "column" } },
+      ],
+    };
+    const requests: InventoryBuildRequest[] = [];
+    using original = createSemanticInventory({
+      ...options,
+      buildPartition: (build) => {
+        requests.push(build);
+        runInventoryPartitionWorker(build);
+      },
+    });
+    const column = original.drizzleEvidence(selected, SERVER, "column");
+    expect(column).toMatchObject({
+      mode: "column",
+      column: { kind: "resolved", value: { key: `${ASSETS}#assets.meta`, propertyName: "meta", table: { key: `${ASSETS}#assets` } } },
+    });
+    expect(original.drizzleEvidence(unknown, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "unresolved" } });
+    expect(original.drizzleEvidence(local, DB, "column")).toMatchObject({
+      mode: "column",
+      column: { kind: "resolved", value: { key: `${ASSETS}#assets.meta` } },
+    });
+    expect(original.drizzleEvidence(fixture.direct, SERVER, "called-member")).toMatchObject({ mode: "called-member", table: { kind: "resolved" } });
+    expect(original.drizzleEvidence(fixture.bound, SERVER, "instance")).toMatchObject({ mode: "instance", invocation: { kind: "resolved" } });
+    const request = requests.find(({ descriptor }) => descriptor.id === SERVER);
+    expect(request?.schemaDependency?.columns?.map(({ key }) => key)).toEqual([
+      `${ASSETS}#assets.id`,
+      `${ASSETS}#assets.meta`,
+      `${UNRELATED}#unrelated.id`,
+      `${UNRELATED}#unrelated.assetId`,
+    ]);
+    const dependency = request?.schemaDependency;
+    const roster = dependency?.columns;
+    if (dependency === undefined || roster === undefined) {
+      throw new Error("native column dependency was not captured");
+    }
+    expect(() => assertSchemaColumnRoster(dependency.catalog, roster.slice(1))).toThrow("incomplete or foreign");
+    expect(() =>
+      assertSchemaColumnRoster(
+        dependency.catalog,
+        roster.map((value) => ({ ...value, key: `foreign.${value.key}` })),
+      ),
+    ).toThrow("incomplete or foreign");
+    expect(request?.descriptor.files).toEqual([ENTRY]);
+    expect(() => original.drizzleEvidence(selected, SERVER, "instance")).toThrow("not a call");
+    expect(() => original.drizzleEvidence(selected, "foreign", "column")).toThrow("partition is unavailable");
+    using same = createSemanticInventory({
+      ...options,
+      buildPartition: () => {
+        throw new Error("complete column demand rebuilt");
+      },
+    });
+    expect(same.generation).toBe(original.generation);
+    expect(same.drizzleEvidence(selected, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "resolved" } });
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partitions = readInventoryGeneration(db, original.generation);
+    const consumer = partitions.find(({ program }) => program === SERVER);
+    const catalog = partitions.find(({ program }) => program === DB);
+    if (consumer === undefined || catalog === undefined) {
+      throw new Error("native column partitions are missing");
+    }
+    expect(readInventoryDrizzleCall(db, catalog.id, { node: span(local), mode: "column" }).basis).toBeNull();
+    const oldCall = readInventoryDrizzleCall(db, consumer.id, { node: span(fixture.direct), mode: "called-member" });
+    expect(drizzleSchemas.call.safeParse({ ...oldCall, basis: null }).success).toBe(false);
+    using reader = inventoryReader(scratch, original.generation, partitions, {
+      db,
+      dispose: () => {
+        /* The test owns this connection. */
+      },
+    });
+    const owner = inventoryString(drizzleQueryKey({ node: span(selected), mode: "column" }));
+    const cuts: readonly { readonly message: string; readonly mutate: (db: DatabaseSync) => void }[] = [
+      {
+        message: "no captured catalog identity",
+        mutate: (connection) => {
+          connection
+            .prepare(
+              "UPDATE inventory_drizzle_atom SET text=? WHERE partition=? AND key=? AND owner=(SELECT ordinal FROM inventory_drizzle_evidence WHERE partition=? AND key=?)",
+            )
+            .run(inventoryString("foreign.column"), consumer.id, inventoryString("value"), consumer.id, owner);
+        },
+      },
+      {
+        message: "outside the pinned generation",
+        mutate: (connection) => {
+          connection
+            .prepare(
+              "UPDATE inventory_drizzle_atom SET text=? WHERE partition=? AND key=? AND owner=(SELECT ordinal FROM inventory_drizzle_evidence WHERE partition=? AND key=?)",
+            )
+            .run(inventoryString("foreign"), consumer.id, inventoryString("partition"), consumer.id, owner);
+        },
+      },
+      {
+        message: "fact graph is incomplete",
+        mutate: (connection) => {
+          connection
+            .prepare(
+              "DELETE FROM inventory_drizzle_atom WHERE partition=? AND owner=(SELECT ordinal FROM inventory_drizzle_evidence WHERE partition=? AND key=?)",
+            )
+            .run(catalog.id, catalog.id, inventoryString(SCHEMA_DATA_CATALOG_KEY));
+        },
+      },
+    ];
+    for (const cut of cuts) {
+      db.exec("BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;");
+      try {
+        cut.mutate(db);
+        expect(() => reader.drizzleEvidence(selected, SERVER, "column")).toThrow(cut.message);
+      } finally {
+        db.exec("ROLLBACK");
+      }
+    }
+    expect(reader.drizzleEvidence(selected, SERVER, "column")).toMatchObject({
+      mode: "column",
+      column: { kind: "resolved", value: { key: `${ASSETS}#assets.meta` } },
+    });
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  },
+  scaledBudget(60_000),
+);
 
 test(
   "atomic native catalog retains the complete roster without expanding consumer roots and closes dependency-bound arguments",

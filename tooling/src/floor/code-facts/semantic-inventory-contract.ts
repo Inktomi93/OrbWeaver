@@ -23,6 +23,7 @@ import type {
   ReferenceFact,
 } from "./reference-fact-contract.ts";
 import { REFERENCE_UNRESOLVED_REASONS } from "./reference-fact-contract.ts";
+import { schemaConfigurationSchema } from "./schema-configuration-inventory-contract.ts";
 import type { SchemaIdentityModel } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedModel } from "./schema-projection-contract.ts";
@@ -183,7 +184,6 @@ export const typeProjectionWireSchema = typeProjectionSchema(spanSchema, invento
 export const authoredValueProjectionSchema = authoredProjectionSchema(spanSchema, inventoryReferenceSchema);
 const invocationKindSchema = z.enum(["call", "construct", "bind"]);
 export const drizzleSchemas = drizzleInventorySchemas(spanSchema, inventoryReferenceSchema, invocationKindSchema);
-export const schemaDataCatalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog);
 
 export function drizzleQueryKey(query: InventoryDrizzleQuery): string {
   return JSON.stringify({ node: spanSchema.parse(query.node), mode: z.enum(DRIZZLE_EVIDENCE_MODES).parse(query.mode) });
@@ -199,6 +199,8 @@ const moduleValueSchema = z.object({
     z.object({ kind: z.literal("external-door"), moduleSpecifier: z.string(), exportedName: z.string(), declaration: spanSchema }),
   ]),
 });
+export const schemaConfigurationWireSchema = schemaConfigurationSchema(spanSchema, inventoryReferenceSchema, authoredValueProjectionSchema, moduleValueSchema);
+export const schemaDataCatalogSchema = schemaProjectionInventorySchema(spanSchema, drizzleSchemas.catalog, schemaConfigurationWireSchema);
 const originValueSchema = z.discriminatedUnion("kind", [
   moduleValueSchema,
   z.object({ kind: z.literal("global"), globalName: z.string(), memberPath: z.array(z.string()), declarations: z.array(spanSchema) }),

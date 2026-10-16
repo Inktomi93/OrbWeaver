@@ -57,6 +57,9 @@ export function encodeDrizzleCallEvidence<Table extends Pick<SchemaIdentityTable
   evidence: DrizzleCallEvidence<Table>,
   span: (node: Node) => InventorySpan,
 ): InventoryDrizzleCallEvidence {
+  if (evidence.mode === "column") {
+    return { mode: evidence.mode, column: wireReferenceFact(evidence.column, (column) => column.key, span) };
+  }
   if (evidence.mode === "called-member") {
     return {
       mode: evidence.mode,
