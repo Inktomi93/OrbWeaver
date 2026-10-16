@@ -2,6 +2,7 @@
 // @subject tooling/src/floor/code-facts/invocation-evidence-replay.ts
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { DatabaseSync, StatementSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
@@ -14,7 +15,11 @@ import {
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
-import { readInventoryBindings } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import {
+  hasInventoryInvocationCoverage,
+  readInventoryBindings,
+  readInventoryInvocationEvidence,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { visitInventoryRecords } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
@@ -490,4 +495,106 @@ test(
     }
   },
   scaledBudget(60_000),
+);
+
+test(
+  "invocation staging validates shared binding sources once per closed demand snapshot",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, source, calls } = controls(scratch);
+    const selected = calls.filter((call) => ["bound()", "rebound()", "written()"].includes(call.getText()));
+    expect(selected).toHaveLength(3);
+    let enumerations = 0;
+    let declarationPreparations = 0;
+    const prepare = DatabaseSync.prototype.prepare;
+    const preparations = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
+      if (args[0].includes("d.kind='bindings'") && args[0].includes("d.role=?")) {
+        declarationPreparations++;
+      }
+      return prepare.apply(this, args);
+    });
+    const iterate = StatementSync.prototype.iterate;
+    const observation = vi.spyOn(StatementSync.prototype, "iterate").mockImplementation(function (this: StatementSync, ...args) {
+      if (this.sourceSQL.includes("b.lexicalCount,b.originCount FROM inventory_global_binding")) {
+        enumerations++;
+      }
+      return iterate.apply(this, args);
+    });
+    let inventory: ReturnType<typeof createSemanticInventory>;
+    try {
+      inventory = createSemanticInventory({
+        root: scratch,
+        programs: [descriptor],
+        families: ["invocation-evidence", "global-origins", "computed-names"],
+        globalOriginQueries: [],
+        globalBindingQueries: [],
+        computedNameQueries: [],
+        invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
+      });
+    } finally {
+      observation.mockRestore();
+      preparations.mockRestore();
+    }
+    using retained = inventory;
+    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const partition = readInventoryGeneration(db, retained.generation)[0];
+    if (partition === undefined) {
+      throw new Error("shared invocation partition is missing");
+    }
+    const facts = selected.flatMap((call) => [...readInventoryInvocationEvidence(db, partition.id, { ...PLAN, node: span(call) })]);
+    const uniqueSources = new Set(facts.flatMap((fact) => fact.sources.map((captured) => captured.file)));
+    expect(facts.reduce((count, fact) => count + fact.sources.length, 0)).toBeGreaterThan(uniqueSources.size);
+    expect(enumerations).toBe(uniqueSources.size);
+    expect(declarationPreparations).toBe(uniqueSources.size);
+    const queries = selected.map((call) => ({ ...PLAN, node: span(call) }));
+    expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
+    expect(db.isTransaction).toBe(false);
+    expect(hasInventoryInvocationCoverage(db, partition.id, [{ ...PLAN, node: { ...(queries[0]?.node ?? span(source)), start: -1 } }])).toBe(false);
+    expect(db.isTransaction).toBe(false);
+    for (const [change, error] of [
+      ["UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=?", "declarations are incomplete"],
+      ["DELETE FROM inventory_source WHERE partition=?", "binding source ownership is unavailable"],
+      ["DELETE FROM inventory_fact WHERE partition=? AND kind='bindings'", "binding record is unavailable"],
+      [
+        "INSERT INTO inventory_source SELECT partition,ordinal+100000,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file IN (SELECT file FROM inventory_invocation_source WHERE partition=inventory_source.partition) LIMIT 1",
+        "binding source ownership is unavailable",
+      ],
+      [
+        "INSERT INTO inventory_fact SELECT partition,kind,ordinal+100000,file,name,node,target,dynamic,specifier FROM inventory_fact WHERE partition=? AND kind='bindings' LIMIT 1",
+        "binding record is unavailable",
+      ],
+    ] as const) {
+      db.exec("BEGIN IMMEDIATE;PRAGMA defer_foreign_keys=ON;");
+      try {
+        db.prepare(change).run(partition.id);
+        expect(() => hasInventoryInvocationCoverage(db, partition.id, queries), change).toThrow(error);
+        expect(db.isTransaction).toBe(true);
+      } finally {
+        db.exec("ROLLBACK");
+      }
+      expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
+    }
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      db.prepare(
+        "UPDATE inventory_invocation_source SET bindingCount=bindingCount+1 WHERE partition=? AND owner=(SELECT MAX(ordinal) FROM inventory_invocation_evidence WHERE partition=?)",
+      ).run(partition.id, partition.id);
+      db.prepare(
+        "UPDATE inventory_invocation_atom SET number=number+1 WHERE partition=? AND owner=(SELECT MAX(ordinal) FROM inventory_invocation_evidence WHERE partition=?) AND key=? AND kind='number'",
+      ).run(partition.id, partition.id, JSON.stringify("bindings"));
+      expect(() => hasInventoryInvocationCoverage(db, partition.id, queries)).toThrow("binding-source coverage is incomplete");
+      expect(db.isTransaction).toBe(true);
+    } finally {
+      db.exec("ROLLBACK");
+    }
+    expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
+    db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount+1 WHERE partition=?").run(partition.id);
+    expect(() => hasInventoryInvocationCoverage(db, partition.id, queries)).toThrow("declarations are incomplete");
+    expect(db.isTransaction).toBe(false);
+    db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount-1 WHERE partition=?").run(partition.id);
+    expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
+    expect(() => hasInventoryInvocationCoverage(db, "foreign", queries)).toThrow("family unavailable");
+    expect(db.isTransaction).toBe(false);
+  },
+  scaledBudget(30_000),
 );

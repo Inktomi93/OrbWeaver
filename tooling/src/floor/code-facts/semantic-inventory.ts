@@ -40,6 +40,7 @@ import {
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
 import {
+  hasInventoryInvocationCoverage,
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
   readInventoryDrizzleCall,
@@ -47,7 +48,6 @@ import {
   readInventoryGlobalBindings,
   readInventoryGlobalOrigins,
   readInventoryInputs,
-  readInventoryInvocationEvidence,
   readInventoryPairs,
   readInventorySchemaData,
   readInventorySchemaIdentity,
@@ -787,7 +787,7 @@ function coversInvocationDemand(
   partition: StoredInventoryPartition,
   queries: readonly InventoryInvocationQuery[],
 ): boolean {
-  return queries.every((query) => [...readInventoryInvocationEvidence(db, partition.id, query)].length === 1);
+  return hasInventoryInvocationCoverage(db, partition.id, queries);
 }
 function assertInvocationDemand(
   options: SemanticInventoryOptions,
