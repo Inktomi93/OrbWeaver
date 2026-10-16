@@ -18,6 +18,10 @@ Preserve useful migration cases and production contract concerns for the test-fo
 
 The work items own live status. Contract, stored-value and current wire-boundary recovery is integrated through canonical type homes, ownership before private parsing and refusal before effects. Test-foundation owns remaining physical-edge and corpus qualification. The smoke matrix follows complete foundations.
 
+### Recovery priority
+
+Follow [test-foundation's current analysis priorities](../test-foundation/design.md#recovery-priority-and-analysis-scope) before dispatch. D320 keeps legacy regression execution and native typechecking, not deep fact extraction or typed analysis. Replacement still preserves meaningful cases before legacy deletion. Audit maintained-tool and syntax coverage before expanding custom semantic readers; this inventory does not authorize another legacy retrofit or prover campaign.
+
 ### Using the inventory
 
 Each site below is an investigation lead, not a current verdict or assignment. Re-derive it against the current product and its work item before editing. Keep meaningful regression cases in legacy CI until replacement carries them.

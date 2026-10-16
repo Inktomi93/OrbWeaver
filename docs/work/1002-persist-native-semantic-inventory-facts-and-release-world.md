@@ -12,6 +12,8 @@ plan: test-foundation
 
 ## What
 
+Apply D320 analysis eligibility before further full extraction. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
+
 Implement the persisted native-world inventory store and worker lifecycle. Collectors consume shared export origins, module targets, bindings and physical references without retaining every native program. Keep unported typed consumers on native views.
 
 ## Why
@@ -40,4 +42,4 @@ The original callable diagnosis completes unresolved at a re-export missing capt
 
 Source lookup preserves admission and borrowed freshness. Supplied contexts stay transient; true cycles refuse. Callable-proof epochs bind reuse to its refinement read-set. Fresh closure retains an examined refusal through unused aliases. Review and ordinary controls pass. Evidence: `reports/review/1002-first-refusal-ordinary.md`. Env effects, target resolution, complete replay and cost remain open.
 
-Private first-exposure preservation closes the source-derived async factory while retaining mutation and cycle refusal. Capture barriers precede publication, and revoked premise holders release their callbacks. Review passes; the ordinary floor retains the partial-env missing-consumer failure. Full-context target and cost remain unqualified. Evidence: `reports/review/1002-preservation-ordinary.md`.
+Private first-exposure preservation passes review and ordinary controls except the partial-env missing-consumer failure. Target and cost remain unqualified. Evidence: `reports/review/1002-preservation-ordinary.md`.

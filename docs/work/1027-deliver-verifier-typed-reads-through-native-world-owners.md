@@ -12,6 +12,8 @@ plan: test-foundation
 
 ## What
 
+Audit gate necessity before further native migration. Move covered claims to maintained tools and separate syntax/module-only work from deep semantics. D320 excludes legacy typed populations without removing CI regression execution or native typechecking.
+
 Route maintained verifier typed reads through canonical native source and checker views. Preserve the separate cheap syntax scan and importing-world meaning. Reuse the run-owned lazy workspace without eager world enumeration or private compiler programs.
 
 ## Why

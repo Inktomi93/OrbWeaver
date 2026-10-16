@@ -10,6 +10,8 @@ plan: test-foundation
 
 ## What
 
+Prioritize structural cuts: D320 legacy analysis eligibility, unnecessary typed-gate removal and AppRouter type-bridge closure isolation. Separate compiler baseline cost from additional analysis work, with runtime and checker concurrency explicit.
+
 Measure checker and pnpm ast peaks against the hosted-runner budget. Diagnose repeated native-program loads. Shared persisted facts serve gates, verbs and codemods without private programs.
 
 ## Why
@@ -22,7 +24,7 @@ pnpm check, the structure stage and every pnpm ast verb complete within the host
 
 ## Evidence
 
-Custom production-export inventory attempts exit 134 without a complete typed verdict. Both use bare Node instead of the workspace-managed runtime. The first bypasses the configured heap; the retry changes the heap but retains the older runtime. These attempts do not establish shipped-command failure.
+Unmanaged production-export attempts exit 134 without a typed verdict. They do not establish shipped-command failure.
 
 The correctly invoked `pnpm ast apisurface --in /src/ --public --json --max 1000000` completes on managed Node 26.10.0. Its timing artifact records exit 0, elapsed 2:37.88 and maximum RSS 15,719,224 KiB, without swaps. The JSON reports complete output, with total and shown equal. This measures one verb; it does not establish every tool's hosted-runner qualification.
 

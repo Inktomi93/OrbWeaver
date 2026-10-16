@@ -20,6 +20,18 @@ This plan owns execution order. The [test-mirror inventory](../test-mirror/desig
 
 Read the [side-plan priority note](../inference-flow/design.md#reading-priority) before using inference-flow to choose work or report program status.
 
+### Recovery priority and analysis scope
+
+Read this section before dispatching more deep-reader work. Gate necessity comes before further semantic expansion: audit the complete gate/provider population, move maintained-tool coverage, and retain only unmatched judgments. Classify syntax, module identity and actual inferred-type work separately. Shared providers count once when measuring removed extraction work.
+
+[D320](../../adr/0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) makes legacy tests run/typecheck-only. Keep their CI regression execution and native typecheck programs. Exclude legacy worlds from semantic extraction and legacy files from typed gate/provider populations and type-aware lint. Preserve cheap admission and boundary checks.
+
+That exclusion is not yet implemented or qualified. Its source and evidence work belongs to items 1002 and 1027. Derive eligibility from canonical world/test-kind metadata. Preserve complete native options, roots and resolved closure inside every selected eligible program. Demand, generation identity and completeness must state the changed analysis scope; old all-world evidence remains historical evidence for its original scope.
+
+Reduce structural cost before more micro-optimization: remove legacy deep analysis, eliminate unnecessary typed claims, and isolate accidental server closures through the AppRouter type bridge. Declaration bridges require fresh generated output and qualified transitive closure; do not replace them with copied shapes. Compiler baselines guide cost diagnosis but do not establish equivalent analysis work.
+
+The [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns classification evidence. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
+
 ### Execution sequence
 
 | Phase | Work | Exit condition |
@@ -46,7 +58,7 @@ SDK execution joins native Query and observed direct-child completion. It does n
 
 ### Architecture workstreams
 
-1. **One code-facts engine.** Every reader of code lives once in `tooling/src/floor/code-facts/`, behind one fact store: built once per world program, updated incrementally from file changes, persisted, and queried by every caller. A caller reads facts; it never loads its own program, so concurrent `pnpm ast` verbs, gates and codemods share one load. `pnpm ast` verbs, codemods and gates call it. A reader in `tooling/src/ast/lib/`, `tooling/src/codemod/lib/` or `tooling/src/verify/lib/` that answers the same question is deleted. Start with drizzle query facts (tables, joins, columns, reads and writes) and shape identity, then symbol references and member reads, import doors and reach, liveness, tRPC wiring, ambient calls and casts. Each move proves `pnpm ast` output and gate findings unchanged.
+1. **One code-facts engine.** Every reader of code lives once in `tooling/src/floor/code-facts/`, behind one fact store: built once per world program, updated incrementally from file changes, persisted, and queried by every caller. A caller reads facts; it never loads its own program. Extract only eligible demanded analysis worlds under D320, so concurrent `pnpm ast` verbs, gates and codemods share one load. `pnpm ast` verbs, codemods and gates call it. A reader in `tooling/src/ast/lib/`, `tooling/src/codemod/lib/` or `tooling/src/verify/lib/` that answers the same question is deleted. Start with drizzle query facts (tables, joins, columns, reads and writes) and shape identity, then symbol references and member reads, import doors and reach, liveness, tRPC wiring, ambient calls and casts. Each move proves `pnpm ast` output and gate findings unchanged.
 2. **The server test harness.** A test composition root in `@orb/testkit/node` builds the real `entry/compose` graph and injects only the edges: database, clock, ids, random, the inference provider edge, the plugin host and the network. Production exposes those seams at the composition root. Domain harnesses are deleted as their suites move onto the root. Runs in parallel with step 1.
 3. **Builders and corpus.** One builder per contract output and database row, built from contract defaults or by running production. One synthetic corpus from the seed tool, shared by e2e, CT, server tests and side-eye.
 4. **The client CT door.** CTs mount through the real client compose. A story isolates only through the named exception.
@@ -150,7 +162,7 @@ Track source, config, package-resolution and dependency inputs with content vers
 
 Keep transaction overlays separate from committed facts. Derive their roots from the compiler overlay and their content from the transaction filesystem. Changed overlay content selects new facts; it never changes the repository generation. Discard overlay partitions when their transaction ends.
 
-Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Complete inventory retains legacy consumer evidence. Cross-world file duplication does not explain the separate single-world callable cost.
+Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Legacy CI and typecheck evidence remains available without extracting legacy semantic worlds, as D320 requires. Cross-world file duplication does not explain the separate single-world callable cost.
 
 Exact Program source admission preserves compiler redirects and physical host input metadata. Ordinary installed controls qualify this dependency; complete invocation and full-schema qualification remain open.
 
