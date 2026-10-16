@@ -38,4 +38,4 @@ Reviewed reached-call capture uses explicit reference inputs, validates native l
 
 The env-parser control refuses inherited descriptor exposure at identity dispatch. The original callable diagnosis reaches its deadline without a target fact. Complete publication, equivalence, reuse and hosted cost remain open. Evidence: `reports/review/1002-inherited-read-root-qualification.md`. Item 1027 owns typed delivery.
 
-Source lookup preserves admission, epochs and borrowed freshness. Supplied alternatives retain actual caller, formal and default provenance; activation metadata stays transient. Mapped and ordinary controls pass; true cycles refuse. The actual env control repeats the same admitted value context; effect qualification remains open. Complete replay and cost remain open.
+Source lookup preserves admission and borrowed freshness. Supplied contexts remain transient; true cycles refuse. Callable-proof epochs bind completed reuse to its refinement read-set without bypassing semantic opacity. Independent review and ordinary controls pass. Env effects, the original target, complete replay and cost remain open.
