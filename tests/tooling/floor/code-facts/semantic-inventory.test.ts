@@ -25,7 +25,7 @@ import { descriptorVersion, inputVersion } from "@orb/tooling/floor/code-facts/s
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { Project } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import {
   acquireInventoryReadLease,
@@ -40,7 +40,7 @@ import {
   readInventorySources,
   readInventoryWitnesses,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
-import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { inventoryReader, ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 
 function write(root: string, path: string, text: string): void {
   const absolute = join(root, path);
@@ -286,6 +286,53 @@ test("invocation query validation refuses corrupt unread rows after another ordi
     }
     expect([...readInventoryInvocationEvidence(writer, id, other.query)]).toEqual([other]);
   }
+});
+
+test("owned replay refuses a declaration available only in another native partition", ({ scratch }) => {
+  initialize(scratch);
+  const descriptors = readCompilerPrograms(scratch);
+  const first = descriptors.find((entry) => entry.id === "tsconfig.a.json");
+  const second = descriptors.find((entry) => entry.id === "tsconfig.b.json");
+  if (first === undefined || second === undefined) {
+    throw new Error("partition membership descriptors missing");
+  }
+  const base = partition({ root: scratch, descriptor: first, destination: "", families: ["invocation-evidence", "global-origins", "computed-names"] });
+  const other = partition({ root: scratch, descriptor: second, destination: "", intent: "membership", families: [] });
+  const source = base.sources[0];
+  const declaration = base.exports[0]?.declarations[0];
+  const foreignFile = join(scratch, "b.ts");
+  if (source === undefined || declaration === undefined) {
+    throw new Error("partition membership declarations missing");
+  }
+  const node = { ...declaration, end: declaration.start + 1, kind: SyntaxKind.Identifier };
+  const captured: InventoryPartition = {
+    ...base,
+    exports: [],
+    bindings: [{ node, symbols: { lexical: [{ ...declaration, file: foreignFile }], origins: [] } }],
+    globalBindings: [node],
+    invocationEvidence: [
+      {
+        query: { mode: "value", facets: [], arguments: [], node: { file: source.file, start: 0, end: source.text.length, kind: SyntaxKind.SourceFile } },
+        callee: null,
+        invocation: null,
+        profiles: [],
+        sources: [{ file: source.file, bindings: 1, computed: [] }],
+      },
+    ],
+  };
+  const path = join(scratch, "partition-membership.sqlite");
+  using db = openInventoryDatabase(path);
+  const generation = publishInventoryGeneration(db, [captured, other]);
+  const partitions = readInventoryGeneration(db, generation);
+  using privateDb = openInventoryDatabase(path);
+  using lease = acquireInventoryReadLease(privateDb, generation, partitions);
+  using reader = ownedInventoryReader(scratch, generation, lease, { db: privateDb, dispose: () => undefined });
+  expect(reader.sourceCorpus().getSourceFile(foreignFile)).toBeDefined();
+  const original = reader.sourceCorpus().getSourceFile(source.file);
+  if (original === undefined) {
+    throw new Error("partition membership query source missing");
+  }
+  expect(() => reader.invocationEvidence(original, first.id, { mode: "value", facets: [], arguments: [] })).toThrow("source is outside its native closure");
 });
 
 test("unchanged and independently invalidated partitions reuse without worker construction", ({ scratch }) => {

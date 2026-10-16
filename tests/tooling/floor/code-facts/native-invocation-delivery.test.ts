@@ -21,11 +21,12 @@ import {
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import {
+  acquireInventoryReadLease,
   hasInventoryInvocationCoverage,
   readInventoryBindings,
   readInventoryInvocationEvidence,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
-import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { inventoryReader, ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { visitInventoryRecords } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "../../../../tooling/src/floor/compiler/invocation-evidence-extract.ts";
@@ -897,6 +898,67 @@ test(
     owned[Symbol.dispose]();
     expect(privateConnection.isOpen).toBe(false);
     expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "owned replay indexes immutable closure membership once while borrowed metadata remains fresh",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const selected = calls.filter((call) => ["bound()", "rebound()", "written()"].includes(call.getText()));
+    expect(selected).toHaveLength(3);
+    using built = createSemanticInventory({
+      root: scratch,
+      programs: [descriptor],
+      families: ["invocation-evidence", "global-origins", "computed-names"],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
+    });
+    const databasePath = join(scratch, ".cache/semantic-inventory.sqlite");
+    using db = openInventoryDatabase(databasePath);
+    const partitions = readInventoryGeneration(db, built.generation);
+    using privateDb = openInventoryDatabase(databasePath);
+    using lease = acquireInventoryReadLease(privateDb, built.generation, partitions);
+    const partition = lease.partitions[0];
+    const borrowedPartition = partitions[0];
+    const anchor = selected[0];
+    if (partition === undefined || borrowedPartition === undefined || anchor === undefined) {
+      throw new Error("closure membership fixture missing");
+    }
+    const scans = vi.spyOn(partition.available, "includes");
+    const enumerations = vi.spyOn(partition.available, Symbol.iterator);
+    try {
+      using indexed = ownedInventoryReader(scratch, built.generation, lease, { db: privateDb, dispose: () => undefined });
+      for (const selectedCall of [...selected, ...selected]) {
+        expect(snapshot(selectedCall, indexed.invocationEvidence(selectedCall, descriptor.id, PLAN))).toEqual(
+          snapshot(selectedCall, captureInvocationEvidence(selectedCall, PLAN)),
+        );
+      }
+      expect(scans.mock.calls.length).toBe(0);
+      expect(enumerations).toHaveBeenCalledTimes(1);
+      const retained = indexed.invocationEvidence(anchor, descriptor.id, PLAN);
+      using borrowed = inventoryReader(scratch, built.generation, partitions, { db, dispose: () => undefined });
+      const file = anchor.getSourceFile().getFilePath();
+      const at = borrowedPartition.available.indexOf(file);
+      expect(at).toBeGreaterThanOrEqual(0);
+      const removed = borrowedPartition.available.splice(at, 1);
+      try {
+        expect(() => borrowed.invocationEvidence(anchor, descriptor.id, PLAN)).toThrow("source is outside its native closure");
+        expect(indexed.invocationEvidence(anchor, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+      } finally {
+        borrowedPartition.available.splice(at, 0, ...removed);
+      }
+      expect(borrowed.invocationEvidence(anchor, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
+      indexed[Symbol.dispose]();
+      expect(() => retained.declarations(anchor.getExpression())).toThrow("disposed");
+    } finally {
+      enumerations.mockRestore();
+      scans.mockRestore();
+    }
   },
   scaledBudget(30_000),
 );
