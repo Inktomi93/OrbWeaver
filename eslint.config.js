@@ -1556,7 +1556,7 @@ function maintainedRulePacks() {
     ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
     "@eslint-community/eslint-comments/require-description": "error",
     ...packRules(regexp.configs["flat/recommended"], "regexp/"),
-    // These equivalent regex spellings have no defect class behind them.
+    // Spelling and unused-capture suggestions are not semantic correctness policies.
     "regexp/prefer-w": "off",
     "regexp/use-ignore-case": "off",
     "regexp/no-unused-capturing-group": "off",
@@ -1711,10 +1711,10 @@ function maintainedRulePacks() {
       rules: { "regexp/no-misleading-capturing-group": "off" },
     },
     {
-      // Super-linear backtracking is an attack on input the author does not control. Shipped packages parse
-      // user and provider text; tooling, tests and scripts parse the repository's own bounded text.
+      // Helper/test exemptions do not establish bounded input. Review-mirror's parsers keep the native backtracking rule.
       files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
-      rules: { "regexp/no-super-linear-backtracking": "off", "regexp/no-super-linear-move": "off" },
+      ignores: ["tooling/src/review-mirror/**"],
+      rules: { "regexp/no-super-linear-backtracking": "off" },
     },
   ];
 }
