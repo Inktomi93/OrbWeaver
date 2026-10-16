@@ -17,7 +17,7 @@ updated: 2026-10-07
 - **The native vector column** (`custom-types/`) — `vector32` (libSQL `F32_BLOB(dim)`, raw little-endian Float32 blob), consumed by the five vector tables in `schema/embeddings.ts`.
 - **`@orb/db/query`** — db-layer primitives that need drizzle types and cannot be kit-pure: `batch`, `db-errors` (the deep cause-walk constraint classifier), `fetch-owned` (`fetchOwned`/`OwnedTable`), `insert-chunk` (the libSQL 32766 bound-variable cap), `parsers` (the read-seam zod `.catch(null)` JSON-column coercion; the `null`-vs-`[]` contract asymmetry is deliberate and must not be collapsed).
 
-NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector write path + `VECTOR_TABLES`/`clearVectorTable` (→ `domain/embeddings`, the table owner); the OTel wrap impl (injected); audit-log WRITES (`logAudit` → `foundation/observability`; the table stays here); pure-isomorphic primitives (→ `@orb/kit`); any zod wire schema (→ `@orb/contracts`).
+NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector write path + `VECTOR_TABLES` (→ `domain/embeddings`, the table owner); the OTel wrap impl (injected); audit-log WRITES (`logAudit` → `foundation/observability`; the table stays here); pure-isomorphic primitives (→ `@orb/kit`); any zod wire schema (→ `@orb/contracts`).
 
 ## The producer-names-the-schema rule (locked)
 
@@ -176,7 +176,7 @@ generate against the same parent?).
 
 ## Esoteric / required behavior
 
-1. **The F32_BLOB exact-scan note (ANN dropped).** No DiskANN/ANN shadow index exists. At corpus scale a full `ORDER BY vector_distance_cos(...) LIMIT k` is sub-millisecond and EXACT — an index would be ~50× data bloat for nothing. Consequences: `vector32` stores the raw blob (sidestepping a documented drizzle-orm insert-binding caveat; the query vector is wrapped `vector32(?)` in search SQL), and `clearVectorTable` (domain/embeddings) is a plain `DELETE FROM` — safe precisely because there is no shadow graph to poison. Re-introducing ANN breaks both silently. It would also break mixed widths: libSQL enforces a declared `F32_BLOB(N)` width only through a vector index, so today one column holds every owner's width and the declared 1024 is inert DDL. (Carried in `custom-types/index.ts`.)
+1. **The F32_BLOB exact-scan note (ANN dropped).** No DiskANN/ANN shadow index exists. At corpus scale a full `ORDER BY vector_distance_cos(...) LIMIT k` is sub-millisecond and EXACT — an index would be ~50× data bloat for nothing. Consequences: `vector32` stores the raw blob (sidestepping a documented drizzle-orm insert-binding caveat; the query vector is wrapped `vector32(?)` in search SQL), and vector pruning in `domain/embeddings/persistence/clear.ts` uses plain deletes without a shadow graph to synchronize. Re-introducing ANN changes both requirements. It would also break mixed widths: libSQL enforces a declared `F32_BLOB(N)` width only through a vector index, so today one column holds every owner's width and the declared 1024 is inert DDL. (Carried in `custom-types/index.ts`.)
 
 2. **The custom-type 4-byte-alignment `slice()`.** `vector32.fromDriver` copies via `value.slice().buffer` because the driver may return an unaligned subarray view `Float32Array` cannot wrap. Remove the copy and reads corrupt on unaligned rows. (Carried in `custom-types/index.ts`.)
 
