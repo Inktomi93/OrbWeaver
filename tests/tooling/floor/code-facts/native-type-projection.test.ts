@@ -147,6 +147,9 @@ test(
       "authored-value-projection.ts",
       "authored-value-projection-codec.ts",
       "static-authored-value.ts",
+      "zod-origin.ts",
+      "schema-object.ts",
+      "schema-object-contract.ts",
       "reference-fact-global.ts",
     ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
     const authored = inventoryAuthoredFiles(scratch);

@@ -1315,6 +1315,9 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/call-returns.ts",
         "../code-facts/value-carrier.ts",
         "../code-facts/value-carrier-native.ts",
+        "../code-facts/zod-origin.ts",
+        "../code-facts/schema-object.ts",
+        "../code-facts/schema-object-contract.ts",
       ].map((name) => fileURLToPath(new URL(name, import.meta.url)))
     : [];
 }

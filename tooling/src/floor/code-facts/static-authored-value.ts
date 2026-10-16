@@ -259,7 +259,12 @@ function readArray(node: import("ts-morph").ArrayLiteralExpression, target: Read
   return elements.kind === "unresolved" ? elements : { kind: "resolved", value: { kind: "tuple", elements: elements.value, node }, trace: elements.trace };
 }
 
-function shallowArray(node: MorphNode, target: ReadState, accepted: ReadonlySet<MorphNode>, spread = false): ReferenceFact<ArrayRead<MorphNode>> {
+function shallowArray(
+  node: MorphNode,
+  target: ReadState,
+  accepted: Parameters<typeof unprovenReferenceUse>[1],
+  spread = false,
+): ReferenceFact<ArrayRead<MorphNode>> {
   const read = resolveAuthoredComposite(node);
   if (read.kind === "unresolved") {
     // A runtime expression is an unknown contribution, whereas a dynamic USE of an authored array
@@ -301,7 +306,7 @@ function shallowArray(node: MorphNode, target: ReadState, accepted: ReadonlySet<
 /** Exact shallow array elements through stable aliases/spreads and proven uses. Element values remain
  *  opaque: a fact provider can be a call/import without becoming an unreadable JSON-like value.
  *  Unlike readStaticAuthoredValue, every array identity use must be accounted for by the query. */
-export function readAuthoredArrayElements(node: MorphNode, accepted: ReadonlySet<MorphNode>): ReferenceFact<readonly MorphNode[]> {
+export function readAuthoredArrayElements(node: MorphNode, accepted: Parameters<typeof unprovenReferenceUse>[1]): ReferenceFact<readonly MorphNode[]> {
   return exactElements(shallowArray(node, state(), accepted));
 }
 
