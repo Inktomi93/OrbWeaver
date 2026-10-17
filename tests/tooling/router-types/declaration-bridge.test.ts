@@ -79,3 +79,42 @@ test("native emission follows private aliases without reopening implementation, 
 test("the CLI refuses unused arguments before emitting", async ({ runCli }) => {
   await expect(await runCli("router-types", ["--stale"])).toExitWith(3);
 });
+
+test("explicit native resolution modes survive import types, type imports and type re-exports", async ({ plantedTree }) => {
+  for (const mode of ["require", "import"] as const) {
+    const otherMode = mode === "require" ? "import" : "require";
+    const packageType = mode === "require" ? "module" : "commonjs";
+    const root = await plantedTree({
+      "package.json": JSON.stringify({ type: packageType }),
+      "packages/server/package.json": JSON.stringify({
+        type: packageType,
+        imports: { "#payload": { import: "./src/import.ts", require: "./src/require.ts" } },
+      }),
+      "packages/server/tsconfig.json": JSON.stringify({ compilerOptions: COMPILER_OPTIONS, include: ["src"] }),
+      [`${SERVER_SOURCE}/import.ts`]: 'export interface Payload { mode: "import" }',
+      [`${SERVER_SOURCE}/require.ts`]: 'export interface Payload { mode: "require" }',
+      [`${SERVER_SOURCE}/index.ts`]: [
+        `import type { Payload } from "#payload" with { "resolution-mode": "${mode}" };`,
+        `export type { Payload as ExportedPayload } from "#payload" with { "resolution-mode": "${mode}" };`,
+        `export type AppRouter = import("#payload", { with: { "resolution-mode": "${mode}" } }).Payload;`,
+        "export type ImportedPayload = Payload;",
+      ].join("\n"),
+    });
+    expect(buildRouterDeclarations(root)).toBe(2);
+    const emitted = readFileSync(join(root, DECLARATIONS, "index.d.ts"), "utf8");
+    expect(emitted).not.toContain("#payload");
+    expect(emitted).not.toContain(`"./${otherMode}.ts"`);
+    const proof = join(root, DECLARATIONS, "proof.ts");
+    writeFileSync(
+      proof,
+      [
+        'import type { AppRouter, ImportedPayload, ExportedPayload } from "./index.d.ts";',
+        `export const router: AppRouter["mode"] = "${mode}";`,
+        `export const imported: ImportedPayload["mode"] = "${mode}";`,
+        `export const reexported: ExportedPayload["mode"] = "${mode}";`,
+      ].join("\n"),
+    );
+    const program = ts.createProgram([proof], { module: ts.ModuleKind.NodeNext, noEmit: true, skipLibCheck: true, types: [] });
+    expect(ts.getPreEmitDiagnostics(program)).toEqual([]);
+  }
+});

@@ -8,15 +8,41 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm build:router-types");
 
+type DeclarationImportSite = ts.ImportDeclaration | ts.ExportDeclaration | ts.ImportTypeNode;
+
+function declarationResolutionMode(source: ts.SourceFile, site: DeclarationImportSite, options: ts.CompilerOptions, printer: ts.Printer): ts.ResolutionMode {
+  // Emitted nodes may lack parents; parse a query-only reference context instead of mutating immutable native nodes.
+  const printed = printer.printNode(ts.EmitHint.Unspecified, site, source);
+  const text = ts.isImportTypeNode(site) ? `type Resolution = ${printed};` : printed;
+  const query = ts.createSourceFile(source.fileName, text, source.languageVersion, true);
+  const statement = query.statements[0];
+  let usage: ts.Node | undefined;
+  if (statement !== undefined && (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement))) {
+    usage = statement.moduleSpecifier;
+  } else if (
+    statement !== undefined &&
+    ts.isTypeAliasDeclaration(statement) &&
+    ts.isImportTypeNode(statement.type) &&
+    ts.isLiteralTypeNode(statement.type.argument)
+  ) {
+    usage = statement.type.argument.literal;
+  }
+  if (usage === undefined || !ts.isStringLiteral(usage)) {
+    throw new Error("Native declaration resolution requires one parsed module reference.");
+  }
+  return ts.getModeForUsageLocation(source, usage, options);
+}
+
 function declarationImports(root: string, options: ts.CompilerOptions, host: ts.CompilerHost): ts.TransformerFactory<ts.SourceFile | ts.Bundle> {
   const serverSource = `${resolve(root, "packages/server/src").replaceAll("\\", "/")}/`;
+  const printer = ts.createPrinter();
   return (context) => (source) => {
     if (ts.isBundle(source)) {
       throw new Error("Router declarations require individual native module outputs.");
     }
-    const rewrite = (node: ts.StringLiteral): ts.StringLiteral => {
-      const target = ts.resolveModuleName(node.text, source.fileName, options, host, undefined, undefined, source.impliedNodeFormat).resolvedModule
-        ?.resolvedFileName;
+    const rewrite = (node: ts.StringLiteral, site: DeclarationImportSite): ts.StringLiteral => {
+      const mode = declarationResolutionMode(source, site, options, printer);
+      const target = ts.resolveModuleName(node.text, source.fileName, options, host, undefined, undefined, mode).resolvedModule?.resolvedFileName;
       if (target === undefined || !target.replaceAll("\\", "/").startsWith(serverSource)) {
         return node;
       }
@@ -29,28 +55,21 @@ function declarationImports(root: string, options: ts.CompilerOptions, host: ts.
       }
       return context.factory.updateImportTypeNode(
         node,
-        context.factory.updateLiteralTypeNode(node.argument, rewrite(node.argument.literal)),
+        context.factory.updateLiteralTypeNode(node.argument, rewrite(node.argument.literal, node)),
         node.attributes,
         node.qualifier,
         node.typeArguments?.map((typeArgument) => ts.visitNode(typeArgument, visit, ts.isTypeNode)),
         node.isTypeOf,
       );
     };
-    const moduleSpecifier = (node: ts.Expression | undefined): ts.Expression | undefined =>
-      node !== undefined && ts.isStringLiteral(node) ? rewrite(node) : node;
+    const moduleSpecifier = (node: ts.ExportDeclaration): ts.Expression | undefined =>
+      node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier) ? rewrite(node.moduleSpecifier, node) : node.moduleSpecifier;
     const visit = (node: ts.Node): ts.VisitResult<ts.Node> => {
       if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
-        return context.factory.updateImportDeclaration(node, node.modifiers, node.importClause, rewrite(node.moduleSpecifier), node.attributes);
+        return context.factory.updateImportDeclaration(node, node.modifiers, node.importClause, rewrite(node.moduleSpecifier, node), node.attributes);
       }
       if (ts.isExportDeclaration(node)) {
-        return context.factory.updateExportDeclaration(
-          node,
-          node.modifiers,
-          node.isTypeOnly,
-          node.exportClause,
-          moduleSpecifier(node.moduleSpecifier),
-          node.attributes,
-        );
+        return context.factory.updateExportDeclaration(node, node.modifiers, node.isTypeOnly, node.exportClause, moduleSpecifier(node), node.attributes);
       }
       if (ts.isImportTypeNode(node)) {
         return importType(node);
