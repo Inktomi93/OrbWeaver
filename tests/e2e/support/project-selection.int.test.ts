@@ -7,6 +7,7 @@ import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -32,6 +33,20 @@ console.log(JSON.stringify(config.webServer.map(server => server.env.AUTH_MODE))
 function collect(selector: readonly string[], configFile = "playwright.config.ts"): ReturnType<typeof runNicedSync> {
   return runNicedSync(process.execPath, [PLAYWRIGHT_CLI, "test", "-c", configFile, ...COLLECTION_ARGS, ...selector]);
 }
+
+test("the corpus matrix forwards one selected phone cell without accumulating default projects", { tags: ["slow"] }, () => {
+  const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
+  const result = runNicedSync("pnpm", ["--config.verify-deps-before-run=false", "e2e:corpus:matrix", "--list", `--project=${project}`]);
+  const transcript = result.stdout + result.stderr;
+  expect(result.status, transcript).toBe(0);
+  expect(transcript.match(/^Corpus matrix cell: .+$/gmu)).toEqual([`Corpus matrix cell: ${project}`]);
+  expect(transcript).toContain(`[${project}]`);
+  expect(transcript).toContain("first send streams incrementally, second send works, and exact canon survives reload");
+  expect(transcript).toContain("Backup exports a real library and imports the downloaded bundle");
+  expect(transcript).toContain("Corpus matrix: 1 of 1 cells completed; failures=[]; missing=[]");
+  expect(transcript).not.toContain("[corpus-desktop-");
+  expect(transcript).not.toContain("[corpus-local-");
+});
 
 function collectedProjects(suites: readonly JSONReportSuite[]): string[] {
   return suites.flatMap((suite) => [...suite.specs.flatMap((spec) => spec.tests.map((entry) => entry.projectName)), ...collectedProjects(suite.suites ?? [])]);
@@ -110,7 +125,11 @@ for (const missing of [false, true]) {
     expect(result.status, transcript).toBe(missing ? 1 : 0);
     const fragments = missing
       ? ["No tests found"]
-      : ["the selected corpus clone serves the captured room identity, content and visible title", "Total: 1 test in 1 file", "[single-user]"];
+      : [
+          "the selected corpus clone serves the captured room identity, content and visible title",
+          `Total: ${String(THEME_CHAT_STYLES.length * 2)} tests in 1 file`,
+          ...THEME_CHAT_STYLES.flatMap((style) => [`[corpus-desktop-${style}]`, `[corpus-phone-${style}]`]),
+        ];
     for (const fragment of fragments) {
       expect(transcript).toContain(fragment);
     }

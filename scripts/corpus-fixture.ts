@@ -1,4 +1,6 @@
 // Durable corpus publication and native consumers; each runner retains its own isolation and cleanup policy.
+
+import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -10,10 +12,63 @@ import { exportProcessEnv, inheritedProcessEnv } from "@orb/tooling/floor/proces
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
+const LOCAL_PASSWORD_BYTES = 32;
 const USAGE =
-  "corpus-fixture requires publish <new-directory>, e2e [published-directory] [--] [native E2E arguments], or snap [published-directory] [--] [native Snap arguments]";
+  "corpus-fixture requires publish <new-directory>, e2e|matrix [published-directory] [--] [native E2E arguments], or snap [published-directory] [--] [native Snap arguments]";
 
 const INTERRUPTED_EXIT = 130;
+
+async function runCorpusMatrix(directory: string | undefined, args: readonly string[]): Promise<number> {
+  const { CORPUS_PROJECT_CELLS, parseProjectSelection } = await import("../tests/e2e/support/modes.ts");
+  const { patterns, forwarded } = parseProjectSelection(args);
+  const cells = CORPUS_PROJECT_CELLS.filter(({ name }) => patterns === undefined || patterns.some((pattern) => pattern.test(name)));
+  if (cells.length === 0) {
+    process.stderr.write("No corpus matrix projects matched the selection\n");
+    return 1;
+  }
+  const completed: { readonly name: string; readonly code: number }[] = [];
+  for (const cell of cells) {
+    process.stdout.write(`Corpus matrix cell: ${cell.name}\n`);
+    const marker = mintRunMarker();
+    const result = await spawnNicedTranscript(
+      "pnpm",
+      [
+        "--config.verify-deps-before-run=false",
+        "exec",
+        "node",
+        "scripts/corpus-fixture.ts",
+        "e2e",
+        ...(directory === undefined || directory === "--" ? ["--"] : [directory, "--"]),
+        ...forwarded,
+        `--project=${cell.name}`,
+      ],
+      {
+        cwd: process.cwd(),
+        env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_REPORT_PREFIX: `reports/e2e-corpus-matrix/${cell.name}/${marker}` }),
+        timeoutMs: budget(CONSUMER_TIMEOUT_MS),
+        teardown: runMarkerTranscriptTeardown(marker),
+        onChunk: (chunk, stream) => {
+          process[stream].write(chunk);
+        },
+      },
+    );
+    const code = result.code ?? 2;
+    completed.push({ name: cell.name, code });
+    process.stdout.write(`Corpus matrix verdict: ${cell.name} exit=${String(code)}\n`);
+    if (code > 1) {
+      break;
+    }
+  }
+  const missing = cells.filter(({ name }) => !completed.some((cell) => cell.name === name)).map(({ name }) => name);
+  const failed = completed.filter(({ code }) => code !== 0);
+  process.stdout.write(
+    `Corpus matrix: ${String(completed.length)} of ${String(cells.length)} cells completed; failures=${JSON.stringify(failed)}; missing=${JSON.stringify(missing)}\n`,
+  );
+  if (missing.length > 0 || failed.some(({ code }) => code > 1)) {
+    return 2;
+  }
+  return failed.length > 0 ? 1 : 0;
+}
 
 function runNativeSnap(
   args: readonly string[],
@@ -129,12 +184,15 @@ async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly
 
 await runTool(async () => {
   const [command, directory, ...trailing] = process.argv.slice(2);
-  if (command !== "publish" && command !== "e2e" && command !== "snap") {
+  if (command !== "publish" && command !== "e2e" && command !== "snap" && command !== "matrix") {
     throw new UsageError(USAGE);
   }
   const nativeArgs = command !== "publish" && directory !== "--" && trailing[0] === "--" ? trailing.slice(1) : trailing;
   exportProcessEnv("ORB_ENV_NO_FILE", "1");
   exportProcessEnv("CORPUS_AUTOINDEX", "false");
+  if (command === "matrix") {
+    return await runCorpusMatrix(directory, nativeArgs);
+  }
   if (command === "snap") {
     return await runCorpusSnap(directory, nativeArgs);
   }
@@ -160,14 +218,21 @@ await runTool(async () => {
     process.stdout.write(`Published corpus: ${published.layout.root}\n`);
     return 0;
   }
-  const published = loadCorpusFixture(directory === "--" ? undefined : directory);
-  const clone = await cloneCorpusFixture(published, join(parent, "consumer"));
-  process.stdout.write(`Corpus E2E clone: ${clone.layout.root}\n`);
+  const source = directory === "--" ? undefined : directory;
+  const prepared = nativeArgs.includes("--list") ? undefined : await (await import("@orb/testkit/node/corpus-recipe.ts")).prepareCorpusSnapFixture(source);
+  const clone = prepared?.fixture ?? (await cloneCorpusFixture(loadCorpusFixture(source), join(parent, "consumer")));
   ownership.defer(async (): Promise<void> => {
     if (consumerCompleted) {
-      await clone[Symbol.asyncDispose]();
+      await (prepared ?? clone)[Symbol.asyncDispose]();
     }
   });
+  const localClone = await cloneCorpusFixture(clone, join(parent, "local"));
+  ownership.defer(async (): Promise<void> => {
+    if (consumerCompleted) {
+      await localClone[Symbol.asyncDispose]();
+    }
+  });
+  process.stdout.write(`Corpus E2E clone: ${clone.layout.root}\n`);
   const marker = mintRunMarker();
   let escapedCompletion: ReturnType<typeof joinRunMarkerSweep> | undefined;
   const joinEscaped = (): ReturnType<typeof joinRunMarkerSweep> => {
@@ -176,9 +241,17 @@ await runTool(async () => {
   };
   consumerCompleted = false;
   try {
-    const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "e2e:smoke", ...nativeArgs], {
+    const result = await spawnNicedTranscript("pnpm", ["--config.verify-deps-before-run=false", "e2e", "--grep=@smoke", ...nativeArgs], {
       cwd: process.cwd(),
-      env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_FIXTURE: clone.layout.root, E2E_ALLOW_DEV_TARGET: "0", E2E_LIVE: "0" }),
+      env: inheritedProcessEnv({
+        ...runMarkerEnv(marker),
+        E2E_CORPUS_FIXTURE: clone.layout.root,
+        E2E_CORPUS_LOCAL_FIXTURE: localClone.layout.root,
+        E2E_CORPUS_OWNER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
+        E2E_CORPUS_MEMBER_PASSWORD: randomBytes(LOCAL_PASSWORD_BYTES).toString("hex"),
+        E2E_ALLOW_DEV_TARGET: "0",
+        E2E_LIVE: "0",
+      }),
       timeoutMs: budget(CONSUMER_TIMEOUT_MS),
       teardown: {
         ...runMarkerTranscriptTeardown(marker),

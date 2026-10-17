@@ -5,9 +5,9 @@
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { charactersRailButton, messageRow, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import type { FixtureProvider, FixtureTurn } from "./support/fixture-provider.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import type { CanonMessage } from "./support/trpc.ts";
@@ -24,6 +24,7 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
   await page.goto("/");
   await waitForAppReady(page);
   await charactersRailButton(page).click();
+  await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(CHARACTER);
   const cta = page.getByRole("button", { name: `Chat with ${CHARACTER}`, exact: true });
   const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
   await expect(row).toBeVisible();
@@ -45,7 +46,7 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
 async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: number, turn: FixtureTurn): Promise<void> {
   await expect.poll(() => fixture.requests.length).toBe(index + 1);
   const request = fixture.requests[index];
-  expect(request?.body).toContain(JSON.stringify(turn.userMessage));
+  expect(request?.body).toContain(turn.userMessage);
   expect(request?.finished).toBe(false);
   expect(request?.closed).toBe(false);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(turn.prefix);
@@ -54,7 +55,13 @@ async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: num
 }
 
 async function assertProviderSocketClosed(fixture: FixtureProvider, index: number): Promise<void> {
-  await expect.poll(() => fixture.requests[index]?.socketClosed).toBe(true);
+  await expect
+    .poll(() => ({
+      socketClosed: fixture.requests[index]?.socketClosed,
+      responseClosed: fixture.requests[index]?.closed,
+      finished: fixture.requests[index]?.finished,
+    }))
+    .toEqual({ socketClosed: true, responseClosed: true, finished: false });
 }
 
 async function assertIdle(page: Page, timeout = 5000): Promise<void> {
