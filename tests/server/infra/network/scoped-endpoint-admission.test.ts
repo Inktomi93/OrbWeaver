@@ -1,3 +1,6 @@
+import { createServer } from "node:http";
+import { setImmediate } from "node:timers/promises";
+import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
@@ -39,3 +42,149 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   await expect(egress.safeFetch("https://unresolved.example/asset", { allowedHosts: ANY_HOST })).rejects.toBe(failure);
   expect(rawCalls).toBe(0);
 });
+
+test.each([false, true])("caller abort after Request GC=%s cancels the locked physical response and closes its unfinished socket", async (collectRequest) => {
+  await using lifetime = new AsyncDisposableStack();
+  let responseClosed = false;
+  let socketClosed = false;
+  let responseFinished = false;
+  const server = createServer((incoming, outgoing) => {
+    incoming.socket.once("close", () => {
+      socketClosed = true;
+    });
+    outgoing.once("close", () => {
+      responseClosed = true;
+      responseFinished = outgoing.writableFinished;
+    });
+    outgoing.writeHead(200, { "content-type": "text/plain" });
+    outgoing.write("held physical bytes");
+  });
+  lifetime.defer(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("native egress control requires a physical loopback listener");
+  }
+  await using egress = createScopedEgress();
+  egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
+  const stop = new AbortController();
+  const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
+  const reader = response.body?.getReader();
+  if (reader === undefined) {
+    throw new Error("native egress control requires a response body");
+  }
+  try {
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe("held physical bytes");
+    if (collectRequest) {
+      for (let turn = 0; turn < 12; turn += 1) {
+        await setImmediate();
+        queryObjects(Request, { format: "count" });
+      }
+    }
+    let rejected = false;
+    const reading = reader.read().catch((error: unknown) => {
+      rejected = true;
+      return error;
+    });
+    stop.abort();
+    await expect.poll(() => ({ responseClosed, socketClosed, rejected })).toEqual({ responseClosed: true, socketClosed: true, rejected: true });
+    expect(responseFinished).toBe(false);
+    expect(await reading).toBe(stop.signal.reason);
+  } finally {
+    stop.abort();
+    try {
+      await egress[Symbol.asyncDispose]();
+    } finally {
+      reader.releaseLock();
+    }
+  }
+});
+
+test.each(["EOF", "error", "cancel"] as const)(
+  "configured Request ownership releases after physical body %s while its context remains live",
+  async (terminal) => {
+    await using lifetime = new AsyncDisposableStack();
+    const finish = Promise.withResolvers<() => void>();
+    let physicallyClosed = false;
+    const server = createServer((incoming, outgoing) => {
+      if (incoming.url === "/still-live") {
+        outgoing.end("fresh physical bytes");
+        return;
+      }
+      outgoing.once("close", () => {
+        physicallyClosed = true;
+      });
+      outgoing.writeHead(200, { "content-type": "text/plain" });
+      outgoing.write("held");
+      finish.resolve(() => {
+        if (terminal === "error") {
+          outgoing.destroy(new Error("controlled physical response failure"));
+        } else {
+          outgoing.end(" completed");
+        }
+      });
+    });
+    lifetime.defer(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("native Request ownership control requires a physical loopback listener");
+    }
+    let normalized: WeakRef<Request> | undefined;
+    await using egress = createScopedEgress({
+      fetch: (input, init) => {
+        if (!(input instanceof Request)) {
+          throw new Error("configured egress did not normalize its native Request");
+        }
+        normalized = new WeakRef(input);
+        return globalThis.fetch(input, init);
+      },
+    });
+    egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
+    const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/release`);
+    const reader = response.body?.getReader();
+    if (reader === undefined) {
+      throw new Error("native Request ownership control requires a response body");
+    }
+    try {
+      expect(new TextDecoder().decode((await reader.read()).value)).toBe("held");
+      await setImmediate();
+      queryObjects(Request, { format: "count" });
+      expect(normalized?.deref()).toBeDefined();
+      if (terminal === "cancel") {
+        await reader.cancel("caller abandoned the physical body");
+      } else {
+        (await finish.promise)();
+      }
+      const remaining = await reader.read().then(
+        (next) => ({ error: false, done: next.done, bytes: new TextDecoder().decode(next.value) }),
+        (error: unknown) => ({ error: error instanceof Error, done: false, bytes: "" }),
+      );
+      expect(remaining).toEqual({ error: terminal === "error", done: terminal === "cancel", bytes: terminal === "EOF" ? " completed" : "" });
+      const ended = await reader.read().then(
+        (next) => next.done,
+        () => false,
+      );
+      expect(ended).toBe(terminal !== "error");
+      await expect.poll(() => physicallyClosed).toBe(true);
+      for (let turn = 0; turn < 12; turn += 1) {
+        await setImmediate();
+        queryObjects(Request, { format: "count" });
+      }
+      expect(normalized?.deref()).toBeUndefined();
+      expect(await (await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/still-live`)).text()).toBe("fresh physical bytes");
+    } finally {
+      try {
+        await egress[Symbol.asyncDispose]();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  },
+);
