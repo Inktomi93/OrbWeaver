@@ -40,7 +40,7 @@ Reached-call capture preserves explicit references, native lifetimes and atomic 
 
 Nested callable and nullish storage retain native origins, allocations and references. Annotated own-arrow calls obtain actual settled targets after private-premise revocation. Controls, review and ordinary integrated execution pass. Evidence: `reports/review/1002-annotated-callable-origin-ordinary.md`. Original target refuses an actual record copy; cost remains unqualified.
 
-Exact positive and negative source-admission dependencies replace global refinement invalidation. Full native freshness validation and opaque whole-source semantics remain. Controls and security review pass; ordinary integration and cost measurement remain open. Evidence: `reports/review/1002-source-admission-ledger-delivery.md`.
+Exact positive and negative source-admission dependencies replace global refinement invalidation. Full native freshness validation and opaque whole-source semantics remain. Controls, review and ordinary integration pass; cost measurement remains open. Evidence: `reports/review/1002-source-admission-ledger-ordinary.md`.
 
 Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 

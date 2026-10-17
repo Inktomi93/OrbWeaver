@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-17
 priority: P2
 area: tooling
+lane: codex/native-exception-followup-1006
 plan: test-foundation
 ---
 
@@ -11,15 +12,15 @@ plan: test-foundation
 
 ## What
 
-Apply D321 ruling 3 to native migrations. Investigate each suppression and configuration exception against its subject. Separate genuine exceptions, shrinking native bulk debt, false positives and real defects. Existing comments and grants are not permission.
+Apply D321 ruling 3. Adjudicate exceptions against actual subjects: genuine boundaries, shrinking native debt, false positives or defects.
 
 ## Why
 
-Existing comments, grants and exclusions do not establish that a bypass is still necessary or correctly scoped.
+Migrations can preserve unnecessary or incorrectly scoped exceptions.
 
 ## Done when
 
-Every observed entry has source evidence and a retain, remove, fix or unresolved decision. Range and closing markers are paired. Generated repetitions are deduplicated. Repair batches name actual defects, scope and affected checks; no unexplained exception is treated as authority.
+Every entry has source evidence and a retain, remove, fix or unresolved decision. Pair range markers and deduplicate generated repeats. Repair batches name defects, scope and affected checks.
 
 ## Evidence
 
@@ -44,3 +45,5 @@ Native parser-fixture permissions apply only to source-string restrictions. Runt
 Reviewed native exceptions retain actual transferred or borrowed lifetimes, atomic derived-plane replacements, producer compatibility and platform-only physical assertions. Stale comments are removed. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Broader disposition remains open.
 
 Reviewed standalone Node-child and Base UI item-model exceptions preserve native execution and narrow public contracts. Their distinct classes do not authorize budget growth. Keep the central alarm visible until broader disposition removes unnecessary permissions. Evidence: `reports/review/1041-egress-watchdog-ordinary.md` and `reports/review/1041-native-baseui-seals-delivery.md`.
+
+Hook exceptions preserve value-keyed effects and retained factory identity. The bracket effect depends only on selection. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
