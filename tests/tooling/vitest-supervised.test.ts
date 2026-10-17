@@ -43,10 +43,10 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const SUPERVISOR = join(process.cwd(), "scripts", "vitest-supervised.ts");
 
-// The busy-mode grandchild's source, hoisted out of FAKE below so this gate marker can be a REAL comment
+// The busy-mode grandchild's source, hoisted out of FAKE below so this native directive can be a REAL comment
 // (a `//` inside a template literal is string content, not a comment). It burns CPU for a measured
 // wall-clock span and prints nothing — the exact shape of a long single test file.
-// @orb-waive test-determinism(Date.now): the SUBJECT is elapsed real CPU time — a spawned grandchild has no injectable clock, and the loop's END CONDITION is FAKE_BUSY_MS of wall time having passed
+// eslint-disable-next-line orb/test-ambient-source-string -- The spawned grandchild measures actual elapsed CPU time; a frozen business clock cannot end its busy loop. Remove with this stimulus.
 const SPIN_SRC = "const t = Date.now(); while (Date.now() - t < Number(process.argv[1])) {}";
 
 // A single parametric fake vitest: it parses its own --outputFile.json (the supervisor passes the run args

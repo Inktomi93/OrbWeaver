@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-16
+updated: 2026-10-17
 priority: P2
 area: tooling
 plan: test-foundation
@@ -36,3 +36,7 @@ Native Drizzle checks cover neighboring scoped writes. Intentional replacements 
 Explicit string templates resolve native Vitest scenario-title false positives without changing registration, case names, fixtures or assertions. Native rules remain enabled; no suppression is added. Evidence: `reports/review/1006-native-scenario-title-ordinary.md`.
 
 File-size migration rejudges existing test monolith grants as shrinking native bulk debt. New subjects remain blocking. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
+
+Remaining Zod issue permissions serve structured paths, model correction or recorded loss data. RPG and versioned-config reasons match their actual consumers. Evidence: `.claude/worktrees/codex-drizzle-native-953/reports/review/1041-zod-issues-adjudication.md`. No runtime or permission change is required.
+
+Native parser-fixture permissions apply only to source-string restrictions. Runtime clock and entropy judgments remain active. Evidence: `reports/review/1041-native-determinism-ordinary.md`.

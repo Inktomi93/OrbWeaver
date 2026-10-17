@@ -26,6 +26,7 @@ import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/projec
 import { scaledBudget } from "../../_load-budget.ts";
 
 const SOURCE = "tests/server/globals.test.ts";
+// eslint-disable-next-line orb/test-ambient-source-string -- This global-origin fixture is parsed into compiler worlds, never executed; remove with these origin controls.
 const TEXT = `const D=Date; const CTOR=D;
 const KEY='now'; export const now=D[KEY]();
 export const draw=Math.random();

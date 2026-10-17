@@ -1,8 +1,9 @@
 // Test determinism includes testkit: ambient clocks/entropy and unseeded business mints are forbidden.
 // Canonical floor origin readers distinguish aliases and seeded production mints from lookalikes.
-// Singleton: test-specific timer and source-string obligations share this population and authority.
-// Population correction: support is judged; live e2e remains outside this policy. Source strings retain their waiver door.
+// Singleton: timer and seeded-business-mint provenance share this population and authority.
+// Native restrictions own source-string spellings and dotted fixed waits; semantic defaults and provenance remain here.
 
+import { AMBIENT_SOURCE_PATTERNS as BANNED } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import type { CallExpression, Node as MorphNode, NewExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { CallableInvocation, ReferenceFact, ReferenceOrigin } from "../../floor/code-facts/reference-fact-contract.ts";
@@ -24,39 +25,6 @@ const INVOCATION_PLAN: InventoryInvocationPlan = {
   ],
 };
 const MEMBER_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["global"], arguments: [] };
-
-const BANNED: readonly { readonly re: RegExp; readonly what: string }[] = [
-  {
-    re: /\bDate\.now\s*\(/u,
-    what: "Date.now() — inject the frozen clock (tests/support/iso/clock.ts)",
-  },
-  {
-    re: /\bnew\s+Date\s*\(\s*\)/u,
-    what: "new Date() with no args — ambient clock; use the injected clock",
-  },
-  { re: /\bMath\.random\s*\(/u, what: "Math.random() — nondeterministic; seed it or inject" },
-  {
-    re: /\.randomUUID\s*\(/u,
-    what: "randomUUID() — unseeded id; use the seeded ids (tests/support/iso/ids.ts)",
-  },
-  { re: /\bperformance\.now\s*\(/u, what: "performance.now() — ambient clock" },
-  {
-    re: /\bprocess\.hrtime\b/u,
-    what: "process.hrtime()/process.hrtime.bigint() — ambient monotonic clock; mark it if the test's SUBJECT is elapsed real time (#828)",
-  },
-  {
-    re: /\bperformance\.timeOrigin\b/u,
-    what: "performance.timeOrigin — ambient clock property",
-  },
-  {
-    re: /\bvi\.useFakeTimers\s*\(/u,
-    what: "vi.useFakeTimers() — replaces the ambient clock globally; inject the frozen clock via the composition seam instead (tests/support/iso/clock.ts)",
-  },
-  {
-    re: /\.waitForTimeout\s*\(/u,
-    what: ".waitForTimeout() — Playwright flaky-wait anti-pattern; biome's noPlaywrightWaitForTimeout misses non-`page` receivers (locator.page().waitForTimeout) and does not fire on CT files at all (#2385). Use a locator assertion or `expect.poll` instead",
-  },
-];
 
 const KIT_MINTS = new Set(["mintTypeId", "newId", "createIdSource"]);
 const VENDOR_MINTS = new Set(["typeid", "typeidUnboxed"]);
@@ -162,9 +130,9 @@ function invocationToken(node: CallExpression | NewExpression, evidence: NativeI
   }
   // Syntax-only fixture references have no ambient declarations; keep their existing refusal surface.
   const syntax = `${callee.getText()}(`;
-  const banned = BANNED.find(({ re }) => re.test(syntax));
+  const banned = BANNED.find(({ re, invocationFallback }) => invocationFallback !== "native" && re.test(syntax));
   return banned !== undefined &&
-    (!bindsProvenNonModuleDeclarations(originRefusalDeclarations(callee, evidence.declarations)) || BANNED.slice(-2).includes(banned))
+    (!bindsProvenNonModuleDeclarations(originRefusalDeclarations(callee, evidence.declarations)) || banned.invocationFallback === "always")
     ? banned.re.exec(syntax)?.[0].replace(/[()]+$/u, "")
     : undefined;
 }
@@ -191,22 +159,6 @@ function fakeTimerToken(invocation: CallableInvocation, evidence: NativeInvocati
   return readPackageExportOrigin(invocation.callee, ["vitest"], new Set(["useFakeTimers"]), invocationOriginServices(evidence)).verdict === "home"
     ? "vi.useFakeTimers"
     : undefined;
-}
-
-function reportSourceString(node: MorphNode, ctx: GatePolicyContext, reported: Set<string>): void {
-  // Source strings can execute in another realm; retain the existing explicit per-site waiver door.
-  for (const { re, what } of BANNED) {
-    const match = re.exec(node.getText());
-    if (match !== null) {
-      const token = match[0].replace(/[()]+$/u, "");
-      const line = node.getSourceFile().getLineAndColumnAtPos(node.getStart() + match.index).line;
-      const identity = `${node.getSourceFile().getFilePath()}:${String(line)}:${token}`;
-      if (!reported.has(identity)) {
-        reported.add(identity);
-        ctx.report.node(node, { token, offset: match.index, message: `ambient nondeterminism: ${what}` });
-      }
-    }
-  }
 }
 
 function nodeToken(node: MorphNode, evidence: NativeInvocationEvidence): string | undefined {
@@ -239,7 +191,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/unseeded mintTypeId/newId/typeid/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers/waitForTimeout) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
+    "ambient nondeterminism in a test (Date.now/new Date()/Math.random/randomUUID/unseeded mintTypeId/newId/typeid/performance.now/process.hrtime/performance.timeOrigin/vi.useFakeTimers) — inject the frozen clock + seeded ids via the fixture seam (docs/law/Spine-Testing.md §3).",
   fix:
     "inject the frozen clock (tests/support/iso/clock.ts) + seeded ids (tests/support/iso/ids.ts) through the " +
     "composition seam production uses. A deliberate site (a test whose SUBJECT is elapsed real time) is " +
@@ -247,33 +199,12 @@ export const gate = defineGate({
     "call, where <position> is the matched banned spelling trimmed of its call parens (`Date.now`, " +
     "`process.hrtime`, `performance.timeOrigin`).",
   create: (ctx) => {
-    const reportedStrings = new Set<string>();
     const pending: MorphNode[] = [];
     return {
       visitors: [
         {
-          kinds: [
-            SyntaxKind.CallExpression,
-            SyntaxKind.NewExpression,
-            SyntaxKind.PropertyAccessExpression,
-            SyntaxKind.ElementAccessExpression,
-            SyntaxKind.StringLiteral,
-            SyntaxKind.NoSubstitutionTemplateLiteral,
-            SyntaxKind.TemplateHead,
-            SyntaxKind.TemplateMiddle,
-            SyntaxKind.TemplateTail,
-          ],
+          kinds: [SyntaxKind.CallExpression, SyntaxKind.NewExpression, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node) => {
-            if (
-              Node.isStringLiteral(node) ||
-              Node.isNoSubstitutionTemplateLiteral(node) ||
-              Node.isTemplateHead(node) ||
-              Node.isTemplateMiddle(node) ||
-              Node.isTemplateTail(node)
-            ) {
-              reportSourceString(node, ctx, reportedStrings);
-              return;
-            }
             pending.push(node);
             if (ctx.nativeTypes === undefined) {
               throw new Error("native invocation context is unavailable");
@@ -392,12 +323,6 @@ export const gate = defineGate({
     },
     {
       mode: "types",
-      files: { "tests/server/literal.test.ts": 'export const src = "Date.now()";\n' },
-      expect: { count: 1, messageIncludes: "Date.now" },
-      why: "DECLARED LIMIT (issue #132): only COMMENTS are blanked. A banned call spelled inside a STRING is code a test could evaluate — tests/tooling/vitest-supervised.test.ts's SPIN_SRC is exactly that, a string spawned as a real grandchild — so keeping this row proven stops a future 'blank strings too' from silently disarming the arm. THE LIMIT CANNOT BE NARROWED (#1975, 2026-09-11): a syntax line-scanner cannot tell a string parsed by ts-morph from one that runs, and the parser fixtures that spell a banned call to prove a READER (tests/tooling/verify/lib/{ambient-determinism,origin-verdict,reference-fact-origin.suite}) each carry their own `@orb-waive` instead — nine of them, one reason apiece, which is the per-site door this arm is supposed to have",
-    },
-    {
-      mode: "types",
       files: { "tests/server/hrtime.test.ts": "export const t = process.hrtime();\n" },
       expect: { count: 1, messageIncludes: "process.hrtime" },
       why: "#831 — process.hrtime() is an ambient monotonic clock the old regex did not recognise; four real sites routed around the gate through this spelling before the class was widened",
@@ -419,18 +344,6 @@ export const gate = defineGate({
       files: { "tests/server/faketimers.test.ts": "vi.useFakeTimers();\nexport const t = 1;\n" },
       expect: { count: 1, messageIncludes: "vi.useFakeTimers" },
       why: "#2384 — vi.useFakeTimers() replaces the ambient clock globally rather than injecting through the composition seam; 9 post-law drifters found by the Qwen audit",
-    },
-    {
-      mode: "types",
-      files: { "tests/client/wft.ct.tsx": "await page.waitForTimeout(100);\nexport const t = 1;\n" },
-      expect: { count: 1, messageIncludes: "waitForTimeout" },
-      why: "#2385 — page.waitForTimeout() is a Playwright flaky-wait anti-pattern; biome's noPlaywrightWaitForTimeout does not fire on CT files at all",
-    },
-    {
-      mode: "types",
-      files: { "tests/client/wft-chain.ct.tsx": "await locator.page().waitForTimeout(60);\nexport const t = 1;\n" },
-      expect: { count: 1, messageIncludes: "waitForTimeout" },
-      why: "#2385 — locator.page().waitForTimeout() escapes biome's noPlaywrightWaitForTimeout because the receiver is not literally `page`; this regex catches all receiver forms",
     },
   ],
   mustRefuse: [
@@ -542,26 +455,10 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/server/file-waived.test.ts":
-          '// @orb-waive-file test-determinism(Date.now): FIXTURE SOURCE for a reader that parses but never evaluates the call — ends when this fixture stops flagging.\nexport const src = "Date.now()";\n',
-      },
-      why: "#1984 — the file-scoped `@orb-waive-file` grammar waives a finding anywhere in the file, not only carrier-adjacent. This proves the grammar works for test-determinism: a string-literal Date.now() (the DECLARED LIMIT) is waived by a file-level marker at the top",
-    },
-    {
-      mode: "types",
-      files: {
         "tests/server/faketimers-waived.test.ts":
           "// @orb-waive test-determinism(vi.useFakeTimers): legacy test not yet migrated to the composition seam; ends when this test adopts the frozen clock\nvi.useFakeTimers();\nexport const t = 1;\n",
       },
       why: "#2384 — the per-site escape for vi.useFakeTimers proving the marker reaches it identically to the other BANNED entries",
-    },
-    {
-      mode: "types",
-      files: {
-        "tests/client/wft-waived.ct.tsx":
-          "// @orb-waive test-determinism(.waitForTimeout): legacy Playwright wait not yet migrated to a locator assertion; ends when this test uses expect.poll\nawait page.waitForTimeout(100);\nexport const t = 1;\n",
-      },
-      why: "#2385 — the per-site escape for waitForTimeout proving the marker reaches it",
     },
   ],
 });

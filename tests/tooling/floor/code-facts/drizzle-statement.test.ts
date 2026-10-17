@@ -606,6 +606,7 @@ const CASES = [
   {
     name: "review unrelated unresolved call does not taint direct safe factory caller",
     producer: BUILDER,
+    // eslint-disable-next-line orb/test-ambient-source-string -- This SQL caller fixture is parsed to isolate an unrelated call, never executed; remove with this control.
     recipient: `${RECIPIENT_HEAD}export async function safe(db: Db, ownerId: string) { Math.random(); return await owned(db, ownerId); }`,
     findings: 0,
   },

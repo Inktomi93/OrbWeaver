@@ -222,7 +222,12 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: platformSpellings,
-    overlays: [add("packages/showcase-plugins/src/liveness-escape.ts", "export function escapeRegExp(value: string): string {\n  return value;\n}\n")],
+    overlays: [
+      add(
+        "packages/server/src/primitives/liveness-sleep.ts",
+        "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
+      ),
+    ],
     messageIncludes: "superseded pre-node-26 spelling",
   },
   {

@@ -193,6 +193,7 @@
     "./floor/process/sync-sleep": "./src/floor/process/sync-sleep.ts",
     "./floor/prose/prose-references": "./src/floor/prose/prose-references.ts",
     "./floor/prose/prose-rules": "./src/floor/prose/prose-rules.ts",
+    "./floor/testing/ambient-source-patterns": "./src/floor/testing/ambient-source-patterns.ts",
     "./floor/testing/ct-run-slot": "./src/floor/testing/ct-run-slot.ts",
     "./floor/testing/scoped-run-paths": "./src/floor/testing/scoped-run-paths.ts",
     "./floor/testing/stryker-config": "./src/floor/testing/stryker-config.ts",

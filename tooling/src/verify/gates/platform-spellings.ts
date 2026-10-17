@@ -1,30 +1,6 @@
-// Policy: platform-spellings — the Node 26 adoption ratchet for four retired spellings.
-//
-// SLEEP reports a new Promise executor that passes its resolve parameter directly to setTimeout and does
-// not use reject; client and UI are carved out because node:timers/promises is unavailable in browsers.
-// DEFERRED reports an executor assigning resolve/reject to an outer binding; handing a resolver through a
-// call remains the declared escape-analysis limit. SPREAD-SORT reports [...x].sort only when same-file
-// syntax proves x is an array; cross-file/inferred types remain the declared under-reach. ESCAPE-MINT
-// reports function-valued declarations named escapeRegExp or escapeRegex; nameless regex bodies remain the
-// declared limit after the removed body heuristic produced 27 false positives.
-//
-// The dispatcher supplies each node once. Promise descendants are inverted into invocation-local state
-// keyed by their enclosing executor, so the policy performs no private descendant or definition walk.
-// Lexical declarations come only through resolveLexicalValueDeclaration and cycles stop by declaration
-// identity, with no arbitrary hop cap.
-//
-// POPULATION PORT: the legacy packages/ predicate maps to @packages across the six product roots. The final
-// `@product` includes both shipped showcase and default-content workspaces by classification.
-// Authority is the central ordinary positional waiver. Findings name exact authored positions: Promise for
-// sleep/deferred, the array expression for spread-sort, and the declared escape function name.
-//
-// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the Node 26 adoption
-// ratchet's subject is authored product code, and 112 files of it were outside the declaration. NOT FREE.
-// MEASURED (`pnpm check:structure --check platform-spellings`, whole tree): population 3,316 → 3,428,
-// findings 0 → 1. `backends/openai-compat/reachability.ts` built its wake-poll sleep by hand
-// (`new Promise((resolve) => setTimeout(resolve, ms))`); FIXED IN THIS COMMIT to `node:timers/promises`
-// rather than waived — the package already imports `node:*` freely and no browser bundle reaches it, so the
-// client/UI carve-out stated above does not apply to it.
+// Platform ratchets retain sleep/reject, escaped resolver and same-file array proof obligations.
+// Native orb/platform-escape-mint owns function-valued escapeRegExp/escapeRegex declarations.
+// Browser sleeps and iterator materialization keep their declared distinctions.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveLexicalValueDeclaration } from "../../floor/code-facts/reference-fact.ts";
@@ -33,7 +9,6 @@ import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 
 const SET_TIMEOUT_CALLEES: ReadonlySet<string> = new Set(["setTimeout", "globalThis.setTimeout", "global.setTimeout", "window.setTimeout"]);
-const ESCAPE_NAMES: ReadonlySet<string> = new Set(["escapeRegExp", "escapeRegex"]);
 const BROWSER_ROOTS: readonly string[] = ["packages/client/", "packages/ui/"];
 const ARRAY_RETURNING_METHODS: ReadonlySet<string> = new Set([
   "map",
@@ -54,10 +29,9 @@ const ARRAY_TYPE_NAMES: ReadonlySet<string> = new Set(["Array", "ReadonlyArray"]
 const GROUP_MESSAGE =
   "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (Spine-TypeScript-and-Patterns.md §9) " +
   "ruled the modern spelling is THE spelling and W4 burned the sites down. " +
-  "The reported source position identifies one of four arms: a hand-built sleep, an escaped Promise resolver, " +
-  "a redundant spread before array sort, or a hand-rolled RegExp escape.";
+  "The reported source position identifies a hand-built sleep, an escaped Promise resolver, or a redundant spread before array sort.";
 const FIX =
-  'SLEEP: `import { setTimeout } from "node:timers/promises"; await setTimeout(ms)`. DEFERRED: `const { promise, resolve } = Promise.withResolvers<T>()`. SPREAD-SORT: `arr.toSorted(fn)`. ESCAPE: `RegExp.escape(str)`. A deliberate site is waived with `@orb-waive platform-spellings(<position>): <reason>`, where <position> is the reported `Promise`, spread receiver, or escape function name.';
+  'SLEEP: `import { setTimeout } from "node:timers/promises"; await setTimeout(ms)`. DEFERRED: `const { promise, resolve } = Promise.withResolvers<T>()`. SPREAD-SORT: `arr.toSorted(fn)`. A deliberate site is waived with `@orb-waive platform-spellings(<position>): <reason>`, where <position> is the reported `Promise` or spread receiver.';
 
 interface PromiseState {
   readonly node: MorphNode;
@@ -216,22 +190,6 @@ function spreadSortReceiver(node: MorphNode): MorphNode | undefined {
   return provablyArray(source) ? source : undefined;
 }
 
-function escapeMintName(node: MorphNode): MorphNode | undefined {
-  if (Node.isFunctionDeclaration(node) || Node.isMethodDeclaration(node)) {
-    const name = node.getNameNode();
-    return name !== undefined && ESCAPE_NAMES.has(name.getText()) ? name : undefined;
-  }
-  if (!(Node.isVariableDeclaration(node) || Node.isPropertyAssignment(node))) {
-    return;
-  }
-  const initializer = node.getInitializer();
-  if (initializer === undefined || !(Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))) {
-    return;
-  }
-  const name = node.getNameNode();
-  return ESCAPE_NAMES.has(name.getText()) ? name : undefined;
-}
-
 interface PlatformProofInput {
   readonly files: string;
   readonly at: string;
@@ -249,18 +207,6 @@ function proof(row: PlatformProofInput): GatePolicyProof {
 }
 
 const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
-  {
-    mode: "types",
-    files: { "tests/support/node/escape.ts": "export function escapeRegExp(value: string): string { return value; }" },
-    expect: { count: 1 },
-    why: "tests are judged: a test helper re-minting a Node 26 platform spelling drifts the same way product code does",
-  },
-  {
-    mode: "types",
-    files: { "packages/showcase-plugins/src/index.ts": "export function escapeRegExp(value: string): string { return value; }" },
-    expect: { count: 1 },
-    why: "showcase retains the predecessor packages population; a clean current file does not exempt future re-mints",
-  },
   {
     mode: "types",
     files: {
@@ -305,34 +251,6 @@ const PLATFORM_MUST_FLAG: readonly GatePolicyProof[] = [
     },
     expect: { count: 1, token: "Promise" },
     why: "BLIND SPOT CLOSED (verifier-flagged): the callee test was an exact-text compare on `setTimeout`, so a `globalThis.`-qualified sleep slipped through. A qualifier does not make a sleep something else",
-  },
-  {
-    mode: "types",
-    files: { "packages/server/src/primitives/probe-escape/decl.ts": "export function escapeRegExp(s: string): string {\n  return s;\n}\n" },
-    expect: { count: 1 },
-    why: "ARM ESCAPE-MINT decl — a function DECLARATION named escapeRegExp, the kit export W4.7 deleted",
-  },
-  {
-    mode: "types",
-    files: {
-      "packages/server/src/primitives/probe-escape/method.ts": "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
-    },
-    expect: { count: 1 },
-    why: "BLIND SPOT CLOSED (verifier-flagged): a re-mint hiding as an object-literal METHOD — the arm handled only function declarations and variable declarations, so a helpers-bag spelling was invisible",
-  },
-  {
-    mode: "types",
-    files: {
-      "packages/server/src/primitives/probe-escape/property.ts": "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
-    },
-    expect: { count: 1 },
-    why: "the property-assignment twin of the method spelling — a function-VALUED object property is the same re-mint; the arm requires the value to be a function so a plain string property named escapeRegex never matches",
-  },
-  {
-    mode: "types",
-    files: { "packages/server/src/primitives/probe-escape/arrow.ts": "export const escapeRegex = (s: string): string => s;\n" },
-    expect: { count: 1 },
-    why: "ARM ESCAPE-MINT decl (arrow) — the `const escapeRegex = (…) =>` local re-mint form (body.ts carried its own copy); the name-binding arm covers both spellings",
   },
   {
     mode: "types",
@@ -449,21 +367,6 @@ const PLATFORM_MUST_PASS = [
       "}\n",
     at: "packages/server/src/domain/probe-normal-promise/index.ts",
     why: "a NORMAL Promise executor — it CALLS resolve/reject; the SLEEP arm keys on a setTimeout(resolve, …), which is absent here, so it passes",
-  },
-  {
-    files: "export const remedy = (s: string): string => RegExp.escape(s);\n",
-    at: "packages/server/src/primitives/probe-ok-escape/index.ts",
-    why: "ARM ESCAPE-MINT's remedy — the platform RegExp.escape; the binding is not named escapeRegExp/escapeRegex",
-  },
-  {
-    files: 'export const docs = {\n  escapeRegExp: "use RegExp.escape instead",\n};\n',
-    at: "packages/server/src/primitives/probe-escape/string-prop.ts",
-    why: "the function-VALUED fence on the new property/method arms — a property merely NAMED escapeRegExp whose value is a string (a doc/label table) is not a re-mint and must not flag",
-  },
-  {
-    files: "export const HEX = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/iu;\nexport const DICE = /^(\\d*)d(\\d+)([+-]\\d+)?$/iu;\n",
-    at: "packages/server/src/primitives/probe-complex-regex/index.ts",
-    why: "DECLARED LIMIT / REGRESSION FENCE — the exact class of regexes the REMOVED char-class heuristic false-flagged (a color validator + dice notation, each enumerating ≥8 metacharacters). The name-only ESCAPE arm never touches regex literals, so these must pass; this row pins that the 27-false-positive heuristic stays gone",
   },
   {
     files:
@@ -625,15 +528,6 @@ export const gate = defineGate({
             }
             const declaration = resolveLexicalValueDeclaration(left);
             state.deferredCapture ||= declaration.kind === "unresolved" || !isInside(declaration.value, state.executor);
-          },
-        },
-        {
-          kinds: [SyntaxKind.FunctionDeclaration, SyntaxKind.VariableDeclaration, SyntaxKind.MethodDeclaration, SyntaxKind.PropertyAssignment],
-          visit: (node): void => {
-            const name = escapeMintName(node);
-            if (name !== undefined) {
-              ctx.report.node(name);
-            }
           },
         },
       ],

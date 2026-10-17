@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/compose-query-capability-1041
+lane: codex/native-turn-role-authority-1041
 plan: test-foundation
 ---
 
@@ -40,7 +40,7 @@ Native database constraints enforce freeze-provenance row normalization. Complet
 
 Device-local names and persistence options use native types. Private and legacy imports stay restricted. Evidence: `reports/review/1041-persisted-factory-ordinary.md`.
 
-Native lexical class and skin restrictions replace custom owners; shared z-index and semantic readers remain. Evidence: `reports/review/1041-skin-fragment-native-ordinary.md`.
+Native lint owns lexical class, skin and lexical determinism; semantic readers remain. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
 
 Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
 
