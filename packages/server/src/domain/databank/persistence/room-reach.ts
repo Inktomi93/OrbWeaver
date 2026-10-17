@@ -1,6 +1,8 @@
 // Reverse the consent-junction union; hidden documents still refresh the host's rack.
 import type { Db } from "@orb/db";
 import { characterDocuments, chatDocuments, chatParticipants, globalDocuments } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
@@ -30,6 +32,7 @@ async function resolveDatabankRooms(db: Db, documentId: DocumentId): Promise<Cha
 }
 
 /** Bind the document owner's junction-to-room read, retaining every present human's global credit. */
-export function createDatabankRoomReach(db: Db): (documentId: DocumentId) => Promise<ChatId[]> {
+export function createDatabankRoomReach(handle: DatabaseHandle): (documentId: DocumentId) => Promise<ChatId[]> {
+  const db = databaseForOwner(handle);
   return (documentId) => resolveDatabankRooms(db, documentId);
 }

@@ -21,6 +21,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
@@ -197,6 +198,8 @@ export interface DatabankContext {
    *  databank itself injected into search; here databank is the CONSUMER (chat → databank → search). */
   readonly searchDocuments: SearchService["documents"];
 }
+
+export type DatabankAssemblyContext = DbAssemblyInput<DatabankContext>;
 
 /** The tRPC-facing verb surface. Every verb gates on `principal.userId` (ownership is the gate); chat-attach
  *  additionally requires host authority via `ensureChatHost`. */

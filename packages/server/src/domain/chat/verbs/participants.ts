@@ -28,10 +28,11 @@ import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { backgroundMaterializeMessage, canonicalBackgroundSource, themeBackgroundSchema } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { DatabaseHandle, StatementToken } from "@orb/db/wiring";
+import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -97,7 +98,7 @@ import { appendRetainedChatRebaseDeltas, appendStatsDeltas, canonMessageDelta, s
 
 /** The emit op the mutating roster verbs close over. Production returns `false` only when the total bus
  * classified and dropped its durable append; direct verb tests historically return no value. */
-type EmitChatEvent = (event: DurableChatBusEvent, claimStatement?: BatchStmt) => Promise<unknown>;
+type EmitChatEvent = (event: DurableChatBusEvent, claimStatement?: StatementToken) => Promise<unknown>;
 
 /** The extra collaborators the roster bundle needs beyond `ChatContext`. */
 interface ParticipantDeps {
@@ -851,7 +852,7 @@ function createRemoveCharacterFromChat(ctx: ChatContext, emit: EmitChatEvent, cl
  *  emit chokepoint. Takes a minimal db + injected emit since persona composes before chat at the entry root.
  *  A miss (target not present) is a real caller error, never a silent no-op. Emits personaSwitched. */
 export async function setParticipantActivePersona(
-  db: Db,
+  input: DatabaseHandle,
   emit: EmitChatEvent,
   params: {
     readonly chatId: ChatId;
@@ -859,6 +860,7 @@ export async function setParticipantActivePersona(
     readonly personaId: PersonaId | null;
   },
 ): Promise<void> {
+  const db = databaseForOwner(input);
   const { chatId, targetUserId, personaId } = params;
   const targetRow = and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, targetUserId), isNull(chatParticipants.leftSeq));
   // Read the prior value first: the bus event carries `from`, the pre-switch persona a client reducer diffs against.
@@ -941,7 +943,7 @@ function createKick(ctx: ChatContext, emit: EmitChatEvent): ChatService["kick"] 
     }
     const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const leaveStatement = markUserLeftStatement(ctx.db, chatId, userId, leftSeq);
-    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [leaveStatement]);
+    await ctx.emitNotification({ type: "kicked", recipientUserId: userId, chatId }, [statementToken(leaveStatement)]);
     await emit({ type: "chatUpdated", chatId });
     // The kicked user's row is already leftSeq-stamped (no longer enumerated), so they ride extraUserIds.
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [userId] });
@@ -1054,7 +1056,7 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
       offer: parsedOffer,
       participants,
     });
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId, offer: disclosure }, statements);
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId, offer: disclosure }, statements.map(statementToken));
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -1075,7 +1077,12 @@ async function completeHandoffResumption(ctx: ChatContext, emit: EmitChatEvent, 
   if (resume.actorRekeys.length > 0) {
     await ctx.rpg?.handoffRekeyActors(resume.chatId, resume.actorRekeys);
   }
-  if ((await emit({ type: "chatUpdated", chatId: resume.chatId }, clearHandoffResumptionStatement(ctx.db, resume.chatId, resume.acceptedByUserId))) === false) {
+  if (
+    (await emit(
+      { type: "chatUpdated", chatId: resume.chatId },
+      statementToken(clearHandoffResumptionStatement(ctx.db, resume.chatId, resume.acceptedByUserId)),
+    )) === false
+  ) {
     throw new Error(`chat ${resume.chatId}: host handoff completion event was not durably appended`);
   }
 }
@@ -1101,7 +1108,7 @@ async function commitHandoffSwap(
           chatId: args.chatId,
           newHostHandle: args.newHost.handle,
         },
-        statements,
+        statements.map(statementToken),
       );
       return;
     }
@@ -1209,15 +1216,16 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     const acceptedAt = ctx.now();
     // The rpg-side heal (F1) + sheet re-key arrive as UNEXECUTED statements so they commit with the swap; `[]`
     // for a non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
-    const rpgHeal =
+    const rpgHeal = (
       (await ctx.rpg?.handoffHealStatements({
         chatId,
         newHostUserId: principal.userId,
         oldHostUserId,
         copyGmPreset: offer.copyGmPreset,
         cardCopies: plan.cardCopies,
-      })) ?? [];
-    const digestRestamp = plan.cardCopies.length === 0 ? [] : await ctx.restampHandoffDigests({ chatId, pairs: plan.cardCopies });
+      })) ?? []
+    ).map(statementForOwner);
+    const digestRestamp = plan.cardCopies.length === 0 ? [] : (await ctx.restampHandoffDigests({ chatId, pairs: plan.cardCopies })).map(statementForOwner);
     const rebase = await prepareHandoffRebase(ctx, chatId, plan);
     const swap = [
       ...(rebase?.statements ?? []),
@@ -1239,20 +1247,22 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         actorRekeys: plan.cardCopies,
         now: acceptedAt,
       }),
-      ctx.auditStatement(
-        {
-          actorUserId: principal.userId,
-          action: "chat.acceptHostHandoff",
-          entityType: "chat",
-          entityId: chatId,
-          metadata: {
-            previousHostUserId: oldHostUserId,
-            healedGmPreset: rpgHeal.length > 0,
-            copiedCards: plan.cardCopies.length,
-            droppedSeats: droppedSeatIds.length,
+      statementForOwner(
+        ctx.auditStatement(
+          {
+            actorUserId: principal.userId,
+            action: "chat.acceptHostHandoff",
+            entityType: "chat",
+            entityId: chatId,
+            metadata: {
+              previousHostUserId: oldHostUserId,
+              healedGmPreset: rpgHeal.length > 0,
+              copiedCards: plan.cardCopies.length,
+              droppedSeats: droppedSeatIds.length,
+            },
           },
-        },
-        acceptedAt,
+          acceptedAt,
+        ),
       ),
     ];
     rebase?.settle(swap);

@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/workloads/verbs/estimate-model-calls.ts
 // @subject packages/server/src/domain/discovery/persistence/embed-store-reads.ts
 // @subject packages/server/src/domain/discovery/persistence/card-reads.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -255,7 +256,9 @@ test("a deleted owner's admitted job never upgrades into every-owner execution o
   const scores = await root.db.select({ score: characterEmbeddings.hubScore }).from(characterEmbeddings);
   expect(scores.map((row) => row.score)).toEqual([null, null]);
   expect(run).not.toHaveBeenCalled();
-  expect(await nextRunnableWorkload(root.db, root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
+  expect(
+    await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep"),
+  ).toBeNull();
   expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "failed" });
   await root.db
     .update(workloads)
@@ -283,12 +286,14 @@ test("owner deletion between queue observation and atomic claim cannot upgrade a
   await root.db.delete(users).where(eq(users.id, member.userId));
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   await runWorkload(
-    { db: root.db, contributions: root.app.workloadContributions, audit: root.app.audit, now: root.clock.now, heartbeatMs: 0, cancelPollMs: 0 },
+    { db: databaseHandle(root.db), contributions: root.app.workloadContributions, audit: root.app.audit, now: root.clock.now, heartbeatMs: 0, cancelPollMs: 0 },
     captured,
     new AbortController().signal,
   );
   expect(run).not.toHaveBeenCalled();
-  expect(await nextRunnableWorkload(root.db, root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
+  expect(
+    await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep"),
+  ).toBeNull();
   expect(await root.services.workloads.get({ caller: null, id: ref.id })).toMatchObject({ status: "failed" });
   run.mockRestore();
 });

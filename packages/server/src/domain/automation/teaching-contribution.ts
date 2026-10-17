@@ -27,7 +27,8 @@
 // B1 lesson: a fixture shaped unlike the real producer ratifies nothing).
 
 import { resolveProseText } from "@orb/contracts/prose";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { TeachingCollection, TeachingContext, TeachingContribution } from "#domain/chat";
 import { selectChatGuidance } from "./persistence/rule-state.ts";
 
@@ -46,13 +47,14 @@ const EMPTY: TeachingCollection = { injections: [], toolNames: [] };
 /** The S5 guidance-delivery contribution. Takes only `db` (the one read it needs) — never the automation
  *  service: a teaching contribution is a pure read on the turn path, and handing it the front door would
  *  let a later edit reach verbs from a seam that must stay a read (the tool-use contribution's posture). */
-export function createAutomationTeachingContributions(deps: { readonly db: Db }): readonly TeachingContribution[] {
+export function createAutomationTeachingContributions(input: { readonly db: DatabaseHandle }): readonly TeachingContribution[] {
+  const db = databaseForOwner(input.db);
   return [
     {
       id: "automation.analysis-guidance",
       order: ANALYSIS_GUIDANCE_ORDER,
       collect: async (tctx: TeachingContext): Promise<TeachingCollection> => {
-        const guidance = await selectChatGuidance(deps.db, tctx.chatId, tctx.runAsUserId);
+        const guidance = await selectChatGuidance(db, tctx.chatId, tctx.runAsUserId);
         if (guidance === null) {
           return EMPTY;
         }

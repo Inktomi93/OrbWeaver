@@ -8,13 +8,15 @@
 // cross-tenant blast radius this whole seam exists to avoid.
 
 import { chatDigestSpeakers, chatDigests } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
+import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import { and, eq, inArray } from "drizzle-orm";
 import type { EmbeddingsHandoffRestampContext, HandoffRestampStatements } from "../contract/handoff-restamp.ts";
 
-export function createHandoffRestampStatements(ctx: EmbeddingsHandoffRestampContext): HandoffRestampStatements {
-  return ({ chatId, pairs }): Promise<readonly BatchStmt[]> => {
+export function createHandoffRestampStatements(input: DbAssemblyInput<EmbeddingsHandoffRestampContext>): HandoffRestampStatements {
+  const ctx: EmbeddingsHandoffRestampContext = { ...input, db: databaseForOwner(input.db) };
+  return ({ chatId, pairs }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const statements = pairs.flatMap(({ sourceCharacterId, characterId }) => [
       // The BUCKET key — the digest row itself belongs to whoever it is the memory OF.
@@ -37,6 +39,6 @@ export function createHandoffRestampStatements(ctx: EmbeddingsHandoffRestampCont
           ),
       ),
     ]);
-    return Promise.resolve(statements);
+    return Promise.resolve(statements.map(statementToken));
   };
 }

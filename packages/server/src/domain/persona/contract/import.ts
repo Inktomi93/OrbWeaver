@@ -11,6 +11,7 @@
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createBulkImportPersonas` closes over (assembled at the entry composition root). */
@@ -19,6 +20,8 @@ export interface PersonaImportContext {
   readonly now: () => number;
   readonly newPersonaId: () => PersonaId;
 }
+
+export type PersonaImportAssemblyContext = DbAssemblyInput<PersonaImportContext>;
 
 /** The persona-owned bulk-import op the entry root wires into `import`'s
  *  `ImportContext.profile.bulkImportPersonas`. An equal-content persona is reused; a same-name,

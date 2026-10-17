@@ -16,6 +16,8 @@
 
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "./context.ts";
 import { ChatNotFoundError } from "./contract/errors.ts";
@@ -92,6 +94,26 @@ export async function requireAuthorOrHost(
 export async function gateLineagePerAncestor(ctx: GuardCtx, principal: Principal, ancestorChatIds: readonly ChatId[]): Promise<ChatId[]> {
   const memberships = await Promise.all(ancestorChatIds.map((id) => loadMemberChat(ctx.db, id, principal.userId)));
   return ancestorChatIds.filter((_, i) => memberships[i] !== undefined);
+}
+
+/** Entry supplies only the inert connection; membership and floor decisions remain in the private guard. */
+export function requireWiredParticipant(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
+  return requireParticipant({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId);
+}
+
+/** Preserve the same host kernel call after recovering the owner's actual connection. */
+export function requireWiredHost(ctx: DbAssemblyInput<GuardCtx>, principal: Principal, chatId: ChatId): Promise<GatedMembership> {
+  return requireHost({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId);
+}
+
+/** The slot author stays caller-supplied; conversion does not decide or cache authority. */
+export function requireWiredAuthorOrHost(
+  ctx: DbAssemblyInput<GuardCtx>,
+  principal: Principal,
+  chatId: ChatId,
+  authorUserId: Principal["userId"] | null,
+): Promise<GatedMembership> {
+  return requireAuthorOrHost({ ...ctx, db: databaseForOwner(ctx.db) }, principal, chatId, authorUserId);
 }
 
 /** A nominee is a present non-host target; the caller's requireHost gate remains separate. */

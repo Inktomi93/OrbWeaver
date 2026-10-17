@@ -4,10 +4,13 @@
 // the game turn's authority before its `skill_check` re-reads the roll), the `createGetMembership` precedent.
 // `null` = no user message yet; the check then rolls normally (no queued die to feed).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../context.ts";
 import type { GetPendingUserText } from "../contract/context.ts";
 import { loadPendingUserText } from "../persistence/queries.ts";
 
-export function createGetPendingUserText(ctx: ChatContext): GetPendingUserText {
+export function createGetPendingUserText(input: DbAssemblyInput<Pick<ChatContext, "db">>): GetPendingUserText {
+  const ctx = { db: databaseForOwner(input.db) };
   return (chatId) => loadPendingUserText(ctx.db, chatId);
 }

@@ -31,6 +31,8 @@
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
@@ -59,7 +61,8 @@ function ownedAssetExists(db: Db, ownerId: UserId, assetId: AssetId): SQL {
 }
 
 /** Build the character-owned avatar-relink op. */
-export function createLinkCharacterAvatars(ctx: CharacterAvatarLinkContext): LinkCharacterAvatars {
+export function createLinkCharacterAvatars(input: DbAssemblyInput<CharacterAvatarLinkContext>): LinkCharacterAvatars {
+  const ctx: CharacterAvatarLinkContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, links }): Promise<void> => {
     if (links.length === 0) {
       return;

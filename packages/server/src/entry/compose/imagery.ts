@@ -2,7 +2,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { UserSettings } from "@orb/contracts/settings";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ProviderExecutor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import type { CharacterId, ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -14,7 +14,7 @@ import { createImageryRoomAccess, createVisibleExtractQuiet } from "#domain/chat
 import type { ConnectionService } from "#domain/connection";
 import type { ImageryService } from "#domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions, createImageryService, imageryToolDefinitions } from "#domain/imagery";
-import { applyStatsDelta } from "#domain/stats";
+import { createStatsBatchWiring } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
 import { fetchImageBytes } from "#infra/network";
 import { minter } from "./minter.ts";
@@ -23,7 +23,7 @@ import { minter } from "./minter.ts";
 export interface ImageryComposeDeps {
   readonly fetchImageBytes?: typeof fetchImageBytes;
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "resolve">;
   /** The compose-tier executor FENCE (§7.5-1a): imagery may reach exactly `generateImage`. */
@@ -86,7 +86,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
     ownsCharacter: deps.characterOwned,
     addToGallery: createImageryGalleryAdd((params) => assets.addToGallery(params)),
-    applyStatsDelta: (batch, opDb, delta) => applyStatsDelta(batch, opDb, delta, deps.idSource),
+    applyStatsDelta: createStatsBatchWiring(deps.idSource).applyStatsDelta,
   });
   for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
     deps.toolUse.register(def);

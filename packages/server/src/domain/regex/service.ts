@@ -9,6 +9,8 @@
 // The ENGINE is not here and never will be: `@orb/kit/regex` executes, `@orb/server/primitives/regex` is the
 // node:vm watchdog. This domain owns the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RegexContext } from "./context.ts";
 import type { RegexService } from "./contract/service.ts";
 import { createExportRegexScript, createImportRegexScript } from "./persistence/portability-write.ts";
@@ -45,12 +47,13 @@ import {
 
 const ENC = new TextEncoder();
 
-export function createRegexService(ctx: RegexContext): RegexService {
+export function createRegexService(input: DbAssemblyInput<RegexContext>): RegexService {
+  const ctx: RegexContext = { ...input, db: databaseForOwner(input.db) };
   // The two single-entity DOORS are the BUNDLE's own factories, principal-wrapped here and nowhere else
   // (the world-info `exportBook`/`importFile` shape): the standalone factories stay `ownerId`-keyed for the
   // portability registry, and this seam is the only place a Principal becomes an ownerId for them.
-  const exportScript = createExportRegexScript(ctx);
-  const importScript = createImportRegexScript(ctx);
+  const exportScript = createExportRegexScript(input);
+  const importScript = createImportRegexScript(input);
   return {
     countScripts: createCount(ctx),
     listScripts: createList(ctx),

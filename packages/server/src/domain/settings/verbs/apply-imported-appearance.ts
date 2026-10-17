@@ -22,9 +22,10 @@
 
 import type { UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { ImportedAppearance, ImportedAppearanceOutcome } from "../contract/portability.ts";
-import type { SettingsContext } from "../contract/service.ts";
+import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { readUserSettings, writeUserConfig } from "../persistence/queries.ts";
 
 const APPEARANCE = "appearance";
@@ -65,7 +66,10 @@ function appendedLibrary(
 }
 
 /** Land one profile's `appearance` plane. Returns what actually changed (never throws for an empty input). */
-export function createApplyImportedAppearance(ctx: SettingsContext): (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome> {
+export function createApplyImportedAppearance(
+  input: SettingsAssemblyContext,
+): (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome> {
+  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, imported: ImportedAppearance): Promise<ImportedAppearanceOutcome> => {
     return await ctx.serializeUserWrite(ownerId, async (): Promise<ImportedAppearanceOutcome> => {
       const current = (await readUserSettings(ctx.db, ownerId)).config;

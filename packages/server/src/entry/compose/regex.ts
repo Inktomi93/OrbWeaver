@@ -10,7 +10,7 @@
 // only the DATA the engine runs on (Constitution.md §1 "engine vs data").
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
@@ -48,7 +48,7 @@ export interface RegexComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).

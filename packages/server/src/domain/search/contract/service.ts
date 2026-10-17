@@ -3,6 +3,7 @@ import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { CorpusSource, DigestSearchEvents, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
@@ -86,6 +87,8 @@ export interface SearchContext {
   readonly resolveActiveDocumentIds: ResolveActiveDocumentIdsOp;
   readonly resolveActiveDocumentScope: ResolveActiveDocumentScopeOp;
 }
+
+export type SearchAssemblyContext = DbAssemblyInput<SearchContext>;
 
 export interface SearchService {
   readonly resolveCorpusSourceState: ResolveCorpusSourceState;

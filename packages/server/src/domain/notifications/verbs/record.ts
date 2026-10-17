@@ -7,7 +7,7 @@
 // event's mandatory `recipientUserId` — a producer delivers to a user, it isn't the caller.
 
 import { notificationEventSchema } from "@orb/contracts/notifications";
-import type { BatchStmt } from "@orb/db/query";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import type { RecordParams } from "../contract/params.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
@@ -34,7 +34,7 @@ export function createRecord(ctx: NotificationsContext): Pick<NotificationsServi
     // BECAUSE the decision exists, so a decision-carrying member is standing at the instant it is recorded.
     // It is what the bus publishes, so a live arrival raises the bell's dot without waiting for a re-list.
     const inserted = await insertNotification(ctx.db, row, {
-      ...(params.coStatements !== undefined && params.coStatements.length > 0 ? { coStatements: params.coStatements as BatchStmt[] } : {}),
+      ...(params.coStatements !== undefined && params.coStatements.length > 0 ? { coStatements: params.coStatements.map(statementForOwner) } : {}),
       ...(params.supersedeActiveOfSameType === true ? { supersedeActiveOfSameType: true } : {}),
     });
     return asRaised(inserted);

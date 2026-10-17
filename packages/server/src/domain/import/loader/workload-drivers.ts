@@ -1,5 +1,8 @@
 import { IMPORT_MAX_DECOMPRESSED_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { BundleImportWorkloadResult } from "@orb/contracts/workloads";
+import { optimizeDb } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { BundleImportReport } from "../contract/bundle.ts";
 import type { ImportDriverDeps, ImportWorkloadDrivers } from "../contract/drivers.ts";
@@ -59,4 +62,10 @@ export function createImportWorkloadDrivers(deps: ImportDriverDeps): ImportWorkl
         return settleBundle(deps, report, args.ownerId, from);
       }),
   };
+}
+
+/** Planner maintenance follows the import owner's terminal settlement, not an entry-held query client. */
+export function createRefreshImportPlannerStats(handle: DatabaseHandle): () => Promise<void> {
+  const db = databaseForOwner(handle);
+  return () => optimizeDb(db);
 }

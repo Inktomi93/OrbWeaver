@@ -4,7 +4,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, IdSource, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
@@ -93,7 +93,7 @@ export interface SessionsService {
    *  (#1691: `admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
    *  password live with the OLD sessions). The revoke instant is the caller's, so one clock stamps the whole
    *  batch. It does NOT evict live sockets — that is the entry-tier port (W7a), after the commit. @internal */
-  revokeAllForUserStatement: (userId: UserId, revokedAt: number) => BatchStmt;
+  revokeAllForUserStatement: (userId: UserId, revokedAt: number) => StatementToken;
   /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC
    *  back-channel logout → the count revoked + WHOSE (the entry tier evicts those users' live sockets).
    *  Idempotent (re-delivered logout tokens re-revoke nothing, and name no users). @internal */
@@ -121,7 +121,7 @@ export interface SessionsService {
    *  one linking site), so the bind-once condition rides in the statement's own WHERE. NON-EMPTY rows back
    *  = bound; EMPTY = nothing was bound, and {@link SessionsService.settleUnclaimedLink} says why. Gating +
    *  audit are the admin wrapper's — this enforces only the identity invariant. @internal */
-  linkExternalIdStatement: (userId: UserId, externalId: ExternalId, at: number) => AwaitableBatchStmt<{ id: UserId }[]>;
+  linkExternalIdStatement: (userId: UserId, externalId: ExternalId, at: number) => AwaitableStatementToken<{ id: UserId }[]>;
   /** B5/#1707 — the companion read for a claim that bound nothing (empty RETURNING) or whose batch REJECTED:
    *  re-reads settled durable state and names the identity refusal (`already-linked`/`not-found`/
    *  `target-bound`/`subject-taken`). `failure` is the caller's rejection, if any — when durable state does
@@ -136,7 +136,7 @@ export interface SessionsService {
    *  (D257), and it never absorbs a unique conflict. @internal */
   signupUserStatement: (args: { readonly handle: Handle; readonly passwordHash: string; readonly at: number; readonly admission: SQL }) => {
     readonly userId: UserId;
-    readonly statement: AwaitableBatchStmt<{ id: UserId }[]>;
+    readonly statement: AwaitableStatementToken<{ id: UserId }[]>;
   };
   /** D257 — does any account carry this handle's key (any case, any confusable)? @internal */
   signupHandleTaken: (handle: Handle) => Promise<boolean>;
@@ -148,7 +148,7 @@ export interface SessionsService {
     readonly role: UserRole;
     readonly passwordHash: string;
     readonly at: number;
-  }) => AwaitableBatchStmt<{ id: UserId }[]>;
+  }) => AwaitableStatementToken<{ id: UserId }[]>;
   /** D257 — boot's owner seed-key rename; the handle key moves with the handle. @internal */
   renameUserHandle: (userId: UserId, handle: Handle, at: number) => Promise<void>;
   /** D259 — freeze a JIT-closed OIDC identity that arrived with a signup invite as a pending join, replacing

@@ -15,6 +15,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { DeclaredCapability } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { RpgExtractionMode, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -633,7 +634,7 @@ async function boot(cell: Cell): Promise<Booted> {
   const app = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: () => Date.now(),
     ownerId: OWNER,
     secretBoxKey: randomBytes(SECRET_BOX_KEY_BYTES),

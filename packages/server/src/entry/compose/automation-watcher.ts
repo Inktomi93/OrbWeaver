@@ -4,7 +4,7 @@ import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/c
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type {
@@ -28,7 +28,7 @@ import type { DomainEventBus } from "./event-bus.ts";
 
 // @orb-waive no-inline-package-interface(AutomationActionOpsDeps): baselined when the gate landed; burn-down item 952.
 export interface AutomationActionOpsDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`) — membership AND the D16 canon
    *  floor as one answer. The plugin fan-out's delivery gate consumes it; automation never re-derives either
    *  half (no membership select of its own, no second clamp home). */

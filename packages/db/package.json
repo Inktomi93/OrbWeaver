@@ -10,6 +10,9 @@
     ".": "./src/index.ts",
     "./backup-names": "./src/client/backup-names.ts",
     "./query": "./src/query/index.ts",
+    "./wiring": "./src/client/wiring.ts",
+    "./wiring-driver": "./src/client/wiring-driver.ts",
+    "./wiring-owner": "./src/client/wiring-capabilities.ts",
     "./schema": "./src/schema/index.ts"
   },
   "imports": {

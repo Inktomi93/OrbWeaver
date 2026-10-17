@@ -8,6 +8,8 @@ import type { AuthMode } from "@orb/contracts/identity";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { env } from "#foundation/env";
 import { logger } from "#foundation/observability";
 import type { SettingsContext } from "../contract/service.ts";
@@ -16,7 +18,11 @@ import { layer } from "./layer.ts";
 
 let cache: EffectiveAppConfig | undefined;
 
-export function createEffectiveConfigCache(db: Db, authMode: AuthMode = env.AUTH_MODE): Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> {
+export function createEffectiveConfigCache(
+  handle: DatabaseHandle,
+  authMode: AuthMode = env.AUTH_MODE,
+): Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> {
+  const db = databaseForOwner(handle);
   let resolved: EffectiveAppConfig | undefined;
   return {
     getEffectiveConfig: (): EffectiveAppConfig => {

@@ -5,6 +5,7 @@
 import type { AttachedBookRef } from "@orb/contracts/character";
 import type { BulkImportLorebookInput, BulkImportLorebookResult, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
 export interface WorldInfoImportContext {
@@ -13,6 +14,8 @@ export interface WorldInfoImportContext {
   readonly newBookId: () => WorldBookId;
   readonly newEntryId: () => WorldEntryId;
 }
+
+export type WorldInfoImportAssemblyContext = DbAssemblyInput<WorldInfoImportContext>;
 
 /** Throws DomainNotFoundError when the target character isn't the caller's.
  *
@@ -65,6 +68,8 @@ export interface WorldInfoDuplicateCarryContext {
   readonly db: Db;
   readonly now: () => number;
 }
+
+export type WorldInfoDuplicateCarryAssemblyContext = DbAssemblyInput<WorldInfoDuplicateCarryContext>;
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows,
  *  role preserved). REFERENCE-carry — the world_books themselves are never cloned; zero attachments = no-op.

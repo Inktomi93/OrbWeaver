@@ -18,9 +18,11 @@
 // reads, automation facts, counts, forks and every client cache — UNREPRESENTABLE rather than filtered.
 
 import { chats } from "@orb/db";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
-import type { ChatContext } from "../context.ts";
+import { createChatContext } from "../context.ts";
 import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/context.ts";
+import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import {
   buildCommittedMessageView,
   commitCanonAppend,
@@ -45,7 +47,8 @@ function buildBody(content: string, refs: string): string {
   return trimmed.length > 0 ? `${trimmed}\n\n${refs}` : refs;
 }
 
-export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
+export function createPostNarratorMessage(input: ChatAssemblyContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
+  const ctx = createChatContext(input);
   return async (chatId, content, media, options) => {
     const mediaRefs = media ?? [];
     // The group character is owned by the room HOST (the D19 funding/authority identity) — the same
@@ -122,7 +125,7 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       // The only caller is RPG checkpoint restore. Build AFTER ids exist, append LAST: a chat-side failure keeps
       // the RPG row absent, and an RPG-side failure rolls every preceding marker statement back.
       if (options !== undefined && "rpgRestoreStatement" in options) {
-        statements.push(options.rpgRestoreStatement({ messageId: attemptMessageId, variantId: params.variantId }));
+        statements.push(statementForOwner(options.rpgRestoreStatement({ messageId: attemptMessageId, variantId: params.variantId })));
       }
       return { statements, result: { view: buildCommittedMessageView(params), messageId: attemptMessageId, variantId: params.variantId } };
     });

@@ -61,12 +61,6 @@ test("the actual native transport-policy owner is separate from compose-supplied
   );
   expect(run().authority.effectiveFindings.map((finding) => finding.token)).toEqual(["resolveRateLimits"]);
   carrier.replaceWithText(
-    'import { users } from "@orb/db";\nimport { createRateLimitGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createRateLimitGate>[0]) { return createRateLimitGate({ ...deps, resolveRateLimits: () => { deps.db.select().from(users); return deps.resolveRateLimits(); } }); }',
-  );
-  const query = run().authority.effectiveFindings;
-  expect(query.map((finding) => finding.token)).toEqual(["resolveRateLimits"]);
-  expect(query[0]?.message).toContain("runs a Drizzle query");
-  carrier.replaceWithText(
     'import { createRateLimitGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createRateLimitGate>[0]) { return createRateLimitGate(deps); }',
   );
   owner.replaceWithText(original.replace('from "../transport/rate-limit.ts"', 'from "./lookalike-limiter.ts"'));

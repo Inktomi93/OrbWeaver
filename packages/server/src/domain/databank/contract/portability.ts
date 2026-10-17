@@ -12,6 +12,7 @@
 // document already existed still restores the scopes it was attached under.
 
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 
 /** The DI bundle every databank portability op closes over (assembled at the entry composition root).
@@ -25,6 +26,8 @@ export interface DatabankPortabilityContext {
    *  embeddings are re-runnable by construction), so a restored document is retrieval-dead until this runs. */
   readonly enqueueIngest: (args: { readonly documentId: DocumentId; readonly ownerId: UserId }) => Promise<{ readonly workloadId: WorkloadId }>;
 }
+
+export type DatabankPortabilityAssemblyContext = DbAssemblyInput<DatabankPortabilityContext>;
 
 /** One portable document file: its `filename` (relative — the descriptor prefixes the bundle `dir`) and the
  *  serialized bytes. */

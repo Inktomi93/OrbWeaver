@@ -8,12 +8,14 @@ export {
   buildAuditStatement,
   buildAuditStatementIfPrecedingWrote,
   createAuditStatementAfterWrite,
+  createAuditWiring,
   getAuditFailureSnapshot,
   logAudit,
   resetAuditFailureCount,
 } from "./audit.ts";
 export { readBugReportDiagnostics } from "./bug-report-diagnostics.ts";
 export { type ClientErrorReport, recordClientError } from "./client-error.ts";
+export type { AuditWiring } from "./contract/audit-wiring.ts";
 export {
   type AdminAuthChecker,
   type AssetInspector,

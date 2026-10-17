@@ -73,6 +73,7 @@
 
 const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
 const { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS } = require("./tooling/src/floor/compiler/project-worlds.ts");
+const { ENTRY_DRIVER_PATTERN, ENTRY_SOURCE } = require("./tooling/src/verify/contract/compose-query-capability.ts");
 
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
@@ -621,6 +622,57 @@ module.exports = {
       severity: "error",
       from: { path: `${SRV}domain/` },
       to: { path: `${SRV}(entry|transport)/` },
+    },
+    {
+      name: "entry-wiring-no-query-capability",
+      comment:
+        "D321: composition and its entry helpers receive inert DB identities. Raw DB/query/driver constructors stay with physical boot owners and lower query owners, including type-only and dynamic edges.",
+      severity: "error",
+      from: { path: ENTRY_SOURCE, pathNot: ENTRY_DRIVER_PATTERN },
+      to: {
+        path: [DB, "(^|/)node_modules/(drizzle-orm|@libsql/client|libsql|better-sqlite3)(/|$)", "^node:sqlite$"],
+        pathNot: [`${DB}client/(wiring|backup-names)\\.ts$`],
+      },
+    },
+    {
+      name: "entry-wiring-no-physical-driver",
+      comment:
+        "A helper or barrel cannot launder the boot driver's raw DB/lifecycle door back into composition. Query-free seed assembly has separate exact doors.",
+      severity: "error",
+      from: { path: ENTRY_SOURCE, pathNot: ENTRY_DRIVER_PATTERN },
+      to: { path: ENTRY_DRIVER_PATTERN },
+    },
+    {
+      name: "entry-wiring-no-module-loader",
+      comment: "Dynamic host loaders bypass the resolved native query frontier; only physical boot owns the migrations resolver.",
+      severity: "error",
+      from: { path: ENTRY_SOURCE, pathNot: ENTRY_DRIVER_PATTERN },
+      to: { path: "^(node:)?module$" },
+    },
+    {
+      name: "query-wiring-owner-conversion",
+      comment:
+        "Only actual domain query owners, the audit writer and debug registrar, and the native transport limiter recover raw DB/statement/batch operands. Entry receives only the wiring contract.",
+      severity: "error",
+      from: {
+        path: SRV,
+        pathNot: [`${SRV}domain/`, `${SRV}foundation/observability/(audit|debug/routes)\\.ts$`, `${SRV}transport/rate-limit\\.ts$`],
+      },
+      to: { path: `${DB}client/wiring-capabilities\\.ts$` },
+    },
+    {
+      name: "query-wiring-driver-admission",
+      comment: "A wiring handle borrows the original physical connection; non-driver entry cannot mint or recover that capability.",
+      severity: "error",
+      from: { path: SRV, pathNot: ENTRY_DRIVER_PATTERN },
+      to: { path: `${DB}client/wiring-driver\\.ts$` },
+    },
+    {
+      name: "query-wiring-contract-is-type-only",
+      comment: "The public wiring door cannot re-export or import executable owner conversions; its runtime has no query capability to hand back to entry.",
+      severity: "error",
+      from: { path: `${DB}client/wiring\\.ts$` },
+      to: { path: DB, dependencyTypesNot: ["type-only"] },
     },
     {
       name: "transport-below-entry",

@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/character/persistence/gallery-character.ts
 // @subject packages/server/src/domain/assets/verbs/export-gallery.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { PortableFile } from "@orb/contracts/portability";
 import { galleryItems } from "@orb/db";
@@ -34,7 +35,7 @@ test("composed gallery export never resolves a foreign subject handle even from 
   const text = new TextDecoder().decode(files[0]?.bytes);
   expect(JSON.parse(text)).toMatchObject({ items: [{ assetId: image.assetId, subjectCharacterHandle: null, createdAt: item.createdAt }] });
   expect(text).not.toContain(foreign.handle);
-  const ops = createGalleryCharacterOps(db, services.character);
+  const ops = createGalleryCharacterOps(databaseHandle(db), services.character);
   expect(await ops.resolveCharacterHandle(owner.id, owned.id)).toBe(owned.handle);
   expect(await ops.resolveCharacterHandle(owner.id, foreign.id)).toBeNull();
 });

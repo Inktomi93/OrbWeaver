@@ -13,6 +13,8 @@ import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PluginBundleAssetLink } from "../contract/bundle-assets.ts";
@@ -176,7 +178,8 @@ export async function getById(db: Db, ownerId: UserId, pluginId: PluginId): Prom
  *  query this table). Owner-scoped like every other read here, so a foreign or missing id is `false` with no
  *  existence leak; `false` is also the fail-CLOSED answer for a disabled or errored row, which is the point —
  *  a card must not become one more act after the owner turned the plugin off. */
-export async function isPluginEnabledFor(db: Db, ownerId: UserId, pluginId: PluginId): Promise<boolean> {
+export async function isPluginEnabledFor(handle: DatabaseHandle, ownerId: UserId, pluginId: PluginId): Promise<boolean> {
+  const db = databaseForOwner(handle);
   const rows = await db
     .select({ status: plugins.status })
     .from(plugins)

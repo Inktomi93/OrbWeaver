@@ -10,6 +10,8 @@ import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, PresetId, RpgGameId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { RpgStateCorruptError } from "../contract/errors.ts";
@@ -70,7 +72,8 @@ export async function findGameByChat(db: Db, chatId: ChatId): Promise<RpgGameRow
 
 /** The rooms whose game's GM voice redirects to `presetId`, ACROSS owners. Deliberately unfiltered: the filter
  *  that matters is the asking caller's room membership, which the consumer applies. */
-export async function listGmPresetChatIds(db: Db, presetId: PresetId): Promise<ChatId[]> {
+export async function listGmPresetChatIds(input: DatabaseHandle, presetId: PresetId): Promise<ChatId[]> {
+  const db = databaseForOwner(input);
   const rows = await db.select({ chatId: rpgGames.chatId }).from(rpgGames).where(eq(rpgGames.gmPresetId, presetId));
   return rows.map((row) => row.chatId);
 }

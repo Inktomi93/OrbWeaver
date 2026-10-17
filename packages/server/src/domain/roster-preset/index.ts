@@ -3,7 +3,6 @@
 // (RosterPresetView/RosterPresetSummary/ApplyRosterPresetResult + the create/update schemas) live in
 // @orb/contracts/roster-preset; callers import them from there directly, not through this door.
 
-export type { RosterPresetContext } from "./context.ts";
 export {
   RosterPresetCharacterNotFoundError,
   RosterPresetNameConflictError,
@@ -15,6 +14,7 @@ export type {
   CastRuleWrite,
   MemberWrite,
   PresentCharacterSeat,
+  RosterPresetAssemblyContext as RosterPresetContext,
   RosterPresetAutomationOps,
   RosterPresetChatOps,
   RosterPresetService,

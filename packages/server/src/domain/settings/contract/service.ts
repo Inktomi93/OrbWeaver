@@ -5,6 +5,7 @@ import type { AppSettingsView, BackgroundLibraryEntry, EffectiveAppConfig, UserS
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import type { UpdateCheck, UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
@@ -63,7 +64,7 @@ export interface SettingsContext {
 export interface SettingsServiceDeps {
   readonly effectiveConfig?: Pick<SettingsContext, "getEffectiveConfig" | "reloadEffectiveConfig"> | undefined;
   readonly onEffectiveConfigChanged?: ((config: EffectiveAppConfig) => void) | undefined;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireAdmin: RequireAdmin;
@@ -78,6 +79,8 @@ export interface SettingsServiceDeps {
    *  guard keeps its own copy, so a save that only rebuilt the cache would leave a host refused until a restart. */
   readonly publishPrivateEndpointAllowlist: (entries: readonly string[]) => void;
 }
+
+export type SettingsAssemblyContext = DbAssemblyInput<SettingsContext>;
 
 /** The settings API surface. UserSettings verbs scope by `principal.userId`; AppSettings verbs gate on the
  *  injected guard; the raw KV pair is admin-gated at the router. */

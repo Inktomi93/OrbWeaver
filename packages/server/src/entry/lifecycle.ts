@@ -14,6 +14,7 @@ import type { AuthMode, Principal } from "@orb/contracts/identity";
 import { isCookieAuthMode } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, optimizeDb, preCloseHousekeeping } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
@@ -269,6 +270,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // Inject the OTel libSQL wrap so every db.execute/batch/transaction opens a child span under the active
     // request-root (the composition-root injection the tracing.ts + createDb headers document).
     db = await createDb(env.DATABASE_URL, wrapLibSqlClient);
+    const wiringDb = databaseHandle(db);
 
     // `launched` is REQUIRED and passed explicitly (#1392) — the omission here is what left the
     // auto-wipe refusal inert on every real boot.
@@ -326,14 +328,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // transient sessions service is built only to run the owner seed; compose owns the real one.
     const ownersBoundBeforeCompose: UserId[] = [];
     const bootSessions = createSessionsService({
-      db,
+      db: wiringDb,
       now,
       sessionSecret,
       // #2481 — the owner row is MINTED here (`seedOwner` → `ensureUser`), so this transient service needs
       // the per-user seed too: on a fresh install the sweep below would otherwise be the only thing that
       // ever seeds the owner, and it runs once per process. `workloads` does not exist yet, so an owner whose
       // encoder this seed binds is held and its sweeps are enqueued once compose has built the queue.
-      seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+      seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
     });
 
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
@@ -452,7 +454,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     const authConfig = authConfigFromEnv();
     const built = await createServices({
       authConfig,
-      db,
+      db: wiringDb,
       now,
       ownerId,
       secretBoxKey,
@@ -482,7 +484,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (#2481), not by a later boot.
     await seedDefaultPreset({ db, now });
     await seedThemes({ db, now });
-    await seedLocalLightOnBoot({ db, now, onEmbedSpaceBound: built.detachEmbedReindex });
+    await seedLocalLightOnBoot({ db: wiringDb, now, onEmbedSpaceBound: built.detachEmbedReindex });
     for (const boundOwner of ownersBoundBeforeCompose) {
       built.detachEmbedReindex(boundOwner);
     }
@@ -552,14 +554,14 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     built.startJobs();
 
-    const oidcWiring = env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db, now, built, ownerClaim }) : undefined;
+    const oidcWiring = env.AUTH_MODE === "oidc" ? await createConfiguredOidc({ db: wiringDb, now, built, ownerClaim }) : undefined;
     oidcLifetime = oidcWiring ?? null;
 
     const app = createHttpApp({
       built,
       authConfig,
       now,
-      db,
+      db: wiringDb,
       importStagingDir: env.IMPORT_STAGING_DIR,
       casDir: env.ASSETS_DIR,
       sessionSecret,

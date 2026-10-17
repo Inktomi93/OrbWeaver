@@ -10,6 +10,8 @@
 
 import type { CharacterRegexSlice } from "@orb/contracts/chat";
 import { characterRegexScripts, regexScripts } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } from "../contract/resolve.ts";
@@ -37,7 +39,8 @@ async function characterSlices(ctx: RegexResolveContext, ownerId: UserId, charac
   }));
 }
 
-export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRegexSources {
+export function createResolveRegexSources(input: DbAssemblyInput<RegexResolveContext>): ResolveRegexSources {
+  const ctx: RegexResolveContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, presetId, characterIds, chatId }): Promise<ResolvedRegexSources> => {
     const [hostGlobal, preset, character, chat] = await Promise.all([
       listGlobalScripts(ctx.db, ownerId),

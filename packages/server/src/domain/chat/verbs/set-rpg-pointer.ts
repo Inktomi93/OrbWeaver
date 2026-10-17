@@ -20,9 +20,10 @@ import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ChatContext } from "../context.ts";
+import { createChatContext } from "../context.ts";
 import type { SetRpgPointer, SetRpgPointerDeps } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { carriedBackgroundAvailable } from "../persistence/background-write.ts";
 import { chatMetadataDropStatement, chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
 import { loadChatRow } from "../persistence/queries.ts";
@@ -37,7 +38,8 @@ function dropRpgPointer(metadata: ChatMetadata): ChatMetadata {
   return rest;
 }
 
-export function createSetRpgPointer(ctx: ChatContext, deps: SetRpgPointerDeps): SetRpgPointer {
+export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPointerDeps): SetRpgPointer {
+  const ctx = createChatContext(input);
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {
     const chat = await loadChatRow(ctx.db, chatId);
     if (chat === undefined) {

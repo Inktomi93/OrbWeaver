@@ -7,7 +7,8 @@ import type { ForcedToolRoundInput, Resolved } from "@orb/inference";
 import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { logger } from "#foundation/observability";
-import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { PromptInputs, RpgRoundsAssemblyDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgRunToolRound, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
 import { fallbackStateRound, primaryStateRound } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { buildRunExtraction } from "./extraction.ts";
@@ -31,7 +32,8 @@ function failedToolRoundDelta(err: unknown, round: { readonly chatId: ChatId; re
 
 /** The dedicated round shares its resolved route and one observation session across primary, fallback and audit calls.
  * Provider failures are state errors-as-data; durable observation failures cannot degrade or purchase another call. */
-export function buildRunToolRound(baseDeps: RpgRoundsDeps): RpgRunToolRound {
+export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolRound {
+  const baseDeps = createRpgRoundsContext(inputDeps);
   return async (input) => {
     const deps = withGenerationObservation(baseDeps, {
       chatId: input.chatId,

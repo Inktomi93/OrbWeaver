@@ -8,6 +8,7 @@ import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingExecution, SideGenSampling } from "@orb/inference";
 import type {
   AssetId,
@@ -152,6 +153,8 @@ export interface EmbeddingsContext {
    *  the scope completion that promoted it; fire-and-forget. */
   readonly onTargetPromoted: (ownerId: UserId) => void;
 }
+
+export type EmbeddingsAssemblyContext = DbAssemblyInput<EmbeddingsContext>;
 
 export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;

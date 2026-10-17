@@ -19,6 +19,7 @@ import type {
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { SideGenSampling } from "@orb/inference";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
@@ -118,6 +119,8 @@ export interface RefineryContext {
    *  (avatar ref, tags, attached books) FOLLOWS that verb's own rulings — one fork-copy law, not two. */
   readonly duplicateCharacter: CharacterService["duplicate"];
 }
+
+export type RefineryAssemblyContext = DbAssemblyInput<RefineryContext>;
 
 /** The LIBRARY score sweep pass (R4) — bound at `verbs/score-sweep.ts`, run by the `refine-score-sweep`
  *  workload contribution. Principal-LESS by construction (a queue row is its own actor), so it is not a

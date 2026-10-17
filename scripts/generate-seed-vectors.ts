@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { APP_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { createDb, runMigrations, settings } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -23,7 +24,7 @@ const db = await createDb(pathToFileURL(join(scratch, "seed.sqlite")).href);
 await runMigrations(db, join(root, "packages/db/src/migrations"));
 await db.insert(settings).values({ key: "app", value: { corpusAutoindex: false, schemaVersion: APP_SETTINGS_SCHEMA_VERSION }, updatedAt: Date.now() });
 const built = await createServices({
-  db,
+  db: databaseHandle(db),
   now: Date.now,
   ownerId: undefined,
   secretBoxKey: null,

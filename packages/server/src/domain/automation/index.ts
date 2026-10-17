@@ -5,7 +5,6 @@
 
 export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, TestRunResult } from "@orb/contracts/automation";
 export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
-export type { AutomationContext } from "./context.ts";
 export {
   AutomationChatNotFoundError,
   AutomationReservedTriggerError,
@@ -70,7 +69,13 @@ export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contra
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
 export { RULE_PRESETS } from "./contract/presets.ts";
 export type { StreamAuthority } from "./contract/results.ts";
-export type { AutomationService, AutomationServiceDeps, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
+export type {
+  AutomationAssemblyContext as AutomationContext,
+  AutomationAssemblyDeps as AutomationServiceDeps,
+  AutomationService,
+  AutomationWatcherEnv,
+  AutomationWatcherHandle,
+} from "./contract/service.ts";
 export type { GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";

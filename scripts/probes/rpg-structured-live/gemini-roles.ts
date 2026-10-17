@@ -10,6 +10,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { Principal } from "@orb/contracts/identity";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
@@ -126,7 +127,7 @@ const observedFetch: typeof fetch = async (input, init) => {
 
 const db = await freshDb();
 const app = await createServices({
-  db,
+  db: databaseHandle(db),
   ownerId: OWNER,
   now: () => Date.now(),
   secretBoxKey: randomBytes(SECRET_BOX_KEY_BYTES),

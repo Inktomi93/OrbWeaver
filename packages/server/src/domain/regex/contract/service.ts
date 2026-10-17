@@ -11,6 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ImportScriptFileResult } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -87,6 +88,8 @@ export interface RegexContext {
    *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */
   readonly captureRoomReachForDelete: (scriptIds: readonly RegexScriptId[]) => Promise<(deleted: readonly RegexScriptId[]) => void>;
 }
+
+export type RegexAssemblyContext = DbAssemblyInput<RegexContext>;
 
 export interface RegexService {
   /** The caller's library, newest first. */

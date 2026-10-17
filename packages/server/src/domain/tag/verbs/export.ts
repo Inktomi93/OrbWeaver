@@ -5,6 +5,8 @@
 // no audit (a read leaves no trace). `import.ts` is the round-trip twin: `export` bytes → `import` re-creates
 // the same tag namespace under the importing owner (fresh ids, deduped by name).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { CanonicalTag } from "#primitives/serde/tag";
 import { buildTagLibrary } from "#primitives/serde/tag";
@@ -12,7 +14,8 @@ import type { TagContext } from "../contract/service.ts";
 import { listOwnedTags } from "../persistence/queries.ts";
 
 /** Read the owner's tags and serialize them to tag-library JSON bytes. */
-export function createExport(ctx: TagContext): (ownerId: UserId) => Promise<Uint8Array> {
+export function createExport(input: DbAssemblyInput<TagContext>): (ownerId: UserId) => Promise<Uint8Array> {
+  const ctx: TagContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId): Promise<Uint8Array> => {
     const rows = await listOwnedTags(ctx.db, ownerId);
     const tags: CanonicalTag[] = rows.map((row) => ({

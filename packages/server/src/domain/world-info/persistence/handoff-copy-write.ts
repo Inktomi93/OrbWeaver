@@ -27,6 +27,8 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CopyHandoffBooks, CountHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy.ts";
@@ -60,8 +62,9 @@ async function ownedChatAttachments(db: Db, fromOwnerId: UserId, chatId: ChatId)
   return rows.map((r) => r.book);
 }
 
-export function createCopyHandoffBooks(ctx: WorldInfoHandoffCopyContext): CopyHandoffBooks {
-  return async ({ fromOwnerId, toOwnerId, chatId, cardCopies }): Promise<readonly BatchStmt[]> => {
+export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoHandoffCopyContext>): CopyHandoffBooks {
+  const ctx: WorldInfoHandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
+  return async ({ fromOwnerId, toOwnerId, chatId, cardCopies }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const at = ctx.now();
     const mints: BatchStmt[] = [];
@@ -115,7 +118,7 @@ export function createCopyHandoffBooks(ctx: WorldInfoHandoffCopyContext): CopyHa
     if (mints.length > 0) {
       await db.batch(batchMany(mints));
     }
-    return repoint;
+    return repoint.map(statementToken);
   };
 }
 
@@ -129,7 +132,8 @@ export function createCopyHandoffBooks(ctx: WorldInfoHandoffCopyContext): CopyHa
  *  A recipient-converged room book is deliberately not counted: nothing new lands in their library for it.
  *  (The card half has no convergence twin: `pendingCardCopies` skips copies that ALREADY carry junctions,
  *  which cannot exist before the accept that mints them.) */
-export function createCountHandoffBooks(db: Db): CountHandoffBooks {
+export function createCountHandoffBooks(handle: DatabaseHandle): CountHandoffBooks {
+  const db = databaseForOwner(handle);
   return async ({ fromOwnerId, toOwnerId, chatId, characterIds }): Promise<number> => {
     if (fromOwnerId === toOwnerId) {
       return 0;

@@ -5,6 +5,8 @@
 // bound `store` verb + the indexer's caption generator as EXPLICIT deps here (domain-no-cross-verb /
 // domain-substrate-mediates-subsystems — the composition point is this file, never a verb-to-verb import).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { EmbeddingsContext } from "./context.ts";
 import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
@@ -28,7 +30,8 @@ import { createStoreSegments } from "./verbs/store-segments.ts";
 import { createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
-export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
+export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext>): EmbeddingsService {
+  const ctx: EmbeddingsContext = { ...input, db: databaseForOwner(input.db) };
   const store = createStore(ctx);
   const indexAsset = createImageIndexer(ctx, {
     store,

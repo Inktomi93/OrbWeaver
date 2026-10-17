@@ -16,7 +16,8 @@
 // `pending_host_user_id`), so an id belonging to somebody else's room comes back absent rather than
 // standing — the same leak-free `undefined` shape the accept-by-id door uses, applied to a set read.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { selectStandingInviteIds } from "../persistence/invites.ts";
 import { selectStandingNominationChatIds } from "../persistence/queries.ts";
@@ -29,7 +30,8 @@ interface StandingAsks {
   readonly nominatedChatIds: readonly ChatId[];
 }
 
-export function createResolveStandingAsks(db: Db): (asks: StandingAsks) => Promise<{ inviteIds: ChatInviteId[]; nominatedChatIds: ChatId[] }> {
+export function createResolveStandingAsks(input: DatabaseHandle): (asks: StandingAsks) => Promise<{ inviteIds: ChatInviteId[]; nominatedChatIds: ChatId[] }> {
+  const db = databaseForOwner(input);
   return async ({ recipientUserId, inviteIds, nominatedChatIds }) => {
     // TWO reads, in parallel and each short-circuiting on an empty list: an inbox page is usually all
     // informational rows, and the common case must not cost a round trip per axis.

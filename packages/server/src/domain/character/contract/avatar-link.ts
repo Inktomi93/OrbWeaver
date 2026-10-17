@@ -14,6 +14,7 @@
 // and snapshots nothing (the same silence persona's bulk-import write keeps).
 
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle `createLinkCharacterAvatars` closes over (assembled at the entry composition root). */
@@ -23,6 +24,8 @@ export interface CharacterAvatarLinkContext {
    *  `Date.now()` — the determinism gate, and the same seam every other character writer takes. */
   readonly now: () => number;
 }
+
+export type CharacterAvatarLinkAssemblyContext = DbAssemblyInput<CharacterAvatarLinkContext>;
 
 /** One character→avatar pairing the backfill proved (the stored blob's hash matched the card's `importHash`). */
 export interface CharacterAvatarLink {

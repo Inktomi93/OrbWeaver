@@ -20,9 +20,10 @@
 // Both refuse an sdkSessionId whose row belongs to another `(chat, connection)`: the demote is guarded
 // on the same predicate, so a refused write changes nothing.
 
-import type { Db } from "@orb/db";
 import { sessionEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { SessionEntryWriter } from "@orb/inference";
 import type { ChatId, SessionEntryId, UserConnectionId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -34,7 +35,8 @@ const FOREIGN_SESSION_REFUSAL = "session entry write refused: the SDK session do
 // A second handle on the table for the subqueries, so their columns never resolve to the outer row.
 const lineage = alias(sessionEntries, "lineage");
 
-export function createSessionEntryWriter(db: Db, newSessionEntryId: () => SessionEntryId): SessionEntryWriter {
+export function createSessionEntryWriter(handle: DatabaseHandle, newSessionEntryId: () => SessionEntryId): SessionEntryWriter {
+  const db = databaseForOwner(handle);
   /** Demote the connection's current seat in `chatId`, unless `sdkSessionId` is already owned elsewhere. */
   function demoteSeat(chatId: SQL<ChatId | null>, connectionId: UserConnectionId, sdkSessionId: string): BatchStmt {
     return db

@@ -10,6 +10,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -113,6 +114,10 @@ export interface CharacterContext {
   /** Runs the bounded side-LLM completion the greeting-studio verbs await (the summarize lane at compose). */
   readonly generateGreetingText: GenerateGreetingTextOp;
 }
+
+export type CharacterAssemblyInput = Omit<DbAssemblyInput<CharacterContext>, "bumpStatsCanonVersion"> & {
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+};
 
 export interface CharacterService {
   readonly create: (params: CreateCharacterParams) => Promise<CharacterDetail>;

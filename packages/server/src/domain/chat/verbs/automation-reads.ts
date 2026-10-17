@@ -3,6 +3,8 @@
 import type { TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { ChatAutomationReads } from "../contract/automation-reads.ts";
@@ -39,7 +41,8 @@ async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choic
 }
 
 /** Bind the room-owned fact and both variable planes to one database. */
-export function createChatAutomationReads(db: Db): ChatAutomationReads {
+export function createChatAutomationReads(input: DatabaseHandle): ChatAutomationReads {
+  const db = databaseForOwner(input);
   return {
     getMessageFact: (chatId, messageId) => getAutomationMessageFact(db, chatId, messageId),
     getTurnOrigin: (chatId, messageId) => loadTurnOrigin(db, chatId, messageId),

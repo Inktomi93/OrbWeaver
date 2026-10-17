@@ -18,6 +18,8 @@ import { rpgGameConfigSchema, rpgRecordedToolCallSchema, rpgSheetSchema, rpgSnap
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, isConstraintViolation } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RpgSnapshotId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type {
@@ -51,7 +53,8 @@ function composeState(row: typeof rpgSnapshots.$inferSelect): RpgPortableSnapsho
   });
 }
 
-export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): ExportRpgGame {
+export function createExportRpgGame(input: DbAssemblyInput<Pick<RpgPortabilityContext, "db">>): ExportRpgGame {
+  const ctx = { db: databaseForOwner(input.db) };
   return async ({ chatId }): Promise<RpgPortableGame | null> => {
     // Every statement must be prepared before the batch runs, so child rows resolve the game's id through the
     // same chat-scoped subquery. Six ordered SELECTs then ride ONE deferred, read-only transaction: the first
@@ -123,7 +126,8 @@ export function createExportRpgGame(ctx: Pick<RpgPortabilityContext, "db">): Exp
   };
 }
 
-export function createImportRpgGame(ctx: RpgPortabilityContext): ImportRpgGame {
+export function createImportRpgGame(input: DbAssemblyInput<RpgPortabilityContext>): ImportRpgGame {
+  const ctx: RpgPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ chatId, hostUserId, game }): Promise<void> => {
     const existing = await ctx.db.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
     if (existing[0] !== undefined) {

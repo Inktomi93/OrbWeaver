@@ -4,6 +4,7 @@
 // and email NOT EXISTS, and the unique indexes. Everything else was decided from the rows read here.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
+import { awaitableStatementToken, statementToken } from "@orb/db/wiring-owner";
 import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { createIdSource } from "@orb/kit/ids";
@@ -106,19 +107,21 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
       enabled: insert.enabled,
       oidcIdToken: sealed === null ? null : ctx.openPendingIdToken(sealed, secretHash),
       statements: (admission) => ({
-        take: takePendingSignupStatement(ctx.db, secretHash, at),
-        account: insertPendingSignupUserStatement(
-          ctx.db,
-          {
-            id: userId,
-            handle: identity.handle,
-            externalId: identity.externalId,
-            email: identity.email,
-            role: insert.resolvedRole,
-            enabled: insert.enabled,
-            at,
-          },
-          admission,
+        take: statementToken(takePendingSignupStatement(ctx.db, secretHash, at)),
+        account: awaitableStatementToken(
+          insertPendingSignupUserStatement(
+            ctx.db,
+            {
+              id: userId,
+              handle: identity.handle,
+              externalId: identity.externalId,
+              email: identity.email,
+              role: insert.resolvedRole,
+              enabled: insert.enabled,
+              at,
+            },
+            admission,
+          ),
         ),
       }),
     };

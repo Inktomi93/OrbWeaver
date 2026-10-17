@@ -7,9 +7,10 @@ import type {
   SettleRetainedChatRebase,
 } from "@orb/contracts/stats";
 import type { chats, Db, messages, messageVariants } from "@orb/db";
+import type { BatchStmt } from "@orb/db/query";
 import type { SQL } from "drizzle-orm";
 
-type ApplyStatsDeltaOp = ApplyStatsDelta<unknown, Db>;
+type ApplyStatsDeltaOp = ApplyStatsDelta<BatchStmt[], Db>;
 
 export interface ChatAccountingContext {
   readonly db: Db;
@@ -24,7 +25,7 @@ export interface ChatAccountingContext {
     typeof messageVariants.$inferSelect,
     SQL
   >;
-  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<unknown, Db>;
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
 }
 
 /** Retained canon writes do not receive room rekey or character-only accounting operations. */

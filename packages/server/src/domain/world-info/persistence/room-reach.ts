@@ -1,6 +1,8 @@
 // The reverse assembly-pool view keeps the joined attachment/seat reads and host-only global scope.
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, chatParticipants, chats, globalBooks, personaBooks, worldBooks } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 
@@ -47,6 +49,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
 }
 
 /** Bind the book owner's attachment-to-room read; the caller owns the post-write fan decision. */
-export function createWorldInfoRoomReach(db: Db): (bookId: WorldBookId) => Promise<ChatId[]> {
+export function createWorldInfoRoomReach(handle: DatabaseHandle): (bookId: WorldBookId) => Promise<ChatId[]> {
+  const db = databaseForOwner(handle);
   return (bookId) => resolveWorldInfoRooms(db, bookId);
 }

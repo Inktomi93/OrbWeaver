@@ -7,6 +7,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PersonaCollision } from "@orb/contracts/import";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -63,6 +64,8 @@ export interface PersonaContext {
    *  them). The returned thunk re-seats exactly those seats with the persona it is handed. */
   readonly captureSeatsForDelete: (ownerId: UserId, personaId: PersonaId) => Promise<(reseatWith: PersonaId) => Promise<void>>;
 }
+
+export type PersonaAssemblyContext = DbAssemblyInput<PersonaContext>;
 
 export interface PersonaService {
   /** Create a persona owned by the caller; returns the full detail (with joined avatar hash). */

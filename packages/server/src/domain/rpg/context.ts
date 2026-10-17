@@ -5,8 +5,15 @@
 // sideways into chat/connection (§2 one-directional flow). The bundle's TYPE is the explicit `RpgContext`
 // interface in `contract/service.ts` (no `ReturnType<>` — the `no-context-returntype` gate).
 
-import type { RpgContext, RpgContextDeps } from "./contract/service.ts";
+import { databaseForOwner } from "@orb/db/wiring-owner";
+import type { RpgRoundsAssemblyDeps, RpgRoundsDeps } from "./contract/rounds.ts";
+import type { RpgAssemblyContext, RpgContext } from "./contract/service.ts";
 
-export function createRpgContext(deps: RpgContextDeps): RpgContext {
-  return deps;
+export function createRpgContext(deps: RpgAssemblyContext): RpgContext {
+  return { ...deps, db: databaseForOwner(deps.db) };
+}
+
+/** Round closures borrow the same physical connection without exposing it at entry. */
+export function createRpgRoundsContext(deps: RpgRoundsAssemblyDeps): RpgRoundsDeps {
+  return { ...deps, db: databaseForOwner(deps.db) };
 }

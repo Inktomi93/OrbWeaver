@@ -15,6 +15,8 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { immutableCollection, rowTuple, ROW_TUPLE_ALIAS as TUPLE_ALIAS } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
@@ -24,7 +26,8 @@ import { retainedRebaseProjection } from "../substrate/retained-chat-accounting.
 import { chatOwnerIds, ownerChatIds, retainedCharacterSeatPredicate, retainedChatOwners } from "./owner-chat-scope.ts";
 
 /** Compose-built private accounting scope; caller has already admitted the retained source operation. */
-export function createResolveRetainedChatAccountingScope(db: Db): ResolveRetainedChatAccountingScope<SQL> {
+export function createResolveRetainedChatAccountingScope(input: DatabaseHandle): ResolveRetainedChatAccountingScope<SQL> {
+  const db = databaseForOwner(input);
   return async (chatId, characterId) => {
     const owners = await retainedOwners(db, chatId);
     const ownerIds = owners.map((row) => row.ownerId);
@@ -54,8 +57,9 @@ const retainedOwners = (db: Db, chatId: Parameters<typeof retainedChatOwners>[0]
 
 /** The accepted copy's scope and canon freeze together; pending paid facts do not participate in this rebase. */
 export function createResolveRetainedChatRebase(
-  db: Db,
+  input: DatabaseHandle,
 ): ResolveRetainedChatRebase<typeof chats.$inferSelect, typeof messages.$inferSelect, typeof messageVariants.$inferSelect, SQL> {
+  const db = databaseForOwner(input);
   return async (rekeys) => {
     const copiedIds = [...rekeys.characters.values()];
     const roomQuery = db

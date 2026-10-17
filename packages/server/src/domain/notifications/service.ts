@@ -2,7 +2,8 @@
 // shared `NotificationsContext` (zero logic of its own — see contract/service.ts for the domain's D16
 // durable-inbox contract, the `emit` composition, and the one-directional edge from chat).
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import { createNotificationsContext } from "./context.ts";
 import type { ResolveStandingAsks } from "./contract/ops.ts";
@@ -16,7 +17,7 @@ import { createStanding } from "./verbs/standing.ts";
 /** What the composition root needs: the db handle + the injected clock (epoch-ms) + the D60 recipient belt
  *  (`isAgentRecipient` — the sanctioned `users.kind` read the entry root supplies; contract/service.ts). */
 interface NotificationsServiceDeps {
-  db: Db;
+  db: DatabaseHandle;
   now: () => number;
   readonly idSource?: IdSource | undefined;
   /** The #1799 cross-feature read behind `InboxView.actionable` (contract/ops.ts). Required: see the field's
@@ -25,7 +26,7 @@ interface NotificationsServiceDeps {
 }
 
 export function createNotificationsService(deps: NotificationsServiceDeps): NotificationsService {
-  const ctx = createNotificationsContext(deps.db, deps.now, deps.resolveStandingAsks, deps.idSource);
+  const ctx = createNotificationsContext(databaseForOwner(deps.db), deps.now, deps.resolveStandingAsks, deps.idSource);
   return {
     ...createRecord(ctx),
     ...createRead(ctx),

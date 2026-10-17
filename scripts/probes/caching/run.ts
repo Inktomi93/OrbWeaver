@@ -11,6 +11,7 @@ import { clampRoleHandling, responseCacheSchema, turnsLevelFor } from "@orb/cont
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { closeDb, messages, messageVariants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { ProviderError } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -449,7 +450,7 @@ async function runScenario(scenario: Scenario): Promise<void> {
     const app = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
-      db,
+      db: databaseHandle(db),
       now: () => frozenNow,
       ownerId: host.id,
       secretBoxKey: randomBytes(SECRET_BOX_BYTES),

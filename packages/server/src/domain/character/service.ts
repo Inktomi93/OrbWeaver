@@ -8,8 +8,9 @@
 //   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
 //   front door). See seeder/ + contract/seeder.ts.
 
+import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
 import type { CharacterContext } from "./context.ts";
-import type { CharacterService } from "./contract/service.ts";
+import type { CharacterAssemblyInput, CharacterService } from "./contract/service.ts";
 import { createAttachImportedArt } from "./verbs/attach-imported-art.ts";
 import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
 import { createBulkArchive } from "./verbs/bulk-archive.ts";
@@ -40,7 +41,12 @@ import { createRewriteGreeting } from "./verbs/rewrite-greeting.ts";
 import { createSnapshot } from "./verbs/snapshot.ts";
 import { createUpdate } from "./verbs/update.ts";
 
-export function createCharacterService(ctx: CharacterContext): CharacterService {
+export function createCharacterService(input: CharacterAssemblyInput): CharacterService {
+  const ctx: CharacterContext = {
+    ...input,
+    db: databaseForOwner(input.db),
+    bumpStatsCanonVersion: (batch, db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
+  };
   return {
     create: createCreate(ctx),
     get: createGet(ctx),

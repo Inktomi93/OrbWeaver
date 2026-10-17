@@ -1,7 +1,6 @@
 // FRONT DOOR: the only legal external import; re-exports the public surface. `StoredAsset`/`AssetKind` live
 // in `@orb/contracts/assets` instead; maintenance/DR verb param types are domain-internal (contract/maintenance.ts).
 
-export type { AssetsContext } from "./context.ts";
 export type { BackgroundStoreDeps, BackgroundStoreParams, StoreBackground } from "./contract/background-store.ts";
 export { AssetContentRejectedError } from "./contract/errors.ts";
 export type { GeneratedAssetStore } from "./contract/generated-store.ts";
@@ -13,7 +12,7 @@ export type {
   GalleryPortableFile,
 } from "./contract/results.ts";
 export type { SeedArtDeps, SeedAvatarOps, SeedPlateStoreDeps, StoreSeedPlate } from "./contract/seed-art.ts";
-export type { AssetsService, AssetsWorkloadDeps } from "./contract/service.ts";
+export type { AssetsAssemblyContext as AssetsContext, AssetsService, AssetsWorkloadAssemblyDeps as AssetsWorkloadDeps } from "./contract/service.ts";
 // The asset-ref CLASSIFICATION registry (values only — `AssetRef` itself stays domain-internal). Read by
 // the `structure:asset-refs` verify stage's comparator, which reconciles it against the live `@orb/db`
 // schema's FK→`assets.id` columns; the exports map is `"./*": "./src/*/index.ts"`, so no deeper path

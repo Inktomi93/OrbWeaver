@@ -15,6 +15,7 @@
 //     or `--fresh` — so a re-run never dupes and never mutates a db that already looks seeded.
 //   • `--fresh` wipes the `data/` db file (+ WAL/SHM sidecars), re-migrates from the baseline, then seeds.
 // It writes ONLY through the domain verbs against whatever `DATABASE_URL` points at; it changes no config.
+
 import { rmSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import process from "node:process";
@@ -42,6 +43,7 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -312,11 +314,12 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   // so the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
+  const wiringDb = databaseHandle(db);
   const bootSessions = createSessionsService({
-    db,
+    db: wiringDb,
     now,
     sessionSecret,
-    seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+    seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
   });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
@@ -327,7 +330,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const owner = await principalFor(ownerId);
 
   const built = await createServices({
-    db,
+    db: wiringDb,
     now,
     ownerId,
     secretBoxKey: null,

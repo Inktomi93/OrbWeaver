@@ -5,7 +5,7 @@ import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { SeedOwnerParams } from "../contract/params.ts";
+import type { SeedOwnerParams } from "../contract/boot.ts";
 import {
   backfillBootstrapOwner,
   claimBootstrapPassword,

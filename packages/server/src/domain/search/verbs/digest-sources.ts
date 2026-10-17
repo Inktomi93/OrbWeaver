@@ -1,4 +1,6 @@
 import type { CorpusDigestSource } from "@orb/contracts/search";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatDigestId, UserId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
 import type { DigestCoverageOp, DigestSourceLocator, DigestSourceSpan } from "../contract/service.ts";
@@ -8,8 +10,9 @@ import { SOURCE_LINEAGE_LIMIT } from "../substrate/constants.ts";
 
 /** Theme assignments supply ids; the live host predicate authorizes every underlying digest again. */
 export function createDigestSources(
-  ctx: Pick<SearchContext, "db" | "tier0RangeOf" | "digestConsolidationHash">,
+  input: DbAssemblyInput<Pick<SearchContext, "db" | "tier0RangeOf" | "digestConsolidationHash">>,
 ): (ownerId: UserId, ids: readonly ChatDigestId[]) => Promise<readonly CorpusDigestSource[]> {
+  const ctx: Pick<SearchContext, "db" | "tier0RangeOf" | "digestConsolidationHash"> = { ...input, db: databaseForOwner(input.db) };
   const coverage = createDigestSourceCoverage(ctx);
   return async (ownerId, ids): Promise<readonly CorpusDigestSource[]> => {
     const rows = await readOwnedDigestSourceRows(ctx.db, ownerId, ids);

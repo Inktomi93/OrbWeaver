@@ -22,7 +22,8 @@
 // (`domain/admin/verbs/link-sso-identity.ts`), reached through the injected SessionAdminPort — this verb
 // gates nothing (RESOLUTION tier has no `can()`); it enforces only the IDENTITY invariant.
 
-import type { AwaitableBatchStmt } from "@orb/db/query";
+import type { AwaitableStatementToken } from "@orb/db/wiring";
+import { awaitableStatementToken } from "@orb/db/wiring-owner";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import type { UnclaimedLinkOutcome } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -30,8 +31,8 @@ import { claimExternalIdIfUnbound, selectForProvisionByExternalId, selectForProv
 import { isSubjectMismatch } from "../substrate/role-policy.ts";
 
 export function createLinkExternalId(ctx: SessionsContext): Pick<SessionsService, "linkExternalIdStatement" | "settleUnclaimedLink"> {
-  const linkExternalIdStatement = (userId: UserId, externalId: ExternalId, at: number): AwaitableBatchStmt<{ id: UserId }[]> =>
-    claimExternalIdIfUnbound(ctx.db, userId, externalId, at);
+  const linkExternalIdStatement = (userId: UserId, externalId: ExternalId, at: number): AwaitableStatementToken<{ id: UserId }[]> =>
+    awaitableStatementToken(claimExternalIdIfUnbound(ctx.db, userId, externalId, at));
 
   async function settleUnclaimedLink(userId: UserId, externalId: ExternalId, failure?: unknown): Promise<UnclaimedLinkOutcome> {
     const target = await selectForProvisionById(ctx.db, userId);

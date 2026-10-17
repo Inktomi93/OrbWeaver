@@ -5,11 +5,14 @@
 // read makes two exports of an unchanged library differ. The PK is a total order by construction.
 
 import { worldBooks } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorldBookId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import type { ListOwnedBookIds, WorldInfoExportContext } from "../contract/export.ts";
 
-export function createListOwnedBookIds(ctx: WorldInfoExportContext): ListOwnedBookIds {
+export function createListOwnedBookIds(input: DbAssemblyInput<WorldInfoExportContext>): ListOwnedBookIds {
+  const ctx: WorldInfoExportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId }): Promise<readonly WorldBookId[]> => {
     const rows = await ctx.db.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId)).orderBy(asc(worldBooks.id));
     return rows.map((r) => r.id);

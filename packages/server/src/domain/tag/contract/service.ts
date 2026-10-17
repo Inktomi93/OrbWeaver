@@ -6,6 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { TagAttachedEntity, TagFilterVocabularyEntry, TagReachView, TagSuggestionView, TagTargetRef, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, TagId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -44,6 +45,8 @@ export interface TagContext {
   /** Fires `tagsChanged` after every tag mutation's durable write, fire-and-forget. */
   readonly emitUserEvent: EmitUserEvent;
 }
+
+export type TagAssemblyContext = DbAssemblyInput<TagContext>;
 
 /** The tag taxonomy surface. Every verb is owner-scoped on `params.principal.userId`; the junction trio
  *  additionally gates the target (target-derived ownership, or injected membership for chat). */

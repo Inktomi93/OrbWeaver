@@ -17,6 +17,8 @@
 // byte-identical to before.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { resolveSideGenSampling } from "@orb/inference";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
@@ -61,7 +63,8 @@ async function resolveUserMacroRegistry(deps: ExtractQuietDeps, chatId: ChatId):
   return built?.registry;
 }
 
-export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
+export function createExtractQuiet(input: DbAssemblyInput<ExtractQuietDeps>): ExtractQuiet {
+  const deps: ExtractQuietDeps = { ...input, db: databaseForOwner(input.db) };
   return async (p: ExtractQuietParams): Promise<ExtractQuietResult> => {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
     const participants = await loadParticipants(deps.db, p.chatId);

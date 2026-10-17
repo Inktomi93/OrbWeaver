@@ -1,6 +1,8 @@
 // Departed seats never refresh historical identities; persona anchors remain live without a seat.
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import type { RoomSeatReach } from "../contract/room-reach.ts";
@@ -33,7 +35,8 @@ async function resolveMemberRooms(db: Db, userId: UserId): Promise<ChatId[]> {
 }
 
 /** Read only the chat-owned pointers that define member-visible entity reach. */
-export function createRoomSeatReach(db: Db): RoomSeatReach {
+export function createRoomSeatReach(input: DatabaseHandle): RoomSeatReach {
+  const db = databaseForOwner(input);
   return {
     character: (characterId) => resolveCharacterRooms(db, characterId),
     persona: (personaId) => resolvePersonaRooms(db, personaId),

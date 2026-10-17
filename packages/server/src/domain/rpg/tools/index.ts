@@ -31,8 +31,9 @@ import {
 } from "@orb/contracts/rpg";
 import type { ChatTurnId } from "@orb/kit/ids";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
+import { createRpgContext } from "../context.ts";
 import type { ActorRefIndex } from "../contract/params.ts";
-import type { RpgContext, RpgGameRow } from "../contract/service.ts";
+import type { RpgAssemblyContext, RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { resolveSnapshotForTurn } from "../persistence/snapshots.ts";
@@ -97,7 +98,8 @@ async function participantIndexFor(ctx: RpgContext, game: RpgGameRow): Promise<A
 }
 
 /** Build the 7 rpg tool defs closing over `ctx` (registered at compose, W1c-b). */
-export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
+export function rpgToolDefinitions(input: RpgAssemblyContext): readonly ToolDefinition[] {
+  const ctx = createRpgContext(input);
   const extractionMints = createExtractionMints(ctx.idSource);
   return [
     rpgTool({

@@ -26,10 +26,11 @@
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
+import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#primitives/serde/card";
-import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
+import type { CharacterHandoffCopyAssemblyContext, CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
 import { handoffProvenance } from "../contract/handoff-copy.ts";
 import { cardTokenSize } from "../substrate/card-tokens.ts";
 import { insertCharacterClaimingProvenance } from "./card.ts";
@@ -75,7 +76,13 @@ async function reownBackground(
   return assetId === null ? canonicalBackgroundSource({ ...source, kind: "none" }) : { ...source, assetId };
 }
 
-export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHandoffCards {
+export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContext): CopyHandoffCards {
+  const ctx: CharacterHandoffCopyContext = {
+    ...input,
+    db: databaseForOwner(input.db),
+    bumpStatsCanonVersion: (batch, db, ownerId) => input.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
+    applyStatsDelta: (batch, db, delta) => input.applyStatsDelta(batchHandle(batch), databaseHandle(db), delta),
+  };
   return async ({ fromOwnerId, toOwnerId, chatId, characterIds }): Promise<readonly HandoffCardCopy[]> => {
     if (characterIds.length === 0) {
       return [];

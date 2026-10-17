@@ -3,6 +3,8 @@
 // factories and assembles the `CredentialsService`. The context is built at the entry composition root and
 // passed in (credentials sideways-imports none of its injected deps — domain-no-cross-feature).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CredentialContext } from "./context.ts";
 import type { CredentialsService } from "./contract/service.ts";
 import { createAdd } from "./verbs/add.ts";
@@ -19,7 +21,8 @@ import { createReplace } from "./verbs/replace.ts";
 import { createResolve } from "./verbs/resolve.ts";
 import { createStorageStatus } from "./verbs/storage-status.ts";
 
-export function createCredentialsService(ctx: CredentialContext): CredentialsService {
+export function createCredentialsService(input: DbAssemblyInput<CredentialContext>): CredentialsService {
+  const ctx: CredentialContext = { ...input, db: databaseForOwner(input.db) };
   return {
     resolve: createResolve(ctx),
     maybeRevokeOnAuthFailed: createMaybeRevokeOnAuthFailed(ctx),

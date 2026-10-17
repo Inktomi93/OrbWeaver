@@ -5,10 +5,11 @@
 
 import type { CompareAndSetImportedTokenUsage, ImportedTokenUsageCandidate, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
-import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle } from "@orb/db/wiring";
+import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, gt, isNotNull, isNull } from "drizzle-orm";
@@ -19,7 +20,8 @@ const MAX_PAGE = 1000;
 /** The self-join used to pick ONE host seat per chat (below). */
 const hostSeat = alias(chatParticipants, "host_seat");
 
-export function createListImportedTokenUsageCandidates(db: Db): ListImportedTokenUsageCandidates {
+export function createListImportedTokenUsageCandidates(input: DatabaseHandle): ListImportedTokenUsageCandidates {
+  const db = databaseForOwner(input);
   return async ({ hostUserId, afterVariantId, limit }): Promise<readonly ImportedTokenUsageCandidate[]> => {
     // ONE CANDIDATE PER VARIANT. A plain `role='host'` join emits one row PER matching host seat, and a
     // room that ever yields two double-counts every variant in it: `scanned`, `ownersScanned` and
@@ -72,7 +74,11 @@ export function createListImportedTokenUsageCandidates(db: Db): ListImportedToke
   };
 }
 
-export function createCompareAndSetImportedTokenUsage(db: Db, bumpCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>): CompareAndSetImportedTokenUsage {
+export function createCompareAndSetImportedTokenUsage(
+  input: DatabaseHandle,
+  bumpCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>,
+): CompareAndSetImportedTokenUsage {
+  const db = databaseForOwner(input);
   return async ({ candidate, resolution }): Promise<boolean> => {
     const legacyNumeric = candidate.tokensIn !== null || candidate.tokensOut !== null;
     const values = legacyNumeric
@@ -100,7 +106,7 @@ export function createCompareAndSetImportedTokenUsage(db: Db, bumpCanonVersion: 
     ];
     // A losing CAS may conservatively advance the token. That costs at most a retry; separating the update
     // from its fence would let a winning write escape the rebuild snapshot entirely.
-    bumpCanonVersion(statements, db, candidate.ownerId);
+    bumpCanonVersion(batchHandle(statements), databaseHandle(db), candidate.ownerId);
     const results = await db.batch(batchMany(statements));
     const changed = results[0] as readonly { readonly id: string }[];
     return changed.length === 1;

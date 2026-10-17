@@ -1,5 +1,5 @@
 // A missing pepper may be minted only when no persisted identity or token still depends on it.
-import type { SettleSessionSecretParams } from "../contract/params.ts";
+import type { SettleSessionSecretParams } from "../contract/boot.ts";
 import { hasSessionSecretPasswordDependents } from "../persistence/users.ts";
 
 /** Build the pre-compose settlement without requiring an existing pepper or a constructed sessions service. */

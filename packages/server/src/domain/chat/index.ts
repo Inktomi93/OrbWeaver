@@ -5,7 +5,7 @@
 export { createActiveTurns } from "./active-turns.ts";
 export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "./assembly/turn-personas.ts";
 export { createChatBus } from "./bus.ts";
-export type { ChatContext, ChatServiceDeps } from "./context.ts";
+export type { ChatServiceDeps } from "./context.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
 // `ChatRpgGatherResult` + `ChatRpgOps` are PREBUILT[for: rpg push-2] — the injected rpg turn-ops seam +
 // its structural gather result (docs/plans/rpg/design.md). `ChatContext.rpg` binds a real value only when domain/rpg
@@ -75,7 +75,7 @@ export type {
   VisibleExtractQuietDeps,
   VisibleExtractQuietParams,
 } from "./contract/imagery-access.ts";
-export type { BulkImportChats, ChatImportContext } from "./contract/import.ts";
+export type { BulkImportChats, ChatImportAssemblyContext as ChatImportContext } from "./contract/import.ts";
 export type { ImageRefAssets, ResolveMediaRef, ResolveMediaRefDeps } from "./contract/media-ref.ts";
 export type {
   MemoryConfig,
@@ -115,11 +115,12 @@ export type {
   SignupRedeemOutcome,
   SignupUserStatementOp,
 } from "./contract/signup.ts";
+export type { ChatAssemblyContext as ChatContext } from "./contract/wiring.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
 export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 // The room identity rule imagery's chat-scoped preview runs under (D298): the host funds and runs as.
 export { resolveTurnIdentity } from "./engine/turn-identity.ts";
-export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
+export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
 export { generateDigests } from "./memory/generate/digests.ts";
 export { generateSegments } from "./memory/generate/segments.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
@@ -128,34 +129,36 @@ export { resolveTier0Range } from "./memory/recall/bridge.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
-export { createGenerationObservationSession } from "./persistence/generation-observation.ts";
 export { createBulkImportChats } from "./persistence/import-write.ts";
 export { reclaimChatLocksOnBoot } from "./persistence/lock.ts";
 // The #1391 plugin tool wire-name rewrite over `message_variants.tool_calls` — the same boot-step shape
 // (`entry/boot/migrate-plugin-tool-wire-names` runs it); chat owns it because chat owns the table.
 export { migratePluginToolWireNames } from "./persistence/migrate-plugin-tool-wire-names.ts";
-export { migrateSeededRoomBackgrounds } from "./persistence/migrate-seeded-backgrounds.ts";
 // The #1649 handoff-offer vocabulary data migration — a boot step (`entry/boot/migrate-handoff-offer-vocab`)
 // runs it; the SQL lives beside the offer's other writes.
 export { migrateHandoffOfferVocab } from "./persistence/participant.ts";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export {
-  isCharacterSeated,
   isPresentParticipant,
-  loadPresentCharacterSeats,
   loadPresentRole,
 } from "./persistence/participants-read.ts";
-export { loadPluginCharacters, loadPluginMessages } from "./persistence/plugin-reads.ts";
 export { loadTurnOrigin } from "./persistence/queries.ts";
-// The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
-// host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
-export { loadPresentHostUserId } from "./persistence/reactions.ts";
 export { createRoomSeatReach } from "./persistence/room-reach.ts";
 export {
   createCompareAndSetImportedTokenUsage,
   createListImportedTokenUsageCandidates,
 } from "./persistence/token-usage-backfill.ts";
+// The room's PRESENT host read: the one home of that rule. Compose wires it into every domain that needs the
+// host (databank, embeddings, memory, regex, imagery) and the reaction gates call it directly.
+export {
+  isCharacterSeated,
+  loadPluginCharacters,
+  loadPluginMessages,
+  loadPresentCharacterSeats,
+  loadPresentHostUserId,
+  migrateSeededRoomBackgrounds,
+} from "./persistence/wiring-reads.ts";
 export { createChatService, createVisibleExtractQuiet } from "./service.ts";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
 // the chat ROOM stream runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
@@ -201,6 +204,7 @@ export { buildChatToolOps } from "./verbs/create-tool-ops.ts";
 // The `chatsChanged` member fan wired onto `ChatContext.emitChatChanged`; compose injects the user bus.
 export { createEmitChatChanged } from "./verbs/emit-chat-changed.ts";
 export { createExtractQuiet } from "./verbs/extract-quiet.ts";
+export { createGenerationObservationSink } from "./verbs/generation-observation-sink.ts";
 export { createGetMembership } from "./verbs/get-membership.ts";
 export { createGetPendingUserText } from "./verbs/get-pending-user-text.ts";
 export { createImageryRoomAccess } from "./verbs/imagery-room-access.ts";

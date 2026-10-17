@@ -27,6 +27,8 @@
 // re-run after a later failure in `duplicate` converges instead of erroring on rows it already wrote.
 
 import { characterBooks, characters, worldBooks } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CopyCharacterBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
@@ -42,7 +44,8 @@ async function bothOwned(ctx: WorldInfoDuplicateCarryContext, args: Parameters<C
   return owned.includes(args.fromCharacterId) && owned.includes(args.toCharacterId);
 }
 
-export function createCopyCharacterBooks(ctx: WorldInfoDuplicateCarryContext): CopyCharacterBooks {
+export function createCopyCharacterBooks(input: DbAssemblyInput<WorldInfoDuplicateCarryContext>): CopyCharacterBooks {
+  const ctx: WorldInfoDuplicateCarryContext = { ...input, db: databaseForOwner(input.db) };
   return async (args): Promise<void> => {
     const { fromCharacterId, toCharacterId } = args;
     const { db } = ctx;

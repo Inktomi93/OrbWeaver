@@ -4,7 +4,7 @@
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { EveryOwnerRun } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -74,7 +74,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly supervise?: typeof superviseDetached | undefined;
   readonly scheduleTimeout?: EmbeddingsContext["scheduleTimeout"];
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** The per-FUNDER role-client binder (§8.5b): embeddings/search/discovery resolve the entity OWNER's rows

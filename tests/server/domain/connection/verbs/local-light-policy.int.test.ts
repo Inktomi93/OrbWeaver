@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/connection/verbs/local-light-policy.ts
 // @subject packages/server/src/domain/sessions/persistence/users.ts
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { connectionBindings, userConnections, users } from "@orb/db";
 import { castId } from "@orb/kit/ids";
@@ -14,7 +15,7 @@ test("boot continues across a real binding refusal, and the composed post-boot a
   const second = await seedUser(db, { enabled: false });
   const bound: string[] = [];
   const deps = {
-    db,
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     onEmbedSpaceBound: (id: string): void => {
       bound.push(id);

@@ -25,7 +25,7 @@
 
 // Entry binds the writer/read capabilities; connection owns refusal, notification and sweep settlement.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccounts, seedLocalLightConnections } from "#domain/connection";
@@ -35,7 +35,7 @@ import { minter } from "../compose/minter.ts";
 // @orb-waive no-inline-package-interface(SeedLocalLightDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedLocalLightDeps {
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   /** Called with an owner whose seed newly bound a vector task (their embed space changed). */
   readonly onEmbedSpaceBound: (userId: UserId) => void;

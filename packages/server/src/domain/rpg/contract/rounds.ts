@@ -8,6 +8,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgGameConfig, RpgStateRoundTool, RpgStructuredRoundShape } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ProviderExecutor, Resolved } from "@orb/inference";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
@@ -55,6 +56,8 @@ export interface RpgRoundsDeps {
   /** Is this thrown value the character library's per-owner handle-uniqueness refusal? Character owns its errors. */
   readonly isHandleConflict: (err: unknown) => boolean;
 }
+
+export type RpgRoundsAssemblyDeps = DbAssemblyInput<RpgRoundsDeps>;
 
 /** The resolved per-call inputs every structured extraction consumes — the CHARACTER turn's resolved connection + its
  *  enforced consent verdict + the prompts + the ref-constrained response schema (R1). Bundled to keep each arm

@@ -10,6 +10,7 @@ import type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } fr
 import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
@@ -67,6 +68,8 @@ export interface PresetContext {
   /** The caller's backward bindings for one preset — the CONTEXT panel's "used by" block. */
   readonly resolvePresetUsage: ResolvePresetUsageOp;
 }
+
+export type PresetAssemblyContext = DbAssemblyInput<PresetContext>;
 
 /** The generation-config library surface. All verbs are owner-scoped: reads return the owner's rows union
  *  the shared system default; writes touch only the owner's rows. */

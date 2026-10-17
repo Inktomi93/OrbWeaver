@@ -20,6 +20,7 @@
 
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 /** The DI bundle every portability op closes over (assembled at the entry composition root). */
@@ -28,6 +29,8 @@ export interface RegexPortabilityContext {
   readonly now: () => number;
   readonly newScriptId: () => RegexScriptId;
 }
+
+export type RegexPortabilityAssemblyContext = DbAssemblyInput<RegexPortabilityContext>;
 
 /** What one card hands the lift. `carried` are the orbweaver-namespaced references (the attached-book twin) — each is
  *  attached DIRECTLY when it names a row this owner already has, and ignored otherwise. `scripts` is the

@@ -5,6 +5,7 @@
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { ModelCallEstimate, WorkloadEvent, WorkloadLane, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
@@ -129,3 +130,7 @@ export interface WorkloadService extends WorkloadScheduleService {
 
 export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contributions"> & Pick<WorkloadServiceContext, "emitEvent">;
 export type NextRunnableWorkload = (now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
+
+export type WorkloadRunnerAssemblyDeps = DbAssemblyInput<WorkloadRunnerDeps>;
+export type WorkloadServiceAssemblyDeps = DbAssemblyInput<WorkloadServiceDeps>;
+export type ReapWorkloadsAssemblyArgs = DbAssemblyInput<ReapWorkloadsArgs>;

@@ -2,6 +2,7 @@
 // @subject packages/server/src/entry/boot/seed-user-content.ts
 // @subject packages/server/src/domain/tag/verbs/seed-tag.ts
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { Db } from "@orb/db";
 import { characterTags, tags, userSeedLedger } from "@orb/db";
@@ -36,8 +37,8 @@ function ledgerPolicy(
     enabled: () => true,
     steps,
     now,
-    seededKeys: createReadSeededKeys(db),
-    recordSeeded: (userId, keys, at) => recordSeededItemKeys(db, userId, keys, at),
+    seededKeys: createReadSeededKeys(databaseHandle(db)),
+    recordSeeded: (userId, keys, at) => recordSeededItemKeys(databaseHandle(db), userId, keys, at),
     legacyLatches: createSettingsComposedOps(settings).legacyLatches,
   });
 }
@@ -91,11 +92,11 @@ test("a refused real ledger write leaves the created card retryable without dupl
   await expect(policy.ensureSeeded(actor)).resolves.toBeUndefined();
   const before = await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle });
   expect(before).not.toBeNull();
-  expect(await createReadSeededKeys(db)(user.id)).toEqual(new Set());
+  expect(await createReadSeededKeys(databaseHandle(db))(user.id)).toEqual(new Set());
   await db.run(sql`DROP TRIGGER refuse_seed_record`);
   await policy.ensureSeeded(actor);
   expect(await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle })).toEqual(before);
-  expect(await createReadSeededKeys(db)(user.id)).toEqual(new Set([FIRST_CARD.key]));
+  expect(await createReadSeededKeys(databaseHandle(db))(user.id)).toEqual(new Set([FIRST_CARD.key]));
 });
 
 test("same-user concurrent calls share the real pass while a second account receives its own card and ledger", async ({
@@ -128,8 +129,8 @@ test("same-user concurrent calls share the real pass while a second account rece
   await pending;
   await policy.ensureSeeded(neighbor);
   expect(seed.mock.calls.map(([p]) => p)).toEqual([actor, neighbor]);
-  expect(await createReadSeededKeys(db)(first.id)).toEqual(new Set([FIRST_CARD.key]));
-  expect(await createReadSeededKeys(db)(second.id)).toEqual(new Set([FIRST_CARD.key]));
+  expect(await createReadSeededKeys(databaseHandle(db))(first.id)).toEqual(new Set([FIRST_CARD.key]));
+  expect(await createReadSeededKeys(databaseHandle(db))(second.id)).toEqual(new Set([FIRST_CARD.key]));
   expect(await services.character.findByHandle({ ownerId: second.id, handle: FIRST_CARD.handle })).not.toBeNull();
 });
 
@@ -141,7 +142,7 @@ test("the real-stack persona false outcome leaves its key unrecorded but still s
   const policy = ledgerPolicy(db, clock.now, services.settings, [{ key: PERSONA_ITEM.key, legacyLatch: "persona", seed }]);
   await policy.ensureSeeded(actor);
   expect(await services.persona.list({ principal: actor })).toEqual([]);
-  expect(await createReadSeededKeys(db)(user.id)).toEqual(new Set());
+  expect(await createReadSeededKeys(databaseHandle(db))(user.id)).toEqual(new Set());
   const reads = vi.spyOn(services.settings, "getUserSettings");
   await policy.ensureSeeded(actor);
   expect(reads).not.toHaveBeenCalled();

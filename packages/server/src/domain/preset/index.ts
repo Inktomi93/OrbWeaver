@@ -20,10 +20,9 @@ export {
   presetUsageViewSchema,
 } from "@orb/contracts/preset";
 export { SYSTEM_DEFAULT_PRESET_ID } from "./constants.ts";
-export type { PresetContext } from "./context.ts";
 export type { PresetOpCode } from "./contract/errors.ts";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
-export type { CopyPresetToUser, PresetHandoffCopyContext } from "./contract/handoff-copy.ts";
+export type { CopyPresetToUser, PresetHandoffCopyAssemblyContext as PresetHandoffCopyContext } from "./contract/handoff-copy.ts";
 export type { ReadOptionalPresetConfig } from "./contract/optional-config.ts";
 export type { LoadOptionalPreset } from "./contract/optional-read.ts";
 export type {
@@ -43,7 +42,13 @@ export type {
   PresetExportFile,
   PresetImportOutcome,
 } from "./contract/portability.ts";
-export type { PresetService, PresetUsageDeps, ResolveChatCapabilityOp, ResolvePresetUsageOp } from "./contract/service.ts";
+export type {
+  PresetAssemblyContext as PresetContext,
+  PresetService,
+  PresetUsageDeps,
+  ResolveChatCapabilityOp,
+  ResolvePresetUsageOp,
+} from "./contract/service.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";
 export { ensureSystemDefaultPreset } from "./seed.ts";

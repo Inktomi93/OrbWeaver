@@ -4,7 +4,6 @@
 // iterate loop, and the belted per-field apply. Ownership derives through the character join (D23 — no
 // ownerId on refinery tables); `characters.*` is written ONLY through injected character ops (F6).
 
-export type { RefineryContext } from "./context.ts";
 export {
   RefineryOutputBudgetError,
   RefineryRoundInFlightError,
@@ -52,7 +51,7 @@ export type {
   StagePreflight,
 } from "./contract/results.ts";
 export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSchema } from "./contract/results.ts";
-export type { RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
+export type { RefineryAssemblyContext as RefineryContext, RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { isScoreSweepReady } from "./substrate/refine-prompt.ts";
 export { SCHEMA_NAME_TAKEN_REASON, SCHEMA_STALE_PATCH_REASON } from "./substrate/schema-library.ts";

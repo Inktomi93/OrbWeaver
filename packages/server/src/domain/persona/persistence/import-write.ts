@@ -12,6 +12,8 @@ import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/cont
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, PersonaId } from "@orb/kit/ids";
 import type { PersonaCandidate, PersonaIdentity } from "#primitives/serde/persona";
 import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaName, personaPlacementOf } from "#primitives/serde/persona";
@@ -57,7 +59,8 @@ function tally(
 }
 
 /** Build the persona-owned bulk-import WRITE op. */
-export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportPersonas {
+export function createBulkImportPersonas(assembly: DbAssemblyInput<PersonaImportContext>): BulkImportPersonas {
+  const ctx: PersonaImportContext = { ...assembly, db: databaseForOwner(assembly.db) };
   return async ({ ownerId, personas: input, collisions }): Promise<BulkImportPersonasResult> => {
     const { db } = ctx;
     const candidates = await loadOwnedPersonaCandidates(db, ownerId);

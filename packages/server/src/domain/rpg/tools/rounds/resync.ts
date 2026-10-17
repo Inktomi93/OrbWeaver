@@ -10,7 +10,8 @@ import type { ChatId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { logger } from "#foundation/observability";
-import type { ExtractCtx, PromptInputs, RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { ExtractCtx, PromptInputs, RpgRoundsAssemblyDeps, RpgRoundsDeps, StructuredRound } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext, RpgStateDelta } from "#src/domain/rpg/contract/service.ts";
 import { fallbackStateRound, hasStructuredWriter, hasToolWriter, primaryStateRound } from "#src/domain/rpg/substrate/readonly-axis.ts";
 import { stateRoundNeededTokens } from "#src/domain/rpg/substrate/state-round-fit.ts";
@@ -225,7 +226,8 @@ async function fitResyncPrompt(
 
 /** Build the host `resyncFromStory` model call. Resolves the room connection AS THE HOST, gates readonly
  *  (capability-absent ⇒ a legible refusal), runs the establish-EVERYTHING extraction over the deep window. */
-export function buildRunResyncExtraction(deps: RpgRoundsDeps): RpgContext["runResyncExtraction"] {
+export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgContext["runResyncExtraction"] {
+  const deps = createRpgRoundsContext(input);
   return async ({ chatId, hostUserId, baseState }) => {
     // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveStateDelivery` host-resolve
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a

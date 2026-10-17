@@ -4,7 +4,6 @@
 // seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch over
 // the `SearchScope`/`SearchTarget` axes.
 
-export type { SearchContext } from "./context.ts";
 export { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "./contract/errors.ts";
 export type {
   CorpusParams,
@@ -36,7 +35,7 @@ export type {
   SimilarArtHit,
   UnifiedSearchResult,
 } from "./contract/results.ts";
-export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
+export type { ResolveActiveDocumentIdsOp, SearchAssemblyContext as SearchContext, SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
 export { evictFieldIndex } from "./substrate/field-index.ts";

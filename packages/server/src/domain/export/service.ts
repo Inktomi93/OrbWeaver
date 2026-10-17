@@ -2,6 +2,8 @@
 // exportCharacter reads the owner's live card off @orb/db directly and emits a V3 card PNG. exportChat is
 // host-gated via export's own sanctioned roster read; the pure builders live in #primitives/serde/chat.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ExportContext } from "./context.ts";
 import type { ExportService } from "./contract/service.ts";
 import { createExportCharacter } from "./verbs/export-character.ts";
@@ -9,7 +11,8 @@ import { createExportChat } from "./verbs/export-chat.ts";
 import { createExportChatBundle } from "./verbs/export-chat-bundle.ts";
 import { createListHostChats } from "./verbs/list-host-chats.ts";
 
-export function createExportService(ctx: ExportContext): ExportService {
+export function createExportService(input: DbAssemblyInput<ExportContext>): ExportService {
+  const ctx: ExportContext = { ...input, db: databaseForOwner(input.db) };
   return {
     exportCharacter: createExportCharacter(ctx),
     exportChat: createExportChat(ctx),

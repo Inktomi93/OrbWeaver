@@ -1,6 +1,7 @@
 // Sweep completion follows the actual admitted row's covered owners, including empty memory scopes.
 // @subject packages/server/src/domain/embeddings/verbs/vector-sweep-ops.ts
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { GenerationReceipt } from "@orb/contracts/embeddings";
@@ -28,7 +29,7 @@ async function executeAdmitted(root: ServerTestHarness, id: WorkloadId): Promise
   }
   await runWorkload(
     {
-      db: root.db,
+      db: databaseHandle(root.db),
       contributions: root.app.workloadContributions,
       now: root.clock.now,
       audit: root.app.audit,

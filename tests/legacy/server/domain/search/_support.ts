@@ -33,6 +33,7 @@ import {
   userConnections,
   users,
 } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -110,7 +111,11 @@ export async function seedGeneration(
     .values({ id: ownConnection(ownerId, task), ownerId, label: `Test ${task}`, providerId: bound.providerId, model: bound.model })
     .onConflictDoNothing();
   // The embeddings service over this owner's search encoder: its verbs mint the target and record each scope.
-  const embeddings = createEmbeddingsService({ ...makeStoreHarness(db).ctx, resolveEmbeddingConnection: searchEmbeddingConnection(roleClients) });
+  const embeddings = createEmbeddingsService({
+    ...makeStoreHarness(db).ctx,
+    db: databaseHandle(db),
+    resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
+  });
   if (refuses) {
     const existing = await generationOf(db, ownerId, task, model);
     if (existing !== undefined) {
@@ -168,7 +173,7 @@ function ownerOf<T extends { ownerId: UserId | null }>(rows: readonly T[], subje
 }
 
 async function chatOwner(db: Db, chatId: ChatId, model: string): Promise<UserId> {
-  const host = await loadPresentHostUserId(db, chatId);
+  const host = await loadPresentHostUserId(databaseHandle(db), chatId);
   if (host !== null) {
     return host;
   }
@@ -300,16 +305,16 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
   // `documents` lens's scope gating (the gate-8 leak test) is exercised end-to-end over real junctions.
   const roleClients = makeSearchRoleClients(controls);
   const ctx: SearchContext = {
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
     digestConsolidationHash: consolidationHash,
     tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
-    db,
+    db: databaseHandle(db),
     roleClientsFor: () => Promise.resolve(roleClients),
     // Compose's own resolve over the scripted encoders: the snapshot and the explicit-row rule are production's.
     resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
     now,
-    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(db, scope),
-    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(db, scope),
+    resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(databaseHandle(db), scope),
+    resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(databaseHandle(db), scope),
   };
   return createSearchService(ctx);
 }

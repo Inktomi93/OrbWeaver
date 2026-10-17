@@ -17,6 +17,8 @@
 
 import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { LinkCarriedBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
@@ -31,7 +33,8 @@ async function targetOwned(db: Db, ownerId: UserId, characterId: CharacterId): P
   return rows[0]?.ownerId === ownerId;
 }
 
-export function createLinkCarriedBooks(ctx: WorldInfoDuplicateCarryContext): LinkCarriedBooks {
+export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicateCarryContext>): LinkCarriedBooks {
+  const ctx: WorldInfoDuplicateCarryContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, refs }) => {
     if (refs.length === 0) {
       return { linked: 0, skipped: 0 };

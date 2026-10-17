@@ -4,7 +4,8 @@
 // ensureUser). The `SESSION_SECRET` pepper is injected here and bound into the token hasher (D38); the
 // clock is injected for determinism (no ambient `Date.now()` in a verb).
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { createSessionsContext } from "./context.ts";
 import type { SessionsService } from "./contract/service.ts";
@@ -27,7 +28,7 @@ import { createValidate } from "./verbs/validate.ts";
 /** What the composition root needs: the db handle, the injected clock, and the raw `SESSION_SECRET` pepper
  *  (read DOWN from `foundation/env` at `entry/`; bound into the token hasher here). */
 interface SessionsServiceDeps {
-  db: Db;
+  db: DatabaseHandle;
   now: () => number;
   readonly idSource?: IdSource;
   sessionSecret: string | null;
@@ -38,7 +39,7 @@ interface SessionsServiceDeps {
 }
 
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {
-  const ctx = createSessionsContext(deps.db, deps.now, deps.sessionSecret, deps);
+  const ctx = createSessionsContext(databaseForOwner(deps.db), deps.now, deps.sessionSecret, deps);
   return {
     ...createCreate(ctx),
     ...createValidate(ctx),

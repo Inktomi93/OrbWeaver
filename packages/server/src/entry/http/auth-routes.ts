@@ -31,7 +31,7 @@ import {
   signupResultSchema,
 } from "@orb/contracts/chat";
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
@@ -555,7 +555,7 @@ export interface AuthRoutesDeps {
   readonly sockets: SessionSocketEviction;
   readonly now: () => number;
   /** Backs the per-IP login throttle (shared `rate_limit_buckets` table — replica-correct). */
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   /** The RESOLVED per-IP login-attempt cap/min (env floor ⊕ AppSettings override), read FRESH per attempt —
    *  a mid-session admin edit reloads the effective-config cache, so the next attempt sees the new cap (LIVE,
    *  the tRPC rate-limit-gate pattern). */

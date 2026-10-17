@@ -13,13 +13,16 @@
 // NOT by redacting this feed).
 
 import { buildIdentityNameContext } from "@orb/contracts/chat";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../context.ts";
 import type { ResolveCanonWindow } from "../contract/context.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript.ts";
 
-export function createResolveCanonWindow(ctx: ChatContext): ResolveCanonWindow {
+export function createResolveCanonWindow(input: DbAssemblyInput<Pick<ChatContext, "db">>): ResolveCanonWindow {
+  const ctx = { db: databaseForOwner(input.db) };
   return async (chatId, opts) => {
     // The selected-lineage canon (oldest→newest), each slot joined to its selected variant — the SAME substrate
     // the engine's state round reasons from.

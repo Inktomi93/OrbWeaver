@@ -6,7 +6,8 @@
 // error the membrane contains as guest errors-as-data (never a host crash). Pure of Principal (the bridge closed
 // the scope over the installer); `db` is injected at compose.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginHostOps } from "../contract/ops.ts";
 import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
@@ -28,7 +29,8 @@ class PluginKvCapError extends Error {
  *  ceiling: an upsert of an EXISTING key always proceeds (no new slot); a NEW key past the cap is refused. The
  *  value/key byte caps ride the DDL (a violating `upsert` throws the persistence's CHECK error — contained the
  *  same way). `nowMs` stamps `updatedAt`. */
-export function buildPluginStorage(db: Db, nowMs: () => number): PluginHostOps["storage"] {
+export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number): PluginHostOps["storage"] {
+  const db = databaseForOwner(handle);
   return {
     get: (pluginId: PluginId, ownerId: UserId, key: string) => getKv(db, { pluginId, ownerId }, key),
     // THE CEILING IS A PREDICATE ON THE WRITE, not a read this layer acts on. `storage.set` is UI-proxyable, so

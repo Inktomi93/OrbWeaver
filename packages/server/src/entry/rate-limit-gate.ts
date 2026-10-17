@@ -21,7 +21,7 @@
 // `rateLimits.login` (auth-routes.ts threads getEffectiveConfig().rateLimits.login into the login limiter).
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { env } from "#foundation/env";
 import { createRateLimiter } from "../transport/rate-limit.ts";
 import type { RateLimitDecision, RateLimitGate } from "../transport/trpc/index.ts";
@@ -69,7 +69,7 @@ function isAiTurnPath(path: string): path is AiTurnPath {
 
 // @orb-waive no-inline-package-interface(RateLimitGateDeps): baselined when the gate landed; burn-down item 952.
 export interface RateLimitGateDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The RESOLVED rate-limit caps (env floor ⊕ admin override), read FRESH per request — a mid-session
    *  admin edit reloads the effective-config cache, so the next consume sees the new cap (LIVE). */

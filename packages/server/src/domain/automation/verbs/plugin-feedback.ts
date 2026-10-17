@@ -1,12 +1,15 @@
 // Plugin feedback names only admitted participants; quick replies remain member-editable compose chips.
 
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginFeedbackDeps, PluginFeedbackOps } from "../contract/plugin-feedback.ts";
 import { resolveNotificationRecipients } from "../substrate/notification-recipients.ts";
 
 /** Bind the plugin producer to the same recipient axis and feedback bus automation uses. */
 
-export function createPluginFeedbackOps(deps: PluginFeedbackDeps): PluginFeedbackOps {
+export function createPluginFeedbackOps(input: DbAssemblyInput<PluginFeedbackDeps>): PluginFeedbackOps {
+  const deps: PluginFeedbackDeps = { ...input, db: databaseForOwner(input.db) };
   const { db, notify: automationNotify } = deps;
   return {
     postNotification: async ({ pluginId, installerUserId, chatId, recipient, message }): ReturnType<PluginFeedbackOps["postNotification"]> => {

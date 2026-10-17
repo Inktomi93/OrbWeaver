@@ -6,6 +6,7 @@ import type { PortableFile, PortableImportOutcome } from "@orb/contracts/portabi
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 
 export interface ImageryPortabilityContext {
@@ -14,6 +15,10 @@ export interface ImageryPortabilityContext {
   readonly newGenerationId: () => ImageryGenerationId;
   readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchStmt[], Db>;
 }
+
+export type ImageryPortabilityAssemblyContext = Omit<DbAssemblyInput<ImageryPortabilityContext>, "bumpStatsCanonVersion"> & {
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+};
 
 export interface ImageryPortabilityService {
   readonly exportAll: (ownerId: UserId) => AsyncIterable<PortableFile>;

@@ -1,10 +1,12 @@
-import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, inArray } from "drizzle-orm";
 import type { LoadSeatCards } from "../contract/service.ts";
 
 /** The roster reads decoration columns only; ownership remains part of the SQL scope. */
-export function createLoadSeatCards(db: Db): LoadSeatCards {
+export function createLoadSeatCards(handle: DatabaseHandle): LoadSeatCards {
+  const db = databaseForOwner(handle);
   return async (ownerId, characterIds) =>
     characterIds.length === 0
       ? []

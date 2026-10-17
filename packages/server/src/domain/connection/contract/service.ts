@@ -24,6 +24,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResu
 import type { SettingsKvPort } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingStore, ConnectionStore, InferenceRuntime, ProviderRegistry, ProviderStore, ResolveOutcome, SnapshotStore } from "@orb/inference";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -115,6 +116,8 @@ export interface ConnectionContext {
    *  (docs/work/0121). Fire-and-forget, `void`-returning and non-throwing by construction. */
   readonly emitUserEvent: EmitUserEvent;
 }
+
+export type ConnectionAssemblyContext = DbAssemblyInput<ConnectionContext>;
 
 /** Connection rows and the runtime door. Only explicit wire projections omit executor credentials. */
 export interface ConnectionService {

@@ -4,6 +4,8 @@
 // collapse to first. A malformed file throws DomainOperationError; the portability core wraps it per-file so
 // one bad file never aborts a bundle.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { normalizeTagName } from "@orb/kit/tag";
@@ -14,7 +16,8 @@ import type { TagContext } from "../contract/service.ts";
 import { restoreOwnedTags } from "../persistence/queries.ts";
 
 /** Parse tag-library bytes and merge them into the owner's namespace (idempotent, dedup by folded name). */
-export function createImport(ctx: TagContext): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
+export function createImport(input: DbAssemblyInput<TagContext>): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {
+  const ctx: TagContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, bytes: Uint8Array): Promise<TagLibraryImportResult> => {
     const parsed = parseTagLibrary(bytes);
     if (!parsed.ok) {

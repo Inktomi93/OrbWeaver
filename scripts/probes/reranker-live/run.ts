@@ -17,6 +17,7 @@ import type { MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { connectionBindings, userConnections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import type { CharacterId, ChatId, ConnectionBindingId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -135,8 +136,9 @@ interface Stack {
 
 async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise<Stack> {
   const db = await freshDb();
+  const wiringDb = databaseHandle(db);
   const now = (): number => Date.now();
-  const ports = createConnectionPorts({ db, now, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, now) });
+  const ports = createConnectionPorts({ db: wiringDb, now, catalogSettings: createSettingsKvPort(wiringDb, CATALOG_SETTINGS_PREFIX, now) });
   const deps: InferenceDeps = {
     beginEmbeddingAccounting: () => {
       throw new Error("reranker-live scripts its query vectors; unexpected embedding execution");
@@ -163,7 +165,7 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
   };
   const runtime = await createInferenceRuntime(deps);
   const ctx: ConnectionContext = {
-    db,
+    db: wiringDb,
     now,
     newConnectionId: () => mintTypeId(ID_PREFIX.userConnection) as UserConnectionId,
     newBindingId: () => mintTypeId(ID_PREFIX.connectionBinding) as ConnectionBindingId,
@@ -185,7 +187,7 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
 
 /** The boot seed path, exactly as `entry/lifecycle` runs it over every account alive at boot. */
 async function bootSeed(stack: Stack): Promise<number> {
-  return await seedLocalLightOnBoot({ db: stack.db, now: () => Date.now(), onEmbedSpaceBound: () => undefined });
+  return await seedLocalLightOnBoot({ db: databaseHandle(stack.db), now: () => Date.now(), onEmbedSpaceBound: () => undefined });
 }
 
 async function seededRerankRow(db: Db, ownerId: UserId): Promise<UserConnectionId> {

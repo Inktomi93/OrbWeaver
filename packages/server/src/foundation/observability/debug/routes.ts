@@ -25,7 +25,8 @@ import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
 import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { EffectiveAppConfig, GlobalSettingView } from "@orb/contracts/settings";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
 import type { AutomationRuleId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
@@ -287,7 +288,7 @@ export interface DebugAuthOptions {
 export interface DebugRoutesOptions {
   /** Required selection prevents a configured app from silently omitting its stored settings view. */
   readonly appSettingRows: (() => Promise<readonly GlobalSettingView[]>) | null;
-  db?: Db;
+  db?: DatabaseHandle;
   assets?: AssetInspector;
   /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
   rpgTrace?: RpgTraceInspector;
@@ -359,7 +360,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { appSettingRows: null }): void {
   const {
-    db,
+    db: handle,
     appSettingRows,
     assets,
     rpgTrace,
@@ -369,6 +370,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = { a
     wireCaptureEnabled = isWireCaptureEnabled,
     auth = env.DEBUG_TOKEN,
   } = options;
+  const db = handle === undefined ? undefined : databaseForOwner(handle);
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) => {

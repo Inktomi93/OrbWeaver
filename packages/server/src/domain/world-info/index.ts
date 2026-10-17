@@ -3,10 +3,14 @@
 // this front door (invariant #8).
 
 export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
-export type { WorldInfoContext } from "./context.ts";
 export { WorldInfoNotFoundError } from "./contract/errors.ts";
-export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportContext } from "./contract/export.ts";
-export type { CopyHandoffBooks, CountHandoffBooks, HandoffCardPair, WorldInfoHandoffCopyContext } from "./contract/handoff-copy.ts";
+export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportAssemblyContext as WorldInfoExportContext } from "./contract/export.ts";
+export type {
+  CopyHandoffBooks,
+  CountHandoffBooks,
+  HandoffCardPair,
+  WorldInfoHandoffCopyAssemblyContext as WorldInfoHandoffCopyContext,
+} from "./contract/handoff-copy.ts";
 export type {
   AttachOwnedBooksByName,
   BulkImportLorebook,
@@ -19,8 +23,8 @@ export type {
   ImportWorldInfoPort,
   LinkCarriedBooks,
   LinkCarriedBooksResult,
-  WorldInfoDuplicateCarryContext,
-  WorldInfoImportContext,
+  WorldInfoDuplicateCarryAssemblyContext as WorldInfoDuplicateCarryContext,
+  WorldInfoImportAssemblyContext as WorldInfoImportContext,
 } from "./contract/import.ts";
 export type {
   CreateBookInput,
@@ -28,7 +32,7 @@ export type {
   UpdateBookInput,
   UpdateEntryInput,
 } from "./contract/params.ts";
-export type { WorldInfoService } from "./contract/service.ts";
+export type { WorldInfoAssemblyContext as WorldInfoContext, WorldInfoService } from "./contract/service.ts";
 export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views.ts";
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
 export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/handoff-copy-write.ts";

@@ -1,6 +1,6 @@
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { UserSettings } from "@orb/contracts/settings";
-import type { AwaitableBatchStmt } from "@orb/db/query";
+import type { AwaitableStatementToken } from "@orb/db/wiring";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
@@ -33,7 +33,7 @@ export type { ResolvePersonasForParticipants } from "@orb/contracts/persona";
  *  and writes only where the statement before it changed a row. */
 export type JoinerPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
   readonly personaId: PersonaId;
-  readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
+  readonly statement: AwaitableStatementToken<{ id: PersonaId }[]>;
 };
 
 /** What the user-publics read needs from the domains that own the other two facts: the account handle

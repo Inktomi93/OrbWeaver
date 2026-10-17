@@ -2,6 +2,7 @@
 import { access, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { createListSeedAccountIds } from "@orb/server/domain/sessions";
@@ -25,7 +26,7 @@ test("trusted boot moves its singleton seed key without taking another account's
   expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner" });
   expect(await (await root.internalCallerFor(owner.userId)).sessions.me()).toMatchObject({ handle: "boot-moved-owner", globalRole: "owner" });
   await root.services.admin.setEnabled({ principal: await root.principalFor(owner.userId), userId: otherId, enabled: false });
-  expect((await createListSeedAccountIds(root.db)()).toSorted()).toEqual([owner.userId, otherId].toSorted());
+  expect((await createListSeedAccountIds(databaseHandle(root.db))()).toSorted()).toEqual([owner.userId, otherId].toSorted());
   expect(await seedOwner({ ...deps, ownerHandles: [owner.handle] })).toEqual([owner.userId]);
 });
 

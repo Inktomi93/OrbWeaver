@@ -11,7 +11,7 @@
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
@@ -23,7 +23,7 @@ import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
 import type { SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled } from "#domain/sessions";
-import { bumpStatsCanonVersion } from "#domain/stats";
+import { createStatsBatchWiring } from "#domain/stats";
 import type { ImportWorldInfoPort, WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
@@ -39,7 +39,7 @@ export interface WorldInfoComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
 
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: SessionsService;
@@ -116,7 +116,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
 
   const bulkImportChats = createBulkImportChats({
     db,
-    bumpStatsCanonVersion,
+    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
     now,
     newChatId: minter(ID_PREFIX.chat, deps.idSource),
     newChatTurnId: minter(ID_PREFIX.chatTurn, deps.idSource),

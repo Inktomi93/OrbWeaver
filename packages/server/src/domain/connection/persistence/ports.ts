@@ -1,12 +1,15 @@
 // Runtime row adapters retain connection ownership; snapshot bytes use the injected settings tenant port.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ConnectionPorts, ConnectionPortsDeps } from "../contract/service.ts";
 import { lookupBinding } from "./bindings.ts";
 import { createSnapshotStore } from "./catalog-snapshot.ts";
 import { fetchConnectionById, listOwnedConnections } from "./connections.ts";
 import { deleteAdminProviderRow, listProviderRows, putAdminProviderRow, releasePluginProviderClaims, replacePluginProviderRows } from "./provider-rows.ts";
 
-export function createConnectionPorts(deps: ConnectionPortsDeps): ConnectionPorts {
+export function createConnectionPorts(input: DbAssemblyInput<ConnectionPortsDeps>): ConnectionPorts {
+  const deps: ConnectionPortsDeps = { ...input, db: databaseForOwner(input.db) };
   const { db, now } = deps;
   return {
     connections: {

@@ -10,12 +10,11 @@ export type {
   TagTargetType,
   UpdateTagInput,
 } from "@orb/contracts/tag";
-export type { TagContext } from "./context.ts";
 export { TagNotFoundError } from "./contract/errors.ts";
 export type { ImportTagPort } from "./contract/import-tag.ts";
 export type { TagLibraryImportResult } from "./contract/results.ts";
 export type { AttachSeedCardTag } from "./contract/seed-tag.ts";
-export type { TagService } from "./contract/service.ts";
+export type { TagAssemblyContext as TagContext, TagService } from "./contract/service.ts";
 export type { TagFilterVocabularyEntry, TagUsage, TagView, TagWithUsage } from "./contract/views.ts";
 export { createTagService } from "./service.ts";
 export { createReadAttachedEntity } from "./verbs/attached-reader.ts";

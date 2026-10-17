@@ -6,6 +6,8 @@
 // product (`createDatabankIngest`) the workload runners reach through `env.databank.*` — not on this
 // tRPC-facing surface (build-never-blocks: the verb enqueues, the runner ingests).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { DatabankContext } from "./context.ts";
 import type { DatabankService } from "./contract/service.ts";
 import { createAttachGlobal } from "./verbs/attach/attach-global.ts";
@@ -30,7 +32,8 @@ import { createScrapeWiki } from "./verbs/scrape/scrape-wiki.ts";
 import { createScrapeYoutube } from "./verbs/scrape/scrape-youtube.ts";
 import { createUpload } from "./verbs/upload.ts";
 
-export function createDatabankService(ctx: DatabankContext): DatabankService {
+export function createDatabankService(input: DbAssemblyInput<DatabankContext>): DatabankService {
+  const ctx: DatabankContext = { ...input, db: databaseForOwner(input.db) };
   return {
     upload: createUpload(ctx),
     createFromText: createCreateFromText(ctx),

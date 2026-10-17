@@ -5,6 +5,8 @@ import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contract
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema, taskDef } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -111,7 +113,8 @@ async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: U
 
 /** Seed ONE user's two local-light rows + bindings. Returns how many connection rows were newly inserted and
  *  which tasks this call newly bound. */
-export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerId: UserId): Promise<LocalLightSeedResult> {
+export async function seedLocalLightConnections(input: DbAssemblyInput<LocalLightSeedDeps>, ownerId: UserId): Promise<LocalLightSeedResult> {
+  const deps: LocalLightSeedDeps = { ...input, db: databaseForOwner(input.db) };
   const { db } = deps;
   const now = deps.now();
   await adoptEarlierSeedRows(deps, ownerId, now);

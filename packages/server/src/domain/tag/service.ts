@@ -3,6 +3,8 @@
 // `TagContext` (db + the injected `newTagId` seam + chat's `requireParticipant` gate) is built at the entry
 // composition root and passed in — tag sideways-imports nothing (domain-no-cross-feature).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { TagContext, TagService } from "./contract/service.ts";
 import { createAttach } from "./verbs/attach.ts";
 import { createAttachCardTagByName } from "./verbs/attach-card-tag-by-name.ts";
@@ -20,7 +22,8 @@ import { createRemove } from "./verbs/remove.ts";
 import { createSetOrder } from "./verbs/set-order.ts";
 import { createUpdate } from "./verbs/update.ts";
 
-export function createTagService(ctx: TagContext): TagService {
+export function createTagService(input: DbAssemblyInput<TagContext>): TagService {
+  const ctx: TagContext = { ...input, db: databaseForOwner(input.db) };
   const attach = createAttach(ctx);
   return {
     listAttachedEntities: createListAttachedEntities(ctx),

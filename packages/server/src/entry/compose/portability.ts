@@ -1,6 +1,5 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext, ImportAssetPort } from "#domain/assets";
@@ -30,7 +29,6 @@ import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 /** What the registry builder needs from the composition root to compose each descriptor. */
 // @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityDeps {
-  readonly db: Db;
   readonly now: () => number;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;

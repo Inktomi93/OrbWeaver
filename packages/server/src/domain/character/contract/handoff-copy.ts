@@ -3,6 +3,7 @@ import type { HandoffCardCopy } from "@orb/contracts/chat";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 
 export type { CopyAssetToOwner } from "@orb/contracts/assets";
@@ -46,6 +47,11 @@ export interface CharacterHandoffCopyContext {
   readonly newCharacterId: () => CharacterId;
   readonly copyAsset: CopyAssetToOwner;
 }
+
+export type CharacterHandoffCopyAssemblyContext = Omit<DbAssemblyInput<CharacterHandoffCopyContext>, "bumpStatsCanonVersion" | "applyStatsDelta"> & {
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+  readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
+};
 
 export type { HandoffCardCopy } from "@orb/contracts/chat";
 

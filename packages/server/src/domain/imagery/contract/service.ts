@@ -11,6 +11,7 @@ import type { GenerationCapability, GenerationUsage } from "@orb/contracts/infer
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { BindingActor, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -201,6 +202,11 @@ export interface ImageryContext {
    *  gallery as this character's. Idempotent on `(assetId, subjectCharacterId)`. */
   readonly addToGallery: (owner: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
 }
+
+/** Assembly receives neither the query connection nor raw atomic callback operands. */
+export type ImageryAssemblyInput = Omit<DbAssemblyInput<ImageryContext>, "applyStatsDelta"> & {
+  readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
+};
 
 /** The imagery surface — the orchestrator + the standalone extraction preview. */
 export interface ImageryService {

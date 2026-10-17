@@ -1,12 +1,9 @@
-// Gate: compose-wiring-only — Tier-5 compose wires; its reached entry helpers cannot hide queries or business decisions.
-// SUBJECT: compose and entry callables reached by reference. ARMS: native Drizzle calls (unbound verbs fail closed), per-call
-// branches/loops/catches/operators/optional chains/clamps/computed dispatch. Construction and native graph-lifetime decisions
-// are wiring; the exact D1/D135 row mint and resolved Tier-5 bucket-policy operation retain their own non-business ownership.
-// FAMILY: singleton — phase/ownership judgments are local; native reference, member and query facts are shared floor readers.
+// Gate: compose-wiring-only — Tier-5 compose wires; its reached entry helpers cannot hide business decisions.
+// SUBJECT: compose and entry callables reached by reference. ARMS: per-call branches/loops/catches/operators/optional chains/clamps/computed dispatch.
+// Construction and native graph-lifetime decisions are wiring; the exact D1/D135 row mint and resolved Tier-5 bucket policy retain their ownership.
+// FAMILY: singleton — phase/ownership judgments are local; native reference and member facts are shared floor readers.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { DrizzleTableRef } from "../../floor/code-facts/drizzle-table-ref.ts";
-import { resolveDrizzleTableRefs } from "../../floor/code-facts/drizzle-table-ref.ts";
 import { readCalledMember } from "../../floor/code-facts/drizzle-write-chain.ts";
 import {
   inspectReferenceWrites,
@@ -19,7 +16,6 @@ import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fac
 import { readSymbolMemberValue } from "../../floor/code-facts/reference-fact-symbol-member.ts";
 import { isReferenceWriteTarget } from "../../floor/code-facts/reference-fact-writes.ts";
 import { defineGate } from "../contract/policy.ts";
-import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 
 const ENTRY_POPULATION = { in: ["@server"], under: ["packages/server/src/entry/**"] } as const;
 const COMPOSE_PREFIX = "packages/server/src/entry/compose/";
@@ -35,11 +31,6 @@ const PROJECTION_KEYS = ["userId", "role", "handle", "externalId", "via"] as con
 /** The ambient `Math` members that pick between runtime values. */
 const CLAMP_MEMBERS = new Set(["max", "min"]);
 const MATH_GLOBAL = "Math";
-
-/** Spellings the fail-closed arm reports when the checker cannot bind the called member at all. */
-const QUERY_VERBS = new Set(["query", "select", "insert", "update", "delete", "run", "execute", "executeMultiple", "batch", "transaction"]);
-const SELECT_VERBS = new Set(["select", "selectDistinct"]);
-const FROM_VERB = "from";
 
 /** Array methods that call their callback before returning, so the callback runs in its caller's phase. */
 const EAGER_ITERATION = new Set([
@@ -97,20 +88,11 @@ const DECISION_OPERATORS = new Set([
 
 const OPTIONAL_CHAIN_KINDS = new Set([SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression, SyntaxKind.CallExpression]);
 
-const TABLE_LABEL: { readonly [K in DrizzleTableRef["kind"]]: (ref: Extract<DrizzleTableRef, { kind: K }>) => string } = {
-  table: (ref) => ref.declaration.getName(),
-  imported: (ref) => ref.name,
-  "sql-name": (ref) => ref.sqlName,
-  subquery: () => "a subquery",
-  "raw-sql": () => "raw sql",
-  unresolved: () => "an unresolved table",
-};
-
 const MESSAGE =
-  "an entry/compose module runs a Drizzle query or a function value it hands out carries a rule. Compose only wires: the query and the rule belong to their owning domain, exported from its front door or typed as an injected op in the consumer's contract/ (Tier-5-Entry.md invariant 1).";
+  "a function value an entry/compose module hands out carries a rule. Compose only wires: the rule belongs to its owning domain, exported from its front door or typed as an injected op in the consumer's contract/ (Tier-5-Entry.md invariant 1).";
 
 const FIX =
-  "move the query or the rule into its owning domain and call it from compose; a cross-domain need is an op typed in the consumer's contract/ and wired here. Only while item 964 drains its baseline: `@orb-waive compose-wiring-only(<the reported token>): <reason naming item 964>` on the reported carrier.";
+  "move the rule into its owning domain and call it from compose; a cross-domain need is an op typed in the consumer's contract/ and wired here. Only while item 964 drains its baseline: `@orb-waive compose-wiring-only(<the reported token>): <reason naming item 964>` on the reported carrier.";
 
 function unwrapParens(node: MorphNode): MorphNode {
   return Node.isParenthesizedExpression(node) ? unwrapParens(node.getExpression()) : node;
@@ -286,7 +268,7 @@ function nativeDisposalStack(node: MorphNode, active: Set<object> = new Set()): 
   return initializer !== undefined && nativeDisposalStack(initializer, active);
 }
 
-/** Language lifetime retention is a separate phase; its body remains judged for persistence queries. */
+/** Language lifetime retention is a separate phase; independent business escapes remain judged. */
 function lifetimeSlot(node: MorphNode): boolean {
   const parent = node.getParent();
   if (Node.isPropertyAssignment(parent) && parent.getInitializer() === node) {
@@ -436,49 +418,6 @@ function referencePosition(expression: MorphNode): boolean {
     return false;
   }
   return !namesItsParent(expression, parent) && expression.getFirstAncestor((ancestor) => Node.isTypeNode(ancestor)) === undefined;
-}
-
-/** The `.from(<t>)` a `select()` chain reads, walking up the chain from one of its links. */
-function fromArgument(link: MorphNode): MorphNode | undefined {
-  const access = link.getParent();
-  const call = access?.getParent();
-  if (!(Node.isPropertyAccessExpression(access) && access.getExpression() === link && Node.isCallExpression(call))) {
-    return;
-  }
-  return access.getName() === FROM_VERB ? call.getArguments()[0] : fromArgument(call);
-}
-
-function tableOf(call: CallExpression, method: string): string {
-  const argument = SELECT_VERBS.has(method) ? fromArgument(call) : call.getArguments()[0];
-  if (argument === undefined) {
-    return "an unnamed source";
-  }
-  const labels = resolveDrizzleTableRefs(argument, () => false).map((ref) => (TABLE_LABEL[ref.kind] as (value: DrizzleTableRef) => string)(ref));
-  return [...new Set(labels)].join(" | ");
-}
-
-/** The receiver call of a chained call, when the chain continues through it (`a().b()` → `a()`). */
-function chainReceiver(call: CallExpression): CallExpression | undefined {
-  const callee = call.getExpression();
-  if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
-    return;
-  }
-  const receiver = unwrapParens(callee.getExpression());
-  return Node.isCallExpression(receiver) ? receiver : undefined;
-}
-
-/** The query a call starts, or undefined when it is not a Drizzle call or only continues a Drizzle chain. */
-function queryHead(call: CallExpression): string | undefined {
-  const verdict = readDrizzleClientCall(call);
-  const failClosed = verdict.kind === "unresolved" && verdict.method !== null && QUERY_VERBS.has(verdict.method);
-  if (!(verdict.kind === "drizzle" || failClosed) || verdict.method === null) {
-    return;
-  }
-  const receiver = chainReceiver(call);
-  if (receiver !== undefined && readDrizzleClientCall(receiver).kind === "drizzle") {
-    return;
-  }
-  return failClosed ? `${verdict.method}() on a receiver the checker cannot bind` : `${verdict.method}() on ${tableOf(call, verdict.method)}`;
 }
 
 interface Reference {
@@ -710,7 +649,6 @@ function canonicalPrincipalProjection(fn: MorphNode): boolean {
 
 interface Subject {
   readonly anchor: MorphNode;
-  query?: string;
   decision?: MorphNode;
 }
 
@@ -731,9 +669,6 @@ function subjectKey(node: MorphNode, perCall: (fn: MorphNode) => boolean): Morph
 
 function subjectMessage(subject: Subject): string {
   const parts: string[] = [];
-  if (subject.query !== undefined) {
-    parts.push(`runs a Drizzle query: ${subject.query}`);
-  }
   if (subject.decision !== undefined) {
     const snippet = (subject.decision.getText().split("\n")[0] ?? "").slice(0, SNIPPET_LENGTH);
     parts.push(`decides per call: \`${snippet}\` at line ${subject.decision.getStartLineNumber()}`);
@@ -741,12 +676,6 @@ function subjectMessage(subject: Subject): string {
   return `compose ${parts.join("; ")}. ${MESSAGE}`;
 }
 
-const DRIZZLE_FILE = "node_modules/drizzle-orm/index.ts";
-const DRIZZLE =
-  "export declare class Builder {\n  values(v: unknown): Builder;\n  where(w: unknown): Builder;\n}\nexport declare class Db {\n  insert(t: unknown): Builder;\n  select(shape?: unknown): { from(t: unknown): Builder };\n}\n";
-const SCHEMA_FILE = "packages/db/src/schema/chats.ts";
-const SCHEMA = 'export declare const chats: { readonly _: { readonly brand: "Table"; readonly name: "chats" } };\n';
-const DB_PRELUDE = 'import type { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n';
 const COMPOSE_FILE = "packages/server/src/entry/compose/x.ts";
 const PRINCIPAL_TYPE_FILES = {
   [IDS_CONTRACT]:
@@ -777,7 +706,6 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const decisions: MorphNode[] = [];
-    const calls: CallExpression[] = [];
     const referenceSites: MorphNode[] = [];
     const callables = new Map<string, MorphNode[]>();
     const lifetimeMembers = new Set<object>();
@@ -844,7 +772,6 @@ export const gate = defineGate({
             if (!Node.isCallExpression(node)) {
               return;
             }
-            calls.push(node);
             const anchor = decisionAnchor(node);
             if (anchor !== undefined) {
               decisions.push(anchor);
@@ -883,12 +810,6 @@ export const gate = defineGate({
         for (const decision of decisions) {
           if (decidesPerCall(decision, { perCall, judged }, canonicalProjection)) {
             subjectOf(decision, perCall).decision ??= decision;
-          }
-        }
-        for (const call of calls) {
-          const query = judged(call) ? queryHead(call) : undefined;
-          if (query !== undefined) {
-            subjectOf(call, perCall).query ??= query;
           }
         }
         for (const subject of subjects.values()) {
@@ -988,16 +909,7 @@ export const gate = defineGate({
       expect: { count: 1, token: "shutdown", messageIncludes: "decides per call" },
       why: "Native lifetime retention does not erase the same function's independent business-operation escape.",
     },
-    {
-      mode: "types",
-      files: {
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
-        [COMPOSE_FILE]: `/// <reference lib="esnext.disposable" />\n${DB_PRELUDE}export function build(db: Db) { const stack = new AsyncDisposableStack(); stack.defer(() => { db.select().from(chats); }); return stack; }`,
-      },
-      expect: { count: 1, messageIncludes: "runs a Drizzle query" },
-      why: "Lifecycle is not a query exemption: shutdown still cannot run a compose-owned persistence operation.",
-    },
+
     {
       mode: "types",
       files: {
@@ -1037,18 +949,7 @@ export const gate = defineGate({
       expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
       why: "an added request admission branch is policy even in the canonical mapper; only the pure single-return projection is admitted",
     },
-    {
-      mode: "types",
-      files: {
-        ...PRINCIPAL_TYPE_FILES,
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
-        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}import { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n${PRINCIPAL_MAPPER.replace("  return {", "  new Db().select().from(chats);\n  return {")}${PRINCIPAL_BRIDGE}`,
-        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
-      },
-      expect: { count: 1, token: "principalFromRow", messageIncludes: "runs a Drizzle query" },
-      why: "a query added inside the mapper remains reportable; canonical identity never disables the query arm",
-    },
+
     {
       mode: "types",
       files: {
@@ -1059,18 +960,7 @@ export const gate = defineGate({
       expect: { count: 1, token: "admission", messageIncludes: "=== true" },
       why: "an arbitrary auth helper reached beside the admitted mapper remains policy; the seam is not a file exemption",
     },
-    {
-      mode: "types",
-      files: {
-        ...PRINCIPAL_TYPE_FILES,
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
-        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}import { Db } from "drizzle-orm";\nimport { chats } from "../../../../db/src/schema/chats.ts";\n${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE.replace("return principalFromRow", "new Db().select().from(chats); return principalFromRow")}`,
-        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
-      },
-      expect: { count: 1, token: "bridge", messageIncludes: "runs a Drizzle query" },
-      why: "queries elsewhere in the reached auth file remain live even when its canonical mapper is admitted",
-    },
+
     {
       mode: "types",
       files: {
@@ -1113,34 +1003,7 @@ export const gate = defineGate({
       expect: { count: 1, token: "principalFromRow", messageIncludes: "currentFields.enabled" },
       why: "a reached canonical mapper's executable parameter default remains per-call admission even when its body is only the pure row projection",
     },
-    {
-      mode: "types",
-      files: {
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
-        [COMPOSE_FILE]: `${DB_PRELUDE}export function build(db: Db) {\n  const rows = db.select().from(chats);\n  return { rows };\n}\n`,
-      },
-      expect: { count: 1, token: "build", messageIncludes: "runs a Drizzle query: select() on chats" },
-      why: "the query arm at construction time: a factory body that runs a select names the factory, and the table comes from the shared table-ref resolver",
-    },
-    {
-      mode: "types",
-      files: {
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
-        [COMPOSE_FILE]: `${DB_PRELUDE}export function build(db: Db) {\n  return { write: (id: string) => db.insert(chats).values({ id }) };\n}\n`,
-      },
-      expect: { count: 1, token: "write", messageIncludes: "runs a Drizzle query: insert() on chats" },
-      why: "the query arm inside a handed-out op: the finding names the op, and the chain's `values` link does not report a second query",
-    },
-    {
-      mode: "types",
-      files: {
-        [COMPOSE_FILE]: "export function build(db: Record<string, (table: unknown) => unknown>) {\n  return { read: () => db.select({}) };\n}\n",
-      },
-      expect: { count: 1, token: "read", messageIncludes: "cannot bind" },
-      why: "FAIL-CLOSED: an index-signature receiver gives the checker no member declaration, so a query-verb spelling is reported rather than admitted",
-    },
+
     {
       mode: "types",
       files: {
@@ -1398,18 +1261,15 @@ export const gate = defineGate({
         [COMPOSE_FILE]:
           "class Cache {\n  select(value: unknown): unknown {\n    return value;\n  }\n}\nexport function build(cache: Cache) {\n  return { op: () => cache.select({}) };\n}\n",
       },
-      why: "IDENTITY: a same-named `select` declared by a local class is not a Drizzle query; deleting the drizzle-declaration test reds this row",
+      why: "A same-named local select operation carries no business decision; query vocabulary is not a per-call policy.",
     },
     {
       mode: "types",
       files: {
-        [DRIZZLE_FILE]: DRIZZLE,
-        [SCHEMA_FILE]: SCHEMA,
         [COMPOSE_FILE]: "export function build(op: () => void) {\n  return { op };\n}\n",
-        "packages/server/src/domain/x/persistence/q.ts":
-          'import type { Db } from "drizzle-orm";\nimport { chats } from "../../../../../db/src/schema/chats.ts";\nexport function read(db: Db, id: string) {\n  return id.length > 0 ? db.select().from(chats) : [];\n}\n',
+        "packages/server/src/domain/x/persistence/q.ts": "export function read(id: string) {\n  return id.length > 0 ? [id] : [];\n}\n",
       },
-      why: "POPULATION: a query and a decision in a domain module are outside the compose subject, beside an admitted compose anchor",
+      why: "POPULATION: a domain decision is outside the compose subject, beside an admitted compose anchor",
     },
     {
       mode: "types",

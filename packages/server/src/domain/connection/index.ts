@@ -4,7 +4,6 @@
 // cross-boundary types (`UserConnection`, `ConnectionBinding`, `ResolvedConnectionView`, `Task`, …) live in
 // `@orb/contracts/inference`; callers import them from there directly, NOT through this door.
 
-export type { ConnectionContext } from "./context.ts";
 export { ConnectionNotFoundError } from "./contract/errors.ts";
 export type { LocalLightBootPolicyDeps, LocalLightSeedPolicyDeps } from "./contract/local-light-policy.ts";
 export type {
@@ -26,7 +25,13 @@ export {
   catalogRefreshOutcomeSchema,
   connectionCapabilityViewSchema,
 } from "./contract/results.ts";
-export type { ConnectionPorts, ConnectionService, ConnectionWorkloadDeps, EndpointAdmission } from "./contract/service.ts";
+export type {
+  ConnectionAssemblyContext as ConnectionContext,
+  ConnectionPorts,
+  ConnectionService,
+  ConnectionWorkloadDeps,
+  EndpointAdmission,
+} from "./contract/service.ts";
 export { seedLocalLightConnections } from "./persistence/local-light-seed.ts";
 export { createConnectionPorts } from "./persistence/ports.ts";
 // The agent-sdk prompt-cache lineage writes (D8), injected into the inference runtime at the composition root.

@@ -2,10 +2,16 @@
 // later concurrently observed batches inherit the settled outcome rather than becoming fake successes.
 
 import type { BeginEmbeddingAccounting, EmbeddingInvocationOutcome } from "@orb/contracts/embeddings";
-import type { EmbeddingAccountingContext } from "../contract/accounting.ts";
+import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
+import type { EmbeddingAccountingAssemblyContext, EmbeddingAccountingContext } from "../contract/accounting.ts";
 import { appendEmbeddingBatch, settleEmbeddingInvocation } from "../persistence/usage-write.ts";
 
-export function createRecordUsage(ctx: EmbeddingAccountingContext): BeginEmbeddingAccounting {
+export function createRecordUsage(input: EmbeddingAccountingAssemblyContext): BeginEmbeddingAccounting {
+  const ctx: EmbeddingAccountingContext = {
+    ...input,
+    db: databaseForOwner(input.db),
+    applyStatsDelta: (batch, db, delta) => input.applyStatsDelta(batchHandle(batch), databaseHandle(db), delta),
+  };
   return (invocation) => {
     const invocationId = ctx.newInvocationId();
     let outcome: EmbeddingInvocationOutcome | null = null;

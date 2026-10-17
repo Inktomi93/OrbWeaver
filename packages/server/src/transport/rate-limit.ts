@@ -17,6 +17,8 @@
 
 import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { and, like, lt, sql } from "drizzle-orm";
 
@@ -84,7 +86,8 @@ async function consumeWindow(
 
 /** Construct a named DB-backed limiter. The instance is built at the entry/ composition root and
  *  threaded onto `ctx.rateLimit`. */
-export function createRateLimiter(db: Db, cfg: RateLimitConfig): RateLimiter {
+export function createRateLimiter(handle: DatabaseHandle, cfg: RateLimitConfig): RateLimiter {
+  const db = databaseForOwner(handle);
   return {
     consume: (id: string): Promise<void> =>
       consumeWindow(db, {

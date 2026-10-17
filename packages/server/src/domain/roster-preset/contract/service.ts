@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ApplyRosterPresetResult, RosterPresetMemberView, RosterPresetSummary, RosterPresetView } from "@orb/contracts/roster-preset";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, RosterPresetId, UserId } from "@orb/kit/ids";
 import type { AutomationService, RulePresetKnobOverrides } from "#domain/automation";
 import type { ChatService } from "#domain/chat";
@@ -108,6 +109,8 @@ export interface RosterPresetContext {
   readonly chat: RosterPresetChatOps;
   readonly automation: RosterPresetAutomationOps;
 }
+
+export type RosterPresetAssemblyContext = DbAssemblyInput<RosterPresetContext>;
 
 export interface RosterPresetService {
   /** Mint a saved roster owned by the caller. Validates every member character (and the optional anchor

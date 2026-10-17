@@ -1,4 +1,5 @@
 // @subject packages/server/src/entry/compose/imagery.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { chatParticipants } from "@orb/db";
@@ -91,11 +92,11 @@ test("room admission and subject seating run before host principal, card or Util
   const outsider = await principal(harness, (await seedUser(db, { role: "admin" })).id);
   const subject = await seedCharacter(db, { ownerId: hostId });
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
-  const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(db, chatId));
+  const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(databaseHandle(db), chatId));
   const access = createImageryRoomAccess({
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
     resolveChatHostUserId,
-    isCharacterSeated: (chatId, characterId) => isCharacterSeated(db, chatId, characterId),
+    isCharacterSeated: (chatId, characterId) => isCharacterSeated(databaseHandle(db), chatId, characterId),
     resolveHostPrincipal,
   });
   await db.insert(chatParticipants).values({
@@ -164,14 +165,14 @@ test("quiet extraction preserves the caller floor and summary strip while the ac
   const getCard = vi.fn(() => Promise.resolve(null));
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
   const extract = createVisibleExtractQuiet({
-    db,
+    db: databaseHandle(db),
     now: clock.now,
     roleClientsFor,
     getCard,
     resolveHostPrincipal,
     resolveUtilityPresetParams: () => Promise.resolve(undefined),
     resolveUserMacroDefs: () => Promise.resolve({ preset: [], game: [] }),
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
   });
   await extract({ caller: member, funderUserId: hostId, chatId: room.id, instruction: "scene", subjectCharacterId: subject.id });
   expect(getCard).toHaveBeenCalledWith({ principal: host, characterId: subject.id });
@@ -223,7 +224,7 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   const read = vi.spyOn(services.assets, "loadAssetBytes");
   let forbidden = false;
   const resolve = createResolveMediaRef({
-    db,
+    db: databaseHandle(db),
     assets: services.assets,
     mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo },
     forbidExternalMedia: () => forbidden,
