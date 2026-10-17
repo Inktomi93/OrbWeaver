@@ -336,7 +336,7 @@ test("native parser cache context accepts its configured Program, refuses a diff
     throw new Error("native owner config missing");
   }
   const program = ts.createProgram(parsed.fileNames, parsed.options);
-  expect(program.getCompilerOptions().configFilePath).toBe(configPath);
+  expect(program.getCompilerOptions()["configFilePath"]).toBe(configPath);
   const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, relative));
   const check = (): readonly Linter.LintMessage[] =>
     new Linter({ cwd: scratch }).verify(

@@ -7,14 +7,30 @@ import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { vi } from "vitest";
 import { serverFactoryTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { parserGenericReferenceContributes, readNativeGenericArgumentContribution } from "../../../../tooling/src/floor/code-facts/shape-derivation.ts";
+import {
+  nativeGenericReferenceContributes,
+  parserGenericReferenceContributes,
+  readNativeGenericArgumentContribution,
+  readParserGenericArgumentContribution,
+} from "../../../../tooling/src/floor/code-facts/shape-derivation.ts";
 import { TYPE_HOME_NATIVE_POLICY_ID } from "../../../../tooling/src/floor/code-facts/type-home.ts";
+import { parserTypeOperations } from "../../../../tooling/src/floor/code-facts/type-member-origin-core.ts";
 import { gate as interfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as aliases } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 
 const PATH = "packages/server/src/foundation/observability/factory.ts";
 const TIERS = ["entry", "transport", "infra", "foundation"] as const;
+function declaredShape(source: ts.SourceFile, name: string): ts.InterfaceDeclaration | ts.TypeAliasDeclaration {
+  const declaration = source.statements.find(
+    (node): node is ts.InterfaceDeclaration | ts.TypeAliasDeclaration =>
+      (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) && node.name.text === name,
+  );
+  if (declaration === undefined) {
+    throw new Error(`native fixture declaration ${name} missing`);
+  }
+  return declaration;
+}
 const SOURCE = `export interface Options {readonly enabled:boolean}
 export interface Dependency {readonly run:()=>void}
 export interface Handle {readonly stop:()=>void}
@@ -91,25 +107,24 @@ export function wire():DataResponse{return {value:"wire"}}
     throw new Error("factory source epoch missing");
   }
   const parser = { kind: "parser" as const, program, source, checker: program.getTypeChecker() };
-  const wrapped = createWrappedNode(source, { typeChecker: parser.checker, sourceFile: source });
   const signatures = vi.spyOn(parser.checker, "getSignatureFromDeclaration");
   const predicate = vi.spyOn(shapeDerivation, "parserGenericReferenceContributes");
   const returned = vi.spyOn(origins, "readParserReturnedTypeIdentities");
   try {
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
+    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     const first = signatures.mock.calls.length;
     expect(first).toBeGreaterThan(0);
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Handle"), PATH, parser)).toBe(true);
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("DataResponse"), PATH, parser)).toBe(false);
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), "packages/server/src/primitives/other.ts", parser)).toBe(false);
+    expect(serverFactoryTypeHome(declaredShape(source, "Handle"), PATH, parser)).toBe(true);
+    expect(serverFactoryTypeHome(declaredShape(source, "DataResponse"), PATH, parser)).toBe(false);
+    expect(serverFactoryTypeHome(declaredShape(source, "Options"), "packages/server/src/primitives/other.ts", parser)).toBe(false);
     expect(signatures).toHaveBeenCalledTimes(first);
     predicate.mockRestore();
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
+    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     expect(signatures.mock.calls.length).toBeGreaterThan(first);
     const rebound = signatures.mock.calls.length;
     expect(returned).toHaveBeenCalled();
     returned.mockRestore();
-    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
+    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     expect(signatures.mock.calls.length).toBeGreaterThan(rebound);
     writeFileSync(path, text.replace("options:Options", "options:number"));
     const changed = ts.createProgram([path], options);
@@ -118,10 +133,9 @@ export function wire():DataResponse{return {value:"wire"}}
       throw new Error("changed factory source missing");
     }
     const current = { kind: "parser" as const, program: changed, source: changedSource, checker: changed.getTypeChecker() };
-    const currentWrapped = createWrappedNode(changedSource, { typeChecker: current.checker, sourceFile: changedSource });
-    expect(serverFactoryTypeHome(currentWrapped.getInterfaceOrThrow("Options"), PATH, current)).toBe(false);
-    expect(() => serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, current)).toThrow("foreign or stale");
-    expect(() => serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, { ...parser, checker: current.checker })).toThrow("foreign or stale");
+    expect(serverFactoryTypeHome(declaredShape(changedSource, "Options"), PATH, current)).toBe(false);
+    expect(() => serverFactoryTypeHome(declaredShape(source, "Options"), PATH, current)).toThrow("foreign or stale");
+    expect(() => serverFactoryTypeHome(declaredShape(source, "Options"), PATH, { ...parser, checker: current.checker })).toThrow("foreign or stale");
   } finally {
     returned.mockRestore();
     predicate.mockRestore();
@@ -190,7 +204,8 @@ test("native factory placement uses the parser Program and retains direct/export
 test("parser generic observations retain canonical substitution while refusing foreign source, stale nodes and mismatched checker owners", ({ scratch }) => {
   const path = join(scratch, PATH);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, SOURCE);
+  const genericSource = `${SOURCE}\ntype RetainedOptions=NonNullable<Options>;`;
+  writeFileSync(path, genericSource);
   const options = { strict: true, types: [], target: ts.ScriptTarget.ES2022, lib: ["lib.es2022.d.ts"] };
   const program = ts.createProgram([path], options);
   const foreign = ts.createProgram([path], options);
@@ -200,28 +215,85 @@ test("parser generic observations retain canonical substitution while refusing f
     throw new Error("native parser sources missing");
   }
   const parser = { kind: "parser" as const, program, source, checker: program.getTypeChecker() };
-  const wrapped = createWrappedNode(source, { typeChecker: parser.checker, sourceFile: source });
-  const alias = wrapped.getTypeAliasOrThrow("NestedOptions");
-  const reference = alias.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
-  const argument = reference.getTypeArguments()[0];
-  const binding = argument?.getFirstDescendantByKind(SyntaxKind.Identifier);
-  if (argument === undefined || binding === undefined) {
+  const alias = declaredShape(source, "RetainedOptions");
+  if (!(ts.isTypeAliasDeclaration(alias) && ts.isTypeReferenceNode(alias.type))) {
+    throw new Error("native fixture alias missing");
+  }
+  const reference = alias.type;
+  const argument = reference.typeArguments?.[0];
+  if (argument === undefined || !ts.isTypeReferenceNode(argument) || !ts.isIdentifier(argument.typeName)) {
     throw new Error("generic argument binding missing");
   }
-  const input = { reference, argument, binding, program, source };
+  const binding = argument.typeName;
+  const input = { reference, argument, binding };
+  const morphProject = new Project({ useInMemoryFileSystem: true });
+  const morphSource = morphProject.createSourceFile(path, genericSource);
+  const morphProgram = morphProject.getProgram().compilerObject;
+  const morphReference = morphSource.getTypeAliasOrThrow("RetainedOptions").getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
+  const morphArgument = morphReference.getTypeArguments()[0];
+  if (morphArgument === undefined) {
+    throw new Error("Morph fixture argument missing");
+  }
+  const morphContribution = readNativeGenericArgumentContribution({
+    reference: morphReference,
+    argument: morphArgument,
+    binding: morphArgument.asKindOrThrow(SyntaxKind.TypeReference).getTypeName(),
+    program: morphProgram,
+    source: morphSource.compilerNode,
+  });
+  expect(morphContribution).toMatchObject({ kind: "resolved", value: { contributes: true } });
+  expect(morphContribution.trace.declarations.some((node) => node === morphSource.getInterfaceOrThrow("Options"))).toBe(true);
+  const mappedReference = morphSource.getTypeAliasOrThrow("NestedOptions").getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
+  const mappedArgument = mappedReference.getTypeArguments()[0];
+  if (mappedArgument === undefined) {
+    throw new Error("Morph mapped fixture argument missing");
+  }
+  expect(
+    readNativeGenericArgumentContribution({ reference: mappedReference, argument: mappedArgument, program: morphProgram, source: morphSource.compilerNode }),
+  ).toMatchObject({ kind: "resolved", value: { contributes: true } });
+  const morphBinding = morphArgument.asKindOrThrow(SyntaxKind.TypeReference).getTypeName().asKindOrThrow(SyntaxKind.Identifier);
+  const otherMorph = morphProject.createSourceFile("/other-native-epoch.ts", "export interface Options {readonly enabled:boolean}");
+  expect(nativeGenericReferenceContributes(morphBinding, { program: morphProgram, source: otherMorph.compilerNode })).toBe(false);
+  const standalone = createWrappedNode(morphSource.compilerNode, { sourceFile: morphSource.compilerNode, typeChecker: morphProgram.getTypeChecker() });
+  const standaloneReference = standalone.getTypeAliasOrThrow("RetainedOptions").getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
+  const standaloneArgument = standaloneReference.getTypeArguments()[0];
+  if (standaloneArgument === undefined) {
+    throw new Error("standalone Morph argument missing");
+  }
   const project = vi.spyOn(Node.prototype, "getProject").mockImplementation(() => {
     throw new Error("standalone wrapper has no morph Project");
   });
   try {
-    expect(() => readNativeGenericArgumentContribution(input)).toThrow("standalone wrapper has no morph Project");
+    expect(() =>
+      readNativeGenericArgumentContribution({
+        reference: standaloneReference,
+        argument: standaloneArgument,
+        program: morphProgram,
+        source: morphSource.compilerNode,
+      }),
+    ).toThrow("standalone wrapper has no morph Project");
     project.mockClear();
-    expect(readNativeGenericArgumentContribution({ ...input, parser })).toMatchObject({ kind: "resolved", value: { contributes: true } });
-    expect(parserGenericReferenceContributes(binding.compilerNode, parser)).toBe(true);
-    expect(readNativeGenericArgumentContribution({ ...input, parser: { ...parser, checker: foreign.getTypeChecker() } })).toMatchObject({ kind: "unresolved" });
-    expect(readNativeGenericArgumentContribution({ ...input, parser: { ...parser, source: other } })).toMatchObject({ kind: "unresolved" });
+    const parserContribution = readParserGenericArgumentContribution({ ...input, parser });
+    expect(parserContribution).toMatchObject({ kind: "resolved", value: { contributes: true } });
+    expect(parserContribution.trace.declarations.some((node) => node === declaredShape(source, "Options"))).toBe(true);
+    const mappedAlias = declaredShape(source, "NestedOptions");
+    if (!(ts.isTypeAliasDeclaration(mappedAlias) && ts.isTypeReferenceNode(mappedAlias.type))) {
+      throw new Error("parser mapped reference missing");
+    }
+    const mappedInput = mappedAlias.type.typeArguments?.[0];
+    if (mappedInput === undefined) {
+      throw new Error("parser mapped argument missing");
+    }
+    expect(readParserGenericArgumentContribution({ reference: mappedAlias.type, argument: mappedInput, parser })).toMatchObject({
+      kind: "resolved",
+      value: { contributes: true },
+    });
+    expect(parserGenericReferenceContributes(binding, parser)).toBe(true);
+    expect(readParserGenericArgumentContribution({ ...input, parser: { ...parser, checker: foreign.getTypeChecker() } })).toMatchObject({ kind: "unresolved" });
+    expect(readParserGenericArgumentContribution({ ...input, parser: { ...parser, source: other } })).toMatchObject({ kind: "unresolved" });
     expect(() => serverFactoryTypeHome(alias, PATH, { ...parser, checker: foreign.getTypeChecker() })).toThrow("foreign or stale");
-    const stale = createWrappedNode(ts.createSourceFile(path, SOURCE, ts.ScriptTarget.ES2022, true), { typeChecker: parser.checker });
-    expect(() => serverFactoryTypeHome(stale.getTypeAliasOrThrow("NestedOptions"), PATH, parser)).toThrow("foreign or stale");
+    const stale = ts.createSourceFile(path, SOURCE, ts.ScriptTarget.ES2022, true);
+    expect(() => serverFactoryTypeHome(declaredShape(stale, "NestedOptions"), PATH, parser)).toThrow("foreign or stale");
     expect(project).not.toHaveBeenCalled();
   } finally {
     project.mockRestore();
@@ -426,30 +498,30 @@ export function body(value:Body<BodyOnly>):void{}
     throw new Error("Hono registrar fixture missing");
   }
   const parser = { kind: "parser" as const, program, source, checker: program.getTypeChecker() };
-  const wrapped = createWrappedNode(source, { typeChecker: parser.checker, sourceFile: source });
-  const reference = wrapped.getFunctionOrThrow("register").getParameters()[0]?.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
-  if (reference === undefined) {
+  const registrar = source.statements.find((node): node is ts.FunctionDeclaration => ts.isFunctionDeclaration(node) && node.name?.text === "register");
+  const reference = registrar?.parameters[0]?.type;
+  if (reference === undefined || !ts.isTypeReferenceNode(reference)) {
     throw new Error("Hono reference missing");
   }
-  expect(reference.getType().isAny()).toBe(false);
-  const origin = reference.getTypeName().getSymbol()?.getAliasedSymbol()?.getDeclarations()[0];
-  expect(origin?.getSourceFile().getFilePath()).toMatch(/hono\/dist\/types\/hono\.d\.ts$/u);
+  expect(parserTypeOperations(parser).flags(parser.checker.getTypeAtLocation(reference)).any).toBe(false);
+  const symbol = parser.checker.getSymbolAtLocation(reference.typeName);
+  const origin = symbol === undefined ? undefined : parser.checker.getAliasedSymbol(symbol).declarations?.[0];
+  expect(origin?.getSourceFile().fileName).toMatch(/hono\/dist\/types\/hono\.d\.ts$/u);
   const project = vi.spyOn(Node.prototype, "getProject").mockImplementation(() => {
     throw new Error("native class contribution acquired Project");
   });
   try {
-    const argument = reference.getTypeArguments()[0];
-    const binding = argument?.getFirstDescendantByKind(SyntaxKind.Identifier);
-    if (argument === undefined || binding === undefined) {
+    const argument = reference.typeArguments?.[0];
+    if (argument === undefined || !ts.isTypeReferenceNode(argument) || !ts.isIdentifier(argument.typeName)) {
       throw new Error("Hono env argument missing");
     }
     for (const name of ["DirectEnv", "InheritedEnv", "MappedEnv", "IntersectionEnv"]) {
-      expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow(name), relative, parser), name).toBe(true);
+      expect(serverFactoryTypeHome(declaredShape(source, name), relative, parser), name).toBe(true);
     }
     for (const name of ["DirectErased", "InheritedErased", "ConstraintOnly", "BodyOnly", "RemappedEnv", "ChangedFieldEnv", "ErasedMappedEnv", "PrincipalEnv"]) {
-      expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow(name), relative, parser), name).toBe(false);
+      expect(serverFactoryTypeHome(declaredShape(source, name), relative, parser), name).toBe(false);
     }
-    const contribution = readNativeGenericArgumentContribution({ reference, argument, binding, program, source, parser });
+    const contribution = readParserGenericArgumentContribution({ reference, argument, binding: argument.typeName, parser });
     expect(contribution).toMatchObject({
       kind: "unresolved",
       detail: "native formal has no substituted member/signature contribution to this binding",
