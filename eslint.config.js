@@ -1046,6 +1046,7 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
 const CLIENT_LEXICAL_RESTRICTIONS = [
+  { id: "zustand-selector-derived", scope: [CLIENT_SRC], homes: [] },
   {
     id: "no-raw-spacing-in-features",
     scope: rootSources("@client", "@ui"),
@@ -1580,6 +1581,103 @@ const hoverDisplayRule = {
       }
     };
     return { "Literal[value=type(string)]": report, TemplateElement: report };
+  },
+};
+
+const STORE_HOOK_RE = /^use[A-Z].*Store$/u;
+const STORE_ARRAY_REBUILDS = new Set(["map", "filter", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced"]);
+const STORE_OBJECT_DERIVATIONS = new Set(["keys", "values", "entries"]);
+
+function storeSelector(call, sourceCode) {
+  if (call.callee.type !== "Identifier" || call.range[0] !== call.callee.range[0]) {
+    return;
+  }
+  const hook = sourceCode.getText(call.callee);
+  if (!STORE_HOOK_RE.test(hook) && hook !== "useStore") {
+    return;
+  }
+  const selector = call.arguments[hook === "useStore" ? 1 : 0];
+  return selector !== undefined &&
+    ["ArrowFunctionExpression", "FunctionExpression"].includes(selector.type) &&
+    contextDirectArgument(call, selector, sourceCode)
+    ? selector
+    : undefined;
+}
+
+function storeCallDerivation(call, sourceCode) {
+  const callee = call.callee;
+  if (callee.type !== "MemberExpression" || callee.computed || call.range[0] !== callee.range[0]) {
+    return;
+  }
+  const name = callee.property.type === "Identifier" ? callee.property.name : undefined;
+  if (
+    callee.object.type === "Identifier" &&
+    callee.range[0] === callee.object.range[0] &&
+    sourceCode.getText(callee.object) === "Object" &&
+    STORE_OBJECT_DERIVATIONS.has(name)
+  ) {
+    return `Object.${name}(...) derivation`;
+  }
+  return STORE_ARRAY_REBUILDS.has(name) ? `array-rebuilding .${name}(...) call` : undefined;
+}
+
+function storeFreshDerivation(raw, sourceCode) {
+  let node = raw;
+  while (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression") {
+    node = node.expression;
+  }
+  if (node.type === "ObjectExpression" || node.type === "ArrayExpression") {
+    return node.type === "ObjectExpression" ? "object literal" : "array literal";
+  }
+  if (node.type === "ConditionalExpression") {
+    return storeFreshDerivation(node.consequent, sourceCode) ?? storeFreshDerivation(node.alternate, sourceCode);
+  }
+  if (node.type === "LogicalExpression") {
+    return storeFreshDerivation(node.left, sourceCode) ?? storeFreshDerivation(node.right, sourceCode);
+  }
+  const call = node.type === "ChainExpression" ? node.expression : node;
+  return call.type === "CallExpression" ? storeCallDerivation(call, sourceCode) : undefined;
+}
+
+function storeReturnOwner(node, sourceCode) {
+  return sourceCode.getAncestors(node).findLast((ancestor) => {
+    if (ancestor.type === "ArrowFunctionExpression" || ancestor.type === "FunctionDeclaration") {
+      return true;
+    }
+    // The original output grammar excludes accessor and constructor boundaries, unlike ordinary methods.
+    return ancestor.type === "FunctionExpression" && !["get", "set", "constructor"].includes(ancestor.parent.kind);
+  });
+}
+
+const storeDerivedRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const returns = new Map();
+    return {
+      "ReturnStatement[argument]"(node) {
+        if (node.argument === null) {
+          return;
+        }
+        const owner = storeReturnOwner(node, context.sourceCode);
+        const outputs = returns.get(owner) ?? [];
+        outputs.push(node.argument);
+        returns.set(owner, outputs);
+      },
+      "CallExpression:exit"(node) {
+        const selector = storeSelector(node, context.sourceCode);
+        if (selector === undefined) {
+          return;
+        }
+        const outputs = selector.body.type === "BlockStatement" ? (returns.get(selector) ?? []) : [selector.body];
+        const kind = outputs.map((output) => storeFreshDerivation(output, context.sourceCode)).find((value) => value !== undefined);
+        if (kind !== undefined) {
+          context.report({
+            node: node.callee,
+            message: `Store selector returns a fresh reference; use useShallow or a stable field/default. DERIVATION: ${kind}.`,
+          });
+        }
+      },
+    };
   },
 };
 function baseUiIdentifiers(node, sourceCode) {
@@ -2394,6 +2492,7 @@ const restrictionPlugin = {
       "Raw typography in a class carrier; use a typography intent token.",
     ),
     "no-hover-display-swap": hoverDisplayRule,
+    "zustand-selector-derived": storeDerivedRule,
     "baseui-derives-not-respells": baseUiDerivesRule(false),
     "baseui-derives-not-respells-health": baseUiDerivesRule(true),
     "baseui-state-data-attributes": baseUiStateRule,
