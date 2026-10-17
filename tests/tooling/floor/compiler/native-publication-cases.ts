@@ -363,7 +363,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
       programs: readInventoryGeneration(observer, 1).map((partition) => partition.program),
       acceptedPrograms: accepted.map((partition) => partition.program),
       ...restored,
-      checkpointBusy: observer.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()?.busy,
+      checkpointBusy: observer.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()?.["busy"],
     };
   } finally {
     Object.defineProperty(DatabaseSync.prototype, "prepare", { value: prepare });

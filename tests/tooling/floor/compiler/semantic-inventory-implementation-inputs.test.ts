@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { z } from "zod";
 import type { InventoryShapeQuery } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { inventoryRuntimeResolutionValue } from "../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
@@ -76,6 +77,18 @@ const expected = {
   dispose: { error: expect.stringMatching(/disposed/u), releasedBusy: 0, initialTextUnchanged: true },
   "environment-preload": { error: expect.stringMatching(/code-loading NODE_OPTIONS/u), workerStarts: 0 },
   "native-conditions": { error: null, workerStarts: 0, newGeneration: false, latestUnchanged: true, pinnedUnchanged: true },
+  "native-attributes": {
+    jsonMode: "import",
+    jsonAttributes: { type: "json" },
+    requireMode: "require",
+    requireAttributesAbsent: true,
+    sameGeneration: true,
+    workerStarts: 0,
+    pinnedUnchanged: true,
+  },
+  "replay-no-hook": { error: expect.stringContaining("exactly one native result"), workerStarts: 0, latestUnchanged: true, pinnedUnchanged: true },
+  "replay-partial-result": { error: expect.stringContaining("exactly one native result"), workerStarts: 0, latestUnchanged: true, pinnedUnchanged: true },
+  "replay-duplicate-result": { error: expect.stringContaining("exactly one native result"), workerStarts: 0, latestUnchanged: true, pinnedUnchanged: true },
   "replay-cached": { error: expect.stringContaining("controller implementation is stale"), workerStarts: 0, latestUnchanged: true, pinnedUnchanged: true },
   "replay-publication": {
     error: expect.stringContaining("implementation changed"),
@@ -290,4 +303,25 @@ test("fresh replay-only source drift rebuilds its real SQLite generation with bo
   expect(after.executingVersion).toBe(after.physicalVersion);
   expect(after.executingVersion).not.toBe(before.executingVersion);
   expect(after.generation).toBeGreaterThan(before.generation);
+});
+
+test("native resolution wire preserves every string attribute and CJS attribute absence", () => {
+  expect(inventoryRuntimeResolutionValue({ url: "node:module", format: null, importAttributes: { type: "json", custom: "retained" } })).toStrictEqual({
+    kind: "resolved",
+    value: { url: "node:module", format: null, importAttributes: { type: "json", custom: "retained" } },
+  });
+  expect(inventoryRuntimeResolutionValue({ url: "node:module", importAttributes: undefined })).toStrictEqual({
+    kind: "resolved",
+    value: { url: "node:module" },
+  });
+});
+
+test("native resolution wire refuses an own undefined attribute instead of losing it through JSON", () => {
+  expect(() => inventoryRuntimeResolutionValue({ url: "node:module", importAttributes: { type: undefined } })).toThrow("unsupported value");
+});
+
+test("native resolution wire refuses a non-string own attribute without dropping it", () => {
+  const attributes = { type: "json" };
+  Object.defineProperty(attributes, "custom", { value: 7, enumerable: true });
+  expect(() => inventoryRuntimeResolutionValue({ url: "node:module", importAttributes: attributes })).toThrow("unsupported value");
 });

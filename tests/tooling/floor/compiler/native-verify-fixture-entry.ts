@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import type { Node as MorphNode } from "ts-morph";
+import type { Identifier as MorphIdentifier, Node as MorphNode } from "ts-morph";
 import type { InventoryWorkerRequest } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 
 const requestPath = process.argv[2];
@@ -74,7 +74,7 @@ if (request.forbidSyntax === true) {
   });
   Object.defineProperty(Identifier.prototype, "getDefinitionNodes", {
     configurable: true,
-    value(this: InstanceType<typeof Identifier>): ReturnType<InstanceType<typeof Identifier>["getDefinitionNodes"]> {
+    value(this: MorphIdentifier): ReturnType<MorphIdentifier["getDefinitionNodes"]> {
       if (!hasRegisteredSemanticProgram(this.getProject())) {
         syntaxReads++;
         throw new Error("native command read syntax carrier definitions");

@@ -1,5 +1,6 @@
 // Queried targets are never loaded; the cold helper must execute the same observed code as its launcher.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import type { ResolveHookSync } from "node:module";
 import { createRequire, registerHooks } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,6 +15,7 @@ import {
   assertInventoryRuntimeSealed,
   captureInventoryRuntime,
   inventoryRuntimeArguments,
+  inventoryRuntimeResolutionValue,
   replayInventoryRuntimeResolution,
 } from "./semantic-inventory-runtime.ts";
 
@@ -43,6 +45,23 @@ export function replayInventoryRuntime(requests: readonly InventoryRuntimeResolu
   }
 }
 
+function replayRequest(request: InventoryRuntimeResolution, nextResolve: Parameters<ResolveHookSync>[2]): InventoryRuntimeResolution["outcome"] {
+  try {
+    const attributes = request.context.importAttributes;
+    const supplied = {
+      parentURL: request.context.parentURL,
+      conditions: request.context.conditions,
+      ...(attributes === undefined ? {} : { importAttributes: attributes }),
+    };
+    return inventoryRuntimeResolutionValue(replayInventoryRuntimeResolution(request.specifier, supplied, nextResolve));
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && typeof error.code === "string")) {
+      throw error;
+    }
+    return { kind: "failed", code: error.code, message: error.message };
+  }
+}
+
 async function resolveRequests(requests: readonly InventoryRuntimeResolution[]): Promise<InventoryRuntimeResolution["outcome"][]> {
   const results: InventoryRuntimeResolution["outcome"][] = [];
   let active: InventoryRuntimeResolution | undefined;
@@ -54,14 +73,7 @@ async function resolveRequests(requests: readonly InventoryRuntimeResolution[]):
         if (request.kind === "request" && JSON.stringify(context.conditions) !== JSON.stringify(request.context.conditions)) {
           throw new Error("native implementation replay conditions differ from execution");
         }
-        try {
-          results.push({ kind: "resolved", value: { ...replayInventoryRuntimeResolution(request.specifier, request.context, nextResolve) } });
-        } catch (error) {
-          if (!(error instanceof Error && "code" in error && typeof error.code === "string")) {
-            throw error;
-          }
-          results.push({ kind: "failed", code: error.code, message: error.message });
-        }
+        results.push(replayRequest(request, nextResolve));
         return replayInventoryRuntimeResolution(specifier, context, nextResolve);
       }
       return nextResolve(specifier, context);
@@ -75,14 +87,15 @@ async function resolveRequests(requests: readonly InventoryRuntimeResolution[]):
   });
   try {
     for (const request of requests) {
+      const completed = results.length;
       active = request;
       if (request.mode === "require") {
         createRequire(request.context.parentURL)("node:module");
       } else {
         await import("node:module");
       }
-      if (active !== undefined) {
-        throw new Error("native implementation replay did not enter the native resolver");
+      if (results.length !== completed + 1) {
+        throw new Error("native implementation replay did not produce exactly one native result");
       }
     }
     return results;

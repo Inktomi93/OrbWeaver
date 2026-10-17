@@ -103,7 +103,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
       mode,
       beforeSeal,
       calledMember: evidence?.mode === "called-member",
-      resolvedTable: evidence?.mode === "called-member" && evidence.table.kind === "resolved",
+      resolvedTable: evidence?.mode === "called-member" && evidence.table?.kind === "resolved",
       wrongMode,
       wrongOwner,
       incompleteRoster,
