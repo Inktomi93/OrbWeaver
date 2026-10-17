@@ -169,7 +169,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Ordinary demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Private callable supplies preserve allocation, bindings and live premises without publishing callers. Review and ordinary controls qualify helper-byte invalidation before publication. The original query completes but refuses a chat-service member origin. Target/publication, sparse-env, complete dependency closure and store/cost remain open. Evidence: `reports/review/1002-private-helper-input-ordinary.md`.
+Private callable supplies preserve allocation, bindings and live premises. Quoted-key decoding and prototype-setter refusal pass ordinary controls. The original query completes but still refuses the chat-service signal origin. Target, sparse-env, dependency closure and store/cost remain open. Evidence: `reports/review/1002-post-quoted-original-ordinary.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
