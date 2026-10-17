@@ -68,7 +68,7 @@ const APPLICATION = Object.freeze({
   "single-stream-transport": 2,
   "sole-env-reader": 10,
   "sub-floor-disclosure": 2,
-  suppressions: 47,
+  suppressions: 54,
   "surface-a11y-focus": 5,
   "test-hand-shape": 2,
   "test-reach": 112,

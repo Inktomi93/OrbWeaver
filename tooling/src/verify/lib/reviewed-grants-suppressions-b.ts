@@ -4,6 +4,66 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-drizzle-derived-replacement",
+    policyId: "suppressions",
+    subject: "drizzle/enforce-delete-with-where",
+    operation: "source",
+    why: "RULING — the admitted every-owner analytics pass atomically replaces complete derived duplicate/theme planes; singular runs retain actual owner predicates. Only the actual statement-local every-owner replacement carries the directive, not canonical-data writes or an omitted tenant fence.",
+    endsWhen:
+      "the complete derived-plane replacement disappears or becomes owner-local, or native tooling expresses the same deliberate full replacement without a directive.",
+  },
+  {
+    id: "suppressions:source-disposable-owner-transfer",
+    policyId: "suppressions",
+    subject: "lint/nursery/useDisposables",
+    operation: "source",
+    why: "RULING — the current bindings return/move an actual graph owner, borrow an already-adopted operation view/shared caught fault, or preserve an existing process-compatibility lifetime. Their real caller/stack owns cancellation and joins; lexical using here would dispose a transferred/borrowed owner at the wrong scope. This does not permit locally acquired resources without an owner.",
+    endsWhen:
+      "these transfer/borrow/process-lifetime cases no longer exist, or native analysis recognizes their real ownership and the final directive disappears.",
+  },
+  {
+    id: "suppressions:source-native-response-formdata",
+    policyId: "suppressions",
+    subject: "@typescript-eslint/no-deprecated",
+    operation: "source",
+    why: "RULING — the native owned-response adapter must preserve Response.formData delegation and current producer headers/consumption. It is not selecting an unbounded multipart intake policy; callers retain buffering/trust responsibility. No other deprecated API is justified by this case.",
+    endsWhen:
+      "the native Response compatibility promise ends, the native declaration drops its warning, or an equivalent native method replaces this actual delegation.",
+  },
+  {
+    id: "suppressions:source-firehose-producer-projection",
+    policyId: "suppressions",
+    subject: "orb/firehose-import-allowlist",
+    operation: "source",
+    why: "RULING — the canonical chat-events producer projects its own already-created compatibility channel. This property projection is not a firehose import consumer or member-facing stream; the approved watcher/barrel consumer boundary stays enabled. Keep the precise inline exception, not a whole producer-file exemption.",
+    endsWhen: "the canonical compatibility projection disappears or the native restriction distinguishes it from actual consumer reads.",
+  },
+  {
+    id: "suppressions:tests-disposable-root-observation",
+    policyId: "suppressions",
+    subject: "lint/nursery/useDisposables",
+    operation: "tests",
+    why: "RULING — the live test/helper bindings transfer an exact scheduler/provider owner to the real root or returned moved lifetime, or borrow a graph bus to observe the root's physical cancellation/rollback/join behavior. Test-local disposal would duplicate ownership or alter the subject. Unowned test-resource leaks are not covered.",
+    endsWhen: "the actual transfer/borrowed-root observations disappear, or native analysis recognizes their ownership and no directive remains.",
+  },
+  {
+    id: "suppressions:tests-native-formdata-controls",
+    policyId: "suppressions",
+    subject: "@typescript-eslint/no-deprecated",
+    operation: "tests",
+    why: "RULING — native formData itself is exercised against a fixed synthetic Response and a trusted fixture-controlled SDK outbound multipart edit, preserving actual selected image bytes/MIME/instruction. Replacing it with a parser mock/different API would stop testing that contract. No unrelated deprecated test API is covered.",
+    endsWhen: "the actual native API/trusted outbound subject changes or the declaration warning disappears.",
+  },
+  {
+    id: "suppressions:tests-linux-proc-assertion",
+    policyId: "suppressions",
+    subject: "lint/nursery/noConditionalExpect",
+    operation: "tests",
+    why: "RULING — only the physical /proc/self/fd assertion is conditional on the independent Linux platform capability. Portable capsule assertions remain unconditional; neither success nor a product result decides whether this expect runs.",
+    endsWhen:
+      "a portable physical-descriptor proof replaces proc, or an actual platform-selected suite preserves this same production subject without the directive.",
+  },
+  {
     id: "suppressions:source-lint-style-use-shorthand-function-type",
     policyId: "suppressions",
     subject: "lint/style/useShorthandFunctionType",
