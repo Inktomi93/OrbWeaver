@@ -40,7 +40,17 @@ export function inputVersion(
 
 function existenceVersion(path: string, fileSystem?: FileSystemHost): string {
   const present = fileSystem?.fileExistsSync(path) ?? (existsSync(path) && statSync(path).isFile());
-  return present ? `true:${fileSystem?.realpathSync(path) ?? realpathSync(path)}` : "false";
+  return present ? `true:${inputPathIdentity(path, fileSystem)}` : "false";
+}
+
+function inputPathIdentity(path: string, fileSystem?: FileSystemHost): string {
+  const native = fileSystem?.realpathSync(path) ?? realpathSync(path);
+  if (fileSystem === undefined) {
+    return native;
+  }
+  // Span keys remain physical even when a native virtual filesystem retains a lexical alias.
+  const physical = canonicalInventoryPath(path);
+  return native === physical ? native : JSON.stringify([native, physical]);
 }
 
 function fileVersion(path: string, fileSystem?: FileSystemHost): string {
@@ -49,7 +59,7 @@ function fileVersion(path: string, fileSystem?: FileSystemHost): string {
     return "missing";
   }
   const text = fileSystem === undefined ? readFileSync(path) : fileSystem.readFileSync(path);
-  return contentVersion(`${fileSystem?.realpathSync(path) ?? realpathSync(path)}\0${contentVersion(text)}`);
+  return contentVersion(`${inputPathIdentity(path, fileSystem)}\0${contentVersion(text)}`);
 }
 
 function directoryVersion(path: string, fileSystem?: FileSystemHost): string {
@@ -58,7 +68,7 @@ function directoryVersion(path: string, fileSystem?: FileSystemHost): string {
     return "missing";
   }
   const entries = fileSystem === undefined ? readdirSync(path) : fileSystem.readDirSync(path).map((entry) => basename(entry.name));
-  return contentVersion(JSON.stringify([fileSystem?.realpathSync(path) ?? realpathSync(path), entries.toSorted()]));
+  return contentVersion(JSON.stringify([inputPathIdentity(path, fileSystem), entries.toSorted()]));
 }
 
 const VERSION_READERS = { file: fileVersion, directory: directoryVersion, exists: existenceVersion } satisfies Record<

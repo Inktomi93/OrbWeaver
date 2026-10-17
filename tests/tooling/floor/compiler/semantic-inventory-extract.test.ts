@@ -4,7 +4,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import {
   canonicalInventoryPath,
   contentVersion,
@@ -2445,3 +2445,119 @@ test.for(["authored-addition", "byte-only-addition", "deletion"] as const)(
     expect(physicalText).toBe(deleted ? physical : undefined);
   },
 );
+
+function aliasedProjection(
+  root: string,
+  second: "none" | "alias" | "target",
+): { readonly target: string; readonly alias: string; readonly peer: string; readonly physical: string; readonly projected: string } {
+  const target = join(root, "vendor/value.ts");
+  const alias = join(root, "vendor/alias.ts");
+  const peer = join(root, "vendor/peer.ts");
+  const physical = "export const value=1;\n";
+  const projected = "export const value=2;\n";
+  writeFileSync(join(root, ".gitignore"), ".cache/\nvendor/\n");
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, physical);
+  symlinkSync("value.ts", alias);
+  symlinkSync("value.ts", peer);
+  const extra = second === "none" ? "" : `import {value as other} from './vendor/${second === "alias" ? "peer" : "value"}';`;
+  writeFileSync(join(root, "consumer.ts"), `import {value} from './vendor/alias';${extra}export const use=value;\n`);
+  writeFileSync(
+    join(root, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  return { target, alias, peer, physical, projected };
+}
+
+test.for(["none", "alias"] as const)(
+  "native projected aliases retain transaction bytes and canonical facts with second import %s",
+  { timeout: scaledBudget(60_000) },
+  (second, { scratch }) => {
+    const { target, alias, peer, physical, projected } = aliasedProjection(scratch, second);
+    const options = { root: scratch, families: ["bindings"] as const };
+    using previous = nativeInventoryFixture(options);
+    const backups: string[] = [];
+    const projectedPaths = second === "alias" ? [alias, peer] : [alias];
+    using current = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: projectedPaths.map((path) => ({ path, text: projected })), deleted: [] },
+      authoredAddedPaths: [],
+      backups,
+    });
+    const source = fixtureValue(current.sourceCorpus().getSourceFile(alias));
+    expect(source.getFullText()).toBe(projected);
+    expect(source.getFilePath()).toBe(target);
+    expect(current.canonicalPath(alias)).toBe(target);
+    const consumer = fixtureValue(current.sourceCorpus().getSourceFile("consumer.ts"));
+    const origins = consumer
+      .getImportDeclarations()
+      .flatMap((declaration) => declaration.getNamedImports().flatMap((specifier) => current.symbols(specifier.getNameNode()).origins));
+    expect(origins).toHaveLength(projectedPaths.length);
+    const valueDeclaration = source.getVariableDeclarationOrThrow("value");
+    expect(origins).toEqual(projectedPaths.map(() => span(valueDeclaration)));
+    expect(valueDeclaration.getInitializerOrThrow().getText()).toBe("2");
+    expect(current.sourceCorpus().getSourceFile(fixtureValue(projectedPaths.at(-1)))).toBe(source);
+    using db = openInventoryDatabase(fixtureValue(backups[0]));
+    const partition = fixtureValue(readInventoryGeneration(db, current.generation)[0]);
+    const captured = [...readInventorySourceMetadata(db, partition.id)].filter((entry) => entry.file === target);
+    expect(captured.map((entry) => entry.path).toSorted()).toEqual(projectedPaths.toSorted());
+    expect(captured.every((entry) => entry.authored === false)).toBe(true);
+    const inputs = [...readInventoryInputs(db, partition.id)];
+    expect(
+      inputs
+        .filter((entry) => entry.kind === "file" && projectedPaths.includes(entry.path))
+        .map((entry) => entry.path)
+        .toSorted(),
+    ).toEqual(projectedPaths.toSorted());
+    expect(inputs.find((entry) => entry.kind === "file" && entry.path === alias)?.version).not.toBe(inputVersion(alias, "file"));
+    expect(inputs.find((entry) => entry.kind === "file" && entry.path === join(scratch, "consumer.ts"))?.version).toBe(
+      inputVersion(join(scratch, "consumer.ts"), "file"),
+    );
+    expect(inputs.find((entry) => entry.kind === "authored" && entry.path === target)?.version).toBe("false");
+    expect(previous.sourceCorpus().getSourceFile(target)?.getFullText()).toBe(physical);
+    expect(readFileSync(alias, "utf8")).toBe(physical);
+    expect(readFileSync(target, "utf8")).toBe(physical);
+  },
+);
+
+test("native projected aliases refuse contradictory captured bytes for one canonical source", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
+  const { target, alias, physical, projected } = aliasedProjection(scratch, "target");
+  const options = { root: scratch, families: ["bindings"] as const };
+  using previous = nativeInventoryFixture(options);
+  expect(() => {
+    using _conflicting = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: [{ path: alias, text: projected }], deleted: [] },
+      authoredAddedPaths: [],
+    });
+  }).toThrow("native semantic inventory mixed source versions");
+  expect(previous.sourceCorpus().getSourceFile(target)?.getFullText()).toBe(physical);
+  expect(readFileSync(alias, "utf8")).toBe(physical);
+  expect(readFileSync(target, "utf8")).toBe(physical);
+});
+
+test("native projected aliases refuse a physical retarget before publication despite stable virtual bytes", { timeout: scaledBudget(60_000) }, ({
+  scratch,
+}) => {
+  const { target, alias, physical, projected } = aliasedProjection(scratch, "none");
+  writeFileSync(join(scratch, "vendor/other.ts"), "export const value=3;\n");
+  const options = { root: scratch, families: ["bindings"] as const };
+  using previous = nativeInventoryFixture(options);
+  const faults: string[] = [];
+  const published: number[] = [];
+  expect(() => {
+    using _retargeted = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: [{ path: alias, text: projected }], deleted: [] },
+      authoredAddedPaths: [],
+      fault: "projected-alias-retarget",
+      faults,
+      published,
+    });
+  }).toThrow(/^native semantic inventory inputs changed during extraction; no current verdict$/u);
+  expect(faults).toEqual(["projected-alias-retarget"]);
+  expect(published).toEqual([previous.generation]);
+  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  expect(latestInventoryGeneration(database)).toBe(previous.generation);
+  expect(previous.sourceCorpus().getSourceFile(target)?.getFullText()).toBe(physical);
+  expect(readFileSync(target, "utf8")).toBe(physical);
+  expect(readFileSync(alias, "utf8")).toBe("export const value=3;\n");
+});

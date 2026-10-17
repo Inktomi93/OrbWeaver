@@ -88,12 +88,9 @@ function projectOverlay(options: SemanticInventoryOptions): InventoryOverlay | u
   const paths = [...readAuthoredRepositoryInventory(options.root).paths, ...(options.overlay?.addedPaths ?? []), ...(options.projectedPaths ?? [])];
   const deleted = (options.overlay?.deletedPaths ?? []).map((path) => canonicalInventoryPath(resolve(options.root, path)));
   const excluded = new Set(deleted);
-  const files = [
-    ...new Set(
-      paths.filter((path) => isTypeWorldSource(path) || /\.(?:json|[cm]?js)$/u.test(path)).map((path) => canonicalInventoryPath(resolve(options.root, path))),
-    ),
-  ]
-    .filter((path) => !excluded.has(path) && fs.fileExistsSync(path))
+  // A virtual realpath can retain its lexical alias; changing that key changes bytes and native input identity.
+  const files = [...new Set(paths.filter((path) => isTypeWorldSource(path) || /\.(?:json|[cm]?js)$/u.test(path)).map((path) => resolve(options.root, path)))]
+    .filter((path) => !excluded.has(canonicalInventoryPath(path)) && fs.fileExistsSync(path))
     .map((path) => ({ path, text: fs.readFileSync(path) }));
   const authoredAddedPaths = [...new Set((options.overlay?.addedPaths ?? []).map((path) => canonicalInventoryPath(resolve(options.root, path))))];
   return { root: options.root, files, deleted, authoredAddedPaths };

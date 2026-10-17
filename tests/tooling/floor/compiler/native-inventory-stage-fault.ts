@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import type { InventoryBuildRequest } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
@@ -24,6 +24,7 @@ export type NativeInventoryFault =
   | "schema-graph-tail"
   | "declaration-output-race"
   | "member-world-race"
+  | "projected-alias-retarget"
   | `export-${Exclude<keyof typeof NATIVE_EXPORT_CUTS, "worker">}`;
 
 export const NATIVE_EXPORT_CUTS = {
@@ -119,6 +120,10 @@ export function mutateNativeInventoryStage(fault: NativeInventoryFault, request:
       }
       db.exec("DELETE FROM inventory_pair");
       return true;
+    case "projected-alias-retarget":
+      unlinkSync(join(request.root, "vendor/alias.ts"));
+      symlinkSync("other.ts", join(request.root, "vendor/alias.ts"));
+      return true;
 
     default:
       throw new Error(`unsupported native stage fault: ${fault}`);
@@ -173,6 +178,8 @@ function mutateDependencyStage(fault: NativeInventoryFault, request: InventoryBu
         writeFileSync(path, `${readFileSync(path, "utf8")}\nexport const changedDuringExtraction=1;`);
       }
       return true;
+    case "projected-alias-retarget":
+      return undefined;
     default:
       return undefined;
   }
@@ -207,6 +214,8 @@ function mutateExportStage(fault: NativeInventoryFault, request: InventoryBuildR
         inventoryString(join(request.root, "browser-bound.ts")),
       );
       return true;
+    case "projected-alias-retarget":
+      return undefined;
     default:
       return undefined;
   }
