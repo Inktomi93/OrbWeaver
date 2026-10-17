@@ -2020,9 +2020,14 @@ export default [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
-    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...TURN_IDENTITY_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS, ...CLASS_TOKEN_RESTRICTIONS].some(({ id }) =>
-      Object.hasOwn(block.rules, `orb/${id}`),
-    )
+    [
+      ...INFRA_AUTH_RESTRICTIONS,
+      ...CLASS_RESTRICTIONS,
+      ...ROLE_DATA_RESTRICTIONS,
+      ...TURN_IDENTITY_RESTRICTIONS,
+      ...DETERMINISM_RESTRICTIONS,
+      ...CLASS_TOKEN_RESTRICTIONS,
+    ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
   ),
