@@ -11,32 +11,13 @@
 // storage-only `reserved` reservation (an in-flight budget hold, finalized or released by the dispatcher) is
 // excluded exactly as every domain read excludes it — it is not a terminal and must never read as one.
 
-import type { AutomationFireOutcome } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
-import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { and, desc, eq, ne } from "drizzle-orm";
 
-// @orb-waive no-inline-package-interface(AutomationFireRow): baselined when the gate landed; burn-down item 952.
-/** One fire-log row as the probe serves it — the ledger row with the internal `reserved` state excluded. */
-export interface AutomationFireRow {
-  readonly id: AutomationFireId;
-  readonly ruleId: AutomationRuleId;
-  readonly chatId: ChatId | null;
-  readonly triggerType: string;
-  readonly outcome: AutomationFireOutcome;
-  readonly detail: Record<string, unknown> | null;
-  readonly automationDepth: number;
-  readonly firedAt: number;
-}
+import type { AutomationFireFilter, AutomationFireRow } from "../../contract/inspect.ts";
 
-// @orb-waive no-inline-package-interface(AutomationFireFilter): baselined when the gate landed; burn-down item 952.
-/** The probe's filter — ids arrive from QUERY PARAMS (branded at the route), never from auth. */
-export interface AutomationFireFilter {
-  readonly chatId?: ChatId;
-  readonly ruleId?: AutomationRuleId;
-  readonly limit: number;
-}
+export type { AutomationFireFilter, AutomationFireRow } from "../../contract/inspect.ts";
 
 /** The recent fire log, newest-first, `reserved` excluded, narrowed by `chatId` and/or `ruleId` when given. */
 export async function automationFireRows(db: Db, filter: AutomationFireFilter): Promise<AutomationFireRow[]> {

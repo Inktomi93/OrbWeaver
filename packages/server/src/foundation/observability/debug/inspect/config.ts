@@ -12,102 +12,34 @@
 // undecidable: `trustHtml: null` means "inherit", and the deployment default is what it inherits. Reporting
 // the raw column would reproduce exactly the ambiguity this probe exists to remove.
 
-import type { DeploymentRenderPolicy, RenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
+import type { DeploymentRenderPolicy, RenderPolicyOverride } from "@orb/contracts/chat";
 import { rendersTrustedHtml, resolveRenderPolicy } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, personas, presets, rpgGames, userSettings } from "@orb/db";
-import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
+import type {
+  CharacterDetailRow,
+  CharacterPolicyRow,
+  ChatConfigRow,
+  PersonaRow,
+  PresetRow,
+  RenderPolicyVerdict,
+  RpgGameRow,
+  UserSettingsRow,
+} from "../../contract/inspect.ts";
 
 export type { GlobalSettingView as AppSettingRow } from "@orb/contracts/settings";
-
-// @orb-waive no-inline-package-interface(UserSettingsRow): baselined when the gate landed; burn-down item 952.
-/** One `user_settings` row — the per-user blob plus the STORED schema version that beats the in-blob probe
- *  (`[[versioned-config-lift-drops-overrides]]`: the column is the authority, not the blob). */
-export interface UserSettingsRow {
-  userId: UserId;
-  schemaVersion: number;
-  config: unknown;
-  updatedAt: number;
-}
-
-// @orb-waive no-inline-package-interface(RpgGameRow): baselined when the gate landed; burn-down item 952.
-/** The `rpg_games` row for one chat — mode/status/seat plus the whole config blob (statProfile + lite dials,
- *  including `features.immersiveHtml` and `cardKeepLastX`, which decide the card path). */
-export interface RpgGameRow {
-  id: string;
-  chatId: ChatId;
-  mode: string;
-  status: string;
-  sessionNumber: number;
-  gmUserId: UserId | null;
-  gmPresetId: string | null;
-  config: unknown;
-  createdAt: number;
-  updatedAt: number;
-}
-
-// @orb-waive no-inline-package-interface(RenderPolicyVerdict): baselined when the gate landed; burn-down item 952.
-/** The render-policy verdict for one character: what the row stores, what the deployment floors it to, and
- *  what actually resolves. `resolved` is what the client reads — the other two explain WHY. */
-export interface RenderPolicyVerdict {
-  /** The character's own tri-state columns (`null` = inherit the deployment tier; both ladder columns
-   *  `null` is "Inherit default", the interactive rung while `allowInteractiveCards` is up). */
-  stored: RenderPolicyOverride;
-  /** The deployment tier the override resolves against — the two axes an AppSetting carries. Absent when the
-   *  effective config was not injected. */
-  deployment: DeploymentRenderPolicy | null;
-  /** The resolved policy the roster hands the client. Null when `deployment` is unavailable to resolve against. */
-  resolved: RenderPolicy | null;
-  /** Which card render tier the resolved policy selects — the answer the card investigation actually needs.
-   *  Per docs/law/UI-Theming-and-Content.md §12.2: `tierB` = the sandboxed ImmersiveCard chrome for a trusted author; `tierA` = the inert seal. */
-  cardTier: "tierA" | "tierB" | null;
-}
-
-// @orb-waive no-inline-package-interface(CharacterDetailRow): baselined when the gate landed; burn-down item 952.
-/** The whole character row, minus nothing that matters for debugging. Prose fields ride in full: this is a
- *  token-gated host-only surface, and a truncated `systemPrompt` is exactly the field somebody needs whole. */
-export interface CharacterDetailRow {
-  id: CharacterId;
-  name: string;
-  handle: CharacterHandle;
-  ownerId: UserId;
-  starred: boolean;
-  archived: boolean;
-  synthetic: boolean;
-  renderPolicy: RenderPolicyVerdict;
-  themeOverride: unknown;
-  backgroundOverride: unknown;
-  card: Pick<
-    typeof characters.$inferSelect,
-    | "description"
-    | "personality"
-    | "scenario"
-    | "greetings"
-    | "exampleMessages"
-    | "systemPrompt"
-    | "postHistoryInstructions"
-    | "depthPrompt"
-    | "creatorNotes"
-    | "creator"
-    | "cardVersion"
-    | "nickname"
-  >;
-  provenance: {
-    importedFrom: string | null;
-    importHash: string | null;
-    contentHash: string;
-    tokenSize: number;
-    source: unknown;
-    creationDate: number | null;
-    modificationDate: number | null;
-  };
-  extensions: unknown;
-  residualData: unknown;
-  refinery: unknown;
-  avatarAssetId: string | null;
-  createdAt: number;
-}
+export type {
+  CharacterDetailRow,
+  ChatConfigRow,
+  ChatParticipantRow,
+  PersonaRow,
+  PresetRow,
+  RenderPolicyVerdict,
+  RpgGameRow,
+  UserSettingsRow,
+} from "../../contract/inspect.ts";
 
 /** Every `user_settings` row, or just one principal's when `userId` is given. A never-touched account has NO
  *  row (it reads defaults from `{}`), so an empty result is a real answer, not a miss. */
@@ -116,40 +48,6 @@ export async function userSettingsRows(db: Db, userId?: UserId): Promise<UserSet
   // type, and the union is not uniformly thenable to the linter.
   const rows = userId === undefined ? await db.select().from(userSettings) : await db.select().from(userSettings).where(eq(userSettings.userId, userId));
   return rows.map((r) => ({ userId: r.userId, schemaVersion: r.schemaVersion, config: r.config, updatedAt: r.updatedAt }));
-}
-
-// @orb-waive no-inline-package-interface(PresetRow): baselined when the gate landed; burn-down item 952.
-/** One `presets` row. The `config` blob is the whole `PromptConfig` — every section, its order and depth, plus
- *  the gen settings. `maxOutputTokens` lives in here, and reading it from the ROW is the only way to settle a
- *  question the wire capture answers ambiguously (the request shows the value SENT, not which preset sent it).
- *  `schemaVersion` rides alongside because the stored column beats an in-blob probe. */
-export interface PresetRow {
-  id: string;
-  /** Nullable: a BUILT-IN preset has no owner. `null` here is "shipped with the app", not a missing read. */
-  ownerId: UserId | null;
-  name: string;
-  kind: string;
-  schemaVersion: number;
-  forkedFrom: string | null;
-  config: unknown;
-  createdAt: number;
-  updatedAt: number;
-}
-
-// @orb-waive no-inline-package-interface(PersonaRow): baselined when the gate landed; burn-down item 952.
-/** One `personas` row — the identity a seat plays. Paired with the seat's `activePersonaId` this is what
- *  settles a misattribution report: the seat points at an id, and this is what that id actually IS. */
-export interface PersonaRow {
-  id: string;
-  ownerId: UserId;
-  name: string;
-  title: string | null;
-  description: string;
-  starred: boolean;
-  avatarAssetId: string | null;
-  metadata: unknown;
-  createdAt: number;
-  updatedAt: number;
 }
 
 /** Every preset, or one owner's. Config blobs ride whole — a preset's section ORDER is the thing being
@@ -190,47 +88,6 @@ export async function personaRows(db: Db, ownerId?: UserId): Promise<PersonaRow[
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   }));
-}
-
-// @orb-waive no-inline-package-interface(ChatConfigRow): baselined when the gate landed; burn-down item 952.
-/** The ROOM config for one chat — the `chats` row's configuration planes plus the seat roster. The four JSON
- *  blobs are the ones that decide prompt content and are otherwise invisible: `runtimeVariables` is the plane
- *  `RUNTIME-VARS-DEAD` is about (stored, threaded to the macro env, consumed by nothing), and
- *  `userMacroValues` carries the flat-vs-nested shape that has bitten before. */
-export interface ChatConfigRow {
-  id: ChatId;
-  title: string | null;
-  starred: boolean;
-  archived: boolean;
-  temporary: boolean;
-  anchorPersonaId: string | null;
-  pendingHostUserId: string | null;
-  pendingHandoffOffer: unknown;
-  parentChatId: string | null;
-  forkedAt: number | null;
-  compactedAtSeq: number | null;
-  compactSummary: string | null;
-  metadata: unknown;
-  variableValues: unknown;
-  userMacroValues: unknown;
-  runtimeVariables: unknown;
-  standaloneVariableDeltas: unknown;
-  importedFrom: string | null;
-  importHash: string | null;
-  participants: ChatParticipantRow[];
-  createdAt: number;
-  updatedAt: number;
-}
-
-// @orb-waive no-inline-package-interface(ChatParticipantRow): baselined when the gate landed; burn-down item 952.
-/** One seat. `activePersonaId` is the column `INVITE-JOIN-NULL-PERSONA` is about — a NULL here on a joined
- *  member is the defect itself, so it is reported raw rather than floored to a display default. */
-export interface ChatParticipantRow {
-  kind: string;
-  userId: UserId | null;
-  characterId: CharacterId | null;
-  activePersonaId: string | null;
-  role: string | null;
 }
 
 /** The room config + roster for one chat, or `null` when the chat does not exist. */
@@ -374,10 +231,7 @@ export async function characterDetailRow(db: Db, characterId: CharacterId, deplo
  *  owners. Without the owner column that reads as duplicate rows, and it did: this sweep's first output was
  *  mis-filed as a seeder idempotency bug before the owners were checked. A cross-tenant sweep that omits the
  *  tenant is a misreading waiting to happen. */
-export async function characterPolicySweep(
-  db: Db,
-  deployment: DeploymentRenderPolicy | null,
-): Promise<{ id: CharacterId; name: string; handle: CharacterHandle; ownerId: UserId; synthetic: boolean; renderPolicy: RenderPolicyVerdict }[]> {
+export async function characterPolicySweep(db: Db, deployment: DeploymentRenderPolicy | null): Promise<CharacterPolicyRow[]> {
   const rows = await db
     .select({
       id: characters.id,

@@ -1216,7 +1216,7 @@ const RESTRICTIONS = [
       {
         selector: ":matches(ExportNamedDeclaration, ExportDefaultDeclaration) > :matches(TSTypeAliasDeclaration, TSInterfaceDeclaration)",
         message:
-          "An exported package-owned type belongs in its sanctioned src/contract home; import or reexport its canonical declaration (Spine-TypeScript §7.4).",
+          "An exported type belongs in its owning domain, package or foundation contract home; import or reexport its canonical declaration (Spine-TypeScript §7.4).",
       },
     ],
   },

@@ -1,10 +1,21 @@
 // The real operator route reads complete settings bytes through the owning domain, never an auth fallback.
 import "@orb/testkit/node/composed-real.ts";
+import { automationTriggerFor } from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { automationFires } from "@orb/db";
+import { ID_PREFIX } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
+import { seedAutomationRule, seedAutomationTestFires } from "@orb/testkit/node/factories/automation.ts";
+import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { seedPersona } from "@orb/testkit/node/factories/persona.ts";
+import { seedPreset } from "@orb/testkit/node/factories/preset.ts";
+import { seedRpgGame } from "@orb/testkit/node/factories/rpg.ts";
+import { seedUserSettings } from "@orb/testkit/node/factories/settings.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { sql } from "drizzle-orm";
 
 const PASSWORD = "operator-read-control-password";
 
@@ -44,4 +55,107 @@ test("the settings probe preserves key order and stored values while rejecting a
   });
   expect(admitted.status).toBe(200);
   expect(await admitted.json()).toEqual({ effective: root.services.settings.getEffectiveConfig(), rows: [alpha, zeta] });
+
+  const caller = await root.internalCallerFor(root.ownerId);
+  const { chat } = await caller.chat.startChat({ characterIds: [] });
+  const persona = await seedPersona(root.db, { ownerId: root.ownerId, title: null }, root.idSource);
+  const preset = await seedPreset(root.db, { ownerId: root.ownerId }, root.idSource);
+  const character = await seedCharacter(
+    root.db,
+    { ownerId: root.ownerId, description: "Stored card description", systemPrompt: "Stored private prompt", trustHtml: false, interactiveHtml: false },
+    root.idSource,
+  );
+  const settings = await seedUserSettings(root.db, root.services.settings.updateUserSettingsSection, {
+    principal: owner,
+    input: { section: "appearance", patch: {} },
+  });
+  const game = await seedRpgGame(root.db, root.services.rpg.createGame, { principal: owner, chatId: chat.id, mode: "lite" });
+  const rule = await seedAutomationRule(root.db, root.services.automation.createRule, {
+    principal: owner,
+    chatId: chat.id,
+    name: "Inspector terminal control",
+    timeZone: UTC_TIME_ZONE,
+    trigger: automationTriggerFor("chatOpened"),
+    actions: [{ type: "set_variable", scope: "global", key: "inspector_control", op: "set", value: "1" }],
+  });
+  const dryRun = await seedAutomationTestFires(root.db, root.services.automation.testRule, { principal: owner, ruleId: rule.id });
+  const terminal = dryRun.fires[0];
+  if (terminal === undefined) {
+    throw new Error("The production dry run did not supply its terminal fire.");
+  }
+  const reservedId = root.idSource.typeId(ID_PREFIX.automationFire);
+  await root.db.insert(automationFires).values({ ...terminal, id: reservedId, outcome: "reserved", firedAt: terminal.firedAt + 1 });
+
+  const raw = { futureVersion: "unparsed-inspector-evidence", opaque: [null, false, { order: ["zeta", "alpha"] }] };
+  // Historic stored JSON must remain visible even when no current application schema accepts it.
+  await root.db.run(sql`UPDATE user_settings SET config = ${JSON.stringify(raw)} WHERE user_id = ${root.ownerId}`);
+  await root.db.run(sql`UPDATE presets SET config = ${JSON.stringify(raw)} WHERE id = ${preset.id}`);
+  await root.db.run(sql`UPDATE personas SET metadata = ${JSON.stringify(raw)} WHERE id = ${persona.id}`);
+  await root.db.run(sql`UPDATE rpg_games SET config = ${JSON.stringify(raw)} WHERE id = ${game.id}`);
+  await root.db.run(sql`UPDATE chats SET runtime_variables = ${JSON.stringify(raw)} WHERE id = ${chat.id}`);
+  await root.db.run(sql`UPDATE characters SET theme_override = ${JSON.stringify(raw)}, source = ${JSON.stringify(raw)} WHERE id = ${character.id}`);
+
+  const read = async (path: string): Promise<unknown> => {
+    const response = await root.http.request(path, { headers: { host: "localhost", cookie: ownerCookie } });
+    expect(response.status, path).toBe(200);
+    return await response.json();
+  };
+  expect(await read(`/api/_debug/config/user?userId=${root.ownerId}`)).toEqual({ count: 1, users: [{ ...settings, config: raw }] });
+  const missingUserId = root.idSource.unprefixed<Principal["userId"]>();
+  expect(await read(`/api/_debug/config/user?userId=${missingUserId}`)).toEqual({ count: 0, users: [] });
+  expect(await read(`/api/_debug/config/presets?ownerId=${root.ownerId}`)).toEqual({ count: 1, presets: [{ ...preset, config: raw }] });
+  expect(await read(`/api/_debug/config/personas?ownerId=${root.ownerId}`)).toEqual({ count: 1, personas: [{ ...persona, metadata: raw }] });
+  expect(await read(`/api/_debug/config/chat/${chat.id}`)).toMatchObject({
+    room: {
+      id: chat.id,
+      title: chat.title,
+      parentChatId: null,
+      runtimeVariables: raw,
+      participants: [{ kind: "human", userId: root.ownerId, characterId: null, activePersonaId: null, role: "host" }],
+    },
+    rpg: {
+      id: game.id,
+      chatId: chat.id,
+      mode: game.mode,
+      status: game.status,
+      sessionNumber: game.sessionNumber,
+      gmUserId: game.gmUserId,
+      gmPresetId: game.gmPresetId,
+      config: raw,
+      createdAt: game.createdAt,
+      updatedAt: game.updatedAt,
+    },
+  });
+  const detail = await read(`/api/_debug/config/character/${character.id}`);
+  expect(detail).toMatchObject({
+    id: character.id,
+    ownerId: root.ownerId,
+    handle: character.handle,
+    avatarAssetId: null,
+    themeOverride: raw,
+    backgroundOverride: null,
+    card: { description: character.description, systemPrompt: character.systemPrompt, greetings: character.greetings, depthPrompt: null },
+    provenance: { importedFrom: null, importHash: null, contentHash: character.contentHash, source: raw, creationDate: null, modificationDate: null },
+    renderPolicy: { stored: { trustHtml: false, forbidExternalMedia: null, interactiveHtml: false }, resolved: { htmlTrust: "untrusted" }, cardTier: "tierA" },
+  });
+  expect(await read("/api/_debug/db/chats")).toMatchObject({
+    count: 1,
+    chats: [{ id: chat.id, title: chat.title, participantCount: 1, messageCount: 0 }],
+  });
+  expect(await read("/api/_debug/db/integrity")).toEqual({ ok: true, foreignKeyViolations: [], integrityCheck: ["ok"] });
+  expect(await read(`/api/_debug/automation/fires?chatId=${chat.id}&ruleId=${rule.id}&limit=1`)).toEqual({ count: 1, fires: [terminal] });
+  expect(await read(`/api/_debug/automation/fires?chatId=${chat.id}&ruleId=${rule.id}`)).toEqual({ count: dryRun.fires.length, fires: dryRun.fires });
+  const missingChat = root.idSource.typeId(ID_PREFIX.chat);
+  const absent = await root.http.request(`/api/_debug/config/chat/${missingChat}`, { headers: { host: "localhost", cookie: ownerCookie } });
+  expect(absent.status).toBe(404);
+  expect(await absent.json()).toEqual({ error: "no such chat" });
+  const missingCharacter = root.idSource.typeId(ID_PREFIX.character);
+  const absentCharacter = await root.http.request(`/api/_debug/config/character/${missingCharacter}`, { headers: { host: "localhost", cookie: ownerCookie } });
+  expect(absentCharacter.status).toBe(404);
+  expect(await absentCharacter.json()).toEqual({ error: "no such character" });
+  for (const presented of ["", adminCookie]) {
+    const refused = await root.http.request(`/api/_debug/config/character/${character.id}`, { headers: { host: "localhost", cookie: presented } });
+    expect(refused.status).toBe(404);
+    expect(await refused.text()).not.toContain(character.systemPrompt);
+  }
 });

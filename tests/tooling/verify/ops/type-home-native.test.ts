@@ -1,5 +1,5 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { packageTypeHome, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
+import { nativeTypeHomeDirectExport, packageTypeHome, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
 import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
@@ -127,4 +127,88 @@ test("inference native coverage and semantic remainder are disjoint without disc
     return token;
   });
   expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["Alias", "Generated", "GeneratedAlias", "ListedSchema", "Local", "Schema"]);
+});
+
+test("server domains and the DB inspector use native direct placement without activating neighboring owners", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const roots = ["packages/server/src/domain/probe", "packages/server/src/foundation/observability/debug/inspect"];
+  for (const root of roots) {
+    for (const suffix of ["ts", "tsx", "d.ts"]) {
+      const path = `${root}/verbs/probe.${suffix}`;
+      for (const source of [
+        "export type Scalar = string;",
+        "export type Derived<T> = Readonly<T>;",
+        "export interface Data { readonly n: number; }",
+        "export default interface Default { readonly n: number; }",
+        "export declare interface Ambient { readonly n: number; }",
+      ]) {
+        expect(await nativeFindings(eslint, path, source), `${path}: ${source}`).toHaveLength(1);
+        expect(nativeTypeHomeDirectExport(path), path).toBe(true);
+      }
+    }
+    for (const file of ["contract/probe.ts", "nested/contract/probe.tsx", "contract.ts", "probe.gen.ts"]) {
+      const path = `${root}/${file}`;
+      expect(await nativeFindings(eslint, path, "export interface Data {}; export type Scalar = string;"), path).toEqual([]);
+      expect(nativeTypeHomeDirectExport(path), path).toBe(false);
+    }
+    const implementation = `${root}/contractual/probe.ts`;
+    expect(await nativeFindings(eslint, implementation, "export interface Data {};")).toHaveLength(1);
+    for (const source of [
+      "interface Local {}; type Alias = string; export { Local, Alias };",
+      "export const Schema = z.object({});",
+      "export type { Home } from './contract/home.ts';",
+      "// export interface Mention {}\nexport const text = 'export type Mention = string';",
+    ]) {
+      expect(await nativeFindings(eslint, implementation, source), source).toEqual([]);
+    }
+  }
+  for (const path of [
+    "packages/server/src/domain/probe/verb.test.ts",
+    "packages/server/src/foundation/observability/debug/inspect-other/probe.ts",
+    "packages/server/src/foundation/observability/debug/routes.ts",
+    "packages/server/src/entry/probe.ts",
+    "packages/server/src/transport/probe.ts",
+    "packages/server/src/infra/probe.ts",
+    "packages/server/src/primitives/probe.ts",
+    "packages/ui/src/probe.tsx",
+    "packages/client/src/probe.tsx",
+    "tooling/src/probe.ts",
+    "scripts/probes/probe.ts",
+    "tests/server/probe.test.ts",
+  ]) {
+    expect(await nativeFindings(eslint, path, "export interface Data {}; export type Scalar = string;"), path).toEqual([]);
+    expect(nativeTypeHomeDirectExport(path), path).toBe(false);
+  }
+});
+
+test("server native placement keeps local exports, proven schema origins and unadmitted generated declarations custom", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const root = "/type-home-server";
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${root}/node_modules/zod/index.d.ts`, "export declare function object(shape: object): object;");
+  const cases = [
+    ["direct.ts", "export interface Direct {} export type DirectAlias = string;", 2],
+    ["listed.ts", "interface Local {} type ListedAlias = string; export { Local, ListedAlias };", 0],
+    ["generated.gen.ts", "export interface Generated {} export type GeneratedAlias = string;", 0],
+    ["schema.ts", 'import { object as shape } from "zod"; export const Schema = shape({}); const ListedSchema = shape({}); export { ListedSchema };', 0],
+    ["shadow.ts", "const z = { object: (value: object): object => value }; export const Shadow = z.object({});", 0],
+    ["barrel.ts", 'export type { Home } from "./contract/home.ts";', 0],
+    ["contract/home.ts", "export interface Home {}", 0],
+  ] as const;
+  for (const prefix of ["packages/server/src/domain/probe", "packages/server/src/foundation/observability/debug/inspect"]) {
+    for (const [file, source, count] of cases) {
+      const path = `${prefix}/${file}`;
+      project.createSourceFile(`${root}/${path}`, source);
+      expect(await nativeFindings(eslint, path, source), path).toHaveLength(count);
+    }
+  }
+  const policies = [inlineTypes, domainInterfaces, packageInterfaces];
+  const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.authorityAlarms).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
+    ["Generated", "GeneratedAlias", "ListedAlias", "ListedSchema", "Local", "Schema"]
+      .flatMap((token) => [token, token])
+      .toSorted((left, right) => left.localeCompare(right)),
+  );
 });
