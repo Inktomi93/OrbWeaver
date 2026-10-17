@@ -148,6 +148,7 @@
     "./floor/compiler/compiler-source-filename-overlay": "./src/floor/compiler/compiler-source-filename-overlay.ts",
     "./floor/compiler/import-population": "./src/floor/compiler/import-population.ts",
     "./floor/compiler/module-entry": "./src/floor/compiler/module-entry.ts",
+    "./floor/compiler/router-declarations": "./src/floor/compiler/router-declarations.ts",
     "./floor/compiler/project-worlds": "./src/floor/compiler/project-worlds.ts",
     "./floor/compiler/semantic-inventory-extract": "./src/floor/compiler/semantic-inventory-extract.ts",
     "./floor/compiler/semantic-inventory-worker-run": "./src/floor/compiler/semantic-inventory-worker-run.ts",
