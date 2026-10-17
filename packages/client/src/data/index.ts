@@ -57,7 +57,7 @@ export { plannedFiles, planTreeImport, skippedByReason } from "./import-tree-pla
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
-export { connectionWriteReads } from "./invalidation-reads.ts";
+export { connectionWriteReads, personaWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";

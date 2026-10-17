@@ -144,6 +144,7 @@ export async function gotoChatsList(page: Page): Promise<void> {
   await waitForAppReady(page);
   const chatsRail = chatsRailButton(page);
   const closeDetails = page.getByRole("button", { name: "Close details", exact: true });
+  const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
   const chatsList = page.getByRole("list", { name: "Chats list" });
   const emptyState = page.getByText("No chats yet");
   // COLD-BOOT RESILIENCE (the reason this is a retry loop, not a bare click). The FIRST navigation into the
@@ -155,11 +156,10 @@ export async function gotoChatsList(page: Page): Promise<void> {
     if (await closeDetails.isVisible()) {
       await closeDetails.click();
     }
-    await chatsRail.click({ timeout: WAIT_SHORT_MS });
-    const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
     if (await backToChats.isVisible()) {
       await backToChats.click();
     }
+    await chatsRail.click({ timeout: WAIT_SHORT_MS });
     await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   }).toPass({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
 }

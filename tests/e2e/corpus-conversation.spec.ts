@@ -22,13 +22,23 @@ function corpus(): CorpusWire {
   return SELECTED_CORPUS_FIXTURE.wire;
 }
 
-async function openPersonas(page: Page): Promise<void> {
-  const mobile = page.getByRole("button", { name: "You", exact: true });
-  if (await mobile.isVisible()) {
-    await mobile.click();
+async function jumpTo(page: Page, name: string): Promise<void> {
+  await page.keyboard.press("ControlOrMeta+k");
+  const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
+  await palette.getByRole("combobox", { name: "Command palette", exact: true }).fill(name);
+  await palette.getByRole("option", { name, exact: true }).click();
+  await expect(palette).toBeHidden();
+}
+
+async function openPersonas(page: Page, isMobile: boolean): Promise<void> {
+  if (isMobile) {
+    // Home preserves the active room; Back to Chats would instead clear its persona context.
+    await jumpTo(page, "Home");
+    await page.getByRole("button", { name: "You", exact: true }).click();
   } else {
     await page.getByRole("button", { name: /^(?:Playing as .+|Account & personas)$/u }).click();
   }
+  await expect(page.getByText(`In ${TITLE}`, { exact: true })).toBeVisible();
 }
 
 test("a corpus character supports swipe selection, edit save/cancel, persona switching and card pinning", { tag: "@smoke" }, async ({
@@ -84,7 +94,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await assistant.getByRole("button", { name: "Save edit", exact: true }).click();
     await expect(assistant).toContainText(EDITED);
 
-    await openPersonas(page);
+    await openPersonas(page, isMobile);
     await page.getByRole("button", { name: `Switch to ${persona.name}`, exact: true }).click();
     await expect(page.getByRole("button", { name: `${persona.name} — current persona`, exact: true })).toBeVisible();
     if (isMobile) {
@@ -102,6 +112,9 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
       })
       .toEqual([persona.id, persona.id]);
     await page.keyboard.press("Escape");
+    if (isMobile) {
+      await jumpTo(page, TITLE);
+    }
     await typeAndSend(page.getByRole("textbox", { name: "Message", exact: true }), SWITCHED.userMessage);
     await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWITCHED.prefix);
     fixture.release(2);
@@ -115,7 +128,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await waitForAppReady(page);
     await expect(page.locator(`[data-message-id="${id}"]`)).toContainText(EDITED);
     await expect(page.locator(`[data-message-id="${user?.id}"]`)).toContainText(SWITCHED.userMessage);
-    await openPersonas(page);
+    await openPersonas(page, isMobile);
     await expect(page.getByRole("button", { name: `${persona.name} — current persona`, exact: true })).toBeVisible();
     await expect(pin).toHaveAttribute("aria-pressed", "true");
     await pin.click();

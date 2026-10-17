@@ -1,12 +1,5 @@
-// The named READ SETS the invalidation map's rows compose from, plus the entity→room bridge's per-kind
-// rows — split out of `invalidation.ts` (which stays the EVENT→FILTERS maps and the one
-// `invalidateFilters` chokepoint) when the bridge's rows pushed that file past the `component-size` cap.
-// The seam is real, not arithmetic: a row in the map answers "what does THIS event stale", and a set here
-// answers "which reads are that", which is the thing several rows share.
-//
-// Every export is consumed by `invalidation.ts` alone, except `connectionWriteReads`, the set the connection
-// mutations share through `#data`. Nothing here calls `invalidateQueries` — the seam's chokepoint stays in the
-// map file (gate `no-inline-invalidate-outside-seam`).
+// Named read sets shared by the invalidation maps and connection/persona mutation settlement through #data.
+// The entity→room bridge's per-kind maps live here; invalidateQueries stays in invalidation.ts.
 
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
@@ -39,6 +32,11 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
  *  same-tab try. */
 export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter(), trpc.search.spaceStatus.pathFilter()];
+}
+
+/** A room persona change rewrites the seat/card identity, inherited lore and next-turn prompt previews. */
+export function personaWriteReads(trpc: Trpc, chatId: ChatId): readonly InvalidateFilter[] {
+  return [trpc.chat.getChat.queryFilter({ chatId }), trpc.worldInfo.listForChat.pathFilter(), ...promptPreviewReads(trpc)];
 }
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
