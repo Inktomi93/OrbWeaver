@@ -1,7 +1,7 @@
 ---
 kind: adr
 status: active
-updated: 2026-09-23
+updated: 2026-10-17
 ---
 
 # Portability R6: an account backup carries the ROOM WHOLE, the ST jsonl branch stays the SHARE door, and every cross-plane reference inside the bundle is POSITIONAL
@@ -12,7 +12,7 @@ Not recorded in the ledger row.
 
 ## Decision
 
-Homes: `@orb/server/primitives/serde/chat-bundle` (the serde, defined through the R3 spine) · `domain/export/verbs/export-chat-bundle.ts` + `domain/import/verbs/import-chat-bundle.ts` (the two projections) · `domain/rpg/contract/portability.ts` + `domain/rpg/persistence/portability-write.ts` (the campaign's injected read/write pair) · `domain/tag/verbs/attach-chat-tag-by-name.ts` (the D30 overlay re-link) · `entry/compose/portability.ts` (the descriptor) · `entry/http/export.ts` `?format=orb` + `entry/http/import-chat.ts` (the single-chat doors) · `tooling/src/verify/gates/lifecycle-portability.ts` (the registry). Pins: `tests/legacy/server/entry/import/bundle-round-trip.suite.int.test.ts` (the real fresh-box round trip) · `tests/legacy/server/primitives/serde/chat-bundle/index.test.ts` (the mandatory round-trip identity) · the three verb mirrors.
+Homes: `@orb/server/primitives/serde/chat-bundle` (the serde, defined through the R3 spine) · `domain/export/verbs/export-chat-bundle.ts` + `domain/import/verbs/import-chat-bundle.ts` (the two projections) · `domain/rpg/contract/portability.ts` + `domain/rpg/persistence/portability-write.ts` (the campaign's injected read/write pair) · `domain/tag/verbs/attach-chat-tag-by-name.ts` (the D30 overlay re-link) · `entry/compose/portability.ts` (the descriptor) · `entry/http/export.ts` `?format=orb` + `entry/http/import-chat.ts` (the single-chat doors) · `packages/server/src/entry/compose/portability.ts` (the registry). Pins: `tests/legacy/server/entry/import/bundle-round-trip.suite.int.test.ts` (the real fresh-box round trip) · `tests/legacy/server/primitives/serde/chat-bundle/index.test.ts` (the mandatory round-trip identity) · the three verb mirrors.
 
 **(A) ONE `chat` KIND, TWO FORMATS UNDER IT — never a second `PORTABLE_KINDS` member.** A parallel `chat-bundle` kind would put every transcript in every backup TWICE and hand the import router two answers for one chat. So the descriptor's `exportAll` emits the orb-native `.orb.json` and its `importFile` accepts BOTH: an ST `.jsonl` routes to the interchange verb, anything else to the bundle verb. `PORTABLE_IMPORT_ORDER` and the kind union are untouched by this wave. It is also what makes the ACCEPTED-LOSSY row closable at all (clause G): the loss only ends if the ACCOUNT BACKUP carries the fidelity, not a parallel kind nobody checks.
 

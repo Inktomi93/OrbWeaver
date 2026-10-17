@@ -125,9 +125,11 @@ import { DEFINITION_SLOTS } from "./tooling/src/verify/contract/registry-definit
 import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
 import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
+import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "./tooling/src/verify/lib/client-lexical-native.ts";
 import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
 import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
+import { readTailwindClassTokens } from "./tooling/src/verify/lib/tailwind-class-token.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -1024,6 +1026,16 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 };
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
+const CLIENT_LEXICAL_RESTRICTIONS = [
+  { id: "testid-typed-only", scope: [CLIENT_SRC], homes: [] },
+  { id: "scroll-container-positioned", scope: rootSources("@client", "@ui"), homes: [] },
+];
+const CLIENT_LEXICAL_NATIVE_SETTINGS = {
+  "orb/client-lexical-inputs": createHash("sha256")
+    .update(JSON.stringify(CLIENT_LEXICAL_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
+    .digest("hex"),
+};
+
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -1140,6 +1152,7 @@ const RESTRICTIONS = [
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
+  ...CLIENT_LEXICAL_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -1915,6 +1928,43 @@ const parallelMapRule = {
   },
 };
 
+const typedTestIdRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "JSXAttribute[name.type='JSXIdentifier'][name.name='data-testid']"(node) {
+        const value = node.value;
+        const literal = value?.type === "Literal" && typeof value.value === "string";
+        if (literal || (value?.type === "JSXExpressionContainer" && contextLiteral(value.expression) !== undefined)) {
+          context.report({ node: node.name, message: 'Freeform data-testid string; use the typed registry via testId("key").' });
+        }
+      },
+    };
+  },
+};
+
+const VERTICAL_SCROLL_UTILITIES = new Set(["overflow-auto", "overflow-scroll", "overflow-y-auto", "overflow-y-scroll"]);
+const POSITION_UTILITIES = new Set(["relative", "absolute", "fixed", "sticky"]);
+const scrollContainerRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      const parts = readTailwindClassTokens(context.sourceCode.getText(node));
+      const scroll = parts.find(({ utility }) => VERTICAL_SCROLL_UTILITIES.has(utility));
+      if (scroll !== undefined && !parts.some(({ utility }) => POSITION_UTILITIES.has(utility))) {
+        context.report({
+          loc: {
+            start: context.sourceCode.getLocFromIndex(node.range[0] + scroll.offset),
+            end: context.sourceCode.getLocFromIndex(node.range[0] + scroll.offset + scroll.token.length),
+          },
+          message: "A vertical scroll literal must supply relative, absolute, fixed or sticky in the SAME literal.",
+        });
+      }
+    };
+    return { "Literal[value=type(string)]": report, TemplateElement: report };
+  },
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -1925,6 +1975,8 @@ const restrictionPlugin = {
     "context-definition-shape": contextDefinitionRule,
     "no-mutating-register-api": registerApiRule,
     [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
+    "testid-typed-only": typedTestIdRule,
+    "scroll-container-positioned": scrollContainerRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
@@ -1939,6 +1991,7 @@ const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnde
       : {}),
     ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
     ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
+    ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });
@@ -2639,6 +2692,7 @@ const ORDINARY_CONFIG = [
       ...BASEUI_RESTRICTIONS,
       ...CLIENT_CONTEXT_RESTRICTIONS,
       ...CLIENT_MAP_RESTRICTIONS,
+      ...CLIENT_LEXICAL_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },

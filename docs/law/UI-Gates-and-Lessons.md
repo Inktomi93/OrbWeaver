@@ -269,8 +269,8 @@ reduced-motion floor and per-theme `color-scheme`.
   component stamps it — add the row and its `data-testid` in the same commit, delete both together.
   A CT story stamps its own ids through `storyTestId("key")`, typed by `STORY_TEST_IDS` in
   `tests/support/browser/story-test-ids.ts`; a production id keeps `testId("key")`.
-  *Gates `testid-typed-only` (spelling) + `testid-typed-only-stories` (the story twin) +
-  `testid-liveness` (a consumer or a registry row, production or story, with no producer).*
+  *Native ESLint `orb/testid-typed-only` checks client spelling. `testid-typed-only-stories` checks stories;
+  `testid-liveness` reports a consumer or registry row without a producer.*
 
 ### 11.6 Streamdown + untrusted content — the two-policy spec (BUILT)
 

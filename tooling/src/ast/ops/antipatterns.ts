@@ -1,4 +1,4 @@
-// `pnpm ast antipatterns [--scope <dir>]` — run every antipattern detector in one structure pass and print the
+// `pnpm ast antipatterns [--scope <dir>]` — run the retained structure antipattern detectors in one pass and print the
 // hits by class, waived or not. The class table is the machine half of docs/law/enforcement-antipatterns.md:
 // a class names its detecting gates; the doc carries the examples and burn-down items. Waived hits are read off
 // the pass's own marker consumption, so a green structure run still shows the debt it carries.
@@ -36,7 +36,7 @@ export const ANTIPATTERN_CLASSES = [
   },
   { name: "copied-logic", gates: ["test-production-clone"] },
   { name: "unparsed-boundary", gates: ["json-column-read-parsed", "wire-json-parsed-at-consumer", "trpc-input-declarations", "zod-output-twin-parity"] },
-  { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl", "testid-typed-only", "testid-typed-only-stories"] },
+  { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl", "testid-typed-only-stories"] },
   { name: "cast", gates: ["no-loose-id-cast", "no-mint-via-cast", "no-test-fabrication"] },
   { name: "hand-forged-id", gates: ["no-raw-id", "brand-in-name-position", "typeid-prefix-boundary", "no-fake-disabled-id"] },
   { name: "impossible-fixture", gates: ["no-opaque-test-fixture", "test-factory-contract", "test-determinism"] },

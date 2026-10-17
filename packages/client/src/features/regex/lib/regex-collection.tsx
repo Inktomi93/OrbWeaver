@@ -29,9 +29,7 @@ export const regexCollection: CollectionContribution = {
   insights: { useInsights: useRegexInsights },
   useMemberTitle: useRegexMemberTitle,
   create: { label: "New script", useRun: useCreateRegexMember, askName: { fieldLabel: "Script name", maxLength: REGEX_SCRIPT_NAME_MAX } },
-  // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).
-  // `importFile` exists at all because the owner's REGX2 ruling ENDED the `{ ruled }` exemption that used to
-  // say a script only travels inside the card it belongs to — see `lifecycle-portability.ts`'s regex cells.
+  // D121-D: the host renders this door; production LIFECYCLE_DOORS records regex's standalone import.
   importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
   bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,

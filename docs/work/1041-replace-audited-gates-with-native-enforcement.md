@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-lifecycle-portability-1041
+lane: codex/native-client-lexical-1041
 plan: test-foundation
 ---
 
@@ -39,3 +39,5 @@ Native parallel-map checks pass individually on main; the combined run retains a
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
 Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Scoped ordinary main qualification passes with inherited type diagnostics. Evidence: `reports/review/1041-native-bus-boundary-ordinary.md`.
+
+Native portability schema/door controls and client literal replacements pass independent wave review. Retained readers remain; ordinary combined integration is open. Evidence: `reports/review/1041-native-replacement-wave-independent-review.md`.

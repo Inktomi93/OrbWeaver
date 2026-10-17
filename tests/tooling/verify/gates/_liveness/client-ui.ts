@@ -26,7 +26,6 @@ import { gate as noManualAutosaveFlush } from "../../../../../tooling/src/verify
 import { gate as noMultiplexedMutationError } from "../../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
-import { gate as settingsSectionAnchored } from "../../../../../tooling/src/verify/gates/settings-section-anchored.ts";
 import { gate as stateFiles } from "../../../../../tooling/src/verify/gates/state-files.ts";
 import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
 import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
@@ -194,16 +193,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "createGatedStore",
-  },
-  {
-    policy: settingsSectionAnchored,
-    overlays: [
-      add(
-        "packages/client/src/features/credentials/components/liveness-keys-section.tsx",
-        'import { configAnchorId } from "#state";\nexport const LivenessAnchored = <Section heading="Liveness anchored" id={configAnchorId("connections", "liveness")} />;\nexport const LivenessKeys = <Section heading="Liveness keys"><span>x</span></Section>;\n',
-      ),
-    ],
-    messageIncludes: "heading-bearing <Section>",
   },
   {
     policy: stateFiles,

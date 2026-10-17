@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(300 registered gates)
+(296 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -168,7 +168,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `json-column-write-parity-health` | json-column-write-parity | hard/error | @db,@server,@contracts\* | DERIVED NOTHING — no text(..., {… |
 | `knob-wire-coverage` | — | reviewed-grant/error | @contracts,@server,@client,@ui | a declared knob is wired to nothing —… |
 | `ledger-symbol-liveness` | — | ordinary/error | none | a backticked file path in a D-ledger… |
-| `lifecycle-portability` | drizzle-schema | hard/error | @db,@server\* | the lifecycle/portability registry is… |
 | `list-row-adoption` | — | ordinary/error | @client\* | a LIST-region row render returns… |
 | `macro-resolution-health` | macro-resolution | hard/error | @kit,@client,@ui | a macro resolver declaration… |
 | `macro-resolution-home` | macro-resolution | reviewed-grant/error | @client,@ui | macro resolution requires an exact… |
@@ -273,7 +272,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `sanctioned-css-homes` | css-home-topology | hard/error | none | a repository-owned product stylesheet… |
 | `schema-banned-shapes` | drizzle-schema | hard/error | @db\* | a ledger-REJECTED schema shape has… |
 | `schema-branding` | drizzle-schema | ordinary/error | @db\* | a schema entity id is unbranded or an… |
-| `scroll-container-positioned` | tailwind-class-token | ordinary/error | @client,@ui | vertical scroll container with NO… |
 | `scrubber-factory-home` | scrubber-home | hard/error | @kit | the kit content home no longer… |
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
 | `section-factory-contribution-bundle` | registry-definitions | ordinary/error | @client | a section factory grew a positional… |
@@ -285,7 +283,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `server-layout` | — | hard/error | none | an illegal or missing top-level entry… |
 | `session-channel-boundary` | session-channel | ordinary/error | @client | a BroadcastChannel constructed… |
 | `session-channel-boundary-health` | session-channel | hard/error | @client | session-channel-boundary is BLIND:… |
-| `settings-section-anchored` | — | ordinary/error | @client\* | heading-bearing \<Section> in a… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | raw-spacing-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
@@ -315,8 +312,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests,@legacy-tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
-| `testid-typed-only` | — | ordinary/error | @client | freeform data-testid string — use the… |
-| `testid-typed-only-stories` | testid-typed-only | ordinary/error | @tests\* | freeform data-testid string in a CT… |
+| `testid-typed-only-stories` | — | ordinary/error | @tests\* | freeform data-testid string in a CT… |
 | `tests-package-subpath` | — | hard/error | @tests | a test reaches by a relative path… |
 | `tests-raw-package-reach` | tests-package-subpath | reviewed-grant/error | @tests | a test reaches a package's internals… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |

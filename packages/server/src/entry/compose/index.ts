@@ -1,6 +1,8 @@
 // Front door for the composition root; app/boot/lifecycle import compose factories from here, never an
 // internal file. `services.ts` is the keystone graph; the sibling files are the seams it composes.
 
+export type { LifecycleChromeHome, LifecycleDoor, LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../contract/portability.ts";
+export { LIFECYCLE_CHROME_HOMES, NON_PORTABLE_CLASSES } from "../contract/portability.ts";
 export { createHttpApp } from "../http/app.ts";
 export { createConfiguredOidc } from "../http/oidc.ts";
 export {
@@ -16,6 +18,7 @@ export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
 export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
+export { LIFECYCLE_DOORS, NON_PORTABLE_CANON, PORTABLE_CANON_TABLES } from "./portability.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 export { createRpgRestorePost } from "./rpg.ts";
 export type { ServicesDeps, ServicesResult, ShareComposeDeps } from "./services.ts";
