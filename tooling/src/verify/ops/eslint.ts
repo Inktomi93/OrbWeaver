@@ -24,6 +24,7 @@ import { POPULATION_ROOTS } from "../contract/population.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { affectsBaseUiLint, surfaceManifestFrom } from "../lib/baseui-manifest.ts";
+import { affectsClientMapNativeLint, CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "../lib/client-map-native.ts";
 import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RULES } from "../lib/context-definition-shape.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
@@ -188,6 +189,7 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   }
   const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
   const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
+  const map = paths.some(affectsClientMapNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   let supplemental: number = baseUi ? await recheckBaseUiMetadata(root) : EXIT.clean;
   if (supplemental === EXIT.toolError) {
     return EXIT.toolError;
@@ -195,12 +197,19 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (context) {
     supplemental = Math.max(supplemental, await recheckContextMetadata(root));
   }
+  if (supplemental !== EXIT.toolError && map) {
+    supplemental = Math.max(supplemental, await recheckClientMapMetadata(root));
+  }
   if (supplemental === EXIT.toolError) {
     return EXIT.toolError;
   }
   const sources = paths.filter(
     (path) =>
-      !(BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) || CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path)) ||
+      !(
+        BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+        CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+        CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path)
+      ) ||
       (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
   );
   if (sources.length === 0) {
@@ -252,6 +261,21 @@ function recheckContextMetadata(root: string): Promise<number> {
       hard: false,
       rules: new Set<string>(CONTEXT_NATIVE_RULES),
       label: "context-native",
+    },
+  );
+}
+
+function recheckClientMapMetadata(root: string): Promise<number> {
+  for (const path of CLIENT_MAP_NATIVE_INPUT_PATHS) {
+    readFileSync(resolve(root, path));
+  }
+  return nativeSyntaxPass(
+    root,
+    POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
+    {
+      hard: false,
+      rules: new Set([CLIENT_MAP_NATIVE_RULE]),
+      label: "parallel-map-native",
     },
   );
 }
