@@ -32,7 +32,6 @@ import { gate as serverLayout } from "../../../../../tooling/src/verify/gates/se
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as surfaceInAContainerHealth } from "../../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
-import { gate as tokensContract } from "../../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
@@ -196,17 +195,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: testLayout,
     overlays: [source("tests/ui/primitives/liveness-example.test.tsx", "export const livenessExample = 1;\n")],
     messageIncludes: "unregistered test kind",
-  },
-  {
-    policy: tokensContract,
-    overlays: [
-      replace(
-        "packages/ui/src/tokens/tokens.json",
-        '"$description": "The DTCG single-source design tokens',
-        '"$descriptionLiveness": "The DTCG single-source design tokens',
-      ),
-    ],
-    messageIncludes: "format.schema",
   },
   {
     policy: toolingRunnerConfigLiterals,

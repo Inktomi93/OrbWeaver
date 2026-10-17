@@ -3,8 +3,9 @@
 // Pinned schemas and semantic checks reject invalid source data before Style Dictionary emits it.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { join, relative, resolve as resolvePath, sep } from "node:path";
+import { isWithinRoot } from "@orb/kit/path-containment";
 import type { ErrorObject, ValidateFunction } from "ajv";
 import { Ajv } from "ajv";
 // biome-ignore lint/performance/noNamespaceImport: ajv-formats is CommonJS; this module is compiled under both Bundler and NodeNext resolution.
@@ -757,8 +758,7 @@ function validateRemovedLedger(
   return { paths, targets };
 }
 
-/** Read the merge-base vault out of a real worktree. The one caller is {@link readTokenRemovalBaseline}, which
- *  is how a rootless caller (the gate-runtime ResourceHost provider) obtains the same document as DATA. */
+// A history read that cannot supply the vault becomes a diagnostic, never a clean removal verdict.
 function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: TokenContractDiagnostic[]): unknown | null {
   if (!existsSync(join(repoRoot, ".git"))) {
     diagnostics.push(diagnostic("/removed", "removed.baseline", `cannot inspect token history: ${repoRoot} is not a Git worktree`));
@@ -786,24 +786,9 @@ function previousTokenDocument(repoRoot: string, baseRef: string, diagnostics: T
   }
 }
 
-/** THE REMOVAL RATCHET'S OTHER SIDE, as DATA rather than as a repository (#2183).
- *
- *  `previousTokenDocument` shells `git merge-base` + `git show` from a repo root, which is exactly the read a
- *  gate-runtime POLICY cannot make: a final `defineGate` policy receives no root, no filesystem and no
- *  subprocess (`docs/law/gate-runtime-standardization.md` §12.3), so `tokens-contract`'s conversion would have SILENTLY
- *  DROPPED the removal ratchet — half its stated subject — while every other check stayed green. Accepting the
- *  merge-base document as a value lets a caller that CAN read git (the ResourceHost provider, the same shape
- *  `tracked-files` already uses) hand it in.
- *
- *  UNAVAILABLE IS A DIAGNOSTIC, NOT A SKIP. A caller that could not read the history says so and the validator
- *  emits `removed.baseline`, which is what the worktree arm already does — the two paths cannot diverge into
- *  "no history" meaning a clean vault on one of them. */
+/** The previous vault or the reason a removal comparison cannot run. */
 export type TokenRemovalBaseline =
   | { readonly status: "ready"; readonly mergeBase: string; readonly document: unknown }
-  /** The repository has NO HISTORY at all — a fresh `git init` with no commit, which is exactly what a
-   *  conformance fixture root is. There is nothing a removal could have been removed FROM, so the ratchet is
-   *  VACUOUS rather than blind and emits no diagnostic. Distinguishing this from `unavailable` is what lets
-   *  a proof fixture be clean while a real worktree whose history read FAILED still says so out loud. */
   | { readonly status: "empty"; readonly reason: string }
   | { readonly status: "unavailable"; readonly reason: string };
 
@@ -837,9 +822,7 @@ function validateRemovedDiff(context: RemovedDiffContext): void {
   }
 }
 
-/** The merge-base vault, read out of a real worktree, as the DATA {@link validateTokenContractTexts} takes.
- *  Exported so a caller with a repo root but no business calling the validator — the gate-runtime
- *  ResourceHost provider — can acquire the ratchet's other side once and hand it in. */
+/** Read the merge-base vault; fresh and stable-only checkouts have no mainline comparison. */
 export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOVAL_BASE_REF): TokenRemovalBaseline {
   if (!existsSync(join(repoRoot, ".git"))) {
     return { status: "empty", reason: `${repoRoot} is not a Git worktree, so there is no token history to ratchet against` };
@@ -847,12 +830,6 @@ export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOV
   try {
     execFileSync("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: repoRoot, encoding: "utf8", stdio: "pipe" });
   } catch {
-    // NO COMMIT AT ALL. A repository with no history has nothing a token could have been removed FROM, so
-    // this is VACUOUS rather than blind — and it is exactly what a `mode: "resource"` conformance root is
-    // (`ops/policy-conformance.ts` `git init`s and `git add`s the fixture, and never commits). Reporting a
-    // `removed.baseline` diagnostic here would put one finding on every proof row of every consumer and
-    // make a clean corpus unprovable; reporting nothing on a REAL worktree whose history read FAILED is the
-    // silent skip this whole reader exists to end. The two are different conditions and answer differently.
     return { status: "empty", reason: `${repoRoot} has no commits, so there is no token history to ratchet against` };
   }
   try {
@@ -863,12 +840,6 @@ export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOV
     // that only development checkouts, which always carry the mainline, can answer.
     return { status: "empty", reason: `${repoRoot} has no ${baseRef}, so there is no mainline token history to ratchet against` };
   }
-  // `previousTokenDocument` pushes exactly one diagnostic on every path that returns null, which is why the
-  // reason is read off it rather than re-spelled here — one wording, and it stays the wording the worktree
-  // arm has always emitted.
-  // `previousTokenDocument` pushes exactly one diagnostic on every path that returns null; the reason is
-  // JOINED off the collected list rather than indexed out of it so the wording stays the one the worktree
-  // arm has always emitted without either an index guard tsc demands or a fallback biome calls unreachable.
   const diagnostics: TokenContractDiagnostic[] = [];
   const document = previousTokenDocument(repoRoot, baseRef, diagnostics);
   if (document === null) {
@@ -877,10 +848,7 @@ export function readTokenRemovalBaseline(repoRoot: string, baseRef = TOKEN_REMOV
   return { status: "ready", mergeBase: baseRef, document };
 }
 
-/** `baseline` is EITHER a repo root (the worktree caller: `validateTokenContract`, the build) OR the
- *  already-read merge-base document (the rootless caller: the gate policy, through its declared resource).
- *  Both arms reach the same `validateRemovedDiff`; omitting it is what SKIPS the ratchet, and only the two
- *  callers that genuinely have no history — a conformance fixture and a non-worktree consumer — do that. */
+/** Supply a repository root or an acquired baseline to validate removal history as well as token data. */
 export function validateTokenContractTexts(
   texts: TokenContractTexts,
   baseline?: string | TokenRemovalBaseline,
@@ -970,8 +938,26 @@ export function validateTokenContractTexts(
   };
 }
 
-export function readTokenContractTexts(uiRoot = import.meta.dirname): TokenContractTexts {
-  const read = (path: string): string => readFileSync(join(uiRoot, path), "utf8");
+export function readTokenContractTexts(uiRoot = import.meta.dirname, admittedRoot = uiRoot): TokenContractTexts {
+  const root = realpathSync(admittedRoot);
+  const read = (path: string): string => {
+    const target = resolvePath(uiRoot, path);
+    const expected = resolvePath(root, relative(admittedRoot, target));
+    if (!isWithinRoot(root, expected, { sep })) {
+      throw new Error(`token contract member is outside the admitted root: ${target}`);
+    }
+    if (!lstatSync(target).isFile()) {
+      throw new Error(`token contract member must be a regular file: ${target}`);
+    }
+    if (realpathSync(target) !== expected) {
+      throw new Error(`token contract member traverses an authored symbolic link: ${target}`);
+    }
+    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(readFileSync(target));
+    if (text.length === 0) {
+      throw new Error(`token contract member is empty: ${target}`);
+    }
+    return text;
+  };
   return {
     base: read(TOKEN_FILES.base),
     light: read(TOKEN_FILES.light),
@@ -984,7 +970,7 @@ export function readTokenContractTexts(uiRoot = import.meta.dirname): TokenContr
 }
 
 export function validateTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {
-  return validateTokenContractTexts(readTokenContractTexts(uiRoot), repoRoot);
+  return validateTokenContractTexts(readTokenContractTexts(uiRoot, repoRoot), repoRoot);
 }
 
 export function assertTokenContract(uiRoot = import.meta.dirname, repoRoot?: string): TokenContractResult {

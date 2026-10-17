@@ -142,7 +142,7 @@ function assertGateResourceDeclaration(candidate: unknown, index: number): strin
   if (kind === "installed-package") {
     return assertInstalledPackageRequest(request, label);
   }
-  if (kind === "token-contract" && "mode" in request) {
+  if (kind === "token-contract") {
     exactKeys(request, TOKEN_MODE_KEYS, label);
     if (request["mode"] !== "generated-types") {
       invalid(`${label}.mode must be generated-types`);

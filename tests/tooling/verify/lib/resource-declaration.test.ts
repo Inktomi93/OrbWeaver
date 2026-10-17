@@ -2,12 +2,7 @@
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { ResourceFact } from "../../../../tooling/src/verify/contract/resource.ts";
-import type {
-  TokenContractResource,
-  TokenGeneratedTypeRequest,
-  TokenGeneratedTypeResource,
-} from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS, TOKEN_GENERATED_TYPE_REQUEST } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
+import { TOKEN_GENERATED_TYPE_PATHS, TOKEN_GENERATED_TYPE_REQUEST } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
 import type { LedgerDefinition, LedgerId } from "../../../../tooling/src/verify/contract/resource-document.ts";
 import { LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
@@ -28,19 +23,6 @@ function fact<T>(source: string, paths: readonly string[], value: T, status: Sch
   return status === "ready"
     ? { status, value, paths, members: paths.length, receipt }
     : { status, reason: `${source} ${status}`, paths, members: paths.length, receipt };
-}
-
-function tokenContract(): ResourceFact<TokenContractResource>;
-function tokenContract(request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
-function tokenContract(request?: TokenGeneratedTypeRequest): ResourceFact<TokenContractResource> | ResourceFact<TokenGeneratedTypeResource> {
-  if (request !== undefined) {
-    throw new Error("generated token types require an explicit fixture");
-  }
-  return fact("token-contract", [TOKEN_CONTRACT_PATHS.base], {
-    texts: { base: "", light: "", mocha: "", resolver: "", removed: "", formatSchema: "", resolverSchema: "" },
-    paths: [TOKEN_CONTRACT_PATHS.base],
-    removalBaseline: { status: "empty", reason: "fixture host" },
-  });
 }
 
 function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
@@ -128,7 +110,9 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         declarationFiles: [],
         selectorSources: [],
       }),
-    tokenContract,
+    tokenContract: (): never => {
+      throw new Error("generated token types require an explicit fixture");
+    },
     authoredPaths: () => fact("authored-path", [], { identities: [] }),
     authoredText: () => fact("authored-text", [], { files: [], refusals: [] }),
     ...overrides,
@@ -198,12 +182,12 @@ test("refuses a valid repo path returned by the wrong closed fact root", () => {
 });
 
 test("generated token requests remain distinct, source-demanded and absent from resource planning", () => {
-  const requests = [{ kind: "token-contract" } as const, TOKEN_GENERATED_TYPE_REQUEST];
-  expect(canonicalResourceDeclarations(requests).map(resourceRequestIdentity)).toEqual(["token-contract", "token-contract:generated-types"]);
-  expect(activeResourceDeclarations(requests, ["packages/ui/src/ordinary.ts"])).toEqual([{ kind: "token-contract" }]);
+  const requests = [TOKEN_GENERATED_TYPE_REQUEST];
+  expect(canonicalResourceDeclarations(requests).map(resourceRequestIdentity)).toEqual(["token-contract:generated-types"]);
+  expect(activeResourceDeclarations(requests, ["packages/ui/src/ordinary.ts"])).toEqual([]);
   expect(activeResourceDeclarations(requests, [TOKEN_GENERATED_TYPE_PATHS[0]])).toEqual(requests);
-  expect(resolveResourceDeclarations(host(), [TOKEN_GENERATED_TYPE_REQUEST])).toEqual([]);
-  expect(resolveResourceDeclarations(host(), [{ kind: "token-contract" }])).toEqual([TOKEN_CONTRACT_PATHS.base]);
+  expect(resolveResourceDeclarations(host(), requests)).toEqual([]);
+  expect(() => assertGateResourceDeclarations([{ kind: "token-contract" }])).toThrow("mode must be generated-types");
   expect(() => assertGateResourceDeclarations([{ kind: "token-contract", mode: "other" }])).toThrow("mode must be generated-types");
   expect(() => assertGateResourceDeclarations([{ ...TOKEN_GENERATED_TYPE_REQUEST, id: "borrowed" }])).toThrow();
 });

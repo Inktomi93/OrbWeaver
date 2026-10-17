@@ -5,7 +5,7 @@ import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
-import { TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS } from "../contract/resource-artifact.ts";
+import { TOKEN_GENERATED_TYPE_PATHS } from "../contract/resource-artifact.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGeneratedTokenTypeRequest, isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
@@ -86,7 +86,7 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
     case "vendor-css-surface":
       return { kind: request.kind };
     case "token-contract":
-      return isGeneratedTokenTypeRequest(request) ? { kind: request.kind, mode: request.mode } : { kind: request.kind };
+      return { kind: request.kind, mode: request.mode };
     case "authored-path":
       return { kind: request.kind };
     case "authored-text":
@@ -135,7 +135,7 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
     case "vendor-css-surface":
       return host.vendorCssSurface();
     case "token-contract":
-      return isGeneratedTokenTypeRequest(request) ? host.tokenContract(request) : host.tokenContract();
+      return host.tokenContract(request);
     case "authored-path":
     case "authored-text":
       // A demand kind has no subject at planning time. `resolveResourceDeclarations` never reaches here —
@@ -184,7 +184,7 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
     case "vendor-css-surface":
       return false;
     case "token-contract":
-      return isGeneratedTokenTypeRequest(request) ? TOKEN_GENERATED_TYPE_PATHS.includes(path) : Object.values(TOKEN_CONTRACT_PATHS).includes(path);
+      return TOKEN_GENERATED_TYPE_PATHS.includes(path);
     case "authored-path":
     case "authored-text":
       return false;
