@@ -319,7 +319,7 @@ function pct(part: number, whole: number): string {
 
 /** Thousands separators, LOCALE-FREE. Deliberately not `toLocaleString`: this is gate output that gets
  *  pasted into commit messages, issues and calibration comments, so it must read identically on every
- *  machine — and the `no-raw-intl-time` gate (rightly) treats a bare `.toLocale*String()` as the Intl
+ *  machine — and the native `orb/no-raw-intl-time` rule (rightly) treats a bare `.toLocale*String()` as the Intl
  *  back door. `Intl.NumberFormat` would satisfy the letter and still make the output host-dependent. */
 const THOUSANDS_RE = /\B(?=(?:\d{3})+(?!\d))/gu;
 

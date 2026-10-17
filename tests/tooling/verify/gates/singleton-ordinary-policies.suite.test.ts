@@ -5,14 +5,14 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as membershipFanGuard } from "../../../../tooling/src/verify/gates/membership-fan-guard.ts";
-import { gate as testFactoryContract } from "../../../../tooling/src/verify/gates/test-factory-contract.ts";
+
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/singleton-ordinary-policies";
 
-const FAMILY: readonly GatePolicy[] = [busOnDataNoStoreWrite, membershipFanGuard, testFactoryContract];
+const FAMILY: readonly GatePolicy[] = [busOnDataNoStoreWrite, membershipFanGuard];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -85,7 +85,6 @@ test("every relative import in every proof resolves inside the proof's own file 
 // its own arm:
 //   bus-on-data-no-store-write      the bare `setState` identifier — the marker grammar forbids parens
 //   membership-fan-guard            each banned identifier OCCURRENCE
-//   test-factory-contract           the FACTORY'S OWN NAME, not the `db` parameter the message names
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
 
@@ -103,17 +102,6 @@ test("bus-on-data-no-store-write: a waiver naming the bare setState identifier b
 test("membership-fan-guard: a waiver naming the banned identifier binds to its single occurrence", () => {
   const waived = passOf(membershipFanGuard, {
     "packages/server/src/domain/chat/verbs/waived.ts": `// @orb-waive membership-fan-guard(emitUserEvent): ${REASON}\nexport const forward = emitUserEvent;\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
-test("test-factory-contract: a waiver naming the FACTORY, not its db parameter, binds to its finding", () => {
-  const waived = passOf(testFactoryContract, {
-    "tests/support/node/factories/waived.ts": `// @orb-waive test-factory-contract(makeUser): ${REASON}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
   });
 
   expect(waived.toolErrors).toEqual([]);
@@ -144,12 +132,6 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every p
       membershipFanGuard,
       {
         "packages/server/src/domain/chat/verbs/dead.ts": `// @orb-waive membership-fan-guard(emitChatChanged): ${DEAD}\nexport const forward = emitUserEvent;\n`,
-      },
-    ],
-    [
-      testFactoryContract,
-      {
-        "tests/support/node/factories/dead.ts": `// @orb-waive test-factory-contract(db): ${DEAD}\nexport function makeUser(db: unknown) {\n  return db;\n}\n`,
       },
     ],
   ];

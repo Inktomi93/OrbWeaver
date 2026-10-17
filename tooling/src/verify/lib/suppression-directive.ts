@@ -30,14 +30,10 @@ import { forEachCommentRange } from "./comment-spans.ts";
 const COMMENT_OPEN = String.raw`(?:\/\/|\/\*+|\{\/\*+)`;
 const DIRECTIVE_TOKEN = String.raw`biome-ignore(?:-all|-start|-end)?|eslint-(?:disable(?:-next-line|-line)?|enable)|@ts-expect-error|@ts-ignore|@ts-nocheck`;
 const SUPPRESSION_RE = new RegExp(String.raw`^\s*${COMMENT_OPEN}\s*(${DIRECTIVE_TOKEN})\b`, "u");
-/** The RULE a marker names — the classification key. `biome-ignore[-all|-start|-end] <rule>:`, an
- *  `eslint-disable*` rule id, or the bare TypeScript directive (which names no rule and is its own key). */
-const RULE_RE = new RegExp(
-  String.raw`^\s*${COMMENT_OPEN}\s*(?:biome-ignore(?:-all|-start|-end)?\s+(\S+?):|eslint-(?:disable(?:-next-line|-line)?|enable)\s+([^\s:,*]+)|(@ts-expect-error|@ts-ignore|@ts-nocheck)\b)`,
-  "u",
-);
+/** Biome's named rule or a TypeScript directive that is its own classification key. */
+const RULE_RE = new RegExp(String.raw`^\s*${COMMENT_OPEN}\s*(?:biome-ignore(?:-all|-start|-end)?\s+(\S+?):|(@ts-expect-error|@ts-ignore|@ts-nocheck)\b)`, "u");
 
-/** ONE live suppression marker: where it is, which marker shape it wears, and the RULE it names (null when
+/** ONE named suppression rule at its physical marker: where it is and which marker shape it wears (null when
  *  the marker names none — a bare TypeScript directive, or a spelling this reader cannot parse; either way
  *  an unclassifiable marker falls to DEBT, which is the conservative direction). */
 export interface SuppressionSite {
@@ -49,20 +45,35 @@ export interface SuppressionSite {
   readonly block: boolean;
 }
 
-/** The directive GRAMMAR as one door: a comment's text → its token + the rule it names, or null when the
+/** The directive GRAMMAR as one door: a comment's text → each named rule with its token, or null when the
  *  comment is not a directive at its OPENER (the mention fence above). Shared by the ledger gate, the blanket
  *  gate and the baseline generator, so "what is a directive" has one home for TS trivia, scratch-parsed JS,
  *  and the CSS/JSON comment lexer alike. */
-export function readDirectiveComment(text: string): Pick<SuppressionSite, "token" | "rule"> | null {
+export function readDirectiveComment(text: string): readonly Pick<SuppressionSite, "token" | "rule">[] | null {
   const match = SUPPRESSION_RE.exec(text);
   if (match === null) {
     return null;
   }
+  const token = match[1] ?? match[0];
+  if (token.startsWith("eslint-")) {
+    const body = text.slice(match[0].length);
+    const content = text.trimStart().startsWith("//") ? body : body.replace(/\*\/\s*\}?\s*$/u, "");
+    const list = content.split(/\s-{2,}\s/u, 1)[0] ?? "";
+    const rules = [
+      ...new Set(
+        list
+          .split(",")
+          .map((rule) => rule.trim().replace(/^(["'])(.*)\1$/su, "$2"))
+          .filter((rule) => rule.length > 0),
+      ),
+    ];
+    return (rules.length === 0 ? [null] : rules).map((rule) => ({ token, rule }));
+  }
   const ruleMatch = RULE_RE.exec(text);
-  return { token: match[1] ?? match[0], rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? ruleMatch?.[3] ?? null };
+  return [{ token, rule: ruleMatch?.[1] ?? ruleMatch?.[2] ?? null }];
 }
 
-/** Every suppression-marker comment in one source file, in source order (line, matched token).
+/** Every suppression rule in one source file, in source order (line, matched token).
  *  Three carriers, each de-duplicated by source position so one physical comment counts once:
  *  (1) LEADING comment ranges (the common `// biome-ignore …` / `// eslint-disable …` shape);
  *  (2) TRAILING comment ranges (a suppression trailing the statement it guards, e.g. a same-block
@@ -73,11 +84,10 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
   const sites: SuppressionSite[] = [];
   const seenLines = new Set<number>(); // dedupe by LINE: the same physical comment surfaces through more
   // than one carrier (e.g. a JSX comment-only expression is BOTH its own node text and a token's trailing
-  // range at an adjacent position) — a suppression marker is one-per-line in practice, so line identity is
-  // the robust dedupe key (position identity drifts across carriers for the exact same comment).
+  // range at an adjacent position). Expand native comma lists only after deduplicating their carrier.
   const record = (pos: number, text: string): void => {
-    const directive = readDirectiveComment(text);
-    if (directive === null) {
+    const directives = readDirectiveComment(text);
+    if (directives === null) {
       return;
     }
     const line = sf.getLineAndColumnAtPos(pos).line;
@@ -85,7 +95,9 @@ export function suppressionSites(sf: SourceFile): SuppressionSite[] {
       return;
     }
     seenLines.add(line);
-    sites.push({ line, token: directive.token, rule: directive.rule, block: !text.startsWith("//") });
+    for (const directive of directives) {
+      sites.push({ line, token: directive.token, rule: directive.rule, block: !text.startsWith("//") });
+    }
   };
   // A TOKEN-level walk (never `forEachDescendant`): a same-block trailing suppression — an `else if`
   // arm's last statement — attaches its comment range to a token (a CloseBraceToken), and a node-only

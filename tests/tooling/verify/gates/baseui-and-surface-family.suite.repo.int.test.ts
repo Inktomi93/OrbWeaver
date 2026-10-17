@@ -6,7 +6,7 @@ import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as portalContainerSeam } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
+
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
@@ -15,7 +15,7 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
-const POLICIES = [portalContainerSeam, surfaceA11yFocus, surfaceInAContainer] as const;
+const POLICIES = [surfaceA11yFocus, surfaceInAContainer] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
@@ -60,18 +60,7 @@ interface IdentityCase {
   readonly extra?: Readonly<Record<string, string>>;
 }
 
-const DIALOG_PATH = "packages/ui/src/primitives/dialog/probe-dialog.tsx";
-
 const IDENTITY_CASES: readonly IdentityCase[] = [
-  {
-    policy: portalContainerSeam,
-    path: DIALOG_PATH,
-    position: "BaseDialog.Portal",
-    deadPosition: "BaseDialog.Popup",
-    body: (marker) =>
-      `import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  className?: string;\n}\n${marker}export const P = (_props: DialogPopupProps) => <BaseDialog.Portal />;\n`,
-  },
-
   {
     policy: surfaceA11yFocus,
     path: "packages/client/src/features/x/surfaces/pane.tsx",

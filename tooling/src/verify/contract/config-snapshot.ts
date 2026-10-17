@@ -70,3 +70,12 @@ export interface ConfigSnapshotTransaction {
 export type ConfigSnapshotRead<R extends ConfigSnapshotRunner> =
   | { readonly kind: "ok"; readonly snapshot: ConfigSnapshotByRunner[R] }
   | { readonly kind: "unreadable"; readonly detail: string };
+
+export interface EslintNativeMetadataFamily {
+  readonly inputs?: readonly string[];
+  readonly hard: boolean;
+  readonly requiresTypeInformation?: boolean;
+  readonly patterns: readonly string[];
+  readonly rules: readonly string[];
+  readonly label: string;
+}

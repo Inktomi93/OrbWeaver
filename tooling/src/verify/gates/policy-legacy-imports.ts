@@ -8,8 +8,7 @@
 //     SHIM (#2201; §12.5: *"gate modules receive neither
 //     grant tables nor marker parsers"*; §3's non-negotiables: no gate-owned exemption table; §12.8: zero
 //     `ExemptionRow` tables, no private runtime). NOTHING held any of it for a final module until this policy:
-//     `gate-modernization` ARM B judges only whether an exemption table carries a STALE arm (the legacy law), and
-//     the loader validates the descriptor OBJECT, which cannot see an import. Measured 2026-09-12 across the 246
+//     The loader validates the descriptor object, which cannot see an import. The original census over
 //     final modules: NINE import `contract/gate.ts` (`ExemptionTable` ×8, `ExemptionRow` ×2, `Finding` ×2), every
 //     one a legacy exemption artifact carried across its conversion — the #1922 authority migration's exact work
 //     list (row #2147); THREE more import the central marker engine for a coordinate helper (#2155). All twelve are
@@ -21,8 +20,7 @@
 //     because a cp-probe proved the rows are SCAN-SCOPE rather than exemptions (both tables emptied → all four
 //     consumers still ZERO findings, so nothing was being forgiven and a reviewed grant could not be consumed even
 //     once). They now carry `contract/tier-home.ts#TierImplementationHomes`, which is the classification
-//     `gate-modernization` ARM B's own `fix` prescribes — *"if the collection is a scan-SCOPE decision rather than an
-//     exemption, rename it out of the exemption vocabulary"* — and NOT the relocation ARM D's `fix` refuses.
+//     distinction between implementation scope and excused findings.
 //   B ANOTHER GATE MODULE (§12.3, owner ruling #2096, 2026-09-12: *"a gate module never imports another gate
 //     module; shared predicates move to `lib/<family>.ts`"*). A `-health` sibling reading its twin's exports was
 //     two homes for one reader wearing a family's clothes. The predicate is NOT the directory: `gates/_proof/**`
@@ -114,7 +112,7 @@
 // widening of that list, and #2186 is that edit landing: `ops/**` joined as a PREFIX member with its own verdict
 // kind and its own rows (see `FORBIDDEN_IMPORT_PREFIXES`), still measured at zero consumers when it landed
 // (1522 import declarations across 303 gate modules, none naming `ops/`). And a top-level `gates/*.ts` module that registers NOTHING is
-// `gate-modernization` ARM A's finding (UNREGISTERED), not this policy's: importing it is not importing a gate.
+// rejected by loader admission, not this import policy: importing it is not importing a gate.
 //
 // BLINDNESS: this module sits inside its own population, so when it is delivered and does not read as final the
 // import-origin recognizer is dead and the run THROWS rather than reporting ✓ over the corpus forever (the
@@ -1363,7 +1361,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(IMPORTING("./pass.ts", "Local"), TARGET("tooling/src/verify/gates/pass.ts", "Local")),
-      why: "IDENTITY, NOT SPELLING, both arms at once: a sibling module named `pass.ts` under `gates/` shares a forbidden basename and resolves to an unrelated path (ARM A acquits it by suffix), and it registers no gate (ARM B acquits it by registration — an unregistered top-level module is `gate-modernization` ARM A's finding, not an import defect)",
+      why: "IDENTITY, NOT SPELLING, both arms at once: a sibling module named `pass.ts` under `gates/` shares a forbidden basename and resolves to an unrelated path (ARM A acquits it by suffix), and it registers no gate (ARM B acquits it by registration — an unregistered top-level module is a loader admission failure, not an import defect)",
     },
     {
       mode: "types",
@@ -1406,7 +1404,7 @@ export const gate = defineGate({
         'function defineGate(policy: unknown): unknown {\n  return policy;\n}\nimport type { ExemptionTable } from "../contract/gate.ts";\nexport const gate = defineGate({ id: "probe", allow: {} as ExemptionTable });\n',
         TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable"),
       ),
-      why: "IDENTITY of the REGISTRATION too: a same-named LOCAL `defineGate` registers nothing, so its imports are out of scope — `gate-modernization` ARM A names the lookalike",
+      why: "IDENTITY of the REGISTRATION too: a same-named LOCAL `defineGate` registers nothing, so its imports are out of scope — the loader rejects the unbranded result",
     },
     {
       mode: "types",

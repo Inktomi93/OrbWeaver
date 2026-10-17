@@ -148,7 +148,7 @@ export interface AutomationPluginComposeDeps {
      *  `character.ingest` doc). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
-    // @orb-waive brand-in-name-position(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    // eslint-disable-next-line orb/brand-in-name-position -- the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     readonly characterId: string;
     readonly created: boolean;
   }>;
@@ -158,12 +158,12 @@ export interface AutomationPluginComposeDeps {
    *  embedded avatar. */
   readonly ingestCharacterAsset: (req: {
     readonly installerUserId: UserId;
-    // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read at the root, cast there — branding here would claim a validation this boundary has not performed.
+    // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the CAS read at the root, cast there — branding here would claim a validation this boundary has not performed.
     readonly assetId: string;
     /** See `ingestCharacterCard`'s `pluginId` (#1702 provenance). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
-    // @orb-waive brand-in-name-position(characterId): the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+    // eslint-disable-next-line orb/brand-in-name-position -- the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
     readonly characterId: string;
     readonly created: boolean;
   }>;

@@ -78,14 +78,7 @@ test("moduleMemberReference keys on the IMPORTED name, so aliasing the local bin
   expect(specifiers.map((n) => moduleMemberReference(n, isDb)?.name)).toEqual(["chatDigests"]);
 });
 
-// ── #2459: the FILE-level and REFERENCE-level doors, both minted from a measured blind spot ──────────
-//
-// `tests/tooling/gate-spelling-twins.int.test.ts` reported `gate-modernization` and
-// `real-corpus-liveness-manifest` NEWLY BLIND to the namespace twin of their own mustFlag fixtures. Both
-// recognised a gate module by `declaration.getNamedImports().some((ni) => ni.getName() === "defineGate")`
-// and a gate CALL by `Node.isIdentifier(callee) && callee.getText() === "defineGate"` — so
-// `import * as p from "../contract/policy.ts"; p.defineGate({…})` read as "not a gate module" and every
-// verdict under it disappeared. These two readers are that question with the spelling removed.
+// Canonical registration remains identical through named, namespace and computed import spellings.
 const IS_POLICY = (specifier: string): boolean => specifier.includes("contract/policy");
 
 test("importsModuleExport sees a named import AND a namespace import of the same module", () => {

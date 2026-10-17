@@ -9,6 +9,7 @@ import type { AnyDataTag, InferDataFromTag, QueryClient, QueryKey } from "@tanst
 export function peekQueryData<TKey extends QueryKey & AnyDataTag>(queryClient: QueryClient, queryKey: TKey): InferDataFromTag<never, TKey> | undefined;
 export function peekQueryData<T>(queryClient: QueryClient, queryKey: QueryKey): T | undefined;
 export function peekQueryData<T>(queryClient: QueryClient, queryKey: QueryKey): T | undefined {
+  // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- This non-subscribing read is the shared cache-peek door; remove when peeks use an observer instead.
   return queryClient.getQueryData<T>(queryKey);
 }
 

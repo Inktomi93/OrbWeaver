@@ -1,18 +1,12 @@
 // The shared subject reader for the `detached-work-traced` family: the DERIVED root-span vocabulary, and
 // the per-node verdicts for fire-and-forget work whose failure is invisible.
 //
-// TWO INDEPENDENT CONSUMERS, which is what makes this a shared reader rather than one policy's private
-// machinery wearing a `lib/` address (docs/law/gate-runtime-standardization.md §7 item 7): `gates/detached-work-traced.ts`
-// (the ordinary occurrence policy, A1+A2) and `gates/detached-work-traced-health.ts` (the hard blindness
-// tripwire, A4) both derive the opener vocabulary, and the split exists because the two arms differ in
-// AUTHORITY — §12.1 allows exactly one authority per descriptor.
-//
 // WHY THE DERIVATION, NOT THE NAME. A boundary is an EXPORTED function of the tracing module that calls
 // OTel's `startActiveSpan` with `root: true`, directly or through another derived boundary. `root: true` is
 // the load-bearing bit — the per-requestId ring seals a bucket only when a PARENTLESS span lands, because a
 // parented span dispatched from inside the request it outlives is dropped as a late orphan — so the family
 // keys on the MECHANISM. Renaming `withRequestSpan` keeps it honest; deleting the detach makes the
-// derivation empty and the health tripwire REDS.
+// derivation empty and the occurrence owner refuses before judging work.
 //
 // THE VERDICTS ARE PER-NODE, DELIVERED BY THE DISPATCHER, exactly as `lib/caught-failure.ts` hands
 // `catchClauseSite`/`promiseAbsorberSite` a node: nothing here walks the repository on a policy's behalf.

@@ -10,19 +10,16 @@
 // add path and name is this arm's own, because the add arms share one overlaid pass.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as baseuiPortalContainerSeam } from "../../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
+
 import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
-import { gate as clientCacheSurgeryOnlyInData } from "../../../../../tooling/src/verify/gates/client-cache-surgery-only-in-data.ts";
+
 import { gate as clientStructure } from "../../../../../tooling/src/verify/gates/client-structure.ts";
 import { gate as emptyStateHasAction } from "../../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
-import { gate as listRowAdoption } from "../../../../../tooling/src/verify/gates/list-row-adoption.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
-import { gate as noInteractiveRoleInFeatures } from "../../../../../tooling/src/verify/gates/no-interactive-role-in-features.ts";
-import { gate as noManualAutosaveFlush } from "../../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
-import { gate as noMultiplexedMutationError } from "../../../../../tooling/src/verify/gates/no-multiplexed-mutation-error.ts";
+
 import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as stateFiles } from "../../../../../tooling/src/verify/gates/state-files.ts";
@@ -49,17 +46,6 @@ function neutralise(path: string, source: string): RealCorpusOverlay {
 
 export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
   {
-    policy: baseuiPortalContainerSeam,
-    overlays: [
-      add(
-        `${UI}/dialog/liveness-portal.tsx`,
-        'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface LivenessPopupProps {\n  className?: string;\n}\nexport const LivenessPortal = (_props: LivenessPopupProps) => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
-      ),
-    ],
-    messageIncludes: "accepts no `container` prop at all",
-  },
-
-  {
     policy: boundFieldViaHook,
     overlays: [
       add(
@@ -76,16 +62,7 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: "raw store write",
   },
-  {
-    policy: clientCacheSurgeryOnlyInData,
-    overlays: [
-      add(
-        `${CHAT}/surfaces/liveness-cache-surface.tsx`,
-        'import { useQueryClient } from "@tanstack/react-query";\nexport function LivenessCacheSurface(): void {\n  void useQueryClient().invalidateQueries();\n}\n',
-      ),
-    ],
-    messageIncludes: "outside the client `data/` seam",
-  },
+
   {
     policy: clientStructure,
     // The feature-slice layout is read as a resource tree: a stray module at a built feature's root.
@@ -113,16 +90,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "controlled form inputs",
   },
   {
-    policy: listRowAdoption,
-    overlays: [
-      add(
-        `${CHAT}/surfaces/liveness-library-surface.tsx`,
-        'import { LibrarySurfaceShell } from "#components";\nexport const LivenessLibrarySurface = () => (\n  <LibrarySurfaceShell>\n    {items.map((item) => <div key={item.id} onClick={() => select(item)}>{item.name}</div>)}\n  </LibrarySurfaceShell>\n);\n',
-      ),
-    ],
-    messageIncludes: "outside ListRow/LibraryRow",
-  },
-  {
     policy: noEffectOnSharedSelection,
     overlays: [
       add(
@@ -139,33 +106,7 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: "reset type-strip",
   },
-  {
-    policy: noInteractiveRoleInFeatures,
-    overlays: [
-      add(`${CHAT}/components/liveness-role.tsx`, 'import { Row } from "@orb/ui/layout";\nexport const LivenessRole = <Row role="button" tabIndex={0} />;\n'),
-    ],
-    messageIncludes: "hand-rolled interactive ARIA role",
-  },
-  {
-    policy: noManualAutosaveFlush,
-    overlays: [
-      add(
-        `${CHAT}/lib/liveness-flush.ts`,
-        'import type { FormApi } from "@tanstack/form-core";\nexport function livenessAdd(form: FormApi): void {\n  form.pushFieldValue("items", 1);\n  void form.handleSubmit();\n}\n',
-      ),
-    ],
-    messageIncludes: "pushFieldValue",
-  },
-  {
-    policy: noMultiplexedMutationError,
-    overlays: [
-      add(
-        `${CHAT}/components/liveness-errors.tsx`,
-        'import type { EntityMutationResult } from "#data";\nexport const livenessError = (a: EntityMutationResult<unknown, unknown>, b: EntityMutationResult<unknown, unknown>): unknown => a.error ?? b.error;\n',
-      ),
-    ],
-    messageIncludes: "multiplexed mutation errors",
-  },
+
   {
     policy: registryAssemblyAtDoorOnly,
     overlays: [

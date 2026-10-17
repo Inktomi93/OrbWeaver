@@ -30,7 +30,6 @@ import {
   POLICY_CONTRACT_STUB,
 } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
 import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
-import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
@@ -45,7 +44,6 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [
   policyBindingResolution,
-  policyFamilyReaders,
   policyFixtureSubstrate,
   policyLegacyImports,
   policyProofExpectations,
@@ -831,44 +829,6 @@ test("policy-refusal-coverage rejects a same-spelled field on an unrelated objec
       resources: "INPUTS",
     }),
   ).toEqual([{ token: "resources", unreadable: true }]));
-// THE CLOSED DOOR for `policy-family-readers` (#0038), the same shape and for the same reason as
-// `policy-refusal-coverage`'s above: the policy is `hard`, so a marker at the exact REPORTED position must
-// suppress nothing and alarm. Three members so exactly ONE is isolated — in a PAIR both members are accused
-// (sharing is symmetric), and the marker in one file could not account for the other's finding.
-const FAMILY_READERS_PROBE = (marker: string): Readonly<Record<string, string>> => ({
-  [POLICY_CONTRACT_PATH]: POLICY_CONTRACT_STUB,
-  "tooling/src/verify/lib/shared-probe.ts": "export function readShared(value: unknown): unknown {\n  return value;\n}\n",
-  "tooling/src/verify/gates/probe.ts": finalProbeModule(
-    `${ORDINARY_TRUNK}\n  fix: "f",\n  mustPass: [{ mode: "source", files: { "packages/client/src/b.ts": "y" }, why: "w" }],`,
-  ).replace('family: "probe",', `${marker}\n  family: "trio",`),
-  "tooling/src/verify/gates/trio-a.ts":
-    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-a", family: "trio", create: () => ({ evaluate: () => readShared(1) }) });\n',
-  "tooling/src/verify/gates/trio-b.ts":
-    'import { readShared } from "../lib/shared-probe.ts";\nimport { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "trio-b", family: "trio", create: () => ({ evaluate: () => readShared(1) }) });\n',
-});
-
-test("policy-family-readers is hard: a marker at the REPORTED position suppresses nothing", () => {
-  const drive = (marker: string): ReturnType<typeof runPolicyPass> =>
-    runPolicyPass({
-      knownPolicies: FAMILY,
-      policies: [policyFamilyReaders],
-      root: ROOT,
-      project: projectOf(FAMILY_READERS_PROBE(marker)),
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-
-  expect({ authority: policyFamilyReaders.authority, severity: policyFamilyReaders.severity }).toEqual({ authority: "hard", severity: "error" });
-  const unmarked = drive("");
-  const marked = drive("// @orb-waive policy-family-readers(family): the planted probe defers its shared reader; ends when the reader lands in lib/.");
-  expect(unmarked.authority.effectiveFindings).toHaveLength(1);
-  expect(marked.authority.effectiveFindings).toEqual(unmarked.authority.effectiveFindings);
-  expect(marked.authority.waivedFindings).toEqual([]);
-  expect(marked.authority.authorityAlarms).toMatchObject([
-    { kind: "ordinary-waiver", policyId: policyFamilyReaders.id, message: expect.stringContaining("targets non-ordinary policy") },
-  ]);
-});
-
 test("policy-waiver-identity REFUSES a corpus in which it recognises no final module (the zero-count receipt)", () => {
   const legacyOnly = passOf(policyWaiverIdentity, {
     "tooling/src/verify/gates/legacy.ts": 'export const gate = { name: "legacy", docRow: "x", message: "m", mustFlag: [1], mustPass: [1] };\n',
@@ -936,63 +896,6 @@ async function assertLiveBindingResolution(project: Project, repoRoot: string, p
     drive([]);
   } finally {
     subject.replaceWithText(original);
-  }
-}
-
-/** Exercise the production root boundary on the live project's real contract and module resolver.
- *  These sources exist only in the ts-morph project and are removed in finally; no checkout file is written.
- *  The two expected finding paths are authored controls, not a second graph or a current-policy roster. */
-async function assertLiveFamilyConsumption(project: Project, repoRoot: string, shapeCount: number): Promise<void> {
-  const { gates: knownPolicies } = await loadGateCorpus(repoRoot);
-  const stem = "q08-family-consumption-control";
-  const first = `${GATES_DIR}${stem}-a.ts`;
-  const second = `${GATES_DIR}${stem}-b.ts`;
-  const helper = `tooling/src/verify/lib/${stem}.ts`;
-  const moduleSource = (id: string, production: boolean): string =>
-    `import { defineGate } from "../contract/policy.ts";\nimport { readShared } from "../lib/${stem}.ts";\n` +
-    `const proof = readShared(1);\nexport const gate = defineGate({ id: "${id}", family: "${stem}", mustFlag: [proof], create: () => ({ evaluate: () => ${production ? "readShared(1)" : "1"} }) });\n`;
-  const planted: SourceFile[] = [];
-  const drive = (expected: readonly string[]): void => {
-    const result = runPolicyPass({
-      knownPolicies,
-      policies: [policyFamilyReaders],
-      root: repoRoot,
-      project,
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.toolErrors).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([]);
-    const owner = result.policies.find(({ id }) => id === policyFamilyReaders.id);
-    expect(owner?.owner).toEqual({ status: "success", population: "complete" });
-    expect(owner?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount + 2, unresolved: 0 }]);
-    expect(
-      result.authority.effectiveFindings
-        .filter(({ file }) => file === first || file === second)
-        .map(({ file }) => file)
-        .toSorted(),
-    ).toEqual(expected);
-  };
-  try {
-    for (const [path, source] of Object.entries({
-      [helper]: "export function readShared(value: number): number { return value; }\n",
-      [first]: moduleSource(`${stem}-a`, true),
-      [second]: moduleSource(`${stem}-b`, false),
-    })) {
-      const absolute = `${repoRoot}/${path}`;
-      expect(project.getSourceFile(absolute)).toBeUndefined();
-      planted.push(project.createSourceFile(absolute, source));
-    }
-    drive([first, second]);
-    project.getSourceFileOrThrow(`${repoRoot}/${second}`).replaceWithText(moduleSource(`${stem}-b`, true));
-    drive([]);
-  } finally {
-    for (const source of planted) {
-      project.removeSourceFile(source);
-    }
   }
 }
 
@@ -1135,12 +1038,7 @@ test(
     //
     // OPEN = a class with live findings and a SECOND OPINION above (never a hardcoded count, #1969).
     // CLOSED = the tree itself is the proof the class is at zero.
-    const openWithOpinion: ReadonlySet<string> = new Set([
-      policyLegacyImports.id,
-      policyBindingResolution.id,
-      policyRefusalCoverage.id,
-      policyFamilyReaders.id,
-    ]);
+    const openWithOpinion: ReadonlySet<string> = new Set([policyLegacyImports.id, policyBindingResolution.id, policyRefusalCoverage.id]);
     const closedAtZero: ReadonlySet<string> = new Set([policySoundness.id, policyFixtureSubstrate.id, policyProofExpectations.id, policyWaiverIdentity.id]);
     expect(FAMILY.map(({ id }) => id).filter((id) => !(openWithOpinion.has(id) || closedAtZero.has(id)))).toEqual([]);
     for (const id of closedAtZero) {
@@ -1193,13 +1091,6 @@ test(
     expect(refusalOpinion.filter((path) => pinnedUnambiguously.has(idOf(path)) && refusalAccused.has(path))).toEqual([]);
     expect(refusalOpinion.length).toBeGreaterThan(0);
     expect(pinnedUnambiguously.size).toBeGreaterThan(0);
-
-    // Import-only equality stopped being an oracle when production consumption became the contract.
-    // The live corpus moved from eleven to twelve findings because the autosave health member uses its
-    // shared subject only in proofs. Those counts are a measured delta, never a maintained expectation.
-    // Paired controls below exercise the actual live project and keep their expected verdict independent
-    // of the dependency reader: a proof-only common import flags, then a production call acquits.
-    await assertLiveFamilyConsumption(project, repoRoot, shapeCount);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
     // (a foreign module landing an unwrapped read, as `bd0a01d6b4` did for E4) still lets every receipt above print.

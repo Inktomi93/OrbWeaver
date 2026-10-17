@@ -1,5 +1,5 @@
 // The verifier's actual entrypoints must consume sealed native observations, never the syntax carrier's checker.
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -8,7 +8,7 @@ import { Node } from "ts-morph";
 import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as portal } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
+
 import { gate as inference } from "../../../../tooling/src/verify/gates/domain-inference-dispatch.ts";
 import { gate as routes } from "../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as sections } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
@@ -19,12 +19,12 @@ import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const COHORT = [routes, portal, sections, inference] as const;
+const COHORT = [routes, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
 const COMPANIONS = new Map<GatePolicy, string>([[sections, "section-registry-completeness"]]);
 
 test(
-  "the four native consumers preserve their complete declared rejection and acceptance controls",
+  "the retained native consumers preserve their complete declared rejection and acceptance controls",
   () => {
     expect(verifyPolicyProofs(COHORT)).toEqual([]);
   },
@@ -73,10 +73,6 @@ function fixture(root: string, repoRoot: string, policy: GatePolicy): readonly s
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
     );
-  }
-  if (policy === portal) {
-    const manifest = "tooling/src/verify/gates/baseui-surface.manifest.json";
-    write(manifest, readFileSync(join(repoRoot, manifest), "utf8"));
   }
   execFixtureGit(root, ["init", "-q"]);
   return files;

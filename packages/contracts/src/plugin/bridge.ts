@@ -95,8 +95,14 @@ export interface PluginBridge {
   readonly imagery: {
     /** SPEND-classed generation (`imagery.generatePicture`); returns the primary image's asset id. The
      *  domain builder closes over the installer for connection + spend attribution. */
-    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly generatePicture: (chatId: ChatId, args: GenerateImageActionArgs, liveness?: PluginInvocationLiveness) => Promise<{ readonly assetId: string }>;
+    readonly generatePicture: (
+      chatId: ChatId,
+      args: GenerateImageActionArgs,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      readonly assetId: string;
+    }>;
   };
   readonly variables: {
     readonly get: (key: string, liveness?: PluginInvocationLiveness) => Promise<string | null>;
@@ -110,8 +116,11 @@ export interface PluginBridge {
    *  oracle), and an owned asset over the read cap returns metadata with `dataBase64: null`. Authority-agnostic
    *  like every bridge op — infra holds no principal or CAS. */
   readonly assets: {
-    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-    readonly read: (assetId: string, liveness?: PluginInvocationLiveness) => Promise<PluginAssetView | null>;
+    readonly read: (
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+      assetId: string,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<PluginAssetView | null>;
     /** Write ALREADY-FETCHED-AND-VALIDATED image bytes into the installer's OWN CAS and return the assetId
      *  (`net.fetchAsset`, capability `net.fetch_asset` — plugin-remote-image #798). Infra PERFORMS the fetch +
      *  the SSRF egress wall + the remote-image guard (all live in `infra/network`, which a domain may not
@@ -119,8 +128,14 @@ export interface PluginBridge {
      *  Content-Type); the domain builder closes the INSTALLER over the store so the asset lands owner-scoped (a
      *  guest names no owner). The bytes cross the infra→domain seam but NEVER the guest realm — the guest
      *  receives an assetId string only. Authority-agnostic like every bridge op — infra holds no principal. */
-    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly storeFetched: (bytes: Uint8Array, mime: string, liveness?: PluginInvocationLiveness) => Promise<{ readonly assetId: string }>;
+    readonly storeFetched: (
+      bytes: Uint8Array,
+      mime: string,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      readonly assetId: string;
+    }>;
   };
   /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query — #788
    *  F1). The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
@@ -259,8 +274,13 @@ export interface PluginBridge {
    *  posture: a library write is the installer's own reach, not room state. Authority-agnostic like every bridge
    *  op — infra holds no principal. */
   readonly databank: {
-    // @orb-waive brand-in-name-position(documentId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly ingest: (doc: { readonly name: string; readonly text: string }, liveness?: PluginInvocationLiveness) => Promise<{ readonly documentId: string }>;
+    readonly ingest: (
+      doc: { readonly name: string; readonly text: string },
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      readonly documentId: string;
+    }>;
   };
   /** Ingest a V2/V3 character card object into the installer's OWN library (`host.character.ingest`, capability
    *  `character.ingest` U8 seam 17). The domain builder closes the installer over the op,
@@ -269,11 +289,14 @@ export interface PluginBridge {
    *  freshly created (a byte-identical re-ingest deduplicates). Same owner-scoped, no-chat, no-host posture as
    *  `databank.ingest`. */
   readonly character: {
-    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     readonly ingest: (
       card: Record<string, unknown>,
       liveness?: PluginInvocationLiveness,
-    ) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+    ) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      readonly characterId: string;
+      readonly created: boolean;
+    }>;
     /** Ingest a character from a PNG ASSET in the installer's OWN CAS (`host.character.ingestAsset`, capability
      *  `character.ingest` — plugin-remote-image #798). The membrane passes ONLY the guest-supplied `assetId`;
      *  the domain builder closes the installer over the op, reads the PNG bytes through the assets domain's
@@ -282,9 +305,15 @@ export interface PluginBridge {
      *  arrives WITH its art. Same owner-scoped, no-chat, no-host posture as `ingest`; rides its SAME grant (the
      *  reach is identical, only the input form differs). Returns the new character id + whether it was freshly
      *  created (a byte-identical re-ingest deduplicates by importHash). */
-    // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly ingestAsset: (assetId: string, liveness?: PluginInvocationLiveness) => Promise<{ readonly characterId: string; readonly created: boolean }>;
+    readonly ingestAsset: (
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+      assetId: string,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      readonly characterId: string;
+      readonly created: boolean;
+    }>;
     /** Store this plugin's per-card state under `data.extensions.plugin_<slug>` on one of the installer's OWN
      *  characters (`host.character.setCardData`, capability `character.card_state` — D148). The membrane passes
      *  ONLY the guest-supplied `characterId` + inert `data`; the domain builder closes over the INSTALLER (the
@@ -295,15 +324,22 @@ export interface PluginBridge {
      *  posture). METADATA, not content: the write does NOT bump `contentHash` or re-index the character (D148
      *  clause d). NO chat scope, NO host authority (the `storage.kv` posture). Authority-agnostic like every
      *  bridge op — infra holds no pluginId, slug, or Principal. */
-    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-    readonly setCardData: (characterId: string, data: Record<string, unknown>, liveness?: PluginInvocationLiveness) => Promise<void>;
+    readonly setCardData: (
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+      characterId: string,
+      data: Record<string, unknown>,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<void>;
     /** Read back this plugin's per-card state (`data.extensions.plugin_<slug>`) from one of the installer's OWN
      *  characters (`host.character.getCardData`, capability `character.card_state`). Same installer-owner-scope +
      *  host-stamped-slug walls as {@link setCardData}: a foreign/absent character rejects leak-free, and the read
      *  targets only this plugin's own key. Returns the stored blob or `null` when none is stored on that owned
      *  character. */
-    // @orb-waive brand-in-name-position(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-    readonly getCardData: (characterId: string, liveness?: PluginInvocationLiveness) => Promise<Record<string, unknown> | null>;
+    readonly getCardData: (
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
+      characterId: string,
+      liveness?: PluginInvocationLiveness,
+    ) => Promise<Record<string, unknown> | null>;
   };
   /** Publish a PRIVATE plugin event (`host.pubsub.emit`, capability `plugin_events`). The
    *  domain builder closes over the INSTALLER + the emitter's own manifest SLUG (both un-forgeable — a guest

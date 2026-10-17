@@ -3,8 +3,11 @@ import type { CharacterId, TagId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 
 test("the actual tRPC client accepts string tag ids and rejects non-string wire values", () => {
-  // @orb-waive brand-in-name-position(tagId): the parameter is DELIBERATELY bare string — this test PROVES the wire accepts string, not TagId; ends when tRPC infers branded input natively
-  const proveUpdateTag = async (client: TrpcClient, tagId: string): Promise<TagId> => {
+  const proveUpdateTag = async (
+    client: TrpcClient,
+    // eslint-disable-next-line orb/brand-in-name-position -- the parameter is DELIBERATELY bare string — this test PROVES the wire accepts string, not TagId; ends when tRPC infers branded input natively
+    tagId: string,
+  ): Promise<TagId> => {
     const tag = await client.tag.updateTag.mutate({ tagId, patch: { name: "name" } });
 
     // @ts-expect-error -- the runtime schema rejects numbers, so the client contract must reject them too.

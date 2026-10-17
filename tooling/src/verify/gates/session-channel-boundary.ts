@@ -3,14 +3,8 @@
 // second channel is a second cross-tab protocol nobody versions (and the seam a server-truth payload would
 // leak through, forking the ONE invalidation router).
 //
-// THE SPLIT (#1950): the legacy descriptor carried two arms of different authority — (A) a
-// construction outside the home, a per-file occurrence an author may waive with a reason, and (B) the
-// blindness tripwire, a whole-tree HARD verdict that the home still constructs the channel. One `execution`
-// and one authority cannot serve both, so arm B is `session-channel-boundary-health` (same family) and this
-// policy is arm A alone: `selected-files`, ordinary, judged per file.
-//
-// FAMILY `session-channel` — the shared reader is `lib/broadcast-channel-origin.ts`
-// (`classifyBroadcastChannelConstruction`), consumed identically by both siblings. IDENTITY, NOT SPELLING:
+// The shared broadcast-channel origin reader owns ambient identity and alias handling.
+// classifyBroadcastChannelConstruction judges identity, not spelling:
 // the legacy check was `getExpression().getText() === "BroadcastChannel"`; the subject is now the AMBIENT
 // GLOBAL resolved through the shared readers behind a name prefilter — a local class of that name is `other`
 // and passes (mustPass[2]), an immutable const alias is the same construction and flags (mustFlag[2]), the
@@ -20,7 +14,7 @@
 //
 // POPULATION PORT: byte-identical — the legacy `scanRoot: p.includes("packages/client/src/")` is `@client`.
 // The sanctioned home is SKIPPED by exact path inside the visitor, never subtracted from the population
-// (§12.4); its liveness is the sibling's whole job. The legacy server-file declared-limit row carries an
+// (§12.4). A renamed home is judged at its new path. The legacy server-file declared-limit row carries an
 // added in-population file because a fixture admitting nothing is a population tool error, not a pass.
 //
 // THE REPORTED POSITION is the CALLEE expression — `BroadcastChannel`, or the alias it was spelled with —
@@ -71,7 +65,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "session-channel-boundary",
-  family: "session-channel",
+  family: "session-channel-boundary",
   authority: "ordinary",
   severity: "error",
   population: "@client",

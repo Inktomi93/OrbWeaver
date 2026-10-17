@@ -17,7 +17,6 @@ import { gate as noDirectReportsWrite } from "../../../../tooling/src/verify/gat
 import { gate as noHandwrittenWireJsonSchema } from "../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
-import { gate as testFixtureImports } from "../../../../tooling/src/verify/gates/test-fixture-imports.ts";
 import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as vectorScopeDerived } from "../../../../tooling/src/verify/gates/vector-scope-derived.ts";
@@ -40,7 +39,6 @@ test(
         noHandwrittenWireJsonSchema,
         noHardcodedSideGenSampling,
         persistenceNoInMemoryState,
-        testFixtureImports,
         testMockDoctrine,
         turnIdentity,
         vectorScopeDerived,

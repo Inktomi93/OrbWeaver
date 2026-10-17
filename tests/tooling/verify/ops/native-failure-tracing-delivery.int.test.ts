@@ -15,7 +15,6 @@ import { gate as census } from "../../../../tooling/src/verify/gates/caught-fail
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import { gate as ownershipHealth } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { gate as traced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
-import { gate as tracedHealth } from "../../../../tooling/src/verify/gates/detached-work-traced-health.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
 import { deriveRootSpanOpeners, TRACING_MODULE, untracedDispatchSite } from "../../../../tooling/src/verify/lib/detached-work.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -116,7 +115,7 @@ test(
   scaledBudget(120_000),
 );
 
-const POLICIES = [ownership, ownershipHealth, census, traced, tracedHealth];
+const POLICIES = [ownership, ownershipHealth, census, traced];
 
 test(
   "native census derivation retains the central waiver's exact site, coordinates and continued reason",
@@ -349,7 +348,7 @@ test(
         { file: DETACHED, token: "background" },
         { file: SERVER, token: "p" },
       ]);
-      for (const id of [ownershipHealth.id, census.id, tracedHealth.id]) {
+      for (const id of [ownershipHealth.id, census.id]) {
         expect.soft(result.policies.find((policy) => policy.id === id)?.findings).toEqual([]);
       }
       expect(deriveCaughtFailureSites(scratch).map(({ siteId, verdict, reason }) => ({ siteId, verdict, reason }))).toEqual([

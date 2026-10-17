@@ -1,19 +1,16 @@
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { AsExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
-import { canonicalIdBrand, ID_BRAND_HOME } from "../../../../tooling/src/floor/code-facts/id-brand.ts";
 import {
   latestInventoryGeneration,
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
-import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as brandPositions } from "../../../../tooling/src/verify/gates/brand-in-name-position.ts";
 import { gate as looseIds } from "../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
 import { gate as fabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -47,7 +44,9 @@ function fixture(
   for (const id of policies) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      policies.length === 1 && id === "no-loose-id-cast"
+        ? `import {gate as actual} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)}; import {defineGate} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href)}; export const gate=defineGate({...actual,family:actual.id});`
+        : `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
     );
   }
   for (const [path, text] of Object.entries({ ...nodeFiles, ...domFiles })) {
@@ -175,7 +174,7 @@ test(
     const domPath = "tests/native/brand.dom.test.ts";
     const source =
       "import type {ChatId} from '@orb/kit/ids'; type Target=ReturnType<typeof setTimeout> extends number?ChatId:string; declare const raw:string; export const value=raw as unknown as Target;";
-    fixture(scratch, repoRoot, { [nodePath]: source }, { domFiles: { [domPath]: source }, policies: ["no-loose-id-cast", "brand-in-name-position"] });
+    fixture(scratch, repoRoot, { [nodePath]: source }, { domFiles: { [domPath]: source }, policies: ["no-loose-id-cast"] });
     const exits: number[] = [];
     for (const path of [nodePath, domPath]) {
       exits.push(await runStructure(scratch, ["--check=no-loose-id-cast", `--file=${path}`]));
@@ -230,48 +229,24 @@ test(
   async ({ scratch, repoRoot }) => {
     const nodePath = "tests/native/cast.test.ts";
     const domPath = "tests/native/brand.dom.test.ts";
-    const namePath = "tests/native/name.test.ts";
     fixture(
       scratch,
       repoRoot,
       {
         [nodePath]: "declare const choice:boolean; const value=choice?setTimeout(()=>{},0):0; export const result=value as number;",
-        [namePath]: "export function accept(chatId:string,unrelatedId:string):void{void chatId;void unrelatedId;}",
       },
       {
         domFiles: { [domPath]: "import type {ChatId} from '@orb/kit/ids'; declare const raw:string; export const value=raw as unknown as ChatId;" },
-        policies: ["no-test-fabrication", "no-loose-id-cast", "brand-in-name-position"],
+        policies: ["no-test-fabrication", "no-loose-id-cast"],
       },
     );
-    const kitPath = join(scratch, ID_BRAND_HOME);
-    mkdirSync(dirname(kitPath), { recursive: true });
-    writeFileSync(kitPath, readFileSync(join(repoRoot, ID_BRAND_HOME), "utf8"));
-    writeFileSync(
-      join(scratch, "packages/kit/tsconfig.json"),
-      JSON.stringify({
-        compilerOptions: { strict: true, target: "ES2022", module: "ESNext", moduleResolution: "Bundler", lib: ["es2022"], types: [], skipLibCheck: true },
-        files: ["src/ids/index.ts"],
-      }),
-    );
-    const kitOwner = createSemanticWorkspace({ root: scratch }).program("packages/kit/tsconfig.json");
-    if (kitOwner === undefined) {
-      throw new Error("missing native kit fixture owner");
-    }
-    const kit = kitOwner.project();
-    const expectedPositions = kit
-      .getSourceFileOrThrow(kitPath)
-      .getTypeAliases()
-      .filter((alias) => {
-        const target = alias.getTypeNodeOrThrow();
-        return canonicalIdBrand(target.getType(), target, kit.getTypeChecker()) !== null;
-      }).length;
     const context = projectCtx(scratch);
     const workers = await import("../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts");
     const worker = vi.spyOn(workers, "runInventoryPartitionWorker");
     const legacy = vi.spyOn(context.project, "getTypeChecker").mockImplementation(() => {
       throw new Error("ported consumers requested the syntax checker");
     });
-    const policies = [fabrication, looseIds, brandPositions];
+    const policies = [fabrication, looseIds];
     const generations: number[] = [];
     const builds: number[] = [];
     try {
@@ -286,11 +261,7 @@ test(
           failOnWarnings: false,
         });
         expect(pass.toolErrors).toEqual([]);
-        expect(pass.policies.map(({ owner }) => owner.status)).toEqual(["success", "success", "success"]);
-        expect(pass.policies.find(({ id }) => id === brandPositions.id)).toMatchObject({
-          findings: [{ token: "chatId" }],
-          receipts: [{ source: "kit-id-brand-positions", members: expectedPositions }],
-        });
+        expect(pass.policies.map(({ owner }) => owner.status)).toEqual(["success", "success"]);
         expect(pass.policies.find(({ id }) => id === looseIds.id)?.findings.map(({ token }) => token)).toEqual(["raw as unknown"]);
         expect(
           pass.policies
@@ -305,7 +276,6 @@ test(
             .map(({ program, families }) => ({ program, families }))
             .toSorted((a, b) => a.program.localeCompare(b.program)),
         ).toEqual([
-          { program: "packages/kit/tsconfig.json", families: ["cast-relations", "id-brands"] },
           { program: "tsconfig.json", families: ["cast-relations", "id-brands"] },
           { program: "tsconfig.tests-dom.json", families: ["cast-relations", "id-brands"] },
         ]);
@@ -316,7 +286,7 @@ test(
       expect(legacy).not.toHaveBeenCalled();
       expect(generations).toHaveLength(2);
       expect(new Set(generations).size).toBe(1);
-      expect(builds).toEqual([3, 0]);
+      expect(builds).toEqual([2, 0]);
     } finally {
       worker.mockRestore();
       legacy.mockRestore();

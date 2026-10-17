@@ -167,6 +167,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         return;
       }
       if (typeof echo === "function") {
+        // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- The mutation seam applies committed-response echoes and owned optimistic writes; remove when those updates no longer write query data.
         client.setQueryData<TData>(echo(trpc, vars), data);
         return;
       }
@@ -175,6 +176,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       }
       const readKey = echo.readKey(trpc, vars);
       // A pre-write read can still deliver old bytes after the committed response has arrived.
+      // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- The mutation seam cancels reads before they can overwrite response echoes or optimistic writes; remove when it stops updating cached responses.
       await client.cancelQueries({ queryKey: readKey, exact: true });
       if (!echo.allowed(vars)) {
         return;
@@ -192,6 +194,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         const readKey = config.optimistic.readKey(trpc, vars);
         // Cancel in-flight refetches so they can't clobber the optimistic write.
         await context.client.cancelQueries({ queryKey: readKey });
+        // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- Rollback snapshots are read at the mutation seam; remove when rollback no longer restores cached data.
         const snapshot = context.client.getQueryData<TRead>(readKey);
         context.client.setQueryData<TRead>(readKey, (old) => (config.optimistic === undefined ? old : config.optimistic.update(old, vars)));
         // Claim only after the updater succeeds: an updater rejection has no write to own and must not
@@ -214,6 +217,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
           // Cold cache (no snapshot): the optimistic write created the entry, and v5 treats
           // setQueryData(key, undefined) as a no-op — remove it instead of leaving a phantom row.
           if (onMutateResult.snapshot === undefined) {
+            // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- A failed optimistic write with no prior snapshot must remove the entry it created; remove when cold-cache rollback no longer creates query entries.
             context.client.removeQueries({ queryKey: onMutateResult.readKey });
           } else {
             context.client.setQueryData<TRead>(onMutateResult.readKey, onMutateResult.snapshot);

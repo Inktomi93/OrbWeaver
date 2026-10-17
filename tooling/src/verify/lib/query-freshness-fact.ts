@@ -239,6 +239,9 @@ export const queryFreshnessFact = defineFact({
           const hasFactory = own.some((node) => (Node.isFunctionDeclaration(node) || Node.isVariableDeclaration(node)) && node.getName() === SEAM_FACTORY);
           return hasFactory && anchorSources.has(source);
         });
+        if (anchor !== undefined && seam === undefined) {
+          throw new Error("the Invalidation anchor is present but createInvalidation is absent, so the freshness coverage side would be vacuous");
+        }
         const keys = new Set<string>();
         const roots = new Set<string>();
         if (seam !== undefined) {

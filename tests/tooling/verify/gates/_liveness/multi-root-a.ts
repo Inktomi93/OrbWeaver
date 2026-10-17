@@ -17,11 +17,10 @@ import { gate as appearanceCarrierContract } from "../../../../../tooling/src/ve
 import { gate as appearanceCarrierHealth } from "../../../../../tooling/src/verify/gates/appearance-carrier-health.ts";
 import { gate as assetsSingleWriter } from "../../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as boundedListLimit } from "../../../../../tooling/src/verify/gates/bounded-list-limit.ts";
-import { gate as brandInNamePosition } from "../../../../../tooling/src/verify/gates/brand-in-name-position.ts";
+
 import { gate as busBeltTotal } from "../../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as busConsumerBelt } from "../../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as busDefinitionBelts } from "../../../../../tooling/src/verify/gates/bus-definition-belts.ts";
-import { gate as busFactHealth } from "../../../../../tooling/src/verify/gates/bus-fact-health.ts";
 import { gate as busPayloadAllowlistHealth } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as caughtFailureCensusRow } from "../../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
@@ -38,9 +37,7 @@ import { gate as designAuditRuleProof } from "../../../../../tooling/src/verify/
 import { gate as domainFreshnessPlane } from "../../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
 import { gate as injectedOpCallerParam } from "../../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
 import { gate as jsonColumnWriteParity } from "../../../../../tooling/src/verify/gates/json-column-write-parity.ts";
-import { gate as jsonColumnWriteParityHealth } from "../../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
 import { gate as knobWireCoverage } from "../../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
-import { gate as macroResolutionHealth } from "../../../../../tooling/src/verify/gates/macro-resolution-health.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 
 const MANIFEST = "packages/client/src/lib/appearance-carrier-manifest.ts";
@@ -101,11 +98,7 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: "unbounded `limit`",
   },
-  {
-    policy: brandInNamePosition,
-    overlays: [add(`${DOMAIN}/liveness-brand.ts`, "export function livenessBrand(chatId: string): void {\n  void chatId;\n}\n")],
-    messageIncludes: "canonical ChatId",
-  },
+
   {
     policy: busBeltTotal,
     overlays: [
@@ -132,21 +125,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       add(`${CONTRACTS}/liveness-beltless/index.ts`, 'export type LivenessBeltlessBusEvent = { type: "livenessFired" } | { type: "livenessChanged" };\n'),
     ],
     messageIncludes: "NO `*_EVENT_TYPES` belt",
-  },
-  {
-    policy: busFactHealth,
-    // A real belted union gains a member the fact cannot resolve. Planted as an edit, so the arm runs alone:
-    // an incomplete bus fact withholds every bus consumer that would share its pass. The finding anchors on
-    // the first population file, whichever that is.
-    overlays: [
-      edit(
-        `${CONTRACTS}/rpg/bus.ts`,
-        '  | { type: "turnToolCallsRecorded"; chatId: ChatId };\n',
-        '  | { type: "turnToolCallsRecorded"; chatId: ChatId }\n  | LivenessUnknowableMember;\n',
-      ),
-    ],
-    reportsAt: [`${CONTRACTS}/assets/index.ts`],
-    messageIncludes: "RPG_BUS_EVENT_TYPES does not resolve",
   },
   {
     policy: busPayloadAllowlistHealth,
@@ -278,16 +256,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "entity id but NO caller",
   },
   {
-    policy: jsonColumnWriteParityHealth,
-    overlays: [
-      add(
-        `${CONTRACTS}/liveness-config/index.ts`,
-        "export const livenessConfigConfig = defineVersionedConfig({ schema: s, version: 1, lifts: {}, default: d });\n",
-      ),
-    ],
-    messageIncludes: "Unreadable declaration: livenessConfigConfig",
-  },
-  {
     policy: jsonColumnWriteParity,
     // Every report is a whole-record replace the central table licenses; with the preset replace writer gone,
     // its grants go stale.
@@ -302,12 +270,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       edit(`${CONTRACTS}/settings/index.ts`, "export interface EffectiveAppConfig {\n", "export interface EffectiveAppConfig {\n  livenessGhost: number;\n"),
     ],
     messageIncludes: "livenessGhost",
-  },
-  {
-    policy: macroResolutionHealth,
-    // One of the named resolvers loses its declaration.
-    overlays: [neutralise("packages/client/src/lib/message-render.ts")],
-    messageIncludes: "renderMessageForDisplay",
   },
   {
     policy: messageKindPolicyCoverage,

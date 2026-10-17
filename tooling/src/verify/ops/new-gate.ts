@@ -70,7 +70,7 @@ export const gate = defineGate({
   // only the subtracted path admits nothing and comes back a [population] TOOL ERROR, not a finding.
   population: { of: "all", why: "TODO(scaffold): why THIS population, in one sentence" },
   // "syntax" must not reach the type checker — not via ctx.checker(), and not via a ts-morph node's
-  // getType/getSymbol/getContextualType either (gate-modernization arm E reads the DECLARATION).
+  // getType/getSymbol/getContextualType either.
   analysis: "syntax",
   execution: "selected-files",
   // Facts and resources are DECLARED, never taken: \`facts: []\` explicit, and every resource read owes a
