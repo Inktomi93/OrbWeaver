@@ -205,8 +205,13 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     imagery: {
       // Forward to the front door and hand the guest ONLY `{assetId}` (cost never crosses the realm boundary;
       // cost VISIBILITY rides the stats domain off the imagery write itself).
-      // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      generatePicture: (chatId, args): Promise<{ readonly assetId: string }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
+      generatePicture: (
+        chatId,
+        args,
+      ): Promise<{
+        // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+        readonly assetId: string;
+      }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
     },
     variables: {
       get: (key) => ops.variables.get(installerUserId, key),

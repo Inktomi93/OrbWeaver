@@ -1,10 +1,13 @@
-// Synchronous client for the private native-config snapshot worker. Gates remain synchronous; executable
-// runner config is evaluated only in the narrow niced child, and the parent accepts no malformed/partial JSON.
+// Native config observation: synchronous gates use the existing private snapshot worker; async ESLint
+// admission reads its actual effective ConfigArray and native-owner requirements. Neither route creates
+// compiler Programs, accepts malformed discovery data, or changes the snapshot-worker wire protocol.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { budget } from "@orb/tooling/floor/host/load-budget";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { execNicedSync, runNicedSync } from "@orb/tooling/floor/process/proc";
 import type {
   ConfigSelectorSnapshot,
   ConfigSnapshot,
@@ -14,10 +17,13 @@ import type {
   DepcruiseConfigSnapshot,
   DepcruiseConfigSnapshotField,
   DepcruiseSelectorSnapshot,
+  EslintFileAdmission,
+  EslintNativeMetadataFamily,
   VitestConfigSnapshot,
   VitestConfigSnapshotField,
 } from "../contract/config-snapshot.ts";
 import { DEPCRUISE_CONFIG_SNAPSHOT_FIELDS, VITEST_CONFIG_SNAPSHOT_FIELDS } from "../contract/config-snapshot.ts";
+import { readEslintFileAdmissions } from "../ops/config-snapshot.ts";
 import { materializeConfigSnapshotTransaction } from "../ops/config-snapshot-transaction.ts";
 
 const SNAPSHOT_ENTRY = fileURLToPath(new URL("../ops/config-snapshot-entry.ts", import.meta.url));
@@ -150,4 +156,127 @@ export function readConfigSnapshot(
   }
   const snapshot = parseSnapshot(child.stdout.trim(), runner, config);
   return snapshot === undefined ? { kind: "unreadable", detail: "config-snapshot emitted malformed or empty JSON" } : { kind: "ok", snapshot };
+}
+
+/** The discovery wire reader (#2212). `count` and `files` are serialized from the same producer-owned
+ *  enumeration, so equality proves envelope consistency rather than independent completion. Malformed JSON
+ *  and inconsistent envelopes both refuse with this discovery site named; neither is evidence of ENOBUFS. */
+export function parsedDiscovery(text: string): readonly string[] {
+  let value: unknown;
+  try {
+    value = JSON.parse(text) as unknown;
+  } catch (error) {
+    throw new Error("ESLint discovery child emitted malformed serialized population data; no lint verdict is available", { cause: error });
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("ESLint discovery child emitted a malformed population envelope (expected { count, files })");
+  }
+  const { count, files } = value as { readonly count?: unknown; readonly files?: unknown };
+  if (!(Array.isArray(files) && files.every((path): path is string => typeof path === "string" && path !== ""))) {
+    throw new Error("ESLint discovery child emitted a malformed filename list");
+  }
+  if (!Number.isSafeInteger(count)) {
+    throw new Error("ESLint discovery child emitted a malformed population envelope (count must be a safe integer)");
+  }
+  if (files.length !== count) {
+    throw new Error(
+      `ESLint discovery envelope is inconsistent: count ${String(count)} does not match ${String(files.length)} filenames; no lint verdict is available`,
+    );
+  }
+  return files;
+}
+
+/** #2211: a discovery population once exceeded node's default capture ceiling, which kills the child with
+ *  ENOBUFS rather than returning clipped stdout. The current fenced repository measured about 446 KiB on
+ *  2026-09-13, so that incident no longer reproduces; 64 MiB remains a named production fuse. */
+const BYTES_PER_KIB = 1024;
+const KIB_PER_MIB = 1024;
+const DISCOVERY_BUFFER_MIB = 64;
+export const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
+
+/** THE DISCOVERY DOOR, and the ceiling is NAMED HERE rather than left to node (#2211/#2212). The child writes
+ *  the whole producer-owned filename population to stdout. Node does not return a clipped value when the
+ *  capture ceiling is exceeded; it kills the child with ENOBUFS. The current fenced payload is below node's
+ *  default, while the explicit 64 MiB ceiling preserves a stable fuse as the repository grows.
+ *
+ *  A BLOWN CEILING REFUSES BY NAME. `spawnSync`'s bare "spawnSync nice ENOBUFS" names the wrapper, not the
+ *  population that outgrew it, and an operator reading that has no way to know WHICH door died or what to do
+ *  — #2211 took a barrier tail plus a stack frame to attribute. The translation below states the site, the
+ *  ceiling it was given, and the remedy, so the next occurrence is self-describing at the point of failure.
+ *  `maxBuffer` is a parameter so a control can drive the refusal with a deliberately tiny ceiling; a fuse
+ *  nobody has ever seen blow is a fuse nobody knows is wired. */
+export function readDiscoveredPopulation(root: string, maxBuffer: number = DISCOVERY_MAX_BUFFER_BYTES, patterns: readonly string[] = []): readonly string[] {
+  try {
+    return parsedDiscovery(execNicedSync("pnpm", ["exec", "node", SNAPSHOT_ENTRY, "eslint-discovery", ...patterns], { cwd: root, maxBuffer }));
+  } catch (error) {
+    if (!isBufferOverflow(error)) {
+      throw error;
+    }
+    throw new Error(
+      `ESLint discovery outgrew its ${String(maxBuffer)}-byte stdout ceiling (tooling/src/verify/ops/eslint.ts, DISCOVERY_BUFFER_MIB): the child was ` +
+        "KILLED with ENOBUFS rather than truncated, so the admitted population could not be enumerated and NO lint verdict exists for this run. " +
+        "Raise the ceiling, or hand the population over a file instead of stdout.",
+      { cause: error },
+    );
+  }
+}
+
+/** ENOBUFS as node reports it from `execFileSync`: the code on the error, with the message as the fallback
+ *  for a wrapper that rebuilds the error (`withCapturedStderr` folds captured stderr into `.message`). */
+function isBufferOverflow(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, message } = error as { readonly code?: unknown; readonly message?: unknown };
+  return code === "ENOBUFS" || (typeof message === "string" && message.includes("ENOBUFS"));
+}
+
+/** Native discovery and effective ConfigArray admission must agree on the exact ordered population. */
+export async function readAdmittedEslintPopulation(root: string, config: string, discovered: readonly string[]): Promise<readonly EslintFileAdmission[]> {
+  const admitted = await readEslintFileAdmissions(root, config, discovered);
+  if (admitted.length !== discovered.length || admitted.some(({ path }, index) => path !== discovered[index])) {
+    throw new Error("ESLint discovery and native ConfigArray admission resolved different filename populations");
+  }
+  return admitted;
+}
+
+function readActiveTypedInputs(root: string, families: readonly EslintNativeMetadataFamily[], activeRules: ReadonlySet<string>): void {
+  for (const family of families) {
+    if (family.rules.some((rule) => activeRules.has(rule))) {
+      for (const input of family.inputs ?? []) {
+        readFileSync(resolve(root, input));
+      }
+    }
+  }
+}
+
+export async function readTypedEslintAdmissions(
+  root: string,
+  configPath: string,
+  admissions: readonly EslintFileAdmission[],
+  families: readonly EslintNativeMetadataFamily[],
+): Promise<readonly EslintFileAdmission[]> {
+  const { ESLint } = await import("eslint");
+  const eslint = new ESLint({ cwd: root, overrideConfigFile: resolve(root, configPath) });
+  const rules = new Set(families.flatMap((family) => family.rules));
+  const activeRules = new Set<string>();
+  const selected: EslintFileAdmission[] = [];
+  for (const admission of admissions) {
+    const config = await eslint.calculateConfigForFile(resolve(root, admission.path));
+    const enabled = Object.entries(config?.rules ?? {}).filter(([id, value]) => {
+      const severity = Array.isArray(value) ? value[0] : value;
+      return rules.has(id) && (severity === "error" || severity === "warn" || severity === 1 || severity === 2);
+    });
+    if (enabled.length > 0) {
+      if (!admission.requiresTypeInformation) {
+        throw new Error(`Typed native policy subject ${admission.path} has no native parser compiler owner`);
+      }
+      selected.push(admission);
+      for (const [id] of enabled) {
+        activeRules.add(id);
+      }
+    }
+  }
+  readActiveTypedInputs(root, families, activeRules);
+  return selected;
 }

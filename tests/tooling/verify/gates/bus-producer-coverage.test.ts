@@ -1,15 +1,7 @@
-// Conformance entry for the bus PRODUCER family: the one generic producer-coverage policy and the hard
-// fact-health support policy that withholds it. This file used to run the five per-union coverage modules
-// (`bus-coverage`, `rpg-bus-coverage`, `automation-bus-coverage`, `domain-events-coverage`,
-// `user-bus-coverage`); their proof rows moved onto `bus-producer-coverage` intact when the five collapsed
-// into one policy quantified over the belted roster, so the family's accumulated evidence is preserved
-// rather than re-founded. The arms a proof row cannot express — the two REFUSALS that carry the retired
-// `bus-coverage-owner`'s guarantee — are pinned through `runPolicyPass` here.
-
+// Producer coverage retains missing-data, roster, identity and native lifetime refusal controls.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as busFactHealth } from "../../../../tooling/src/verify/gates/bus-fact-health.ts";
 import { gate as busProducerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -21,7 +13,7 @@ const ROOT = "/bus-producers";
 // it already walked a sibling family into a timeout that reads exactly like an assertion failure.
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(240_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(60_000);
-const FAMILY = [busFactHealth, busProducerCoverage];
+const FAMILY = [busProducerCoverage];
 
 function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -86,34 +78,15 @@ test(
 );
 
 test(
-  "the health policy is never WITHHELD by its own fact: an incomplete bus census is ITS finding, not a refusal",
+  "producer coverage refuses a missing bus census before any verdict or grant reconciliation",
   () => {
-    // THE §6.3 REFUSAL PROOF FOR A HEALTH CONSUMER, driven directly through the production dispatcher so
-    // `policy-refusal-coverage` can see the pin. Measured 2026-09-15 over three corpora (no bus at all, a bus
-    // union with no belt, a dynamic member type): the `bus-producers` fact never fails for this consumer —
-    // law §3 puts domain emptiness INSIDE the delivered fact so the health policy can judge it — and the
-    // policy REPORTS the incomplete census rather than being withheld. Successor to the frozen-replay arm
-    // retired at b23d02ab06 (#2176), which asserted the same posture against the legacy reconcile.
-    const noBus = { "packages/contracts/src/probe/index.ts": "export const NOT_A_BUS = 1;\n" };
-    const project = new Project({ useInMemoryFileSystem: true });
-    for (const [path, source] of Object.entries(noBus)) {
-      project.createSourceFile(`${ROOT}/${path}`, source);
-    }
-    const result = runPolicyPass({
-      knownPolicies: [busFactHealth],
-      policies: [busFactHealth],
-      root: ROOT,
-      project,
-      nativeTypeFacts: () => isolatedTypeFacts(project),
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-
-    expect(result.policies[0]?.owner.status).toBe("success");
-    expect(result.toolErrors).toEqual([]);
+    const result = passOf(busProducerCoverage, { "packages/contracts/src/probe/index.ts": "export const NOT_A_BUS = 1;\n" });
+    expect(result.policies[0]?.owner.status).toBe("incomplete");
     expect(result.factErrors).toEqual([]);
-    expect(result.authority.effectiveFindings.map(({ policyId }) => policyId)).toEqual([busFactHealth.id]);
-    expect(result.authority.effectiveFindings[0]?.message).toContain("shared bus fact is incomplete");
+    expect(result.toolErrors.map(({ phase }) => phase)).toEqual(["evaluate"]);
+    expect(result.toolErrors[0]?.message).toContain("bus fact empty: union/missing");
+    expect(result.authority.withheldPolicyIds).toEqual([busProducerCoverage.id]);
+    expect(result.authority.effectiveFindings).toEqual([]);
   },
   PER_ROW_TIMEOUT_MS,
 );

@@ -68,6 +68,7 @@ export function useStartChat(): UseStartChatResult {
       });
       const chatId = result.chat.id;
       // The response carries both canonical first-frame reads; the message page is confirmed after motion.
+      // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- The start-chat response seeds the chat and first message page before navigation; remove when first render no longer requires seeded reads.
       queryClient.setQueryData(trpc.chat.getChat.queryKey({ chatId }), result.chat);
       queryClient.setQueryData(trpc.chat.listMessages.queryKey({ chatId }), {
         messages: result.opening?.messages ?? [],

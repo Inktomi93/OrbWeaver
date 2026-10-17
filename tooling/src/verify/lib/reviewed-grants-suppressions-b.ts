@@ -4,6 +4,57 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-orb-brand-in-name-position",
+    policyId: "suppressions",
+    subject: "orb/brand-in-name-position",
+    operation: "source",
+    why: "RULING — plugin sandbox DTOs, origin-wide channel payloads and portable chat-bundle fields carry unvalidated wire identifiers. Applying host brands before parsing would claim validation these boundaries have not performed. Only the actual raw-wire declarations and their boundary adapters receive adjacent permissions.",
+    endsWhen: "these boundaries parse their identifiers to canonical host brands, the raw-wire fields disappear, or the final directive is removed.",
+  },
+  {
+    id: "suppressions:tests-orb-brand-in-name-position",
+    policyId: "suppressions",
+    subject: "orb/brand-in-name-position",
+    operation: "tests",
+    why: "RULING — the guest-host fixture preserves the actual unvalidated plugin wire; the tRPC type pin deliberately accepts a bare string; the hook fixture carries Claude Code's external session identifier rather than an Orbweaver SessionId. Branding these fields would change the subjects being proved.",
+    endsWhen:
+      "the actual wire gains validated brands, tRPC natively brands its input, the external hook identity stops being carried, or the final directive is removed.",
+  },
+  {
+    id: "suppressions:source-orb-client-cache-surgery-only-in-data",
+    policyId: "suppressions",
+    subject: "orb/client-cache-surgery-only-in-data",
+    operation: "source",
+    why: "RULING — the mutation seam owns response echoes, optimistic writes and rollback; the bus carrier patches existing canonical pages; the start-chat seam seeds first-frame reads; the cache-peek door reads without subscribing; the event-to-filter seam invalidates the mapped queries. These actual data owners must call the client primitives they encapsulate.",
+    endsWhen:
+      "those owners no longer perform their cache operation, the query client accepts the operation as declarative input instead, or the final directive is removed.",
+  },
+  {
+    id: "suppressions:source-orb-no-inline-invalidate-outside-seam",
+    policyId: "suppressions",
+    subject: "orb/no-inline-invalidate-outside-seam",
+    operation: "source",
+    why: "RULING — the central invalidation module owns the exhaustive event-to-filter mapping and issues its mapped invalidateQueries call. This is the encapsulating seam, not a feature bypass.",
+    endsWhen: "the query client consumes that event mapping directly, the seam no longer issues the call, or the directive is removed.",
+  },
+  {
+    id: "suppressions:source-orb-no-raw-clock",
+    policyId: "suppressions",
+    subject: "orb/no-raw-clock",
+    operation: "source",
+    why: "RULING — the kit time engine supplies the ambient default and the lifecycle composition root constructs the clock injected into application tiers. These two actual construction sites establish the injected seam rather than bypass it.",
+    endsWhen: "a platform capability supplies those clocks without an ambient read, the construction sites disappear, or the final directive is removed.",
+  },
+  {
+    id: "suppressions:source-orb-no-raw-intl-time",
+    policyId: "suppressions",
+    subject: "orb/no-raw-intl-time",
+    operation: "source",
+    why: "RULING — the kit time engine owns platform zone resolution and constructs the memoized time formatters handed to callers. Its actual Intl construction is the formatting seam every other caller must use.",
+    endsWhen:
+      "the time engine no longer resolves zones or constructs Intl formatters, an equivalent platform seam replaces those operations, or the final directive is removed.",
+  },
+  {
     id: "suppressions:source-orb-no-floorless-control-in-wrap",
     policyId: "suppressions",
     subject: "orb/no-floorless-control-in-wrap",

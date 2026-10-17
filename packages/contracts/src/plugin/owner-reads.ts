@@ -60,8 +60,11 @@ export interface PluginWorldInfoReads {
 }
 
 export interface PluginAssetReadOps {
-  // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
-  readonly read: (req: { readonly installerUserId: UserId; readonly assetId: string }) => Promise<PluginAssetView | null>;
+  readonly read: (req: {
+    readonly installerUserId: UserId;
+    // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
+    readonly assetId: string;
+  }) => Promise<PluginAssetView | null>;
 }
 
 export interface PluginDocumentReads {

@@ -19,7 +19,7 @@
 //
 // FAMILY: SINGLETON under its own id. `floor/code-facts/reference-fact.ts` (`resolveModuleMemberOrigin`) is a shared
 // PRIMITIVE, not a family key — fifteen policies in thirteen unrelated families resolve references through
-// it (`drizzle-schema`, `registry-definitions`, `zod-modern-spellings`, `sole-env-reader`, `no-raw-egress`
+// it (`drizzle-schema`, `registry-definitions`, `zod-error-issues-home`, `sole-env-reader`, `no-raw-egress`
 // and eight more) — and no sibling policy judges whether a policy RECORD's axis has a production reader,
 // which is this policy's subject. The other two contracts-side `*_POLICY` records are structurally excluded
 // rather than merely absent, which is why a generic `*_POLICY` coverage policy is not the family here:

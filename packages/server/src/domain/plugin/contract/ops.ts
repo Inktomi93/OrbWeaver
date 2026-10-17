@@ -159,7 +159,6 @@ export interface PluginHostOps {
    *  `null` (the compose wiring collapses the domain's not-found to `null` — indistinguishable, no existence
    *  oracle); an owned asset over the read cap returns metadata with `dataBase64: null`. */
   readonly assets: {
-    // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
     readonly read: PluginAssetReadOps["read"];
     /** The `net.fetch_asset` capability's CAS-WRITE op (#798). Write ALREADY-FETCHED-AND-VALIDATED image bytes
      *  into the INSTALLER's OWN CAS — wired at compose to the assets domain's `store` under the installer's own
@@ -180,7 +179,7 @@ export interface PluginHostOps {
       readonly bytes: Uint8Array;
       readonly mime: string;
     }) => Promise<{
-      // @orb-waive brand-in-name-position(assetId): the injected-op result id for the installer's own new asset, minted under the installer by the CAS store and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new asset, minted under the installer by the CAS store and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
       readonly assetId: string;
     }>;
   };
@@ -259,7 +258,7 @@ export interface PluginHostOps {
    *  (connection). Cost VISIBILITY rides the stats domain off the imagery write itself. */
   readonly imagery: {
     readonly generatePicture: (req: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly args: GenerateImageActionArgs }) => Promise<{
-      // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
       readonly assetId: string;
     }>;
   };
@@ -346,8 +345,10 @@ export interface PluginHostOps {
    *  + dedups the text and ENQUEUES the ingest workload (the indexer auto-runs). Owner-scoped by construction:
    *  the bridge closes the installer over this, a guest names only the document. Returns the new document id. */
   readonly databank: {
-    // @orb-waive brand-in-name-position(documentId): the injected-op result id for the installer's own new document; the domain minted it under the installer, and it crosses back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-    readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{ readonly documentId: string }>;
+    readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{
+      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new document; the domain minted it under the installer, and it crosses back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+      readonly documentId: string;
+    }>;
   };
   /** The `character.ingest` capability's write op (U8 seam 17). Ingest a V2/V3 character
    *  CARD into the INSTALLER's OWN library — wired at compose to a per-installer `importCharacter` (the
@@ -365,7 +366,7 @@ export interface PluginHostOps {
        *  transient-snippet path. */
       readonly pluginId: PluginId | null;
     }) => Promise<{
-      // @orb-waive brand-in-name-position(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
       readonly characterId: string;
       readonly created: boolean;
     }>;
@@ -377,12 +378,12 @@ export interface PluginHostOps {
      *  per-installer `ingestCharacterAsset`. Returns the new character id + whether it was freshly created. */
     readonly ingestAsset: (req: {
       readonly installerUserId: UserId;
-      // @orb-waive brand-in-name-position(assetId): the guest's untrusted wire string, owner-scope-gated by the CAS read, cast at compose — branding here would claim a validation this boundary has not performed.
+      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the CAS read, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly assetId: string;
       /** See `ingest`'s `pluginId` — the same provenance identity, for the PNG-carrying arm. */
       readonly pluginId: PluginId | null;
     }) => Promise<{
-      // @orb-waive brand-in-name-position(characterId): the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
+      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
       readonly characterId: string;
       readonly created: boolean;
     }>;
@@ -401,7 +402,7 @@ export interface PluginHostOps {
     readonly setCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
-      // @orb-waive brand-in-name-position(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
+      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly characterId: string;
       readonly data: Record<string, unknown>;
     }) => Promise<void>;
@@ -415,7 +416,7 @@ export interface PluginHostOps {
     readonly getCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
-      // @orb-waive brand-in-name-position(characterId): the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
+      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
       readonly characterId: string;
     }) => Promise<Record<string, unknown> | null>;
   };

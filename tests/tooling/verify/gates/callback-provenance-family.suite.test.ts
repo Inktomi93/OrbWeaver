@@ -1,32 +1,10 @@
-// The standing floor for the four policies converted by the `p-callback-provenance` lane (#1584), plus the
-// `detached-work-traced-health` arm the conversion SPLIT out of one of them. They are grouped by the fact
-// that one lane converted them together and by nothing else: their families are listed below, and none of
-// them is this file. The header says so plainly rather than inventing a shared theme, because
-// §7 item 4 of docs/law/gate-runtime-standardization.md is explicit that a theme is not a family.
-//
-//   diagnostic-legibility          family `policy-soundness`      — every gate-corpus diagnostic STRING
-//                                  reader `lib/policy-descriptor-read.ts`  carries a resolvable pointer.
-//   evaluate-no-scope-capture      family SINGLETON               — a serialized browser callback closing
-//                                                                   over a module-scope binding (#660).
-//   audit-client-tests             family SINGLETON               — five structural test anti-patterns.
-//                                  reader `lib/test-call-shape.ts`.
-//   detached-work-traced           family `detached-work-traced`  — fire-and-forget whose failure is
-//   detached-work-traced-health    reader `lib/detached-work.ts`    invisible, plus its blindness tripwire.
-//
-// Proof ownership: docs/law/gate-runtime-standardization.md §§6.2, 6.3, 6.5, 6.6.
-// Ordinary identity controls assert waiver consumption and alarms, which a clean mustPass alone cannot
-// establish. The import-resolution control prevents a missing fixture dependency from impersonating a
-// tested identity branch. Refusal controls here inspect the production error envelope; declared
-// mustRefuse rows can also express refusal verdicts and match the policy's own diagnostic.
-// Reviewed-grant witnesses do not apply: these policies have ordinary or hard authority.
-
+// Bounded verdict, authority, import and refusal controls for serialized callbacks and detached work.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as auditClientTests } from "../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as detachedWorkTraced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
-import { gate as detachedWorkTracedHealth } from "../../../../tooling/src/verify/gates/detached-work-traced-health.ts";
 import { gate as diagnosticLegibility } from "../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as evaluateNoScopeCapture } from "../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -35,7 +13,7 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 
 const ROOT = "/callback-provenance-family";
 
-const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, evaluateNoScopeCapture, auditClientTests, detachedWorkTraced, detachedWorkTracedHealth];
+const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, evaluateNoScopeCapture, auditClientTests, detachedWorkTraced];
 
 const TRACING = "packages/server/src/foundation/observability/tracing.ts";
 const HEALTHY_TRACING =
@@ -63,7 +41,7 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   });
 }
 
-test("the five converted policies pass their production proof runtime", () => {
+test("the callback and detached-work policies pass their production proof runtime", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);
 });
 
@@ -80,7 +58,7 @@ function danglingSpecifiers(files: readonly SourceFile[]): readonly string[] {
     .map((declaration) => `${declaration.getSourceFile().getFilePath()} -> ${declaration.getModuleSpecifierValue()}`);
 }
 
-test("every relative import in every proof of these five resolves inside the proof's own file map", () => {
+test("every relative import in every declared proof resolves inside the proof's own file map", () => {
   const shared = new Project({ useInMemoryFileSystem: true });
   const dangling: string[] = [];
   let sequence = 0;
@@ -106,8 +84,7 @@ test("every relative import in every proof of these five resolves inside the pro
 // ---------------------------------------------------------------------------------------------------
 // ORDINARY MARKER IDENTITY (§6.2), one POSITIVE arm per ordinary policy: the correct
 // `@orb-waive <id>(<position>)` at the position the policy reports suppresses its ONE finding, consumes
-// exactly one waiver, and raises no authority alarm. `detached-work-traced-health` is `hard` and has no
-// arm here by construction. Assertions are written out in each test rather than behind a shared helper —
+// exactly one waiver and raises no authority alarm. Assertions are explicit rather than hidden behind a helper —
 // a helper hides them from the `useExpect` lint, and an arm that silently asserts nothing is exactly the
 // defect class this file exists to close.
 //
@@ -267,12 +244,12 @@ test("evaluate-no-scope-capture: a self-contained browser callback is a clean, R
   expect(result.policies[0]?.findings).toEqual([]);
 });
 
-test("detached-work-traced-health: an ABSENT derivation source refuses rather than reporting blindness", () => {
-  const result = passOf(detachedWorkTracedHealth, { "packages/server/src/domain/chat/verbs/turn.ts": "export const fire = 1;\n" });
+test("detached-work-traced: an ABSENT derivation source refuses rather than reporting blindness", () => {
+  const result = passOf(detachedWorkTraced, { "packages/server/src/domain/chat/verbs/turn.ts": "export const fire = 1;\n" });
 
   expect(result.toolErrors).toEqual([
     expect.objectContaining({
-      policyId: "detached-work-traced-health",
+      policyId: "detached-work-traced",
       phase: "evaluate",
       message: expect.stringContaining("is not in the effective population"),
     }),
@@ -336,3 +313,16 @@ test("evaluate-no-scope-capture: an overloaded recursive function retains its ch
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["LIMIT"]);
 });
+
+for (const root of ["{}", "{ root: false }"]) {
+  test(`detached-work-traced: a tracing home with ${root} refuses without judging occurrences`, () => {
+    const result = passOf(detachedWorkTraced, {
+      [TRACING]: `export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> { return t.startActiveSpan(id, ${root}, fn); }`,
+    });
+    expect(result.toolErrors).toEqual([
+      expect.objectContaining({ policyId: detachedWorkTraced.id, phase: "evaluate", message: expect.stringContaining("derived ZERO root-span openers") }),
+    ]);
+    expect(result.authority.withheldPolicyIds).toEqual([detachedWorkTraced.id]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+  });
+}

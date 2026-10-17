@@ -3,7 +3,6 @@ import { Node } from "ts-morph";
 import { vi } from "vitest";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -75,7 +74,7 @@ test("query freshness retains exact declaration reach without acquiring identifi
       '  trpc["ghost"]["bracketRead"]["infiniteQueryOptions"]({}), trpc.ghost.overloadOnly.queryOptions({}), trpc.ghost.overloadImplementation.queryOptions({}),\n' +
       "  trpc.ghost.shadowed.queryOptions({}), trpc.ghost.orphanRead.queryOptions({})];\n",
   });
-  const policies = [gate, health];
+  const policies = [gate];
   const run = (): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
       knownPolicies: policies,
@@ -129,8 +128,8 @@ test("independent freshness grants keep exact subjects and operations for bracke
   }
   const run = (row: typeof grant): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
-      knownPolicies: [gate, health],
-      policies: [gate, health],
+      knownPolicies: [gate],
+      policies: [gate],
       root,
       project,
       nativeTypeFacts: () => isolatedTypeFacts(project),

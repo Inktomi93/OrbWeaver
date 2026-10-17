@@ -2,7 +2,7 @@
 // ARM A — the row-derived taint analysis of `.set()` writers — is `json-column-writers.ts` (split out at the
 // size cap 2026-09-18); ARM B (guard dominance) and the fact stay here.
 
-import type { Block, CallExpression, SourceFile, Statement, Node as TsNode } from "ts-morph";
+import type { Block, CallExpression, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
@@ -27,24 +27,15 @@ const TOP_LEVEL_SITE = "(top-level)";
 const ANONYMOUS_SITE = "(anonymous)";
 /** How much of an OPAQUE `.set(<expr>)` the finding quotes as its position token. */
 const OPAQUE_TOKEN_CHARS = 40;
-/** The real-tree anchor ARM B's stale sweep guards on (§4.5) — the db schema barrel, present on every real
- *  run and needed by no example here. */
-export const JSON_SCHEMA_ANCHOR = "packages/db/src/schema/index.ts";
 /** The resolved declaration type of a `defineVersionedConfig(...)` binding, when no explicit type argument
  *  was written (`promptConfigConfig` is the live inferred spelling). */
 const VERSIONED_CONFIG_TYPE_RE = /VersionedConfig<([^>]+)>/u;
 
-export const JSON_UNREADABLE_CONFIG_MESSAGE =
+const JSON_UNREADABLE_CONFIG_MESSAGE =
   "UNREADABLE `defineVersionedConfig(...)` declaration — the gate cannot resolve which TYPE this versioned " +
   "config owns (no explicit type argument, and the binding's declared type is not a `VersionedConfig<T>`). " +
-  "Its columns therefore carry NO write guard obligation, silently. Write the type argument explicitly " +
+  "Analysis is withheld rather than erasing its columns' write guard obligation. Write the type argument explicitly " +
   "(`defineVersionedConfig<PromptConfig>({ … })`) so the ownership is readable without the checker.";
-
-export const JSON_VERSIONED_BLIND_MESSAGE =
-  "DERIVED NOTHING — no `defineVersionedConfig(...)` call was found in packages/contracts/src on a tree that " +
-  "HAS a contracts package. The owned-type set is ARM B's whole basis, so a green verdict for it would be a " +
-  "placebo (GATE-AUTHORING.md §4.6). Re-point the derivation at the primitive's current spelling: " +
-  "tooling/src/verify/gates/json-column-write-parity-health.ts";
 
 /** Every drizzle table variable → the names of its `mode: "json"` columns, and the SUBSET whose `$type<T>`
  *  names a versioned-config-owned type. Derived from the schema package, never hand-listed. */
@@ -281,9 +272,6 @@ function collectJsonGuardTargets(
 }
 
 export interface JsonColumnWriteAnalysis {
-  readonly files: readonly SourceFile[];
-  readonly versioned: ReturnType<typeof deriveVersionedTypes>;
-  readonly columns: JsonColumnIndex;
   readonly writers: ReadonlyMap<string, readonly JsonColumnWriter[]>;
   readonly guardTargets: readonly JsonGuardTarget[];
 }
@@ -365,10 +353,14 @@ export const jsonColumnWriteFact = defineFact({
               }
               return type.display;
             });
+            if (versioned.unresolved.length > 0) {
+              const declarations = versioned.unresolved.map((call) => call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName() ?? "(unbound)");
+              throw new Error(`${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${declarations.join(", ")}.`);
+            }
             const columns = deriveJsonColumns(schema, versioned.types);
             const writers = collectJsonWritersByColumnWith(calls, columns.all, contextFor);
             const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, contextFor);
-            return Object.freeze({ files: ctx.files, versioned, columns, writers, guardTargets });
+            return Object.freeze({ writers, guardTargets });
           },
         });
       },

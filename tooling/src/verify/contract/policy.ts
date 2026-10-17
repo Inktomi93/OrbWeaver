@@ -184,7 +184,7 @@ export type GatePolicy = ErrorGatePolicy | WarningGatePolicy;
 
 // THE DESCRIPTOR'S KEY VOCABULARIES HAVE ONE DATA HOME EACH (#2111). Before this, a field, a proof arm, a
 // proof-row key or an expectation key was spelled in the interfaces above AND in `lib/policy-validation.ts`'s
-// key sets AND in `ops/policy-conformance.ts`'s arm loop AND in `gate-modernization`'s example-field carve AND
+// key sets AND in `ops/policy-conformance.ts`'s arm loop AND
 // in every family test's `[...mustFlag, ...mustPass, ...(mustRefuse ?? [])]` spread — five to nine hand edits
 // per vocabulary change, each a place the pair could silently disagree (the owner's question, 2026-09-12: "if
 // we add or adjust something, at least four surfaces need updating?"). Each table below is the ONE literal: its

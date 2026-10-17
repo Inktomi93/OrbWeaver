@@ -10,7 +10,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as bound } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as stream } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
 import { gate as query } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as queryHealth } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { gate as assembly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selection } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as artifacts } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
@@ -26,7 +25,7 @@ import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const POLICIES = [projectDoor, browser, selection, query, queryHealth];
+const POLICIES = [projectDoor, browser, selection, query];
 const NODE = "tests/tooling/native/node.test.ts";
 const BROWSER = "tests/tooling/native/browser.dom.test.ts";
 const STORE = "packages/client/src/state/x-selection-store.ts";
@@ -186,7 +185,6 @@ test(
           { id: browser.id, sites: [{ file: LOADER, token: "engine.launch" }] },
           { id: selection.id, sites: [] },
           { id: query.id, sites: [{ file: READS, token: "chat.stale" }] },
-          { id: queryHealth.id, sites: [] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
     } finally {

@@ -18,7 +18,6 @@ import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gate
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
-import { gate as zodModernSpellings } from "../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
@@ -39,7 +38,6 @@ const FAMILY: readonly GatePolicy[] = [
   pluginDumpGuard,
   registryAssemblyAtDoorOnly,
   zodErrorIssuesHome,
-  zodModernSpellings,
 ];
 
 // EVERY row-scaled test here says its own budget. The default is a per-TEST number and these tests

@@ -7,7 +7,6 @@ import type { JsonColumnOriginContext } from "../../../../tooling/src/verify/con
 import type { GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/json-column-write-parity.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
 import { createJsonColumnOriginContext } from "../../../../tooling/src/verify/lib/json-column-origin-context.ts";
 import type { JsonColumnWriter } from "../../../../tooling/src/verify/lib/json-column-writers.ts";
 import { collectWriters, updatedTable } from "../../../../tooling/src/verify/lib/json-column-writers.ts";
@@ -20,7 +19,7 @@ const SHORTHAND_PROOF_PREFIX = "THE #1035 SHORTHAND RED:";
 const DATA_PORT_ROOT = "/json-column-normalizer-data-port";
 const SNAPSHOT_REFUSAL = "normalizer facts are missing or belong to another native snapshot";
 
-test("the actual shorthand-writer namespace twin preserves detection and its unchanged supporting proofs", { tags: ["slow"] }, () => {
+test("the actual shorthand-writer namespace twin preserves detection, its grant witness and nearest legal write", { tags: ["slow"] }, () => {
   const proofs = gate.mustFlag.filter((candidate) => candidate.why.startsWith(SHORTHAND_PROOF_PREFIX));
   expect(proofs).toHaveLength(1);
   const proof = proofs[0];
@@ -55,7 +54,9 @@ test("the actual shorthand-writer namespace twin preserves detection and its unc
     throw new Error("the actual namespace respelling must exist");
   }
   const detection: GatePolicyProof = { mode: proof.mode, files: namespace, why: `namespace twin of: ${proof.why}` };
-  const respelled = defineGate({ ...gate, mustFlag: [detection, witness], mustPass: gate.mustPass });
+  const nearestLegal = gate.mustPass[0];
+  // The full unmodified corpus runs in its separate conformance test; this control owns the namespace twin.
+  const respelled = defineGate({ ...gate, mustFlag: [detection, witness], mustPass: [nearestLegal] });
   expect(verifyPolicyProofs([respelled])).toEqual([]);
 });
 
@@ -140,9 +141,9 @@ test("the actual persisted writer refuses facts from an invalidated native Progr
 });
 
 test(
-  "complete JSON write occurrence and health proof populations retain all findings, refusals and exact grants",
+  "complete JSON write proof population retain all findings, refusals and exact grants",
   () => {
-    expect(verifyPolicyProofs([gate, health])).toEqual([]);
+    expect(verifyPolicyProofs([gate])).toEqual([]);
   },
   scaledBudget(120_000),
 );

@@ -19,20 +19,24 @@ function parse(text: string): SourceFile {
 
 describe("readDirectiveComment", () => {
   test("reads each opener carrier with the rule it names", () => {
-    expect(readDirectiveComment("// biome-ignore lint/style/noMagicNumbers: why")).toEqual({ token: "biome-ignore", rule: "lint/style/noMagicNumbers" });
-    expect(readDirectiveComment("/* biome-ignore-all lint/suspicious/noBitwiseOperators: why */")).toEqual({
-      token: "biome-ignore-all",
-      rule: "lint/suspicious/noBitwiseOperators",
-    });
-    expect(readDirectiveComment("{/* eslint-disable-next-line jsx-a11y/no-autofocus */}")).toEqual({
-      token: "eslint-disable-next-line",
-      rule: "jsx-a11y/no-autofocus",
-    });
+    expect(readDirectiveComment("// biome-ignore lint/style/noMagicNumbers: why")).toEqual([{ token: "biome-ignore", rule: "lint/style/noMagicNumbers" }]);
+    expect(readDirectiveComment("/* biome-ignore-all lint/suspicious/noBitwiseOperators: why */")).toEqual([
+      {
+        token: "biome-ignore-all",
+        rule: "lint/suspicious/noBitwiseOperators",
+      },
+    ]);
+    expect(readDirectiveComment("{/* eslint-disable-next-line jsx-a11y/no-autofocus */}")).toEqual([
+      {
+        token: "eslint-disable-next-line",
+        rule: "jsx-a11y/no-autofocus",
+      },
+    ]);
   });
 
   test("returns a rule-less site for the bare TypeScript directives, which name no rule and are their own key", () => {
-    expect(readDirectiveComment("// @ts-nocheck")).toEqual({ token: "@ts-nocheck", rule: "@ts-nocheck" });
-    expect(readDirectiveComment("/* eslint-disable */")).toEqual({ token: "eslint-disable", rule: null });
+    expect(readDirectiveComment("// @ts-nocheck")).toEqual([{ token: "@ts-nocheck", rule: "@ts-nocheck" }]);
+    expect(readDirectiveComment("/* eslint-disable */")).toEqual([{ token: "eslint-disable", rule: null }]);
   });
 
   test("THE MENTION FENCE — a spelling that is not at the comment opener is inert", () => {
@@ -46,7 +50,7 @@ describe("readDirectiveComment", () => {
     // it behaves rather than as one would wish: no such spelling exists in any analyzer's vocabulary, so the
     // over-read is unreachable in practice, and tightening the grammar would move every suppressions ledger
     // row. A row here so the next reader meets the fact instead of re-deriving it.
-    expect(readDirectiveComment("// biome-ignore-allocation lint/foo: a longer word")).toEqual({ token: "biome-ignore", rule: null });
+    expect(readDirectiveComment("// biome-ignore-allocation lint/foo: a longer word")).toEqual([{ token: "biome-ignore", rule: null }]);
   });
 
   test("does not recognise the Orb waiver vocabulary — the two grammars are separate homes by ruling", () => {
@@ -55,6 +59,28 @@ describe("readDirectiveComment", () => {
 });
 
 describe("suppressionSites", () => {
+  test("native comma lists expose every named class at the original physical position without parsing the reason as rules", () => {
+    const sf = parse(
+      [
+        "// eslint-disable-next-line one, @scope/two -- prose, not-a-rule",
+        "export const value=1;",
+        "export const View=<div>{/* eslint-disable-line 'one', \"three\" -- prose, not-a-rule */}</div>;",
+        'export const mention="// eslint-disable-line hidden, other";',
+        "/* eslint-disable one, @scope/two, one */",
+        "/* eslint-enable -- reason, not-a-rule */",
+      ].join("\n"),
+    );
+    expect(suppressionSites(sf)).toEqual([
+      { line: 1, token: "eslint-disable-next-line", rule: "one", block: false },
+      { line: 1, token: "eslint-disable-next-line", rule: "@scope/two", block: false },
+      { line: 3, token: "eslint-disable-line", rule: "one", block: true },
+      { line: 3, token: "eslint-disable-line", rule: "three", block: true },
+      { line: 5, token: "eslint-disable", rule: "one", block: true },
+      { line: 5, token: "eslint-disable", rule: "@scope/two", block: true },
+      { line: 6, token: "eslint-enable", rule: null, block: true },
+    ]);
+  });
+
   test("collects leading, trailing and JSX-container carriers in source order, one site per physical comment", () => {
     const sf = parse(
       [

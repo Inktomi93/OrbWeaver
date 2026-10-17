@@ -353,12 +353,7 @@ test("a local function named publish credits nothing", () => {
 });
 
 test("an EMPTY census is DELIVERED to its consumers — the provider receipt is not the accuser", () => {
-  // THE #1955 REGRESSION ROW. The provider receipt used to carry the census counts, and
-  // `factReceiptFailures` refuses `members === 0` / `unresolved > 0` and withholds every consumer BEFORE
-  // `evaluate`. So the one corpus `bus-fact-health` exists to accuse — an authored tree with no bus union
-  // at all — could never reach the policy that accuses it: its `mustFlag[0]` read as a FACT TOOL ERROR and
-  // `pnpm check:policy-conformance` sat at exit 2, unusable as a commit bar. The census's emptiness is the
-  // fact's own modelled VALUE; it is delivered, and `bus-fact-health` (hard/error) is what reports it.
+  // Domain emptiness is delivered data; recordReadyBusFact owns consumer refusal.
   const { fact, result } = runFact({ "packages/server/src/domain/settings/plain.ts": "export const plain = 1;\n" });
   expect(result.factErrors).toEqual([]);
   expect(result.toolErrors).toEqual([]);

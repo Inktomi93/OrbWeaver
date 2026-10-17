@@ -2,14 +2,7 @@
 // `raw-typography-tier` families read, homed here rather than borrowed from `contract/gate.ts`'s
 // exemption vocabulary (#2176 Phase F, #2320).
 //
-// WHY IT IS ITS OWN SHAPE AND NOT AN `ExemptionRow` — the `contract/tenancy-scope.ts#ScopingRow`
-// precedent, restated for this axis. An exemption row is a row a gate FORGIVES an existing finding for,
-// and `policy-legacy-imports` ARM D is right to red a final policy that receives one ("a gate module
-// receives neither grant tables nor marker parsers"). A tier-implementation home is a different claim: it
-// names the ONE directory that IMPLEMENTS a token scale and therefore must spell the raw utility once, so
-// that no feature ever does. `gate-modernization` ARM B draws exactly this line in its own `fix` text —
-// *"if the collection is a scan-SCOPE decision rather than an exemption, rename it out of the exemption
-// vocabulary."*
+// These rows identify token-scale implementation scope, not excused findings.
 //
 // AND IT IS A MEASUREMENT, NOT A CLASSIFICATION ARGUMENT. Probed 2026-09-14 (`cp f f.bak`, both tables
 // emptied, all four consumers re-run through `pnpm check:structure --check`, restored, `git status

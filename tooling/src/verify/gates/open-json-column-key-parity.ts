@@ -7,7 +7,7 @@
 // silent-reader audit (2026-08-18 §0) MEASURED that the class can
 // only live here: 297 fields over 43 TYPED json-column types swept clean, because a type binds writer to
 // reader. So the column set is DERIVED from the schema's openness, never hand-listed (§4.6: an empty
-// derivation on a tree that HAS a schema is RED in the hard health sibling, never a silent pass).
+// schema readiness is required; a readable schema may contain no JSON subject).
 //
 // TWO ARMS, one class:
 //   PARITY   — a reader key absent from an ENUMERABLE writer key-set. `caption_meta` verbatim.

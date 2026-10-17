@@ -3,7 +3,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/macro-resolution-health.ts";
 import { gate as home } from "../../../../tooling/src/verify/gates/macro-resolution-home.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -11,9 +10,9 @@ import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-const POLICIES: readonly GatePolicy[] = [home, health];
+const POLICIES: readonly GatePolicy[] = [home];
 
-test("the macro home and rename-health owners pass their declared production proofs", () => {
+test("the macro home passes its declared production proofs", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 

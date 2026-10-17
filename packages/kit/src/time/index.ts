@@ -118,6 +118,7 @@ export function isoToMs(value: string): number | null {
  *  the importing box's zone is the only honest guess and is exactly what the writing app used when the
  *  corpus is imported where it was produced. Falls back to `"UTC"` on an ICU build that reports none. */
 export function hostTimeZone(): string {
+  // eslint-disable-next-line orb/no-raw-intl-time -- This time seam owns zone resolution and memoized formatter construction; remove when time formatting moves off Intl or out of this module.
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
@@ -422,6 +423,7 @@ export function calendarPositionIn(epochMs: number, zone: IanaTimeZone): Calenda
 }
 
 export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
+  // eslint-disable-next-line orb/no-raw-clock -- This time engine is the injected clock seam; remove when it stops defaulting to the ambient clock.
   const now = config.now ?? ((): number => Date.now());
   const locale = config.locale;
   const tz = config.timeZone === undefined ? {} : { timeZone: config.timeZone };

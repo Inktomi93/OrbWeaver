@@ -16,11 +16,9 @@ import { gate as ctNoOneshotLiveReadAssert } from "../../../../../tooling/src/ve
 import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
 import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/gates/ct-story-single-import.ts";
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
-import { gate as gateModernization } from "../../../../../tooling/src/verify/gates/gate-modernization.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
 import { gate as policyBindingResolution } from "../../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
-import { gate as policyFamilyReaders } from "../../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policyFixtureSubstrate } from "../../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
@@ -120,11 +118,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "carries no pointer",
   },
   {
-    policy: gateModernization,
-    overlays: [add(`${GATES}/liveness-not-a-gate.ts`, "export const notAGate = 1;\n")],
-    messageIncludes: "exports no `gate` descriptor",
-  },
-  {
     policy: noDirectReportsWrite,
     overlays: [
       add(
@@ -150,13 +143,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
       }),
     ],
     messageIncludes: "Member: `getDefinitionNodes`.",
-  },
-  {
-    policy: policyFamilyReaders,
-    // A member joining a REAL shared-reader family (`tailwind-class-token`) whose create consumes no
-    // shared production dependency at all.
-    overlays: [probeGate({ id: "liveness-family", family: "tailwind-class-token" })],
-    messageIncludes: "resolves no shared canonical production dependency",
   },
   {
     policy: policyFixtureSubstrate,

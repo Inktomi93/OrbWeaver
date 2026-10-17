@@ -24,14 +24,8 @@
 // Identity — which call is a producer, which relay carries a member, which argument proves nothing — is the
 // shared `busProducerFact`'s question, not this policy's. It owns no name table, no path regex and no walk.
 //
-// FAMILY `bus-fact` — the shared reader is `lib/bus-fact.ts` (`busProducerFact`), read identically by this
-// ordinary/error policy and the hard/error `bus-fact-health` that guards the census before any verdict is
-// trusted. The `family` string is identical across both by construction. This policy ALSO reads the sibling
-// family's provider, `lib/bus-definition-fact.ts`
-// (`busDefinitionFact`) — not for identity, but solely so the two independently derived belted rosters can
-// be required to AGREE, which is the guarantee that retired `bus-coverage-owner` (see below). Identity —
-// which call is a producer, which relay carries a member — is the fact's question, never this module's; it
-// owns no name table, no path regex and no walk.
+// The producer and definition facts share their native identities; incomplete data refuses in
+// recordReadyBusFact before a verdict. The independent belted rosters must still agree.
 //
 // POPULATION PORT for a 5→1 consolidation: an intentional correction, and the five legacy descriptors had
 // no `scanRoot` between them. Each was `scopeSafety: "whole-project"` with a `run` hook walking
@@ -83,7 +77,7 @@ const identityKey = ({ path, exportName }: BusDeclarationIdentity): string => `$
  *  ratchets never see it. Either way the run REFUSES rather than reporting the rest of the tree clean.
  *
  *  It is checked BEFORE the completeness refusal below on purpose: the same corpus trips both, and a refusal
- *  that cannot say WHICH invariant broke is not a receipt. The pin in `bus-fact-health.test.ts` asserts this
+ *  that cannot say WHICH invariant broke is not a receipt. The pin in `bus-producer-coverage.test.ts` asserts this
  *  message, so neutering this check reds the row instead of silently falling through to the other refusal. */
 function assertRosterAgreement(producerBelted: ReadonlySet<string>, definitionBelted: ReadonlySet<string>): void {
   const disagreement = [
@@ -109,7 +103,7 @@ function uncoveredMembers(bus: BusRecord): readonly { readonly node: MorphNode; 
 
 export const gate = defineGate({
   id: "bus-producer-coverage",
-  family: "bus-fact",
+  family: "bus-producer-coverage",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@contracts", "@server"] },
@@ -298,7 +292,7 @@ export const gate = defineGate({
       why: "THE CONSOLIDATION ITSELF: two belted unions in one corpus, one produced and one not. The single policy quantifies over the whole belted roster, so the uncovered bus is reported and the covered one is silent — the property five per-union modules could only have by all five existing",
     },
   ],
-  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-fact-health.test.ts`'s `runPolicyPass` pins by #2109 item 2 /
+  // THE REFUSAL ARM (§4.5b, #1977; migrated from `bus-producer-coverage.test.ts`'s `runPolicyPass` pins by #2109 item 2 /
   // #2111 so the two roster guarantees run on the static bar). The family test keeps the `runPolicyPass` twins: they
   // additionally assert the owner status, the empty finding set and the phase, which a row cannot express.
   mustRefuse: [

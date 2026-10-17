@@ -20,8 +20,13 @@ export interface PluginNetResponse {
  *  string-valued header map and a string body survive into the request. */
 export interface PluginNetEgress {
   readonly fetch: (url: string, init: unknown, liveness: PluginInvocationLiveness) => Promise<PluginNetResponse>;
-  // @orb-waive brand-in-name-position(assetId): the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-  readonly fetchAsset: (url: string, liveness: PluginInvocationLiveness) => Promise<{ readonly assetId: string }>;
+  readonly fetchAsset: (
+    url: string,
+    liveness: PluginInvocationLiveness,
+  ) => Promise<{
+    // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    readonly assetId: string;
+  }>;
 }
 
 // @orb-waive no-inline-package-interface(PluginEgressBridge): baselined when the gate landed; burn-down item 952.

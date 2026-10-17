@@ -8,10 +8,9 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as boundFieldViaHook } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as chatStreamWritesInBusOnly } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
-import { gate as clientCacheSurgeryOnlyInData } from "../../../../tooling/src/verify/gates/client-cache-surgery-only-in-data.ts";
+
 import { gate as noEffectOnSharedSelection } from "../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
-import { gate as noInlineInvalidateOutsideSeam } from "../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
-import { gate as noRawIntlTime } from "../../../../tooling/src/verify/gates/no-raw-intl-time.ts";
+
 import { gate as registryContextViaMint } from "../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as selectionStoreViaFactory } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
@@ -22,10 +21,8 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 const FAMILY: readonly GatePolicy[] = [
   boundFieldViaHook,
   chatStreamWritesInBusOnly,
-  clientCacheSurgeryOnlyInData,
+
   noEffectOnSharedSelection,
-  noInlineInvalidateOutsideSeam,
-  noRawIntlTime,
   registryContextViaMint,
   renderErrorViaBattery,
   selectionStoreViaFactory,
