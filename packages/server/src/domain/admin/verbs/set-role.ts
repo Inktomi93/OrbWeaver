@@ -14,8 +14,8 @@ import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetRoleParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
-import { isBootstrapOwnerRole, requireOwner } from "../guard.ts";
-import { loadUser, userCols } from "../persistence/queries.ts";
+import { isBootstrapOwnerRole, isBootstrapOwnerRoleCode, requireOwner } from "../guard.ts";
+import { loadUser, toAdminUserData, userCols } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
@@ -30,13 +30,13 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
       throw new DomainNotFoundError("user", userId);
     }
     if (isBootstrapOwnerRole(target.role)) {
-      if (isBootstrapOwnerRole(role)) {
+      if (isBootstrapOwnerRoleCode(role)) {
         return target;
       }
       throw new DomainOperationError(ADMIN_OP_CODES.cannotModifyOwner, "the owner cannot be demoted");
     }
 
-    if (isBootstrapOwnerRole(role)) {
+    if (isBootstrapOwnerRoleCode(role)) {
       throw new DomainConflictError("an owner already exists; ownership transfer is not supported");
     }
 
@@ -72,6 +72,6 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     // read is stale for some OTHER reason.
     ctx.emitUserEvent(userId, { type: "identityChanged" });
     // `ownerHandle` is unchanged by a role write — carry it from the pre-loaded view (no re-read).
-    return { ...row, ownerHandle: target.ownerHandle };
+    return toAdminUserData({ ...row, ownerHandle: target.ownerHandle });
   };
 }

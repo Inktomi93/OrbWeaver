@@ -12,6 +12,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 
 test("the real registered react tool attributes the character seat, preserves repeat data, and rechecks changed room posture", async ({
+  harness,
   app,
   db,
   ids,
@@ -29,7 +30,7 @@ test("the real registered react tool attributes the character seat, preserves re
   const message = await seedMessage(db, { chatId: room.id, content: "Aria: That worked." });
   const set = app.toolUse.resolveTools(host.id, [CHAT_REACT_TOOL_NAME]);
   const call = { toolCallId: "call_react", name: CHAT_REACT_TOOL_NAME, arguments: JSON.stringify({ character: "Aria", emoji: "👍" }) };
-  const exec = { principal: principal(host.id), triggeredBy: host.id, chatId: room.id, turnId: null, membership: null };
+  const exec = { principal: await principal(harness, host.id), triggeredBy: host.id, chatId: room.id, turnId: null, membership: null };
   const absent = await app.toolUse.executeToolCalls(set, [call], { ...exec, chatId: null });
   expect(absent[0]).toMatchObject({ isError: true, result: JSON.stringify({ error: "react requires a chat context" }) });
   expect(await db.select().from(messageReactions)).toEqual([]);

@@ -42,9 +42,15 @@ function ledgerPolicy(
   });
 }
 
-test("a recorded deleted card stays deleted across a cold seed; its real tag rows remain card/pending suggestions", async ({ db, app, services, clock }) => {
+test("a recorded deleted card stays deleted across a cold seed; its real tag rows remain card/pending suggestions", async ({
+  harness,
+  db,
+  app,
+  services,
+  clock,
+}) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   await app.contentSeeder.ensureSeeded(actor);
   const card = await services.character.findByHandle({ ownerId: user.id, handle: FIRST_CARD.handle });
   if (card === null) {
@@ -76,9 +82,9 @@ test("a recorded deleted card stays deleted across a cold seed; its real tag row
   ).toHaveLength(1);
 });
 
-test("a refused real ledger write leaves the created card retryable without duplicating it", async ({ db, app, services, clock }) => {
+test("a refused real ledger write leaves the created card retryable without duplicating it", async ({ harness, db, app, services, clock }) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   const step = { key: FIRST_CARD.key, seed: createCharacterSeedStep((p, handle) => app.characterSeeder.seedCard(p, handle), FIRST_CARD.handle) };
   const policy = ledgerPolicy(db, clock.now, services.settings, [step]);
   await db.run(sql`CREATE TRIGGER refuse_seed_record BEFORE INSERT ON user_seed_ledger BEGIN SELECT RAISE(ABORT, 'ledger refused'); END`);
@@ -92,11 +98,17 @@ test("a refused real ledger write leaves the created card retryable without dupl
   expect(await createReadSeededKeys(db)(user.id)).toEqual(new Set([FIRST_CARD.key]));
 });
 
-test("same-user concurrent calls share the real pass while a second account receives its own card and ledger", async ({ db, app, services, clock }) => {
+test("same-user concurrent calls share the real pass while a second account receives its own card and ledger", async ({
+  harness,
+  db,
+  app,
+  services,
+  clock,
+}) => {
   const first = await seedUser(db);
   const second = await seedUser(db);
-  const actor = principal(first.id, { role: first.role, handle: first.handle });
-  const neighbor = principal(second.id, { role: second.role, handle: second.handle });
+  const actor = await principal(harness, first.id);
+  const neighbor = await principal(harness, second.id);
   let release = (): void => undefined;
   const held = new Promise<void>((resolve) => {
     release = resolve;
@@ -121,9 +133,9 @@ test("same-user concurrent calls share the real pass while a second account rece
   expect(await services.character.findByHandle({ ownerId: second.id, handle: FIRST_CARD.handle })).not.toBeNull();
 });
 
-test("the real-stack persona false outcome leaves its key unrecorded but still settles this process's pass", async ({ db, app, services, clock }) => {
+test("the real-stack persona false outcome leaves its key unrecorded but still settles this process's pass", async ({ harness, db, app, services, clock }) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   const settingsOps = createSettingsComposedOps(services.settings);
   const seed = createSeedPersonaWithCompletion({ ensureSeeded: (p) => app.personaSeeder.ensureSeeded(p), isSeeded: settingsOps.personaSeeded });
   const policy = ledgerPolicy(db, clock.now, services.settings, [{ key: PERSONA_ITEM.key, legacyLatch: "persona", seed }]);

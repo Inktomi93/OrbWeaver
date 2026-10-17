@@ -1,16 +1,16 @@
-// domain/chat/contract/views — the client read-models the chat service returns. One home for the shapes
-// (§7.4 / types-in-contract). Cross-boundary read-models that
-// already live in `@orb/contracts/chat` (the wire node) are RE-EXPORTED here type-only (derive-don't-respell,
-// §7.5) so the service signatures + the front door reference one name — they are NOT re-declared:
-//   • MessageView        — the D26 slot⋈selected-variant read-model (listMessages / turn results).
-//   • ParticipantView    — the resolved roster row (listParticipants / roster mutators).
-//   • SectionPreview     — one section's render preview (previewSection).
-//   • AssembledPrompt    — the BUILD product (peekPrompt / the assembly preview body).
-//
-// Transport-visible list, turn and preview projections are also owned by @orb/contracts/chat.
-// Snapshot witnesses, replay and attach shapes below remain internal persistence/transport/engine contracts.
+// Internal chat views derive their canonical wire shapes; captured roles stay server-only until transport encoding.
+// Persistence snapshots and replay witnesses below never acquire a second wire representation.
 
-import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type {
+  ChatBusEvent,
+  MessageView,
+  ChatDetail as WireChatDetail,
+  ChatLineageView as WireChatLineageView,
+  ChatListPage as WireChatListPage,
+  ChatSummary as WireChatSummary,
+  ParticipantView as WireParticipantView,
+} from "@orb/contracts/chat";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { ChatStreamGenerationId, MessageVariantId } from "@orb/kit/ids";
@@ -18,11 +18,6 @@ import type { SQL } from "drizzle-orm";
 
 export type {
   AssembledPrompt,
-  // The full chat read (getChat, fork, start, the invite joins) — a wire node: its strict twin
-  // (`chatDetailSchema`) is the invite joins' tRPC output parser.
-  ChatDetail,
-  // The fork-lineage chain (getChatLineage) — a wire node: `chatLineageViewSchema` is its tRPC output parser.
-  ChatLineageView,
   // The present-tense context-fit answer (previewContextFit) — the cross-boundary wire node (`@orb/contracts/chat`),
   // re-exported type-only so the service + front door share the ONE name.
   ContextFitAnswer,
@@ -31,7 +26,6 @@ export type {
   MessagesPage,
   MessageView,
   MessageWindow,
-  ParticipantView,
   SectionPreview,
   // The content-free SHAPE trace (getShapeTrace) — the cross-boundary wire node (`@orb/contracts/chat`),
   // re-exported type-only so the service signature + front door reference the ONE name (derive-don't-respell).
@@ -94,9 +88,7 @@ export type {
   ActionTemplatesPreview,
   AssemblyPreview,
   ChatInjectionView,
-  ChatListPage,
   ChatSeatPortrait,
-  ChatSummary,
   ChatVariables,
   MessageVariantSummary,
   UserMacroPicksView,
@@ -120,4 +112,21 @@ export interface ContinueSnapshot
 export interface ContinueRestorePlan {
   readonly selection: SQL;
   readonly statements: BatchStmt[];
+}
+
+/** Wire fields derive from the canonical view; only the server's captured role representation differs. */
+export interface ParticipantData extends Omit<WireParticipantView, "role"> {
+  readonly role: ParticipantRoleState;
+}
+export interface ChatDetailData extends Omit<WireChatDetail, "participants"> {
+  readonly participants: readonly ParticipantData[];
+}
+export interface ChatSummaryData extends Omit<WireChatSummary, "viewerRole"> {
+  readonly viewerRole: ParticipantRoleState;
+}
+export interface ChatListPageData extends Omit<WireChatListPage, "items"> {
+  readonly items: readonly ChatSummaryData[];
+}
+export interface ChatLineageData extends Omit<WireChatLineageView, "chain"> {
+  readonly chain: readonly ChatSummaryData[];
 }

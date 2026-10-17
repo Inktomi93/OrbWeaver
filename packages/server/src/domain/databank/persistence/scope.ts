@@ -30,6 +30,7 @@ import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { ResolveActiveDocumentIdsOp } from "#domain/search";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { DatabankContext } from "../contract/service.ts";
 import { ensureCharacterOwned } from "./queries.ts";
 
@@ -51,7 +52,7 @@ function destinationStanding(ctx: DatabankContext, principal: Principal, destina
   if (destination?.kind === "chat") {
     const roles = PARTICIPANT_ROLES.filter((role) => {
       try {
-        ctx.can(principal, "host", { kind: "chat", membership: { role } });
+        ctx.can(principal, "host", { kind: "chat", membership: { role: captureParticipantRole(role) } });
         return true;
       } catch (error) {
         if (!(error instanceof DomainForbiddenError)) {

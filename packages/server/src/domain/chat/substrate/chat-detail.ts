@@ -1,20 +1,20 @@
-// The ONE `chats` row → `ChatDetail` projection, shared by every verb that returns a room detail
+// The ONE `chats` row → `ChatDetailData` projection, shared by every verb that returns a room detail
 // (`verbs/read.ts` getChat, `verbs/fork.ts`, `verbs/invites.ts`, `verbs/start-chat.ts`). One shape, no
 // drift: each verb loads its row (`loadChatRow`/`listMemberChats` — both yield the parsed-metadata chat
 // row) + resolves its roster, then hands the pieces here. The viewer-relative fields (`viewerIsHost`,
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { AnchorState, ChatIdentity, ChatMetadata, ParticipantView } from "@orb/contracts/chat";
+import type { AnchorState, ChatIdentity, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatDetail } from "../contract/views.ts";
+import type { ChatDetailData, ParticipantData } from "../contract/views.ts";
 import { NO_HISTORY_FLOOR } from "./auth/index.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";
 
 /** The projected `chats` row (metadata already parsed) — structurally the persistence `ChatRow`, which
- *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetail` reads. */
+ *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetailData` reads. */
 interface ChatDetailRow {
   readonly id: ChatId;
   readonly title: string | null;
@@ -34,11 +34,11 @@ interface ChatDetailRow {
 
 interface ToChatDetailInput {
   readonly chat: ChatDetailRow;
-  readonly participants: readonly ParticipantView[];
+  readonly participants: readonly ParticipantData[];
   readonly identities: readonly ChatIdentity[];
   readonly viewerUserId: UserId;
   /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
-   *  so a new `ChatDetail` producer must state the viewer's clamp rather than inherit an open one. */
+   *  so a new `ChatDetailData` producer must state the viewer's clamp rather than inherit an open one. */
   readonly viewerHistoryFloorSeq: number;
   /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED for the same reason as the floor. */
   readonly viewerOwnedCharacterIds: readonly CharacterId[];
@@ -46,7 +46,7 @@ interface ToChatDetailInput {
   readonly anchorState: AnchorState;
 }
 
-/** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetail`.
+/** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetailData`.
  *
  *  The COMPACTION CHECKPOINT is D16-clamped here (the one home every detail producer shares): the summary is
  *  model-written prose covering canon from seq 1 through `compactedAtSeq`, so ANY clamped viewer
@@ -60,7 +60,7 @@ export function toChatDetail({
   viewerHistoryFloorSeq,
   viewerOwnedCharacterIds,
   anchorState,
-}: ToChatDetailInput): ChatDetail {
+}: ToChatDetailInput): ChatDetailData {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
   return {

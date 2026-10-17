@@ -11,6 +11,7 @@ import { seedUserCredential } from "./factories/credentials.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type SdkRows = Awaited<ReturnType<typeof captureSdkSessionRows>>;
+type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 interface SdkActor {
   readonly principal: Awaited<ReturnType<ServerTestHarness["principalFor"]>>;
   readonly credential: Awaited<ReturnType<typeof seedUserCredential>>;
@@ -22,7 +23,7 @@ interface SdkCapture {
 }
 interface CorpusSdkSessions extends SdkActor {
   readonly alternateConnection: Awaited<ReturnType<typeof seedUserConnection>>;
-  readonly room: Awaited<ReturnType<ServerTestHarness["services"]["chat"]["startChat"]>>;
+  readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
   readonly source: Awaited<ReturnType<ServerTestHarness["app"]["chatRpgOps"]["postNarratorMessage"]>>;
   readonly empty: SdkCapture & { readonly room: CorpusSdkSessions["room"] };
   readonly seeded: SdkCapture;

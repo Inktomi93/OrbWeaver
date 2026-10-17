@@ -4,12 +4,13 @@
 // attachment probe (the `insert_world_info_entry` arm's consent check), and a message count for
 // the CEL `chat` projection. Reads only; automation never mutates another domain's canon here.
 
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, personas, rpgGames, worldBooks, worldEntries } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, desc, eq, gt, isNull, lte, sql } from "drizzle-orm";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { AnalysisAuditTarget, AnalysisWindowRow } from "../contract/analysis.ts";
 import type { DomainRowKind } from "../contract/ops.ts";
 
@@ -18,14 +19,15 @@ const LIMIT_ONE = 1;
 /** The caller's PRESENT membership role in a chat, or `undefined` when the chat is absent OR the caller is
  *  not a present member (`leftSeq IS NULL` — the D18 present-membership predicate). The guard collapses
  *  `undefined` to a leak-free RuleNotFoundError. */
-export async function loadCallerRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRole | undefined> {
+export async function loadCallerRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRoleState | undefined> {
   const rows = await db
     .select({ role: chatParticipants.role })
     .from(chats)
     .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .where(eq(chats.id, chatId))
     .limit(LIMIT_ONE);
-  return rows[0]?.role;
+  const row = rows[0];
+  return row === undefined ? undefined : captureParticipantRole(row.role);
 }
 
 /** Whether a world book is attached DIRECTLY to a chat (the `chat_books` junction). The

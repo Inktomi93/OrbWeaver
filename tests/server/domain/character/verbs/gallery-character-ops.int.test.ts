@@ -11,14 +11,16 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import { eq } from "drizzle-orm";
 
-test("composed gallery export never resolves a foreign subject handle even from an owned curation row", async ({ app, db, services }) => {
+test("composed gallery export never resolves a foreign subject handle even from an owned curation row", async ({ harness, app, db, services }) => {
   const owner = await seedUser(db);
   const other = await seedUser(db);
   const owned = await seedCharacter(db, { ownerId: owner.id });
   const foreign = await seedCharacter(db, { ownerId: other.id });
-  const image = await services.assets.store({ principal: principal(owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
-  const item = await services.assets.addToGallery({ principal: principal(owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
-  await expect(services.assets.addToGallery({ principal: principal(owner.id), assetId: image.assetId, subjectCharacterId: foreign.id })).rejects.toThrow();
+  const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
+  const item = await services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
+  await expect(
+    services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: foreign.id }),
+  ).rejects.toThrow();
   await db.update(galleryItems).set({ subjectCharacterId: foreign.id }).where(eq(galleryItems.id, item.galleryItemId));
   const gallery = app.portability.find((entity) => entity.kind === "gallery");
   if (gallery === undefined) {
@@ -37,17 +39,17 @@ test("composed gallery export never resolves a foreign subject handle even from 
   expect(await ops.resolveCharacterHandle(owner.id, foreign.id)).toBeNull();
 });
 
-test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ app, db, services }) => {
+test("composed gallery import relinks only the importing owner's handle and preserves null fallback", async ({ harness, app, db, services }) => {
   const owner = await seedUser(db);
   const other = await seedUser(db);
   const owned = await seedCharacter(db, { ownerId: owner.id });
   const foreign = await seedCharacter(db, { ownerId: other.id });
-  const image = await services.assets.store({ principal: principal(owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
+  const image = await services.assets.store({ principal: await principal(harness, owner.id), bytes: magicBytes("png"), kind: "gallery", mime: "image/png" });
   const gallery = app.portability.find((entity) => entity.kind === "gallery");
   if (gallery === undefined) {
     throw new Error("composed gallery descriptor is missing");
   }
-  const item = await services.assets.addToGallery({ principal: principal(owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
+  const item = await services.assets.addToGallery({ principal: await principal(harness, owner.id), assetId: image.assetId, subjectCharacterId: owned.id });
   const files: PortableFile[] = [];
   for await (const file of gallery.exportAll(owner.id)) {
     files.push(file);
@@ -56,7 +58,7 @@ test("composed gallery import relinks only the importing owner's handle and pres
   if (file === undefined) {
     throw new Error("composed gallery produced no file");
   }
-  await services.assets.removeFromGallery({ principal: principal(owner.id), galleryItemId: item.galleryItemId });
+  await services.assets.removeFromGallery({ principal: await principal(harness, owner.id), galleryItemId: item.galleryItemId });
   expect(await gallery.importFile(owner.id, file)).toEqual({ ok: true, created: true });
   const text = new TextDecoder().decode(file.bytes);
   expect(text.split(owned.handle)).toHaveLength(2);
@@ -64,7 +66,7 @@ test("composed gallery import relinks only the importing owner's handle and pres
     ok: true,
     created: true,
   });
-  const rows = await services.assets.listGallery({ principal: principal(owner.id), limit: 100 });
+  const rows = await services.assets.listGallery({ principal: await principal(harness, owner.id), limit: 100 });
   expect(rows).toHaveLength(2);
   expect(new Set(rows.map((row) => row.subjectCharacterId))).toEqual(new Set([null, owned.id]));
 });

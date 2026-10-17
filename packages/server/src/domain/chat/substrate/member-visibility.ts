@@ -61,19 +61,21 @@
 
 import type { ChatBusEvent, ChatDeltaEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
 import { projectViewForMember } from "@orb/contracts/chat";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
+import { participantRoleValue } from "#primitives/role-data/decode";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views.ts";
 
 /** A caller's chat role — the §3.6 verdict axis (host reads unstripped; anyone else is a member). Matches the
- *  `ParticipantRole` shape the guards resolve, narrowed to the one bit this boundary needs. */
+ *  captured participant-role data the guards resolve, narrowed to the one field this boundary needs. */
 interface ViewerRole {
-  readonly role: string;
+  readonly role: ParticipantRoleState;
 }
 
 /** Does this viewer hold the HOST role? THE ONE spelling of `role === "host"` for the whole role-PROJECTION
- *  class — every derived host verdict in this module, every `ChatDetail`-style payload flag, and every
+ *  class — every derived host verdict in this module, every `ChatDetailData`-style payload flag, and every
  *  role-conditioned POLICY VALUE (`auth/clamp.ts` — the D106 history floor, the D22 card level) composes it
  *  rather than re-deriving the comparison inline.
  *
@@ -91,7 +93,7 @@ interface ViewerRole {
  *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior
  *  change (`can(…, 'host', …)` reduces to exactly this comparison; the Principal is never read). */
 export function viewerHoldsHost(viewer: ViewerRole | undefined): boolean {
-  return viewer?.role === "host";
+  return viewer !== undefined && participantRoleValue(viewer.role) === "host";
 }
 
 /** Is THIS caller entitled to the unstripped hidden-content payload (§3.6 "the host via the eye")? The host

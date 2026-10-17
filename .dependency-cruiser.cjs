@@ -734,6 +734,41 @@ module.exports = {
       to: { path: `${SRV}domain/[^/]+/teaching-contribution\\.ts$` },
     },
     {
+      name: "role-data-private-decoder",
+      comment:
+        "Opaque role data is decoded only by the authorization kernel, viewer/host data owners, and explicit SQL or wire boundaries; imported spelling and barrels do not widen admission.",
+      severity: "error",
+      from: {
+        pathNot:
+          "^packages/server/src/(domain/admin/guard|domain/chat/(substrate/(member-visibility|participants-host)|persistence/role-encoding)|entry/http/auth-meta|transport/trpc/role-output)\\.ts$",
+      },
+      to: { path: "^packages/server/src/primitives/role-data/decode/index\\.ts$" },
+    },
+    {
+      name: "role-data-private-registry",
+      comment: "The private registry has no consumer besides role capture and decoding; no object exposes a raw code or serialization hook.",
+      severity: "error",
+      from: { pathNot: "^packages/server/src/primitives/role-data/(index|decode/index)\\.ts$" },
+      to: { path: "^packages/server/src/primitives/role-data/registry\\.ts$" },
+    },
+    {
+      name: "role-data-capture-owners",
+      comment: "Only actual row/input owners and closed SQL code enumerators capture role data; this is not a permission mint or a public conversion API.",
+      severity: "error",
+      from: {
+        pathNot:
+          "^packages/server/src/(domain/(admin/persistence/queries|automation/persistence/canon-reads|databank/persistence/scope|sessions/verbs/(validate|load-user-by-id|provision-identity)|chat/(persistence/(queries|participants-read)|verbs/(edit|read|participants)))|entry/(auth/seam|compose/chat))\\.ts$",
+      },
+      to: { path: "^packages/server/src/primitives/role-data/index\\.ts$" },
+    },
+    {
+      name: "role-data-wire-output-owners",
+      comment: "Internal role serialization belongs to the transport output parsers, never a domain-level unwrap door.",
+      severity: "error",
+      from: { pathNot: "^packages/server/src/transport/trpc/routers/(admin|chat|sessions|invites)\\.ts$" },
+      to: { path: "^packages/server/src/transport/trpc/role-output\\.ts$" },
+    },
+    {
       name: "chat-engine-authority-context",
       comment:
         "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19; turn-identity remains active for the wider semantic claim.",

@@ -15,8 +15,8 @@ test("admin output captures retain native identities and clocks while excluding 
   await using root = await createServerHarness();
   const owner = await root.principalFor(root.ownerId);
   const admin = root.services.admin;
-  const created = await seedCreatedAdminUser(root.db, admin.createUser, {
-    principal: owner,
+  const caller = await root.internalCallerFor(owner.userId);
+  const created = await seedCreatedAdminUser(root.db, caller.admin.createUser, {
     handle: castId<Handle>("admin-output-member"),
     password: PASSWORD,
   });
@@ -52,15 +52,14 @@ test("admin output captures retain native identities and clocks while excluding 
   });
   expect(session.row.oidcIdTokenCiphertext).not.toBeNull();
 
-  const usersBefore = await admin.listUsers({ principal: owner });
+  const usersBefore = await caller.admin.listUsers();
   await expect(
-    seedCreatedAdminUser(root.db, admin.createUser, {
-      principal: foreignPrincipal,
+    seedCreatedAdminUser(root.db, (await root.internalCallerFor(foreign.id)).admin.createUser, {
       handle: castId<Handle>("refused-admin-output-member"),
       password: PASSWORD,
     }),
   ).rejects.toThrow();
-  expect(await admin.listUsers({ principal: owner })).toEqual(usersBefore);
+  expect(await caller.admin.listUsers()).toEqual(usersBefore);
   await expect(
     seedRevokedUserSessions(root.db, admin.revokeUserSessions, { principal: foreignPrincipal, userId: created.view.id }, admin.listSessions),
   ).rejects.toThrow();

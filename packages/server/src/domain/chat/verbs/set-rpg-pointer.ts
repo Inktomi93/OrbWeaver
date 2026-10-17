@@ -1,5 +1,5 @@
 // The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
-// the client's takeover gate is a sync read off `ChatDetail` (chat never dereferences it — the truth is
+// the client's takeover gate is a sync read off `ChatDetailData` (chat never dereferences it — the truth is
 // `rpg_games`). Callers: rpg's `createGame` (through `mintLiteGame`, after the game row), `updateConfig` when the
 // patch flips `engaged`, the game fork (`chat-ops/fork-game.ts`) for the new chat, and `detachDanglingPointer`
 // with `null`. STANDALONE + principal-free (each rpg caller gated host authority): the `getMembership`/`postNarratorMessage`

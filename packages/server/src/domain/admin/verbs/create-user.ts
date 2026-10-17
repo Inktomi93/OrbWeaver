@@ -23,8 +23,8 @@ import type { AdminContext } from "../context.ts";
 import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { CreateUserParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
-import type { AdminUserView } from "../contract/views.ts";
-import { isBootstrapOwnerRole, requireAdmin, requireOwner } from "../guard.ts";
+import type { AdminUserData } from "../contract/views.ts";
+import { isBootstrapOwnerRoleCode, requireAdmin, requireOwner } from "../guard.ts";
 import { loadUser } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
@@ -62,7 +62,7 @@ function validateCreate(params: CreateUserParams, role: UserRole, isReservedHand
 
   // The owner is the immutable bootstrap row — never minted through admin. Refuses even the owner caller,
   // so a second owner can never be minted.
-  if (isBootstrapOwnerRole(role)) {
+  if (isBootstrapOwnerRoleCode(role)) {
     throw new DomainOperationError(ADMIN_OP_CODES.cannotGrantOwner, "the owner role cannot be assigned to a newly created user");
   }
   if (params.password.length < MIN_PASSWORD_LENGTH) {
@@ -82,7 +82,7 @@ interface LocalUserInsert {
   readonly at: number;
 }
 
-async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUserId: UserId): Promise<AdminUserView> {
+async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUserId: UserId): Promise<AdminUserData> {
   // The id is minted BEFORE the batch so the audit row can name the account it records without reading the
   // INSERT's own RETURNING back (the two statements commit together — there is no "after" to read in).
   const id = ctx.newUserId();

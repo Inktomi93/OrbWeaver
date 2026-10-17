@@ -1,11 +1,11 @@
-import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { MessageView } from "@orb/contracts/chat";
 import { CHAT_MESSAGE_LIST_MAX_LIMIT, projectViewForMember } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceOutcome } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { GetMessageWindowParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
-import type { MessageWindow } from "../contract/views.ts";
+import type { MessageWindow, ParticipantData } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { loadWindowAnchor, loadWindowRange } from "../persistence/message-window.ts";
@@ -17,7 +17,7 @@ const DEFAULT_WINDOW_LIMIT = 40;
 /** A bounded canon window resolves source identity before applying the same viewer projection as paging. */
 export function createMessageWindow(
   ctx: ChatContext,
-  deps: { readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]> },
+  deps: { readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]> },
 ): ChatService["getMessageWindow"] {
   return async ({ principal, chatId, target, cursor, limit }: GetMessageWindowParams): Promise<MessageWindow> => {
     const membership = await requireParticipant(ctx, principal, chatId);

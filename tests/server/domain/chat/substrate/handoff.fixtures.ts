@@ -36,7 +36,7 @@ export async function handoffActors(harness: ServerTestHarness, withAvatar = fal
     principal: host,
     input: createCharacterSchema.parse({ name: "Second gift", handle: "second-gift", description: "" }),
   });
-  const started = await harness.services.chat.startChat({ principal: host, characterIds: [first.id, second.id], opening: "none" });
+  const started = await (await harness.internalCallerFor(host.userId)).chat.startChat({ characterIds: [first.id, second.id], opening: "none" });
   const invitation = await harness.services.chat.createInvite({ principal: host, chatId: started.chat.id, input: { invitedHandle: nominee.handle } });
   await harness.services.chat.acceptInvite({ principal: nominee, inviteId: invitation.invite.id });
   return { host, nominee, chat: started.chat, cards: [first, second], avatar };

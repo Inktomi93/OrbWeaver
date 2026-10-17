@@ -8,7 +8,8 @@ import { withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { adminUserViewSchema, revokeUserSessionsResultSchema, sessionAdminViewSchema } from "#domain/admin";
+import { revokeUserSessionsResultSchema, sessionAdminViewSchema } from "#domain/admin";
+import { adminUserViewSchema } from "../role-output.ts";
 import { adminProcedure, t } from "../trpc.ts";
 
 export const adminRouter = t.router({

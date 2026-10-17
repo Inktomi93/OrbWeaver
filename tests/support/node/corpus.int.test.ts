@@ -718,25 +718,27 @@ test("a completed migrated capsule closes its real producers before cloning scru
         await response.arrayBuffer();
         return response;
       };
-      for (const [viewer, sourceAuth] of [
-        [reader, { cookie: notifications.admission.cookie, secrets: notifications.secrets }],
-        [member, capsule.privateCaptures.sharedMemberAuthentication],
+      for (const [viewer, expected, sourceAuth] of [
+        [reader, identities.notificationReader.viewer, { cookie: notifications.admission.cookie, secrets: notifications.secrets }],
+        [member, identities.sharedMember.viewer, capsule.privateCaptures.sharedMemberAuthentication],
       ] as const) {
-        await expect(captureCorpusCookieIdentity(cloneRoot, viewer, sourceAuth.cookie)).rejects.toThrow("request refused (401)");
+        await expect(captureCorpusCookieIdentity(cloneRoot, expected, sourceAuth.cookie)).rejects.toThrow("request refused (401)");
         const sourcePassword = sourceAuth.secrets[0];
         assert(sourcePassword !== undefined, "source admission omitted its private password witness");
         const staleLogin = await login(viewer.handle, sourcePassword);
         expect(staleLogin.status).toBe(401);
         expect(staleLogin.headers.getSetCookie()).toEqual([]);
       }
-      await expect(captureCorpusCookieIdentity(cloneRoot, member, "")).rejects.toThrow("request refused (401)");
+      await expect(captureCorpusCookieIdentity(cloneRoot, identities.sharedMember.viewer, "")).rejects.toThrow("request refused (401)");
       const readerAuthentication = await captureCookieAuth(cloneRoot, reader, CLONE_READER_PASSWORD);
       const memberAuthentication = await captureCookieAuth(cloneRoot, member, CLONE_MEMBER_PASSWORD);
       expect(readerAuthentication.identity).toEqual(identities.notificationReader);
       expect(memberAuthentication.identity).toEqual(identities.sharedMember);
       expect(readerAuthentication.secrets.filter((value) => notifications.secrets.includes(value))).toEqual([]);
       expect(memberAuthentication.secrets.filter((value) => capsule.privateCaptures.sharedMemberAuthentication.secrets.includes(value))).toEqual([]);
-      await expect(captureCorpusCookieIdentity(cloneRoot, member, readerAuthentication.cookie)).rejects.toThrow("does not admit the expected viewer");
+      await expect(captureCorpusCookieIdentity(cloneRoot, identities.sharedMember.viewer, readerAuthentication.cookie)).rejects.toThrow(
+        "does not admit the expected viewer",
+      );
       const cloneSessions = await clone.select().from(sessions).where(inArray(sessions.userId, memberIds));
       expect(cloneSessions).toHaveLength(2);
       expect(new Set(cloneSessions.map((row) => row.userId))).toEqual(new Set(memberIds));
@@ -745,16 +747,20 @@ test("a completed migrated capsule closes its real producers before cloning scru
       );
       const rotatedReader = await captureCookieAuth(cloneRoot, reader, CLONE_ROTATED_READER_PASSWORD);
       expect(rotatedReader.identity).toEqual(identities.notificationReader);
-      await expect(captureCorpusCookieIdentity(cloneRoot, reader, readerAuthentication.cookie)).rejects.toThrow("request refused (401)");
-      expect(await captureCorpusCookieIdentity(cloneRoot, member, memberAuthentication.cookie)).toEqual(identities.sharedMember);
+      await expect(captureCorpusCookieIdentity(cloneRoot, identities.notificationReader.viewer, readerAuthentication.cookie)).rejects.toThrow(
+        "request refused (401)",
+      );
+      expect(await captureCorpusCookieIdentity(cloneRoot, identities.sharedMember.viewer, memberAuthentication.cookie)).toEqual(identities.sharedMember);
       const logout = await fetch(new URL("/api/auth/logout", origin), {
         method: "POST",
         headers: { [CSRF_HEADER]: "1", cookie: memberAuthentication.cookie, forwarded: "" },
       });
       await logout.arrayBuffer();
       expect(logout.status).toBe(200);
-      await expect(captureCorpusCookieIdentity(cloneRoot, member, memberAuthentication.cookie)).rejects.toThrow("request refused (401)");
-      expect(await captureCorpusCookieIdentity(cloneRoot, reader, rotatedReader.cookie)).toEqual(identities.notificationReader);
+      await expect(captureCorpusCookieIdentity(cloneRoot, identities.sharedMember.viewer, memberAuthentication.cookie)).rejects.toThrow(
+        "request refused (401)",
+      );
+      expect(await captureCorpusCookieIdentity(cloneRoot, identities.notificationReader.viewer, rotatedReader.cookie)).toEqual(identities.notificationReader);
       const afterSetup = await readFile(join(fixture.layout.root, "corpus.json"), "utf8");
       expect(afterSetup).toBe(published);
       expect(parseCorpusWire(afterSetup)).toEqual(loaded.wire);

@@ -216,14 +216,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
       "the kernel stops comparing the participant role directly (a resource-role table replaces the switch); the row is then consumed zero times and reds.",
   },
   {
-    id: "two-class-role-authority:chat-nominee-target",
-    policyId: "two-class-role-authority",
-    subject: "packages/server/src/domain/chat/verbs/participants.ts",
-    operation: "enforcement-role-comparison",
-    why: "the host compare is on the NOMINEE (`nominee.role === 'host'` → ChatNotFound) — a TARGET-VALIDITY check on the handoff candidate, not the caller's privilege; the caller's gate is the `requireHost` on the line above it.",
-    endsWhen: "target validity moves behind a chokepoint helper that owns the leak-free refusal for a nominee as well as for a caller.",
-  },
-  {
     id: "two-class-role-authority:chat-participant-shape",
     policyId: "two-class-role-authority",
     subject: "packages/server/src/domain/chat/persistence/participant.ts",

@@ -24,7 +24,7 @@ import type {
   UserMacroDraws,
 } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, buildIdentityNameContext, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
-import type { ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { ParticipantRoleState, Principal } from "@orb/contracts/identity";
 import type { GenerationType, GuidedImpersonatePerson, UserIntent, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
@@ -81,7 +81,6 @@ import {
   insertCanonMessageStatements,
   insertMessageAssetStatements,
   isRetainedParentFenceViolation,
-  prepareContinueRestore,
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
@@ -99,6 +98,7 @@ import {
   loadStoredUserMacroValues,
 } from "../persistence/queries.ts";
 import { commitRetainedCanonStats } from "../persistence/retained-canon.ts";
+import { prepareContinueRestoreForRoleData } from "../persistence/role-encoding.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
@@ -261,7 +261,7 @@ async function resolveReasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId): Pr
 /** The §3.6 deception-active verdict for a mutation OUTCOME return toward a non-host member. `false` for a host
  *  (they read verbatim — the resolve is skipped) / a non-game / non-deception chat. Threaded into
  *  `stripMessagesForViewer` so a member who ran a deception-game turn never receives the reasoning bytes. */
-async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership: { readonly role: string }): Promise<boolean> {
+async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership: { readonly role: ParticipantRoleState }): Promise<boolean> {
   if (viewerReadsHidden(membership)) {
     return false;
   }
@@ -2028,7 +2028,12 @@ async function resolveTurnBase(
  *  EVERY caller of this helper has already ACCEPTED its turn ({@link withAcceptedSlot}), so the prep is stamped
  *  `slotAccepted` here — ONE home, so a fourth auxiliary verb cannot forget it and leave the engine's pre-start
  *  refusals (lock contention / consent / budget / a missing target) stranding an open client slot. */
-async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
+async function runRegistered(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  viewer: { readonly role: ParticipantRoleState },
+  prep: Omit<TurnPrep, "signal">,
+): Promise<TurnOutcome> {
   using handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
   return await runOnHandle(ctx, deps, handle, { viewer, prep });
 }
@@ -2039,7 +2044,7 @@ async function runOnHandle(
   ctx: ChatContext,
   deps: TurnDeps,
   handle: ActiveTurnHandle,
-  { viewer, prep }: { readonly viewer: { readonly role: string }; readonly prep: Omit<TurnPrep, "signal"> },
+  { viewer, prep }: { readonly viewer: { readonly role: ParticipantRoleState }; readonly prep: Omit<TurnPrep, "signal"> },
 ): Promise<TurnOutcome> {
   const outcome = await deps.engine.runTurn({ ...prep, slotAccepted: true, signal: handle.signal });
   // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
@@ -2592,7 +2597,7 @@ async function restoreContinue(
   emit: TurnDeps["emit"],
   args: {
     readonly principal: Principal;
-    readonly role: ParticipantRole;
+    readonly role: ParticipantRoleState;
     readonly chatId: ChatId;
     readonly messageId: MessageId;
     readonly direction: "undo" | "revert";
@@ -2606,7 +2611,7 @@ async function restoreContinue(
   }
   const content = direction === "undo" ? snap.preContinueContent : snap.preContinueContent + snap.lastContinuationContent;
   const reasoning = direction === "undo" ? snap.preContinueReasoning : combineReasoning(snap.preContinueReasoning, snap.lastContinuationReasoning);
-  const plan = prepareContinueRestore(ctx.db, {
+  const plan = prepareContinueRestoreForRoleData(ctx.db, {
     chatId,
     messageId,
     userId: principal.userId,

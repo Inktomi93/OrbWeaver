@@ -369,6 +369,7 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
 }
 
 async function admitReader(root: ServerTestHarness, actors: NotificationActors, origin: string): Promise<ReaderAdmission> {
+  const expected = await actors.caller.sessions.me();
   const login = await fetch(new URL("/api/auth/login", origin), {
     method: "POST",
     headers: { [CSRF_HEADER]: "1" },
@@ -401,7 +402,7 @@ async function admitReader(root: ServerTestHarness, actors: NotificationActors, 
       }),
     );
   }
-  return { cookie, token, identity: await captureCorpusCookieIdentity(root, actors.reader, cookie), seededPending, answeredPending };
+  return { cookie, token, identity: await captureCorpusCookieIdentity(root, expected, cookie), seededPending, answeredPending };
 }
 
 async function producersFor(

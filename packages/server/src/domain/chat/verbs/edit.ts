@@ -36,6 +36,7 @@
 
 import type { DurableChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import { isSeededGreetingRow, macroFreezeRecordSchema, parseVariantMetadata } from "@orb/contracts/chat";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
@@ -47,6 +48,7 @@ import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { sha256Hex } from "#primitives/content-hash";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -166,7 +168,7 @@ type EditVerbs = Pick<
  *  through. Binds this domain's rpg deception verdict onto the shared `projectViewReturnForViewer` seam. A HOST
  *  caller is IDENTITY — the same object, no rpg read — so the host return stays byte-identical; a non-host
  *  caller gets the hidden-span body strip plus, on a deception-active game, the reasoning channel withheld. */
-async function projectEditReturn(ctx: ChatContext, view: MessageView, viewer: { readonly role: string }): Promise<MessageView> {
+async function projectEditReturn(ctx: ChatContext, view: MessageView, viewer: { readonly role: ParticipantRoleState }): Promise<MessageView> {
   return await projectViewReturnForViewer(view, viewer, async (chatId) => (await ctx.rpg?.resolveReasoningHostOnly(chatId)) ?? false);
 }
 
@@ -775,7 +777,7 @@ function editedToolCall(
 async function writeEditedToolCall(ctx: ChatContext, params: EditToolCallParams, selected: MessageView["toolCalls"][number]): Promise<void> {
   const { principal, chatId, messageId, variantId, action } = params;
   const update = (record: MessageView["toolCalls"][number]): MessageView["toolCalls"][number] => editedToolCall(record, selected, action);
-  const hostRoles = PARTICIPANT_ROLES.filter((role) => permitsHost(ctx.can, principal, role));
+  const hostRoles = PARTICIPANT_ROLES.filter((role) => permitsHost(ctx.can, principal, captureParticipantRole(role)));
   for (let attempt = 0; attempt < MAX_TOOL_CALL_EDIT_ATTEMPTS; attempt += 1) {
     const target = await loadSlotTarget(ctx.db, chatId, messageId);
     if (target === undefined) {
@@ -854,7 +856,7 @@ async function writeReasoning(
     readonly reasoning: string | null;
     readonly event: "reasoningEdited" | "reasoningCleared";
     /** The gated caller's role — the §3.6 return belt's verdict axis (see the file header). */
-    readonly viewer: { readonly role: string };
+    readonly viewer: { readonly role: ParticipantRoleState };
   },
 ): Promise<MessageView> {
   const now = ctx.now();

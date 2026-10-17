@@ -12,9 +12,9 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
 
-test("a real-stack seed performs no persona or latch write; automation creates the unchanged authored artifact", async ({ db, app, services }) => {
+test("a real-stack seed performs no persona or latch write; automation creates the unchanged authored artifact", async ({ harness, db, app, services }) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   await app.personaSeeder.ensureSeeded(actor);
   expect(await services.persona.list({ principal: actor })).toEqual([]);
   const untouched = (await services.settings.getUserSettings({ principal: actor })).config;
@@ -43,11 +43,11 @@ test("a real-stack seed performs no persona or latch write; automation creates t
   expect(config.onboarding.defaultPersonaSeeded).toBe(true);
 });
 
-test("a lost persona latch heals only its own artifact and independently preserves the user's explicit pick", async ({ db, services }) => {
+test("a lost persona latch heals only its own artifact and independently preserves the user's explicit pick", async ({ harness, db, services }) => {
   const user = await seedUser(db);
   const stranger = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
-  const neighbor = principal(stranger.id, { role: stranger.role, handle: stranger.handle });
+  const actor = await principal(harness, user.id);
+  const neighbor = await principal(harness, stranger.id);
   await services.persona.create({ principal: neighbor, input: { name: "Foreign artifact", description: "", metadata: { seededDefault: true } } });
   const mine = await services.persona.create({ principal: actor, input: { name: "Traveler", description: "my authored identity" } });
   const find = createFindSeededDefault((args) => services.persona.list(args));
@@ -69,9 +69,9 @@ test("a lost persona latch heals only its own artifact and independently preserv
   expect(config.onboarding.defaultPersonaSeeded).toBe(true);
 });
 
-test("a real database refusal of the completion latch leaves pointers landed and the seed retryable", async ({ db, services }) => {
+test("a real database refusal of the completion latch leaves pointers landed and the seed retryable", async ({ harness, db, services }) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   const persona = await services.persona.create({ principal: actor, input: { name: "Traveler", description: "", metadata: { seededDefault: true } } });
   const latch = createPersonaSeedSettings(services.settings);
   await services.settings.getUserSettings({ principal: actor });

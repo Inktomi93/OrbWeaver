@@ -1,3 +1,4 @@
+import "@orb/testkit/node/composed-real.ts";
 import type { BackgroundStoreDeps, InlineReplyImageDeps, MaterializeBackgroundDeps } from "@orb/server/domain/assets";
 import {
   createBackgroundStore,
@@ -11,15 +12,14 @@ import { getLog } from "@orb/server/foundation/observability";
 import { makeAsset } from "@orb/testkit/node/factories/asset.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 
 const PNG = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);
 const URL = "https://cdn.example/image.png";
 
-test("the canonical background store fixes kind and magic while preserving optional live caps", async () => {
-  const owner = principal(makeUser().id);
+test("the canonical background store fixes kind and magic while preserving optional live caps", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor()).id);
   const asset = makeAsset();
   const store = vi.fn<BackgroundStoreDeps["store"]>(() => Promise.resolve({ assetId: asset.id, hash: asset.hash, size: asset.size, created: true }));
   const params = { principal: owner, bytes: PNG, mime: "image/png" };
@@ -34,8 +34,8 @@ test("the canonical background store fixes kind and magic while preserving optio
   expect(store).toHaveBeenLastCalledWith({ ...params, kind: "background", enforceMagic: true });
 });
 
-test("generated storage preserves the supplied kind; host-id storage resolves authority and reads the live cap", async () => {
-  const owner = principal(makeUser().id, { role: "admin" });
+test("generated storage preserves the supplied kind; host-id storage resolves authority and reads the live cap", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor({ role: "admin" })).id);
   const asset = makeAsset();
   const store = vi.fn<BackgroundStoreDeps["store"]>(() => Promise.resolve({ assetId: asset.id, hash: asset.hash, size: asset.size, created: true }));
   await createGeneratedAssetStore(store)(owner, PNG, "gallery", "image/png");
@@ -51,8 +51,8 @@ test("generated storage preserves the supplied kind; host-id storage resolves au
   expect(resolvePrincipal).toHaveBeenCalledWith(owner.userId);
 });
 
-test("both downloads use the full public firewall, sniff bytes and store under the supplied owner", async () => {
-  const owner = principal(makeUser().id);
+test("both downloads use the full public firewall, sniff bytes and store under the supplied owner", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor()).id);
   const asset = makeAsset();
   const fetchImpl = vi.fn<NonNullable<MaterializeBackgroundDeps["fetchImpl"]>>((_url, options) => {
     expect(options).toEqual({ allowedHosts: expect.any(Symbol), method: "GET", maxBytes: 1024 });
@@ -70,8 +70,8 @@ test("both downloads use the full public firewall, sniff bytes and store under t
   expect(fetchImpl).toHaveBeenCalledTimes(2);
 });
 
-test("raster magic, byte caps and dimension caps reject both inline and downloaded content before storage", async () => {
-  const owner = principal(makeUser().id);
+test("raster magic, byte caps and dimension caps reject both inline and downloaded content before storage", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor()).id);
   const asset = makeAsset();
   const store = vi.fn(() => Promise.resolve({ assetId: asset.id, hash: asset.hash }));
   let bytes = PNG;
@@ -101,8 +101,8 @@ test("raster magic, byte caps and dimension caps reject both inline and download
   }
 });
 
-test("non-success responses are disposed without reading bodies; thrown download detail stays off results", async () => {
-  const owner = principal(makeUser().id);
+test("non-success responses are disposed without reading bodies; thrown download detail stays off results", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor()).id);
   const asset = makeAsset();
   const store = vi.fn(() => Promise.resolve({ assetId: asset.id, hash: asset.hash }));
   const dispose = vi.fn();
@@ -124,8 +124,8 @@ test("non-success responses are disposed without reading bodies; thrown download
   expect(store).not.toHaveBeenCalled();
 });
 
-test("gallery refusals propagate with the supplied owner and subject", async () => {
-  const owner = principal(makeUser().id);
+test("gallery refusals propagate with the supplied owner and subject", async ({ harness }) => {
+  const owner = await principal(harness, (await harness.actor()).id);
   const asset = makeAsset();
   const character = makeCharacter();
   const add = vi.fn(() => Promise.reject(new Error("gallery refusal")));

@@ -120,11 +120,11 @@ import type {
   CreateInviteResult,
   DrainDeferredTurnsScope,
   DrainReport,
-  ForkResult,
+  ForkData,
   ImpersonateStreamDelta,
   ReapResult,
-  RedeemInviteResult,
-  StartChatResult,
+  RedeemInviteData,
+  StartChatData,
   TurnOutcome,
   VariablesResult,
 } from "./results.ts";
@@ -133,13 +133,13 @@ import type {
   AssembledPrompt,
   AssemblyPreview,
   ChatBusReplayEvent,
-  ChatDetail,
+  ChatDetailData,
   ChatEventAttach,
   ChatInjectionView,
-  ChatLineageView,
-  ChatListPage,
+  ChatLineageData,
+  ChatListPageData,
   ChatStreamReplayEvent,
-  ChatSummary,
+  ChatSummaryData,
   ContextFitAnswer,
   InvitePreview,
   InviteView,
@@ -147,7 +147,7 @@ import type {
   MessageVariantSummary,
   MessageView,
   MessageWindow,
-  ParticipantView,
+  ParticipantData,
   SectionPreview,
   ShapeTrace,
   StreamEventBounds,
@@ -160,20 +160,20 @@ export interface ChatService {
   // ── reads / lifecycle ───────────────────────────────────────────────────────
   /** Lazy chat+roster creation with greeting/verbatim seeding + the first-turn delegate. The caller
    *  becomes the `host` participant; the founding characters join the roster. */
-  readonly startChat: (params: StartChatParams) => Promise<StartChatResult>;
+  readonly startChat: (params: StartChatParams) => Promise<StartChatData>;
   /** ONE KEYSET PAGE of the caller's chats (pure membership — host or member), newest activity first,
    *  optionally projected to one character's seats. Paged because a membership list grows without
    *  bound and every row costs a per-chat participant read — an unpaged read would cost every consumer
    *  a full-library scan even when it only wants a handful of rows. */
   readonly countChats: (params: CountChatsParams) => Promise<number>;
-  readonly listChats: (params: ListChatsParams) => Promise<ChatListPage>;
+  readonly listChats: (params: ListChatsParams) => Promise<ChatListPageData>;
   /** The membership-scoped fork children of a chat. */
-  readonly listForks: (params: ListForksParams) => Promise<ChatSummary[]>;
+  readonly listForks: (params: ListForksParams) => Promise<ChatSummaryData[]>;
   /** The fork ancestry chain, membership-gated per ancestor (a fork grants no parent membership). */
-  readonly getChatLineage: (params: GetChatLineageParams) => Promise<ChatLineageView>;
+  readonly getChatLineage: (params: GetChatLineageParams) => Promise<ChatLineageData>;
   /** One chat resolved (row + present roster + effective room behavior). Throws `ChatNotFoundError` when
    *  missing or the caller is not a participant (leak-free). */
-  readonly getChat: (params: GetChatParams) => Promise<ChatDetail>;
+  readonly getChat: (params: GetChatParams) => Promise<ChatDetailData>;
   /** The deterministic pre-send serveability verdict for THIS chat's own resolved connection (#54, the
    *  honest-refusal gate) — "would the turn's own `resolveChat → deriveRunner → requireBackend` succeed,
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
@@ -217,7 +217,7 @@ export interface ChatService {
   /** The full sibling-variant set for one slot — `{variantId, idx}[]` ordered by idx, no content. */
   readonly listMessageVariants: (params: ListMessageVariantsParams) => Promise<MessageVariantSummary[]>;
   /** The resolved present roster. */
-  readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantView[]>;
+  readonly listParticipants: (params: ListParticipantsParams) => Promise<ParticipantData[]>;
   /** Resume the SSE token log from a cursor (late-subscriber ramp-up). */
   readonly replayStreamEvents: (params: ReplayStreamEventsParams) => Promise<ChatStreamReplayEvent[]>;
   /** The retained stream-log replay-cursor bounds (min/max seq). */
@@ -293,7 +293,7 @@ export interface ChatService {
   /** Copy a slot + its selected variant to a new tail slot. */
   readonly duplicateMessage: (params: DuplicateMessageParams) => Promise<MessageView>;
   /** Deep copy the chat into a new membership-scoped chat (`parentChatId` lineage). */
-  readonly forkChat: (params: ForkChatParams) => Promise<ForkResult>;
+  readonly forkChat: (params: ForkChatParams) => Promise<ForkData>;
 
   // ── injections ────────────────────────────────────────────────────────────────
   /** Upsert a persisted positional injection (the `ChatInjection` wire shape). */
@@ -359,7 +359,7 @@ export interface ChatService {
   /** Host-only write of the `chatMetadata.group` sub-blob (parsed → fully-defaulted). */
   readonly setGroupConfig: (params: SetGroupConfigParams) => Promise<GroupConfig>;
   /** Add a character to the roster (host-only; the one character participant-insert chokepoint). */
-  readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantView>;
+  readonly addCharacterToChat: (params: AddCharacterToChatParams) => Promise<ParticipantData>;
   /** Remove a character seat from the roster (host-only) — the symmetric drop for `addCharacterToChat`.
    *  leftSeq-stamps the present character seat; an absent/already-left character is an idempotent no-op. Has
    *  a tRPC row today; the scene-cast prune (parked, `docs/plans/rpg/design.md`) is a future INJECTED
@@ -419,7 +419,7 @@ export interface ChatService {
    *  optional; empty patch = no-op returning the current view). Replaces the retired per-kind forking
    *  (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled`) — one home, so no arm can
    *  be skipped again when the agent kind returns. A muted/tuned seat stays seated; cards/WI still contribute. */
-  readonly setSeatKnobs: (params: SetSeatKnobsParams) => Promise<ParticipantView>;
+  readonly setSeatKnobs: (params: SetSeatKnobsParams) => Promise<ParticipantData>;
 
   // ── invites (the one participant-insert chokepoint) ──────────
   /** Mint a share-link / targeted invite (host-only). Returns the persisted `InviteView` + the raw token
@@ -430,10 +430,10 @@ export interface ChatService {
   readonly previewInvite: (params: PreviewInviteParams) => Promise<InvitePreview>;
   /** Redeem an invite — the participant-insert chokepoint (atomic; `role` server-forced `member`, `joinSeq`
    *  stamped). The only public human-join path. */
-  readonly redeemInvite: (params: RedeemInviteParams) => Promise<RedeemInviteResult>;
+  readonly redeemInvite: (params: RedeemInviteParams) => Promise<RedeemInviteData>;
   /** Accept a targeted invite by id — the token-free in-app join (self-authorizing: bound to
    *  `invitedUserId`). A share-link / foreign / invalid / spent invite is a leak-free NOT_FOUND. */
-  readonly acceptInvite: (params: AcceptInviteParams) => Promise<RedeemInviteResult>;
+  readonly acceptInvite: (params: AcceptInviteParams) => Promise<RedeemInviteData>;
   /** Revoke an outstanding invite (host-only; status → `revoked`). */
   readonly revokeInvite: (params: RevokeInviteParams) => Promise<void>;
   /** Every invite for the chat as `InviteView`s (`remainingUses` computed; tokens never re-derivable).

@@ -21,9 +21,9 @@
 
 import type { HandoffOffer, HandoffOfferContents } from "@orb/contracts/chat";
 import { NO_HANDOFF_OFFER_CONTENTS } from "@orb/contracts/chat";
-import type { chatParticipants } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
+import type { ParticipantRow } from "../contract/participant-row.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 
 /** The present character seats the DEPARTING host owns — the copy candidates for an accepted offer.
@@ -37,7 +37,7 @@ async function resolveOfferedSeats(
   ctx: ChatContext,
   oldHostUserId: UserId,
   newOwnerUserId: UserId,
-  participants: readonly (typeof chatParticipants.$inferSelect)[],
+  participants: readonly ParticipantRow[],
 ): Promise<OfferedSeat[]> {
   const seats = participants.flatMap((p) => {
     const actor = classifyParticipant(p);
@@ -143,7 +143,7 @@ export async function previewHandoffCopyPlan(
     readonly oldHostUserId: UserId;
     readonly nomineeUserId: UserId;
     readonly offer: HandoffOffer;
-    readonly participants: readonly (typeof chatParticipants.$inferSelect)[];
+    readonly participants: readonly ParticipantRow[];
   },
 ): Promise<HandoffOfferContents> {
   const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;
@@ -176,7 +176,7 @@ export async function resolveHandoffCopyPlan(
     readonly oldHostUserId: UserId | null;
     readonly nomineeUserId: UserId;
     readonly offer: HandoffOffer;
-    readonly participants: readonly (typeof chatParticipants.$inferSelect)[];
+    readonly participants: readonly ParticipantRow[];
   },
 ): Promise<HandoffCopyPlan> {
   const { chatId, oldHostUserId, nomineeUserId, offer, participants } = params;

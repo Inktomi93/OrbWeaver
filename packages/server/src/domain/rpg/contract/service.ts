@@ -14,8 +14,8 @@
 // and WIRED at the composition root (W1b-integration/W1c) — a verb closes over the DECLARED op, never reaches
 // sideways into chat (§2 one-directional flow). The runtime impls are chat/connection's, not this wave's.
 
-import type { HistoryFloorSeq } from "@orb/contracts/chat";
-import type { Can, ParticipantRole } from "@orb/contracts/identity";
+import type { ViewerVisibility } from "@orb/contracts/chat";
+import type { Can, ChatMembership, ParticipantRoleState } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
@@ -281,7 +281,7 @@ interface RpgFlushRegistration {
 /** The narrow membership read (chat's `GetMembership` op, `domain/chat/contract/context.ts`). rpg gates EVERY
  *  verb through it — never a chat-table read (§4.4). `null` = not a present member / no such chat (ONE
  *  leak-free answer — the not-a-member and no-game cases are indistinguishable to the caller). */
-export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatMembership | null>;
 
 /** THE viewer-visibility verdict for rpg's MEMBER-FACING READS (#1528), consumed from chat's ONE
  *  `resolveViewerVisibility` op — never re-derived here. Two halves, both DATA (D106-F1):
@@ -296,10 +296,7 @@ export type RpgGetMembership = (chatId: ChatId, userId: UserId) => Promise<{ rea
  *
  *  `null` = not a present member / no such chat — the same leak-free answer {@link RpgGetMembership} gives,
  *  and the fail-CLOSED sentinel: an absent member must never surface as floor 0, which reads as UNCLAMPED. */
-export type RpgResolveViewerVisibility = (
-  chatId: ChatId,
-  userId: UserId,
-) => Promise<{ readonly role: ParticipantRole; readonly historyFloorSeq: HistoryFloorSeq; readonly readsHidden: boolean } | null>;
+export type RpgResolveViewerVisibility = (chatId: ChatId, userId: UserId) => Promise<ViewerVisibility | null>;
 
 /** The opaque pointer write (chat's `setRpgPointer`, §3.1). `createGame`, the `updateConfig` engaged toggle and the
  *  game fork call it so the client's takeover gate is a sync read off `ChatDetail` — rpg never reads it back.
@@ -840,7 +837,7 @@ export type RpgContextDeps = RpgContext;
  *  from `PARTICIPANT_ROLES`, never re-spelled — §5.5). */
 export interface RpgAuthorized {
   readonly game: RpgGameRow;
-  readonly role: ParticipantRole;
+  readonly role: ParticipantRoleState;
 }
 
 /** The lock DELTA a hand edit applies (`snapshot-edit.ts`): paths to auto-LOCK (touched fields —

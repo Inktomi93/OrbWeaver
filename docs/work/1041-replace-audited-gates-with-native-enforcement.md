@@ -28,16 +28,18 @@ D321 records the owner rulings. The canonical audit and raw-output crosswalk are
 
 Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
 
-Assigned SQL delivery passes review and ordinary controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Retained schema, clone and compose gaps remain in 1027 without blocking migration.
+SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
 Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Turn identity and typed role gates remain active pending qualified successors.
 
 Native ESLint file-size limits preserve source scopes and replace the custom counters. Existing test monolith debt moves to shrinking native bulk entries; new findings stay blocking. Structural antipattern routing excludes native lint. Review and bounded controls pass. Evidence: `reports/review/native-foundation-wave-ordinary.md`. Security, registry, runtime and CSS migrations remain open.
 
-Chat constructs the actual engine capability object and binds memory operations outside it. Native import restrictions exclude full chat authority contexts and guards. Production-root turn and memory controls pass independent security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Existing identity and role gates remain active. Unchanged legacy direct constructors require production-root adoption; their compatibility and CI execution are unqualified, not inherited type diagnostics.
+Chat constructs narrow engine inputs and binds memory outside it. Native imports and production-root turn/memory controls pass security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructors remain unqualified replacement debt, not inherited compiler diagnostics.
 
 Native database constraints enforce freeze-provenance row normalization. Complete canon body writers and production-root controls preserve freshness beyond SQL constraints. Migration preserves coherent stored bytes and refuses invalid rows atomically. Independent security review passes. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Ordinary production-root controls pass; application and hosted CI stay unqualified.
 
 Production device-local names and required persistence options use native factory types. Private implementation and legacy adapter imports remain restricted. Independent review passes. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Application qualification remains open.
 
-Native lexical class restrictions replace their custom owners; z-index, skin, hover, banned and dark consumers remain. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
+Native lexical class restrictions replace their custom owners; semantic consumers remain. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
+
+Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.

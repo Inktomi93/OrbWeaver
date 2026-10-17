@@ -35,10 +35,9 @@ import type {
   MemberCardVisibility,
   MessageView,
   NextTurnConnectionView,
-  ParticipantView,
 } from "@orb/contracts/chat";
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, projectViewForMember } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
@@ -64,6 +63,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { ChatContext } from "../context.ts";
 import type { TeachingIdentity, TeachingKnobs } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
@@ -102,15 +102,16 @@ import type {
   ActionTemplatesPreview,
   AssembledPrompt,
   AssemblyPreview,
-  ChatDetail,
+  ChatDetailData,
   ChatEventAttach,
-  ChatLineageView,
-  ChatListPage,
+  ChatLineageData,
+  ChatListPageData,
   ChatSeatPortrait,
   ChatStreamReplayEvent,
-  ChatSummary,
+  ChatSummaryData,
   MessagesPage,
   MessageVariantSummary,
+  ParticipantData,
   SectionPreview,
   ShapeTrace,
   StreamEventBounds,
@@ -190,8 +191,8 @@ async function resolveReasoningHostOnly(ctx: ChatContext, chatId: ChatId): Promi
 
 /** The collaborators not on `ChatContext` (see the file header). */
 interface ReadDeps {
-  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>>;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
+  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
   readonly resolveConnection: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<Resolved<"chat">>;
   /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
    *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
@@ -279,13 +280,13 @@ interface RoomInputs {
   readonly gameUserMacros: readonly UserMacroSpec[];
 }
 
-/** Map a loaded chat row + its canon stats + present roster → the light `ChatSummary`
+/** Map a loaded chat row + its canon stats + present roster → the light `ChatSummaryData`
  *  list row. `participantNames` are display names only — the heavy roster is `getChat`. */
 interface ChatSummaryInputs {
   readonly row: ChatRowView;
   readonly stat: { messageCount: number; lastMessageAt: number | null };
   readonly viewerLastTurnAt: number | null;
-  readonly participants: readonly ParticipantView[];
+  readonly participants: readonly ParticipantData[];
   readonly viewerUserId: UserId;
   /** The already-resolved per-caller scent line (see {@link buildSummaryPreview}) — `null` = nothing this
    *  viewer may see. Resolved by the caller so the mapper stays pure (no clamp re-derivation here). */
@@ -302,7 +303,7 @@ interface ChatSummaryInputs {
  * conversation. FLOOR: only when at least one OTHER seat remains, so a solo / self chat keeps its name
  * instead of collapsing to "Untitled chat".
  */
-function summaryParticipantNames(participants: readonly ParticipantView[], viewerUserId: UserId): readonly string[] {
+function summaryParticipantNames(participants: readonly ParticipantData[], viewerUserId: UserId): readonly string[] {
   const others = participants.filter((p) => p.userId !== viewerUserId);
   return (others.length > 0 ? others : participants).map((p) => p.displayName);
 }
@@ -320,7 +321,7 @@ function summaryParticipantNames(participants: readonly ParticipantView[], viewe
  * paints — the leading slot is the room's characters, and the viewer's own avatar on their own row would be the
  * same constant-prefix noise `summaryParticipantNames` suppresses from the title.
  */
-function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortrait[] {
+function seatPortraits(participants: readonly ParticipantData[]): ChatSeatPortrait[] {
   const portraits: ChatSeatPortrait[] = [];
   for (const participant of participants) {
     if (participant.kind !== "character" || participant.characterId === null) {
@@ -331,7 +332,7 @@ function seatPortraits(participants: readonly ParticipantView[]): ChatSeatPortra
   return portraits;
 }
 
-function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummary {
+function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId, lastMessagePreview }: ChatSummaryInputs): ChatSummaryData {
   return {
     id: row.id,
     title: row.title,
@@ -353,7 +354,7 @@ function toChatSummary({ row, stat, viewerLastTurnAt, participants, viewerUserId
     // Derive the caller's role from the present roster already loaded for this row — no extra read. The
     // caller is a present member on every listing path (membership-gated), so the `find` resolves; fail to
     // the least-privileged `member` on the impossible miss (never grant host by default).
-    viewerRole: participants.find((p) => p.userId === viewerUserId)?.role ?? "member",
+    viewerRole: participants.find((p) => p.userId === viewerUserId)?.role ?? captureParticipantRole("member"),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -383,7 +384,7 @@ const CHAT_LIST_DEFAULT_LIMIT = 50;
  */
 function buildSummaryPreview(
   last: Pick<MessageView, "seq" | "content" | "characterId" | "personaId"> | undefined,
-  membership: { readonly role: ParticipantRole; readonly joinSeq: number; readonly joinHistoryVisibility: JoinHistoryVisibility } | undefined,
+  membership: { readonly role: ParticipantRoleState; readonly joinSeq: number; readonly joinHistoryVisibility: JoinHistoryVisibility } | undefined,
   macroNames: RowMacroNameContext,
 ): string | null {
   if (last === undefined || membership === undefined) {
@@ -396,10 +397,10 @@ function buildSummaryPreview(
   return preview.length > 0 ? preview : null;
 }
 
-/** Resolve a set of chat rows → `ChatSummary[]` (the canon stats, the last-message bodies, the caller's own
+/** Resolve a set of chat rows → `ChatSummaryData[]` (the canon stats, the last-message bodies, the caller's own
  *  visibility rows and the character seats each batched in ONE read — no N+1; the names per chat).
  *  Shared by listChats / listForks / getChatLineage. */
-async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummary[]> {
+async function buildSummaries(ctx: ChatContext, deps: ReadDeps, rows: readonly ChatRowView[], viewerUserId: UserId): Promise<ChatSummaryData[]> {
   if (rows.length === 0) {
     return [];
   }
@@ -758,7 +759,7 @@ function createCountChats(ctx: ChatContext): ChatService["countChats"] {
 
 /** Page the canonical membership scope, retaining truthful census and compound recency cursor. */
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
-  return async ({ principal, includeArchived, characterId, search, beforeRecencyAt, limit, cursor }: ListChatsParams): Promise<ChatListPage> => {
+  return async ({ principal, includeArchived, characterId, search, beforeRecencyAt, limit, cursor }: ListChatsParams): Promise<ChatListPageData> => {
     const filter = chatCountFilter({ principal, includeArchived, characterId, search, beforeRecencyAt });
     const pageSize = Math.min(Math.max(limit ?? CHAT_LIST_DEFAULT_LIMIT, 1), CHAT_LIST_MAX_LIMIT);
     const rows = await listMemberChats(ctx.db, principal.userId, {
@@ -779,7 +780,7 @@ function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listCha
 /** `listForks` — the fork children of a chat the caller is also a member of (a fork grants no parent
  *  membership, and vice versa; gated per child independently). */
 function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listForks"] {
-  return async ({ principal, chatId }: ListForksParams): Promise<ChatSummary[]> => {
+  return async ({ principal, chatId }: ListForksParams): Promise<ChatSummaryData[]> => {
     await requireParticipant(ctx, principal, chatId);
     const children = await loadForkChildren(ctx.db, chatId);
     const visible = new Set(
@@ -801,7 +802,7 @@ function createListForks(ctx: ChatContext, deps: ReadDeps): ChatService["listFor
 /** `getChatLineage` — the fork ancestry chain, oldest-root first, membership-gated per ancestor
  *  independently (a hidden/not-a-member ancestor is omitted — the chain may be sparse). */
 function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["getChatLineage"] {
-  return async ({ principal, chatId }: GetChatLineageParams): Promise<ChatLineageView> => {
+  return async ({ principal, chatId }: GetChatLineageParams): Promise<ChatLineageData> => {
     await requireParticipant(ctx, principal, chatId);
     const chain = await loadAncestorChain(ctx.db, chatId); // self → … → root
     const visible = new Set(
@@ -825,7 +826,7 @@ function createGetChatLineage(ctx: ChatContext, deps: ReadDeps): ChatService["ge
 /** `getChat` — one chat resolved (row + present roster + effective room behavior). NOT_FOUND when missing
  *  or the caller is not a participant (leak-free). */
 function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"] {
-  return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
+  return async ({ principal, chatId }: GetChatParams): Promise<ChatDetailData> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
     const anchorPersonaId = membership.chat.anchorPersonaId;
@@ -1105,9 +1106,9 @@ function createListMessageVariants(ctx: ChatContext): ChatService["listMessageVa
   };
 }
 
-/** `listParticipants` — the resolved present roster (`ParticipantView[]`). */
+/** `listParticipants` — the resolved present roster (`ParticipantData[]`). */
 function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["listParticipants"] {
-  return async ({ principal, chatId }: ListParticipantsParams): Promise<ParticipantView[]> => {
+  return async ({ principal, chatId }: ListParticipantsParams): Promise<ParticipantData[]> => {
     await requireParticipant(ctx, principal, chatId);
     return [...(await deps.loadParticipantViews(chatId))];
   };
@@ -1570,7 +1571,7 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     });
     const chatRow = await loadChatRow(ctx.db, chatId);
     // D16: the checkpoint summary distills canon from seq 1, so a clamped caller never receives it — the
-    // same verdict `toChatDetail` applies to the `ChatDetail` copy of these two fields. The fit NUMBERS stay
+    // same verdict `toChatDetail` applies to the `ChatDetailData` copy of these two fields. The fit NUMBERS stay
     // room-wide (they describe the next turn's budget, which is the host's prompt, not transcript content).
     const checkpointVisible = membership.historyFloorSeq <= NO_HISTORY_FLOOR;
     return resolveContextFitPreview({
@@ -1777,7 +1778,7 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
     // only consumer is the live fan-out's §3.6 strip — `ChatEventAttach.viewerIsHost`), and the local
     // `reasoningHostOnly` gate is the same byte-selection verdict. Both are the DATA-PROJECTION class, so both
     // read `member-visibility::viewerReadsHidden` — the identical lens `chat-detail.ts` composes for the
-    // `ChatDetail.viewerIsHost` field and the durable replay applies to the rows (D110; the F1 ruling).
+    // `ChatDetailData.viewerIsHost` field and the durable replay applies to the rows (D110; the F1 ruling).
     const readsHidden = viewerReadsHidden(membership);
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
     return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: readsHidden, reasoningHostOnly };

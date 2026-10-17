@@ -20,15 +20,16 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
 import type { PortableFile } from "@orb/contracts/portability";
-import type { ServicesResult } from "@orb/server/entry/compose";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
 import { vi } from "vitest";
 
-async function owners(app: ServicesResult): Promise<readonly [Principal, Principal]> {
-  const source = await app.sessions.ensureUser(principal(OWNER_USER_ID).handle);
-  const target = await app.sessions.ensureUser(principal(OTHER_USER_ID).handle);
-  return [principal(source), principal(target)];
+async function owners(harness: ServerTestHarness): Promise<readonly [Principal, Principal]> {
+  const app = harness.app;
+  const source = await app.sessions.ensureUser((await principal(harness, OWNER_USER_ID)).handle);
+  const target = await app.sessions.ensureUser((await principal(harness, OTHER_USER_ID)).handle);
+  return [await principal(harness, source), await principal(harness, target)];
 }
 
 async function exportedFiles(stream: AsyncIterable<PortableFile>): Promise<PortableFile[]> {
@@ -39,8 +40,8 @@ async function exportedFiles(stream: AsyncIterable<PortableFile>): Promise<Porta
   return files;
 }
 
-test("portable owner binding refuses malformed cards before effects and content-dedups only within each owner", async ({ app }) => {
-  const [source, target] = await owners(app);
+test("portable owner binding refuses malformed cards before effects and content-dedups only within each owner", async ({ harness, app }) => {
+  const [source, target] = await owners(harness);
   const character = await app.services.character.create({
     principal: source,
     input: createCharacterSchema.parse({ handle: "portable-authority", name: "Portable authority", description: "Owned export marker" }),
@@ -74,11 +75,12 @@ test("portable owner binding refuses malformed cards before effects and content-
 });
 
 test("the actual staged bundle isolates malformed cards, counts unsupported files and preserves per-owner idempotency", async ({
+  harness,
   app,
   importStagingDir,
   clock,
 }) => {
-  const [source, target] = await owners(app);
+  const [source, target] = await owners(harness);
   const character = await app.services.character.create({
     principal: source,
     input: createCharacterSchema.parse({ handle: "bundle-control", name: "Bundle control", description: "Bundle marker" }),
@@ -111,11 +113,12 @@ test("the actual staged bundle isolates malformed cards, counts unsupported file
 });
 
 test("the real profile driver performs no dry-run writes and a real run writes one clock-consistent honest report", async ({
+  harness,
   app,
   importStagingDir,
   clock,
 }) => {
-  const [source, target] = await owners(app);
+  const [source, target] = await owners(harness);
   const character = await app.services.character.create({
     principal: source,
     input: createCharacterSchema.parse({ handle: "profile-control", name: "Profile control", description: "Profile marker" }),
@@ -164,11 +167,12 @@ test("the real profile driver performs no dry-run writes and a real run writes o
 });
 
 test("the composed profile reader admits an ordinary settings leaf but refuses another owner's settings symlink before parsing or writes", async ({
+  harness,
   app,
   importStagingDir,
   clock,
 }) => {
-  const [source, target] = await owners(app);
+  const [source, target] = await owners(harness);
   const token = "profile-settings-nofollow";
   const root = join(importStagingDir, target.userId, token, "profile");
   const settings = join(root, ST_SETTINGS_FILE);

@@ -31,7 +31,7 @@ import { ADMIN_OP_CODES } from "../contract/errors.ts";
 import type { SetEnabledParams } from "../contract/params.ts";
 import type { AdminService } from "../contract/service.ts";
 import { isBootstrapOwnerRole, requireAdmin } from "../guard.ts";
-import { loadUser, userCols } from "../persistence/queries.ts";
+import { loadUser, toAdminUserData, userCols } from "../persistence/queries.ts";
 import { commitAuditedWrite } from "../substrate/audited-write.ts";
 
 const OWNER_ROLE = "owner";
@@ -86,6 +86,6 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
     // setEnabled deliberately accepts agent targets — it is the containment verb (design of record, D60
     // build-state rider: agent principals are not built yet; when they land, disabling one must drop it
     // from every cast/arbitration and make every canAgent throw).
-    return { ...row, ownerHandle: target.ownerHandle };
+    return toAdminUserData({ ...row, ownerHandle: target.ownerHandle });
   };
 }

@@ -3,6 +3,7 @@ import "@orb/testkit/node/composed-real.ts";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import { chatParticipants } from "@orb/db";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import type { ImageryRoomAccessDeps, ResolveMediaRefDeps } from "@orb/server/domain/chat";
 import {
   createImageryRoomAccess,
@@ -22,7 +23,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 
-test("composed imagery card reads carry the row-derived host role rather than a synthetic user role", async ({ db, services, ids, clock }) => {
+test("composed imagery card reads carry the row-derived host role rather than a synthetic user role", async ({ harness, db, services, ids, clock }) => {
   const room = await seedChat(db);
   const host = await seedUser(db, { role: "admin" });
   const member = await seedUser(db);
@@ -58,17 +59,23 @@ test("composed imagery card reads carry the row-derived host role rather than a 
   ]);
   const getCard = vi.spyOn(services.character, "getCard");
   await expect(
-    services.imagery.extractPrompt({ caller: principal(member.id), chatId: room.id, mode: "character", subjectCharacterId: subject.id }),
+    services.imagery.extractPrompt({ caller: await principal(harness, member.id), chatId: room.id, mode: "character", subjectCharacterId: subject.id }),
   ).rejects.toThrow();
   expect(getCard).toHaveBeenCalledExactlyOnceWith({
-    principal: expect.objectContaining({ userId: host.id, role: host.role, handle: host.handle }),
+    principal: expect.objectContaining({ userId: host.id, handle: host.handle }),
     characterId: subject.id,
   });
+  const captured = getCard.mock.calls[0]?.[0].principal;
+  if (captured === undefined) {
+    throw new Error("the real imagery path did not resolve its host Principal");
+  }
+  expect(isAdmin(captured)).toBe(true);
+  expect(isOwner(captured)).toBe(false);
 });
 
-test("room admission and subject seating run before host principal, card or Utility spend", async ({ db, ids, clock }) => {
+test("room admission and subject seating run before host principal, card or Utility spend", async ({ harness, db, ids, clock }) => {
   const room = await seedChat(db);
-  const hostRow = await seedUser(db);
+  const hostRow = await seedUser(db, { role: "admin" });
   await db.insert(chatParticipants).values({
     id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
     chatId: room.id,
@@ -79,9 +86,9 @@ test("room admission and subject seating run before host principal, card or Util
     joinSeq: 0,
   });
   const hostId = hostRow.id;
-  const host = principal(hostId, { role: "admin" });
-  const member = principal((await seedUser(db)).id);
-  const outsider = principal((await seedUser(db, { role: "admin" })).id, { role: "admin" });
+  const host = await principal(harness, hostId);
+  const member = await principal(harness, (await seedUser(db)).id);
+  const outsider = await principal(harness, (await seedUser(db, { role: "admin" })).id);
   const subject = await seedCharacter(db, { ownerId: hostId });
   const resolveHostPrincipal = vi.fn(() => Promise.resolve(host));
   const resolveChatHostUserId = vi.fn<ImageryRoomAccessDeps["resolveChatHostUserId"]>((chatId) => loadPresentHostUserId(db, chatId));
@@ -119,9 +126,14 @@ test("room admission and subject seating run before host principal, card or Util
   expect(await access.callerInChat(outsider, room.id)).toBe(false);
 });
 
-test("quiet extraction preserves the caller floor and summary strip while the actual supplied host Principal reads the card", async ({ db, ids, clock }) => {
+test("quiet extraction preserves the caller floor and summary strip while the actual supplied host Principal reads the card", async ({
+  harness,
+  db,
+  ids,
+  clock,
+}) => {
   const room = await seedChat(db);
-  const hostRow = await seedUser(db);
+  const hostRow = await seedUser(db, { role: "admin" });
   await db.insert(chatParticipants).values({
     id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
     chatId: room.id,
@@ -132,8 +144,8 @@ test("quiet extraction preserves the caller floor and summary strip while the ac
     joinSeq: 0,
   });
   const hostId = hostRow.id;
-  const host = principal(hostId, { role: "admin" });
-  const member = principal((await seedUser(db)).id);
+  const host = await principal(harness, hostId);
+  const member = await principal(harness, (await seedUser(db)).id);
   const subject = await seedCharacter(db, { ownerId: hostId });
   await db.insert(chatParticipants).values({
     id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
@@ -167,7 +179,9 @@ test("quiet extraction preserves the caller floor and summary strip while the ac
   expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).toContain("visible-scene");
   expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("prejoin-secret");
   expect(summarize.mock.calls[0]?.[0][0]?.userPrompt).not.toContain("hidden-scene");
-  await expect(extract({ caller: principal((await seedUser(db)).id), funderUserId: hostId, chatId: room.id, instruction: "scene" })).rejects.toMatchObject({
+  await expect(
+    extract({ caller: await principal(harness, (await seedUser(db)).id), funderUserId: hostId, chatId: room.id, instruction: "scene" }),
+  ).rejects.toMatchObject({
     name: "DomainNotFoundError",
   });
   expect(getCard).toHaveBeenCalledTimes(1);
@@ -175,13 +189,14 @@ test("quiet extraction preserves the caller floor and summary strip while the ac
 });
 
 test("only host or PRESENT owner assets reach byte processing; conversion remains deferred with caller quality and signal", async ({
+  harness,
   db,
   services,
   ids,
   clock,
 }) => {
   const room = await seedChat(db);
-  const hostRow = await seedUser(db);
+  const hostRow = await seedUser(db, { role: "admin" });
   await db.insert(chatParticipants).values({
     id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
     chatId: room.id,
@@ -203,7 +218,7 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
     joinSeq: 0,
   });
   const bytes = new Uint8Array([9, 8, 7]);
-  const asset = await services.assets.store({ principal: principal(member.id), bytes, kind: "attachment", mime: "video/webm" });
+  const asset = await services.assets.store({ principal: await principal(harness, member.id), bytes, kind: "attachment", mime: "video/webm" });
   const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
   const read = vi.spyOn(services.assets, "loadAssetBytes");
   let forbidden = false;

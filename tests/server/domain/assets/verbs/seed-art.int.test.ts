@@ -14,9 +14,9 @@ if (CARD === undefined) {
   throw new Error("the authored card pack is empty");
 }
 
-test("truncated real shipped art is refused by the production magic guard before a CAS index row lands", async ({ db, services }) => {
+test("truncated real shipped art is refused by the production magic guard before a CAS index row lands", async ({ harness, db, services }) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   const art = await readSeedAvatar(CARD.input.handle);
   if (art === null) {
     throw new Error("the authored card ships no testable avatar");
@@ -37,11 +37,11 @@ test("truncated real shipped art is refused by the production magic guard before
   expect(await services.assets.listOwned({ principal: actor, limit: 100 })).toMatchObject([{ kind: "avatar", mime: art.mime }]);
 });
 
-test("seed gallery keeps the actual Principal and refuses a foreign subject while owned repeats deduplicate", async ({ db, services }) => {
+test("seed gallery keeps the actual Principal and refuses a foreign subject while owned repeats deduplicate", async ({ harness, db, services }) => {
   const owner = await seedUser(db);
   const stranger = await seedUser(db);
-  const actor = principal(owner.id, { role: owner.role, handle: owner.handle });
-  const neighbor = principal(stranger.id, { role: stranger.role, handle: stranger.handle });
+  const actor = await principal(harness, owner.id);
+  const neighbor = await principal(harness, stranger.id);
   const card = await seedCharacter(db, { ownerId: owner.id });
   const ops = createSeedAvatarOps({
     readAvatar: readSeedAvatar,

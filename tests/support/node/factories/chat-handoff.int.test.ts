@@ -16,6 +16,7 @@ test("real accepted host handoff exposes its durable resumption only until accep
   const owner = await root.principalFor(root.ownerId);
   const memberRow = await root.actor();
   const member = await root.principalFor(memberRow.id);
+  const memberCaller = await root.internalCallerFor(member.userId);
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
   const before = await root.services.chat.getChat({ principal: owner, chatId });
   const sourceSeat = before.participants.find((participant) => participant.kind === "character");
@@ -35,7 +36,7 @@ test("real accepted host handoff exposes its durable resumption only until accep
       }),
     ]);
     const marker = await captureChatHandoffResumption(root.db, chatId);
-    const accepted = await root.services.chat.getChat({ principal: member, chatId });
+    const accepted = await memberCaller.chat.getChat({ chatId });
     const copiedSeat = accepted.participants.find((participant) => participant.id === sourceSeat.id);
     if (copiedSeat === undefined || copiedSeat.characterId === null) {
       throw new Error("the real handoff swap did not retain and rekey the character seat");
@@ -54,7 +55,7 @@ test("real accepted host handoff exposes its durable resumption only until accep
     await accepting;
   }
   expect(await captureChatHandoffResumption(root.db, chatId)).toBeUndefined();
-  const completed = await root.services.chat.getChat({ principal: member, chatId });
+  const completed = await memberCaller.chat.getChat({ chatId });
   expect(completed.pendingHostUserId).toBeNull();
   expect(completed.participants.filter((participant) => participant.role === "host").map((participant) => participant.userId)).toEqual([member.userId]);
 });

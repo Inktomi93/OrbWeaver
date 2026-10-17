@@ -20,7 +20,7 @@
 // return the resolved game row so the verb has the truth in one round-trip. `assertOwnUserRef` is the member's
 // self-write check (a member may write their OWN `user` sheet/actor, never another's).
 
-import type { Can, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { Can, ParticipantRoleState, Principal } from "@orb/contracts/identity";
 import type { RpgActorRef } from "@orb/contracts/rpg";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
@@ -53,7 +53,7 @@ export async function resolveMember(ctx: RpgContext, principal: Principal, chatI
  *  is made inside `can()` over the role rpg resolved; a `DomainForbiddenError` from the seam IS the deny. Any
  *  OTHER error is a real bug and propagates — a catch-all here would turn a broken kernel into a silent grant.
  *  File-local: every rpg authority answer goes through one of the two exported asserts below. */
-function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boolean {
+function permitsHost(can: Can, principal: Principal, role: ParticipantRoleState): boolean {
   try {
     can(principal, "host", { kind: "chat", membership: { role } });
     return true;
@@ -76,7 +76,7 @@ function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boo
  *  A verb that has already resolved its membership (`resolveMember`, or the direct `ctx.getMembership` read
  *  the two game-lifecycle verbs must do) calls THIS; a verb that needs the game row too calls
  *  {@link resolveHost}. A verb never compares the role itself. */
-export function assertHostRole(can: Can, principal: Principal, role: ParticipantRole, reason: string): void {
+export function assertHostRole(can: Can, principal: Principal, role: ParticipantRoleState, reason: string): void {
   if (!permitsHost(can, principal, role)) {
     throw new DomainForbiddenError(reason);
   }
@@ -95,7 +95,7 @@ export async function resolveHost(ctx: RpgContext, principal: Principal, chatId:
  *  (it holds every plane). Throws `DomainForbidden` on a foreign/non-user ref for a member. The host arm is a
  *  BYPASS, not a gate (it grants, never denies) — and it asks the SAME kernel the asserts do, so a widening of
  *  host authority can never grant the bypass without granting the gate. */
-export function assertOwnUserRef(can: Can, principal: Principal, role: ParticipantRole, ref: RpgActorRef): void {
+export function assertOwnUserRef(can: Can, principal: Principal, role: ParticipantRoleState, ref: RpgActorRef): void {
   if (permitsHost(can, principal, role)) {
     return;
   }

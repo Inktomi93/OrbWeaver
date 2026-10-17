@@ -1,3 +1,4 @@
+import "@orb/testkit/node/composed-real.ts";
 // @subject packages/server/src/domain/refinery/verbs/schema-plan.ts
 
 import { NoConnectionError } from "@orb/inference";
@@ -11,8 +12,9 @@ import { z } from "zod";
 
 const SCHEMA = projectJsonSchema(z.object({ answer: z.string() }));
 
-test("cached resolution carries the row-derived Principal and only NoConnection degrades to unbound", async () => {
-  const actor = principal(TEST_OWNER_ID, { role: "user" });
+test("cached resolution carries the row-derived Principal and only NoConnection degrades to unbound", async ({ harness }) => {
+  await harness.actor({ id: TEST_OWNER_ID });
+  const actor = await principal(harness, TEST_OWNER_ID);
   const resolved = makeResolved({ task: "structured", allowBackground: false });
   const resolve = vi.fn<Parameters<typeof createResolveStructuredBinding>[0]["resolve"]>().mockResolvedValue({ resolved, warnings: [] });
   const principalOf = vi.fn(async () => actor);

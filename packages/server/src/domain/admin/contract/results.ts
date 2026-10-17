@@ -1,15 +1,15 @@
-// domain/admin/contract/results — every verb's *Result. Most return the secret-free AdminUserView; the
+// domain/admin/contract/results — every verb's *Result. Most return the secret-free AdminUserData; the
 // session verbs return the port-shaped views or coded primitives.
 
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { AdminUserView, SessionAdminView } from "./views.ts";
+import type { AdminUserData, SessionAdminView } from "./views.ts";
 
-export type ListUsersResult = readonly AdminUserView[];
-export type SetRoleResult = AdminUserView;
-export type SetEnabledResult = AdminUserView;
-export type CreateUserResult = AdminUserView;
-export type LinkSsoIdentityResult = AdminUserView;
+export type ListUsersResult = readonly AdminUserData[];
+export type SetRoleResult = AdminUserData;
+export type SetEnabledResult = AdminUserData;
+export type CreateUserResult = AdminUserData;
+export type LinkSsoIdentityResult = AdminUserData;
 export type ListSessionsResult = readonly SessionAdminView[];
 
 /** B5/#1707 — the outcome shape of the INJECTED sessions link-settlement op: WHY a bind claim bound nothing

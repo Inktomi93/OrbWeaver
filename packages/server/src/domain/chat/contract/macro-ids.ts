@@ -7,7 +7,7 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
-/** A roster projection carrying the two participant-scoped macro ids — satisfied by `ParticipantView` and
+/** A roster projection carrying the two participant-scoped macro ids — satisfied by `ParticipantData` and
  *  by a raw `chat_participants` row alike. */
 export interface ParticipantMacroIdSource {
   readonly characterId: CharacterId | null;

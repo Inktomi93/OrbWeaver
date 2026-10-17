@@ -11,6 +11,7 @@ import { resolveUploadCaps } from "@orb/contracts/uploads";
 import type { Hono } from "hono";
 import { requestClientScope, requestTransport } from "#infra/auth";
 import { peerIp } from "#infra/network";
+import { userRoleValue } from "#primitives/role-data/decode";
 import type { PrincipalEnv } from "./blob.ts";
 
 // @orb-waive no-inline-package-interface(AuthMetaDeps): baselined when the gate landed; burn-down item 952.
@@ -96,7 +97,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
     const me = {
       authenticated: principal !== null,
       handle: principal?.handle ?? null,
-      role: principal?.role ?? null,
+      role: principal === null ? null : userRoleValue(principal.role),
     } satisfies AuthMe;
     return c.json(authMeSchema.parse(me));
   });

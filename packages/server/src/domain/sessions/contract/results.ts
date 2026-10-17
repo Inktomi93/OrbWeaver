@@ -2,7 +2,7 @@
 // from: `validate` → `ValidatedSession`, `provisionIdentity` → `ProvisionResult`, `ensureUser` → a bare
 // `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
-import type { UserRole } from "@orb/contracts/identity";
+import type { UserRole, UserRoleState } from "@orb/contracts/identity";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -26,7 +26,7 @@ export interface ValidatedSession {
    *  session is not a role. The seam surfaces it BESIDE the Principal (`SeamResult.sessionId`). */
   sessionId: SessionId;
   userId: UserId;
-  role: UserRole;
+  role: UserRoleState;
   handle: Handle;
   externalId: ExternalId | null;
   enabled: boolean;
@@ -134,7 +134,7 @@ export type ProvisionResult =
       readonly outcome: "provisioned";
       userId: UserId;
       enabled: boolean;
-      role: UserRole;
+      role: UserRoleState;
       /**
        * W7b — did this upsert MOVE a field the viewer's identity reads project (`sessions.me`:
        * handle/globalRole)? The verb reports it because THE CALLER CANNOT KNOW IT: entry hands in a
@@ -192,7 +192,7 @@ export interface PendingSignupPlan {
 }
 
 export interface UserPrincipalFields {
-  role: UserRole;
+  role: UserRoleState;
   handle: Handle;
   externalId: ExternalId | null;
   /** The row's live login state — a REPORT, not a gate. See the caller split above. */

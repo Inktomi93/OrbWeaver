@@ -15,10 +15,14 @@ if (CAMPAIGN?.kind !== "rosterPreset" || PLAIN?.kind !== "rosterPreset") {
   throw new Error("the canonical manifest must contain its plain and campaign rosters");
 }
 
-test("authored campaign and plain steps preserve the receiving Principal, owned character order and real game interpretation", async ({ db, services }) => {
+test("authored campaign and plain steps preserve the receiving Principal, owned character order and real game interpretation", async ({
+  harness,
+  db,
+  services,
+}) => {
   const owner = await seedUser(db);
   const neighbor = await seedUser(db);
-  const actor = principal(owner.id, { role: owner.role, handle: owner.handle });
+  const actor = await principal(harness, owner.id);
   for (const handle of new Set([...CAMPAIGN.characters, ...PLAIN.characters])) {
     await seedCharacter(db, { ownerId: owner.id, handle });
     await seedCharacter(db, { ownerId: neighbor.id, handle });
@@ -43,13 +47,17 @@ test("authored campaign and plain steps preserve the receiving Principal, owned 
     expect(row.members.map((member) => member.characterId)).toEqual(expected);
     expect(row.game === null).toBe(!item.startsGame);
   }
-  expect(await services.rosterPreset.list({ principal: principal(neighbor.id, { role: neighbor.role, handle: neighbor.handle }) })).toEqual([]);
+  expect(await services.rosterPreset.list({ principal: await principal(harness, neighbor.id) })).toEqual([]);
 });
 
-test("all-deleted authored seats settle without a roster write, never filling the vacancy with another user's same handles", async ({ db, services }) => {
+test("all-deleted authored seats settle without a roster write, never filling the vacancy with another user's same handles", async ({
+  harness,
+  db,
+  services,
+}) => {
   const owner = await seedUser(db);
   const neighbor = await seedUser(db);
-  const actor = principal(owner.id, { role: owner.role, handle: owner.handle });
+  const actor = await principal(harness, owner.id);
   for (const handle of PLAIN.characters) {
     const card = await seedCharacter(db, { ownerId: owner.id, handle });
     await seedCharacter(db, { ownerId: neighbor.id, handle });

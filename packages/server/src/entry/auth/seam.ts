@@ -42,6 +42,7 @@ import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
+import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { publishUserEvent } from "#transport/trpc";
 
@@ -256,7 +257,7 @@ async function resolveHeaderOrFallbackPrincipal(
 function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
   return {
     userId,
-    role: fields?.role ?? "user",
+    role: fields?.role ?? captureUserRole("user"),
     handle: fields?.handle ?? castId<Handle>(userId),
     externalId: fields?.externalId ?? null,
     via: "fallback",

@@ -37,7 +37,7 @@ import {
   userMacroDrawsSchema,
   variableDeltaSchema,
 } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -50,6 +50,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
@@ -65,7 +66,7 @@ const LIMIT_ONE = 1;
 const characterSeats = alias(chatParticipants, "character_seats");
 
 /** A resolved `chats` row with its `metadata` blob parsed. File-local: the verb maps it into the
- *  `ChatDetail`/`ChatSummary` view. */
+ *  `ChatDetailData`/`ChatSummaryData` view. */
 interface ChatRow {
   id: ChatId;
   title: string | null;
@@ -280,7 +281,7 @@ export async function loadMemberChat(
 ): Promise<
   | {
       chat: ChatRow;
-      role: ParticipantRole;
+      role: ParticipantRoleState;
       activePersonaId: PersonaId | null;
       joinSeq: number;
       joinHistoryVisibility: JoinHistoryVisibility;
@@ -304,7 +305,7 @@ export async function loadMemberChat(
     return;
   }
   const { role, activePersonaId, joinSeq, joinHistoryVisibility, ...rest } = r;
-  return { chat: toChatRow(rest), role, activePersonaId, joinSeq, joinHistoryVisibility };
+  return { chat: toChatRow(rest), role: captureParticipantRole(role), activePersonaId, joinSeq, joinHistoryVisibility };
 }
 
 /** The library list's filter axes. File-local (the `ChatRow` precedent): the verb passes an object literal,
@@ -432,7 +433,7 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
  *  per-character `MAX` reads the same clock; this alias keeps the call sites in this file reading as before.
  *
  *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is
- *  where `ChatSummary.lastMessageAt` comes from, so any divergence would sort a list by a number no row in it
+ *  where `ChatSummaryData.lastMessageAt` comes from, so any divergence would sort a list by a number no row in it
  *  shows. The verb-level test that pins `items` non-increasing in `lastMessageAt ?? updatedAt` is the
  *  enforcer of that agreement. */
 function chatRecencySql(db: Db): SQL<number> {
@@ -503,7 +504,7 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
   return rows.map(toChatRow);
 }
 
-/** Per-chat canon aggregates for the `ChatSummary` list chrome: message count + newest timestamp. Batched
+/** Per-chat canon aggregates for the `ChatSummaryData` list chrome: message count + newest timestamp. Batched
  *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map.
  *
  *  VISIBLE rows only: the `innerJoin` to the SELECTED variant is the visibility predicate (a slot whose

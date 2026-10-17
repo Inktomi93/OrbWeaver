@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-16
+updated: 2026-10-17
 priority: P1
 plan: test-foundation
 ---
@@ -12,7 +12,7 @@ plan: test-foundation
 
 Prioritize structural cuts: D320 legacy analysis eligibility, unnecessary typed-gate removal and AppRouter type-bridge closure isolation. Separate compiler baseline cost from additional analysis work, with runtime and checker concurrency explicit.
 
-Compare batched TS7 checker extraction with TS6 on matched complete worlds, measuring client and server memory. Keep pins unchanged during external experiments. Shared persisted facts serve consumers without private programs.
+Keep TS6 analysis and park TS7 benchmarks and adapter work. Focus on existing lookup and deep callable traversal costs. Shared persisted facts serve consumers without private programs.
 
 ## Why
 
@@ -40,4 +40,4 @@ Reviewed `49d607fd3c` removes repeated path resolution and native import-map con
 
 Portable corpus contracts remove the Node and server closure and preserve exhaustive router conformance. Other worlds remain unverified. Declaration bridges need freshness and closure qualification. D320 retains legacy execution and typechecking. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-Full TS6 and nightly DOM extraction, publication, readback and release complete. Raw parity fails; a native adapter declaration-filter defect requires correction before another backend verdict. Checker reference work dominates transport. Corrected pinned extraction, root comparison and hosted qualification remain open. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+Full DOM extraction, publication, readback and release complete. The profiled TS7 prototype is slower and larger than TS6 and still fails reference parity. Further TS7 benchmarks and adapter work are parked; no migration is justified by these results. Existing-engine and hosted qualification remain open. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.

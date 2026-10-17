@@ -87,7 +87,7 @@ function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, sourc
  * character name + avatar hash, persona name + description + avatar hash (each `assets.hash` joined off
  * the entity's `avatarAssetId`; no avatar ⇒ `avatarHash: null`, never a dropped entry). Both args are
  * optional (an empty producer for a hostless/messageless probe never queries). Returned as the wire shape
- * (`ChatDetail.identities`/`MessagesPage.identities`); consumers project it via `buildIdentityNameContext` /
+ * (`ChatDetailData.identities`/`MessagesPage.identities`); consumers project it via `buildIdentityNameContext` /
  * `buildIdentityAvatarMaps` (`@orb/contracts/chat`).
  */
 export async function loadChatIdentityProducer(db: Db, args: ChatIdentityLoadArgs): Promise<readonly ChatIdentity[]> {

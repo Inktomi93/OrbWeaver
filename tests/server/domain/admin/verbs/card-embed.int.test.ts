@@ -12,6 +12,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 
 test("foreign and textless cards never reach funding or storage; an owned card preserves its Principal and reads the live owner binding", async ({
+  harness,
   db,
   services,
 }) => {
@@ -27,13 +28,13 @@ test("foreign and textless cards never reach funding or storage; an owned card p
     resolved: async () => makeResolved({ task: "embed", ownerId: owner.id, model, capability: KIND_DEFS.embedding.floor }),
   }));
   const embed = createAdminCardEmbed({ getCard: services.character.getCard, loadCardText: services.character.loadCardText, store, roleClientsFor });
-  const foreign = await embed.embedCharacterCard(principal(stranger.id, { role: stranger.role }), card.id);
+  const foreign = await embed.embedCharacterCard(await principal(harness, stranger.id), card.id);
   expect(store.mock.calls.map(([input]) => input.content)).toEqual([]);
   expect(foreign).toBe(false);
-  expect(await embed.embedCharacterCard(principal(owner.id, { role: owner.role }), synthetic.id)).toBe(false);
+  expect(await embed.embedCharacterCard(await principal(harness, owner.id), synthetic.id)).toBe(false);
   expect(roleClientsFor).not.toHaveBeenCalled();
   expect(store).not.toHaveBeenCalled();
-  const actor = principal(owner.id, { role: owner.role });
+  const actor = await principal(harness, owner.id);
   expect(await embed.embedCharacterCard(actor, card.id)).toBe(true);
   model = testModelId("embed-second");
   expect(await embed.embedCharacterCard(actor, card.id)).toBe(true);

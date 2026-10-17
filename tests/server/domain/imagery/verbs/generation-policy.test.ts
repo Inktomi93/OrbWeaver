@@ -1,3 +1,4 @@
+import "@orb/testkit/node/composed-real.ts";
 import { IMAGERY_NEGATIVE_SLOT_ID } from "@orb/contracts/imagery";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { proseOverrideFromLegacy, resolveProseText } from "@orb/contracts/prose";
@@ -9,14 +10,13 @@ import { makeGenerationUsage } from "@orb/testkit/iso/generation-usage.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
-import { makeUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 
 const CAPTION_MODE = "character_multimodal";
 
-test("generation resolution uses the run-as Principal and preserves only imagery warnings without changing accounting", async () => {
-  const runAs = principal(makeUser().id, { role: "admin" });
+test("generation resolution uses the run-as Principal and preserves only imagery warnings without changing accounting", async ({ harness }) => {
+  const runAs = await principal(harness, (await harness.actor({ role: "admin" })).id);
   const resolved = makeResolved({ task: "generateImage", ownerId: runAs.userId });
   const resolve = vi.fn<ImageProviderDeps["resolve"]>(() => Promise.resolve({ resolved, warnings: [] }));
   const usage = makeGenerationUsage(0.25);
@@ -44,8 +44,8 @@ test("generation resolution uses the run-as Principal and preserves only imagery
   await expect(ops.generateImage(request)).rejects.toThrow("funding refusal");
 });
 
-test("caption sampling and Utility funding follow run-as, trim replies and preserve absent-item semantics", async () => {
-  const runAs = principal(makeUser().id);
+test("caption sampling and Utility funding follow run-as, trim replies and preserve absent-item semantics", async ({ harness }) => {
+  const runAs = await principal(harness, (await harness.actor()).id);
   const summarize = vi.fn(makeFakeRoleClients().summarize);
   summarize.mockResolvedValue({ items: [{ text: "  caption  ", usage: { tokensIn: null, tokensOut: null, costUsd: 0.5 } }], model: "caption-model" });
   const roleClientsFor = vi.fn<CaptionImageDeps["roleClientsFor"]>(() => Promise.resolve({ summarize }));
@@ -63,8 +63,8 @@ test("caption sampling and Utility funding follow run-as, trim replies and prese
   expect(await caption({ runAs, bytes, mime: "image/png", instruction: "instruction" })).toEqual({ text: "", costUsd: null });
 });
 
-test("imagery overrides and shipped template/caption/prose defaults are resolved from the run-as settings", async () => {
-  const runAs = principal(makeUser().id);
+test("imagery overrides and shipped template/caption/prose defaults are resolved from the run-as settings", async ({ harness }) => {
+  const runAs = await principal(harness, (await harness.actor()).id);
   let settings = parseUserSettings({});
   const loadUserSettings = vi.fn((_: typeof runAs.userId) => Promise.resolve(settings));
   const ops = createImageryInstructions({ loadUserSettings });

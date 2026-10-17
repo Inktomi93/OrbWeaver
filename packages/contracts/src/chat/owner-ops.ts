@@ -2,7 +2,7 @@
 
 import type { AssetId, CharacterId, ChatId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
-import type { ParticipantRole } from "#identity";
+import type { ParticipantRoleState } from "#identity";
 import type { BindingActor } from "#inference";
 import type { BlockKey } from "#search";
 import type { TagView } from "#tag";
@@ -51,7 +51,7 @@ export type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; read
  *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
  *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
 export interface ViewerVisibility {
-  readonly role: ParticipantRole;
+  readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
   /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
    *  (`<lie>`/`<ofilter>`) verbatim — the host reveal plane; `false` ⇒ a member, whose canon must be

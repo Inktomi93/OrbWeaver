@@ -5,6 +5,7 @@ import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore } from "@orb/server/domain/assets";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
@@ -99,12 +100,12 @@ test("the installer factory uses the row-resolved role and the real import funne
   );
   const first = await run(OWNER_USER_ID, bytes, pluginId);
   const original = await resolvePrincipal.mock.results[0]?.value;
-  expect(original?.role).toBe("owner");
   expect(create.mock.calls[0]?.[0].principal).toBe(original);
   expect(first.created).toBe(true);
   if (original === undefined) {
     throw new Error("the real row resolver was not called");
   }
+  expect(isOwner(original)).toBe(true);
   expect((await services.character.get({ principal: original, characterId: first.characterId })).provenance).toBe("imported");
   expect(await run(OWNER_USER_ID, bytes, pluginId)).toEqual({ ...first, created: false });
 });
