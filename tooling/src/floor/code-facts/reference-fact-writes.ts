@@ -7,6 +7,7 @@ import type { Identifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { aliasEdges, lexicalReferenceSymbol, rootIdentifier, unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceUseAdmission, SourceWriteFacts } from "./reference-fact-contract.ts";
+import { GLOBAL_OBJECTS } from "./reference-fact-global.ts";
 
 function transparentUse(node: MorphNode): MorphNode {
   let current = node;
@@ -140,7 +141,8 @@ function isAssignmentContainer(parent: MorphNode, child: MorphNode): boolean {
   return (Node.isSpreadAssignment(parent) || Node.isSpreadElement(parent)) && parent.getExpression() === child;
 }
 
-function isDirectWriteTarget(parent: MorphNode, child: MorphNode): boolean {
+/** The assignment operand itself, not a receiver used to reach a deeper write. */
+export function isDirectWriteTarget(parent: MorphNode, child: MorphNode): boolean {
   if (Node.isBinaryExpression(parent) && parent.getLeft() === child) {
     const operator = parent.getOperatorToken().getKind();
     return operator >= SyntaxKind.FirstAssignment && operator <= SyntaxKind.LastAssignment;
@@ -239,20 +241,23 @@ function addCallArgumentMutation(target: MorphNode, written: Set<object>, mutate
   addMemberWriteSymbols(root, written, mutated);
 }
 
-const PROTOTYPE_EXPOSURE_MEMBERS: ReadonlySet<string> = new Set([
-  "__proto__",
-  "constructor",
-  "prototype",
-  "getPrototypeOf",
-  "setPrototypeOf",
-  "defineProperty",
-  "defineProperties",
-  "getOwnPropertyDescriptor",
-  "getOwnPropertyDescriptors",
-  "__defineGetter__",
-  "__defineSetter__",
-  "__lookupGetter__",
-  "__lookupSetter__",
+const PROTOTYPE_EXPOSURE_MEMBERS: ReadonlyMap<string, boolean> = new Map([
+  ["__proto__", false],
+  ["constructor", false],
+  ["prototype", false],
+  ["getPrototypeOf", true],
+  ["setPrototypeOf", true],
+  ["defineProperty", true],
+  ["defineProperties", true],
+  ["getOwnPropertyDescriptor", true],
+  ["getOwnPropertyDescriptors", true],
+  ["assign", true],
+  ["set", true],
+  ["deleteProperty", true],
+  ["__defineGetter__", false],
+  ["__defineSetter__", false],
+  ["__lookupGetter__", false],
+  ["__lookupSetter__", false],
 ]);
 
 function runtimeNode(node: MorphNode): boolean {
@@ -269,14 +274,14 @@ function nativeGlobal(node: MorphNode, names: ReadonlySet<string>): boolean {
 
 function nativeGlobalExposure(identifier: Identifier): boolean {
   const text = identifier.getText();
-  if ((!INHERITED_GLOBALS.has(text) && text !== "globalThis") || isReferenceDeclarationName(identifier) || !runtimeNode(identifier)) {
+  if (!(INHERITED_GLOBALS.has(text) || GLOBAL_OBJECTS.has(text)) || isReferenceDeclarationName(identifier) || !runtimeNode(identifier)) {
     return false;
   }
   const outer = identifier.getParent();
   if (Node.isPropertyAccessExpression(outer) && outer.getNameNode() === identifier) {
     return false;
   }
-  const native = nativeGlobal(identifier, INHERITED_GLOBALS);
+  const native = nativeGlobal(identifier, INHERITED_GLOBALS) || nativeGlobal(identifier, GLOBAL_OBJECTS);
   if (native && (text === "eval" || text === "Function")) {
     return true;
   }
@@ -289,20 +294,46 @@ function nativeGlobalExposure(identifier: Identifier): boolean {
   return parent === undefined || !(isMemberReceiver(parent, use) || (Node.isNewExpression(parent) && parent.getExpression() === use));
 }
 
+function nativeGlobalObject(receiver: MorphNode, name: string | undefined): boolean {
+  return (
+    name !== undefined &&
+    GLOBAL_OBJECTS.has(name) &&
+    (nativeGlobal(receiver, GLOBAL_OBJECTS) ||
+      (Node.isIdentifier(receiver) && receiver.getText() === "globalThis" && receiver.getSymbol()?.getDeclarations().length === 0))
+  );
+}
+
 function inheritedMemberInput(member: import("ts-morph").PropertyAccessExpression | import("ts-morph").ElementAccessExpression): boolean {
   if (!runtimeNode(member)) {
     return false;
   }
   const name = staticMemberName(member);
-  if (name === undefined || PROTOTYPE_EXPOSURE_MEMBERS.has(name)) {
+  if (name === undefined && isReferenceWriteTarget(member)) {
     return true;
   }
-  if (INHERITED_GLOBALS.has(name)) {
+  if (name !== undefined && PROTOTYPE_EXPOSURE_MEMBERS.get(name) === false) {
     return true;
   }
   const receiver = unwrapTarget(member.getExpression());
   const receiverName = Node.isIdentifier(receiver) ? receiver.getText() : staticMemberName(receiver);
-  return receiverName !== undefined && PROTOTYPE_OWNERS.has(receiverName) && nativeGlobal(receiver, PROTOTYPE_OWNERS);
+  const globalObject = nativeGlobalObject(receiver, receiverName);
+  if (name !== undefined && INHERITED_GLOBALS.has(name)) {
+    const parent = member.getParent();
+    return globalObject && (parent === undefined || !isMemberReceiver(parent, member));
+  }
+  const directCall = isDirectCall(member);
+  return (
+    (receiverName !== undefined &&
+      PROTOTYPE_OWNERS.has(receiverName) &&
+      nativeGlobal(receiver, PROTOTYPE_OWNERS) &&
+      (name === undefined || PROTOTYPE_EXPOSURE_MEMBERS.has(name) || !directCall)) ||
+    (globalObject && (name === undefined || GLOBAL_OBJECTS.has(name)))
+  );
+}
+
+function isDirectCall(member: MorphNode): boolean {
+  const parent = member.getParent();
+  return Node.isCallExpression(parent) && parent.getExpression() === member;
 }
 
 function inheritedBindingInput(binding: import("ts-morph").BindingElement): boolean {
@@ -311,12 +342,16 @@ function inheritedBindingInput(binding: import("ts-morph").BindingElement): bool
   }
   const name = binding.getPropertyNameNode() ?? binding.getNameNode();
   if (Node.isComputedPropertyName(name)) {
-    return true;
+    const expression = name.getExpression();
+    return (
+      (Node.isStringLiteral(expression) || Node.isNoSubstitutionTemplateLiteral(expression)) &&
+      PROTOTYPE_EXPOSURE_MEMBERS.get(expression.getLiteralText()) === false
+    );
   }
   if (Node.isIdentifier(name)) {
-    return PROTOTYPE_EXPOSURE_MEMBERS.has(name.getText());
+    return PROTOTYPE_EXPOSURE_MEMBERS.get(name.getText()) === false;
   }
-  return Node.isStringLiteral(name) && PROTOTYPE_EXPOSURE_MEMBERS.has(name.getLiteralText());
+  return Node.isStringLiteral(name) && PROTOTYPE_EXPOSURE_MEMBERS.get(name.getLiteralText()) === false;
 }
 
 function inheritedReadInputs(sourceFile: SourceFile, identifiers: readonly Identifier[]): readonly MorphNode[] {

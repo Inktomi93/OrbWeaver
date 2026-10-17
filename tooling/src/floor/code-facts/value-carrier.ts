@@ -10,7 +10,6 @@ import {
   readSuppliedParameter,
   runtimeUndefinedValue,
 } from "./call-supplied.ts";
-import { suppliedValueContextRefusal } from "./call-supplied-private.ts";
 import {
   inspectBindingReassignment,
   inspectInheritedReadEffects,
@@ -21,7 +20,7 @@ import {
   resolveStableExpression,
   staticMemberAccess,
 } from "./reference-fact.ts";
-import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
+import { lexicalReferenceSymbol, matchingAllocationBindings, unwrapTarget } from "./reference-fact-alias.ts";
 import type {
   CallableAdmission,
   CallReturnAlternative,
@@ -30,7 +29,6 @@ import type {
   CallReturnProofContext,
   CallReturnProofEpoch,
   InheritedReadEvidence,
-  InheritedReadPremise,
   NativeNamespaceAliasInputs,
   NativeValueTransferServices,
   ReferenceFact,
@@ -582,13 +580,6 @@ function namespaceAliasContinuation(reference: Node, inputs: NativeNamespaceAlia
   if (context !== undefined && context.program !== program) {
     return valueRefusal(reference, "unsupported", "the namespace alias continuation belongs to another capture owner");
   }
-  if (program.inheritedReadTrialActive?.() === true && context?.inheritedReadPremise === undefined) {
-    return valueRefusal(reference, "unsupported", "the namespace alias cannot borrow a trial without its real continuation");
-  }
-  const privateInvalid = context === undefined ? undefined : suppliedValueContextRefusal(reference, context, readCallReturnProgram);
-  if (privateInvalid !== undefined) {
-    return privateInvalid;
-  }
   const value: ReturnedValueContext = context ?? {
     program,
     bindings: new Map(),
@@ -1078,13 +1069,6 @@ function suppliedValueContext(
   const next = {
     ...context,
     bindings: source.bindings,
-    ...((source.privateSupplies?.length ?? 0) > 0 || source.supply?.kind === "private"
-      ? {
-          privateSupplies: [
-            ...new Set([...(context.privateSupplies ?? []), ...(source.privateSupplies ?? []), ...(source.supply?.kind === "private" ? [source.supply] : [])]),
-          ],
-        }
-      : {}),
   };
   if (source.supply === undefined) {
     return next;
@@ -1141,22 +1125,6 @@ function differentValueAllocation(node: Node, previous: ReturnedValueActivation,
 
 function valueActivationCurrent(activation: ReturnedValueActivation): boolean {
   const { program, invocation } = activation;
-  if (
-    invocation.kind === "supplied" &&
-    invocation.supply.kind === "private" &&
-    suppliedValueContextRefusal(
-      invocation.supply.parameter,
-      {
-        program,
-        inheritedReadPremise: invocation.supply.premise,
-        privateSupplies: [invocation.supply],
-        bindings: invocation.supply.bindings,
-      },
-      readCallReturnProgram,
-    ) !== undefined
-  ) {
-    return false;
-  }
   const observation = valueInvocationObservation(invocation);
   if (
     program.program !== activation.nativeProgram ||
@@ -1231,23 +1199,6 @@ function activeValueRefusal(
 }
 
 function returnedValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
-  const privateInvalid = suppliedValueContextRefusal(node, context, readCallReturnProgram);
-  if (privateInvalid !== undefined) {
-    return privateInvalid;
-  }
-  const result = returnedValueWithin(node, path, context);
-  return result.kind === "unresolved" || context.privateSupplies === undefined
-    ? result
-    : {
-        ...result,
-        value: result.value.map((source) => ({
-          ...source,
-          privateSupplies: [...new Set([...(context.privateSupplies ?? []), ...(source.privateSupplies ?? [])])],
-        })),
-      };
-}
-
-function returnedValueWithin(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const value = unwrapTarget(node);
   const activation = captureValueActivation(value, path, context, false);
   const refused = context.active.has(value.compilerNode) ? activeValueRefusal(value, activation, context, false) : undefined;
@@ -1464,7 +1415,6 @@ function callableSuppliedLeaves(
     readonly active: ReadonlySet<ts.Node>;
     readonly activeValues?: ReadonlySet<ts.Node>;
     readonly continuation?: ReturnedValueContext;
-    readonly inheritedReadPremise?: InheritedReadPremise;
     readonly uses?: Map<Node, CallableSuppliedUse[]>;
   } = {
     bindings: new Map(),
@@ -1474,7 +1424,6 @@ function callableSuppliedLeaves(
   const { bindings, active } = inputs;
   const continuation: ReturnedValueContext = {
     ...inputs.continuation,
-    ...(inputs.inheritedReadPremise === undefined ? {} : { inheritedReadPremise: inputs.inheritedReadPremise }),
     program,
     bindings,
     active: inputs.activeValues ?? new Set(),
@@ -1484,10 +1433,6 @@ function callableSuppliedLeaves(
     nativeValueTransfers: false,
     nativeIterations: new Map(),
   };
-  const privateInvalid = suppliedValueContextRefusal(node, continuation, readCallReturnProgram);
-  if (privateInvalid !== undefined) {
-    return privateInvalid;
-  }
   const activation = captureValueActivation(node, path, continuation, true);
   const refused = active.has(node.compilerNode) ? activeValueRefusal(node, activation, continuation, true) : undefined;
   if (refused !== undefined) {
@@ -1642,7 +1587,7 @@ function createCallableUseSharing(
   if (typeof admission === "function") {
     context?.untrackedRead?.();
   }
-  if (program === undefined || context === undefined || typeof admission === "function" || program.inheritedReadTrialActive?.() === true) {
+  if (program === undefined || context === undefined || typeof admission === "function") {
     return;
   }
   if (
@@ -1832,7 +1777,6 @@ function captureCallableUse(
 
 function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean {
   const sharing =
-    proof.program?.inheritedReadTrialActive?.() !== true &&
     proof.state.refusal === undefined &&
     proof.state.sharing?.origins === proof.origins &&
     proof.state.sharing.program === proof.program &&
@@ -1879,15 +1823,6 @@ function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean 
     sharing.units += candidate.units;
   }
   return complete;
-}
-
-function matchingAllocationBindings(literal: Node, left: ReturnedValueSource, right: ReturnedValueSource): boolean {
-  const scopes = new Set(literal.getAncestors().map((node) => node.compilerNode));
-  return [...left.bindings.keys(), ...right.bindings.keys()].every(
-    (parameter) =>
-      !(N.isParameterDeclaration(parameter) && scopes.has(parameter.getParent().compilerNode)) ||
-      left.bindings.get(parameter)?.compilerNode === right.bindings.get(parameter)?.compilerNode,
-  );
 }
 
 function freshCallableReceiver(receiver: ReturnedValueSource, key: string, proof: CallableUseProof): boolean {
@@ -2282,54 +2217,11 @@ function inheritedReceiverRefusal(
   return undefined;
 }
 
-function inheritedEffectValues(
-  node: Node,
-  path: readonly string[],
-  bindings: ReadonlyMap<Node, Node>,
-  context: {
-    readonly program: CallReturnProgram;
-    readonly activeValues?: ReadonlySet<ts.Node>;
-    readonly continuation?: ReturnedValueContext;
-    readonly inheritedReadPremise?: InheritedReadPremise;
-  },
-): ReferenceFact<readonly ReturnedValueSource[]> {
-  const { program, activeValues, continuation, inheritedReadPremise } = context;
-  const inputs = {
-    bindings,
-    active: activeValues ?? new Set<ts.Node>(),
-    ...(activeValues === undefined ? {} : { activeValues }),
-    ...(continuation === undefined ? {} : { continuation }),
-    ...(inheritedReadPremise === undefined ? {} : { inheritedReadPremise }),
-  };
-  const values = callableSuppliedLeaves(node, path, program, inputs);
-  if (values.kind === "unresolved") {
-    return values;
-  }
-  const receiver = path.length === 0 ? values : callableSuppliedLeaves(node, [], program, inputs);
-  if (receiver.kind === "unresolved") {
-    return receiver;
-  }
-  return inheritedReceiverRefusal(node, receiver, path.length > 0) ?? values;
-}
-
 function nativeInheritedEffects(node: Node, context: ReturnedValueContext): InheritedReadEvidence {
   const program = context.program;
-  if (program === undefined) {
-    return valueRefusal(node, "missing", "native field effects have no captured Program");
-  }
-  if (context.inheritedReadPremise !== undefined) {
-    return context.inheritedReadPremise.require(node, program);
-  }
-  return inspectInheritedReadEffects(node, {
-    program,
-    values: (value, path, bindings, premise) =>
-      inheritedEffectValues(value, path, bindings, {
-        program,
-        activeValues: context.active,
-        continuation: context,
-        ...(premise === undefined ? {} : { inheritedReadPremise: premise }),
-      }),
-  });
+  return program === undefined
+    ? valueRefusal(node, "missing", "native field effects have no captured Program")
+    : inspectInheritedReadEffects(node, { program, bindings: context.bindings });
 }
 
 function effectFreeCallableData(receiver: ReturnedValueSource, key: string, program: CallReturnProgram, access: Node): boolean {
@@ -2337,12 +2229,7 @@ function effectFreeCallableData(receiver: ReturnedValueSource, key: string, prog
   return (
     own !== undefined &&
     (own.every(Boolean) ||
-      (terminalDataRead(access) &&
-        inspectInheritedReadEffects(receiver.value, {
-          program,
-          values: (node, path, bindings, premise) =>
-            inheritedEffectValues(node, path, bindings, { program, ...(premise === undefined ? {} : { inheritedReadPremise: premise }) }),
-        }).kind === "resolved"))
+      (terminalDataRead(access) && inspectInheritedReadEffects(receiver.value, { program, bindings: receiver.bindings }).kind === "resolved"))
   );
 }
 

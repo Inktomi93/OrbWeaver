@@ -1217,50 +1217,30 @@ function sparseBarrelProject(): {
   return { project, implementation, barrel, consumer, call, binding };
 }
 
-test("native reference source demand aborts a private trial before writing and retries after ordinary publication", () => {
+test("native reference source demand publishes its real source without changing the native Program", () => {
   const { project, implementation, barrel, consumer, call, binding } = sparseBarrelProject();
   beginReferencePass();
   try {
     const observed = observeCallReturns([call], consumer.getDescendants(), { suppliedCallableTargets: true });
     const program = observed.programs[0];
     const reference = nativeReferenceNodes(binding).find((node) => node.getSourceFile() === barrel);
-    if (program?.demandReferenceSource === undefined || program.withInheritedReadTrial === undefined || reference === undefined) {
-      throw new Error("the native reference capture services are unavailable");
+    if (program?.demandReferenceSource === undefined || reference === undefined) {
+      throw new Error("the actual native reference capture services are missing");
     }
     const native = project.getProgram().compilerObject;
     const sources = program.sources;
     const calls = program.byCall;
     const before = program.callableProofEpoch?.();
-    if (before === undefined) {
-      throw new Error("the captured input epoch is unavailable");
-    }
-    const demand = program.demandReferenceSource;
-    const snapshots: { barrel: boolean; sameCalls: boolean; referenceRevision: number | undefined }[] = [];
-    let attempts = 0;
-    const result = program.withInheritedReadTrial(binding, program, () => {
-      attempts++;
-      try {
-        return demand(reference, binding);
-      } finally {
-        snapshots.push({
-          barrel: sources.has(barrel),
-          sameCalls: program.byCall === calls,
-          referenceRevision: program.callableProofEpoch?.().referenceRevision,
-        });
-      }
-    });
+    expect(sources.has(barrel)).toBe(false);
+    const result = program.demandReferenceSource(reference, binding);
     expect(result.kind).toBe("resolved");
-    expect(attempts).toBe(2);
-    expect(snapshots[0]).toEqual({ barrel: false, sameCalls: true, referenceRevision: before.referenceRevision });
     expect(program.sources === sources).toBe(true);
     expect(sources.get(barrel) === barrel.compilerNode).toBe(true);
-    expect(program.callableProofEpoch?.().referenceRevision).toBe(before.referenceRevision + 1);
+    expect(program.callableProofEpoch?.().referenceRevision).toBe((before?.referenceRevision ?? 0) + 1);
     expect(program.byCall.size).toBe(calls.size);
     expect(project.getProgram().compilerObject === native).toBe(true);
-    expect(program.inheritedReadTrialActive?.()).toBe(false);
-    const ordinary = readAuthoredCallableSources(call.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
-    expect(ordinary.kind).toBe("resolved");
-    expect(ordinary.kind === "resolved" && ordinary.value.every((source) => source.value === implementation.getFunctionOrThrow("chosen"))).toBe(true);
+    const first = readAuthoredCallableSources(call.getExpression(), (candidate) => program.byCall.has(candidate.compilerNode), observed);
+    expect(first.kind === "resolved" && first.value.every((source) => source.value === implementation.getFunctionOrThrow("chosen"))).toBe(true);
   } finally {
     endReferencePass();
   }
@@ -3012,7 +2992,6 @@ for (const scenario of DISPOSER_PARAMETER_CASES) {
 
 test("defaulted lifecycle options retain the actual finite capability key through a caught namespace consumer", async ({ repoRoot }) => {
   const { stripTypeScriptTypes } = await import("node:module");
-  const referenceFacts = await import("../../../../tooling/src/floor/code-facts/reference-fact.ts");
   const parse = async (path: string): Promise<ts.SourceFile> =>
     ts.createSourceFile(path, await readFile(join(repoRoot, path), "utf8"), ts.ScriptTarget.Latest, true);
   const identity = await parse("packages/contracts/src/identity/index.ts");
@@ -3106,38 +3085,6 @@ ${declaration(capability, "createMultiHumanCapability").getText(capability)}`,
   if (selected === undefined || lifecycleCall === undefined) {
     throw new Error("the selected accounting and actual caught lifecycle calls are missing");
   }
-  const snapshots: object[] = [];
-  let keyReads = 0;
-  const original = referenceFacts.inspectInheritedReadEffects;
-  const inherited = vi.spyOn(referenceFacts, "inspectInheritedReadEffects").mockImplementation((node, context) =>
-    original(node, {
-      ...context,
-      values: (value, path, bindings, premise) => {
-        const result = context.values(value, path, bindings, premise);
-        if (value.getSourceFile() === policy && (value.getText() === "mode" || value.getText() === "MULTI_HUMAN_CAPABLE")) {
-          keyReads++;
-          if (snapshots.length < 24) {
-            snapshots.push({
-              node: value.getText(),
-              path,
-              kind: result.kind,
-              ...(result.kind === "unresolved"
-                ? { detail: result.detail, at: result.node.getText() }
-                : {
-                    values: result.value.map((leaf) => ({
-                      value: leaf.value.getText(),
-                      present: leaf.present,
-                      path: leaf.path,
-                      bindings: [...leaf.bindings].map(([formal, actual]) => [formal.getText(), actual.getText()]),
-                    })),
-                  }),
-            });
-          }
-        }
-        return result;
-      },
-    }),
-  );
   beginReferencePass();
   try {
     const observed = observeCallReturns(
@@ -3150,29 +3097,13 @@ ${declaration(capability, "createMultiHumanCapability").getText(capability)}`,
       throw new Error("the actual native founding capture is missing");
     }
     const first = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
-    console.log(
-      "FINITE_CAPABILITY_SIBLING_PREREQUISITE",
-      JSON.stringify({
-        first:
-          first.kind === "unresolved"
-            ? { kind: first.kind, detail: first.detail, node: first.node.getText() }
-            : { kind: first.kind, values: first.value.map((leaf) => ({ value: leaf.value.getText(), present: leaf.present, path: leaf.path })) },
-        keyReads,
-        snapshots,
-        lifecycleCaptured: program.byCall.has(lifecycleCall.compilerNode),
-        lifecycleTargets: program.byCall.get(lifecycleCall.compilerNode)?.targets.kind,
-        lifecycleCallers: program.callers.get(lifecycle.getFunctionOrThrow("createLifecycle").compilerNode)?.length ?? 0,
-      }),
-    );
     expect(program.program).toBe(project.getProgram().compilerObject);
     expect(sources.every((source) => program.program.getSourceFile(source.getFilePath()) === source.compilerNode)).toBe(true);
     expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
     expect(program.byCall.has(lifecycleCall.compilerNode)).toBe(true);
     expect(first.kind, first.kind === "unresolved" ? `${first.detail} at ${first.node.getText()}` : "resolved").toBe("resolved");
     expect(first.kind === "resolved" ? first.value.map((leaf) => leaf.value) : []).toEqual([expected]);
-    expect(program.inheritedReadTrialActive?.()).toBe(false);
   } finally {
-    inherited.mockRestore();
     endReferencePass();
   }
 });
