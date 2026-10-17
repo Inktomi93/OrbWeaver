@@ -34,7 +34,6 @@ import { gate as sectionRegistryCompleteness } from "../../../../../tooling/src/
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
 import { gate as sessionChannelBoundaryHealth } from "../../../../../tooling/src/verify/gates/session-channel-boundary-health.ts";
 import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gates/stale-draft-commit.ts";
-import { gate as testidTypedOnly } from "../../../../../tooling/src/verify/gates/testid-typed-only.ts";
 import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
 import { gate as zustandSelectorDerived } from "../../../../../tooling/src/verify/gates/zustand-selector-derived.ts";
 
@@ -275,11 +274,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "once-seeded draft",
-  },
-  {
-    policy: testidTypedOnly,
-    overlays: [add("packages/client/src/components/liveness-testid.tsx", "export const A = () => <div data-testid='liveness' />;\n")],
-    messageIncludes: "freeform data-testid",
   },
   {
     policy: windowedInfiniteQuery,

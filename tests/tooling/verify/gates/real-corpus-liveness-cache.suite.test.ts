@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
+import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact, defineGate, reviewedGrantsFor } from "@orb/tooling/verify";
 import { readyResourceValue } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
@@ -56,6 +56,32 @@ function failureOf(operation: () => void): Error {
   }
   throw new Error("the controlled operation did not fail");
 }
+
+test("bounded independent interventions retain a live verdict without lending it to a dead batch-mate", async ({ plantedTree }) => {
+  const root = await plantedTree(BASE);
+  let passes = 0;
+  const live = countingArm(() => {
+    passes += 1;
+  });
+  const dead = {
+    ...live,
+    policy: defineGate({ ...live.policy, id: "bounded-dead-control", family: "bounded-dead-control" }),
+    overlays: [{ kind: "neutralise", path: EXPORTER, source: BASE[EXPORTER] }],
+  } satisfies RealCorpusLivenessArm;
+  const runner = openRealCorpusLiveness(root, [live, dead]);
+  const verdicts = runner.proveBatch([live, dead]);
+  const liveVerdict = verdicts.get(live.policy.id);
+  const deadVerdict = verdicts.get(dead.policy.id);
+  const isolated = runner.proveBatch([live]).get(live.policy.id);
+  if (liveVerdict === undefined || deadVerdict === undefined || isolated === undefined) {
+    throw new Error("the bounded intervention lost a required verdict");
+  }
+  expect(liveVerdict).toEqual(isolated);
+  expect(deadVerdict.batch).toEqual([dead.policy.id]);
+  expect(assertArmVerdict(live, liveVerdict).join("\n")).toContain(live.messageIncludes);
+  expect(() => assertArmVerdict(dead, deadVerdict)).toThrow("reported NOTHING for a real-corpus positive control");
+  expect(passes).toBe(3);
+});
 
 test("a failed shared proof retains its original error without replaying a successful prefix or returning partial verdicts", ({ plantedTree }) =>
   plantedTree(BASE).then((root) => {

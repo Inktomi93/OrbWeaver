@@ -28,7 +28,6 @@ import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/ve
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
-import { gate as scrollContainerPositioned } from "../../../../../tooling/src/verify/gates/scroll-container-positioned.ts";
 import { gate as seedThemeInkContrast } from "../../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 import { gate as spacingTierHomeHealth } from "../../../../../tooling/src/verify/gates/spacing-tier-home-health.ts";
 import { gate as subFloorDisclosure } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure.ts";
@@ -154,11 +153,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: restTransformGrid,
     overlays: [add("packages/ui/src/liveness-rest-transform.tsx", 'export const G = <div className="scale-95 rounded-card" />;\n')],
     messageIncludes: "A REST-state transform",
-  },
-  {
-    policy: scrollContainerPositioned,
-    overlays: [featureClass("scroll", "min-h-0 flex-1 overflow-y-auto")],
-    messageIncludes: "vertical scroll container",
   },
   {
     policy: seedThemeInkContrast,

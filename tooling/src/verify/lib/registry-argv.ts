@@ -11,6 +11,7 @@ import { CSS_SOURCE_ROOTS } from "../contract/css-family.ts";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
 import { affectsBaseUiLint } from "./baseui-manifest.ts";
+import { affectsClientLexicalNativeLint } from "./client-lexical-native.ts";
 import { affectsClientMapNativeLint } from "./client-map-native.ts";
 import { affectsContextNativeLint } from "./context-definition-shape.ts";
 import { existsRel } from "./repo-paths.ts";
@@ -64,7 +65,12 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
  *  at once. An explicit path the config ignores is dropped at discovery, so it cannot fail `--max-warnings 0`. */
 export function eslintScopedArgv(files: readonly string[], changedPaths: readonly string[] = []): ScopedArgv {
   const paths = [
-    ...new Set([...files, ...changedPaths.filter((path) => affectsBaseUiLint(path) || affectsContextNativeLint(path) || affectsClientMapNativeLint(path))]),
+    ...new Set([
+      ...files,
+      ...changedPaths.filter(
+        (path) => affectsBaseUiLint(path) || affectsContextNativeLint(path) || affectsClientMapNativeLint(path) || affectsClientLexicalNativeLint(path),
+      ),
+    ]),
   ];
   if (paths.length === 0) {
     return "skip-empty";
