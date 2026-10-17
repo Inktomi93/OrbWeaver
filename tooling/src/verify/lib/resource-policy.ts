@@ -145,7 +145,6 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     exactFiles: fencedExactFiles,
     vendorCssSurface: () => accept({ kind: "vendor-css-surface" }, () => host.vendorCssSurface()),
     tokenContract,
-    devtoolsClosure: () => accept({ kind: "devtools-closure" }, () => host.devtoolsClosure()),
     authoredPaths: (selectors) => acceptDemand({ kind: "authored-path" }, () => host.authoredPaths(selectors)),
     authoredText: fencedText,
   };

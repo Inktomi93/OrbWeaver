@@ -13,7 +13,7 @@ import type {
   TrackedFileModeOverlay,
   TrackedResourceIndex,
 } from "./resource.ts";
-import type { DevToolsClosure, TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "./resource-artifact.ts";
+import type { TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "./resource-artifact.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
 import type { DocumentIndex, LedgerFactsFor, LedgerId } from "./resource-document.ts";
@@ -53,12 +53,11 @@ export interface ResourceHost {
   readonly exactFiles: (ids: readonly ExactResourceId[]) => ResourceFact<ReadonlyMap<ExactResourceId, ExactFile>>;
   /** The committed-mirror ↔ installed-vendor comparison surface (`resource-vendor.ts`). */
   readonly vendorCssSurface: () => ResourceFact<VendorCssSurface>;
-  /** The two canonical generated artifacts (`resource-artifact.ts`). */
+  /** The canonical token vault and generated-type preparation (`resource-artifact.ts`). */
   readonly tokenContract: {
     (): ResourceFact<TokenContractResource>;
     (request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
   };
-  readonly devtoolsClosure: () => ResourceFact<DevToolsClosure>;
   /** DEMAND doors. They own no population, take their subject at call time, and are fenced by declaration
    *  rather than by path membership — see `resource-declaration.ts` on the two classes of kind. */
   readonly authoredPaths: (selectors: readonly string[]) => ResourceFact<AuthoredPathIndex>;

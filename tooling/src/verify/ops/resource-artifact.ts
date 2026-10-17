@@ -1,22 +1,11 @@
-// Canonical generated-artifact acquisition: the token bundle as text, and the DevTools closure as a hashed
-// byte census. Both fail closed — a partially-read contract is not a contract.
-import { createHash } from "node:crypto";
+// Canonical token-vault acquisition fails closed when any required input is unavailable.
 import type { TokenContractTexts } from "@orb/ui/token-contract";
 import { readTokenRemovalBaseline } from "@orb/ui/token-contract";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { generatedTypeHomeContextRefusal } from "../../floor/code-facts/type-home-declaration.ts";
-import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
 import type { ResourceLoad, ResourceReader } from "../contract/resource.ts";
-import type { DevToolsClosure, TokenContractResource, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
-import {
-  DEVTOOLS_CLOSURE_LICENSES,
-  DEVTOOLS_CLOSURE_MANIFEST,
-  DEVTOOLS_CLOSURE_PIN,
-  DEVTOOLS_CLOSURE_ROOT,
-  TOKEN_CONTRACT_PATHS,
-  TOKEN_GENERATED_TYPE_PATHS,
-  TOKEN_GENERATION_INPUT_PATHS,
-} from "../contract/resource-artifact.ts";
+import type { TokenContractResource, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
+import { TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS, TOKEN_GENERATION_INPUT_PATHS } from "../contract/resource-artifact.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
 
@@ -88,58 +77,4 @@ export function loadTokenGeneratedTypes(
     }
   }
   return prepared;
-}
-
-function sha256(bytes: Uint8Array): string {
-  return createHash("sha256").update(bytes).digest("hex");
-}
-
-export function loadDevToolsClosure(reader: ResourceReader): ResourceLoad<DevToolsClosure> {
-  const tree = reader.tree(DEVTOOLS_CLOSURE_ROOT);
-  if (tree.status !== "ready") {
-    return { status: tree.status, paths: tree.paths, members: 0, reason: `the DevTools asset closure ${DEVTOOLS_CLOSURE_ROOT} is unavailable: ${tree.reason}` };
-  }
-  const paths = tree.value
-    .filter((entry) => entry.kind === "file")
-    .map((entry) => entry.path)
-    .toSorted((left, right) => left.localeCompare(right));
-  const snapshot = reader.snapshot(paths);
-  if (snapshot.status !== "ready") {
-    return { status: snapshot.status, paths, members: 0, reason: `the DevTools asset closure could not be read: ${snapshot.reason}` };
-  }
-  const files: DevToolsClosureFile[] = [];
-  let totalBytes = 0;
-  for (const member of snapshot.value) {
-    // A symlink inside the closure is a refusal, not a member: the closure's guarantee is that every served
-    // byte is an OWNED byte, and a link is a byte nobody in this repository controls.
-    if (member.kind !== "file") {
-      return { status: "unresolved", paths, members: files.length, reason: `the DevTools asset closure contains a symbolic link: ${member.path}` };
-    }
-    totalBytes += member.bytes.length;
-    files.push(Object.freeze({ file: member.path.slice(`${DEVTOOLS_CLOSURE_ROOT}/`.length), bytes: member.bytes.length, sha256: sha256(member.bytes) }));
-  }
-  const texts = new Map<string, string>();
-  for (const control of [DEVTOOLS_CLOSURE_PIN, DEVTOOLS_CLOSURE_MANIFEST, DEVTOOLS_CLOSURE_LICENSES]) {
-    const loaded = reader.read(control);
-    if (loaded.status !== "ready") {
-      return {
-        status: loaded.status,
-        paths,
-        members: files.length,
-        reason: `the DevTools closure control document ${control} is unavailable: ${loaded.reason}`,
-      };
-    }
-    texts.set(control, loaded.value);
-  }
-  const value: DevToolsClosure = {
-    root: DEVTOOLS_CLOSURE_ROOT,
-    pinText: texts.get(DEVTOOLS_CLOSURE_PIN) ?? "",
-    manifestText: texts.get(DEVTOOLS_CLOSURE_MANIFEST) ?? "",
-    licensesText: texts.get(DEVTOOLS_CLOSURE_LICENSES) ?? "",
-    files: Object.freeze(files.toSorted((left, right) => left.file.localeCompare(right.file))),
-    totalBytes,
-  };
-  // `members` is the exact file census the door hashed — the receipt the closure validator would otherwise
-  // have to be taken on trust about.
-  return { status: "ready", value, paths, members: files.length };
 }

@@ -5,7 +5,7 @@ import type { GateFact } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
-import { DEVTOOLS_CLOSURE_ROOT, TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS } from "../contract/resource-artifact.ts";
+import { TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS } from "../contract/resource-artifact.ts";
 import { PACKAGE_RESOURCE_PATHS, STATIC_CONFIG_RESOURCE_PATHS } from "../contract/resource-config.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGeneratedTokenTypeRequest, isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
@@ -87,8 +87,6 @@ function canonicalRequest(request: GateResourceRequest): GateResourceRequest {
       return { kind: request.kind };
     case "token-contract":
       return isGeneratedTokenTypeRequest(request) ? { kind: request.kind, mode: request.mode } : { kind: request.kind };
-    case "devtools-closure":
-      return { kind: request.kind };
     case "authored-path":
       return { kind: request.kind };
     case "authored-text":
@@ -138,8 +136,6 @@ function requestFact(host: ResourceHost, request: GateResourceRequest): Resource
       return host.vendorCssSurface();
     case "token-contract":
       return isGeneratedTokenTypeRequest(request) ? host.tokenContract(request) : host.tokenContract();
-    case "devtools-closure":
-      return host.devtoolsClosure();
     case "authored-path":
     case "authored-text":
       // A demand kind has no subject at planning time. `resolveResourceDeclarations` never reaches here —
@@ -189,8 +185,6 @@ function pathBelongsToRequest(request: GateResourceRequest, path: string): boole
       return false;
     case "token-contract":
       return isGeneratedTokenTypeRequest(request) ? TOKEN_GENERATED_TYPE_PATHS.includes(path) : Object.values(TOKEN_CONTRACT_PATHS).includes(path);
-    case "devtools-closure":
-      return path.startsWith(`${DEVTOOLS_CLOSURE_ROOT}/`);
     case "authored-path":
     case "authored-text":
       return false;

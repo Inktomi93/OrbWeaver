@@ -1,18 +1,6 @@
 // Hermetic official DevTools frontend asset boundary: validate the complete revision tuple and byte
 // closure before opening a loopback-only, manifest-closed static server. There is deliberately no
 // network fallback in this runtime module; the maintainer materializer is the only networked path.
-//
-// THE ADJUDICATION IS PURE; ONLY THE LOADING IS NOT (#1584, the `devtools-frontend-assets` conversion).
-// `adjudicateDevToolsClosure` decides the whole pin/manifest/licence/inventory contract over ALREADY-READ
-// bytes — three control documents plus a `{file, bytes, sha256}` census — and never touches the filesystem,
-// node's resolver or a subprocess. Two callers load that census two ways and get the SAME verdict from the
-// SAME code: `verifyDevToolsAssetsSync` walks the real root for snap (and then reads the member BODIES,
-// which only the static server needs), and the `devtools-frontend-assets` policy takes it from the
-// `devtools-closure` + `installed-package` ResourceHost doors, because a final gate policy has no
-// filesystem at all (docs/law/gate-runtime-standardization.md §3). The split is deliberate and the
-// signature above it is unchanged: the runtime path's independent regression proof is
-// tests/tooling/floor/devtools/devtools-assets.test.ts, which drives `verifyDevToolsAssets` over real temp roots
-// for hash drift, tuple drift, a missing notice, an unexpected member and a symlink.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join, posix, relative } from "node:path";
@@ -45,8 +33,7 @@ export interface DevToolsLicenseManifest {
 }
 
 /** One closure member. `file` is relative to the closure ROOT, because that is the spelling the manifest
- *  and licence rows use and re-anchoring it would make every comparison a string-surgery exercise. This is
- *  the ONE home for the shape; `verify/contract/resource-artifact.ts` imports it rather than re-spelling it. */
+ *  and licence rows use and re-anchoring it would make every comparison a string-surgery exercise. */
 export interface DevToolsClosureFile {
   readonly file: string;
   readonly bytes: number;
@@ -201,7 +188,7 @@ function parseLicenses(input: unknown): DevToolsLicenseManifest {
  *  `resolve(root, member)` escape branch beneath it was unreachable and was deleted with the root argument
  *  rather than carried as dead decoration. The construction that would have reached it — `a/../../b` —
  *  fails `posix.normalize(member) !== member` first, and `..` alone fails the segment test; both directions are
- *  pinned by the `devtools-frontend-assets` policy's escaping-member proof row. */
+ *  pinned by the native Windows path controls. */
 function safeMember(member: string, label: string): string {
   if (!SAFE_PATH_RE.test(member) || member.startsWith("/") || posix.normalize(member) !== member || member.split("/").includes("..")) {
     throw new Error(`${label} is not a canonical relative path: ${member}`);
@@ -249,7 +236,7 @@ function closureCensus(root: string, directory = root, into: DevToolsClosureFile
 }
 
 /** Load the adjudication's input off a real root. The three control documents are read as TEXT and the rest
- *  of the closure as a hashed census — the same two shapes the `devtools-closure` resource door publishes. */
+ *  of the closure as a hashed census. */
 function readClosureInput(root: string): DevToolsClosureInput {
   return {
     pinText: readFileSync(join(root, "pin.json"), "utf8"),
@@ -259,9 +246,7 @@ function readClosureInput(root: string): DevToolsClosureInput {
   };
 }
 
-/** The chromium `browserVersion` Playwright's own `browsers.json` pins. Exported so the policy — which
- *  receives that document through the `installed-package` text door rather than off disk — reaches the
- *  identical parse and the identical refusals. */
+/** The Chromium browser version from Playwright's installed pin; missing or malformed pins refuse. */
 export function readChromiumBrowserVersion(browsersText: string): string {
   const browsers = arrayField(record(JSON.parse(browsersText), "playwright browsers")["browsers"], "playwright browsers.browsers");
   const chromium = browsers.map((value) => record(value, "playwright browser")).find((value) => value["name"] === "chromium");
@@ -285,7 +270,7 @@ function installedPlaywrightTuple(): DevToolsInstalledTuple {
 /** THE WHOLE CONTRACT, over already-read bytes. Pin schema, manifest checksum, licence schema, the installed
  *  browser tuple, every declared resource's hash/size, every licence notice's hash/size and revision pin,
  *  and the EXACT inventory — an extra unowned member is as much a defect as a missing one. Throws on the
- *  first violation, which is the behaviour both callers depend on. */
+ *  first violation so an invalid closure cannot reach the native asset server. */
 export function adjudicateDevToolsClosure(input: DevToolsClosureInput, installed: DevToolsInstalledTuple): AdjudicatedDevToolsClosure {
   const pin = parseDevToolsAssetPin(JSON.parse(input.pinText));
   if (sha256(input.manifestText) !== pin.manifestSha256) {

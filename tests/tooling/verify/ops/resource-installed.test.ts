@@ -1,13 +1,6 @@
 // @orb-waive-file no-test-fabrication("base-ui"): baselined when the gate widened to value casts; burn-down item 906.
 
-// The installed-package door — ONE kind, three receipted modes (owner ruling 2026-09-11, guide §4).
-//
-// These arms read THE REAL INSTALLED TREE on purpose. Every one of the four ids is reached through a pnpm
-// symlink into the content-addressed store, which is precisely why the authored `ResourceReader` cannot
-// serve them ("authored resource traverses a symbolic link") and why a temp-root fixture would prove the
-// wrong thing: a hand-built `node_modules` does not reproduce the store indirection that breaks the naive
-// implementation. The refusal arms use a scratch root, where nothing resolves.
-
+// Native installed-package loading preserves metadata/declaration reads and exact text-overlay refusals.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
@@ -32,51 +25,27 @@ test("metadata resolves a package reached only through a pnpm store symlink", ()
   expect(fact.paths).toEqual([]);
 });
 
-test("a CHAINED id resolves from its sibling's manifest, which the repo root cannot reach", () => {
-  // Measured 2026-09-11: `createRequire(<repo>/package.json).resolve("playwright-core/package.json")` is
-  // MODULE_NOT_FOUND — playwright-core is reachable only from the resolved `@playwright/test` manifest.
-  // `via` exists for this one real case, not as speculative generality.
-  const fact = loadInstalledPackage(ROOT, { id: "playwright-core", mode: "metadata" });
-
-  expect(fact.status).toBe("ready");
-  expect(fact.status === "ready" && fact.value.mode === "metadata" ? fact.value.name : "").toBe("playwright-core");
-});
-
-test("text reads a file the package's own exports map REFUSES to resolve", () => {
-  // `playwright-core/browsers.json` is ERR_PACKAGE_PATH_NOT_EXPORTED through node's resolver. An exports
-  // map is a contract with a package's IMPORTERS; this door observes, so it joins the file to the resolved
-  // package directory instead. Without that distinction this mode serves nothing at all.
-  const fact = loadInstalledPackage(ROOT, { id: "playwright-core", mode: "text", file: "browsers.json" });
-
-  expect(fact.status).toBe("ready");
-  if (fact.status !== "ready" || fact.value.mode !== "text") {
-    throw new Error(`playwright-core text refused: ${fact.status === "ready" ? "wrong mode" : fact.reason}`);
-  }
-  expect(fact.value.file).toBe("browsers.json");
-  expect(JSON.parse(fact.value.text)).toHaveProperty("browsers");
-});
-
 test("text substitutes an exact overlay only after the real target validates", () => {
-  const request = { id: "playwright-core" as const, mode: "text" as const, file: "browsers.json" };
+  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
   const fact = loadInstalledPackage(ROOT, request, { request, source: '{"browsers":[]}\n' });
 
-  expect(fact).toMatchObject({ status: "ready", value: { id: "playwright-core", mode: "text", file: "browsers.json", text: '{"browsers":[]}\n' } });
+  expect(fact).toMatchObject({ status: "ready", value: { id: "react-compiler", mode: "text", file: "dist/index.js", text: '{"browsers":[]}\n' } });
 });
 
 test("text overlays cannot invent a target or cross request identities", () => {
-  const missingRequest = { id: "playwright-core" as const, mode: "text" as const, file: "liveness-missing.json" };
+  const missingRequest = { id: "react-compiler" as const, mode: "text" as const, file: "liveness-missing.json" };
   expect(loadInstalledPackage(ROOT, missingRequest, { request: missingRequest, source: "{}\n" }).status).toBe("unresolved");
 
-  const request = { id: "playwright-core" as const, mode: "text" as const, file: "browsers.json" };
+  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
   const mismatch = {
-    request: { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" },
+    request: { id: "react-compiler" as const, mode: "text" as const, file: "package.json" },
     source: "export const compiler = true;\n",
   };
   expect(loadInstalledPackage(ROOT, request, mismatch)).toMatchObject({ status: "unresolved", reason: expect.stringContaining("does not match") });
 });
 
 test("text cannot escape the package directory", () => {
-  const fact = loadInstalledPackage(ROOT, { id: "playwright-core", mode: "text", file: "package.json/../../../../etc/hostname" });
+  const fact = loadInstalledPackage(ROOT, { id: "react-compiler", mode: "text", file: "package.json/../../../../etc/hostname" });
 
   // The path identity rule refuses the traversal before the read; a door that reads one named file must not
   // become a door that reads any file on the box.

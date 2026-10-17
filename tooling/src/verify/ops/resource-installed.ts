@@ -35,15 +35,10 @@ function refused(reason: string): ResourceLoad<never> {
   return { status: "unresolved", paths: [], members: 0, reason };
 }
 
-/** Resolve one id's `package.json` through node's own algorithm, following a `via` chain when the package is
- *  reachable only from a sibling's installed location. */
-function manifestPath(root: string, id: InstalledPackageId, seen: ReadonlySet<InstalledPackageId>): string {
+// Resolution stays with Node so pnpm store paths retain their real package identity.
+function manifestPath(root: string, id: InstalledPackageId): string {
   const definition = INSTALLED_PACKAGE_DEFINITIONS[id];
-  if (definition.via !== undefined && seen.has(definition.via)) {
-    throw new Error(`installed package ${id} has a cyclic resolution base`);
-  }
-  const base = definition.via === undefined ? resolve(root, definition.from) : manifestPath(root, definition.via, new Set([...seen, id]));
-  return createRequire(base).resolve(`${definition.specifier}/package.json`);
+  return createRequire(resolve(root, definition.from)).resolve(`${definition.specifier}/package.json`);
 }
 
 /** Walk up from a resolved entry file to the directory that owns it. Used only when a package's `exports`
@@ -64,7 +59,7 @@ function owningPackageDirectory(entry: string): string {
 
 /** The resolved package DIRECTORY, for a composite door whose subject spans several installed files (the
  *  vendor CSS surface). Exported so resolution has ONE home: a second `createRequire` base would be a second
- *  answer to "where is this package", which is exactly what the `via` chain exists to prevent. Throws with
+ *  answer to "where is this package". Throws with
  *  node's own message when the package is not installed; the caller owns the status.
  *
  *  A PACKAGE MAY REFUSE TO EXPORT ITS OWN MANIFEST, and that is what `directoryAnchor` is for — the
@@ -74,7 +69,7 @@ export function installedPackageDirectory(root: string, id: InstalledPackageId):
   if (definition.directoryAnchor !== undefined) {
     return owningPackageDirectory(createRequire(resolve(root, definition.from)).resolve(`${definition.specifier}/${definition.directoryAnchor}`));
   }
-  return realpathSync(dirname(manifestPath(root, id, new Set<InstalledPackageId>())));
+  return realpathSync(dirname(manifestPath(root, id)));
 }
 
 function repoDirectory(root: string, directory: string): string | null {
@@ -107,8 +102,7 @@ function metadataFacts(root: string, id: InstalledPackageId, manifest: string): 
 }
 
 /** A named file is JOINED to the package directory, never resolved: an `exports` map is a contract with a
- *  package's IMPORTERS, and this door observes rather than imports. Measured 2026-09-11:
- *  `playwright-core/browsers.json` is ERR_PACKAGE_PATH_NOT_EXPORTED through node's resolver. */
+ *  package's IMPORTERS, and this door observes rather than imports. */
 function textFacts(id: InstalledPackageId, manifest: string, file: string, source?: string): InstalledPackageFacts {
   assertRepoPathIdentity(file, `installed package ${id} file`);
   const directory = realpathSync(dirname(manifest));
@@ -157,7 +151,7 @@ export function loadInstalledPackage(
   }
   let manifest: string;
   try {
-    manifest = manifestPath(root, request.id, new Set<InstalledPackageId>());
+    manifest = manifestPath(root, request.id);
   } catch (error) {
     // An uninstalled package is MISSING, not unresolved: "run pnpm install" and "the reader is broken" are
     // two different instructions, and a lane in a worktree that skipped bootstrap hits the first every time.

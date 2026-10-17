@@ -7,12 +7,7 @@ import type {
   TokenGeneratedTypeRequest,
   TokenGeneratedTypeResource,
 } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import {
-  DEVTOOLS_CLOSURE_ROOT,
-  TOKEN_CONTRACT_PATHS,
-  TOKEN_GENERATED_TYPE_PATHS,
-  TOKEN_GENERATED_TYPE_REQUEST,
-} from "../../../../tooling/src/verify/contract/resource-artifact.ts";
+import { TOKEN_CONTRACT_PATHS, TOKEN_GENERATED_TYPE_PATHS, TOKEN_GENERATED_TYPE_REQUEST } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../../../../tooling/src/verify/contract/resource-declaration.ts";
 import type { LedgerDefinition, LedgerId } from "../../../../tooling/src/verify/contract/resource-document.ts";
 import { LEDGER_DEFINITIONS } from "../../../../tooling/src/verify/contract/resource-document.ts";
@@ -135,15 +130,6 @@ function host(overrides: Partial<ResourceHost> = {}): ResourceHost {
         selectorSources: [],
       }),
     tokenContract,
-    devtoolsClosure: () =>
-      fact("devtools-closure", [`${DEVTOOLS_CLOSURE_ROOT}/pin.json`], {
-        root: DEVTOOLS_CLOSURE_ROOT,
-        pinText: "",
-        manifestText: "",
-        licensesText: "",
-        files: [],
-        totalBytes: 0,
-      }),
     authoredPaths: () => fact("authored-path", [], { identities: [] }),
     authoredText: () => fact("authored-text", [], { files: [], refusals: [] }),
     ...overrides,
