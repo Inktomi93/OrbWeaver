@@ -1,10 +1,10 @@
+// Native child commands execute; in-process verdicts borrow pinned historical SQLite observations.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as indexed } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as onDelete } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
@@ -17,8 +17,9 @@ import { gate as scoping } from "../../../../tooling/src/verify/gates/table-scop
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const POLICIES = [indexed, onDelete, softRef, owners, banned, branding, primaryKey, scoping];
 const REGISTERED_POLICY_IDS = [...POLICIES.map(({ id }) => id), "membership-write-fan"];
@@ -61,11 +62,17 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   for (const id of REGISTERED_POLICY_IDS) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
+
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => vi.restoreAllMocks());
 
 function poisonSyntax(project: Project): Disposable {
   const symbolFor = Node.prototype.getSymbol;
@@ -97,35 +104,33 @@ test(
       const root = join(scratch, browser ? "browser" : "node");
       fixture(root, repoRoot, browser);
       const context = projectCtx(root);
-      const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
-      const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       using _poison = poisonSyntax(context.project);
-      try {
-        expect.soft(await runStructure(root, ["--check=schema-branding"])).toBe(1);
-        const result = runPolicyPass({
-          root,
-          project: context.project,
-          ...nativeTypeFactOptions(context),
-          knownPolicies: POLICIES,
-          policies: POLICIES,
-          reviewedGrants: [],
-          failOnWarnings: false,
-        });
-        expect.soft(result.toolErrors).toEqual([]);
-        expect.soft(result.factErrors).toEqual([]);
-        expect.soft(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual([
-          { id: indexed.id, findings: [{ file: SCHEMA, token: "chatId" }] },
-          { id: onDelete.id, findings: [] },
-          { id: softRef.id, findings: [] },
-          { id: owners.id, findings: [] },
-          { id: banned.id, findings: [] },
-          { id: branding.id, findings: Array.from({ length: browser ? 2 : 1 }, () => ({ file: SCHEMA, token: "id" })) },
-          { id: primaryKey.id, findings: [] },
-          { id: scoping.id, findings: [] },
-        ]);
-      } finally {
-        useContext.mockRestore();
-      }
+      const syntaxReads: number[] = [];
+      const workers: string[] = [];
+      expect.soft(await nativeVerifyFixture(root, "structure", ["--check=schema-branding"], { forbidSyntax: true, syntaxReads, workers })).toBe(1);
+      expect(syntaxReads).toEqual([0]);
+      expect(workers.length).toBeGreaterThan(0);
+      const result = runPolicyPass({
+        root,
+        project: context.project,
+        ...nativeTypeFactOptions(context),
+        knownPolicies: POLICIES,
+        policies: POLICIES,
+        reviewedGrants: [],
+        failOnWarnings: false,
+      });
+      expect.soft(result.toolErrors).toEqual([]);
+      expect.soft(result.factErrors).toEqual([]);
+      expect.soft(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual([
+        { id: indexed.id, findings: [{ file: SCHEMA, token: "chatId" }] },
+        { id: onDelete.id, findings: [] },
+        { id: softRef.id, findings: [] },
+        { id: owners.id, findings: [] },
+        { id: banned.id, findings: [] },
+        { id: branding.id, findings: Array.from({ length: browser ? 2 : 1 }, () => ({ file: SCHEMA, token: "id" })) },
+        { id: primaryKey.id, findings: [] },
+        { id: scoping.id, findings: [] },
+      ]);
     }
   },
   scaledBudget(120_000),
@@ -136,7 +141,7 @@ test.for(POLICIES)("$id preserves its complete schema-only proof population", { 
 });
 
 test(
-  "native schema soft-reference grants retain the exact table/property pair and operation",
+  "historical native schema soft-reference grants retain the exact table/property pair and operation",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     writeFileSync(
@@ -176,7 +181,7 @@ test(
 );
 
 test(
-  "native schema branding retains ordinary waiver coordinates and does not widen the marker",
+  "historical native schema branding retains ordinary waiver coordinates and does not widen the marker",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     writeFileSync(

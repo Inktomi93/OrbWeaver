@@ -1,10 +1,9 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as assets } from "../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as schemaSibling } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
@@ -13,9 +12,18 @@ import { gate as vectors } from "../../../../tooling/src/verify/gates/vector-sco
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const POLICIES = [assets, ownership, vectors];
 const CORPUS = [...POLICIES, schemaSibling];
@@ -92,7 +100,7 @@ function fixture(root: string, repoRoot: string, browser = false): void {
   for (const { id } of CORPUS) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -125,6 +133,7 @@ test.for([false, true])(
   "native Drizzle command policies preserve importing-world browser=$0 meaning without syntax Type/Symbol",
   { timeout: scaledBudget(90_000) },
   async (browser, { scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot, browser);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
@@ -133,10 +142,12 @@ test.for([false, true])(
     try {
       const exits: number[] = [];
       for (const { id } of POLICIES) {
-        exits.push(await runStructure(scratch, [`--check=${id}`]));
+        exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }));
       }
       expect.soft(exits).toEqual(browser ? [1, 0, 0] : [1, 1, 1]);
-      expect.soft(await runScopedCli(scratch, ["--scope", "packages/server/src/domain"])).toBe(browser ? 0 : 1);
+      expect
+        .soft(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src/domain"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }))
+        .toBe(browser ? 0 : 1);
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -173,6 +184,8 @@ test.for([false, true])(
     } finally {
       useContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([...POLICIES.map(() => 0), 0]);
   },
 );
 

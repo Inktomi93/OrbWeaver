@@ -1,18 +1,19 @@
+// Native child commands execute; in-process verdicts borrow pinned historical SQLite observations.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { gate as enums } from "../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
 import { gate as nullable } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const POLICIES = [enums, nullable];
 const SCHEMA = "packages/db/src/schema/rows.ts";
@@ -73,11 +74,17 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
+
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => vi.restoreAllMocks());
 
 function poisonSyntax(project: Project): Disposable {
   const symbolFor = Node.prototype.getSymbol;
@@ -107,88 +114,86 @@ test.for([false, true])(
   { timeout: scaledBudget(90_000) },
   async (browser, { scratch, repoRoot }) => {
     fixture(scratch, repoRoot, browser);
-    const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
-    const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
-    try {
-      const exits: number[] = [];
-      for (const { id } of POLICIES) {
-        exits.push(await runStructure(scratch, [`--check=${id}`]));
-      }
-      expect.soft(exits).toEqual(browser ? [1, 1] : [0, 1]);
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        knownPolicies: POLICIES,
-        policies: POLICIES,
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.factErrors).toEqual([]);
-      expect(result.authority.authorityAlarms).toEqual([]);
-      expect(result.policies.find(({ id }) => id === nullable.id)?.receipts).toEqual([
-        expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 3 }),
-      ]);
-      expect(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual([
-        { id: enums.id, findings: browser ? [{ file: "packages/db/src/schema/config-browser.ts", token: "'one'" }] : [] },
-        { id: nullable.id, findings: [{ file: SCHEMA, token: "rows.value" }, ...(browser ? [] : [{ file: READS, token: "rows.value" }])] },
-      ]);
-      const acquire = context.nativeTypeFacts;
-      if (acquire === undefined) {
-        throw new Error("native column admission factory is unavailable");
-      }
-      const schemas = context.files.filter((file) => file.getFilePath().startsWith(`${join(scratch, "packages/db/src/schema")}/`));
-      const source = context.project.getSourceFileOrThrow(join(scratch, READS));
-      const argument = source.getVariableDeclarationOrThrow("predicate").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression).getArguments()[0];
-      if (argument === undefined) {
-        throw new Error("native column admission fixture lost its operand");
-      }
-      const badRequests: readonly { readonly requests: readonly NativeTypeRequest[]; readonly message: string }[] = [
-        { requests: [{ kind: "schema-identities", nodes: schemas }], message: "native column demand requires an explicit full schema roster" },
-        {
-          requests: [
-            { kind: "schema-data", nodes: schemas },
-            { kind: "schema-identities", nodes: [] },
-          ],
-          message: "native column identity and full schema rosters disagree",
-        },
-        {
-          requests: [
-            { kind: "schema-data", nodes: schemas },
-            { kind: "schema-identities", nodes: schemas.slice(0, 1) },
-          ],
-          message: "native column identity and full schema rosters disagree",
-        },
-        {
-          requests: [
-            { kind: "schema-data", nodes: schemas },
-            { kind: "schema-identities", nodes: [source] },
-          ],
-          message: "native column identity and full schema rosters disagree",
-        },
-      ];
-      const owner = "column-admission-control";
+    const exits: number[] = [];
+    const syntaxReads: number[] = [];
+    const workers: string[] = [];
+    for (const { id } of POLICIES) {
+      exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads, workers }));
+    }
+    expect.soft(exits).toEqual(browser ? [1, 1] : [0, 1]);
+    expect(syntaxReads).toEqual([0, 0]);
+    expect(workers.length).toBeGreaterThan(0);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      ...nativeTypeFactOptions(context),
+      knownPolicies: POLICIES,
+      policies: POLICIES,
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.authorityAlarms).toEqual([]);
+    expect(result.policies.find(({ id }) => id === nullable.id)?.receipts).toEqual([
+      expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 3 }),
+    ]);
+    expect(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual([
+      { id: enums.id, findings: browser ? [{ file: "packages/db/src/schema/config-browser.ts", token: "'one'" }] : [] },
+      { id: nullable.id, findings: [{ file: SCHEMA, token: "rows.value" }, ...(browser ? [] : [{ file: READS, token: "rows.value" }])] },
+    ]);
+    const acquire = context.nativeTypeFacts;
+    if (acquire === undefined) {
+      throw new Error("native column admission factory is unavailable");
+    }
+    const schemas = context.files.filter((file) => file.getFilePath().startsWith(`${join(scratch, "packages/db/src/schema")}/`));
+    const source = context.project.getSourceFileOrThrow(join(scratch, READS));
+    const argument = source.getVariableDeclarationOrThrow("predicate").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression).getArguments()[0];
+    if (argument === undefined) {
+      throw new Error("native column admission fixture lost its operand");
+    }
+    const badRequests: readonly { readonly requests: readonly NativeTypeRequest[]; readonly message: string }[] = [
+      { requests: [{ kind: "schema-identities", nodes: schemas }], message: "native column demand requires an explicit full schema roster" },
       {
-        using facts = acquire();
-        facts.request(owner, { kind: "schema-data", nodes: schemas });
-        facts.request("foreign-projection", { kind: "schema-data", nodes: schemas, projection: { builderConfig: true } });
-        facts.seal(new Set([owner, "foreign-projection"]));
-        expect(() => facts.schemaData(owner, schemas, { builderConfig: true })).toThrow("builder configuration was not registered by this owner");
+        requests: [
+          { kind: "schema-data", nodes: schemas },
+          { kind: "schema-identities", nodes: [] },
+        ],
+        message: "native column identity and full schema rosters disagree",
+      },
+      {
+        requests: [
+          { kind: "schema-data", nodes: schemas },
+          { kind: "schema-identities", nodes: schemas.slice(0, 1) },
+        ],
+        message: "native column identity and full schema rosters disagree",
+      },
+      {
+        requests: [
+          { kind: "schema-data", nodes: schemas },
+          { kind: "schema-identities", nodes: [source] },
+        ],
+        message: "native column identity and full schema rosters disagree",
+      },
+    ];
+    const owner = "column-admission-control";
+    {
+      using facts = acquire();
+      facts.request(owner, { kind: "schema-data", nodes: schemas });
+      facts.request("foreign-projection", { kind: "schema-data", nodes: schemas, projection: { builderConfig: true } });
+      facts.seal(new Set([owner, "foreign-projection"]));
+      expect(() => facts.schemaData(owner, schemas, { builderConfig: true })).toThrow("builder configuration was not registered by this owner");
+    }
+    for (const bad of badRequests) {
+      using facts = acquire();
+      facts.request(owner, { kind: "drizzle-identities", nodes: [argument], mode: "column" });
+      for (const request of bad.requests) {
+        facts.request(owner, request);
       }
-      for (const bad of badRequests) {
-        using facts = acquire();
-        facts.request(owner, { kind: "drizzle-identities", nodes: [argument], mode: "column" });
-        for (const request of bad.requests) {
-          facts.request(owner, request);
-        }
-        facts.seal(new Set([owner]));
-        expect(() => facts.drizzleEvidence(owner, [argument], "column")).toThrow(bad.message);
-      }
-    } finally {
-      useContext.mockRestore();
+      facts.seal(new Set([owner]));
+      expect(() => facts.drizzleEvidence(owner, [argument], "column")).toThrow(bad.message);
     }
   },
 );

@@ -1,9 +1,8 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Identifier, Node, Project } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { TypeObservationReader } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
 import { inventoryQueryNode } from "../../../../tooling/src/floor/compiler/drizzle-inventory-extract.ts";
@@ -19,9 +18,18 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { typeObservationPlan } from "../../../../tooling/src/verify/lib/type-observation-context.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const COMPILER_OPTIONS = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
 const NODE_BUS = "packages/contracts/src/chat/bus.ts";
@@ -68,7 +76,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -144,6 +152,7 @@ test(
 test(
   "native bus structure and scoped doors preserve importing-world belts without ordinary typed reads",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
@@ -152,9 +161,9 @@ test(
     try {
       const structure: number[] = [];
       for (const { id } of POLICIES) {
-        structure.push(await runStructure(scratch, [`--check=${id}`]));
+        structure.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }));
       }
-      const scoped = await runScopedCli(scratch, ["--scope", SOURCES.join(",")]);
+      const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", SOURCES.join(",")], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
       expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 1], scoped: 1 });
       const result = runPolicyPass({
         root: scratch,
@@ -183,8 +192,10 @@ test(
     } finally {
       getContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([...POLICIES.map(() => 0), 0]);
   },
-  scaledBudget(60_000),
+  scaledBudget(60_000 * (POLICIES.length + 2)),
 );
 
 test(
