@@ -1,30 +1,6 @@
-// domain/refinery/substrate/schema-forge — the NL→schema forge ENGINE the two forge verbs share (one verb
-// per file; the machinery lives here). REWORKED for task #36, the owner's 2026-08-09 veto: "asking the model
-// to pretty-please output proper JSON is fragile as fuck… the prompt describes the task, the grammar owns
-// the shape."
-//
-// WHAT CHANGED. The shipped R3 call constrained `{name, schema}` where `schema` was
-// `z.record(z.string(), z.unknown())` — an enforced ENVELOPE around an unenforced payload, with the whole
-// belt carried by a prompt asking for "ONLY a JSON object" plus a bounded retry. Now every call rides the
-// FLAT DESIGN LANGUAGE (`@orb/contracts/refinery` — `forgeDesignEnvelopeSchema` and friends) as its
-// `ResponseFormat`, and the server TRANSPILES the answer into the stored JSON Schema. A constrained backend
-// cannot emit a construct outside the sanctioned vocabulary; the belt then validates the transpiled document
-// as the FINAL authority on every arm and every backend (enforcement is an optimization, the belt is the
-// contract).
-//
-// THE RETRY BRIDGE SHRANK, IT DID NOT DIE. `runStructuredTurn`'s one bounded retry now covers only what a
-// grammar cannot own: the document NAME's identifier grammar and a field PATH's segment grammar (both free
-// strings — `pattern` never rides a wire), plus a transpile that placed nothing. The §4.5 lift-refusal
-// bridge — the loose envelope whose superRefine re-emitted the WHOLE document belt as zod issues — is gone
-// with the hole it was patching: a `$ref`, a `oneOf`, a `pattern`, a bad hint role, an over-deep nest and a
-// missing well-known core are all unconstructable now.
-//
-// VEHICLE: the domain's ruled F2 rung — the `summarize` facade, which routes a call carrying a
-// `responseFormat` to the `structured` ROLE (`entry/compose/role-clients.ts`; the owner's 2026-07-27 split).
-// The structured plan picks how it rides for the bound model; the forge states its schemas and nothing else.
-//
-// THE THREE ARMS are the owner's "we should have options" (2026-08-09). Dispatched through an exhaustive
-// Record — a new `RefineryForgeArm` without a runner is a tsc error (§5.5).
+// The shared NL→schema forge uses the contracts' flat design grammar, then validates the transpiled
+// document on every arm/backend. Structured payload failures may retry; the final document refusal is
+// human-facing errors-as-data with the raw draft preserved for hand-fixing.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -43,7 +19,7 @@ import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/cont
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { z } from "zod";
+import { z } from "zod";
 import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import type { ForgeTurnArgs } from "../contract/prompts.ts";
@@ -197,11 +173,10 @@ const FORGE_ARMS: Readonly<Record<RefineryForgeArm, (args: ForgeTurnArgs) => Pro
 
 // ── the turn ─────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The belt's verdict on a transpiled design, as the model-facing correction text. Returns null when the
- *  document passes (the overwhelmingly common case now that the grammar owns the shape). */
+// The final belt refusal goes to the author, not back into the structured model's retry prompt.
 function beltRefusalOf(name: string, description: string, schema: Record<string, unknown>, stage: RefinerySchemaStage): string | null {
   const parsed = refinerySchemaDocumentSchema.safeParse({ name, description, stage, schema });
-  return parsed.success ? null : parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
+  return parsed.success ? null : z.prettifyError(parsed.error);
 }
 
 /**
