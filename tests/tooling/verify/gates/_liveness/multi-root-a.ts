@@ -22,7 +22,6 @@ import { gate as busBeltTotal } from "../../../../../tooling/src/verify/gates/bu
 import { gate as busConsumerBelt } from "../../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as busDefinitionBelts } from "../../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { gate as busFactHealth } from "../../../../../tooling/src/verify/gates/bus-fact-health.ts";
-import { gate as busPayloadAllowlist } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist.ts";
 import { gate as busPayloadAllowlistHealth } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as caughtFailureCensusRow } from "../../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
@@ -156,11 +155,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     // UserBusEvent.
     overlays: [edit(USER_BUS, USER_BUS_HEAD, `${USER_BUS_HEAD}  | { type: "livenessMeta"; meta: Record<string, string> }\n`)],
     messageIncludes: "Shape: unsupported-shape:Record.",
-  },
-  {
-    policy: busPayloadAllowlist,
-    overlays: [edit(USER_BUS, USER_BUS_HEAD, `${USER_BUS_HEAD}  | { type: "livenessSecret"; apiKey: string }\n`)],
-    messageIncludes: "TYPE-LEVEL UNREPRESENTABLE",
   },
   {
     policy: busProducerCoverage,

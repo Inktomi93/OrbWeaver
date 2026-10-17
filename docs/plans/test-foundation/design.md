@@ -169,7 +169,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Contextual sharing, optional calls, native resources and own-arrow/nullish projection pass bounded controls and review. Annotated callable storage preserves native origins, allocation bindings and selected-slot closure. Admitted captured calls request ordinary settlement; only actual published targets and callers qualify. Private premises revoke before publication. Distinct contexts allow finite reentry; unknown contexts, mutation, escape and true recursion refuse. Exact admission dependencies replace global refinement invalidation; complete native validation and whole-source opacity remain. Review and bounded ordinary controls pass. Finite copied records preserve ordered presence and selected-return closure; combined ordinary controls pass. Original replay completes unresolved at `chat/service.ts` on `ctx.backgroundSignal`; no delegate invocation publishes. Sparse-env and store/cost qualification remain open. Evidence: `reports/review/1002-original-callable-current-c49-diagnosis.md`.
+Contextual sharing, optional calls, native resources and own-arrow/nullish projection pass bounded controls and review. Annotated storage preserves native origins, allocations and selected-slot closure. Captured calls settle after private-premise revocation; only published targets and callers qualify. Distinct contexts allow finite reentry; unknown contexts, mutation, escape and true recursion refuse. Exact admission dependencies replace global invalidation; native validation and whole-source opacity remain. Finite copies preserve ordered presence and selected-return closure; combined controls pass. Original replay refuses `ctx.backgroundSignal` in `chat/service.ts`; no delegate invocation publishes. Sparse-env and store/cost qualification remain open. Evidence: `reports/review/1002-original-callable-current-c49-diagnosis.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -205,11 +205,13 @@ Native lint owns lexical class, skin, banned utilities, z-index and determinism.
 
 Native Base UI lint owns per-file derivation, mandatory handlers and parallel-state styling. Metadata admission invalidates caches; semantic owners remain. Maintained CTs use captured viewer/settings reads. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`. Bounded ordinary native controls pass; full migration remains open.
 
-Context/register lint keeps publication and count owners; ordinary controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`. Parallel-map native lint uses canonical tuples; review passes, ordinary main checks remain open.
+Context/register lint keeps publication and count owners; ordinary controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`. Parallel-map native lint uses canonical tuples; scoped main behavior passes with timing limits recorded.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
 Opaque roles and root-derived Principals preserve internal authority. Public Caller DTOs expose raw roles, so role gates remain. Native lint owns the lowercase engine-name restriction; canonical Principal-origin analysis stays. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption remains open.
+
+Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; ordinary main qualification is open.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 
@@ -260,7 +262,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
 
-Use measured host limits. Main owns whole-tree qualification.
+Use measured host limits; main owns whole-tree checks.
 
 Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
 

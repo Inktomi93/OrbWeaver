@@ -7,10 +7,8 @@
 // `resolveGlobalMemberOrigin`, `floor/code-facts/reference-fact-*.ts`, `lib/origin-verdict.ts`)."* Binding identity is a shared
 // primitive: one home resolves aliases, re-exports, namespaces and destructuring the same way for every policy,
 // refuses on a written or cyclic binding, and fails closed; a gate that walks `getSymbol()?.getDeclarations()[0]`
-// re-derives a weaker answer (`no-manual-token-estimate.ts:9` records the `[0]` that read the wrong overload,
-// `bus-payload-allowlist.ts:392` the `find()` that walked one of two merged declarations). About 25 sites in 21
-// modules carry the shape at this arm's landing — RED on the real tree by design; lane `p-binding-readers` migrates
-// them by module. This is its own module rather than an arm of `policy-soundness` for the reason
+// re-derives a weaker answer by selecting one merged declaration or overload without proving its origin.
+// This is its own module rather than an arm of `policy-soundness` for the reason
 // `policy-legacy-imports` is: an OPEN class must not sit inside the policy whose closed classes the family pins
 // at zero.
 //

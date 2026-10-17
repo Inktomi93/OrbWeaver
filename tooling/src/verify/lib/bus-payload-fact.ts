@@ -1,12 +1,7 @@
-// The shared WIRE-SHAPE reader behind the `bus-payload` family (D16) — one transitive walk of every live
-// bus-event union's own type identity, producing the field census both family members judge.
-//
-// WHY IT IS A PROVIDER AND NOT A READER EACH SIBLING CALLS. The walk is the expensive part (measured 7.9 s
-// over the real corpus as a legacy `visit` hook), and the family SPLITS on authority: the credential-field
-// arm has a reviewed door and the fail-closed arm has none. Two policies calling one reader would walk the
-// corpus twice; a `defineFact` provider is instantiated once and fed in the same physical walk
-// (docs/law/gate-runtime-standardization.md §3).
-//
+// Source-shape health retains the identity walk and refusal/empty/blindness evidence native types can erase.
+// The singleton health policy consumes this fact; native assertions own resolved secret-field judgments.
+// Producer/definition providers keep their separate populations and shared native acquisition.
+
 // WHAT THE PROVIDER PUBLISHES, AND WHAT IT DELIBERATELY DOES NOT. It publishes the FIELD census, the
 // fail-closed REFUSALS, the roots it resolved and the roots that contributed nothing — all as fact DATA. Its
 // own receipt states only what it MEASURED (the authored files it walked) with `unresolved: 0`, because
@@ -134,17 +129,6 @@ export const BUS_DECL_NAMES: ReadonlySet<string> = new Set([
  *  have been the trap it exists to catch — rename ONE bus home and the guard abstains exactly when its
  *  declarations went missing. */
 export const REAL_CORPUS_MIN = 40;
-
-/** The credential-smell tokens (lowercased substring match on a field name). `key` catches apiKey/secretKey;
- *  `credential` catches credentialId. Substring, not `\b`-word — camelCase field names have no word boundary
- *  before an embedded token (`apiKey`, `xApiKey`). */
-const SMELL_TOKENS = ["secret", "token", "apikey", "password", "credential", "key"] as const;
-
-/** The lowercased credential-token a field name matches, or undefined. */
-export function smellToken(fieldName: string): string | undefined {
-  const lower = fieldName.toLowerCase();
-  return SMELL_TOKENS.find((t) => lower.includes(t));
-}
 
 const UNSUPPORTED_TOKEN = "unsupported-shape:";
 
@@ -362,7 +346,7 @@ export const busPayloadFact = defineFact({
         }
         // `members` is what the provider WALKED — the authored files its population admitted — never the
         // field census it built, and `unresolved` is pinned at 0 by contract: a non-zero one here would be a
-        // FACT TOOL ERROR that withholds both consumers, including the `-health` policy whose entire job is
+        // FACT TOOL ERROR that withholds the health consumer, whose entire job is
         // to report the refusals below (§12.3). The holes are DATA.
         context.receipt({ kind: "population", source: PROVIDER_RECEIPT_SOURCE, members: context.files.length, unresolved: 0 });
         return {

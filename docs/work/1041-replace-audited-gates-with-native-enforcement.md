@@ -34,8 +34,8 @@ Native Base UI occurrence rules and metadata admission qualify. Semantic anatomy
 
 Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls, independent review and bounded ordinary main qualification pass. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
-Native parallel-map replacement passes source review and mapped controls; ordinary main qualification remains open. Selection and other tuple consumers remain. Evidence: `reports/review/1041-native-client-map-selection-delivery.md`.
+Native parallel-map checks pass individually on main; the combined run retains a timing failure. Selection and other tuple consumers remain. Evidence: `reports/review/1041-native-parallel-map-ordinary.md`.
 
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
-The recursive bus assertion prototype passes native compatibility controls. Collected Node/browser and real-root qualification remain unbuilt. Preserve the existing payload family and KEEP inputs until the successor qualifies. Evidence: `reports/review/1041-bus-boundary-proposal.md`.
+Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Ordinary main qualification is open. Evidence: `reports/review/1041-native-bus-boundary-delivery.md`.

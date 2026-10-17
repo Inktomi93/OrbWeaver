@@ -23,9 +23,9 @@ Every entry has source evidence and a retain, remove, fix or unresolved decision
 
 ## Evidence
 
-Native response, tracing, diagnostics and environment repairs preserve settlement, timing, isolation and authority. Scanners preserve bytes and dispatch. Evidence: `ba07cbab45`, `0534d11010`, `88fd25fdcc`, `4a2b60faa6` and `159dd24975`.
+Runtime and scanner repairs preserve native boundaries. Evidence: `ba07cbab45`, `0534d11010`, `88fd25fdcc`, `4a2b60faa6`, `159dd24975`.
 
-Native backtracking and duplicate-dependency repairs preserve parser and declaration semantics. AST/codemod exceptions and broader helper permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`. Root diagnostics remain outside those repairs.
+Native parser/dependency repairs preserve semantics. AST/codemod permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`; root diagnostics remain separate.
 
 DB import, framework and naming scopes retain only their actual intake subjects. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md`, the adjacent protocol-naming delivery, and `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-mixed-framework-independent-review.md`.
 
@@ -46,3 +46,5 @@ Reviewed native exceptions retain actual transferred or borrowed lifetimes, atom
 Reviewed standalone Node-child and Base UI item-model exceptions preserve native execution and narrow public contracts. Their distinct classes do not authorize budget growth. Keep the central alarm visible until broader disposition removes unnecessary permissions. Evidence: `reports/review/1041-egress-watchdog-ordinary.md` and `reports/review/1041-native-baseui-seals-delivery.md`.
 
 Hook exceptions preserve value-keyed effects and retained factory identity. The bracket effect depends only on selection. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
+
+`@ts-expect-error` source grants do not bind sites and admit unrelated errors. Keep bus source health until that authority is fixed. Evidence: `reports/review/1041-native-bus-boundary-independent-review.md`.

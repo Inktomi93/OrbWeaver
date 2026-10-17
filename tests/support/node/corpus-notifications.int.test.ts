@@ -140,6 +140,16 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   expect(result.rows.find((row) => row.id === result.dismissed.id)?.dismissedAt).toBe(root.clock.frozenAt);
   expect(new Set(result.rows.map((row) => row.type))).toEqual(new Set(NOTIFICATION_TYPES));
   expect(result.rows).toEqual(await captureCorpusNotificationRows(root.db, result.recipientIds));
+  const deliveredBytes = JSON.stringify({
+    rows: result.rows,
+    replay: result.replay,
+    resumed: result.resumed,
+    live: result.live,
+    finalReplay: result.finalReplay,
+  });
+  for (const secret of result.secrets) {
+    expect(deliveredBytes).not.toContain(secret);
+  }
   for (const view of result.inbox.raised.items) {
     expect(result.replay).toContain(view.id);
     expect(result.resumed).not.toContain(view.id);

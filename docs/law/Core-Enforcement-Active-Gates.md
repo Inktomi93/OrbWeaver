@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(301 registered gates)
+(300 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -84,8 +84,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `bus-definition-belts` | bus-definition | hard/error | @contracts,@client,@server | bus event union in @orb/contracts… |
 | `bus-fact-health` | bus-fact | hard/error | @contracts,@server | shared bus fact is incomplete — bus… |
 | `bus-on-data-no-store-write` | — | ordinary/error | @client\* | raw store write (.setState) inside a… |
-| `bus-payload-allowlist` | bus-payload | reviewed-grant/error | @contracts | a bus-event payload field name smells… |
-| `bus-payload-allowlist-health` | bus-payload | hard/error | @contracts | a bus-event wire shape could not be… |
+| `bus-payload-allowlist-health` | — | hard/error | @contracts | a bus-event wire shape could not be… |
 | `bus-producer-coverage` | bus-fact | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
 | `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
