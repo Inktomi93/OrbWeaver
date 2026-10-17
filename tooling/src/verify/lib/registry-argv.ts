@@ -10,6 +10,7 @@ import { applicationTestExclusions, isLegacyTestPath, LEGACY_SCOPED_FLAG, legacy
 import { CSS_SOURCE_ROOTS } from "../contract/css-family.ts";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
+import { affectsBaseUiLint } from "./baseui-manifest.ts";
 import { existsRel } from "./repo-paths.ts";
 
 // The inner loop never runs the legacy folder; CI's legacy jobs do.
@@ -59,11 +60,12 @@ export function tscScopedArgv(tsconfigs: readonly string[]): ScopedArgv {
 /** eslint scoped invocation: the verify `eslint-scoped` verb, which partitions the paths by native compiler
  *  owner exactly as the whole-tree run does. One process spanning several typed programs loads all of them
  *  at once. An explicit path the config ignores is dropped at discovery, so it cannot fail `--max-warnings 0`. */
-export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
-  if (files.length === 0) {
+export function eslintScopedArgv(files: readonly string[], changedPaths: readonly string[] = []): ScopedArgv {
+  const paths = [...new Set([...files, ...changedPaths.filter(affectsBaseUiLint)])];
+  if (paths.length === 0) {
     return "skip-empty";
   }
-  return ["node", "tooling/src/verify/cli.ts", "eslint-scoped", ...files];
+  return ["node", "tooling/src/verify/cli.ts", "eslint-scoped", ...paths];
 }
 
 /** Policy/token changes and removed homes need complete CSS admission; the small native population stays whole. */

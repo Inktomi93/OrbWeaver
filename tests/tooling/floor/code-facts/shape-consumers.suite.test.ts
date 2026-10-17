@@ -9,8 +9,6 @@ import { ModuleKind, ModuleResolutionKind, Project, ScriptTarget, SyntaxKind } f
 import { assignabilityChecker, respellHitsFor, shapesUnder } from "../../../../tooling/src/ast/lib/respell-shapes.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as baseUiData } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
-import { gate as baseUiHandlers } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells-health.ts";
 import { gate as derives } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as copies } from "../../../../tooling/src/verify/gates/contract-structural-copy.ts";
 import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
@@ -250,20 +248,7 @@ test(
   "migrated shape policy consumers retain their catch, near-miss and refusal rows",
   () => {
     expect(
-      verifyPolicyProofs([
-        copies,
-        derives,
-        handShapes,
-        fabrication,
-        inlineTypes,
-        domainInterfaces,
-        packageInterfaces,
-        wireInterfaces,
-        baseUiData,
-        baseUiHandlers,
-        zodSpellings,
-        zodIssues,
-      ]),
+      verifyPolicyProofs([copies, derives, handShapes, fabrication, inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces, zodSpellings, zodIssues]),
     ).toEqual([]);
   },
   scaledBudget(120_000),

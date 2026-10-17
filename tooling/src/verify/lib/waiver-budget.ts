@@ -6,7 +6,6 @@ import type { WaiverBudget } from "../contract/gate-authority.ts";
 const APPLICATION = Object.freeze({
   "assets-single-writer": 6,
   "audit-client-tests": 1,
-  "baseui-derives-not-respells": 7,
   "bound-field-via-hook": 1,
   "brand-in-name-position": 44,
   "bus-payload-allowlist": 1,

@@ -2,8 +2,8 @@
 // actually render". Every `baseui-*` gate and the baseui-surface baseline writer reads through here, so the
 // surface is derived from the package on disk exactly once, in one spelling. The prop EXPANDER it delegates
 // to is ./baseui-expand.ts; the shapes are ../contract/baseui.ts; the DERIVATIONS over acquired inputs (the
-// anatomy walk over a loaded Project, the manifest JSON reader, the two surface tripwires) are
-// ./baseui-surface-derive.ts, split out at the size cap 2026-09-18 — both Project constructions, the caches
+// anatomy walk over a loaded Project, the two surface tripwires) are
+// ./baseui-surface-derive.ts; JSON shape narrowing is ./baseui-manifest.ts. Both Project constructions, the caches
 // and the resource doors stay HERE under the `tooling-project-home:baseui-read` grant, and the three derived
 // names every gate imports (`surfaceManifestFrom`, `blindParts`, `truncatedParts`) keep this module as
 // their door.
@@ -49,11 +49,12 @@ import { Project, SyntaxKind } from "ts-morph";
 import type { BaseUiBinding, InstalledSurface, RenderSite, SurfaceManifest, SurfaceManifestRead } from "../contract/baseui.ts";
 import { INSTALLED_PACKAGE_DEFINITIONS } from "../contract/resource-installed.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
+import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { surfaceManifestFrom as manifestFrom } from "./baseui-manifest.ts";
 import {
   BASE_UI_MODULE_PREFIX,
   installedSurfaceOver,
-  surfaceManifestFrom as manifestFrom,
   nestedDeclarations,
   stateAttributeValuesOver,
   blindParts as surfaceBlindParts,
@@ -63,7 +64,7 @@ import {
 /** Where the package is installed. `@orb/ui` is its only dependent, so pnpm hangs the symlink here. */
 export const BASE_UI_PKG_REL = "packages/ui/node_modules/@base-ui/react";
 /** The manifest the installed surface is adjudicated against (the §2 site-6 baseline-file sibling). */
-export const BASE_UI_MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
+export const BASE_UI_MANIFEST_REL = JSON_RESOURCE_PATHS["baseui-manifest"];
 /** Where a seal may live. Base UI is a `@orb/ui` dependency only — features compose sealed primitives. */
 export const UI_SRC = "packages/ui/src/";
 
@@ -206,7 +207,7 @@ export function truncatedParts(surface: InstalledSurface | SurfaceManifest): str
 // ── the committed MANIFEST (surface + dispositions) ─────────────────────────────────────────────────
 
 /** The manifest JSON, narrowed to `SurfaceManifest` or refused with the first shape failure — the same door
- *  rule as `blindParts`: derived in `baseui-surface-derive.ts`, imported from here. */
+ *  rule as `blindParts`: derived in `baseui-manifest.ts`, imported from here. */
 export function surfaceManifestFrom(value: JsonValue): SurfaceManifestRead {
   return manifestFrom(value);
 }
@@ -312,49 +313,7 @@ function collectRenderedParts(
 // identifiers and a portal's `container` target are both SUBTREE questions about ONE delivered node, which
 // no kind-indexed visitor can answer without re-deriving the ancestor chain — so they are readers.
 
-const HOOK_CALL_RE = /^use[A-Z]/u;
 const CONTAINER_PROP = "container";
-
-/** Local identifiers bound by a hook call in this file (`const [open, setOpen] = useState(false)`,
- *  `const open = useSomething()`), at ANY depth — a seal's state lives inside its component function.
- *  A PROP of the same name is deliberately NOT local state: threading a controlled prop into a variant
- *  call is the house convention in ~40 seals, not a parallel source of truth. */
-export function localReactStateBindings(sf: SourceFile): ReadonlySet<string> {
-  const out = new Set<string>();
-  for (const decl of sf.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-    const init = decl.getInitializer();
-    if (init === undefined || !init.isKind(SyntaxKind.CallExpression) || !HOOK_CALL_RE.test(init.getExpression().getText())) {
-      continue;
-    }
-    const name = decl.getNameNode();
-    if (name.isKind(SyntaxKind.Identifier)) {
-      out.add(name.getText());
-      continue;
-    }
-    for (const element of name.getDescendantsOfKind(SyntaxKind.Identifier)) {
-      out.add(element.getText());
-    }
-  }
-  return out;
-}
-
-/** Genuine VALUE reads of one of `keys` inside `node`, in source order.
- *
- *  The `.value` half of a property access and a property NAME in an object literal are excluded:
- *  `slots.value()` and `{ value: x }` MENTION the word without reading the binding, and counting them is how
- *  `baseui-state-data-attributes` once false-positived on our own slot helpers (`select.tsx`'s
- *  `slots.value()` is the live case). */
-export function stateKeyReads(node: Node, keys: readonly string[]): readonly Identifier[] {
-  return node.getDescendantsOfKind(SyntaxKind.Identifier).filter((id) => keys.includes(id.getText()) && isValueRead(id));
-}
-
-function isValueRead(id: Identifier): boolean {
-  const parent = id.getParent();
-  if (parent.isKind(SyntaxKind.PropertyAccessExpression) && parent.getNameNode() === id) {
-    return false;
-  }
-  return !(parent.isKind(SyntaxKind.PropertyAssignment) && parent.getNameNode() === id);
-}
 
 /** Does `expression` read `document.body` — the unsafe Base UI portal default, spelled explicitly? */
 export function readsDocumentBody(expression: Node): boolean {

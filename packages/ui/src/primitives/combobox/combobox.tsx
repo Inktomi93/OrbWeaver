@@ -39,7 +39,7 @@ export interface ComboboxProps extends ComboboxPassthrough {
    * popup renders at all. Passing `[]` keeps the popup capability mounted for a list that may
    * populate later.
    */
-  // @orb-waive baseui-derives-not-respells(items): Base UI's `items` is `readonly any[] | readonly Group<any>[]`; this seal is deliberately string-only (chip values are plain strings) and its `groups` prop owns the grouped arm. Ends if the seal ever accepts object items.
+  // eslint-disable-next-line orb/baseui-derives-not-respells -- The seal accepts string chips only; its separate groups prop owns grouped suggestions, while Base UI accepts richer collection models. Ends when the seal accepts object-backed collections.
   items?: readonly string[];
   /**
    * Grouped suggestions — each group renders a `GroupLabel` header over its items, the same shape
@@ -48,11 +48,9 @@ export interface ComboboxProps extends ComboboxPassthrough {
    */
   groups?: readonly ComboboxGroup[];
   /** The committed chip values. Controlled — pair with `onValueChange`. */
-  // @orb-waive baseui-derives-not-respells(value): Base UI's `value` admits `null` and non-string members; the chips model is a `readonly string[]` with `[]` as the empty state. Ends if chips stop being strings.
-  value?: readonly string[];
+  value?: Readonly<NonNullable<BaseRootProps<string, true>["value"]>>;
   /** Uncontrolled initial chip values. */
-  // @orb-waive baseui-derives-not-respells(defaultValue): the uncontrolled half of `value` above — same narrowing, same end condition.
-  defaultValue?: readonly string[];
+  defaultValue?: Readonly<NonNullable<BaseRootProps<string, true>["defaultValue"]>>;
   onValueChange?: (next: string[], details?: ComboboxChangeDetails) => void;
   /**
    * Caps the number of chips. Once reached, further suggestion selections AND free-text commits

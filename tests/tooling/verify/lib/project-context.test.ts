@@ -6,7 +6,7 @@ import { Project } from "ts-morph";
 import { vi } from "vitest";
 import { TOKEN_GENERATED_TYPE_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
-import { gate as baseui } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
+import { gate as resourceOwner } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as aliases } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { planPolicyCommand } from "../../../../tooling/src/verify/lib/policy-plan.ts";
 import { normalizePathSet } from "../../../../tooling/src/verify/lib/policy-validation.ts";
@@ -91,16 +91,16 @@ test(
 );
 
 test("mixed resource-owner expansion cannot demand token generation for a skipped alias owner", async ({ repoRoot }) => {
-  const manifest = JSON_RESOURCE_PATHS["baseui-manifest"];
+  const manifest = JSON_RESOURCE_PATHS["caught-failure-population"];
   const unrelated = "packages/server/src/domain/x/read.ts";
   const paths = [unrelated, ...TOKEN_GENERATED_TYPE_PATHS];
   const program = { id: "tsconfig.json", config: "tsconfig.json", files: paths, references: [], configPaths: ["tsconfig.json"] };
-  const policies = [aliases, baseui];
-  for (const { selected, aliasMode, baseuiSources, scopedRequested, status, demands } of [
+  const policies = [aliases, resourceOwner];
+  for (const { selected, aliasMode, resourceSources, scopedRequested, status, demands } of [
     {
       selected: manifest,
       aliasMode: "skipped",
-      baseuiSources: [...TOKEN_GENERATED_TYPE_PATHS],
+      resourceSources: paths,
       scopedRequested: [unrelated, "tests/legacy/ui/probe.test.ts"],
       status: undefined,
       demands: 0,
@@ -108,7 +108,7 @@ test("mixed resource-owner expansion cannot demand token generation for a skippe
     {
       selected: TOKEN_GENERATED_TYPE_PATHS[0],
       aliasMode: "run",
-      baseuiSources: [TOKEN_GENERATED_TYPE_PATHS[0]],
+      resourceSources: [TOKEN_GENERATED_TYPE_PATHS[0]],
       scopedRequested: [TOKEN_GENERATED_TYPE_PATHS[0]],
       status: "unresolved",
       demands: 1,
@@ -125,7 +125,7 @@ test("mixed resource-owner expansion cannot demand token generation for a skippe
         failOnWarnings: false,
         json: true,
       },
-      corpus: { gates: policies, families: [aliases.family, baseui.family] },
+      corpus: { gates: policies, families: [aliases.family, resourceOwner.family] },
       resourceOptions: { root: repoRoot },
       executionWorkspacePaths: paths,
       scope: {
@@ -156,9 +156,9 @@ test("mixed resource-owner expansion cannot demand token generation for a skippe
     }
     const alias = planned.plan.policies.find(({ policyId }) => policyId === aliases.id);
     expect(alias?.mode).toBe(aliasMode);
-    expect(planned.plan.policies.find(({ policyId }) => policyId === baseui.id)).toMatchObject({
+    expect(planned.plan.policies.find(({ policyId }) => policyId === resourceOwner.id)).toMatchObject({
       mode: "run",
-      population: { effectiveSourcePaths: baseuiSources },
+      population: { effectiveSourcePaths: resourceSources },
     });
     let nativeDemands = 0;
     const prepared = await prepareTokenTypeGeneration(

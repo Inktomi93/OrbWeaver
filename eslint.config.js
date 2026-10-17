@@ -76,6 +76,7 @@
 //     style/format/order. (no-conflicting-classes / no-duplicate-classes are correctness-adjacent and
 //     available; deferred until @orb/ui's class surface stabilizes — revisit then.)
 //   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -107,6 +108,7 @@ import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
+import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
   ENTRY_PROCESS_PROPERTIES,
@@ -115,7 +117,9 @@ import {
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
+import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
+import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -1042,8 +1046,23 @@ const DETERMINISM_RESTRICTIONS = [
   },
 ];
 
+// These joins are file-local syntax over the adjudicated vendor surface, never semantic type queries.
+const BASEUI_RESTRICTIONS = [
+  { id: "baseui-derives-not-respells", scope: [UI_SRC], homes: [] },
+  { id: "baseui-state-data-attributes", scope: [UI_SRC], homes: [] },
+];
+const baseUiManifestRead = surfaceManifestFrom(JSON.parse(readFileSync(new URL(JSON_RESOURCE_PATHS["baseui-manifest"], import.meta.url), "utf8")));
+if (!baseUiManifestRead.ok) {
+  throw new Error(`Native Base UI policies cannot read the surface manifest: ${baseUiManifestRead.reason}`);
+}
+const BASEUI_SURFACE = baseUiManifestRead.manifest;
+const BASEUI_INPUT_REVISION = createHash("sha256")
+  .update(JSON.stringify(BASE_UI_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
+  .digest("hex");
+
 const RESTRICTIONS = [
   ...Z_INDEX_RESTRICTIONS,
+  ...BASEUI_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
@@ -1376,8 +1395,265 @@ const rawZIndexRule = {
     };
   },
 };
+function baseUiIdentifiers(node, sourceCode) {
+  const identifiers = new Map();
+  const pending = [node];
+  while (pending.length > 0) {
+    const part = pending.pop();
+    if (part === null || part === undefined) {
+      continue;
+    }
+    if (part.type === "Identifier" || part.type === "JSXIdentifier") {
+      identifiers.set(part.range.join(":"), part);
+    }
+    for (const key of sourceCode.visitorKeys[part.type] ?? []) {
+      const children = part[key];
+      pending.push(...(Array.isArray(children) ? children : [children]));
+    }
+  }
+  return [...identifiers.values()].toSorted((left, right) => left.range[0] - right.range[0]);
+}
+
+function baseUiSignatureArity(node) {
+  if (node?.type === "TSFunctionType") {
+    return node.params.length;
+  }
+  if (node?.type === "TSUnionType") {
+    return node.types.map(baseUiSignatureArity).find((arity) => arity !== undefined);
+  }
+}
+
+function baseUiBindings(program) {
+  return program.body.flatMap((node) =>
+    node.type !== "ImportDeclaration" || !node.source.value.startsWith("@base-ui/react/")
+      ? []
+      : node.specifiers
+          .filter((specifier) => specifier.type === "ImportSpecifier")
+          .map((specifier) => ({
+            local: specifier.local.name,
+            exported: specifier.imported.name ?? specifier.imported.value,
+            typeOnly: node.importKind === "type" || specifier.importKind === "type",
+          })),
+  );
+}
+
+function baseUiExported(iface, exports, sourceCode) {
+  if (iface.parent.type === "ExportNamedDeclaration" || iface.parent.type === "ExportDefaultDeclaration") {
+    return true;
+  }
+  const declared = sourceCode.getDeclaredVariables(iface);
+  return exports.some((identifier) => {
+    for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+      const variable = scope.set.get(identifier.name);
+      if (variable !== undefined) {
+        return declared.includes(variable);
+      }
+    }
+    return false;
+  });
+}
+
+function baseUiFoldPart(surface, binding, part, { name, isRoot }) {
+  for (const [prop, arity] of Object.entries(part.handlers)) {
+    if (!surface.handlers.has(prop)) {
+      surface.handlers.set(prop, { arity, owner: `${binding.exported}.${name}` });
+    }
+  }
+  if (!isRoot) {
+    return;
+  }
+  for (const prop of part.props) {
+    if (!(prop in part.handlers || surface.rootProps.has(prop))) {
+      surface.rootProps.set(prop, `${binding.exported}.${name}`);
+    }
+  }
+}
+
+function baseUiFoldBinding(surface, binding, tags) {
+  const component = BASEUI_SURFACE.components[binding.exported];
+  if (component === undefined) {
+    return;
+  }
+  surface.sawValue = true;
+  for (const [name, part] of Object.entries(component.parts)) {
+    const tag = component.namespaced ? `${binding.local}.${name}` : binding.local;
+    const isRoot = name === (component.namespaced ? "Root" : binding.exported);
+    if (part.kind === "part" && part.state.length > 0) {
+      surface.stateful.set(tag, part.state);
+    }
+    if (isRoot || tags.has(tag)) {
+      surface.baseTags.add(tag);
+      baseUiFoldPart(surface, binding, part, { name, isRoot });
+    }
+  }
+}
+
+function baseUiForwardedProps(elements, surface, sourceCode) {
+  const forwarded = new Set();
+  for (const element of elements) {
+    if (!surface.baseTags.has(sourceCode.getText(element.name))) {
+      continue;
+    }
+    for (const attribute of element.attributes) {
+      if (attribute.type === "JSXAttribute") {
+        forwarded.add(sourceCode.getText(attribute.name));
+      } else {
+        for (const prop of [...surface.handlers.keys(), ...surface.rootProps.keys()]) {
+          forwarded.add(prop);
+        }
+      }
+    }
+  }
+  return forwarded;
+}
+
+function baseUiFileSurface(program, elements, sourceCode) {
+  const surface = { sawValue: false, handlers: new Map(), rootProps: new Map(), baseTags: new Set(), baseTypes: new Set(), stateful: new Map() };
+  const tags = new Set(elements.map((element) => sourceCode.getText(element.name)));
+  for (const binding of baseUiBindings(program)) {
+    if (binding.typeOnly) {
+      surface.baseTypes.add(binding.local);
+    } else {
+      baseUiFoldBinding(surface, binding, tags);
+    }
+  }
+  return { ...surface, forwarded: baseUiForwardedProps(elements, surface, sourceCode) };
+}
+
+function baseUiRespelledMember(member, file, derived, sourceCode) {
+  if (member.type !== "TSPropertySignature" || member.computed) {
+    return;
+  }
+  const name = member.key.name ?? member.key.value;
+  const type = member.typeAnnotation?.typeAnnotation;
+  if (!file.forwarded.has(name) || baseUiIdentifiers(type, sourceCode).some((id) => file.baseTypes.has(id.name) || derived.has(id.name))) {
+    return;
+  }
+  return { name, arity: baseUiSignatureArity(type), handler: file.handlers.get(name), rootOwner: file.rootProps.get(name) };
+}
+
+function baseUiJudgeInterface(context, iface, file, { derived, handlersOnly }) {
+  for (const member of iface.body.body) {
+    const hit = baseUiRespelledMember(member, file, derived, context.sourceCode);
+    if (hit === undefined) {
+      continue;
+    }
+    if (handlersOnly && hit.arity !== undefined && hit.handler !== undefined) {
+      context.report({
+        node: member.key,
+        message: `Derive ${hit.name} from ${hit.handler.owner}'s props type; a hand-written handler loses native event details or future capability (${hit.arity}/${hit.handler.arity} arguments).`,
+      });
+    } else if (!handlersOnly && hit.arity === undefined && iface.id.name.endsWith("Props") && hit.rootOwner !== undefined) {
+      context.report({
+        node: member.key,
+        message: `Derive ${hit.name} from ${hit.rootOwner}'s props type; a deliberate narrower item model requires a reasoned native permission.`,
+      });
+    }
+  }
+}
+
+function baseUiDerivesRule(handlersOnly) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const sourceCode = context.sourceCode;
+      const elements = [];
+      const interfaces = [];
+      const aliases = [];
+      const exports = [];
+      return {
+        "JSXOpeningElement:exit": (node) => elements.push(node),
+        "TSInterfaceDeclaration:exit": (node) => interfaces.push(node),
+        "TSTypeAliasDeclaration:exit"(node) {
+          if (node.parent.type === "Program" || (node.parent.type === "ExportNamedDeclaration" && node.parent.parent.type === "Program")) {
+            aliases.push(node);
+          }
+        },
+        "ExportNamedDeclaration:exit"(node) {
+          if (node.source === null) {
+            exports.push(...node.specifiers.map((specifier) => specifier.local));
+          }
+        },
+        "ExportDefaultDeclaration:exit"(node) {
+          if (node.declaration.type === "Identifier") {
+            exports.push(node.declaration);
+          }
+        },
+        "Program:exit"(program) {
+          const file = baseUiFileSurface(program, elements, sourceCode);
+          if (!file.sawValue) {
+            return;
+          }
+          const derived = new Set(
+            aliases
+              .filter((alias) => baseUiIdentifiers(alias.typeAnnotation, sourceCode).some(({ name }) => file.baseTypes.has(name)))
+              .map((alias) => alias.id.name),
+          );
+          for (const iface of interfaces) {
+            if (baseUiExported(iface, exports, sourceCode)) {
+              baseUiJudgeInterface(context, iface, file, { derived, handlersOnly });
+            }
+          }
+        },
+      };
+    },
+  };
+}
+
+function baseUiStateRead(id) {
+  const parent = id.parent;
+  return !(
+    (parent.type === "MemberExpression" && parent.property === id && !parent.computed) ||
+    (parent.type === "Property" && parent.key === id && !parent.computed && !parent.shorthand)
+  );
+}
+
+function baseUiJudgeState(context, element, keys, local) {
+  const attribute = element.attributes.find((attr) => attr.type === "JSXAttribute" && attr.name.name === "className");
+  if (keys === undefined || attribute?.value?.type !== "JSXExpressionContainer") {
+    return;
+  }
+  for (const id of baseUiIdentifiers(attribute, context.sourceCode)) {
+    if (local.has(id.name) && keys.includes(id.name) && baseUiStateRead(id)) {
+      context.report({ node: id, message: `Use Base UI's data attribute for ${id.name}, not a parallel React state read in this part's className.` });
+    }
+  }
+}
+
+const baseUiStateRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const elements = [];
+    const local = new Set();
+    return {
+      "JSXOpeningElement:exit": (node) => elements.push(node),
+      "VariableDeclarator:exit"(node) {
+        const init = node.init?.type === "ChainExpression" ? node.init.expression : node.init;
+        if (init?.type === "CallExpression" && /^use[A-Z]/u.test(sourceCode.getText(init.callee))) {
+          for (const { name } of baseUiIdentifiers(node.id, sourceCode)) {
+            local.add(name);
+          }
+        }
+      },
+      "Program:exit"(program) {
+        const file = baseUiFileSurface(program, elements, sourceCode);
+        for (const element of elements) {
+          baseUiJudgeState(context, element, file.stateful.get(sourceCode.getText(element.name)), local);
+        }
+      },
+    };
+  },
+};
+
 const restrictionPlugin = {
-  rules: { ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])), "no-raw-z-index": rawZIndexRule },
+  rules: {
+    ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    "no-raw-z-index": rawZIndexRule,
+    "baseui-derives-not-respells": baseUiDerivesRule(false),
+    "baseui-derives-not-respells-health": baseUiDerivesRule(true),
+    "baseui-state-data-attributes": baseUiStateRule,
+  },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
   const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
@@ -1386,6 +1662,9 @@ const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnde
     // A flat-config `ignores` array must not be empty.
     ...(ignores.length === 0 ? {} : { ignores }),
     plugins: { orb: restrictionPlugin },
+    ...(BASEUI_RESTRICTIONS.some((entry) => entry.id === id)
+      ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
+      : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });
@@ -2083,6 +2362,7 @@ const ORDINARY_CONFIG = [
       ...DETERMINISM_RESTRICTIONS,
       ...CLASS_TOKEN_RESTRICTIONS,
       ...Z_INDEX_RESTRICTIONS,
+      ...BASEUI_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
@@ -2128,6 +2408,7 @@ export const hardConfig = [
       ],
     },
   },
+  { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
 ];
 

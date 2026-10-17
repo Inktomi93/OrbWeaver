@@ -64,7 +64,7 @@ const GATING_STAGES: readonly StageDef[] = [
     tiers: ["changed", ...STATIC],
     argv: ["pnpm", "lint:eslint"],
     classify: eslintScheme,
-    scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths),
+    scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths, sel.paths),
   },
   {
     name: "lint:stylelint",
