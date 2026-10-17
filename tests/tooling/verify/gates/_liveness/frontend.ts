@@ -33,7 +33,6 @@ import { gate as spacingTierHomeHealth } from "../../../../../tooling/src/verify
 import { gate as subFloorDisclosure } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure.ts";
 import { gate as themeOverrideOnlyViaScope } from "../../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { gate as typographyTierHomeHealth } from "../../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
-import { gate as uiSizeViaVariant } from "../../../../../tooling/src/verify/gates/ui-size-via-variant.ts";
 import { gate as zIndexTierHealth } from "../../../../../tooling/src/verify/gates/z-index-tier-health.ts";
 
 const FEATURE = "packages/client/src/features/chat/components";
@@ -180,11 +179,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: typographyTierHomeHealth,
     overlays: [{ kind: "remove", path: MARKDOWN_HOME }],
     messageIncludes: `"${MARKDOWN_HOME}" resolves to no file`,
-  },
-  {
-    policy: uiSizeViaVariant,
-    overlays: [add(`${FEATURE}/liveness-size.tsx`, 'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n')],
-    messageIncludes: "sizes come from variants",
   },
   {
     policy: zIndexTierHealth,

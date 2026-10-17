@@ -161,7 +161,6 @@ function LabelsPruneConfirm({
         hasUnused ? (
           <VirtualList
             aria-label="Tags to delete"
-            // @orb-waive ui-size-via-variant(h-64): VirtualList has no sealed size; its contract requires caller-owned bounded height through className.
             className="h-64"
             estimateSize={(): number => ESTIMATED_ROW_PX}
             getItemKey={(tag): string => tag.id}

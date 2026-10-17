@@ -1032,6 +1032,7 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
 const CLIENT_LEXICAL_RESTRICTIONS = [
+  { id: "ui-size-via-variant", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "testid-typed-only", scope: [CLIENT_SRC], homes: [] },
   { id: "scroll-container-positioned", scope: rootSources("@client", "@ui"), homes: [] },
 ];
@@ -1970,6 +1971,81 @@ const scrollContainerRule = {
   },
 };
 
+// Unsized APIs explicitly give geometry to callers; VirtualList requires a bounded caller height.
+const UNSIZED_UI_MODULES = new Set([
+  "@orb/ui/layout",
+  "@orb/ui/skeleton",
+  "@orb/ui/theme-scope",
+  "@orb/ui/crossfade-image",
+  "@orb/ui/background-video",
+  "@orb/ui/virtual-list",
+]);
+const SEALED_SIZE_UTILITY = /^(?<axis>h|min-h|size|w)-(?<value>[a-z0-9./-]+)$/u;
+const LAYOUT_SIZE_VALUE = /^(?:full|fit|min|max|screen|[sld]v[hw]|\d+\/\d+)$/u;
+const SEALED_SIZE_VALUE = /^(?:\d+(?:\.\d+)?|[a-z][a-z0-9-]*)$/u;
+function isSealedSizeUtility(utility) {
+  const match = SEALED_SIZE_UTILITY.exec(utility);
+  return (
+    match !== null &&
+    !LAYOUT_SIZE_VALUE.test(match.groups.value) &&
+    !(match.groups.axis === "min-h" && match.groups.value === "0") &&
+    SEALED_SIZE_VALUE.test(match.groups.value)
+  );
+}
+function uiSizeLiteral(attribute, sourceCode) {
+  const literal = attribute?.value?.type === "JSXExpressionContainer" ? attribute.value.expression : attribute?.value;
+  if (!((literal?.type === "Literal" && typeof literal.value === "string") || (literal?.type === "TemplateLiteral" && literal.expressions.length === 0))) {
+    return;
+  }
+  // Native ESTree drops parentheses; the original carrier accepts only an unwrapped literal.
+  if (attribute.value.type === "JSXExpressionContainer" && sourceCode.getTokenAfter(sourceCode.getFirstToken(attribute.value)).range[0] !== literal.range[0]) {
+    return;
+  }
+  return literal;
+}
+const uiSizeRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const imports = new Set();
+    return {
+      Program: (program) => {
+        for (const node of program.body) {
+          if (node.type !== "ImportDeclaration" || !/^@orb\/ui(?:\/|$)/u.test(node.source.value) || UNSIZED_UI_MODULES.has(node.source.value)) {
+            continue;
+          }
+          for (const specifier of node.specifiers) {
+            if (specifier.type === "ImportSpecifier") {
+              imports.add(specifier.local.name);
+            }
+          }
+        }
+      },
+      "JSXOpeningElement:exit"(node) {
+        if (node.name.type !== "JSXIdentifier" || !imports.has(node.name.name)) {
+          return;
+        }
+        const attribute = node.attributes.find((part) => part.type === "JSXAttribute" && part.name.name === "className");
+        const literal = uiSizeLiteral(attribute, context.sourceCode);
+        if (literal === undefined) {
+          return;
+        }
+        for (const part of readTailwindClassTokens(context.sourceCode.getText(literal))) {
+          if (!isSealedSizeUtility(part.utility)) {
+            continue;
+          }
+          context.report({
+            loc: {
+              start: context.sourceCode.getLocFromIndex(literal.range[0] + part.offset),
+              end: context.sourceCode.getLocFromIndex(literal.range[0] + part.offset + part.token.length),
+            },
+            message: "Sizes come from primitive variants; a call-site sizing utility overrides the sealed box.",
+          });
+        }
+      },
+    };
+  },
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -1982,6 +2058,7 @@ const restrictionPlugin = {
     [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
     "testid-typed-only": typedTestIdRule,
     "scroll-container-positioned": scrollContainerRule,
+    "ui-size-via-variant": uiSizeRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {

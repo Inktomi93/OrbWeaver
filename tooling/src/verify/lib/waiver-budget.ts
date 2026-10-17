@@ -64,7 +64,7 @@ const APPLICATION = Object.freeze({
   "single-stream-transport": 2,
   "sole-env-reader": 10,
   "sub-floor-disclosure": 2,
-  suppressions: 55,
+  suppressions: 56,
   "surface-a11y-focus": 5,
   "test-hand-shape": 2,
   "test-reach": 112,
@@ -80,7 +80,6 @@ const APPLICATION = Object.freeze({
   "tooling-root-config-import": 2,
   "two-class-role-authority": 2,
   "ui-primitive-permissions": 6,
-  "ui-size-via-variant": 3,
   "wire-schema-vocab-one-home": 1,
   "zod-error-issues-home": 8,
 });
