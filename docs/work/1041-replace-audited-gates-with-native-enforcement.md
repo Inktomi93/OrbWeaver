@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-context-registry-1041
+lane: codex/native-bus-boundary-1041
 plan: test-foundation
 ---
 
@@ -32,7 +32,7 @@ Native styling, determinism, persistence, production registries, schema membersh
 
 Native Base UI occurrence rules and metadata admission qualify. Semantic anatomy, surface, portal and CSS owners remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md`.
 
-Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls and independent review pass; ordinary main qualification remains open. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
+Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls, independent review and bounded ordinary main qualification pass. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
