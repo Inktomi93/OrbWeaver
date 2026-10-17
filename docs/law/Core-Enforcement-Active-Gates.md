@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(294 registered gates)
+(291 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -96,7 +96,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `chrome-registry-completeness` | registry-definitions | ordinary/error | @client | a chrome widget is dishonest: a… |
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
 | `client-cache-surgery-only-in-data` | tanstack-query-origin | reviewed-grant/error | @client\* | an imperative QueryClient cache call… |
-| `client-package-no-side-effects` | — | hard/error | none | the client package declares… |
 | `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
@@ -264,7 +263,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
-| `root-development-dependencies` | — | hard/error | none | the private repository root declares… |
 | `route-trpc-lifo-order` | — | ordinary/error | @tests\* | a page.route("\*\*/api/trpc...", …) is… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
 | `runner-config-path-liveness` | — | hard/error | none | a FILE-EXACT path in a test-runner… |
@@ -341,7 +339,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | raw-typography-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `ui-accname-survives-spread` | — | ordinary/error | @ui | an accessible-name attribute written… |
-| `ui-exports-map-complete` | — | hard/error | none | the @orb/ui exports map does not… |
 | `ui-primitive-overlay-health` | ui-primitive | hard/error | @ui | the primitive overlay is missing its… |
 | `ui-primitive-permissions` | ui-primitive | reviewed-grant/error | @ui,@tests\* | a primitive shape, CT obligation,… |
 | `ui-primitive-structure` | ui-primitive | ordinary/error | @ui | UI source re-exports private variants… |

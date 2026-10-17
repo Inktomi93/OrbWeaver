@@ -45,3 +45,5 @@ Native portability, client literals and source-suppression refusal pass independ
 The asset-write native successor remains unqualified: valid table transfers and canonical origins exceed its lexical proposal. Existing enforcement remains. Evidence: `reports/review/1041-assets-native-successor-disposition.md`.
 
 Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Scoped integration passes; Node retains its inherited diagnostics. Evidence: `reports/review/1041-native-retirement-wave-ordinary.md`.
+
+Native package manifest contracts pass wave review and scoped runtime controls. Application contracts run in ordinary Node CI; root dependencies remain tooling-owned. Acquisition refusals remain. Evidence: `reports/review/1041-native-package-manifests-ordinary.md`.

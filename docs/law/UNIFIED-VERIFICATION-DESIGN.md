@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-10
+updated: 2026-10-17
 ---
 
 # Unified Verification Design
@@ -13,7 +13,7 @@ updated: 2026-10-10
 > The code is truth on any conflict:
 > `tooling/src/verify/ops/{run,scoped,tests-type-membership,tests-execution-membership}.ts`,
 > `tooling/src/verify/lib/{registry,selection,run-render}.ts`,
-> `tooling/src/verify/gates/root-development-dependencies.ts`, `lefthook.yml`,
+> `tests/tooling/root-development-dependencies.test.ts`, `lefthook.yml`,
 > `.github/workflows/ci.yml`.
 
 ## 1. Run every stage, report every failure
@@ -301,7 +301,7 @@ resolves ONCE into a `Selection`, the superset every stage's `scopedArgv` reads 
 
 The stage registry owns execution and native command selection. Do not maintain a second script-membership model.
 
-`root-development-dependencies` (`tooling/src/verify/gates/root-development-dependencies.ts`) rejects runtime dependencies in the root package manifest. Production dependencies belong to their workspace package. The gate preserves resource read and parse refusals; it does not certify script or config-path liveness.
+`tests/tooling/root-development-dependencies.test.ts` rejects runtime dependencies in the root package manifest. Production dependencies belong to their workspace package. The native contract preserves acquisition and parse refusals; it does not certify script or config-path liveness.
 
 ### 3.7 The test lanes as ONE concept
 
