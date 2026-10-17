@@ -1,8 +1,20 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { resolveReturnTypeIdentityGraph, resolveReturnTypeIdentityOrigin, resolveTypeIdentityOrigin } from "@orb/tooling/floor/code-facts/type-member-origin";
+import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
+import {
+  resolveReturnTypeIdentityGraph,
+  resolveReturnTypeIdentityOrigin,
+  resolveTypeIdentityOrigin,
+  resolveTypeMemberOrigin,
+} from "@orb/tooling/floor/code-facts/type-member-origin";
 import { resolveTypePropertyOrigin } from "@orb/tooling/floor/code-facts/type-member-origin-core";
-import type { CallExpression, SourceFile } from "ts-morph";
-import { Project, SyntaxKind } from "ts-morph";
+import type { CallExpression, FunctionDeclaration, ParameterDeclaration, SourceFile } from "ts-morph";
+import { Project, SyntaxKind, ts } from "ts-morph";
+import {
+  observeCallReturns,
+  readCallTargets,
+  readObservedCallableConsumers,
+  readSuppliedParameter,
+} from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 
 const CONTRACT = "/repo/contract.ts";
 
@@ -136,3 +148,150 @@ test("returned-data queries preserve a refused mutable callable origin", () => {
     reason: "write",
   });
 });
+
+interface PromiseCatchCase {
+  readonly name: string;
+  readonly augmentation?: "script" | "module" | "source" | "foreign";
+  readonly runtime?: string;
+  readonly externalRuntime?: boolean;
+  readonly handler?: string;
+  readonly expected: boolean;
+}
+
+const PROMISE_CATCH_CASES: readonly PromiseCatchCase[] = [
+  { name: "the native-only member", expected: true },
+  { name: "a declaration-only unknown-reason overload", augmentation: "script", expected: true },
+  { name: "a module's declaration-only global overload", augmentation: "module", expected: true },
+  { name: "a returning handler after augmented identity admission", augmentation: "script", handler: "()=>({pick:()=>2})", expected: false },
+  { name: "a non-declaration source contribution", augmentation: "source", expected: false },
+  { name: "a foreign Promise without a native base", augmentation: "foreign", expected: false },
+  {
+    name: "a runtime-written constructor beside an ambient overload",
+    augmentation: "script",
+    runtime: "Promise.prototype.constructor=function(){};",
+    expected: false,
+  },
+  {
+    name: "a runtime-written species beside an ambient overload",
+    augmentation: "module",
+    runtime: "Object.defineProperty(Promise,Symbol.species,{value:function(executor){executor(()=>{},()=>{});return {pick:()=>2};}});",
+    expected: false,
+  },
+  {
+    name: "a cross-source runtime-written catch beside an ambient overload",
+    augmentation: "script",
+    runtime: "Promise.prototype.catch=function(){return Promise.resolve({pick:()=>2});};",
+    externalRuntime: true,
+    expected: false,
+  },
+  {
+    name: "a runtime-written catch beside an ambient overload",
+    augmentation: "script",
+    runtime: "Promise.prototype.catch=function(){return Promise.resolve({pick:()=>2});};",
+    expected: false,
+  },
+  {
+    name: "a runtime-written then beside an ambient overload",
+    augmentation: "module",
+    runtime: "Promise.prototype.then=function(){return Promise.resolve({pick:()=>2});};",
+    expected: false,
+  },
+];
+
+interface PromiseCatchFixture {
+  readonly project: Project;
+  readonly call: CallExpression;
+  readonly caught: CallExpression;
+  readonly owner: FunctionDeclaration;
+  readonly parameter: ParameterDeclaration;
+}
+
+function promiseCatchFixture(scenario: PromiseCatchCase): PromiseCatchFixture {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: {
+      target: ts.ScriptTarget.ESNext,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      types: [],
+      ...(scenario.augmentation === "foreign" ? { noLib: true } : {}),
+    },
+  });
+  const leaf = project.createSourceFile("/repo/leaf.ts", 'export function pick(options={mode:"local"}){return options.mode;}');
+  const ambient = "interface Promise<T>{catch<TResult=never>(onrejected?:((reason:unknown)=>TResult|PromiseLike<TResult>)|undefined|null):Promise<T|TResult>;}";
+  if (scenario.augmentation !== undefined) {
+    project.createSourceFile(
+      scenario.augmentation === "source" ? "/repo/augmentation.ts" : "/repo/augmentation.d.ts",
+      scenario.augmentation === "module" ? `export {};declare global {${ambient}}` : ambient,
+    );
+  }
+  if (scenario.externalRuntime === true) {
+    project.createSourceFile("/repo/runtime.ts", scenario.runtime ?? "");
+  }
+  const source = project.createSourceFile(
+    "/repo/use.ts",
+    `${scenario.externalRuntime === true ? "" : (scenario.runtime ?? "")}const {pick}=await import("./leaf.ts").catch(${scenario.handler ?? "error=>{throw error;}"});const value=pick();`,
+  );
+  const call = source.getVariableDeclarationOrThrow("value").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+  const caught = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getExpression().getText().endsWith(".catch"));
+  const owner = leaf.getFunctionOrThrow("pick");
+  const parameter = owner.getParameters()[0];
+  if (caught === undefined || parameter === undefined) {
+    throw new Error("the actual namespace catch or supplied parameter is missing");
+  }
+  return { project, call, caught, owner, parameter };
+}
+
+for (const scenario of PROMISE_CATCH_CASES) {
+  test(`native Promise catch identity preserves capture and actual consumers: ${scenario.name}`, () => {
+    const { project, call, caught, owner, parameter } = promiseCatchFixture(scenario);
+    const native = project.getProgram().compilerObject;
+    const signature = project.getTypeChecker().getResolvedSignature(caught)?.getDeclaration();
+    if (signature === undefined) {
+      throw new Error("the actual native member signature is missing");
+    }
+    expect(native.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode)).toBe(scenario.augmentation === undefined);
+    const member = resolveTypeMemberOrigin(caught.getExpression());
+    if (member.kind === "unresolved") {
+      throw new Error(member.detail);
+    }
+    expect(member.value.declarations.some((declaration) => native.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))).toBe(
+      scenario.augmentation !== "foreign",
+    );
+    beginReferencePass();
+    try {
+      const files = project.getSourceFiles();
+      const observed = observeCallReturns(
+        files.flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)),
+        files.flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual capture owner is missing");
+      }
+      expect(program.byCall.has(caught.compilerNode)).toBe(true);
+      program.suppliedCallableUses?.(call);
+      const consumers = readObservedCallableConsumers(owner, program);
+      const targets = readCallTargets(call, undefined, observed);
+      const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
+      expect(consumers.kind, consumers.kind === "unresolved" ? consumers.detail : scenario.name).toBe(scenario.expected ? "resolved" : "unresolved");
+      expect(targets.kind).toBe(scenario.expected ? "resolved" : "unresolved");
+      expect(supplied.kind).toBe(scenario.expected ? "resolved" : "unresolved");
+      expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : []).toEqual(
+        scenario.expected ? [call.compilerNode] : [],
+      );
+      expect(!scenario.expected || (targets.kind === "resolved" && targets.value.length === 1 && targets.value[0]?.compilerNode === owner.compilerNode)).toBe(
+        true,
+      );
+      expect(
+        !scenario.expected ||
+          (supplied.kind === "resolved" &&
+            supplied.value.length === 1 &&
+            supplied.value[0]?.value.compilerNode === parameter.getInitializerOrThrow().compilerNode),
+      ).toBe(true);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
