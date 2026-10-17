@@ -3009,3 +3009,170 @@ for (const scenario of DISPOSER_PARAMETER_CASES) {
     }
   });
 }
+
+test("defaulted lifecycle options retain the actual finite capability key through a caught namespace consumer", async ({ repoRoot }) => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const referenceFacts = await import("../../../../tooling/src/floor/code-facts/reference-fact.ts");
+  const parse = async (path: string): Promise<ts.SourceFile> =>
+    ts.createSourceFile(path, await readFile(join(repoRoot, path), "utf8"), ts.ScriptTarget.Latest, true);
+  const identity = await parse("packages/contracts/src/identity/index.ts");
+  const capability = await parse("packages/server/src/entry/auth/capability.ts");
+  const services = await parse("packages/server/src/entry/compose/services.ts");
+  const declaration = (source: ts.SourceFile, name: string): ts.Node => {
+    const values: ts.Node[] = [];
+    const visit = (node: ts.Node): void => {
+      if ((ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isBindingElement(node)) && node.name?.getText(source) === name) {
+        values.push(node);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(source);
+    if (values.length !== 1 || values[0] === undefined) {
+      throw new Error(`the source-derived fixture requires one ${name}`);
+    }
+    return values[0];
+  };
+  const table = declaration(identity, "MULTI_HUMAN_CAPABLE").parent.parent.getText(identity);
+  const mode = declaration(services, "authMode").parent.parent.getText(services);
+  const config = declaration(services, "authConfig").getText(services);
+  const capabilityBinding = declaration(services, "multiHumanCapable").parent.parent.getText(services);
+  const egressCalls: ts.CallExpression[] = [];
+  const findEgress = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && node.expression.getText(services) === "createScopedEgress") {
+      egressCalls.push(node);
+    }
+    ts.forEachChild(node, findEgress);
+  };
+  findEgress(services);
+  const egressInput = egressCalls.length === 1 ? egressCalls[0]?.arguments[0] : undefined;
+  const fetchRead =
+    egressInput !== undefined && ts.isObjectLiteralExpression(egressInput)
+      ? egressInput.properties.find((property) => ts.isPropertyAssignment(property) && property.name.getText(services) === "fetch")
+      : undefined;
+  if (fetchRead === undefined || !ts.isPropertyAssignment(fetchRead)) {
+    throw new Error("the actual scoped egress fetch sibling read is missing");
+  }
+  const siblingExpression = fetchRead.initializer.getText(services);
+
+  const policyCode = stripTypeScriptTypes(
+    `${table}
+${declaration(identity, "isMultiHumanCapable").getText(identity)}
+${declaration(capability, "createMultiHumanCapability").getText(capability)}`,
+    { mode: "strip" },
+  );
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2025,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      lib: ["lib.es2025.d.ts", "lib.dom.d.ts"],
+      types: [],
+      strict: true,
+      noImplicitAny: false,
+    },
+  });
+  const policy = project.createSourceFile("/repo/policy.ts", policyCode);
+  const graph = project.createSourceFile(
+    "/repo/graph.ts",
+    `import {createMultiHumanCapability} from "./policy.js";
+    const env={AUTH_MODE:"local"};
+    function createBackgroundWork(){const controller=new AbortController();return {signal:controller.signal};}
+    function createStats(){return {settleRetainedChatRebase:()=>1};}
+    function use(ctx){return ctx.settleRetainedChatRebase();}
+    function createChatContext(input){return {...input,settleRetainedChatRebase:()=>input.settleRetainedChatRebase()};}
+    function createTurnEngine(input){return input;}
+    function createChatService(input){const ctx=createChatContext(input);const engine=createTurnEngine({...(ctx.backgroundSignal===undefined?{}:{backgroundSignal:ctx.backgroundSignal})});use(ctx);return engine;}
+    function buildChatService(input){const stats=createStats();const ctx={...{left:0},...{right:0},settleRetainedChatRebase:stats.settleRetainedChatRebase,...(input.backgroundSignal===undefined?{}:{backgroundSignal:input.backgroundSignal})};return createChatService(ctx);}
+    export function createServices(deps){const scopedFetch=${siblingExpression};const {${config}}=deps;${mode}
+      const settings={getEffectiveConfig:()=>({localMultiUser:true})};${capabilityBinding}
+      const background=createBackgroundWork();const engine=buildChatService({backgroundSignal:background.signal});return {engine,multiHumanCapable};}
+  `,
+  );
+  const lifecycle = project.createSourceFile(
+    "/repo/lifecycle.ts",
+    `import {createServices} from "./graph.js";
+    export function createLifecycle(options:{readonly providerSeams?:{readonly sdkFetch?:typeof fetch}}={}){return {start(){const authConfig={mode:"local"};return createServices({authConfig,...(options.providerSeams===undefined?{}:{providerSeams:options.providerSeams})});}};}`,
+  );
+  const entry = project.createSourceFile(
+    "/repo/entry.ts",
+    `export async function run(){const {createLifecycle}=await import("./lifecycle.js").catch((error)=>{throw error;});const lifecycle=createLifecycle();const graph=lifecycle.start();graph.multiHumanCapable();return graph.engine;}void run();`,
+  );
+  const sources = [policy, graph, lifecycle, entry];
+  const calls = sources.flatMap((source) => source.getDescendantsOfKind(SyntaxKind.CallExpression));
+  const selected = calls.find((call) => call.getExpression().getText() === "ctx.settleRetainedChatRebase");
+  const lifecycleCall = calls.find((call) => call.getExpression().getText() === "createLifecycle");
+  const expected = graph.getFunctionOrThrow("createChatContext").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  if (selected === undefined || lifecycleCall === undefined) {
+    throw new Error("the selected accounting and actual caught lifecycle calls are missing");
+  }
+  const snapshots: object[] = [];
+  let keyReads = 0;
+  const original = referenceFacts.inspectInheritedReadEffects;
+  const inherited = vi.spyOn(referenceFacts, "inspectInheritedReadEffects").mockImplementation((node, context) =>
+    original(node, {
+      ...context,
+      values: (value, path, bindings, premise) => {
+        const result = context.values(value, path, bindings, premise);
+        if (value.getSourceFile() === policy && (value.getText() === "mode" || value.getText() === "MULTI_HUMAN_CAPABLE")) {
+          keyReads++;
+          if (snapshots.length < 24) {
+            snapshots.push({
+              node: value.getText(),
+              path,
+              kind: result.kind,
+              ...(result.kind === "unresolved"
+                ? { detail: result.detail, at: result.node.getText() }
+                : {
+                    values: result.value.map((leaf) => ({
+                      value: leaf.value.getText(),
+                      present: leaf.present,
+                      path: leaf.path,
+                      bindings: [...leaf.bindings].map(([formal, actual]) => [formal.getText(), actual.getText()]),
+                    })),
+                  }),
+            });
+          }
+        }
+        return result;
+      },
+    }),
+  );
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(
+      calls,
+      sources.flatMap((source) => source.getDescendants()),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the actual native founding capture is missing");
+    }
+    const first = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+    console.log(
+      "FINITE_CAPABILITY_SIBLING_PREREQUISITE",
+      JSON.stringify({
+        first:
+          first.kind === "unresolved"
+            ? { kind: first.kind, detail: first.detail, node: first.node.getText() }
+            : { kind: first.kind, values: first.value.map((leaf) => ({ value: leaf.value.getText(), present: leaf.present, path: leaf.path })) },
+        keyReads,
+        snapshots,
+        lifecycleCaptured: program.byCall.has(lifecycleCall.compilerNode),
+        lifecycleTargets: program.byCall.get(lifecycleCall.compilerNode)?.targets.kind,
+        lifecycleCallers: program.callers.get(lifecycle.getFunctionOrThrow("createLifecycle").compilerNode)?.length ?? 0,
+      }),
+    );
+    expect(program.program).toBe(project.getProgram().compilerObject);
+    expect(sources.every((source) => program.program.getSourceFile(source.getFilePath()) === source.compilerNode)).toBe(true);
+    expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+    expect(program.byCall.has(lifecycleCall.compilerNode)).toBe(true);
+    expect(first.kind, first.kind === "unresolved" ? `${first.detail} at ${first.node.getText()}` : "resolved").toBe("resolved");
+    expect(first.kind === "resolved" ? first.value.map((leaf) => leaf.value) : []).toEqual([expected]);
+    expect(program.inheritedReadTrialActive?.()).toBe(false);
+  } finally {
+    inherited.mockRestore();
+    endReferencePass();
+  }
+});
