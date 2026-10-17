@@ -160,6 +160,11 @@ export async function gotoChatsList(page: Page): Promise<void> {
       await backToChats.click();
     }
     await chatsRail.click({ timeout: WAIT_SHORT_MS });
+    // Entering Chats can restore its retained room instead of opening the list.
+    await expect(chatsList.or(emptyState).or(backToChats).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
+    if (await backToChats.isVisible()) {
+      await backToChats.click();
+    }
     await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   }).toPass({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
 }
