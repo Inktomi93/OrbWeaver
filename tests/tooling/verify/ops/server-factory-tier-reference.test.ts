@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
@@ -7,7 +7,7 @@ import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { vi } from "vitest";
 import { readParserSignatureTypeExposures } from "../../../../tooling/src/floor/code-facts/shape-derivation.ts";
-import { readParserTransparentAliasOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
+import { readParserReturnedTypeIdentities, readParserTransparentAliasOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
 import type { NativeTypeIdentityGraphInput } from "../../../../tooling/src/floor/code-facts/type-member-origin-contract.ts";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
 import { TYPED_NATIVE_COMPILER_CONTEXT_ENV } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
@@ -153,6 +153,66 @@ test("native importer ownership catches aliases, reexports, namespace and inferr
   }
 }, 30_000);
 
+test("isolated private inferred return carriers establish ownership without borrowing another factory signature", async ({ scratch, repoRoot }) => {
+  const cases = [
+    ["direct", "export function create():PrivateHandle{return {close(){}}}", "entry", 1],
+    ["root", "export function create(){const value:PrivateHandle={close(){}};return value}", "entry", 1],
+    ["nested", "export function create(){const value:PrivateHandle={close(){}};return {slot:value}}", "entry", 1],
+    ["container", "export function create(){const value:PrivateHandle={close(){}};return {slot:[value]}}", "entry", 1],
+    ["body", "export function create():void{const unused:PrivateHandle={close(){}}}", "entry", 0],
+    ["constraint", "export function create<T extends PrivateHandle>():void{}", "entry", 0],
+    ["erased", "export function create():Ignore<PrivateHandle>{return {stamp:1}}", "entry", 0],
+    ["same-tier", "export function create(){const value:PrivateHandle={close(){}};return {slot:value}}", "infra", 0],
+  ] as const;
+  const contract = "packages/server/src/infra/adapter/contract.ts";
+  const files: (readonly [string, string])[] = [[contract, "export type Ignore<T>={readonly stamp:number}"]];
+  for (const [name, body, tier] of cases) {
+    files.push([
+      `packages/server/src/infra/adapter/${name}.ts`,
+      `import type {Ignore} from "./contract.ts";interface PrivateHandle {readonly close:()=>void}\n${body}`,
+    ]);
+    files.push([
+      `packages/server/src/${tier}/consumer-${name}.ts`,
+      `import {create} from "${tier === "entry" ? "../infra" : "."}/adapter/${name}.ts";export const value=create();`,
+    ]);
+  }
+  for (const [path, text] of files) {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), text);
+  }
+  const program = ts.createProgram(
+    files.map(([path]) => join(scratch, path)),
+    { strict: true, types: [], target: ts.ScriptTarget.ES2022 },
+  );
+  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, "packages/server/src/entry/consumer.ts"));
+  const project = vi.spyOn(Node.prototype, "getProject").mockImplementation(() => {
+    throw new Error("private returned-data ownership acquired a Project");
+  });
+  try {
+    for (const [name, , tier, count] of cases) {
+      const path = `packages/server/src/${tier}/consumer-${name}.ts`;
+      const messages = new Linter({ cwd: scratch }).verify(
+        readFileSync(join(scratch, path), "utf8"),
+        {
+          files: ["**/*.ts"],
+          plugins: config.plugins,
+          languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false } },
+          rules: { [RULE]: "error" },
+        },
+        { filename: join(scratch, path) },
+      );
+      expect(messages, name).toHaveLength(count);
+      expect(
+        messages.every((message) => message.messageId === "crossTierFactoryType" && message.message.includes("Factory type PrivateHandle is local")),
+        name,
+      ).toBe(true);
+    }
+    expect(project).not.toHaveBeenCalled();
+  } finally {
+    project.mockRestore();
+  }
+}, 30_000);
+
 test("native signature exposure refuses foreign checker, source, stale roots and expanding recursive aliases without inventing erased ownership", ({
   scratch,
 }) => {
@@ -200,6 +260,26 @@ export function recursive():Recursive<Handle>{throw new Error()}
     expect(erased.trace.declarations.some((node) => node.getText().startsWith("export interface Handle"))).toBe(false);
     const recursive = readParserSignatureTypeExposures(observe("recursive"));
     expect(recursive).toMatchObject({ kind: "unresolved", detail: expect.stringContaining("recursively expands") });
+    const returnedInput = (name: string): NativeTypeIdentityGraphInput => {
+      const node = declaration(name);
+      const signature = parser.checker.getSignatureFromDeclaration(node);
+      if (signature === undefined) {
+        throw new Error("native returned-data signature missing");
+      }
+      return { node, rootType: parser.checker.getReturnTypeOfSignature(signature), parser };
+    };
+    const returned = returnedInput("positive");
+    expect(readParserReturnedTypeIdentities(returned)).toMatchObject({ kind: "resolved" });
+    const erasedData = readParserReturnedTypeIdentities(returnedInput("erased"));
+    expect(erasedData.kind).toBe("resolved");
+    expect(erasedData.trace.declarations.some((node) => node.getText().startsWith("export interface Handle"))).toBe(false);
+    expect(readParserReturnedTypeIdentities(returnedInput("recursive"))).toMatchObject({
+      kind: "unresolved",
+      detail: expect.stringContaining("recursively expands"),
+    });
+    expect(readParserReturnedTypeIdentities({ ...returned, parser: { ...parser, checker: foreign.getTypeChecker() } })).toMatchObject({ kind: "unresolved" });
+    expect(readParserReturnedTypeIdentities({ ...returned, parser: { ...parser, source: other } })).toMatchObject({ kind: "unresolved" });
+    expect(readParserReturnedTypeIdentities({ ...returned, rootType: returnedInput("erased").rootType })).toMatchObject({ kind: "unresolved" });
     const input = observe("positive");
     expect(readParserSignatureTypeExposures({ ...input, parser: { ...parser, checker: foreign.getTypeChecker() } })).toMatchObject({ kind: "unresolved" });
     expect(readParserSignatureTypeExposures({ ...input, parser: { ...parser, source: other } })).toMatchObject({ kind: "unresolved" });
@@ -208,6 +288,7 @@ export function recursive():Recursive<Handle>{throw new Error()}
     });
     const stale = ts.createSourceFile(path, text, ts.ScriptTarget.ES2022, true);
     expect(readParserSignatureTypeExposures({ ...input, node: stale })).toMatchObject({ kind: "unresolved" });
+    expect(readParserReturnedTypeIdentities({ ...returned, node: stale })).toMatchObject({ kind: "unresolved" });
     const alias = source.statements.find((node): node is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(node) && node.name.text === "Transparent");
     const generic = source.statements.find((node): node is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(node) && node.name.text === "Generic");
     const staleAlias = stale.statements.find((node): node is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(node) && node.name.text === "Transparent");

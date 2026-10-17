@@ -7,6 +7,7 @@ import { z } from "zod";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 import {
+  affectsTypedNativeLint,
   TYPED_NATIVE_COMPILER_CONTEXT_ENV,
   TYPED_NATIVE_POLICIES,
   typedNativeDependencyInputs,
@@ -137,6 +138,32 @@ test("unrelated scoped edits avoid whole native discovery before declaration dep
     discovery.mockRestore();
   }
 }, 30_000);
+
+test("provider directory edits invalidate a warm native cache and reselect unchanged consumers", async ({ scratch, repoRoot }) => {
+  fixture(scratch, repoRoot);
+  const proc = await import("../../../../tooling/src/floor/process/proc.ts");
+  const run = proc.runNicedSync;
+  const seen: string[][] = [];
+  const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
+    const path = args[2];
+    if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
+      seen.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
+    }
+    return run(executable, args, options);
+  });
+  try {
+    expect(await runScopedEslint(scratch, [PROVIDER])).toBe(0);
+    expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
+    seen.length = 0;
+    put(scratch, PROVIDER, PROVIDER_SOURCE.replace("return {stamp:1}", "return handle()"));
+    expect(await runScopedEslint(scratch, ["packages/server/src/infra/"])).toBe(1);
+    expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
+    expect(affectsTypedNativeLint("packages/server/src/infra")).toBe(true);
+    expect(affectsTypedNativeLint("packages/server/src/infra/")).toBe(true);
+  } finally {
+    child.mockRestore();
+  }
+}, 180_000);
 
 test("effective configured worlds preserve a root owner even when a package primary also exists", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);

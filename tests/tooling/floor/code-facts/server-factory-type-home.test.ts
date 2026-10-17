@@ -74,6 +74,7 @@ test("factory ownership computes once per actual source, preserves query populat
   scratch,
 }) => {
   const shapeDerivation = await import("../../../../tooling/src/floor/code-facts/shape-derivation.ts");
+  const origins = await import("../../../../tooling/src/floor/code-facts/type-member-origin.ts");
   const path = join(scratch, PATH);
   mkdirSync(dirname(path), { recursive: true });
   const text = `export interface Options {readonly enabled:boolean}
@@ -93,6 +94,7 @@ export function wire():DataResponse{return {value:"wire"}}
   const wrapped = createWrappedNode(source, { typeChecker: parser.checker, sourceFile: source });
   const signatures = vi.spyOn(parser.checker, "getSignatureFromDeclaration");
   const predicate = vi.spyOn(shapeDerivation, "parserGenericReferenceContributes");
+  const returned = vi.spyOn(origins, "readParserReturnedTypeIdentities");
   try {
     expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
     const first = signatures.mock.calls.length;
@@ -104,6 +106,11 @@ export function wire():DataResponse{return {value:"wire"}}
     predicate.mockRestore();
     expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
     expect(signatures.mock.calls.length).toBeGreaterThan(first);
+    const rebound = signatures.mock.calls.length;
+    expect(returned).toHaveBeenCalled();
+    returned.mockRestore();
+    expect(serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, parser)).toBe(true);
+    expect(signatures.mock.calls.length).toBeGreaterThan(rebound);
     writeFileSync(path, text.replace("options:Options", "options:number"));
     const changed = ts.createProgram([path], options);
     const changedSource = changed.getSourceFile(path);
@@ -116,6 +123,7 @@ export function wire():DataResponse{return {value:"wire"}}
     expect(() => serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, current)).toThrow("foreign or stale");
     expect(() => serverFactoryTypeHome(wrapped.getInterfaceOrThrow("Options"), PATH, { ...parser, checker: current.checker })).toThrow("foreign or stale");
   } finally {
+    returned.mockRestore();
     predicate.mockRestore();
     signatures.mockRestore();
   }

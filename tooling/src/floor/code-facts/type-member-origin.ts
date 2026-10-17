@@ -182,6 +182,7 @@ export function resolveReturnTypeIdentityGraph(node: MorphNode, stopAtDeclaratio
 
 type IdentityGraphMode =
   | { readonly kind: "returned-data"; readonly stopAtDeclarationHome: string | undefined }
+  | { readonly kind: "parser-returned-data"; readonly parser: NativeParserTypeContext }
   | { readonly kind: "signature-exposure"; readonly parser: NativeParserTypeContext };
 
 function signatureTypeChildren(type: Type, node: MorphNode): readonly Type[] {
@@ -198,7 +199,7 @@ function graphRefusal(node: MorphNode, detail: string, declarations: readonly Mo
 }
 
 function graphChain(type: Type, node: MorphNode, mode: IdentityGraphMode): readonly TypeIdentityOrigin[] {
-  if (mode.kind === "returned-data" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
+  if (mode.kind !== "signature-exposure" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
     return [];
   }
   const identity = typeIdentityOrigin(type, node);
@@ -206,7 +207,7 @@ function graphChain(type: Type, node: MorphNode, mode: IdentityGraphMode): reado
 }
 
 function graphChildren(type: Type, node: MorphNode, mode: IdentityGraphMode): readonly Type[] {
-  if (mode.kind === "returned-data" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
+  if (mode.kind !== "signature-exposure" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
     return [];
   }
   return [...returnedDataChildren(type, node), ...(mode.kind === "signature-exposure" ? signatureTypeChildren(type, node) : [])];
@@ -253,7 +254,7 @@ function typeIdentityGraph(root: Type, node: MorphNode, mode: IdentityGraphMode)
     ) {
       break;
     }
-    const refusal = mode.kind === "signature-exposure" ? nativeGraphRefusal(type, chain, ancestors, mode.parser) : undefined;
+    const refusal = mode.kind === "returned-data" ? undefined : nativeGraphRefusal(type, chain, ancestors, mode.parser);
     if (refusal !== undefined) {
       refusals.add(refusal);
       continue;
@@ -280,6 +281,35 @@ export function readParserSignatureTypeIdentities(input: NativeTypeIdentityGraph
     return unresolved("unsupported", wrapped, "signature exposure parser node/type/checker belongs to a foreign or stale epoch");
   }
   return typeIdentityGraph(wrapped.getType(), wrapped, { kind: "signature-exposure", parser });
+}
+
+/** Observe a declaration's actual returned data through the canonical graph, without callable resolution. */
+export function readParserReturnedTypeIdentities(input: NativeTypeIdentityGraphInput): ReferenceFact<readonly TypeIdentityOrigin[]> {
+  const { node, rootType, parser } = input;
+  const source = node.getSourceFile();
+  const wrapped = createWrappedNode(node, { typeChecker: parser.checker, sourceFile: source });
+  if (
+    source !== parser.source ||
+    parser.program.getSourceFile(source.fileName) !== source ||
+    parser.program.getTypeChecker() !== parser.checker ||
+    !(
+      Node.isFunctionDeclaration(wrapped) ||
+      Node.isFunctionExpression(wrapped) ||
+      Node.isArrowFunction(wrapped) ||
+      Node.isMethodDeclaration(wrapped) ||
+      Node.isConstructorDeclaration(wrapped)
+    )
+  ) {
+    return unresolved("unsupported", wrapped, "returned data parser declaration/checker belongs to a foreign or stale epoch");
+  }
+  const result = wrapped.getReturnType();
+  if (result.compilerType !== rootType) {
+    return unresolved("unsupported", wrapped, "returned data root does not match the actual native signature");
+  }
+  const awaited = result.getAwaitedType();
+  return awaited === undefined
+    ? unresolved("unsupported", wrapped, "returned data has no native awaited type")
+    : typeIdentityGraph(awaited, wrapped, { kind: "parser-returned-data", parser });
 }
 
 /** Resolve the direct array element's named identity, never a type nested inside that element. */

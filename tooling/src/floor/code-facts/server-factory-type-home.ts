@@ -5,11 +5,13 @@ import { isPlainDataShape, WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
 import { parserGenericReferenceContributes } from "./shape-derivation.ts";
 
 import { SERVER_FACTORY_TYPE_HOME_ROOTS } from "./type-home.ts";
+import { readParserReturnedTypeIdentities } from "./type-member-origin.ts";
 import type { NativeParserTypeContext } from "./type-member-origin-contract.ts";
 
 interface SourceFactoryDeclarations {
   readonly checker: ts.TypeChecker;
   readonly contribution: typeof parserGenericReferenceContributes;
+  readonly returnedData: typeof readParserReturnedTypeIdentities;
   readonly declarations: ReadonlySet<ts.Declaration>;
 }
 
@@ -19,11 +21,12 @@ function sourceFactoryDeclarations(parser: NativeParserTypeContext): ReadonlySet
   const sources = sourceDeclarations.get(parser.program) ?? new WeakMap<ts.SourceFile, SourceFactoryDeclarations>();
   const previous = sources.get(parser.source);
   const contribution = parserGenericReferenceContributes;
-  if (previous?.checker === parser.checker && previous.contribution === contribution) {
+  const returnedData = readParserReturnedTypeIdentities;
+  if (previous?.checker === parser.checker && previous.contribution === contribution && previous.returnedData === returnedData) {
     return previous.declarations;
   }
-  const declarations = serverFactoryTypeDeclarations(parser.source, parser.checker, (name) => ts.isIdentifier(name) && contribution(name, parser));
-  sources.set(parser.source, { checker: parser.checker, contribution, declarations });
+  const declarations = serverFactoryTypeDeclarations(parser, (name) => ts.isIdentifier(name) && contribution(name, parser));
+  sources.set(parser.source, { checker: parser.checker, contribution, returnedData, declarations });
   sourceDeclarations.set(parser.program, sources);
   return declarations;
 }
@@ -47,7 +50,12 @@ export function serverFactoryTypeHome(node: InterfaceDeclaration | TypeAliasDecl
   );
 }
 
-function signatureReferences(node: ts.Node, checker: ts.TypeChecker, references: (type: ts.Node) => void, returned: (type: ts.Type) => void): void {
+function signatureReferences(
+  node: ts.Node,
+  checker: ts.TypeChecker,
+  references: (type: ts.Node) => void,
+  returned: (type: ts.Type, declaration: ts.SignatureDeclaration) => void,
+): void {
   if (
     !(
       ts.isFunctionDeclaration(node) ||
@@ -70,7 +78,7 @@ function signatureReferences(node: ts.Node, checker: ts.TypeChecker, references:
   }
   const signature = checker.getSignatureFromDeclaration(node);
   if (signature !== undefined) {
-    returned(checker.getReturnTypeOfSignature(signature));
+    returned(checker.getReturnTypeOfSignature(signature), node);
   }
 }
 
@@ -82,7 +90,8 @@ function referenceBinding(name: ts.Node): ts.Node {
 }
 
 // Supporting declarations follow native binding contribution, not generic argument spelling.
-function serverFactoryTypeDeclarations(source: ts.SourceFile, checker: ts.TypeChecker, contributes: (name: ts.Node) => boolean): ReadonlySet<ts.Declaration> {
+function serverFactoryTypeDeclarations(parser: NativeParserTypeContext, contributes: (name: ts.Node) => boolean): ReadonlySet<ts.Declaration> {
+  const { source, checker } = parser;
   const owned = new Set<ts.Declaration>();
   const pending: ts.Declaration[] = [];
   const returns = new Set<ts.Type>();
@@ -110,19 +119,34 @@ function serverFactoryTypeDeclarations(source: ts.SourceFile, checker: ts.TypeCh
     }
     ts.forEachChild(node, references);
   };
-  const returned = (type: ts.Type): void => {
+  const returnedRoot = (type: ts.Type): void => {
     if (returns.has(type)) {
       return;
     }
     returns.add(type);
     const awaited = checker.getAwaitedType(type);
     if (awaited !== undefined && awaited !== type) {
-      returned(awaited);
+      returnedRoot(awaited);
     }
     admit(type.aliasSymbol ?? type.getSymbol());
     if (type.isUnionOrIntersection()) {
       for (const member of type.types) {
-        returned(member);
+        returnedRoot(member);
+      }
+    }
+  };
+  const returned = (type: ts.Type, node: ts.SignatureDeclaration): void => {
+    if (returns.has(type)) {
+      return;
+    }
+    returnedRoot(type);
+    const graph = readParserReturnedTypeIdentities({ node, rootType: type, parser });
+    if (graph.kind !== "resolved") {
+      return;
+    }
+    for (const declaration of graph.value.flatMap((origin) => origin.declarations)) {
+      if (ts.isInterfaceDeclaration(declaration.compilerNode) || ts.isTypeAliasDeclaration(declaration.compilerNode)) {
+        admit(checker.getSymbolAtLocation(declaration.compilerNode.name));
       }
     }
   };

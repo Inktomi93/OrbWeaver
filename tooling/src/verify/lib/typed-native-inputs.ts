@@ -236,7 +236,7 @@ export function affectsTypedNativeLint(path: string): boolean {
     path === "." ||
     compilerConfigRoster([path]).length > 0 ||
     path.endsWith(".d.ts") ||
-    (path.startsWith("packages/") && (path.endsWith("package.json") || /\.[cm]?[jt]sx?$/u.test(path))) ||
+    path.startsWith("packages/") ||
     TYPED_NATIVE_POLICIES.some((entry) => affectsTypedNativePolicy(entry, path))
   );
 }
