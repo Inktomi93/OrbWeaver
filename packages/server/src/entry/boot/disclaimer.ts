@@ -16,9 +16,8 @@ export interface BootSecretProvenance {
   readonly keyfile: string | null;
 }
 
-// @orb-waive no-inline-package-interface(BootDisclaimerInput): baselined when the gate landed; burn-down item 952.
 /** The facts the block states. The warning lists are the posture modules' own, so the block restates no rule. */
-export interface BootDisclaimerInput {
+export interface BootDisclaimerOptions {
   readonly authMode: AuthMode;
   readonly authFallback: "owner" | "deny";
   readonly breakGlass: boolean;
@@ -62,7 +61,7 @@ const FORWARD_HEADER_CLOSED_WARNING =
   "AUTH_MODE=forward-header with FORWARD_AUTH_TRUSTED_PROXIES unset — the UNSIGNED trusted-header path refuses every request. Set " +
   "FORWARD_AUTH_TRUSTED_PROXIES to the proxy's address to enable it; the signed-JWT (authentik) path is unaffected.";
 
-function ownerLine(input: BootDisclaimerInput): string {
+function ownerLine(input: BootDisclaimerOptions): string {
   if (input.authFallback === "deny") {
     return "owner without a credential: nobody (AUTH_FALLBACK=deny).";
   }
@@ -87,7 +86,7 @@ function secretText(name: string, provenance: BootSecretProvenance): string {
   return provenance.keyfile === null ? `${name} unavailable (the database is remote, so nothing is generated)` : `${name} generated at ${provenance.keyfile}`;
 }
 
-function secretsLine(secrets: BootDisclaimerInput["secrets"]): string {
+function secretsLine(secrets: BootDisclaimerOptions["secrets"]): string {
   return `secrets: ${secretText("SESSION_SECRET", secrets.sessionSecret)}; ${secretText("CREDENTIALS_KEY", secrets.credentialsKey)}. Back up generated keyfiles with the database.`;
 }
 
@@ -100,7 +99,7 @@ function exposure(text: string): BootDisclaimerLine {
 }
 
 /** Compose the block, in order. A healthy box produces only `info` lines. */
-export function composeBootDisclaimer(input: BootDisclaimerInput): readonly BootDisclaimerLine[] {
+export function composeBootDisclaimer(input: BootDisclaimerOptions): readonly BootDisclaimerLine[] {
   const breakGlassLive = input.authMode !== "single-user" && input.authFallback === "owner" && input.breakGlass;
   return [
     info("mode", MODE_LINE[input.authMode]),

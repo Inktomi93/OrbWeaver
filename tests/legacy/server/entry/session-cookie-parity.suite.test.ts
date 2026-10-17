@@ -29,7 +29,7 @@ import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp } from "#server/entry/app.ts";
-import type { SeamResult } from "#server/entry/auth/index.ts";
+import type { AuthSeamResolution } from "#server/entry/auth/index.ts";
 import { createAuthSeam } from "#server/entry/auth/index.ts";
 import type { AuthSessionsPort } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
@@ -196,7 +196,7 @@ function appDeps(): AppDeps {
     seam: {
       // The slide fires on every request: the middleware re-issues Set-Cookie ONLY from the token it
       // itself parsed off the Cookie header, so the header value is this probe's observable.
-      resolvePrincipal: (_headers, req): Promise<SeamResult> => {
+      resolvePrincipal: (_headers, req): Promise<AuthSeamResolution> => {
         req?.onSessionSlide?.(FROZEN_AT_MS + SLIDE_MS);
         return Promise.resolve({ principal: null, sessionId: null, csrfHeaderPresent: false });
       },

@@ -13,23 +13,14 @@
 // Every yield stays tracked() (the error frame too): a mix of tracked + plain breaks the client's
 // discriminant narrowing.
 
-import type { TRPCError, TrackedEnvelope } from "@trpc/server";
+import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { getLog } from "#foundation/observability";
+import type { SubscriptionErrorFrame } from "./contract/subscriptions.ts";
 import { classifyDomainError, providerFaultOf } from "./error-mapping.ts";
 
 // Never a durable cursor, so a reconnect's lastEventId never resumes "from the error".
 const SUBSCRIPTION_ERROR_ID = "__error__";
-
-// @orb-waive no-inline-package-interface(SubscriptionErrorFrame): baselined when the gate landed; burn-down item 952.
-/** The typed terminal frame a subscription yields when its source throws a `DomainError`. The client
- *  discriminates on `__subscriptionError` and surfaces code/message rather than tearing the stream down
- *  with an opaque 500. */
-export interface SubscriptionErrorFrame {
-  readonly __subscriptionError: true;
-  readonly code: TRPCError["code"];
-  readonly message: string;
-}
 
 /** Wrap a tracked subscription source so a modelled throw becomes a typed terminal frame instead of a raw
  *  500. Re-throws anything `classifyDomainError` does not model. The generator returns after the error
@@ -63,3 +54,5 @@ export async function* withSubscriptionErrors<TData>(
     } satisfies SubscriptionErrorFrame);
   }
 }
+
+export type { SubscriptionErrorFrame } from "./contract/subscriptions.ts";

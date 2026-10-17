@@ -23,6 +23,7 @@
 // a false "the import stream ended" for a blip that reconnects). `roomRegistry.failed` now takes a
 // REQUIRED ref and means what its name says — THIS room failed.
 
+import type { SubscriptionErrorFrame } from "@orb/contracts/rpc";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
@@ -35,7 +36,7 @@ import { socketId } from "./socket-id.ts";
 
 /** One arriving envelope payload: a frame, or the typed terminal frame `withSubscriptionErrors` yields for a
  *  genuine SOCKET-level fault (a per-ROOM fault is a `roomFailed` control frame and never gets here). */
-type SocketPayload = StreamFrame | { readonly __subscriptionError: true; readonly code: string; readonly message: string };
+type SocketPayload = StreamFrame | SubscriptionErrorFrame;
 
 function routeFrame(payload: SocketPayload): void {
   if ("__subscriptionError" in payload) {

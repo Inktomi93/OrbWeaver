@@ -2,12 +2,14 @@
 // Workload admission is late-bound because chat contributes runners after this graph is constructed.
 
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
+import type { DomainEvent } from "@orb/contracts/events";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { PubSub } from "@orb/kit/pubsub";
 import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import { createAssetEmbeddingReads } from "#domain/assets";
@@ -60,7 +62,6 @@ import { createWorkloadService } from "#domain/workloads";
 import type { AuditEntry, superviseDetached } from "#foundation/observability";
 import type { LiveBuses } from "#transport/trpc";
 
-import type { DomainEventBus } from "./event-bus.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
@@ -82,7 +83,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   readonly withStableEmbeddingBinding: EmbeddingsContext["withStableEmbeddingBinding"];
-  readonly eventBus: DomainEventBus;
+  readonly eventBus: PubSub<DomainEvent>;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's Utility-role preset params (D299) — distill + analyze. */
   readonly resolveUtilityPresetParams: DiscoveryContext["resolveUtilityPresetParams"];

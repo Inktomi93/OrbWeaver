@@ -25,9 +25,9 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { PubSub } from "@orb/kit/pubsub";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import type { DomainEventBus } from "#server/entry/compose/event-bus.ts";
 import type { SearchDiscoveryComposeDeps } from "#server/entry/compose/search-discovery.ts";
 import { buildSearchDiscovery } from "#server/entry/compose/search-discovery.ts";
 
@@ -38,9 +38,9 @@ const OWNER = castId<UserId>("u_owner");
 type Handler = (event: DomainEvent) => void | Promise<void>;
 
 /** A bus that only RECORDS its subscribers — the seam's subscription decisions are the thing under test. */
-function capturingBus(): { readonly bus: DomainEventBus; readonly handlers: Handler[] } {
+function capturingBus(): { readonly bus: PubSub<DomainEvent>; readonly handlers: Handler[] } {
   const handlers: Handler[] = [];
-  const bus: DomainEventBus = {
+  const bus: PubSub<DomainEvent> = {
     emit: vi.fn(),
     subscribe: (handler: Handler): (() => void) => {
       handlers.push(handler);
@@ -52,7 +52,7 @@ function capturingBus(): { readonly bus: DomainEventBus; readonly handlers: Hand
 
 function build(
   corpusAutoindex: boolean,
-  bus: DomainEventBus,
+  bus: PubSub<DomainEvent>,
   memoryEnabled = true,
   readAutoindex = (): boolean => corpusAutoindex,
 ): ReturnType<typeof buildSearchDiscovery> {

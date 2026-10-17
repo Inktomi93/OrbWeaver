@@ -20,20 +20,19 @@ import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
-import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import { resolveBindPosture } from "./bind.ts";
 import { runsInContainer, settingInstruction } from "./container.ts";
-import type { BindPostureInput, DiagnosticsPostureInput, OwnerFallbackCredentialInput, OwnerFallbackPeerInput } from "./contract.ts";
+import type { AllowedHostsInput, BindPostureInput, DiagnosticsPostureInput, OwnerFallbackCredentialInput, OwnerFallbackPeerInput } from "./contract.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "./private-ranges.ts";
 import { EnvRefusedError } from "./refusal/index.ts";
 
-export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
 export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "./bind.ts";
 export { CONTAINER_MARKER_FILES, fileReadCommand, runsInContainer, settingInstruction } from "./container.ts";
 export type {
+  AllowedHostsInput,
   BindPosture,
   BindPostureInput,
   DiagnosticsExposure,

@@ -43,6 +43,7 @@
 
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
+import type { DomainEvent } from "@orb/contracts/events";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
@@ -53,6 +54,7 @@ import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inferenc
 import { createBinding } from "@orb/kit/binding";
 import type { ChatId, IdSource, UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
+import type { PubSub } from "@orb/kit/pubsub";
 import type { TimerScheduler } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
 import type { ServerRestartPort } from "#domain/admin";
@@ -179,7 +181,6 @@ import { buildChatService, createSignupMinterCheck } from "./chat.ts";
 import { buildDatabank } from "./databank.ts";
 import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
-import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
 import { minter } from "./minter.ts";
@@ -337,7 +338,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
   readonly importCardScripts: ImportCardScripts;
-  readonly eventBus: DomainEventBus;
+  readonly eventBus: PubSub<DomainEvent>;
   /** The kind-keyed workload contribution registry (the retired runner-env's replacement) — the worker
    *  driver dispatches through it. */
   readonly workloadContributions: WorkloadContributions;
