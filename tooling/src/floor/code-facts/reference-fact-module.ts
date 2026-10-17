@@ -598,15 +598,6 @@ function capturedNamespaceContext(
   if (admitted.kind === "unresolved") {
     return admitted;
   }
-  const premise = context.inheritedReadPremise;
-  if (premise !== undefined) {
-    const live = premise.require(call, program);
-    if (live.kind === "unresolved") {
-      return live;
-    }
-  } else if (program.inheritedReadTrialActive?.() === true) {
-    return services.refusal(call, "unsupported", "namespace transfer cannot borrow a private trial without its continuation");
-  }
   return program.byCall.has(call.compilerNode) ? admitted : demandNamespaceCall(call, program, services);
 }
 
@@ -796,9 +787,6 @@ export function readCapturedNamespaceValue(
   const effects = services.inheritedEffects(call, context);
   if (effects.kind === "unresolved") {
     return effects;
-  }
-  if (effects.kind === "conditional" && context.inheritedReadPremise === undefined) {
-    return services.refusal(call, "unsupported", "ordinary namespace projection cannot export a conditional effect assumption");
   }
   const current = capturedNamespaceContext(call, context, services);
   const after = program.callableProofEpoch?.();

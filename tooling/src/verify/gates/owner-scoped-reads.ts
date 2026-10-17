@@ -58,9 +58,11 @@ import { innerReadAnchorsOf, readAnchorOf, readRelationalConfigProperty, readRel
 import { readDrizzleProjectedColumn } from "../../floor/code-facts/drizzle-select.ts";
 import { readPredicateConsumers, readStatementAnchors, readStatementOf } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
+import { readPrototypeExposureCensus } from "../../floor/code-facts/reference-fact.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
+import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { ChainTerm, ReadAnchor, ReadStatement, SchemaTableIndex, TenancyPinServices, ValueReceiver } from "../contract/tenancy.ts";
@@ -250,6 +252,8 @@ const PERSONA_READ_PATH = "packages/server/src/domain/persona/persistence/querie
 const PERSONA_READ_HEAD =
   'import { aliasedTable, and, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";\nimport { chats, personas, workloads } from "@orb/db";\n';
 const PERSONA_READ_SIGNATURE = "export async function loadPersona(db: Db, chatId: string, personaId: string, ownerId: string, flag: boolean) {\n";
+const PROTOTYPE_PROOF_CALL = 'Object.defineProperty(Object.prototype,"signal",{get(){return undefined;}});';
+const PROTOTYPE_PROOF_PATH = "packages/contracts/src/prototype-exposure.ts";
 // `global_books` is a (parent) satellite of `world_books`: its only scope is the book it points at.
 const SATELLITE_SCHEMA = {
   "packages/db/src/schema/world-info.ts":
@@ -609,6 +613,41 @@ function anchorFinding(anchor: ReadAnchor, scope: ReadScope): string | undefined
   return declared.map((table) => unscopedReadMessage(anchor, ident, table, scope)).find((message) => message !== undefined);
 }
 
+function reportPrototypeSite(ctx: GatePolicyContext, exposure: Node, admitted: ReadonlySet<string>, reported: Set<string>): void {
+  const path = exposure.getSourceFile().getFilePath();
+  const position = path + ":" + exposure.getStart() + ".." + exposure.getEnd();
+  if (!admitted.has(path)) {
+    throw new Error("owner-scoped-reads prototype exposure is outside the effective source population: " + position);
+  }
+  if (!reported.has(position)) {
+    reported.add(position);
+    ctx.report.node(exposure, { message: "Prototype exposure prevents absent-own-member provenance; remove the prototype mutation or capability escape." });
+  }
+}
+
+function reportPrototypeExposures(ctx: GatePolicyContext): void {
+  const admitted = new Set(ctx.files.map((source) => source.getFilePath()));
+  const reported = new Set<string>();
+  for (const source of ctx.files) {
+    const census = readPrototypeExposureCensus(source);
+    if (census.kind === "unresolved") {
+      throw new Error(
+        "owner-scoped-reads prototype census refused: " +
+          census.detail +
+          " at " +
+          census.node.getSourceFile().getFilePath() +
+          ":" +
+          census.node.getStart() +
+          ".." +
+          census.node.getEnd(),
+      );
+    }
+    for (const exposure of census.value) {
+      reportPrototypeSite(ctx, exposure, admitted, reported);
+    }
+  }
+}
+
 export const gate = defineGate({
   id: "owner-scoped-reads",
   family: "tenancy-scope",
@@ -662,8 +701,10 @@ export const gate = defineGate({
         }
         const schemaFact = ctx.fact(drizzleSchemaDataFact);
         recordReadySchemaFact(ctx, schemaFact);
+        const observations = { ...observeCallReturns(calls, references, { suppliedCallableTargets: true }), drizzleSql: pins.sql };
+        reportPrototypeExposures(ctx);
         const scope: ReadScope = {
-          observations: { ...observeCallReturns(calls, references, { suppliedCallableTargets: true }), drizzleSql: pins.sql },
+          observations,
           pins,
           schema: schemaFact.value,
           ownerTables: ownerScopedTableIdents(schemaFact.value),
@@ -685,6 +726,12 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    {
+      mode: "types",
+      files: personaBody(`  ${PROTOTYPE_PROOF_CALL}\n  return [];\n`),
+      expect: { count: 1, line: 4, messageIncludes: "Prototype exposure prevents absent-own-member provenance" },
+      why: "one native mutation site reports once despite separate callee and prototype-receiver census inputs",
+    },
     {
       mode: "types",
       files: pinBody(
@@ -1304,6 +1351,14 @@ ${body}`,
       ),
       expect: { count: 1, messageIncludes: "cross-tenant read hole" },
       why: "an inline subselect pinned on a column that is neither its id nor its chat FK is every host seat anywhere (P26, the unpinned inline form, is the `inArray` subselect row above)",
+    },
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: personaBody("  return [];\n", { [PROTOTYPE_PROOF_PATH]: PROTOTYPE_PROOF_CALL }, 'import "../../../../../contracts/src/prototype-exposure.ts";\n'),
+      expect: { messageIncludes: `${PROTOTYPE_PROOF_PATH}:0..${PROTOTYPE_PROOF_CALL.length - 1}` },
+      why: "an imported native-closure mutation outside the server population withholds the owner, even with no admitted calls; no substitute caller anchor is reported",
     },
   ],
   mustPass: [

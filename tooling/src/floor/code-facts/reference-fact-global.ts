@@ -19,7 +19,8 @@ interface GlobalState {
   readonly visited: Set<object>;
 }
 
-const GLOBAL_OBJECTS = new Set(["globalThis", "self", "window"]);
+/** Ambient global-object names are syntax; their actual binding still requires native declaration identity. */
+export const GLOBAL_OBJECTS: ReadonlySet<string> = new Set(["globalThis", "self", "window"]);
 
 function state(): GlobalState {
   return { declarations: [], visited: new Set<object>() };

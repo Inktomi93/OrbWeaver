@@ -1,13 +1,6 @@
 // Supplied formals and complete callable consumers reuse the captured native call/return graph.
 import type { CallExpression, Identifier, Node as MorphNode, ts } from "ts-morph";
 import { Node } from "ts-morph";
-import {
-  privateSuppliedCall,
-  privateSuppliedConsumers,
-  privateSuppliedEscape,
-  privateValueSupply,
-  suppliedValueContextRefusal,
-} from "./call-supplied-private.ts";
 import { capturedSourcesCurrent, RefinementMap } from "./capture-map.ts";
 import { isDocumentationLinkReference, readModuleAliasBinding, resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
@@ -18,7 +11,6 @@ import type {
   NativeNamespaceAliasInputs,
   ReferenceFact,
   ReferenceUnresolvedReason,
-  ReferenceUseAdmission,
   ReturnedValueContext,
   SuppliedValueSource,
   UnresolvedReferenceFact,
@@ -121,9 +113,9 @@ function capturedModuleAlias(
   use: MorphNode,
   binding: Identifier,
   owner: MorphNode,
-  inputs: NativeNamespaceAliasInputs & { readonly privateCalls?: Map<ts.CallExpression, CallReturnObservation> | undefined },
+  inputs: NativeNamespaceAliasInputs,
 ): Identifier | UnresolvedReferenceFact | undefined {
-  const { program, privateCalls } = inputs;
+  const { program } = inputs;
   const admitted = readCallReturnReference(use, binding, program);
   if (admitted.kind === "unresolved") {
     return admitted;
@@ -137,37 +129,9 @@ function capturedModuleAlias(
     return captured ?? direct;
   }
   // Acquisition belongs to the proven captured namespace, not ordinary closed caller coverage.
-  const consumers = privateCalls === undefined ? captureNamespaceConsumers(captured, owner, program) : undefined;
+  const consumers = captureNamespaceConsumers(captured, owner, program);
   const current = readCallReturnProgram(use, { programs: [program] });
-  const premise = inputs.context?.inheritedReadPremise?.require(use, program);
-  return (
-    consumers ??
-    (current.kind === "unresolved" ? current : undefined) ??
-    (premise?.kind === "unresolved" ? premise : undefined) ??
-    program.escapingReferences.get(owner.compilerNode)?.[0] ??
-    captured
-  );
-}
-
-function callableReferenceAdmission(
-  use: MorphNode,
-  binding: Identifier,
-  owner: MorphNode,
-  inputs: NativeNamespaceAliasInputs & { readonly privateCalls?: Map<ts.CallExpression, CallReturnObservation> | undefined },
-): Exclude<ReferenceUseAdmission, false> | UnresolvedReferenceFact | undefined {
-  const alias = capturedModuleAlias(use, binding, owner, inputs);
-  if (alias !== undefined) {
-    return alias;
-  }
-  if (inputs.privateCalls === undefined) {
-    return;
-  }
-  const call = privateSuppliedCall(use, binding, { owner, program: inputs.program, admit: readCallReturnReference });
-  if (call === undefined || call.kind === "unresolved") {
-    return call;
-  }
-  inputs.privateCalls.set(call.value.call.compilerNode, call.value);
-  return true;
+  return consumers ?? (current.kind === "unresolved" ? current : undefined) ?? program.escapingReferences.get(owner.compilerNode)?.[0] ?? captured;
 }
 
 function observedCallableUse(use: MorphNode, owner: MorphNode, program: CallReturnProgram): MorphNode | undefined {
@@ -180,12 +144,7 @@ function observedCallableUse(use: MorphNode, owner: MorphNode, program: CallRetu
   return undefined;
 }
 
-function callableReferenceRefusal(
-  name: Identifier,
-  owner: MorphNode,
-  inputs: NativeNamespaceAliasInputs,
-  privateCalls?: Map<ts.CallExpression, CallReturnObservation>,
-): UnresolvedReferenceFact | undefined {
+function callableReferenceRefusal(name: Identifier, owner: MorphNode, inputs: NativeNamespaceAliasInputs): UnresolvedReferenceFact | undefined {
   const { program } = inputs;
   const admittedUses: MorphNode[] = [];
   let refusal: UnresolvedReferenceFact | undefined;
@@ -193,9 +152,9 @@ function callableReferenceRefusal(
     if (use === name || isDocumentationLinkReference(use)) {
       return true;
     }
-    const admitted = callableReferenceAdmission(use, binding, owner, { ...inputs, privateCalls });
+    const admitted = capturedModuleAlias(use, binding, owner, inputs);
     if (admitted !== undefined) {
-      if (admitted !== true && "kind" in admitted) {
+      if ("kind" in admitted) {
         refusal = admitted;
         return false;
       }
@@ -206,9 +165,12 @@ function callableReferenceRefusal(
       admittedUses.push(observed);
       return true;
     }
-    // Container aliases in the shared walk are not evidence of this exact callable identity.
-    if (privateCalls !== undefined && privateSuppliedEscape(use)) {
-      refusal = unresolved("unsupported", use, "a private callable consumer has an unproved container or member projection");
+    const parent = use.getParent();
+    if (
+      Node.isSpreadElement(parent) ||
+      ((Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent)) && parent.getExpression() === use)
+    ) {
+      refusal = unresolved("unsupported", use, "a callable consumer has an unproved container or member projection");
     }
     return false;
   });
@@ -271,10 +233,6 @@ export function readSuppliedParameter(
   program: CallReturnProgram | undefined,
   context?: ReturnedValueContext,
 ): ReferenceFact<readonly SuppliedValueSource[]> {
-  const privateInvalid = context === undefined ? undefined : suppliedValueContextRefusal(node, context, readCallReturnProgram, program);
-  if (privateInvalid !== undefined) {
-    return privateInvalid;
-  }
   const epoch = suppliedEpochRefusal(node, program);
   if (epoch !== undefined) {
     return epoch;
@@ -298,20 +256,13 @@ export function readSuppliedParameter(
   ) {
     return unresolved("missing", node, "the formal has no complete supplied native caller context", [parameter]);
   }
-  const callers =
-    context?.inheritedReadPremise !== undefined
-      ? privateSuppliedConsumers(
-          owner,
-          { name: callableName(owner), program, context },
-          {
-            admit: readCallReturnProgram,
-            observed: readObservedCallableConsumers,
-            references: callableReferenceRefusal,
-          },
-        )
-      : readObservedCallableConsumers(owner, program, context);
+  const callers = readObservedCallableConsumers(owner, program, context);
   if (callers.kind === "unresolved") {
     return callers;
+  }
+  const spread = callers.value.find((caller) => caller.call.getArguments().some(Node.isSpreadElement));
+  if (spread !== undefined) {
+    return unresolved("unsupported", spread.call, "a supplied consumer has no closed positional arguments after a spread", [parameter]);
   }
   const index = owner.getParameters().indexOf(parameter);
   const alternatives = callers.value.map((caller) => ({ caller, argument: suppliedArgument(parameter, caller.call.getArguments()[index]) }));
@@ -333,15 +284,13 @@ export function readSuppliedParameter(
         argument: caller.call.getArguments()[index],
         value: argument.value ?? node,
       };
-      const privateSupply = privateValueSupply(ordinary, { owner, program, context, bindings: actualBindings });
-      const supply = privateSupply ?? (argument.value === undefined ? undefined : ordinary);
+      const supply = argument.value === undefined ? undefined : ordinary;
       return [
         {
           value: ordinary.value,
           path: [],
           present: argument.value !== undefined,
           bindings: actualBindings,
-          ...(privateSupply === undefined ? {} : { privateSupplies: [...(context?.privateSupplies ?? []), privateSupply] }),
           ...(supply === undefined ? {} : { supply }),
         },
       ];
@@ -354,9 +303,13 @@ export function readSuppliedParameter(
 export function readCallBindings(call: CallExpression, owner: MorphNode, previous: ReadonlyMap<MorphNode, MorphNode>): ReadonlyMap<MorphNode, MorphNode> {
   const bindings = new Map(previous);
   if (Node.isFunctionDeclaration(owner) || Node.isArrowFunction(owner) || Node.isFunctionExpression(owner) || Node.isMethodDeclaration(owner)) {
+    const spread = call.getArguments().some(Node.isSpreadElement);
     for (const [index, parameter] of owner.getParameters().entries()) {
-      const argument = suppliedArgument(parameter, call.getArguments()[index]);
       bindings.delete(parameter);
+      if (spread) {
+        continue;
+      }
+      const argument = suppliedArgument(parameter, call.getArguments()[index]);
       if (argument.kind === "resolved" && argument.value !== undefined) {
         bindings.set(parameter, argument.value);
       }
