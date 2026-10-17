@@ -1,8 +1,5 @@
-// domain/discovery — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The
-// `DiscoveryContext` is assembled at the entry root (db + the injected clock/id determinism seam + the bound
-// `summarize` thunk + the injected `embeddings.writeHubScores` seam) and passed in. Each service method binds
-// the context's sub-deps to the standalone `compute*`/read function (the same functions the `transport/jobs`
-// runners call directly — the compute* passes stay standalone-exportable).
+// Discovery binds its compute/read helpers over the injected context. Workload contributions enter through
+// this service, keeping domain policy out of the generic execution substrate (D117).
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";

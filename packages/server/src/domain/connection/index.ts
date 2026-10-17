@@ -37,6 +37,6 @@ export { createConnectionPorts } from "./persistence/ports.ts";
 // The agent-sdk prompt-cache lineage writes (D8), injected into the inference runtime at the composition root.
 export { createSessionEntryWriter } from "./persistence/session-entries.ts";
 export { createConnectionService } from "./service.ts";
-export { toResolvedView } from "./substrate/resolved-view.ts";
+export {} from "./substrate/resolved-view.ts";
 export { createLocalLightUserSeed, seedLocalLightAccounts } from "./verbs/local-light-policy.ts";
 export { createConnectionWorkloadContributions } from "./workload-contributions.ts";

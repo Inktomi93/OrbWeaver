@@ -38,7 +38,7 @@ export type {
 export type { ResolveActiveDocumentIdsOp, SearchAssemblyContext as SearchContext, SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
-export { evictFieldIndex } from "./substrate/field-index.ts";
+export {} from "./substrate/field-index.ts";
 export { withRetrievalDegrade } from "./substrate/retrieval-degrade.ts";
 export { createCharacterIndexPublication } from "./verbs/character-index-publication.ts";
 export { createDigestSources } from "./verbs/digest-sources.ts";

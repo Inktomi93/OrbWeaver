@@ -89,17 +89,8 @@ export type {
   VisualArchetype,
 } from "./contract/results.ts";
 export type { DiscoveryAssemblyContext as DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
-export {
-  computeCooccurrence,
-  DEFAULT_HUB_FRACTION,
-  DEFAULT_MAX_PAIRS,
-} from "./cooccurrence/generate.ts";
-export {
-  computeChatDuplicatePairs,
-  computeDuplicatePairs,
-  DEFAULT_CHAT_JACCARD,
-  DEFAULT_DUP_THRESHOLD,
-} from "./duplicates/generate.ts";
+export {} from "./cooccurrence/generate.ts";
+export {} from "./duplicates/generate.ts";
 /** The bulk-pass announce audience — every owner with corpus rows. Exported for the composition root, which
  *  binds it as the `listCorpusOwners` op BOTH this domain's analytics passes and embeddings' `index` sweep
  *  close over (event-bus coverage survey §2.5/F6). */
@@ -108,14 +99,9 @@ export { distinctCorpusOwners } from "./persistence/embed-store-reads.ts";
  *  as chat's `resolveCharacterDistillates` op, so chat never reads discovery's table. */
 export { readOwnedDistillates } from "./persistence/summary-reads.ts";
 export { createDiscoveryService } from "./service.ts";
-export { CSLS_K, HUBNESS_DENSE_MAX } from "./substrate/hub-math.ts";
-export { computeThemes } from "./themes/generate.ts";
-export {
-  computeCharacterHubScores,
-  computeDigestHubScores,
-  computeImageHubScores,
-  computeSegmentHubScores,
-} from "./verbs/compute-hub-scores.ts";
+export {} from "./substrate/hub-math.ts";
+export {} from "./themes/generate.ts";
+export {} from "./verbs/compute-hub-scores.ts";
 export { createDossierNeighbors } from "./verbs/dossier-neighbors.ts";
 export { createResolveOwnedDistillates } from "./verbs/resolve-owned-distillates.ts";
 export { createDiscoveryWorkloadContributions } from "./workload-contributions.ts";

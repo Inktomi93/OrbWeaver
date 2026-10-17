@@ -161,7 +161,7 @@ export async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, 
   return stats.rowsScored;
 }
 
-/** The four hub-score verbs bound over the context (the `csls` runner calls the standalone functions above directly). */
+/** Keep the workload-facing hub-score methods bound to discovery's injected context. */
 export function createComputeHubScores(
   ctx: DiscoveryContext,
 ): Pick<DiscoveryService, "computeCharacterHubScores" | "computeDigestHubScores" | "computeSegmentHubScores" | "computeImageHubScores"> {

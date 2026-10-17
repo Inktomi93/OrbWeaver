@@ -152,8 +152,8 @@ function groupByOwner(rows: readonly DigestKeywords[]): Map<UserId, DigestKeywor
 
 /**
  * Recompute keyword cooccurrence + per-character keyword profiles for every owner with tier-0 digests (or ONE
- * owner when `opts.ownerId` is set). Idempotent atomic per-owner replace. Standalone `(db, deps, opts?)` so the
- * `compute-cooccurrence` runner drives it without the whole service.
+ * owner when `opts.ownerId` is set). Idempotent atomic per-owner replace. Discovery's service binds the
+ * dependencies used by its workload contribution (D117).
  */
 export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps, opts: ComputeCooccurrenceOptions): Promise<CooccurrenceStats> {
   const maxPairs = opts.maxPairs ?? DEFAULT_MAX_PAIRS;
