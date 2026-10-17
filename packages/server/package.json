@@ -8,6 +8,9 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./router-types": {
+      "types": "./dist/router-types/packages/server/src/index.d.ts"
+    },
     "./domain/assets": "./src/domain/assets/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
@@ -51,6 +54,7 @@
     "#src/*": "./src/*"
   },
   "scripts": {
+    "build:router-types": "node ../../tooling/src/router-types/cli.ts",
     "check:media": "node src/entry/check-media.ts",
     "postinstall": "pnpm check:media"
   },

@@ -17,6 +17,7 @@
     "release": "bash scripts/github-sync.sh --release",
     "build": "pnpm --filter @orb/server check:media && pnpm --filter @orb/showcase-plugins build && pnpm --filter @orb/ui tokens:build && pnpm --filter @orb/client build",
     "build:version-stamp": "node scripts/build-version-stamp.ts",
+    "build:router-types": "node tooling/src/router-types/cli.ts",
     "start": "node tooling/src/stack/cli.ts start",
     "share": "node tooling/src/stack/cli.ts start --share",
     "dev": "node tooling/src/dev/cli.ts",

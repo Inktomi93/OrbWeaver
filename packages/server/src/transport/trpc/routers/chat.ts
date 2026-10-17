@@ -57,8 +57,8 @@ import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contr
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
-import type { TrackedEnvelope } from "@trpc/server";
 import { TRPCError, tracked } from "@trpc/server";
+import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
 import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
@@ -859,7 +859,7 @@ export const chatRouter = t.router({
 // `withSubscriptionErrors` + the client SSE link require). The id is the delta index — MONOTONIC but NOT a
 // durable resume cursor (this stream is one-shot + non-resumable: a reconnect re-drafts, it never resumes
 // "from delta N"), so the tracked id only satisfies the wire discriminant, never a `lastEventId` resume.
-async function* trackedImpersonationDeltas(source: AsyncIterable<ImpersonateStreamDelta>): AsyncGenerator<TrackedEnvelope<ImpersonateStreamDelta>> {
+async function* trackedImpersonationDeltas(source: AsyncIterable<ImpersonateStreamDelta>): AsyncGenerator<TRPCCore.TrackedEnvelope<ImpersonateStreamDelta>> {
   let i = 0;
   for await (const delta of source) {
     yield tracked(String(i), delta);
