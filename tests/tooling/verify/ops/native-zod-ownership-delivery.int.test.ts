@@ -1,18 +1,19 @@
-// Native command controls separate importing-world Zod meaning from ordinary syntax nomination.
+// Native child commands execute; in-process verdicts borrow pinned historical SQLite observations.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as parity } from "../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { readExpressionZodOutputTwin } from "../../../../tooling/src/verify/lib/zod-output-twin.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
+import { typeObservationPlan, typeObservationReaders } from "../../../../tooling/src/verify/lib/type-observation-context.ts";
+import { readExpressionZodOutputTwinWith } from "../../../../tooling/src/verify/lib/zod-output-twin.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const COMPILER_OPTIONS = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
 const POLICIES = [parity];
@@ -51,10 +52,35 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   put("packages/contracts/tsconfig.json", JSON.stringify({ compilerOptions, files: ["src/node.ts", "src/browser.ts"] }));
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of POLICIES) {
-    put(`tooling/src/verify/gates/${id}.ts`, `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`);
+    put(
+      `tooling/src/verify/gates/${id}.ts`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
+    );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
+
+function historicalOutputTwin(context: ReturnType<typeof projectCtx>, source: SourceFile): ReturnType<typeof readExpressionZodOutputTwinWith> {
+  const initial = source.getVariableDeclarationOrThrow("owned").getInitializerOrThrow();
+  const plan = typeObservationPlan([source], [initial]);
+  using facts = context.nativeTypeFacts?.();
+  if (facts === undefined) {
+    throw new Error("actual native type observation session is missing");
+  }
+  facts.request(parity.id, { kind: "invocation-evidence", nodes: [source], plan });
+  facts.seal(new Set([parity.id]));
+  const reader = typeObservationReaders(facts.invocationEvidence(parity.id, [source], plan)).get(source);
+  if (reader === undefined) {
+    throw new Error("captured native Zod observation reader is missing");
+  }
+  return readExpressionZodOutputTwinWith(initial, reader);
+}
+
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => vi.restoreAllMocks());
 
 test(
   "native Zod structure and scoped commands retain conditional-world output parity without syntax semantics",
@@ -63,12 +89,8 @@ test(
       const root = join(scratch, browser ? "browser" : "node");
       fixture(root, repoRoot, browser);
       const context = projectCtx(root);
-      const native = context.nativeSourceView?.(join(root, entryPath(browser)));
-      if (native === undefined) {
-        throw new Error("actual native source view is missing");
-      }
-      const initial = native.sourceFile.getVariableDeclarationOrThrow("owned").getInitializerOrThrow();
-      const baseline = readExpressionZodOutputTwin(initial);
+      const source = context.project.getSourceFileOrThrow(join(root, entryPath(browser)));
+      const baseline = historicalOutputTwin(context, source);
       expect(baseline.kind).toBe("pair");
       if (baseline.kind !== "pair") {
         throw new Error("installed native Zod output pair is unavailable");
@@ -89,11 +111,13 @@ test(
         }
         return getSymbol.call(this);
       });
-      const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
-      const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       try {
-        expect.soft(await runStructure(root, ["--check=zod-output-twin-parity"])).toBe(browser ? 1 : 0);
-        expect.soft(await runScopedCli(root, ["--scope", "packages/**"])).toBe(browser ? 1 : 0);
+        const syntaxReads: number[] = [];
+        const workers: string[] = [];
+        const observation = { forbidSyntax: true, syntaxReads, workers };
+        expect.soft(await nativeVerifyFixture(root, "structure", ["--check=zod-output-twin-parity"], observation)).toBe(browser ? 1 : 0);
+        expect.soft(await nativeVerifyFixture(root, "scoped", ["--scope", "packages/**"], observation)).toBe(browser ? 1 : 0);
+        expect(syntaxReads).toEqual([0, 0]);
         const result = runPolicyPass({
           root,
           project: context.project,
@@ -106,7 +130,6 @@ test(
         expect.soft(result.toolErrors).toEqual([]);
         expect.soft(result.policies.find(({ id }) => id === parity.id)?.findings).toHaveLength(browser ? 1 : 0);
       } finally {
-        useContext.mockRestore();
         symbols.mockRestore();
         types.mockRestore();
       }
@@ -116,7 +139,7 @@ test(
 );
 
 test(
-  "crossworld aliases share a physical denominator but every importing-world authored twin is judged",
+  "historical native crossworld aliases share a physical denominator but every importing-world authored twin is judged",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     const compilerOptions = { ...COMPILER_OPTIONS, lib: ["ES2022"] };

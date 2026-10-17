@@ -1,10 +1,9 @@
 // Actual installed tRPC types establish the baseline before sealed native delivery is exercised.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Identifier, Node, Project, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { resolveCallableDeclaration } from "../../../../tooling/src/floor/code-facts/reference-fact-call.ts";
 import type { TypeObservationReader } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
@@ -15,9 +14,18 @@ import { gate } from "../../../../tooling/src/verify/gates/trpc-output-declarati
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const TRANSPORT = "packages/server/src/transport/trpc";
 const ROOT = `${TRANSPORT}/router.ts`;
@@ -111,7 +119,7 @@ function fixture(root: string, repoRoot: string): void {
   write("tooling/tsconfig.json", JSON.stringify({ compilerOptions: COMPILER_OPTIONS, files: [`src/verify/gates/${gate.id}.ts`] }));
   write(
     `tooling/src/verify/gates/${gate.id}.ts`,
-    `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${gate.id}.ts`)).href)};`,
+    `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${gate.id}.ts`, import.meta.url).href)};`,
   );
   execFixtureGit(root, ["init", "-q"]);
 }
@@ -201,6 +209,7 @@ test(
 test(
   "public tRPC structure and scoped doors use sealed native ownership without syntax semantics",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
@@ -212,8 +221,8 @@ test(
     const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const structure = await runStructure(scratch, [`--check=${gate.id}`]);
-      const scoped = await runScopedCli(scratch, ["--scope", SOURCES.join(",")]);
+      const structure = await nativeVerifyFixture(scratch, "structure", [`--check=${gate.id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
+      const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", SOURCES.join(",")], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -260,6 +269,8 @@ test(
     } finally {
       getContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
   scaledBudget(60_000),
 );
@@ -267,6 +278,7 @@ test(
 test(
   "native tRPC resolver bodies retain named and imported literal exemptions",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     writeFileSync(
       join(scratch, CHILD),
@@ -308,8 +320,8 @@ test(
     const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const structure = await runStructure(scratch, [`--check=${gate.id}`]);
-      const scoped = await runScopedCli(scratch, ["--scope", SOURCES.join(",")]);
+      const structure = await nativeVerifyFixture(scratch, "structure", [`--check=${gate.id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
+      const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", SOURCES.join(",")], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -331,6 +343,8 @@ test(
     } finally {
       getContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
   scaledBudget(60_000),
 );

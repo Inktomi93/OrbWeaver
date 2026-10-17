@@ -1,10 +1,9 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as discovery } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as empty } from "../../../../tooling/src/verify/gates/empty-state-has-action.ts";
@@ -15,8 +14,18 @@ import { gate as identity } from "../../../../tooling/src/verify/gates/turn-iden
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES = [scrubber, users, membership, identity, discovery, empty];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
@@ -79,7 +88,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -118,8 +127,8 @@ test(
     using _poison = poisonSyntax(context.project);
     try {
       const exits = [
-        await runStructure(scratch, ["--check=scrubber-home"]),
-        await runStructure(scratch, ["--check=empty-state-has-action", `--file=${CLIENT}`]),
+        await nativeVerifyFixture(scratch, "structure", ["--check=scrubber-home"], { forbidSyntax: true }),
+        await nativeVerifyFixture(scratch, "structure", ["--check=empty-state-has-action", `--file=${CLIENT}`], { forbidSyntax: true }),
       ];
       const result = runPolicyPass({
         root: scratch,

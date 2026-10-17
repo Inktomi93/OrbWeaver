@@ -12,10 +12,14 @@
 // Output overflow: long outputs spill to /tmp with the path banner at head AND tail
 // (`--max-output-lines=N`, parsed here / NEO_CODEMOD_MAX_LINES). Exit: 0 clean · EXIT.misuse on a bad
 // subcommand, an unknown flag, or a malformed --max-output-lines value.
+import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
-import { EXIT } from "../floor/cli/exit-contract.ts";
-import { runTool, UsageError } from "../floor/cli/run-tool.ts";
-import { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers, testSubpathsOp } from "./index.ts";
+
+const { EXIT } = await import("../floor/cli/exit-contract.ts");
+const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+const { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers, testSubpathsOp } = await import(
+  "./index.ts"
+);
 
 /** The ONE flag this tier owns (the kit's output-spill knob). */
 const MAX_LINES_FLAG = "--max-output-lines=";

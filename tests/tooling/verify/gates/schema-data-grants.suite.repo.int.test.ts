@@ -2,6 +2,7 @@
 // The independently named survivors prevent a changed permission roster from passing by count alone.
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { beforeEach, vi } from "vitest";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as assetsSingleWriter } from "../../../../tooling/src/verify/gates/assets-single-writer.ts";
@@ -16,6 +17,16 @@ import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES: readonly GatePolicy[] = [
   assetsSingleWriter,

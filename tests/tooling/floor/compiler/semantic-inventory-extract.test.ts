@@ -3,9 +3,8 @@ import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { InventoryBuildRequest, InventorySpan } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { latestInventoryGeneration, openInventoryDatabase, publishInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import {
   canonicalInventoryPath,
   contentVersion,
@@ -16,11 +15,61 @@ import {
 } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
-import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { createSemanticWorkspace, nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { DocumentSpan, LanguageService, Node, Program, Project, SourceFile, SyntaxKind, TypeChecker, ts } from "ts-morph";
 import { vi } from "vitest";
+import { z } from "zod";
+import type {
+  InventoryInput,
+  InventoryPartition,
+  StoredInventoryPartition,
+  StoredInventorySource,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { inputSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import {
+  readInventoryInputs,
+  readInventoryReferences,
+  readInventorySourceMetadata,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "./native-inventory-fixture.ts";
+import { copyNativeInventoryImplementation } from "./native-inventory-tree.ts";
+import { instrumentNativeQueryWorker, NATIVE_QUERY_MUTATIONS } from "./native-query-mutation.ts";
+
+function capturedMetadata(
+  db: ReturnType<typeof openInventoryDatabase>,
+  generation: number,
+): StoredInventoryPartition & {
+  readonly inputs: InventoryInput[];
+  readonly sources: StoredInventorySource[];
+  readonly references: InventoryPartition["references"];
+} {
+  const partition = fixtureValue(readInventoryGeneration(db, generation)[0]);
+  return {
+    ...partition,
+    inputs: [...readInventoryInputs(db, partition.id)],
+    sources: [...readInventorySourceMetadata(db, partition.id)],
+    references: [...readInventoryReferences(db, partition.id)],
+  };
+}
+
+function nativeInputCase(mode: string, implementation: string, root: string): string {
+  const result = join(root, ".cache/native-input-currentness-result.json");
+  mkdirSync(dirname(result), { recursive: true });
+  const entry = fileURLToPath(new URL("./native-input-currentness-cases.ts", import.meta.url));
+  const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
+  const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, mode, implementation, root, result], {
+    timeout: scaledBudget(180_000),
+  });
+  expect(completed.errorCode).toBeUndefined();
+  expect(completed.status, completed.stderr).toBe(0);
+  return readFileSync(result, "utf8");
+}
+
+const implementationRoot = fileURLToPath(new URL("../../../../", import.meta.url));
 
 function span(node: Node): InventorySpan {
   return { file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() };
@@ -157,15 +206,10 @@ test("Git admission of an ignored native import rebuilds authored facts without 
   );
   execFixtureGit(scratch, ["init", "-q"]);
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
-  const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
-  const stage = (request: InventoryBuildRequest): void => {
-    const partition = extractInventoryPartition(request);
-    partitions.push(partition);
-    using database = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(database, [partition]);
-  };
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  const original = fixtureValue(partitions[0]);
+  const workers: string[] = [];
+  using previous = nativeInventoryFixture({ root: scratch }, { workers });
+  using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  const original = capturedMetadata(metadata, previous.generation);
   expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(false);
   const previousSource = fixtureValue(previous.sourceCorpus().getSourceFile(dependency));
   const previousValue = previousSource.getVariableDeclarationOrThrow("value");
@@ -180,9 +224,9 @@ test("Git admission of an ignored native import rebuilds authored facts without 
     ),
   ).toBe(true);
   expect(inputsCurrent(original.inputs, context)).toBe(false);
-  using current = createSemanticInventory({ root: scratch, buildPartition: stage });
-  expect(partitions.length).toBe(2);
-  expect(fixtureValue(partitions[1]).sources.find((source) => source.file === dependency)?.authored).toBe(true);
+  using current = nativeInventoryFixture({ root: scratch }, { workers });
+  expect(workers).toHaveLength(2);
+  expect(capturedMetadata(metadata, current.generation).sources.find((source) => source.file === dependency)?.authored).toBe(true);
   const currentValue = fixtureValue(current.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
   expect(current.references(currentValue).map((node) => node.getSourceFile().getFilePath())).toContain(join(scratch, "consumer.ts"));
   expect(() => previous.references(previousValue)).toThrow("unsupported for non-authored origin");
@@ -207,15 +251,10 @@ test("Git admission of a language-service-only JS declaration invalidates its re
   );
   execFixtureGit(scratch, ["init", "-q"]);
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
-  const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
-  const stage = (request: InventoryBuildRequest): void => {
-    const partition = extractInventoryPartition(request);
-    partitions.push(partition);
-    using database = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(database, [partition]);
-  };
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  const original = fixtureValue(partitions[0]);
+  const workers: string[] = [];
+  using previous = nativeInventoryFixture({ root: scratch }, { workers });
+  using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  const original = capturedMetadata(metadata, previous.generation);
   expect(original.sources.some((source) => source.file === dependency)).toBe(false);
   expect(original.inputs.find((input) => input.path === dependency && input.kind === "authored")?.version).toBe("false");
   execFixtureGit(scratch, ["add", "-f", "node_modules/depth-b/index.js"]);
@@ -228,9 +267,9 @@ test("Git admission of a language-service-only JS declaration invalidates its re
     ),
   ).toBe(true);
   expect(inputsCurrent(original.inputs, context)).toBe(false);
-  using current = createSemanticInventory({ root: scratch, buildPartition: stage });
-  expect(partitions.length).toBe(2);
-  const updated = fixtureValue(partitions[1]);
+  using current = nativeInventoryFixture({ root: scratch }, { workers });
+  expect(workers).toHaveLength(2);
+  const updated = capturedMetadata(metadata, current.generation);
   expect(updated.sources.some((source) => source.file === dependency)).toBe(false);
   expect(updated.inputs.find((input) => input.path === dependency && input.kind === "authored")?.version).toBe("true");
   expect(updated.references.some((entry) => entry.declaration.file === dependency)).toBe(true);
@@ -259,15 +298,10 @@ test.for(["toward", "away", "add", "remove"] as const)(
     }
     execFixtureGit(scratch, ["init", "-q"]);
     const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
-    const partitions: ReturnType<typeof extractInventoryPartition>[] = [];
-    const stage = (request: InventoryBuildRequest): void => {
-      const partition = extractInventoryPartition(request);
-      partitions.push(partition);
-      using database = openInventoryDatabase(request.destination);
-      publishInventoryGeneration(database, [partition]);
-    };
-    using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-    const original = fixtureValue(partitions[0]);
+    const workers: string[] = [];
+    using previous = nativeInventoryFixture({ root: scratch }, { workers });
+    using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+    const original = capturedMetadata(metadata, previous.generation);
     expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(before);
     expect(original.inputs.some((input) => input.path === alias)).toBe(false);
     if (change !== "add") {
@@ -285,9 +319,9 @@ test.for(["toward", "away", "add", "remove"] as const)(
       ),
     ).toBe(true);
     expect(inputsCurrent(original.inputs, context)).toBe(false);
-    using current = createSemanticInventory({ root: scratch, buildPartition: stage });
-    expect(partitions.length).toBe(2);
-    expect(fixtureValue(partitions[1]).sources.find((source) => source.file === dependency)?.authored).toBe(!before);
+    using current = nativeInventoryFixture({ root: scratch }, { workers });
+    expect(workers).toHaveLength(2);
+    expect(capturedMetadata(metadata, current.generation).sources.find((source) => source.file === dependency)?.authored).toBe(!before);
     const previousValue = fixtureValue(previous.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
     const currentValue = fixtureValue(current.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
     const admitted = before ? previous : current;
@@ -297,7 +331,9 @@ test.for(["toward", "away", "add", "remove"] as const)(
   },
 );
 
-test("removing an unrelated authored document reuses the same native partition without reading stored source text", async ({ scratch }) => {
+test("removing an unrelated authored document reuses the same native partition without reading stored source text", { timeout: scaledBudget(240_000) }, ({
+  scratch,
+}) => {
   writeFileSync(join(scratch, ".gitignore"), ".cache/\n");
   mkdirSync(join(scratch, "notes"));
   const document = join(scratch, "notes/unrelated.txt");
@@ -305,32 +341,17 @@ test("removing an unrelated authored document reuses the same native partition w
   writeFileSync(join(scratch, "consumer.ts"), "export const value=1; export const use=value;\n");
   writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [] } }));
   execFixtureGit(scratch, ["init", "-q"]);
-  const stage = (request: InventoryBuildRequest): void => {
-    const partition = extractInventoryPartition(request);
-    expect(partition.inputs.some((input) => input.path === document || input.path === dirname(document))).toBe(false);
-    using database = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(database, [partition]);
-  };
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  unlinkSync(document);
-  const queries = await import("../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts");
-  const text = vi.spyOn(queries, "readInventorySourceText").mockImplementation(() => {
-    throw new Error("membership validation decoded source text");
+  expect(JSON.parse(nativeInputCase("unrelated-document", implementationRoot, scratch))).toMatchObject({
+    absentInput: true,
+    workers: 0,
+    textReads: 0,
+    sameGeneration: true,
   });
-  const build = vi.fn(() => {
-    throw new Error("unrelated document deletion rebuilt a native partition");
-  });
-  try {
-    using current = createSemanticInventory({ root: scratch, buildPartition: build });
-    expect(current.generation).toBe(previous.generation);
-    expect(build).not.toHaveBeenCalled();
-    expect(text).not.toHaveBeenCalled();
-  } finally {
-    text.mockRestore();
-  }
 });
 
-test("authored alias mutation after publication rolls back before commit and preserves the pinned reader", async ({ scratch }) => {
+test("authored alias mutation after publication rolls back before commit and preserves the pinned reader", { timeout: scaledBudget(240_000) }, ({
+  scratch,
+}) => {
   writeFileSync(join(scratch, ".gitignore"), ".cache/\ndeps/\n");
   mkdirSync(join(scratch, "deps"));
   for (const name of ["value", "other"]) {
@@ -346,39 +367,15 @@ test("authored alias mutation after publication rolls back before commit and pre
     JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
   );
   execFixtureGit(scratch, ["init", "-q"]);
-  const stage = (request: InventoryBuildRequest): void => {
-    const partition = extractInventoryPartition(request);
-    using database = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(database, [partition]);
-  };
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  writeFileSync(consumer, `${original}// selects a fresh partition\n`);
-  const databaseApi = await import("@orb/tooling/floor/code-facts/semantic-inventory-database");
-  const publish = databaseApi.publishInventoryGeneration;
-  let publications = 0;
-  const mutation = vi.spyOn(databaseApi, "publishInventoryGeneration").mockImplementation((database, partitions) => {
-    const generation = publish(database, partitions);
-    publications++;
-    if (publications === 2) {
-      unlinkSync(alias);
-      symlinkSync("deps/other.ts", alias);
-    }
-    return generation;
+  const result = nativeInputCase("authored-publication-race", implementationRoot, scratch);
+  expect(JSON.parse(result)).toMatchObject({
+    refusal: expect.stringContaining("inputs changed during extraction"),
+    workerStages: 1,
+    publications: 1,
+    latestUnchanged: true,
+    pinnedText: original,
   });
-  try {
-    expect((): number => {
-      using current = createSemanticInventory({ root: scratch, buildPartition: stage });
-      return current.generation;
-    }).toThrow("inputs changed during extraction");
-    expect(publications).toBe(2);
-  } finally {
-    mutation.mockRestore();
-  }
-  using committed = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(committed)).toBe(previous.generation);
-  expect(previous.sourceCorpus().getSourceFile(consumer)?.getFullText()).toBe(original);
-  const value = fixtureValue(previous.sourceCorpus().getSourceFile(join(scratch, "deps/value.ts"))).getVariableDeclarationOrThrow("value");
-  expect(previous.references(value).length).toBeGreaterThan(0);
+  expect(z.object({ pinnedReferences: z.number() }).parse(JSON.parse(result)).pinnedReferences).toBeGreaterThan(0);
 });
 
 test.for(["identical", "different", "symlink"] as const)(
@@ -1113,9 +1110,10 @@ test("physical filename resolution is bounded by distinct paths rather than repe
   }
 });
 
-test.for(["file-retarget", "directory-retarget", "dangling", "disappear", "appear", "authored-alias-retarget"] as const)(
-  "physical identity changes during native queries refuse publication without replacing the pinned generation: %s",
-  (change, { scratch }) => {
+test.for(NATIVE_QUERY_MUTATIONS)(
+  "instrumented native queries refuse physical identity drift without replacing the pinned generation: %s",
+  { timeout: scaledBudget(240_000) },
+  (change, { scratch, repoRoot }) => {
     const authoredAlias = change === "authored-alias-retarget";
     writeFileSync(join(scratch, ".gitignore"), `.cache/\nmissing.ts\n${authoredAlias ? "first/\nsecond/\n" : ""}`);
     writeFileSync(
@@ -1143,61 +1141,29 @@ test.for(["file-retarget", "directory-retarget", "dangling", "disappear", "appea
     symlinkSync(directoryLink ? "first" : "first/dep.ts", link);
     const specifier = `./${stem}`;
     const dependency = authoredAlias ? link : join(scratch, `${stem}.ts`);
-    const secondTarget = directoryLink ? "second" : "second/dep.ts";
     const text = `import {value} from '${specifier}'; export const read=value;\n`;
     writeFileSync(join(scratch, "consumer.ts"), text);
     execFixtureGit(scratch, ["init", "-q"]);
-    const stage = (request: InventoryBuildRequest): void => {
-      const partition = extractInventoryPartition(request);
-      using database = openInventoryDatabase(request.destination);
-      publishInventoryGeneration(database, [partition]);
-    };
-    using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-    const firstIdentity = inputVersion(dependency, "exists");
-    writeFileSync(join(scratch, "consumer.ts"), `${text}// changed input selects a fresh worker\n`);
-    let changed = false;
-    let captured: ReturnType<typeof extractInventoryPartition> | undefined;
-    const duringQuery = (): void => {
-      if (changed) {
-        return;
-      }
-      changed = true;
-      if (change === "appear") {
-        writeFileSync(dependency, "export const value=1;\n");
-        return;
-      }
-      unlinkSync(link);
-      if (change !== "disappear") {
-        symlinkSync(change === "dangling" ? "missing-target.ts" : secondTarget, link);
-      }
-    };
-    expect((): number => {
-      using current = createSemanticInventory({
-        root: scratch,
-        buildPartition: (request) => {
-          const { partition } = extractWithoutReferenceWrappers(request, duringQuery);
-          captured = partition;
-          using database = openInventoryDatabase(request.destination);
-          publishInventoryGeneration(database, [partition]);
-        },
-      });
-      return current.generation;
-    }).toThrow(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "inputs changed during extraction");
-    expect(changed).toBe(true);
-    expect(() => {
-      if (!inputsCurrent(fixtureValue(captured).inputs, { authored: inventoryAuthoredFiles(scratch) })) {
-        throw new Error("recorded native dependency changed");
-      }
-    }).toThrow(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "recorded native dependency changed");
-    expect(fixtureValue(captured).inputs.find((input) => input.path === join(scratch, "first/dep.ts") && input.kind === "authored")?.version).toBe(
+    const implementation = copyNativeInventoryImplementation(join(scratch, ".cache"), repoRoot);
+    instrumentNativeQueryWorker(implementation, scratch, change);
+    const result = nativeInputCase(change, implementation, scratch);
+    expect(JSON.parse(result)).toMatchObject({
+      refusal: expect.stringContaining(change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "inputs changed during extraction"),
+      inputRefusal: expect.stringContaining(
+        change === "dangling" ? "repository inventory symlink cannot be resolved: dep.ts" : "recorded native dependency changed",
+      ),
+      workerStages: 1,
+      mutation: { changed: true },
+      latestUnchanged: true,
+      pinnedText: text,
+    });
+    const captured = z.object({ captured: z.array(inputSchema), firstIdentity: z.string() }).parse(JSON.parse(result));
+    expect(captured.captured.find((input) => input.path === join(scratch, "first/dep.ts") && input.kind === "authored")?.version).toBe(
       change === "appear" ? undefined : "true",
     );
-    expect(fixtureValue(captured).inputs.find((input) => input.path === dependency && input.kind === "exists")).toEqual(
-      authoredAlias ? undefined : { path: dependency, kind: "exists", version: firstIdentity },
+    expect(captured.captured.find((input) => input.path === dependency && input.kind === "exists")).toEqual(
+      authoredAlias ? undefined : { path: dependency, kind: "exists", version: captured.firstIdentity },
     );
-    using committed = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-    expect(latestInventoryGeneration(committed)).toBe(previous.generation);
-    expect(previous.sourceCorpus().getSourceFile("consumer.ts")?.getFullText()).toBe(text);
   },
 );
 
@@ -1862,52 +1828,27 @@ test("native reference display opt-out preserves all grouped metadata except pre
   }
 });
 
-test("compiler and store implementation bytes are versioned and changed runtime input refuses publication", ({ scratch }) => {
+test("native executing sources and SDK pins reject stale stored and staged worker identities", { timeout: scaledBudget(240_000) }, ({ scratch }) => {
   writeFileSync(join(scratch, "tsconfig.json"), JSON.stringify({ files: ["base.ts"], compilerOptions: { noLib: true, types: [] } }));
   writeFileSync(join(scratch, "base.ts"), "export const value=1; export const use=value;\n");
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\n");
   execFixtureGit(scratch, ["init", "-q"]);
-  const runtime = ts.sys.getExecutingFilePath();
-  const fileSystem = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
-  const read = fileSystem.readFileSync.bind(fileSystem);
-  let changed: string | undefined;
-  const runtimeRead = vi.spyOn(fileSystem, "readFileSync").mockImplementation((path, encoding) => {
-    const text = read(path, encoding);
-    return path === changed ? `${text}\n` : text;
+  expect(JSON.parse(nativeInputCase("sdk-pins", implementationRoot, scratch))).toMatchObject({
+    sdkPinned: true,
+    versionedOwners: [
+      "authored-repository.ts",
+      "semantic-inventory-database.ts",
+      "semantic-inventory-records.ts",
+      "semantic-inventory-queries.ts",
+      "semantic-inventory-reader.ts",
+      "semantic-inventory.ts",
+    ],
+    rebuiltAfterStalePin: true,
+    refusal: expect.stringMatching(/implementation.*(changed|stale)/u),
+    publicationWorkers: 1,
+    latestUnchanged: true,
+    pinnedText: "export const value=1; export const use=value;\n",
   });
-  try {
-    expect(() =>
-      createSemanticInventory({
-        root: scratch,
-        fileSystem,
-        buildPartition: (request) => {
-          const partition = extractInventoryPartition(request);
-          expect(partition.inputs).toContainEqual({ path: runtime, kind: "file", version: inputVersion(runtime, "file") });
-          const context = { authored: inventoryAuthoredFiles(scratch, request.overlay), fileSystem };
-          expect(inputsCurrent(partition.inputs, context)).toBe(true);
-          for (const name of [
-            "authored-repository.ts",
-            "semantic-inventory-database.ts",
-            "semantic-inventory-records.ts",
-            "semantic-inventory-queries.ts",
-            "semantic-inventory-reader.ts",
-            "semantic-inventory.ts",
-          ]) {
-            const implementation = fixtureValue(partition.inputs.find((input) => input.kind === "file" && input.path.endsWith(`/${name}`)));
-            expect(implementation.version).toBe(inputVersion(implementation.path, "file"));
-            changed = implementation.path;
-            expect(inputsCurrent(partition.inputs, context)).toBe(false);
-            changed = undefined;
-          }
-          changed = runtime;
-          expect(inputsCurrent(partition.inputs, context)).toBe(false);
-          using staging = openInventoryDatabase(request.destination);
-          publishInventoryGeneration(staging, [partition]);
-        },
-      }),
-    ).toThrow("inputs changed during extraction");
-  } finally {
-    runtimeRead.mockRestore();
-  }
 });
 
 test("readonly native token lookups avoid repeated traversal without caching symbol meaning", () => {
@@ -2379,8 +2320,7 @@ test.for(["identical", "different", "symlink"] as const)(
     const project = owner.project();
     const expected = [
       ...new Set(
-        project
-          .getSourceFiles()
+        nativeCompilerSourceFiles(project)
           .map((source) => canonicalInventoryPath(source.getFilePath()))
           .filter((path) => project.getSourceFile(path) !== undefined),
       ),

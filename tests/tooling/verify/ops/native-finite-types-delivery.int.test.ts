@@ -1,12 +1,11 @@
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import { Node, Project } from "ts-morph";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { mapTypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -18,15 +17,23 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unions } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as owner } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
-
 import { gate as participant } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { readAxisVerdict } from "../../../../tooling/src/verify/lib/role-vocabulary.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES = [unions, owner, participant];
 const KNOWN = [...POLICIES, unionAlias];
@@ -81,7 +88,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of KNOWN) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -130,8 +137,10 @@ test(
     expect(baseline.authority.withheldPolicyIds).toEqual([]);
     using _poison = poison(context.project);
     try {
-      expect(await runStructure(scratch, [`--check=${owner.id}`, `--check=${participant.id}`, `--check=${unions.id}`])).toBe(1);
-      expect(await runScopedCli(scratch, ["--scope", "packages,tooling"])).toBe(1);
+      expect(
+        await nativeVerifyFixture(scratch, "structure", [`--check=${owner.id}`, `--check=${participant.id}`, `--check=${unions.id}`], { forbidSyntax: true }),
+      ).toBe(1);
+      expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages,tooling"], { forbidSyntax: true })).toBe(1);
       const result = runPolicyPass({
         root: scratch,
         project: context.project,

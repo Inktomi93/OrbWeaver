@@ -6,7 +6,6 @@ import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { computedNameNeedsBindings, referenceResolutionServices } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { ReferenceFact } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { DEFAULT_INVENTORY_FAMILIES } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
@@ -17,12 +16,11 @@ import {
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 const SOURCE = "tests/server/keys.test.ts";
 const TEXT = `import {KEY as IMPORTED} from './key';
@@ -82,7 +80,7 @@ test(
       .map((node) => node.getArgumentExpression())
       .filter((node) => node !== undefined);
     const requests = keys.map((node) => ({ program: descriptor.id, node: span(node) }));
-    using inventory = createSemanticInventory({ root: scratch, programs: [descriptor], families: ["computed-names"], computedNameQueries: requests });
+    using inventory = nativeInventoryFixture({ root: scratch, programs: [descriptor], families: ["computed-names"], computedNameQueries: requests });
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("computed-names");
     const syntax = new Project({ useInMemoryFileSystem: true });
     const replay = syntax.createSourceFile(join(scratch, SOURCE), TEXT);
@@ -191,10 +189,10 @@ test(
     } finally {
       resolve.mockRestore();
     }
-    using before = createSemanticInventory({ ...options, computedNameQueries: [firstQuery] });
+    using before = nativeInventoryFixture({ ...options, computedNameQueries: [firstQuery] });
     expect(() => before.computedName(second, descriptor.id)).toThrow("computed-name span is unavailable");
-    using expanded = createSemanticInventory({ ...options, computedNameQueries: [firstQuery, secondQuery] });
-    using reused = createSemanticInventory({ ...options, computedNameQueries: [secondQuery, firstQuery] });
+    using expanded = nativeInventoryFixture({ ...options, computedNameQueries: [firstQuery, secondQuery] });
+    using reused = nativeInventoryFixture({ ...options, computedNameQueries: [secondQuery, firstQuery] });
     expect(expanded.generation).toBeGreaterThan(before.generation);
     expect(reused.generation).toBe(expanded.generation);
     const third = keys?.[2];
@@ -202,21 +200,21 @@ test(
       throw new Error("computed-name new demand is missing");
     }
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        computedNameQueries: [firstQuery, secondQuery, { program: descriptor.id, node: span(third) }],
-        buildPartition: () => {
-          throw new Error("failed computed-name worker");
+      nativeInventoryFixture(
+        {
+          ...options,
+          computedNameQueries: [firstQuery, secondQuery, { program: descriptor.id, node: span(third) }],
         },
-      }),
-    ).toThrow("failed computed-name worker");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     const altered = TEXT.replace("CONST='only'", "CONST='skip'");
-    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, SOURCE), text: altered }],
-      deleted: [],
-    });
-    using overlay = createSemanticInventory({ ...options, computedNameQueries: [firstQuery], fileSystem, overlay: { addedPaths: [], deletedPaths: [] } });
+    using overlay = nativeInventoryFixture(
+      { ...options, computedNameQueries: [firstQuery] },
+      {
+        projection: { root: scratch, files: [{ path: join(scratch, SOURCE), text: altered }], deleted: [] },
+      },
+    );
     const overlaySource = overlay.sourceCorpus().getSourceFile(SOURCE);
     const overlayKey = overlaySource?.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)[0]?.getArgumentExpression();
     if (overlayKey === undefined) {
@@ -243,7 +241,7 @@ test(
         db.exec("ROLLBACK");
       }
     }
-    expect(() => createSemanticInventory(options)).toThrow("require closed demand");
+    expect(() => nativeInventoryFixture(options)).toThrow("require closed demand");
     expect(() => before.computedName(first, "foreign")).toThrow("partition is unavailable");
     const acquire = vi.fn((): never => {
       throw new Error("unsealed computed-name acquisition");
@@ -257,20 +255,18 @@ test(
     expect(() => session.computedNames("owner", [first])).toThrow("disposed");
     expect(acquire).not.toHaveBeenCalled();
     const failedPath = join(scratch, "failed.sqlite");
+    const faults: string[] = [];
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        computedNameQueries: [firstQuery],
-        databasePath: failedPath,
-        buildPartition: (request) => {
-          runInventoryPartitionWorker(request);
-          using staging = openInventoryDatabase(request.destination);
-          staging.exec("BEGIN IMMEDIATE");
-          staging.exec("DELETE FROM inventory_computed_trace;DELETE FROM inventory_computed_name;");
-          staging.exec("COMMIT");
+      nativeInventoryFixture(
+        {
+          ...options,
+          computedNameQueries: [firstQuery],
+          databasePath: failedPath,
         },
-      }),
+        { fault: "computed-coverage", faults },
+      ),
     ).toThrow("incomplete computed-name coverage");
+    expect(faults).toEqual(["computed-coverage"]);
     using failed = openInventoryDatabase(failedPath);
     expect(latestInventoryGeneration(failed)).toBe(0);
     source.replaceWithText(`${TEXT}\nexport const changed=1;`);

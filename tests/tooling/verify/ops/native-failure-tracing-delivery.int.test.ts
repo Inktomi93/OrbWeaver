@@ -1,10 +1,9 @@
 // Native importing worlds own failure classification; syntax carriers only nominate sites.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Identifier, Node, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { mapTypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -21,9 +20,18 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { deriveCaughtFailureSites } from "../../../../tooling/src/verify/ops/gen/caught-failure-population.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test(
   "strict reference results close follow-up raw reads in the same native importing owner",
@@ -223,7 +231,10 @@ export {detached as superviseDetached};`,
   );
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: COMPILER_OPTIONS, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of POLICIES) {
-    put(`tooling/src/verify/gates/${id}.ts`, `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`);
+    put(
+      `tooling/src/verify/gates/${id}.ts`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
+    );
   }
   put(
     "tooling/src/verify/gates/caught-failure-ownership.population.json",
@@ -279,6 +290,7 @@ function nativeBaseline(context: ReturnType<typeof projectCtx>, scratch: string)
 test(
   "native failure and tracing commands preserve conditional-world meanings without syntax Type, Symbol, or definitions",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     const context = projectCtx(scratch);
     nativeBaseline(context, scratch);
@@ -322,13 +334,15 @@ test(
     try {
       expect
         .soft(
-          await runStructure(
+          await nativeVerifyFixture(
             scratch,
+            "structure",
             POLICIES.map(({ id }) => `--check=${id}`),
+            { forbidSyntax: true, syntaxReads: nativeSyntaxReads },
           ),
         )
         .toBe(1);
-      expect.soft(await runScopedCli(scratch, ["--scope", "packages/**"])).toBe(1);
+      expect.soft(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/**"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads })).toBe(1);
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -364,6 +378,8 @@ test(
       symbols.mockRestore();
       types.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
   scaledBudget(120_000),
 );

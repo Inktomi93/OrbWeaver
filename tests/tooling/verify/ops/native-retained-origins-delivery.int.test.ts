@@ -1,23 +1,30 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-
 import { gate as egress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as history } from "../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
 import { gate as persistence } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES = [egress, history, persistence];
 const NODE = "packages/server/src/domain/x/verbs/realm.ts";
@@ -64,7 +71,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -122,8 +129,8 @@ test(
     using _poison = poisonSyntax(context.project);
     try {
       expect([
-        await runStructure(scratch, [`--check=${egress.id}`]),
-        await runScopedCli(scratch, ["--scope", [NODE, BROWSER, AMBIENT, LOCAL, FETCH].join(",")]),
+        await nativeVerifyFixture(scratch, "structure", [`--check=${egress.id}`], { forbidSyntax: true }),
+        await nativeVerifyFixture(scratch, "scoped", ["--scope", [NODE, BROWSER, AMBIENT, LOCAL, FETCH].join(",")], { forbidSyntax: true }),
       ]).toEqual([1, 1]);
       const result = runPolicyPass({
         root: scratch,

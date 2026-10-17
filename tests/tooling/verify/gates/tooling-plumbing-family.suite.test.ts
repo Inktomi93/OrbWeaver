@@ -58,6 +58,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
+import { beforeEach, vi } from "vitest";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { NODE_TYPES_HOME, nodeTypesProof } from "../../../../tooling/src/verify/gates/_proof/node-types.ts";
@@ -76,6 +77,16 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const ROOT = "/tooling-plumbing-family";
 /** The nine policies over SOURCE populations — the differential's union. */

@@ -1,7 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Node } from "ts-morph";
@@ -10,8 +11,11 @@ import { vi } from "vitest";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { openInventoryDatabase, readInventoryGeneration } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
-import { nativeTypeFactSession, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
+import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
+import { copyNativeInventoryImplementation } from "../compiler/native-inventory-tree.ts";
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -39,7 +43,9 @@ function fixture(root: string): void {
   execFixtureGit(root, ["init", "-q"]);
 }
 
-test("explicit native module targets retain importing-world meaning, side effects, type-only doors and explicit absence", ({ scratch }) => {
+test("explicit native module targets retain importing-world meaning, side effects, type-only doors and explicit absence", { timeout: scaledBudget(60_000) }, ({
+  scratch,
+}) => {
   fixture(scratch);
   const native = createSemanticWorkspace({ root: scratch });
   const expected = native.sourceViews("shared.ts").map(({ program, sourceFile }) => ({
@@ -53,7 +59,7 @@ test("explicit native module targets retain importing-world meaning, side effect
     join(scratch, "browser.ts"),
     join(scratch, "node.ts"),
   ]);
-  using inventory = createSemanticInventory({ root: scratch, families: ["modules"] });
+  using inventory = nativeInventoryFixture({ root: scratch, families: ["modules"] });
   const source = inventory.sourceCorpus().getSourceFile("shared.ts");
   if (source === undefined) {
     throw new Error("shared module fixture is missing");
@@ -67,10 +73,10 @@ test("explicit native module targets retain importing-world meaning, side effect
   expect(() => inventory.moduleTarget(required(doors[0]), "foreign-program")).toThrow("partition is unavailable");
 });
 
-test("explicit module targets refuse stale query and target bytes, foreign roots and disposed snapshots", ({ scratch }) => {
+test("explicit module targets refuse stale query and target bytes, foreign roots and disposed snapshots", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
   fixture(scratch);
-  using inventory = createSemanticInventory({ root: scratch, families: ["modules"] });
-  const corpus = inventory.sourceCorpus();
+  using inventory = nativeInventoryFixture({ root: scratch, families: ["modules"] });
+  using corpus = inventory.sourceCorpus();
   const source = corpus.getSourceFile("shared.ts");
   const target = corpus.getSourceFile("node.ts");
   if (source === undefined || target === undefined) {
@@ -116,23 +122,26 @@ const span = (node: Node): InventorySpan => ({ file: node.getSourceFile().getFil
 
 test(
   "contextual module requests preserve an explicitly registered non-primary importing world",
-  ({ scratch }) => {
-    fixture(scratch);
-    const workspace = createSemanticWorkspace({ root: scratch });
-    const importer = required(workspace.sourceViews("shared.ts").find((view) => view.program.descriptor.id === "tsconfig.tests-dom.json")).sourceFile;
-    const door = required(importer.getImportDeclarations()[0]);
-    const acquire = projectCtx(scratch).nativeTypeFacts;
-    if (acquire === undefined) {
-      throw new Error("contextual module acquisition missing");
-    }
-    using owner = acquire();
-    owner.request("owner", { kind: "module-targets", nodes: [door], importer });
-    owner.seal(new Set(["owner"]));
-    expect(owner.moduleTargets("owner", [door], importer).get(door)?.getBaseName()).toBe("browser.ts");
-    importer.replaceWithText(importer.getFullText());
-    expect(() => owner.moduleTargets("owner", [door], importer)).toThrow("epoch is stale");
+  ({ scratch, repoRoot }) => {
+    const implementation = copyNativeInventoryImplementation(scratch, repoRoot);
+    const root = join(scratch, "subject");
+    mkdirSync(root);
+    writeFileSync(join(root, ".gitignore"), ".cache/\n");
+    execFixtureGit(root, ["init", "-q"]);
+    const entry = fileURLToPath(new URL("../compiler/native-inventory-adapter-cases.ts", import.meta.url));
+    const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
+    const resultPath = join(scratch, "result.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "module-owner", implementation, root, resultPath], {
+      timeout: scaledBudget(110_000),
+    });
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(resultPath, "utf8"))).toMatchObject({
+      mode: "module-owner",
+      target: "browser.ts",
+      stale: expect.stringMatching(/epoch is stale/u),
+    });
   },
-  scaledBudget(30_000),
+  scaledBudget(120_000),
 );
 
 test(
@@ -160,14 +169,14 @@ test(
     const queries = [door, absent, unavailable].map((node) => ({ program: program.descriptor.id, query: { importer: span(importer), node: span(node) } }));
     let baselineGeneration = 0;
     {
-      using baseline = createSemanticInventory({ root: scratch, families: ["modules"], programs: [program.descriptor] });
+      using baseline = nativeInventoryFixture({ root: scratch, families: ["modules"], programs: [program.descriptor] });
       baselineGeneration = baseline.generation;
       expect(baseline.moduleTarget(required(importer.getImportDeclarations()[0]), program.descriptor.id)?.getFilePath()).toBe(bridge.getFilePath());
       expect(() => baseline.moduleTarget(door, program.descriptor.id)).toThrow("not admitted");
     }
     let generation = 0;
     {
-      using inventory = createSemanticInventory({ root: scratch, families: ["modules"], programs: [program.descriptor], moduleTargetQueries: queries });
+      using inventory = nativeInventoryFixture({ root: scratch, families: ["modules"], programs: [program.descriptor], moduleTargetQueries: queries });
       generation = inventory.generation;
       expect(generation).toBeGreaterThan(baselineGeneration);
       expect(inventory.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(join(scratch, "node_modules/fixture/leaf.ts"));

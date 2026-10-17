@@ -1,29 +1,27 @@
 // @subject tooling/src/floor/code-facts/type-projection-codec.ts
 // @subject tooling/src/floor/code-facts/authored-value-projection-codec.ts
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   latestInventoryGeneration,
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
-import { inputsCurrent, inventoryAuthoredFiles } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
-import { readInventoryInputs } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { inputVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { readInventoryRuntime } from "../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
 import { nodeTypeSelector, typeArgumentSelector, typeProjectionFacet } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 const SOURCE = "shared/control.ts";
 const TYPE_PLAN: InventoryInvocationPlan = {
@@ -39,7 +37,7 @@ function anchor(node: Node): InventorySpan {
 }
 
 function setup(root: string): {
-  readonly options: Parameters<typeof createSemanticInventory>[0];
+  readonly options: Parameters<typeof nativeInventoryFixture>[0];
   readonly source: SourceFile;
   readonly value: Node;
   readonly config: Node;
@@ -99,7 +97,7 @@ test(
   "stored native projections retain importing-world meaning and independent registry readability/provenance",
   ({ scratch }) => {
     const fixture = setup(scratch);
-    using inventory = createSemanticInventory(fixture.options);
+    using inventory = nativeInventoryFixture(fixture.options);
     for (const world of ["browser", "node"]) {
       const program = `tsconfig.${world}.json`;
       const projection = inventory.invocationEvidence(fixture.value, program, TYPE_PLAN).typeProjections.get(fixture.value);
@@ -132,10 +130,10 @@ test(
 );
 
 test(
-  "invocation implementation inputs refuse helper-only changes without replacing a pinned store generation",
+  "invocation implementation receipts retain the loaded projection owners without invalidating a warm generation",
   ({ scratch }) => {
     const fixture = setup(scratch);
-    using inventory = createSemanticInventory(fixture.options);
+    using inventory = nativeInventoryFixture(fixture.options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const dependencies = [
       "projection-reference-codec.ts",
@@ -152,34 +150,18 @@ test(
       "static-authored-value.ts",
       "zod-origin.ts",
       "schema-object.ts",
-      "schema-object-contract.ts",
       "reference-fact-global.ts",
     ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
-    const authored = inventoryAuthoredFiles(scratch);
-    const fileSystem = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
     for (const partition of readInventoryGeneration(db, inventory.generation)) {
-      const inputs = [...readInventoryInputs(db, partition.id)];
-      expect(dependencies.filter((path) => inputs.some((input) => input.kind === "file" && input.path === path))).toEqual(dependencies);
-      expect(inputsCurrent(inputs, { authored })).toBe(true);
-      for (const path of dependencies) {
-        const changed = inventoryFileSystem(fileSystem, { root: scratch, files: [{ path, text: `${readFileSync(path, "utf8")}\n` }], deleted: [] });
-        expect(inputsCurrent(inputs, { authored, fileSystem: changed }), path).toBe(false);
-      }
+      const runtime = readInventoryRuntime(db, partition.id, "worker");
+      expect(runtime.sources.some((source) => source.path.endsWith("/schema-object-contract.ts"))).toBe(false);
+      expect(dependencies.filter((path) => runtime.sources.some((source) => source.path === path && source.version === inputVersion(path, "file")))).toEqual(
+        dependencies,
+      );
     }
-    const helper = dependencies.find((path) => path.endsWith("/type-observation-questions.ts"));
-    if (helper === undefined) {
-      throw new Error("native helper invalidation control is missing");
-    }
-    const changed = inventoryFileSystem(fileSystem, { root: scratch, files: [{ path: helper, text: `${readFileSync(helper, "utf8")}\n` }], deleted: [] });
-    // Transaction source overlays cannot substitute executable helpers outside the authored fixture.
-    // A changed helper observation must refuse publication, not accept the worker's unchanged bytes.
-    expect(() => createSemanticInventory({ ...fixture.options, fileSystem: changed })).toThrow("inputs changed during extraction");
-    using reused = createSemanticInventory({
-      ...fixture.options,
-      buildPartition: (): never => {
-        throw new Error("unchanged projection rebuilt");
-      },
-    });
+    const workers: string[] = [];
+    using reused = nativeInventoryFixture(fixture.options, { workers });
+    expect(workers).toEqual([]);
     expect(reused.generation).toBe(inventory.generation);
   },
   scaledBudget(30_000),
@@ -212,7 +194,7 @@ function consume(row:typeof table.$inferSelect){const {value:blob}=row;helper(0,
         { program: id, query: { ...helperPlan, node: anchor(helper) } },
       ]),
     };
-    using inventory = createSemanticInventory(options);
+    using inventory = nativeInventoryFixture(options);
     for (const world of ["node", "browser"]) {
       const program = `tsconfig.${world}.json`;
       expect(inventory.invocationEvidence(stored, program, valuePlan).storedValues.get(stored)).toMatchObject({
@@ -256,33 +238,25 @@ function consume(row:typeof table.$inferSelect){const {value:blob}=row;helper(0,
       "drizzle-row-type.ts",
       "drizzle-column-reads.ts",
     ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
-    const authored = inventoryAuthoredFiles(scratch);
     for (const partition of partitions) {
-      const inputs = [...readInventoryInputs(db, partition.id)];
+      const runtime = readInventoryRuntime(db, partition.id, "worker");
+      expect(runtime.sources.some((source) => source.path.endsWith("/schema-object-contract.ts"))).toBe(false);
       for (const path of dependencies) {
         expect(
-          inputs.some((input) => input.kind === "file" && input.path === path),
+          runtime.sources.some((source) => source.path === path && source.version === inputVersion(path, "file")),
           path,
         ).toBe(true);
-        const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-          root: scratch,
-          files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
-          deleted: [],
-        });
-        expect(inputsCurrent(inputs, { authored, fileSystem }), path).toBe(false);
       }
     }
     const extra = { program: "tsconfig.node.json", query: { ...helperPlan, node: anchor(stored) } };
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        invocationQueries: [...options.invocationQueries, extra],
-        buildPartition: (request) => {
-          runInventoryPartitionWorker(request);
-          using staging = openInventoryDatabase(request.destination);
-          staging.prepare("UPDATE inventory_invocation_atom SET key='\"foreign\"' WHERE key='\"stored-value\"'").run();
+      nativeInventoryFixture(
+        {
+          ...options,
+          invocationQueries: [...options.invocationQueries, extra],
         },
-      }),
+        { fault: "invocation-stored-value" },
+      ),
     ).toThrow("facet coverage is incomplete");
     expect(latestInventoryGeneration(db)).toBe(inventory.generation);
     expect(inventory.invocationEvidence(stored, "tsconfig.node.json", valuePlan).storedValues.get(stored)).toMatchObject({ kind: "call" });
@@ -314,7 +288,7 @@ test(
       families: ["invocation-evidence"] as const,
       invocationQueries: (fixture.options.programs ?? []).map(({ id }) => ({ program: id, query: { ...plan, node: anchor(fixture.source) } })),
     };
-    using inventory = createSemanticInventory(options);
+    using inventory = nativeInventoryFixture(options);
     const actual = { ...nodeTypeSelector(initial.getExpression()), steps: [{ kind: "property" as const, name: "_output", at: initial.getExpression() }] };
     const target = typeArgumentSelector(nodeTypeSelector(initial.getTypeNodeOrThrow()));
     for (const world of ["node", "browser"]) {
@@ -355,37 +329,29 @@ test(
       "type-dependence.ts",
       "symbol-identity.ts",
     ];
-    const authored = inventoryAuthoredFiles(scratch);
     for (const partition of partitions) {
-      const inputs = [...readInventoryInputs(db, partition.id)];
+      const runtime = readInventoryRuntime(db, partition.id, "worker");
+      expect(runtime.sources.some((source) => source.path.endsWith("/schema-object-contract.ts"))).toBe(false);
       for (const name of helpers) {
         const path = fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url));
         expect(
-          inputs.some((input) => input.kind === "file" && input.path === path),
+          runtime.sources.some((source) => source.path === path && source.version === inputVersion(path, "file")),
           name,
         ).toBe(true);
-        const changed = inventoryFileSystem(fixture.source.getProject().getFileSystem(), {
-          root: scratch,
-          files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
-          deleted: [],
-        });
-        expect(inputsCurrent(inputs, { authored, fileSystem: changed }), name).toBe(false);
       }
     }
-    const extra:InventoryInvocationPlan = {
+    const extra: InventoryInvocationPlan = {
       ...plan,
       typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [anchor(declaration), anchor(initial)] },
     };
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        invocationQueries: [...options.invocationQueries, { program: "tsconfig.node.json", query: { ...extra, node: anchor(fixture.source) } }],
-        buildPartition: (request) => {
-          runInventoryPartitionWorker(request);
-          using staging = openInventoryDatabase(request.destination);
-          staging.prepare("UPDATE inventory_invocation_atom SET key='\"missing\"' WHERE key='\"types\"'").run();
+      nativeInventoryFixture(
+        {
+          ...options,
+          invocationQueries: [...options.invocationQueries, { program: "tsconfig.node.json", query: { ...extra, node: anchor(fixture.source) } }],
         },
-      }),
+        { fault: "invocation-types" },
+      ),
     ).toThrow();
     expect(latestInventoryGeneration(db)).toBe(inventory.generation);
     expect(stored.invocationEvidence(fixture.source, "tsconfig.node.json", plan).typeObservations).toBeDefined();
@@ -395,16 +361,13 @@ test(
       ...plan,
       typeObservations: { profile: TYPE_OBSERVATION_PROFILE, sources: [anchor(fixture.source)], nodes: [anchor(current)] },
     };
-    const overlay = inventoryFileSystem(fixture.source.getProject().getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, SOURCE), text: fixture.source.getFullText() }],
-      deleted: [],
-    });
-    using changed = createSemanticInventory({
-      ...options,
-      fileSystem: overlay,
-      invocationQueries: options.programs.map(({ id }) => ({ program: id, query: { ...overlayPlan, node: anchor(fixture.source) } })),
-    });
+    using changed = nativeInventoryFixture(
+      {
+        ...options,
+        invocationQueries: options.programs.map(({ id }) => ({ program: id, query: { ...overlayPlan, node: anchor(fixture.source) } })),
+      },
+      { projection: { root: scratch, files: [{ path: join(scratch, SOURCE), text: fixture.source.getFullText() }], deleted: [] } },
+    );
     const facts = changed.invocationEvidence(fixture.source, "tsconfig.node.json", overlayPlan).typeObservations;
     if (facts === undefined) {
       throw new Error("current overlay raw cohort missing");

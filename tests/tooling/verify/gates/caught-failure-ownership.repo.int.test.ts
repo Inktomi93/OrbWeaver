@@ -22,7 +22,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { describe } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import { CAUGHT_FAILURE_ARMS } from "../../../../tooling/src/verify/contract/caught-failure.ts";
 import { gate as caughtFailureOwnership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import type { CaughtFailureJudgment, CaughtFailurePopulation, CaughtFailureVerdict } from "../../../../tooling/src/verify/index.ts";
@@ -35,6 +35,16 @@ import {
   runPolicyPass,
 } from "../../../../tooling/src/verify/index.ts";
 import { nativeTypeFactOptions } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const GATE = "caught-failure-ownership";
 /** The census is worthless if the detector stopped reading the tree — a real run admits thousands of files,

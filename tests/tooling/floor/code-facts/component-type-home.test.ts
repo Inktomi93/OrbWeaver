@@ -1,5 +1,7 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { captureComponentTypeHomeView, componentTypeHome, registeredComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home";
 import type { ComponentTypeHomeResult, ComponentTypeHomeView } from "@orb/tooling/floor/code-facts/component-type-home-contract";
@@ -11,12 +13,11 @@ import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
-import { bindShapeInventory, collectShapeQueries } from "../../../../tooling/src/floor/code-facts/shape-inventory-scope.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { canonicalCompilerPath, createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { SemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace-contract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
@@ -32,7 +33,7 @@ interface ComponentHomeFixture {
   readonly read: (name: string) => ComponentTypeHomeResult;
 }
 
-function fixture(root: string, repoRoot: string): ComponentHomeFixture {
+function writeFixture(root: string, repoRoot: string): string {
   const write = (relativePath: string, text: string): void => {
     const target = join(root, relativePath);
     mkdirSync(dirname(target), { recursive: true });
@@ -242,6 +243,11 @@ export type Custom = Ignore<Cut>;
     );
   }
   execFixtureGit(root, ["init", "-q"]);
+  return path;
+}
+
+function fixture(root: string, repoRoot: string): ComponentHomeFixture {
+  const path = writeFixture(root, repoRoot);
   const workspace = createSemanticWorkspace({ root });
   const owner = workspace.program("packages/client/tsconfig.json");
   const sourceFile = owner?.sourceFile(path);
@@ -924,35 +930,16 @@ ${body("Forwarded", "ForwardedOptions", "options.fields", "out").replace("new Mi
 test(
   "component lower-data preserves overlap and derivation through run-owned native pair facts",
   ({ scratch, repoRoot }) => {
-    const { sourceFile, read, view } = fixture(scratch, repoRoot);
-    const lower = sourceFile
-      .getImportDeclarations()
-      .find((node) => node.getModuleSpecifierValue().endsWith("/wire.ts"))
-      ?.getModuleSpecifierSourceFile();
-    if (lower === undefined) {
-      throw new Error("missing lower owner");
-    }
-    const sources = [sourceFile, lower];
-    using inventory = createSemanticInventory({
-      root: scratch,
-      shapePlan: {
-        sources,
-        owners: new Map(sources.map((source) => [source, view.program.descriptor])),
-        prepare: (catalog) => {
-          using _scope = bindShapeInventory(sources, catalog);
-          return collectShapeQueries(catalog, () => {
-            read("CopyProps");
-            read("Derived");
-          });
-        },
-      },
+    writeFixture(scratch, repoRoot);
+    const entry = fileURLToPath(new URL("../compiler/native-component-shape-case.ts", import.meta.url));
+    const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+    const result = join(scratch, "component-shape-result.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, scratch, result]);
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(result, "utf8"))).toMatchObject({
+      copy: { kind: "unqualified", lowerData: { kind: "unqualified", comparisons: [{ shared: 4, agreeing: 4, exact: true }] } },
+      derived: { kind: "owned", lowerData: { kind: "derived" } },
     });
-    using _scope = bindShapeInventory(sources, inventory);
-    expect(read("CopyProps")).toMatchObject({
-      kind: "unqualified",
-      lowerData: { kind: "unqualified", comparisons: [{ shared: 4, agreeing: 4, exact: true }] },
-    });
-    expect(read("Derived")).toMatchObject({ kind: "owned", lowerData: { kind: "derived" } });
   },
   scaledBudget(60_000),
 );

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { nativeOwnerReadFixture as fixture, SCHEMA } from "@orb/testkit/node/native-owner-read-fixture.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, TypeChecker } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { SchemaFact } from "../../../../tooling/src/floor/code-facts/schema-model-contract.ts";
 import type { SchemaProjectedModel } from "../../../../tooling/src/floor/code-facts/schema-projection-contract.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
@@ -12,6 +12,16 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { foreignKeyEdges } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 test(
   "native full-schema owner delivery retains composite FK direction, satellite refusal and exact waiver identity without ordinary schema semantics",

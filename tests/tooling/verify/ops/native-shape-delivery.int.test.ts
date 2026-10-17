@@ -1,15 +1,16 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { z } from "zod";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { gate } from "../../../../tooling/src/verify/gates/contract-structural-copy.ts";
 import { gate as testHandShape } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 test(
   "copy delivery refuses opposing co-located worlds instead of selecting the syntax or primary checker",
@@ -38,26 +39,24 @@ test(
     );
     write(
       "tooling/src/verify/gates/contract-structural-copy.ts",
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/gates/contract-structural-copy.ts")).href)};`,
+      `export {gate} from ${JSON.stringify(new URL("../../../../tooling/src/verify/gates/contract-structural-copy.ts", import.meta.url).href)};`,
     );
     write(
       "tooling/src/verify/gates/contract-derives-not-respells.ts",
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/gates/contract-derives-not-respells.ts")).href)};`,
+      `export {gate} from ${JSON.stringify(new URL("../../../../tooling/src/verify/gates/contract-derives-not-respells.ts", import.meta.url).href)};`,
     );
     execFixtureGit(scratch, ["init", "-q"]);
-    expect(await runStructure(scratch, ["--check=contract-structural-copy"])).toBe(2);
-    const context = projectCtx(scratch);
-    const result = runPolicyPass({
-      root: scratch,
-      project: context.project,
-      ...nativeTypeFactOptions(context),
-      policies: [gate],
-      knownPolicies: [gate],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
+    expect(await nativeVerifyFixture(scratch, "structure", ["--check=contract-structural-copy"], { forbidSyntax: true })).toBe(2);
+    const entry = fileURLToPath(new URL("../../floor/compiler/native-shape-cases.ts", import.meta.url));
+    const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+    const output = join(scratch, ".cache/native-shape-result.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "policy-ambiguous", scratch, output]);
+    expect(completed.status, completed.stderr).toBe(0);
+    const result = z
+      .object({ toolErrors: z.array(z.object({ message: z.string() })), withheld: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(output, "utf8")));
     expect(result.toolErrors.some(({ message }) => message.includes("native compiler programs disagree"))).toBe(true);
-    expect(result.authority.withheldPolicyIds).toContain(gate.id);
+    expect(result.withheld).toContain(gate.id);
   },
   scaledBudget(60_000),
 );

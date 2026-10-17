@@ -7,6 +7,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { deriveTypeConfigFiles, executePolicyPlan, planPolicyArgv, policySourceCandidates, projectCtx } from "@orb/tooling/verify";
 import type { Project, SourceFile } from "ts-morph";
 import { Project as MorphProject, SyntaxKind, ts } from "ts-morph";
+import { beforeEach, vi } from "vitest";
 import { observeCallReturns } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
 import { readCallableInvocation } from "../../../../tooling/src/floor/code-facts/reference-fact-invocation.ts";
 import { descriptorVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
@@ -21,6 +22,16 @@ import { populationIncludes } from "../../../../tooling/src/verify/lib/populatio
 import { nativeTypeFactOptions } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { readPackageExportOrigin } from "../../../../tooling/src/verify/lib/project-home-origin.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("@orb/tooling/floor/code-facts/semantic-inventory");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 interface NativeProgram {
   readonly project: Project;

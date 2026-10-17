@@ -1,27 +1,31 @@
-// The verifier's actual entrypoints must consume sealed native observations, never the syntax carrier's checker.
+// Native child commands execute; in-process verdicts borrow pinned historical SQLite observations.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-
 import { gate as inference } from "../../../../tooling/src/verify/gates/domain-inference-dispatch.ts";
 import { gate as routes } from "../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as sections } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const COHORT = [routes, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
 const COMPANIONS = new Map<GatePolicy, string>([[sections, "section-registry-completeness"]]);
+
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => vi.restoreAllMocks());
 
 test(
   "the retained native consumers preserve their complete declared rejection and acceptance controls",
@@ -71,7 +75,7 @@ function fixture(root: string, repoRoot: string, policy: GatePolicy): readonly s
   for (const id of modules) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -106,7 +110,6 @@ for (const policy of COHORT) {
     `${policy.id} retains actual structure/scoped findings with poisoned ordinary type access`,
     async ({ scratch, repoRoot }) => {
       const files = fixture(scratch, repoRoot, policy);
-      const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
       const context = projectCtx(scratch);
       const run = (): ReturnType<typeof runPolicyPass> =>
         runPolicyPass({
@@ -118,20 +121,23 @@ for (const policy of COHORT) {
           reviewedGrants: [],
           failOnWarnings: false,
         });
+      const syntaxReads: number[] = [];
+      const workers: string[] = [];
+      const observation = { forbidSyntax: true, syntaxReads, workers };
+      expect([
+        await nativeVerifyFixture(scratch, "structure", [`--check=${policy.id}`], observation),
+        await nativeVerifyFixture(scratch, "scoped", ["--scope", files.join(",")], observation),
+      ]).toEqual([1, 1]);
+      expect(syntaxReads).toEqual([0, 0]);
+      expect(workers.length).toBeGreaterThan(0);
       const baseline = run();
       expect(baseline.toolErrors).toEqual([]);
       expect(baseline.authority.effectiveFindings).toHaveLength(policy.mustFlag[0].expect.count);
-      const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       using _poison = poisonSyntax(context.project);
-      try {
-        expect([await runStructure(scratch, [`--check=${policy.id}`]), await runScopedCli(scratch, ["--scope", files.join(",")])]).toEqual([1, 1]);
-        const result = run();
-        expect(result.toolErrors).toEqual([]);
-        expect(result.authority.withheldPolicyIds).toEqual([]);
-        expect(result.authority.effectiveFindings).toEqual(baseline.authority.effectiveFindings);
-      } finally {
-        getContext.mockRestore();
-      }
+      const result = run();
+      expect(result.toolErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual(baseline.authority.effectiveFindings);
     },
     scaledBudget(60_000),
   );

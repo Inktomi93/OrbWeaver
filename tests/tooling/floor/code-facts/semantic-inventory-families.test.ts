@@ -1,17 +1,11 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { canonicalIdBrand, nativeIdBrand } from "@orb/tooling/floor/code-facts/id-brand";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
-import type { InventoryBuildRequest } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { DEFAULT_INVENTORY_FAMILIES, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import {
-  latestInventoryGeneration,
-  openInventoryDatabase,
-  publishInventoryGeneration,
-  readInventoryGeneration,
-} from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { openInventoryDatabase, publishInventoryGeneration, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace, nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -20,8 +14,11 @@ import type { LanguageService } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readInventoryReferences } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
+import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { idBrandProofModule } from "../../../../tooling/src/verify/gates/_proof/id-brand.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 function write(root: string, path: string, text: string): void {
   mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -98,12 +95,8 @@ test("scalar-only extraction requests no reference pass while default inventory 
 
 test("closed family presence refuses absent queries and reuses compatible exited-worker partitions without mixed generations", ({ scratch }) => {
   initialize(scratch);
-  const builds: string[][] = [];
-  const buildPartition = (request: InventoryBuildRequest): void => {
-    builds.push([...inventoryFamilies(request.families)]);
-    runInventoryPartitionWorker(request);
-  };
-  using casts = createSemanticInventory({ root: scratch, families: ["cast-relations"], buildPartition });
+  const builds: string[] = [];
+  using casts = nativeInventoryFixture({ root: scratch, families: ["cast-relations"] }, { workers: builds });
   const file = casts.sourceCorpus().getSourceFile("source.ts");
   if (file === undefined) {
     throw new Error("missing source");
@@ -122,10 +115,12 @@ test("closed family presence refuses absent queries and reuses compatible exited
   expect(workerPid).not.toBe(process.pid);
   expect(() => process.kill(workerPid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
   expect(() => [...readInventoryReferences(database, partition.id)]).toThrow("family unavailable: references");
-  using legacy = createSemanticInventory({ root: scratch, buildPartition });
+  using legacy = nativeInventoryFixture({ root: scratch }, { workers: builds });
   expect(legacy.exports(legacy.sourceCorpus().getSourceFile("source.ts") ?? file).has("value")).toBe(true);
-  using reused = createSemanticInventory({ root: scratch, families: ["cast-relations"], buildPartition });
-  expect(builds).toEqual([["cast-relations"], [...DEFAULT_INVENTORY_FAMILIES].toSorted()]);
+  using reused = nativeInventoryFixture({ root: scratch, families: ["cast-relations"] }, { workers: builds });
+  expect(builds).toEqual(["tsconfig.json", "tsconfig.json"]);
+  expect(partition.families).toEqual(["cast-relations"]);
+  expect(readInventoryGeneration(database, legacy.generation)[0]?.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
   expect(readInventoryGeneration(database, reused.generation).map(({ id }) => id)).toEqual([partition.id]);
   expect(() => reused.castRelation(node, "foreign-world")).toThrow("partition is unavailable");
   file.replaceWithText("declare const original:string; export const value=original as number;");
@@ -135,38 +130,40 @@ test("closed family presence refuses absent queries and reuses compatible exited
   expect(() => reused.castRelation(changed, "tsconfig.json")).toThrow("disposed");
 });
 
-test("family demands and current-source invalidation remain explicit instead of reusing stale scalar facts", ({ scratch }) => {
+test("family demands and current-source invalidation remain explicit instead of reusing stale scalar facts", { timeout: scaledBudget(60_000) }, ({
+  scratch,
+}) => {
   initialize(scratch);
   expect(() => inventoryFamilies([])).toThrow();
   expect(() => inventoryFamilies(["cast-relations", "cast-relations"])).toThrow();
   expect(() => inventoryFamilies(["missing"])).toThrow();
-  using previous = createSemanticInventory({ root: scratch, families: ["cast-relations"] });
-  write(scratch, "source.ts", "declare const original:string; export const value=original as number;");
-  const during = (request: InventoryBuildRequest): void => {
-    runInventoryPartitionWorker(request);
-    write(scratch, "source.ts", "export const changed=1;");
-  };
-  expect(() => createSemanticInventory({ root: scratch, families: ["cast-relations"], buildPartition: during })).toThrow("inputs changed during extraction");
-  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(database)).toBe(previous.generation);
-  expect(previous.sourceCorpus().getSourceFile("source.ts")?.getFullText()).toContain("number|string");
+  const entry = fileURLToPath(new URL("../compiler/native-family-cases.ts", import.meta.url));
+  const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+  const result = join(scratch, "drift-result.json");
+  const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "scalar-drift", scratch, result]);
+  expect(completed.status, completed.stderr).toBe(0);
+  expect(JSON.parse(readFileSync(result, "utf8"))).toMatchObject({
+    refusal: expect.stringContaining("inputs changed during extraction"),
+    interventions: 1,
+    latestUnchanged: true,
+    pinnedText: expect.stringContaining("number|string"),
+  });
 });
 
 test("an unavailable native primitive survives extraction and indexed storage without becoming false assignability", async ({ scratch }) => {
   initialize(scratch);
-  const assignability = await import("../../../../tooling/src/floor/code-facts/assignability.ts");
+  const assignability = await import("@orb/tooling/floor/code-facts/assignability");
   const primitive = vi.spyOn(assignability, "readAssignabilityChecker").mockReturnValue(undefined);
   try {
-    using inventory = createSemanticInventory({
-      root: scratch,
-      families: ["cast-relations"],
-      buildPartition: (request) => {
-        const partition = extractInventoryPartition(request);
-        expect(partition.casts.map(({ result }) => result)).toEqual([{ kind: "unavailable", reason: "primitive-absent" }]);
-        using staging = openInventoryDatabase(request.destination);
-        publishInventoryGeneration(staging, [partition]);
-      },
-    });
+    const descriptor = readCompilerPrograms(scratch)[0];
+    if (descriptor === undefined) {
+      throw new Error("missing scalar descriptor");
+    }
+    const partition = extractInventoryPartition({ root: scratch, descriptor, families: ["cast-relations"], destination: join(scratch, "unused.sqlite") });
+    expect(partition.casts.map(({ result }) => result)).toEqual([{ kind: "unavailable", reason: "primitive-absent" }]);
+    using staging = openInventoryDatabase(join(scratch, "scalar.sqlite"));
+    const generation = publishInventoryGeneration(staging, [partition]);
+    using inventory = inventoryReader(scratch, generation, readInventoryGeneration(staging, generation), { db: staging, dispose: () => undefined });
     const source = inventory.sourceCorpus().getSourceFile("source.ts");
     if (source === undefined) {
       throw new Error("missing captured source");
@@ -180,7 +177,9 @@ test("an unavailable native primitive survives extraction and indexed storage wi
   }
 });
 
-test("native brand scalar preserves the public checker reader over aliases, unions, plain and counterfeit types", ({ scratch }) => {
+test("native brand scalar preserves the public checker reader over aliases, unions, plain and counterfeit types", { timeout: scaledBudget(60_000) }, ({
+  scratch,
+}) => {
   initialize(scratch);
   write(
     scratch,
@@ -225,7 +224,7 @@ type Generic<T extends string>=Branded<T>;
     expect(after).toEqual(before);
     expect(["Original", "Alias"].map((name) => after.get(name))).toEqual(['"chat"', '"chat"']);
     expect(["Plain", "Counterfeit", "Nullable"].map((name) => after.get(name))).toEqual([null, null, null]);
-    using stored = createSemanticInventory({ root: scratch, families: ["id-brands"] });
+    using stored = nativeInventoryFixture({ root: scratch, families: ["id-brands"] });
     const carrier = stored.sourceCorpus().getSourceFile("source.ts");
     if (carrier === undefined) {
       throw new Error("missing stored brand source");

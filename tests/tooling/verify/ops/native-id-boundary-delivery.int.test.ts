@@ -1,13 +1,12 @@
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import type { Project } from "ts-morph";
 import { Identifier, Node, SyntaxKind } from "ts-morph";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { canonicalIdBrand, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../../../tooling/src/floor/code-facts/id-brand.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
@@ -15,9 +14,18 @@ import { gate as disabled } from "../../../../tooling/src/verify/gates/no-fake-d
 import { gate } from "../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const SERVER = "packages/server/src/native-id-boundary.ts";
 const BROWSER = "packages/client/src/native-id-boundary.ts";
@@ -82,7 +90,10 @@ export const decoy=localKit.castId('');
   const policies = [gate, disabled];
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: { ...common, types: [] }, files: policies.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of policies) {
-    put(`tooling/src/verify/gates/${id}.ts`, `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`);
+    put(
+      `tooling/src/verify/gates/${id}.ts`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
+    );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
@@ -122,12 +133,14 @@ function poisonSyntax(project: Project): Disposable {
   };
 }
 
-test("native ID helper origins preserve namespace, re-export aliases, local decoys and unresolved-door findings", ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot);
-  writeFileSync(join(scratch, "packages/client/src/door.ts"), "export {brandedId,type ChatId} from '../../kit/src/ids/index';");
-  writeFileSync(
-    join(scratch, BROWSER),
-    `import * as ids from '../../kit/src/ids/index';
+test(
+  "native ID helper origins preserve namespace, re-export aliases, local decoys and unresolved-door findings",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    writeFileSync(join(scratch, "packages/client/src/door.ts"), "export {brandedId,type ChatId} from '../../kit/src/ids/index';");
+    writeFileSync(
+      join(scratch, BROWSER),
+      `import * as ids from '../../kit/src/ids/index';
 import {brandedId as alias,type ChatId} from './door';
 import {brandedId as missing} from './missing';
 export const namespace=ids['brandedId']<ChatId>();
@@ -136,48 +149,54 @@ export const unreadable=missing<ChatId>();
 function brandedId<T>():T {throw new Error();}
 export const decoy=brandedId<ChatId>();
 `,
-  );
-  const context = projectCtx(scratch);
-  using _poison = poisonSyntax(context.project);
-  const result = runPolicyPass({
-    root: scratch,
-    project: context.project,
-    ...nativeTypeFactOptions(context),
-    policies: [gate],
-    knownPolicies: [gate],
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.withheldPolicyIds).toEqual([]);
-  expect(result.policies[0]?.findings.filter(({ file }) => file === BROWSER)).toMatchObject([
-    { file: BROWSER, line: 4, token: "ids" },
-    { file: BROWSER, line: 5, token: "alias" },
-    { file: BROWSER, line: 6, token: "missing", message: expect.stringContaining("CANNOT be established") },
-  ]);
-});
+    );
+    const context = projectCtx(scratch);
+    using _poison = poisonSyntax(context.project);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      ...nativeTypeFactOptions(context),
+      policies: [gate],
+      knownPolicies: [gate],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.policies[0]?.findings.filter(({ file }) => file === BROWSER)).toMatchObject([
+      { file: BROWSER, line: 4, token: "ids" },
+      { file: BROWSER, line: 5, token: "alias" },
+      { file: BROWSER, line: 6, token: "missing", message: expect.stringContaining("CANNOT be established") },
+    ]);
+  },
+  scaledBudget(60_000),
+);
 
-test("an empty canonical prefix vocabulary retains its blind finding and receipt", ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot);
-  const home = join(scratch, ID_BRAND_HOME);
-  const original = readFileSync(home, "utf8");
-  writeFileSync(home, original.replace("export type ChatId = TypeIdOf<'chat'>;", "export type ChatId = Branded<'chat'>;"));
-  const context = projectCtx(scratch);
-  using _poison = poisonSyntax(context.project);
-  const result = runPolicyPass({
-    root: scratch,
-    project: context.project,
-    ...nativeTypeFactOptions(context),
-    policies: [gate],
-    knownPolicies: [gate],
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(result.policies[0]?.findings).toMatchObject([
-    { file: ID_BRAND_HOME, line: 1, token: "TypeIdOf", message: expect.stringContaining("prefix vocabulary is empty") },
-  ]);
-  expect(result.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "canonical-typeid-prefixes", members: 0 }]);
-});
+test(
+  "an empty canonical prefix vocabulary retains its blind finding and receipt",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const home = join(scratch, ID_BRAND_HOME);
+    const original = readFileSync(home, "utf8");
+    writeFileSync(home, original.replace("export type ChatId = TypeIdOf<'chat'>;", "export type ChatId = Branded<'chat'>;"));
+    const context = projectCtx(scratch);
+    using _poison = poisonSyntax(context.project);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      ...nativeTypeFactOptions(context),
+      policies: [gate],
+      knownPolicies: [gate],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.policies[0]?.findings).toMatchObject([
+      { file: ID_BRAND_HOME, line: 1, token: "TypeIdOf", message: expect.stringContaining("prefix vocabulary is empty") },
+    ]);
+    expect(result.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "canonical-typeid-prefixes", members: 0 }]);
+  },
+  scaledBudget(60_000),
+);
 
 test("missing native ID services withhold the consumer instead of consulting the ordinary checker", ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
@@ -191,6 +210,7 @@ test("missing native ID services withhold the consumer instead of consulting the
 test(
   "all maintained ID seam callers retain native origins, readonly/cast scalar aliases, exact waivers and direct-wrapper limits",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot, true);
     const context = projectCtx(scratch);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
@@ -198,8 +218,8 @@ test(
     const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      expect(await runStructure(scratch, ["--check=no-fake-disabled-id"])).toBe(1);
-      expect(await runScopedCli(scratch, ["--scope", "packages"])).toBe(1);
+      expect(await nativeVerifyFixture(scratch, "structure", ["--check=no-fake-disabled-id"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads })).toBe(1);
+      expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads })).toBe(1);
       const policies = [gate, disabled];
       const result = runPolicyPass({
         root: scratch,
@@ -234,8 +254,10 @@ test(
     } finally {
       useContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
-  scaledBudget(60_000),
+  scaledBudget(60_000 * 4),
 );
 
 test("native ID targets preserve canonical, wrong-prefix and prefixless meanings in their owning Node/browser worlds", ({ scratch, repoRoot }) => {
@@ -267,33 +289,41 @@ test("native ID targets preserve canonical, wrong-prefix and prefixless meanings
   }
 });
 
-test("the existing sealed idBrands door captures exact call type-arguments, not only alias and cast annotations", ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot);
-  const context = projectCtx(scratch);
-  const source = context.project.getSourceFileOrThrow(join(scratch, BROWSER));
-  const target = source
-    .getDescendantsOfKind(SyntaxKind.CallExpression)
-    .find((call) => call.getText().includes("TypeIdOf"))
-    ?.getTypeArguments()[0];
-  if (target === undefined || context.nativeTypeFacts === undefined) {
-    throw new Error("native ID call-argument demand is unavailable");
-  }
-  using facts = context.nativeTypeFacts();
-  facts.request(gate.id, { kind: "id-brands", nodes: [target] });
-  facts.seal(new Set([gate.id]));
-  expect(facts.idBrands(gate.id, [target]).get(target)).toBe('"chat"');
-});
+test(
+  "the existing sealed idBrands door captures exact call type-arguments, not only alias and cast annotations",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const context = projectCtx(scratch);
+    const source = context.project.getSourceFileOrThrow(join(scratch, BROWSER));
+    const target = source
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
+      .find((call) => call.getText().includes("TypeIdOf"))
+      ?.getTypeArguments()[0];
+    if (target === undefined || context.nativeTypeFacts === undefined) {
+      throw new Error("native ID call-argument demand is unavailable");
+    }
+    using facts = context.nativeTypeFacts();
+    facts.request(gate.id, { kind: "id-brands", nodes: [target] });
+    facts.seal(new Set([gate.id]));
+    expect(facts.idBrands(gate.id, [target]).get(target)).toBe('"chat"');
+  },
+  scaledBudget(60_000),
+);
 
 test(
   "typeid boundary actual structure and scoped doors use native facts under ordinary semantic poison",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     const context = projectCtx(scratch);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const exits = [await runStructure(scratch, [`--check=${gate.id}`]), await runScopedCli(scratch, ["--scope", "packages"])];
+      const exits = [
+        await nativeVerifyFixture(scratch, "structure", [`--check=${gate.id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }),
+        await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }),
+      ];
       expect(exits).toEqual([1, 1]);
       const result = runPolicyPass({
         root: scratch,
@@ -314,6 +344,8 @@ test(
     } finally {
       useContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
   scaledBudget(60_000),
 );

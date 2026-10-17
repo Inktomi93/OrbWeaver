@@ -1,9 +1,8 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
 import type { TypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -16,9 +15,18 @@ import { fixtureSymbol } from "../../../../tooling/src/verify/lib/fixture-path-s
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const NODE = "tests/tooling/verify/gates/realm.test.ts";
 const BROWSER = "tests/tooling/verify/gates/realm.dom.test.ts";
@@ -75,11 +83,11 @@ function fixture(root: string, repoRoot: string): void {
   );
   write(
     `tooling/src/verify/gates/${gate.id}.ts`,
-    `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${gate.id}.ts`)).href)};`,
+    `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${gate.id}.ts`, import.meta.url).href)};`,
   );
   write(
     "tooling/src/verify/gates/policy-soundness.ts",
-    `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/gates/policy-soundness.ts")).href)};`,
+    `export {gate} from ${JSON.stringify(new URL("../../../../tooling/src/verify/gates/policy-soundness.ts", import.meta.url).href)};`,
   );
   execFixtureGit(root, ["init", "-q"]);
 }
@@ -113,6 +121,7 @@ function poisonSyntax(project: Project): Disposable {
 test(
   "public structure and scoped fixture provenance use native importing worlds without ordinary semantic reads",
   async ({ scratch, repoRoot }) => {
+    const nativeSyntaxReads: number[] = [];
     fixture(scratch, repoRoot);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
@@ -120,8 +129,11 @@ test(
     using _poison = poisonSyntax(context.project);
     try {
       expect([
-        await runStructure(scratch, [`--check=${gate.id}`]),
-        await runScopedCli(scratch, ["--scope", [NODE, BROWSER, IMPORTED, MUTATED].join(",")]),
+        await nativeVerifyFixture(scratch, "structure", [`--check=${gate.id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }),
+        await nativeVerifyFixture(scratch, "scoped", ["--scope", [NODE, BROWSER, IMPORTED, MUTATED].join(",")], {
+          forbidSyntax: true,
+          syntaxReads: nativeSyntaxReads,
+        }),
       ]).toEqual([1, 1]);
       const result = runPolicyPass({
         root: scratch,
@@ -146,6 +158,8 @@ test(
     } finally {
       getContext.mockRestore();
     }
+
+    expect(nativeSyntaxReads).toEqual([0, 0]);
   },
   scaledBudget(60_000),
 );

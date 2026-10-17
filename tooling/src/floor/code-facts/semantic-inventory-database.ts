@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 13;
+const STORAGE_SCHEMA_VERSION = 14;
+const REFERENCE_SCHEMA_VERSION = 13;
 const SOURCE_INDEX_SCHEMA_VERSION = 12;
 const EXPORT_SCHEMA_VERSION = 11;
 const INVOCATION_SCHEMA_VERSION = 10;
@@ -72,6 +73,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== INVOCATION_SCHEMA_VERSION &&
     version !== EXPORT_SCHEMA_VERSION &&
     version !== SOURCE_INDEX_SCHEMA_VERSION &&
+    version !== REFERENCE_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -85,6 +87,14 @@ function storageSchemaReady(db: DatabaseSync): boolean {
     db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(SOURCE_FILE_INDEX) !== undefined &&
     db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(LIST_VALUE_INDEX) !== undefined
   );
+}
+
+function upgradeRuntimeStorage(db: DatabaseSync, version: number): void {
+  if (version < STORAGE_SCHEMA_VERSION) {
+    for (const table of ["runtimeHeader", "runtimeSource", "runtimeResolution"] as const) {
+      db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`);
+    }
+  }
 }
 
 function initializeStorageSchema(db: DatabaseSync): void {
@@ -124,7 +134,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("DROP TABLE inventory_input;");
       db.exec("ALTER TABLE inventory_input_upgrade RENAME TO inventory_input;");
     }
-    if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+    if (version > 0 && version < REFERENCE_SCHEMA_VERSION) {
       for (const table of [
         "memberOrigin",
         "memberDeclaration",
@@ -157,6 +167,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
       upgradeShapeStorage(db);
     }
     upgradeReferenceStorage(db, version);
+    upgradeRuntimeStorage(db, version);
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
@@ -175,7 +186,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
 }
 
 function upgradeReferenceStorage(db: DatabaseSync, version: number): void {
-  if (version < STORAGE_SCHEMA_VERSION) {
+  if (version < REFERENCE_SCHEMA_VERSION) {
     db.exec(`CREATE TABLE IF NOT EXISTS inventory_reference_query(${inventoryRecordTables.referenceQuery.definition}) STRICT;`);
     db.exec(`CREATE TABLE IF NOT EXISTS inventory_reference_query_node(${inventoryRecordTables.referenceQueryNode.definition}) STRICT;`);
     if (
