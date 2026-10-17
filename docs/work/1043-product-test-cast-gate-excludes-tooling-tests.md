@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-17
 priority: P2
 area: tooling
+lane: main
 plan: test-foundation
 ---
 
@@ -23,4 +24,6 @@ A tooling-test value cast is not a finding and a `tests/support` double cast sti
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The D325 population change, covered marker deletion and real credential builders are integrated after independent security review. Maintained consumers use production-resolved authority; legacy compatibility stays outside the maintained kit. The admin supplier correction preserves the full role-client result contract and existing assertions.
+
+Scoped runtime, lint and DOM controls pass. Ordinary Node compilation retains the exact existing diagnostic population without additions. Root owns remaining allowance reconciliation and coherent integrated qualification; this item stays open.

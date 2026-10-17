@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-17
 priority: P1
+lane: codex/router-declaration-bridge-965
 plan: test-foundation
 ---
 
@@ -12,7 +13,7 @@ plan: test-foundation
 
 Prioritize structural cuts: D320 legacy analysis eligibility, unnecessary typed-gate removal and AppRouter type-bridge closure isolation. Separate compiler baseline cost from additional analysis work, with runtime and checker concurrency explicit.
 
-Keep TS6 analysis and park TS7 benchmarks and adapter work. Focus on existing lookup and deep callable traversal costs. Shared persisted facts serve consumers without private programs.
+Keep TS6 analysis and park TS7 benchmarks and adapter work. Follow the [native occurrence-index design](../plans/native-occurrence-index/design.md) for persisted reference lookup without repeated bulk program searches. Shared facts preserve world-specific bindings, dependency invalidation and existing consumer judgments. Attribute invocation work separately.
 
 ## Why
 
@@ -24,20 +25,16 @@ pnpm check, the structure stage and every pnpm ast verb complete within the host
 
 ## Evidence
 
-The correctly invoked `pnpm ast apisurface --in /src/ --public --json --max 1000000` completes on managed Node 26.10.0. Its timing artifact records exit 0, elapsed 2:37.88 and maximum RSS 15,719,224 KiB, without swaps. The JSON reports complete output, with total and shown equal. This measures one verb; it does not establish every tool's hosted-runner qualification.
+The supported `pnpm ast apisurface --in /src/ --public --json --max 1000000` completes on managed Node 26.10.0 with complete output. Elapsed 2:37.88; maximum RSS 15,719,224 KiB; no swaps. This measures that verb, not hosted qualification of every tool.
 
-Controls preserve one native project per demanded descriptor across collectors.
+Bounded native UI projection completes with worker release: elapsed 1:58.62, maximum RSS 2,501,396 KiB, no swaps. This is not aggregate concurrent memory or a full apisurface measurement.
 
-The sequential native UI export projection completes on managed Node with a released worker per demanded world. Its timing artifact reports exit 0, elapsed 1:58.62 and maximum RSS 2,501,396 KiB without swaps. This measures the bounded UI selector work set, not the full apisurface verb or aggregate concurrent-process memory. It neither diagnoses the earlier wrapper's aborting phase nor establishes a persisted shared store.
+The composite diagnostic reaches API-surface entry and exhausts V8 heap. No complete verdict exists. This locates the custom sequence's abort, not its allocation cause or a shipped-command defect.
 
-The supported composite diagnostic on `a5c7f1e3d1` terminates at API-surface entry with V8 heap exhaustion: exit 134, elapsed 5:42.32, peak 17,438,568 KiB without swaps. Managed Node 26.10.0 retains the unchanged heap setting. Corpus enumeration observes one native Project per descriptor; shared liveness completes with no identity changes or further world demand. No complete inventory verdict exists.
+Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB, without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
 
-This locates the custom sequence's abort, not its allocation cause or a shipped-command failure. Later collectors do not run.
+Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-The corrected frozen replay reaches its fixed deadline in the tests-DOM native world, without an OOM or source-identity diagnostic. Prior worlds finish staging and parent import; remaining worlds and collectors do not run. Generation stays zero. The terminal report records per-process RSS, swap and exact scope: `/tmp/ast-native-full-current-1002/result-summary.md`. Profile the failed world before another complete replay; staged input currency remains unqualified.
+The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
-Reviewed `49d607fd3c` removes repeated path resolution and native import-map construction. Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world replay, collector equivalence, concurrent reuse and hosted measurements remain open.
-
-Portable corpus contracts remove the Node and server closure and preserve exhaustive router conformance. Other worlds remain unverified. Declaration bridges need freshness and closure qualification. D320 retains legacy execution and typechecking. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
-
-Full DOM extraction, publication, readback and release complete. The profiled TS7 prototype is slower and larger than TS6 and still fails reference parity. Further TS7 benchmarks and adapter work are parked; no migration is justified by these results. Existing-engine and hosted qualification remain open. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+Bulk reference extraction calls the patched native reference pass per declaration only when that family is demanded. The pass caches candidates and results. The abandoned owner-policy worker did not demand that family; it supplies no bulk-reference cost attribution. Item 1045 owns occurrence delivery and matched measurement. Preserve native types and attribute invocation cost separately.

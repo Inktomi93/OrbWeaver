@@ -31,7 +31,7 @@ const BLIND = `${MATRIX_CONST} could not be read in the chat domain — this pol
 
 export const gate = defineGate({
   id: "chat-viewer-plane-canon-reads",
-  family: "chat-viewer-plane",
+  family: "chat-viewer-plane-canon-reads",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@server"], under: [CHAT_DOMAIN_UNDER] },

@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/prototype-exposure-census-1002
+lane: codex/inventory-implementation-inputs-1002
 plan: test-foundation
 ---
 
@@ -26,24 +26,14 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Bounded extraction, publication and reuse pass; complete demand stays open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Bounded extraction, publication and reuse pass; complete demand remains open. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`.
 
-Input/lifetime controls pass: `reports/review/authored-input-integrated.md`, `reports/review/1002-native-kit-format6-result.md`. Native collector corrections: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
+Reference storage, guarded bindings and native resource lifetimes pass bounded review. Evidence: `reports/review/native-reference-string-integration.md`, `reports/review/shape-binding-integrated.md` and `reports/review/native-resource-integrated.md`.
+
+The native-generation prototype census passes independent review and is integrated. The original driver completes with a non-prototype refusal at `packages/server/src/domain/chat/service.ts:93`, `ctx.backgroundSignal`. Stop helper-specific repairs. Complete selected-policy qualification remains open after coherent executing-input delivery. Evidence: `reports/review/1002-d323-original-census-result.md`.
+
+Native source admission, wrapper invalidation and captured census reuse preserve the importing world. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`. Sparse-env remains unqualified; no retained demand justifies another execution-analysis expansion. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
-Reference storage and guarded bindings pass review. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
-
-Native resources preserve disposal, refusal and invalidation; opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md`.
-
-Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
-
-Private supplies and helper-byte invalidation pass scoped controls. Quoted-key decoding and prototype-setter refusal pass ordinary qualification. The original full query completes but still refuses the signal origin; its current inner rejection is unobserved. Sparse-env, complete dependency closure and cost remain open. Evidence: `reports/review/1002-post-quoted-original-ordinary.md`.
-
-Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Traced replay confirms census reuse; target and full cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
-
-Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
-
-Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
-
-Native namespaces preserve caller closure, assimilation refusal and premise lifetime. Public call demand requires publication; private supplies remain premise-scoped. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`.
+Executing-input currentness and caller adoption remain in progress. Native child execution and historical verdict borrowers carry different qualification scopes. The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk reference changes after this delivery integrates. Attribute invocation-only cost separately. Complete native demand, dependency closure, concurrency and hosted cost remain open.
