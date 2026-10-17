@@ -1,11 +1,10 @@
 // @subject tooling/src/floor/code-facts/value-carrier.ts
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { observeCallReturns, readCallBindings } from "@orb/tooling/floor/code-facts/call-returns";
-import { beginReferencePass, endReferencePass, inspectInheritedReadEffects } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { CallReturnProgram, InheritedReadPremise } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import { readAuthoredCallableSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import type { ArrowFunction, CallExpression, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, ts } from "ts-morph";
+import { observeCallReturns, readCallBindings } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
+import { readAuthoredCallableSources, readReturnedValue } from "../../../../tooling/src/floor/code-facts/value-carrier.ts";
 
 interface ProjectedFixtureInput {
   readonly prefix?: string;
@@ -246,7 +245,6 @@ for (const scenario of COPY_OPERAND_CONTROLS) {
       expect(program.byCall.has(actualCall.compilerNode)).toBe(true);
       expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
       expect(result.kind, result.kind === "unresolved" ? result.detail : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -295,7 +293,6 @@ for (const scenario of COPY_RETURN_REFUSALS) {
           .getPreEmitDiagnostics()
           .map((diagnostic) => diagnostic.getMessageText()),
       ).toEqual([]);
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -444,7 +441,6 @@ for (const scenario of NESTED_PRESENCE_CONTROLS) {
       expect(consumers).toHaveLength(count);
       expect(new Set(consumers.map((consumer) => consumer.call.compilerNode)).size).toBe(count);
       expect(new Set(consumers.map((consumer) => consumer.call.getArguments()[0]?.compilerNode)).size).toBe(count);
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -480,7 +476,6 @@ for (const cyclic of [false, true]) {
       expect(absent.kind === "resolved" ? absent.value.map((leaf) => ({ present: leaf.present, path: leaf.path })) : []).toEqual(
         cyclic ? [] : [{ present: false, path: ["rpg"] }],
       );
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -528,7 +523,6 @@ for (const immediate of [false, true]) {
         expect(settlement?.kind).toBe("resolved");
         expect(afterWitness?.kind === "resolved" ? afterWitness.value : []).toEqual([owner]);
         expect(afterEpoch?.refining).toBe(false);
-        expect(program.inheritedReadTrialActive?.()).toBe(false);
         expect(
           actualCall
             .getExpression()
@@ -593,7 +587,6 @@ for (const scenario of ANNOTATED_ORIGIN_REFUSALS) {
       expect(program.byCall.has(actualCall.compilerNode)).toBe(true);
       const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
       expect(result.kind, scenario.name).toBe("unresolved");
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -641,7 +634,6 @@ for (const invalidation of ["call", "references", "foreign", "stale", "demander"
       expect(result.kind).toBe("unresolved");
       expect(program.byCall.has(nativeCall)).toBe(invalidation !== "call");
       expect(program.byCall).toBe(before);
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
     } finally {
       endReferencePass();
     }
@@ -680,9 +672,9 @@ test("an annotated actual callable origin respects denied native admission befor
   }
 });
 
-test("an annotated actual callable origin settles only after real private revocation", () => {
+test("an annotated actual callable origin publishes its real native target without unrelated key closure", () => {
   const { source, factory, contract, selected, actualCall, owner, expected } = nativeDeferredFixture(false, true);
-  source.addStatements('const key="safe";const registry={safe:{}};registry[key];');
+  source.addStatements("declare const key:string;const registry={safe:{}};registry[key];");
   beginReferencePass();
   try {
     const observed = observeCallReturns(
@@ -691,56 +683,15 @@ test("an annotated actual callable origin settles only after real private revoca
       { suppliedCallableTargets: true },
     );
     const program = observed.programs[0];
-    const trial = program?.withInheritedReadTrial;
-    if (program === undefined || trial === undefined) {
-      throw new Error("the actual annotated private trial owner is missing");
+    if (program === undefined) {
+      throw new Error("the actual annotated capture owner is missing");
     }
-    const nativeCall = actualCall.compilerNode;
-    expect(program.byCall.get(nativeCall)?.targets.kind).toBe("unresolved");
-    const premises: InheritedReadPremise[] = [];
-    const unchanged: boolean[] = [];
-    const revoked: boolean[] = [];
-    const observeTrial: NonNullable<CallReturnProgram["withInheritedReadTrial"]> = (node, captured, prove) =>
-      trial(node, captured, () => {
-        try {
-          return prove();
-        } finally {
-          const premise = premises.at(-1);
-          if (premise !== undefined && program.byCall.get(nativeCall)?.targets.kind !== "resolved") {
-            revoked.push(premise.require(selected, program).kind === "unresolved");
-          }
-        }
-      });
-    Object.defineProperty(program, "withInheritedReadTrial", { configurable: true, value: observeTrial });
-    const effects = inspectInheritedReadEffects(selected, {
-      program,
-      values: (node, path, bindings, premise) => {
-        if (premise !== undefined) {
-          premises.push(premise);
-          const before = program.byCall;
-          try {
-            const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
-            if (result.kind === "unresolved") {
-              return result;
-            }
-          } finally {
-            if (program.byCall.get(nativeCall)?.targets.kind !== "resolved") {
-              unchanged.push(program.byCall === before && program.inheritedReadTrialActive?.() === true);
-            }
-          }
-        }
-        return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
-      },
-    });
-    expect(effects.kind, effects.kind === "unresolved" ? effects.detail : "resolved").toBe("resolved");
-    expect(unchanged.length > 0 && unchanged.every(Boolean)).toBe(true);
-    expect(revoked.length > 0 && revoked.every(Boolean)).toBe(true);
-    expect(premises[0]?.require(selected, program)).toMatchObject({ kind: "unresolved", detail: "the inherited-effect premise has expired" });
-    expect(program.inheritedReadTrialActive?.()).toBe(false);
-    const targets = program.byCall.get(nativeCall)?.targets;
+    const first = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+    expect(first.kind === "resolved" ? first.value.map((leaf) => leaf.value) : first.detail).toEqual([expected]);
+    const actual = program.byCall.get(actualCall.compilerNode);
+    const targets = actual?.invocationTargets ?? actual?.targets;
     expect(targets?.kind === "resolved" ? targets.value : []).toEqual([owner]);
-    const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
-    expect(result.kind === "resolved" ? result.value.map((leaf) => leaf.value) : result.detail).toEqual([expected]);
+    expect(program.callers.get(owner.compilerNode)?.some((caller) => caller.call === actualCall)).toBe(true);
   } finally {
     endReferencePass();
   }

@@ -1,11 +1,4 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import {
-  beginReferencePass,
-  endReferencePass,
-  inspectInheritedReadEffects,
-  readModuleAliasBinding,
-  resolveModuleMemberOrigin,
-} from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ArrowFunction, CallExpression, FunctionDeclaration, Node as MorphNode, ParameterDeclaration, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, ts } from "ts-morph";
 import {
@@ -14,13 +7,13 @@ import {
   readObservedCallableConsumers,
   readSuppliedParameter,
 } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
-import type {
-  CallReturnObservations,
-  CallReturnProgram,
-  InheritedReadPremise,
-  ReturnedValueContext,
-} from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
-import { readReturnedValue } from "../../../../tooling/src/floor/code-facts/value-carrier.ts";
+import {
+  beginReferencePass,
+  endReferencePass,
+  readModuleAliasBinding,
+  resolveModuleMemberOrigin,
+} from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
+import type { CallReturnObservations, CallReturnProgram, ReturnedValueContext } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
 
 const DYNAMIC_ORIGIN_CASES = ["direct", "local", "destructured", "computed", "transitive"] as const;
 const DYNAMIC_FILES = {
@@ -166,7 +159,7 @@ const CAPTURED_NAMESPACE_CASES = [
   { name: "both conditional handler branches throw", handler: "error=>{if(choose){throw error;}else{throw error;}}", expected: true },
   { name: "an immutable arrow export", arrow: true, expected: true },
   { name: "an unsupported factory-result export", factory: true, expected: false },
-  { name: "an effect roster cannot borrow its unresolved export caller", circular: true, expected: false },
+  { name: "an unrelated default lookup does not create an export-caller bootstrap cycle", circular: true, expected: true },
   { name: "the production-shaped conditional then throw", handler: "error=>{if(error instanceof Error){void error.message;}throw error;}", expected: true },
   { name: "a renamed fulfilled export", binding: "build", expected: true },
   { name: "a const fulfilled alias", after: "const alias=pick;", callee: "alias", expected: true },
@@ -290,24 +283,6 @@ function capturedNamespaceObservations(project: Project, input: CapturedNamespac
   return observeCallReturns(roots, input.references === false ? undefined : files.flatMap((file) => file.getDescendants()), { suppliedCallableTargets: true });
 }
 
-function namespaceTrialContinuation(
-  program: CallReturnProgram,
-  bindings: ReadonlyMap<MorphNode, MorphNode>,
-  premise: InheritedReadPremise,
-): ReturnedValueContext {
-  return {
-    program,
-    bindings,
-    active: new Set(),
-    terminals: new Set(),
-    nativeIterations: new Map(),
-    nativeValueTransfers: false,
-    explicitAbsentReturns: false,
-    callableValues: true,
-    inheritedReadPremise: premise,
-  };
-}
-
 for (const scenario of CAPTURED_NAMESPACE_CASES) {
   test(`captured native catch namespace: ${scenario.name}`, () => {
     const input: CapturedNamespaceCase = scenario;
@@ -328,8 +303,7 @@ for (const scenario of CAPTURED_NAMESPACE_CASES) {
       ).toBe("unresolved");
       const settled = program.suppliedCallableUses?.(call);
       const targets = readCallTargets(call, undefined, observed);
-      expect((input.factory !== true && input.circular !== true) || targets.kind === "unresolved").toBe(true);
-      expect(input.circular !== true || program.callers.get(owner.compilerNode) === undefined).toBe(true);
+      expect(input.factory !== true || targets.kind === "unresolved").toBe(true);
       const consumers = readObservedCallableConsumers(owner, program);
       const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
       expect(
@@ -346,6 +320,8 @@ for (const scenario of CAPTURED_NAMESPACE_CASES) {
       expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : []).toEqual(
         scenario.expected ? [call.compilerNode] : [],
       );
+      const published = program.callers.get(owner.compilerNode) ?? [];
+      expect(scenario.expected ? published.map((consumer) => consumer.call.compilerNode === call.compilerNode) : [true]).toEqual([true]);
     } finally {
       endReferencePass();
     }
@@ -470,262 +446,52 @@ for (const scenario of [
   });
 }
 
-test("captured namespace call demand revokes its private proof before ordinary publication", () => {
-  const { project, source, call, caught, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
-  const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
-  const reference = element.getPropertyNameNodeOrThrow();
-  const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
-  beginReferencePass();
-  try {
-    const observed = observeCallReturns(
-      [call],
-      project.getSourceFiles().flatMap((file) => file.getDescendants()),
-      { suppliedCallableTargets: true },
-    );
-    const program = observed.programs[0];
-    const trial = program?.withInheritedReadTrial;
-    if (program === undefined || trial === undefined) {
-      throw new Error("the actual inherited-trial owner is missing");
-    }
-    expect(program.byCall.has(caught.compilerNode)).toBe(false);
-    const contexts: ReturnedValueContext[] = [];
-    const unchangedDuringDemand: boolean[] = [];
-    const revokedBeforePublication: boolean[] = [];
-    const publishedRetry: boolean[] = [];
-    const observedTrial: NonNullable<CallReturnProgram["withInheritedReadTrial"]> = (node, captured, prove) =>
-      trial(node, captured, () => {
-        try {
-          return prove();
-        } finally {
-          const context = contexts.at(-1);
-          if (context !== undefined && !program.byCall.has(caught.compilerNode)) {
-            revokedBeforePublication.push(context.inheritedReadPremise?.require(reference, program).kind === "unresolved");
-          }
-        }
-      });
-    Object.defineProperty(program, "withInheritedReadTrial", { configurable: true, value: observedTrial });
-    const effects = inspectInheritedReadEffects(binding, {
-      program,
-      values: (node, path, bindings, premise) => {
-        if (premise !== undefined) {
-          const context = namespaceTrialContinuation(program, bindings, premise);
-          contexts.push(context);
-          const present = program.byCall.has(caught.compilerNode);
-          const before = program.callableProofEpoch?.();
-          try {
-            const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
-            publishedRetry.push(present && alias !== undefined && !("kind" in alias));
-          } finally {
-            if (!present) {
-              const after = program.callableProofEpoch?.();
-              unchangedDuringDemand.push(
-                !program.byCall.has(caught.compilerNode) &&
-                  before?.callCount === after?.callCount &&
-                  before?.referenceRevision === after?.referenceRevision &&
-                  before?.sourceCount === after?.sourceCount &&
-                  program.inheritedReadTrialActive?.() === true,
-              );
-            }
-          }
-        }
-        return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
-      },
-    });
-    expect(effects.kind, effects.kind === "unresolved" ? effects.detail : "resolved").toBe("resolved");
-    expect(unchangedDuringDemand).toEqual([true]);
-    expect(revokedBeforePublication).toEqual([true]);
-    expect(publishedRetry.length > 0 && publishedRetry.every(Boolean)).toBe(true);
-    expect(program.byCall.has(caught.compilerNode)).toBe(true);
-    expect(contexts[0]?.inheritedReadPremise).not.toBe(contexts.at(-1)?.inheritedReadPremise);
-    expect(contexts[0]?.inheritedReadPremise?.require(reference, program)).toMatchObject({
-      kind: "unresolved",
-      detail: "the inherited-effect premise has expired",
-    });
-    expect(program.inheritedReadTrialActive?.()).toBe(false);
-    expect(program.suppliedCallableUses?.(call).kind).toBe("resolved");
-    const consumers = readObservedCallableConsumers(owner, program);
-    expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : consumers.detail).toEqual([call.compilerNode]);
-  } finally {
-    endReferencePass();
-  }
-});
-
-for (const invalidation of ["expired premise", "foreign live premise", "changed source"] as const) {
-  test(`captured namespace call demand cannot publish with ${invalidation}`, () => {
-    const { project, source, call, caught, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
+for (const invalidation of ["foreign continuation", "changed source"] as const) {
+  test("captured namespace demand refuses invalid ordinary input before publication: " + invalidation, () => {
+    const { project, source, call, caught, owner } = capturedNamespaceFixture();
     const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
     const reference = element.getPropertyNameNodeOrThrow();
     const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
     const nativeCaught = caught.compilerNode;
     beginReferencePass();
     try {
-      const references = project.getSourceFiles().flatMap((file) => file.getDescendants());
-      const observed = observeCallReturns([call], references, { suppliedCallableTargets: true });
+      const files = project.getSourceFiles();
+      const observed = observeCallReturns(
+        [call],
+        files.flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
       const program = observed.programs[0];
-      const other = invalidation === "foreign live premise" ? observeCallReturns([call], references, { suppliedCallableTargets: true }) : observed;
-      const trialOwner = other.programs[0];
-      if (program === undefined || trialOwner === undefined) {
-        throw new Error("the actual native capture owners are missing");
+      const other =
+        invalidation === "foreign continuation"
+          ? observeCallReturns(
+              [call],
+              files.flatMap((file) => file.getDescendants()),
+              { suppliedCallableTargets: true },
+            ).programs[0]
+          : program;
+      if (program === undefined || other === undefined) {
+        throw new Error("the actual ordinary capture owners are missing");
       }
-      let context: ReturnedValueContext | undefined;
-      const foreignRefusals: boolean[] = [];
-      const effects = inspectInheritedReadEffects(binding, {
-        program: trialOwner,
-        values: (node, path, bindings, premise) => {
-          if (premise !== undefined) {
-            context = namespaceTrialContinuation(program, bindings, premise);
-            if (invalidation === "foreign live premise") {
-              const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
-              foreignRefusals.push(alias !== undefined && "kind" in alias && !program.byCall.has(nativeCaught));
-            }
-          }
-          return readReturnedValue(node, path, other, { terminals: new Set(), bindings });
-        },
-      });
-      expect(effects.kind).toBe("resolved");
-      expect(context).toBeDefined();
+      const context: ReturnedValueContext = {
+        program: other,
+        bindings: new Map(),
+        active: new Set(),
+        terminals: new Set(),
+        nativeIterations: new Map(),
+        nativeValueTransfers: false,
+        explicitAbsentReturns: false,
+        callableValues: true,
+      };
       expect(program.byCall.has(nativeCaught)).toBe(false);
-      const before = program.callableProofEpoch?.();
+      const before = program.callableProofEpoch?.().callCount;
       if (invalidation === "changed source") {
         source.replaceWithText("export const changed=1;");
       }
       const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
       expect(alias !== undefined && "kind" in alias).toBe(true);
       expect(program.byCall.has(nativeCaught)).toBe(false);
-      expect(program.callableProofEpoch?.().callCount).toBe(before?.callCount);
-      expect(invalidation !== "foreign live premise" || (foreignRefusals.length > 0 && foreignRefusals.every(Boolean))).toBe(true);
-    } finally {
-      endReferencePass();
-    }
-  });
-}
-
-for (const invalidation of ["expired premise", "changed source", "foreign continuation"] as const) {
-  test(`captured native namespace alias retains the real private lifetime: ${invalidation}`, () => {
-    const { project, source, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
-    const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
-    const reference = element.getPropertyNameNodeOrThrow();
-    const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
-    beginReferencePass();
-    try {
-      const observed = capturedNamespaceObservations(project);
-      const program = observed.programs[0];
-      if (program === undefined || program.nativeNamespaceAlias === undefined) {
-        throw new Error("the captured namespace alias capability is missing");
-      }
-      let continuation: ReturnedValueContext | undefined;
-      const during: boolean[] = [];
-      const witnesses: string[] = [];
-      const effects = inspectInheritedReadEffects(binding, {
-        program,
-        values: (node, path, bindings, premise) => {
-          if (premise !== undefined) {
-            const context: ReturnedValueContext = {
-              program,
-              bindings,
-              active: new Set(),
-              terminals: new Set(),
-              nativeIterations: new Map(),
-              nativeValueTransfers: false,
-              explicitAbsentReturns: false,
-              callableValues: true,
-              inheritedReadPremise: premise,
-            };
-            continuation = context;
-            const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
-            during.push(alias !== undefined && !("kind" in alias) && alias.compilerNode === binding.compilerNode);
-            witnesses.push(namespaceAliasWitness(alias));
-          }
-          return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
-        },
-      });
-      expect(effects.kind, effects.kind === "unresolved" ? effects.detail : invalidation).toBe("resolved");
-      expect(during.length > 0 && during.every(Boolean), witnesses.join(" | ")).toBe(true);
-      if (continuation === undefined) {
-        throw new Error("the actual inherited-effect owner supplied no private premise");
-      }
-      if (invalidation === "changed source") {
-        source.replaceWithText("export const changed=1;");
-      }
-      let context = continuation;
-      if (invalidation === "foreign continuation") {
-        const other = capturedNamespaceObservations(project).programs[0];
-        if (other === undefined) {
-          throw new Error("the actual foreign capture owner is missing");
-        }
-        context = { ...continuation, program: other };
-      }
-      const replay = program.nativeNamespaceAlias(reference, binding, owner, { program, context });
-      expect(replay !== undefined && "kind" in replay).toBe(true);
-      const reasons = { "expired premise": "expired", "changed source": "forgotten", "foreign continuation": "another capture owner" };
-      expect(replay !== undefined && "kind" in replay ? replay.detail : "resolved").toContain(reasons[invalidation]);
-      expect(program.inheritedReadTrialActive?.()).toBe(false);
-    } finally {
-      endReferencePass();
-    }
-  });
-}
-
-test("captured native namespace alias cannot borrow an active trial without its real continuation", () => {
-  const { project, source, owner } = capturedNamespaceFixture();
-  const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
-  const reference = element.getPropertyNameNodeOrThrow();
-  const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
-  beginReferencePass();
-  try {
-    const files = project.getSourceFiles();
-    const observed = observeCallReturns(
-      files.flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)),
-      files.flatMap((file) => file.getDescendants()),
-      { suppliedCallableTargets: true },
-    );
-    const program = observed.programs[0];
-    if (program?.withInheritedReadTrial === undefined) {
-      throw new Error("the actual private trial owner is missing");
-    }
-    let refused = false;
-    const result = program.withInheritedReadTrial(reference, program, () => {
-      const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program });
-      refused = alias !== undefined && "kind" in alias;
-      return { kind: "resolved", value: true, trace: { declarations: [], origin: reference } };
-    });
-    expect(result.kind).toBe("resolved");
-    expect(refused).toBe(true);
-  } finally {
-    endReferencePass();
-  }
-});
-
-for (const capability of ["nativeNamespaceValue", "nativeNamespaceAlias"] as const) {
-  test(`captured namespace private trials retain capability identity: ${capability}`, () => {
-    const { project, source } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
-    beginReferencePass();
-    try {
-      const observed = capturedNamespaceObservations(project);
-      const program = observed.programs[0];
-      if (program === undefined) {
-        throw new Error("the native capture is missing");
-      }
-      const original = Object.getOwnPropertyDescriptor(program, capability);
-      let replaced = false;
-      try {
-        const result = inspectInheritedReadEffects(source, {
-          program,
-          values: (node, path, bindings) => {
-            if (!replaced) {
-              replaced = true;
-              Object.defineProperty(program, capability, { configurable: true, value: () => undefined });
-            }
-            return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
-          },
-        });
-        expect(replaced).toBe(true);
-        expect(result.kind === "unresolved" ? result.detail : "resolved").toBe("capture inputs changed during an inherited-effect trial");
-      } finally {
-        if (original !== undefined) {
-          Object.defineProperty(program, capability, original);
-        }
-      }
+      expect(program.callableProofEpoch?.().callCount).toBe(before);
     } finally {
       endReferencePass();
     }

@@ -42,23 +42,22 @@ export interface SourceWriteFacts {
   readonly inheritedReads: readonly Node[];
 }
 
-/** Effect projection consumes actual captured alternatives, including their paired argument bindings. */
+/** Prototype exposure belongs to the complete native Program, not a supplied value context. */
 export interface InheritedReadEffectContext {
   readonly program: CallReturnProgram;
-  readonly values: (
-    node: Node,
-    path: readonly string[],
-    bindings: ReadonlyMap<Node, Node>,
-    premise?: InheritedReadPremise,
-  ) => ReferenceFact<readonly ReturnedValueSource[]>;
+  readonly bindings?: ReadonlyMap<Node, Node>;
 }
 
-/** Only the live complete-population trial can require this premise; it is not a discharged fact. */
-export interface InheritedReadPremise {
-  readonly require: (node: Node, program: CallReturnProgram) => { readonly kind: "conditional" } | UnresolvedReferenceFact;
+/** Allocation counts use native origins and lexical formal/actual bindings, not runtime instance counts. */
+export interface PrototypeExposureStatistics {
+  readonly invocations: number;
+  readonly distinctReceiverAllocations: number;
+  readonly censusRuns: number;
+  readonly inputsSwept: number;
+  readonly inputsSweptPerInvocation: readonly { readonly inputs: number; readonly invocations: number }[];
 }
 
-export type InheritedReadEvidence = ReferenceFact<true> | { readonly kind: "conditional" };
+export type InheritedReadEvidence = ReferenceFact<true>;
 
 /** One property or qualified type read, normalized across dotted, optional, computed-literal, and
  *  namespace-qualified type spellings. */
@@ -243,9 +242,6 @@ export interface CallReturnProofEpoch {
 export type CallableAdmission = ((call: CallExpression) => boolean) | { readonly captured: CallReturnProgram } | { readonly admitted: CallReturnProofContext };
 
 export interface CallReturnProgram {
-  /** Conditional effect evaluation cannot demand or publish capture inputs while this owner is borrowed. */
-  readonly withInheritedReadTrial?: (node: Node, owner: CallReturnProgram, prove: () => ReferenceFact<true>) => ReferenceFact<true>;
-  readonly inheritedReadTrialActive?: () => boolean;
   /** Reached value calls extend this capture's neutral facts; a queued round is not an admitted result. */
   readonly demandValueCall?: (call: CallExpression) => ReferenceFact<true>;
   /** Native-reached references enter the same source and dependency capture before interpretation. */
@@ -311,8 +307,6 @@ export interface NativeResourceRegistration {
 
 /** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
 export interface ReturnedValueSource {
-  /** Conditional frame dependencies remain local and must be revalidated before bindings are reused. */
-  readonly privateSupplies?: readonly PrivateValueSupply[];
   /** Winning own-data value hops retain the bindings at selection, before formal refinement. */
   readonly selectedDescriptors?: readonly { readonly value: Node; readonly bindings: ReadonlyMap<Node, Node> }[];
   readonly nativeIteration?: NativeValueIteration;
@@ -333,28 +327,14 @@ export interface ObservedValueSupply {
   readonly value: Node;
 }
 
-/** A conditional supplied frame never publishes a caller or outlives its exact effect trial. */
-export interface PrivateValueSupply extends Omit<ObservedValueSupply, "kind"> {
-  readonly kind: "private";
-  readonly owner: Node;
-  readonly program: CallReturnProgram;
-  readonly nativeProgram: ts.Program;
-  readonly premise: InheritedReadPremise;
-  readonly bindings: ReadonlyMap<Node, Node>;
-  readonly bindingPairs: readonly (readonly [Node, Node])[];
-  readonly nodes: readonly { readonly node: Node; readonly native: ts.Node }[];
-}
-
-export type CapturedValueSupply = ObservedValueSupply | PrivateValueSupply;
-
 export interface SuppliedValueSource extends ReturnedValueSource {
-  readonly supply?: CapturedValueSupply;
+  readonly supply?: ObservedValueSupply;
 }
 
 /** Arguments belong to their caller; defaults and selected formals belong to the supplied owner. */
 export type ReturnedValueInvocation =
   | { readonly kind: "return"; readonly observation: CallReturnObservation; readonly target: Node }
-  | { readonly kind: "supplied"; readonly supply: CapturedValueSupply; readonly formal: boolean };
+  | { readonly kind: "supplied"; readonly supply: ObservedValueSupply; readonly formal: boolean };
 
 /** Active evaluation records distinguish captured allocations without storing completed value facts. */
 export interface ReturnedValueActivation {
@@ -374,8 +354,6 @@ export interface ReturnedValueActivation {
 
 /** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
 export interface ReturnedValueContext {
-  readonly privateSupplies?: readonly PrivateValueSupply[];
-  readonly inheritedReadPremise?: InheritedReadPremise;
   readonly invocation?: ReturnedValueInvocation;
   readonly valueActivations?: readonly ReturnedValueActivation[];
   readonly callableValues?: true;
