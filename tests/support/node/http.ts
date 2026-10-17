@@ -12,6 +12,7 @@ import { createOwnedResponseBody, drainHttpServer, joinNativeHttpRequest, serveH
 type HttpApp = ReturnType<typeof createHttpApp>;
 
 export interface OwnedHttpRequests extends Pick<HttpApp, "request">, AsyncDisposable {
+  readonly routes: readonly Readonly<HttpApp["routes"][number]>[];
   readonly fetch: (...args: Parameters<Parameters<typeof serveHttpServer>[0]["fetch"]>) => Promise<Response>;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
 }
@@ -116,6 +117,7 @@ export function createOwnedHttpRequests(
   }
 
   return {
+    routes: app.routes,
     request,
     fetch,
     listen(): Promise<Readonly<AddressInfo>> {

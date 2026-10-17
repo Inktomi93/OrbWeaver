@@ -26,8 +26,6 @@ import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gate
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
 import { gate as ownerScopedWrites } from "../../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
 import { gate as pluginDumpGuard } from "../../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
-import { gate as publicRouteBodyCap } from "../../../../../tooling/src/verify/gates/public-route-body-cap.ts";
-import { gate as publicRouteBodyCapHealth } from "../../../../../tooling/src/verify/gates/public-route-body-cap-health.ts";
 import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
@@ -40,28 +38,6 @@ import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb
 const SERVER = "packages/server/src";
 const CHAT_VERBS = `${SERVER}/domain/chat/verbs`;
 const EMPTY = "export {};\n";
-
-/** Every entry/http module but the anchor the health tripwire reports on. The census is blind only when NONE
- *  of them yields a mutating, body-reading route; a module added without joining this list keeps a route
- *  alive and the arm goes red. */
-const HTTP_ROUTE_MODULES = [
-  "auth-meta",
-  "auth-routes",
-  "blob",
-  "card-frame",
-  "export",
-  "frame-handle-store",
-  "healthz",
-  "import-chat",
-  "import-tree",
-  "import",
-  "join",
-  "plugin-frame",
-  "plugin-ui",
-  "security-headers",
-  "spa",
-  "upload",
-] as const;
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -214,19 +190,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "iterative handle depth/node guard",
-  },
-  {
-    policy: publicRouteBodyCapHealth,
-    overlays: [
-      neutralise(`${SERVER}/entry/http/${HTTP_ROUTE_MODULES[0]}.ts`),
-      ...HTTP_ROUTE_MODULES.slice(1).map((name) => neutralise(`${SERVER}/entry/http/${name}.ts`)),
-    ],
-    messageIncludes: "0 mutating routes",
-  },
-  {
-    policy: publicRouteBodyCap,
-    overlays: [add(`${SERVER}/entry/http/liveness-route.ts`, 'app.post("/api/liveness", async (c) => c.json(await c.req.json()));\n')],
-    messageIncludes: "request-body data without a structural byte-cap",
   },
   {
     policy: serdeCoreDefinitionUniqueness,
