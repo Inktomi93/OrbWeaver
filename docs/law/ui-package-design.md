@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 <!-- This is the @orb/ui law under D66. §-numbers are cited by code as spec provenance. Never renumber. -->
@@ -185,8 +185,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
-  error**; ad-hoc `className` styling on a primitive is lint-flagged (the token gates now
-  cover `packages/ui/src` — §8).
+  error**; ad-hoc `className` styling on a primitive is lint-flagged (§8).
 - Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-control-md`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
   `bg-black/50`) are gate-RED in ui exactly as in features (D43: **no `components/ui/` exemption**).
@@ -275,10 +274,10 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 | resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
 | lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
 | dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list\|media-grid` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`). Client's "no raw satellites" is a DELIBERATE non-rule (resolver physics + biome `noUndeclaredDependencies` — a dep-cruiser twin would be unfireable-by-construction), not a wired rule. | scaffold |
-| token gates (ts-morph, `tooling/src/verify/gates/`) | `no-color-literals` / `no-raw-z-index` / `no-raw-spacing-in-features` / `no-raw-typography-in-features` **extended to `packages/ui/src`** (D43: no `components/ui/` exemption). Allowlisted INSIDE ui: `src/layout/` + `src/markdown/` (they DEFINE the tokens / are the prose carve-out — the exact `features/_shared/layout/` precedent) | scaffold |
+| native ESLint restrictions | `orb/no-color-literals` · `orb/no-arbitrary-tw-values` · `orb/no-media-queries-in-features` · `orb/no-pointer-variants-in-features` · `orb/no-raw-container-widths` in `eslint.config.js`; raw literals and rule-specific template spans with per-ID scopes | active |
+| semantic token gates (ts-morph) | `no-raw-z-index` · `no-raw-spacing-in-features` · `no-raw-typography-in-features`; UI layout and markdown retain their declared exclusions | active |
 | test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
 | runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
-| deferred | `no-media-queries-in-features` as a gate (viewport-variant `sm:`/`md:`… prefixes + `@media` outside app-shell) — lands with the client-foundation wave where app-shell exists to allowlist; ui ships ZERO `@media` meanwhile (reviewable by grep until then) | Phase 6 |
 
 **CT wiring:** the root `playwright-ct.config.ts` gains `testDir: "tests"` (covers `tests/legacy/ui`,
 `tests/legacy/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
@@ -382,7 +381,7 @@ doc-comment — factually, no theories.
 
 > **Enforcement:** R1/R3/R4/R6 are review-caught (a hand-rolled part or an untested claim is a
 > reject); R2 is the per-seal completion checklist (below); R5 is grep-checkable (`extends Base…`);
-> R7 is CT-enforced. The `no-color-literals`/token gates + `no-inline-union-redecl` already catch the
+> R7 is CT-enforced. The native class restrictions, semantic token gates and `no-inline-union-redecl` catch the
 > styling/type classes machine-side.
 
 **R9 — DERIVE, NEVER RE-SPELL, any prop that shadows a Base UI prop name.** A sealed prop that reuses

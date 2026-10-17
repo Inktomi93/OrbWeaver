@@ -24,8 +24,6 @@ import { gate as noInlinePackageInterface } from "../../../../../tooling/src/ver
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noManualMemo } from "../../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import { gate as noManualTokenEstimate } from "../../../../../tooling/src/verify/gates/no-manual-token-estimate.ts";
-import { gate as noMediaQueriesInFeatures } from "../../../../../tooling/src/verify/gates/no-media-queries-in-features.ts";
-import { gate as noRawContainerWidths } from "../../../../../tooling/src/verify/gates/no-raw-container-widths.ts";
 import { gate as noRawRandom } from "../../../../../tooling/src/verify/gates/no-raw-random.ts";
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
@@ -109,16 +107,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noManualTokenEstimate,
     overlays: [add(`${DOMAIN}/liveness-estimate.ts`, "export const livenessEstimate = (text: string): number => text.length / 4;\n")],
     messageIncludes: "hand-rolled `.length / 4` token estimate",
-  },
-  {
-    policy: noMediaQueriesInFeatures,
-    overlays: [add(`${FEATURE}/liveness-media.tsx`, 'export const LivenessMedia = <div className="md:flex-row" />;\n')],
-    messageIncludes: "viewport breakpoint variant",
-  },
-  {
-    policy: noRawContainerWidths,
-    overlays: [add(`${FEATURE}/liveness-width.tsx`, 'export const LivenessWidth = <div className="max-w-96" />;\n')],
-    messageIncludes: "raw content width class",
   },
   {
     policy: noRawRandom,

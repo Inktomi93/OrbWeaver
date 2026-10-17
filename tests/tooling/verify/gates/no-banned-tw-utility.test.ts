@@ -1,5 +1,5 @@
 // Family evidence for `no-banned-tw-utility` (#1656) — the `tailwind-class-token` family's REVIEWED-GRANT
-// half, beside `no-arbitrary-tw-values`'s ordinary half in the sibling file.
+// half, beside `no-hover-display-swap`'s ordinary half in the sibling file.
 //
 // WHAT ONLY THIS FILE CAN PROVE, because a declared row structurally cannot (GATE-AUTHORING §5: `runPass`
 // pins `reviewedGrants: []`, so a module row cannot reach the central table at all):
@@ -7,15 +7,14 @@
 //     application this policy guards, read off the checkout rather than re-typed.
 //   · WRONG IDENTITY: a grant with the right subject and the wrong operation licenses NOTHING.
 //   · STALE: a grant whose subject holds no finding is an alarm, not a quiet pass.
-//   · NO DOUBLE REPORT with the ordinary sibling: the two policies share one class-token reader and must
-//     still judge different subjects, which is the claim this policy's header makes.
+//   · The banned utility predicate does not claim an unrelated arbitrary width in the same literal.
 import { readFileSync } from "node:fs";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as noArbitrary } from "../../../../tooling/src/verify/gates/no-arbitrary-tw-values.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-banned-tw-utility.ts";
+import { gate as noHoverDisplaySwap } from "../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -68,7 +67,7 @@ test("the descriptor shape is the thing under test: reviewed-grant, in the share
     "error",
     "selected-files",
   ]);
-  expect(gate.family, "the ordinary sibling shares it — one class-token reader, two authorities").toBe(noArbitrary.family);
+  expect(gate.family, "the ordinary sibling shares it — one class-token reader, two authorities").toBe(noHoverDisplaySwap.family);
 });
 
 test("the REAL central rows consume the REAL live site: one granted, nothing effective, nothing alarming", () => {
@@ -104,16 +103,8 @@ test("a STALE grant is an alarm, not a quiet pass", () => {
   expect(outcome.alarms.length).toBeGreaterThan(0);
 });
 
-test("no double report with the ordinary sibling: a ruled utility and an off-token bracket are different subjects", () => {
-  const outcome = drive(
-    [gate, noArbitrary],
-    { "packages/client/src/features/x/both.tsx": 'export const G = <div className="max-w-prose w-[137px]" />;\n' },
-    [],
-  );
+test("a ruled utility and an unrelated off-token bracket remain different subjects", () => {
+  const outcome = drive([gate], { "packages/client/src/features/x/both.tsx": 'export const G = <div className="max-w-prose w-[137px]" />;\n' }, []);
   expect(outcome.alarms).toEqual([]);
-  // One finding each, never two on either token: the banned-utility ruling and the arbitrary bracket.
-  expect(outcome.hits.toSorted()).toEqual([
-    "no-arbitrary-tw-values:packages/client/src/features/x/both.tsx",
-    "no-banned-tw-utility:packages/client/src/features/x/both.tsx",
-  ]);
+  expect(outcome.hits).toEqual(["no-banned-tw-utility:packages/client/src/features/x/both.tsx"]);
 });

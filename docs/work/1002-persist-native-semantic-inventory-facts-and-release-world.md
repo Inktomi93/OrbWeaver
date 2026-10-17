@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-16
+updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/module-namespace-continuations-1002
+lane: codex/namespace-call-demand-1002
 plan: test-foundation
 ---
 
@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The latest full-context diagnostic remains unresolved at `ctx.backgroundSignal`, through the `createLifecycle` dynamic-module binding. Evidence: `reports/review/1002-original-callable-current/4e53d3ee02/diagnosis.md`. Target and cost remain unqualified.
+The target remains unresolved at `ctx.backgroundSignal`: source admission passes; namespace admission refuses an uncaptured lifecycle catch call. Capture-demand correction is in progress. Evidence: `reports/review/1002-original-callable-current/8934fedfe6/diagnosis.md`. Target and cost remain unqualified.
 
 Source lookup and contextual proof reuse pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 

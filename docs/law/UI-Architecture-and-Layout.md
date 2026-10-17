@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-05
+updated: 2026-10-17
 ---
 
 # UI-Architecture-and-Layout
@@ -174,7 +174,7 @@ SURFACE  — containment CONSUMER. Pure content; queries `@container` variants. 
 CARD/ROW — sub-container where it must adapt independently inside a grid/list.
 ```
 
-- **`@media` is allowed ONLY in `app-shell`** (gate `no-media-queries-in-features`).
+- **`@media` is allowed ONLY in `app-shell`**. `orb/no-media-queries-in-features` in `eslint.config.js` also restricts viewport breakpoint class spellings outside `app-shell`.
 - **`@orb/ui/layout` owns `container-type`** (BUILT) — feature code never writes raw `container-type`/`-name`; it uses `<Container name size>` / `<Section container>`. Default `container-type: inline-size`.
 - **Density is a SEPARATE axis** from container size: `data-density="comfortable|compact"` (a user pref, attribute-driven) vs the container query (layout space). A component reads both; neither is a prop.
 - **Payoff:** "build the surface once, place it anywhere" (drawer · modal · grid cell · full pane), with zero variants and zero layout props.
@@ -381,11 +381,11 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 1 (the core).** A surface adapts to *its container* — the same `<CharacterGrid>` is 4-up in a wide pane, 1-up in a drawer, automatically. No mobile variant, no `compact`/`inDrawer` prop (ESLint attribute restrictions in `eslint.config.js`). Fluid type/spacing inside a component use `cqi`+`clamp()`, not viewport units.
 
-**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `no-media-queries-in-features` keeps it there.
+**Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `orb/no-media-queries-in-features` in `eslint.config.js` also keeps viewport breakpoint class spellings out of features except `app-shell`.
 
 **Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. Enforced as CT — `tests/legacy/ui/touch-target-floor.suite.ct.tsx` — asserting the floor per-pointer.
 
-The same rule binds the Tailwind capability variants themselves: `pointer-coarse:`/`pointer-fine:` (and the `any-pointer-*` twins, and any raw `[@media(pointer|hover:…)]:` arbitrary variant) are `@media (pointer/hover)` queries wearing a utility spelling, so they belong at the **token/shell layer, never in a feature className**, exactly as viewport width variants do (axis 2, `no-media-queries-in-features`). A feature composes a pointer-conditional TOKEN (`min-w-touch-target`/`min-h-touch-target`, so the call site carries NO variant) or a shared component-layer const from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`, `REVEAL_AT_COARSE`, `FINE_INERT_UNTIL_HOVER`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction STATE, not a capability query, and stays legal in features. Enforced by **`no-pointer-variants-in-features`** (features/\*\* minus the shell tier `app-shell/`).
+The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a shared component-layer constant from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`, `REVEAL_AT_COARSE`, `FINE_INERT_UNTIL_HOVER`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. `orb/no-pointer-variants-in-features` in `eslint.config.js` enforces this on raw literals and static template chunks outside `app-shell`; a reasoned line exception follows D321#3.
 
 **Axis 4 — mobile platform CSS, baked into 3 primitives:**
 

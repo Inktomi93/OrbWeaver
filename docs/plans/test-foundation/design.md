@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 # Tests on one harness and one code-facts engine
@@ -34,7 +34,7 @@ Reduce structural cost before more micro-optimization: remove legacy deep analys
 
 The completed [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns source classification, not successor qualification. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
 
-The pinned TS7 package exposes a checker API with batched queries. Measure complete matched-world extraction and combined client/server memory before choosing the backend. Keep cold acquisition, queried facts and warmed reuse separate. A Program-open probe does not qualify the persisted store. An external nightly comparison changes no repository pin. Full TS6 and nightly DOM extraction complete; raw parity fails and a native adapter defect requires correction. Backend comparison remains unqualified. Profile checker work and repeated reference requests rather than assuming transport dominates. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+The pinned TS7 checker API supports batching. Complete DOM extraction is slower and uses more combined memory than TS6; reference parity remains unqualified after adapter correction. Batching removes transport overhead, not repeated native reference-search work. Profiles identify navigation, import indexing and temporary visitor allocation. Qualify source-symbol meaning before another full variant. Keep acquisition, extraction and reuse separate. External prototypes change no repository pin. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
 ### Execution sequence
 
@@ -174,7 +174,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations pass ordinary controls when every supplied receiver is nullish or proven absent. Getter, mutation, escape and mixed-alternative refusals remain. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity, trace and consumer closure through reviewed ordinary controls. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured immediate-await native catch transfer passes bounded controls and security review. Context-free catch transfer still refuses. Evidence: `reports/review/1002-native-catch-namespace-ordinary.md`. Original target resolution remains unqualified.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env missing-consumer failure. The last full-context target remains unresolved at `ctx.backgroundSignal`, through the lifecycle dynamic-module binding. Captured catch delivery does not establish target resolution. Item 1002 owns the next diagnostic and measured cost; complete store qualification stays open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. The full-context target remains unresolved at `ctx.backgroundSignal`: namespace admission refuses an uncaptured lifecycle catch call before refinement. Source admission passes. The namespace owner must request ordinary capture and revalidate publication without retaining a private premise. Evidence: `reports/review/1002-original-callable-current/8934fedfe6/diagnosis.md`. Target and complete store qualification remain open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -203,6 +203,8 @@ Run the migration in this order: security replacements; mechanical native lint/i
 The chat engine receives an actual narrow capability object; chat binds memory operations outside the engine. Native imports exclude full request-authority contexts and guards. Existing identity and role gates remain active. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructor cases remain unchanged and require production-root adoption. Their unqualified API compatibility is distinct from inherited compiler diagnostics; preserve their meaningful cases before deletion.
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
+
+Native ESLint owns lexical arbitrary-value, color, viewport, pointer and width restrictions. Shared z-index and skin readers remain; hover, banned utilities and dark claims await qualification. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

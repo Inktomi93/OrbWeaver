@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(327 registered gates)
+(320 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -180,12 +180,10 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `modal-body-not-placeholder` | registry-definitions | ordinary/error | @client | a ModalDefinition is unreadable or… |
 | `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
 | `motion-token-purity` | — | ordinary/error | none | raw motion value in CSS… |
-| `no-arbitrary-tw-values` | tailwind-class-token | ordinary/error | @client,@ui | arbitrary Tailwind value on a… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-banned-tw-utility` | tailwind-class-token | reviewed-grant/error | @client,@ui | a Tailwind utility the house has… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
 | `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
-| `no-color-literals` | — | ordinary/error | @client,@ui | a hardcoded color class — all three… |
 | `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
 | `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
@@ -213,7 +211,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-memo-compiler-health` | — | hard/error | @tooling\* | the installed React Compiler no… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
-| `no-media-queries-in-features` | tailwind-class-token | ordinary/error | @client,@ui\* | viewport breakpoint variant… |
 | `no-mint-via-cast` | id-brand-flow | hard/error | @product | castId wraps a fresh-id generator —… |
 | `no-multiplexed-mutation-error` | tanstack-query-origin | ordinary/error | @client\* | multiplexed mutation errors — v5… |
 | `no-mutating-register-api` | — | ordinary/error | @client | a mutating register()-named… |
@@ -221,10 +218,8 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-parallel-section-map` | registry-definitions | ordinary/error | @client | a hardcoded map (object literal / {… |
-| `no-pointer-variants-in-features` | ui-pointer-capability-tier | ordinary/error | @client | pointer/hover capability variant in a… |
 | `no-raw-clock` | ambient-determinism | reviewed-grant/error | @product\* | raw Date.now() / new Date() —… |
 | `no-raw-color-in-css` | — | ordinary/error | none | raw color literal in CSS… |
-| `no-raw-container-widths` | — | ordinary/error | @client,@ui\* | raw content width class (w-N /… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
@@ -260,8 +255,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `playwright-css-topology` | css-home-topology | hard/error | @client,@tests | Playwright CT must derive the ordered… |
 | `playwright-lane-outside-fast-check` | — | hard/error | @tooling | browser-mode test suffixes (.ct.tsx,… |
 | `plugin-dump-guard` | — | hard/error | @server\* | a QuickJS membrane ctx.dump can… |
-| `pointer-capability-tier-health` | ui-pointer-capability-tier | hard/error | @client | the reviewed shell home or… |
-| `pointer-capability-tier-permission` | ui-pointer-capability-tier | reviewed-grant/error | @client | reviewed shell permission for raw… |
 | `policy-binding-resolution` | policy-soundness | hard/error | @tooling\* | a FINAL policy module resolves a… |
 | `policy-family-readers` | policy-soundness | hard/error | @tooling\* | the family reader resolves no shared… |
 | `policy-fixture-substrate` | policy-soundness | hard/error | @tests\* | a family test filesystem mutation has… |

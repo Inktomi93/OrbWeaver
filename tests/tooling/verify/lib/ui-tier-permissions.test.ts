@@ -2,10 +2,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as pointerOutside } from "../../../../tooling/src/verify/gates/no-pointer-variants-in-features.ts";
 import { gate as zOutside } from "../../../../tooling/src/verify/gates/no-raw-z-index.ts";
-import { gate as pointerHealth } from "../../../../tooling/src/verify/gates/pointer-capability-tier-health.ts";
-import { gate as pointerPermission } from "../../../../tooling/src/verify/gates/pointer-capability-tier-permission.ts";
 import { gate as skinHealth } from "../../../../tooling/src/verify/gates/skin-fragment-tier-health.ts";
 import { gate as skinPermission } from "../../../../tooling/src/verify/gates/skin-fragment-tier-permission.ts";
 import { gate as skinOutside } from "../../../../tooling/src/verify/gates/ui-skin-fragment-purity.ts";
@@ -16,7 +13,7 @@ import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-g
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/ui-tier-family";
-const ALL = [zOutside, zPermission, zHealth, skinOutside, skinPermission, skinHealth, pointerOutside, pointerPermission, pointerHealth];
+const ALL = [zOutside, zPermission, zHealth, skinOutside, skinPermission, skinHealth];
 const SKIN = [skinOutside, skinPermission, skinHealth];
 
 function run(
@@ -74,13 +71,6 @@ test("health findings anchor inside their owner when the shared fact also admits
       {
         "packages/client/src/a.ts": "export const client = true;",
         "packages/ui/src/primitives/x.ts": "export const ui = true;",
-      },
-    ],
-    [
-      pointerHealth,
-      {
-        "packages/ui/src/a.ts": "export const ui = true;",
-        "packages/client/src/main.ts": "export const client = true;",
       },
     ],
   ] as const) {

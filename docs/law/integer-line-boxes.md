@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-23
+updated: 2026-10-17
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -308,9 +308,9 @@ pixel match". Law 2 splits across that line:
 
 - **Authorship-provable → a gate.** `tooling/src/verify/gates/rest-transform-grid.ts`. A rest-state
   `scale-*` other than `scale-100` is unprovable-by-construction: whatever the layout does, a
-  non-identity scale resamples. `no-arbitrary-tw-values`'s `SCOPED_UTILITY_RE` names
-  `translate(-x|-y|-z)?` and omits `scale`, so an arbitrary `scale-[1.02]` was legal everywhere until
-  this gate. The CSS check carries the same claim into stylesheets: a `transform`/`translate`/`scale`
+  non-identity scale resamples. The native `orb/no-arbitrary-tw-values` restriction in
+  `eslint.config.js` recognizes arbitrary `translate(-x|-y|-z)?` utilities but not `scale`, so an
+  arbitrary `scale-[1.02]` needs this gate. The CSS check carries the same claim into stylesheets: a `transform`/`translate`/`scale`
   declaration outside `@keyframes` whose value carries a fractional px length or a percentage is RED.
 - **Resolved-only → a runtime rule.** `off-grid-transform` in ui-audit. Whether a legal token
   translate LANDS on the grid depends on the live root font-size (§2's continuous `--font-scale`
@@ -327,7 +327,7 @@ mis-classified state prefix would red legitimate motion (the live `active:scale-
 so the classification stays conservative in that direction.
 
 **Declared limits**, each a `mustPass` row: a fractional-px arbitrary TRANSLATE is already RED under
-`no-arbitrary-tw-values`; a PERCENTAGE translate is a runtime fraction of the element's own box and
+`orb/no-arbitrary-tw-values`; a PERCENTAGE translate is a runtime fraction of the element's own box and
 is unprovable from a class string (the live `before:-translate-x-1/2` centring idiom); a
 `var()`/`calc()` indirection carries the token's own contract. All three land at resolved-pixel time
 on `off-grid-transform`.

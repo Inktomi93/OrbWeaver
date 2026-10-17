@@ -20,14 +20,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the shared fragments move to a different canonical definition home.",
   },
   {
-    id: "pointer-capability-tier-permission:app-shell",
-    policyId: "pointer-capability-tier-permission",
-    subject: "packages/client/src/features/app-shell/",
-    operation: "spell-pointer-capability-tier",
-    why: "app-shell is the reviewed feature home that owns device-capability adaptation for the product shell.",
-    endsWhen: "device-capability adaptation moves completely into shared tokens or a different shell home.",
-  },
-  {
     id: "query-freshness-coverage:assets-resolveblobrefs",
     policyId: "query-freshness-coverage",
     subject: "assets.resolveBlobRefs",

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 # UI-Gates-and-Lessons
@@ -72,10 +72,14 @@ The UI enforcement families:
   the lib→group map lives in that rule + §11.3). "client ⇏ raw satellite libs" is RESOLVER physics (the
   libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
   `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
-- **Token gates (ts-morph, `tooling/src/verify/gates/`).** `no-color-literals` (incl. named non-token colors +
-  the theme-aware `--scrim`), `no-raw-spacing-in-features`, `no-raw-typography-in-features`,
-  `no-raw-z-index`, `no-arbitrary-tw-values` — over ALL feature + ui TSX (the `-in-features` suffix is
-  historical; scanRoot = client + ui src, only `ui/layout` + `ui/markdown` allowlisted), no
+- **Raw class restrictions (native ESLint, `eslint.config.js`).** `orb/no-arbitrary-tw-values`,
+  `orb/no-color-literals`, `orb/no-media-queries-in-features`, `orb/no-pointer-variants-in-features`
+  and `orb/no-raw-container-widths` inspect raw literals and rule-specific template spans in their
+  declared scopes; they do not analyze assembled class values. Use a reasoned line exception only
+  for a legitimate site (D321#3).
+- **Semantic token checks (ts-morph, `tooling/src/verify/gates/`).** `no-raw-spacing-in-features`,
+  `no-raw-typography-in-features` and `no-raw-z-index` retain their typed analysis. The raw class
+  restrictions and semantic checks apply to their declared client/UI populations without a
   `components/ui/`-style exemption (§11.0/§11.4).
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
   the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
@@ -102,8 +106,8 @@ The UI enforcement families:
 
 **The D62 design-gate set** (lands WITH the D62 feature
 lanes per §11.7): `orb/no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
-in `features/**` regardless of className), `no-arbitrary-tw-values` (bracket-value utilities banned in
-features AND ui), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
+in `features/**` regardless of className), `orb/no-arbitrary-tw-values` (raw bracket-value utility spellings
+restricted in client and ui sources), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
 interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated — the
 CI-browser-lane prerequisite is MET (`ci.yml` installs Playwright chromium + runs `pnpm verify --full`);
 the goldens themselves are unbuilt:** the ARIA-tree goldens (`toMatchAriaSnapshot`
@@ -183,8 +187,8 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 ### 11.2 The container model is a FREEZE, not an unwind
 
 Correction to D42 §4: features MAY use `@container`; only the SHELL tier may use viewport `@media`.
-`no-media-queries-in-features` + ESLint layout-attribute restrictions in `eslint.config.js` freeze this at a handful of existing sites'
-cost — pin before features regrow the threading. (The near-zero unwind cost is the archaeology record.)
+`orb/no-media-queries-in-features` in `eslint.config.js` also restricts viewport breakpoint class
+spellings in its declared client/UI scope, excluding `app-shell`.
 
 ### 11.3 NEW structural primitives — convert every leaked convention into an API the call site can't bypass
 
@@ -229,14 +233,11 @@ wave BEFORE feature agents (§11.7).
 
 ### 11.4 Close the token hole + extend gates past `globals.css`
 
-neo's design-token check only inspected `globals.css`, never feature TSX — so raw `size-[1.5rem]`,
-`z-10`, `bg-black/50` drifted everywhere. Ratified: (a) `@orb/ui` lives under the same token gates as
-features, no `components/ui/` exemption; (b) the Tailwind utility namespaces are GENERATED from the DTCG
-source (dead token = failing freshness test); (c) the token gates apply to ALL feature + ui TSX;
-(d) `no-color-literals` widened past hex to named non-token colors (`bg-black`/`bg-white`) + the
-theme-aware `--scrim` token (a `bg-black/50` scrim is invisible on a true-black theme); (e) a small CSS
-structure test pins the `globals.css` footguns (theme enumeration, the unlayered reduced-motion floor,
-per-theme `color-scheme`).
+Raw class restrictions inspect source literals in their declared scopes; generated Tailwind
+namespaces remain derived from DTCG. `orb/no-color-literals` covers named non-token colors, palette colors and hex
+colors; use semantic colors and `bg-backdrop` for scrims. Typed token checks retain their own analysis,
+and no `components/ui/` exemption applies. A CSS structure test pins theme enumeration, the unlayered
+reduced-motion floor and per-theme `color-scheme`.
 
 ### 11.5 The smaller HIGH-value gates (persist · determinism · sentinels · keystones)
 

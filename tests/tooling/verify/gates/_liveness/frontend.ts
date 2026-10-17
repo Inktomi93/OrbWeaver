@@ -20,9 +20,7 @@ import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/ga
 import { gate as floorlessControlVocabularyHealth } from "../../../../../tooling/src/verify/gates/floorless-control-vocabulary-health.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as macroResolutionHome } from "../../../../../tooling/src/verify/gates/macro-resolution-home.ts";
-import { gate as noArbitraryTwValues } from "../../../../../tooling/src/verify/gates/no-arbitrary-tw-values.ts";
 import { gate as noBannedTwUtility } from "../../../../../tooling/src/verify/gates/no-banned-tw-utility.ts";
-import { gate as noColorLiterals } from "../../../../../tooling/src/verify/gates/no-color-literals.ts";
 import { gate as noFloorlessControlInWrap } from "../../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
@@ -112,19 +110,9 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "processMacros",
   },
   {
-    policy: noArbitraryTwValues,
-    overlays: [featureClass("arbitrary", "w-[137px] p-[7px]")],
-    messageIncludes: "arbitrary Tailwind value",
-  },
-  {
     policy: noBannedTwUtility,
     overlays: [featureClass("banned", "w-fit max-w-prose px-block")],
     messageIncludes: "max-w-prose",
-  },
-  {
-    policy: noColorLiterals,
-    overlays: [featureClass("color", "text-[#abc]")],
-    messageIncludes: "arbitrary hex color class",
   },
   {
     policy: noFloorlessControlInWrap,
@@ -225,7 +213,7 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: zIndexTierPermission,
-    // A REVIEWED-GRANT fold, as for the pointer tier: every z-index spelling in the markdown home folds into
+    // A REVIEWED-GRANT fold: every z-index spelling in the markdown home folds into
     // one candidate the central grant licenses. This path sorts before every real markdown file, so the fold
     // anchors here, and its site list names line 3 only if the fold read this file's two spellings.
     overlays: [
