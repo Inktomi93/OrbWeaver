@@ -81,7 +81,6 @@ const CONTROL_POLICY_IDS = new Set([
   ...GRANT_CONSUMPTION_CONTROL_IDS,
   ...REPORT_ANCHOR_CONTROL_IDS,
   "zod-output-twin-parity",
-  "test-executable-mode",
 ]);
 export const PARTITIONS = partitionLivenessArms(ALL_ARMS, CONTROL_POLICY_IDS);
 assertLivenessPartitions(ALL_ARMS, PARTITIONS);
@@ -517,27 +516,6 @@ export function registerLivenessPartition(partitionIndex: number): void {
         if (verdict === undefined) {
           throw new Error("the control batch produced no verdict for its arm");
         }
-        expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
-      },
-    );
-
-    test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, ["test-executable-mode"]))(
-      "a TRACKED-MODE overlay that keeps the real test non-executable stays silent",
-      { timeout: scaledBudget(controlBaseMs) },
-      ({ repoRoot }) => {
-        const executableMode = rosterArm("test-executable-mode");
-        const planted = executableMode.overlays.find(
-          (overlay): overlay is Extract<RealCorpusLivenessArm["overlays"][number], { readonly kind: "tracked-mode" }> => overlay.kind === "tracked-mode",
-        );
-        if (planted === undefined) {
-          throw new Error("the executable-mode arm carries no tracked-mode overlay, so the control has nothing to drive");
-        }
-        const dead: RealCorpusLivenessArm = { ...executableMode, overlays: [{ ...planted, executable: false }] };
-        const verdict = liveness(repoRoot).proveBatch([dead]).get(dead.policy.id);
-        if (verdict === undefined) {
-          throw new Error("the tracked-mode control produced no verdict");
-        }
-        expect(verdict.refusals, "the ordinary-mode control refused instead of reading the real candidate index").toEqual([]);
         expect(() => assertArmVerdict(dead, verdict)).toThrow("reported NOTHING for a real-corpus positive control");
       },
     );

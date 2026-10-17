@@ -9,10 +9,6 @@ test("Git failure is unresolved, while a valid empty index is empty", ({ scratch
   expect(loadTrackedFiles(scratch)).toMatchObject({ status: "unresolved", subprocess: { exitStatus: 128 } });
   execFixtureGit(scratch, ["init", "--quiet"]);
   expect(loadTrackedFiles(scratch)).toMatchObject({ status: "empty", subprocess: { exitStatus: 0 }, members: 0 });
-  expect(loadTrackedFiles(scratch, [{ path: "missing.test.ts", executable: true }])).toMatchObject({
-    status: "unresolved",
-    reason: expect.stringContaining("not in the candidate index"),
-  });
 });
 
 test("tracked inventory excludes untracked and overlay files and snapshots once per invocation", ({ scratch }) => {
@@ -49,47 +45,4 @@ test("tracked inventory reads executable mode from the candidate index rather th
     },
     members: 2,
   });
-
-  const promoted = createResourceHost({
-    root: scratch,
-    trackedFileModeOverlays: [{ path: "ordinary.test.ts", executable: true }],
-  }).host.trackedFiles();
-  expect(promoted).toMatchObject({
-    status: "ready",
-    value: {
-      repoPaths: ["executable.test.ts", "ordinary.test.ts"],
-      executablePaths: ["executable.test.ts", "ordinary.test.ts"],
-    },
-    members: 2,
-    subprocess: { command: "git-index", exitStatus: 0 },
-  });
-
-  expect(
-    createResourceHost({
-      root: scratch,
-      trackedFileModeOverlays: [{ path: "executable.test.ts", executable: false }],
-    }).host.trackedFiles(),
-  ).toMatchObject({
-    status: "ready",
-    value: { executablePaths: [] },
-    members: 2,
-    subprocess: { command: "git-index", exitStatus: 0 },
-  });
-});
-
-test("tracked mode overlays refuse identities outside the real candidate index and duplicate ownership", ({ scratch }) => {
-  execFixtureGit(scratch, ["init", "--quiet"]);
-  writeFileSync(join(scratch, "tracked.test.ts"), "tracked");
-  execFixtureGit(scratch, ["add", "tracked.test.ts"]);
-
-  expect(loadTrackedFiles(scratch, [{ path: "missing.test.ts", executable: true }])).toMatchObject({
-    status: "unresolved",
-    reason: expect.stringContaining("not in the candidate index"),
-  });
-  expect(
-    loadTrackedFiles(scratch, [
-      { path: "tracked.test.ts", executable: true },
-      { path: "tracked.test.ts", executable: false },
-    ]),
-  ).toMatchObject({ status: "unresolved", reason: expect.stringContaining("declared more than once") });
 });

@@ -76,6 +76,15 @@ const GATING_STAGES: readonly StageDef[] = [
     scopedArgv: stylelintScopedArgv,
   },
   {
+    name: "lint:git-text-safety",
+    applicationArgv: ["node", "tooling/src/verify/cli.ts", "git-text-safety", "--application"],
+    group: "lint",
+    tiers: ["changed", ...STATIC],
+    argv: ["node", "tooling/src/verify/cli.ts", "git-text-safety"],
+    classify: ownScheme,
+    scopedArgv: (selection) => (selection.paths.length === 0 ? "skip-empty" : ["node", "tooling/src/verify/cli.ts", "git-text-safety", ...selection.paths]),
+  },
+  {
     name: "lint:hook-syntax",
     applicationArgv: "implementation-only",
     group: "lint",

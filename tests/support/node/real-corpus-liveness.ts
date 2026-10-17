@@ -11,7 +11,6 @@ import { expect } from "./fixtures.ts";
 
 type LivenessResourceOptions = NonNullable<Parameters<typeof runPolicyPass>[0]["resourceOptions"]>;
 type InstalledPackageTextOverlay = NonNullable<LivenessResourceOptions["installedPackageTextOverlays"]>[number];
-type TrackedFileModeOverlay = NonNullable<LivenessResourceOptions["trackedFileModeOverlays"]>[number];
 
 /** The intervention kind determines whether findings must name its path or may span the whole run. */
 export type RealCorpusOverlay =
@@ -65,8 +64,7 @@ export type RealCorpusOverlay =
       readonly path: string;
       readonly delete: true;
     }
-  | ({ readonly kind: "installed-package" } & InstalledPackageTextOverlay)
-  | ({ readonly kind: "tracked-mode" } & TrackedFileModeOverlay);
+  | ({ readonly kind: "installed-package" } & InstalledPackageTextOverlay);
 
 export interface RealCorpusLivenessArm {
   readonly policy: GatePolicy;
@@ -233,7 +231,7 @@ function removedOriginals(project: Project, repoRoot: string, arm: RealCorpusLiv
  *  Both are the "passed, but not for the stated reason" shape this mechanism exists to end, so they THROW
  *  rather than assert — a thrown arm is a lane's problem, a silently-inverted one is nobody's. */
 function captureOverlayOriginals(project: Project, repoRoot: string, arm: RealCorpusLivenessArm, overlay: RealCorpusOverlay): Originals {
-  if (overlay.kind === "resource" || overlay.kind === "installed-package" || overlay.kind === "tracked-mode") {
+  if (overlay.kind === "resource" || overlay.kind === "installed-package") {
     // Resource-backed overlays never touch the project: they are handed to the pass's ResourceHost and die with it.
     return new Map();
   }
@@ -289,7 +287,7 @@ function applyOverlays(project: Project, repoRoot: string, arm: RealCorpusLivene
     } else if (overlay.kind === "edit") {
       const absolute = `${repoRoot}/${overlay.path}`;
       replaceSourceFile(project, absolute, editedText(project.getSourceFileOrThrow(absolute).getFullText(), arm, overlay.path, overlay.replace));
-    } else if (overlay.kind !== "resource" && overlay.kind !== "installed-package" && overlay.kind !== "tracked-mode") {
+    } else if (overlay.kind !== "resource" && overlay.kind !== "installed-package") {
       replaceSourceFile(project, `${repoRoot}/${overlay.path}`, overlay.source);
     }
   }
@@ -358,32 +356,14 @@ function installedPackageTextOverlays(arms: readonly RealCorpusLivenessArm[]): r
   return [...overlays.values()];
 }
 
-/** Candidate-index executable-bit substitutions for one pass. One path has one owner. */
-function trackedFileModeOverlays(arms: readonly RealCorpusLivenessArm[]): readonly TrackedFileModeOverlay[] {
-  const overlays = new Map<string, TrackedFileModeOverlay>();
-  for (const arm of arms) {
-    for (const entry of arm.overlays.filter(
-      (candidate): candidate is Extract<RealCorpusOverlay, { readonly kind: "tracked-mode" }> => candidate.kind === "tracked-mode",
-    )) {
-      if (overlays.has(entry.path)) {
-        throw new Error(`real-corpus liveness: two tracked-mode overlays in one pass name ${entry.path}`);
-      }
-      overlays.set(entry.path, { path: entry.path, executable: entry.executable });
-    }
-  }
-  return [...overlays.values()];
-}
-
 function resourceOptions(repoRoot: string, arms: readonly RealCorpusLivenessArm[]): LivenessResourceOptions | undefined {
   const overlay = resourceOverlay(repoRoot, arms);
   const installed = installedPackageTextOverlays(arms);
-  const trackedModes = trackedFileModeOverlays(arms);
-  return Object.keys(overlay).length === 0 && installed.length === 0 && trackedModes.length === 0
+  return Object.keys(overlay).length === 0 && installed.length === 0
     ? undefined
     : {
         ...(Object.keys(overlay).length === 0 ? {} : { overlay }),
         ...(installed.length === 0 ? {} : { installedPackageTextOverlays: installed }),
-        ...(trackedModes.length === 0 ? {} : { trackedFileModeOverlays: trackedModes }),
       };
 }
 

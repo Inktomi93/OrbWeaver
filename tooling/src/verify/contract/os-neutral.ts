@@ -10,6 +10,5 @@ export const OS_NEUTRAL_CASES = [
   "tmpdir-without-temp",
   "newline-split",
   "git-bypass",
-  "test-executable-mode",
 ] as const;
 export type OsNeutralCase = (typeof OS_NEUTRAL_CASES)[number];

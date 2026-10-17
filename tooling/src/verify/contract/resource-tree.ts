@@ -1,5 +1,8 @@
 import type { CssAtRule, CssRule, CssStatementAtRule } from "../lib/css-rules.ts";
 
+/** Dependency, VCS and build trees are not authored transaction members. */
+export const NON_AUTHORED_DIRECTORIES: ReadonlySet<string> = new Set(["node_modules", ".git", "dist", ".cache"]);
+
 /** Closed authored roots used by high-fanout resource policies. */
 export const AUTHORED_TREE_PATHS = {
   "server-domain": "packages/server/src/domain",

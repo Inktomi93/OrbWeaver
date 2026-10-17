@@ -4,8 +4,7 @@
 // `floor/host/platform.ts` and its leaf `platform-probes.ts`, one module in two flat files because the load budget sits
 // under the process doors. The git door's own spawn is the door, not an exemption.
 // DECLARED LIMITS: a command, env key or separator passed as a parameter; a literal spelled across modules; a regex.
-// FAMILY: `tooling-os-neutral` — this source policy and `test-executable-mode` share the canonical case/message
-// vocabulary in `lib/os-neutral.ts`. POPULATION: new;
+// The canonical case/message vocabulary lives in `lib/os-neutral.ts`. POPULATION: new;
 // `docker/*.sh` runs only in the Linux container and `.claude/hooks` is not TypeScript. RETIRED MARKERS: none.
 
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";

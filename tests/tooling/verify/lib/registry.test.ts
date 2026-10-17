@@ -67,6 +67,8 @@ test("product is exactly the complete full roster minus instrument proofs and mu
   expect(product.map(({ name }) => name)).toEqual([
     "lint:biome",
     "lint:eslint",
+    "lint:stylelint",
+    "lint:git-text-safety",
     "lint:hook-syntax",
     "types:native",
     "types:testd",

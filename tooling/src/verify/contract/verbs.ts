@@ -32,6 +32,7 @@ export const VERIFY_VERBS = [
   "eslint",
   "eslint-scoped",
   "stylelint",
+  "git-text-safety",
   "instrument-affected",
   "showcase-release",
 ] as const;
