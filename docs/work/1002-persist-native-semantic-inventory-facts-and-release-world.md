@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/inventory-implementation-inputs-1002
+lane: codex/inventory-implementation-inputs-1002-types
 plan: test-foundation
 ---
 
@@ -36,4 +36,8 @@ Native source admission, wrapper invalidation and captured census reuse preserve
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
-Executing-input currentness and caller adoption remain in progress. Native child execution and historical verdict borrowers carry different qualification scopes. The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk reference changes after this delivery integrates. Attribute invocation-only cost separately. Complete native demand, dependency closure, concurrency and hosted cost remain open.
+Executing-input currentness, sealed consumer adoption and the reviewed ABI correction are integrated. Coherent tooling types pass; Node remains red. Native child execution and historical borrowers retain distinct scopes. Evidence: `reports/review/1002-coherent-abi-integration.md`.
+
+Public-boundary qualification remains red. Measured warm acquisition launches repeated cold replay children without extraction workers. Batch complete validation within existing boundaries; preserve distinct readsets and before/after checks without cross-boundary boolean reuse. Separately repair ignored dependency-byte transport without promoting authored membership. Evidence and exact failed identities: `reports/review/1002-public-58-failure-disposition.md`.
+
+The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk reference changes. Attribute invocation and currentness replay separately. Complete demand, dependency closure, concurrency and hosted cost remain open.

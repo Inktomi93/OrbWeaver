@@ -37,9 +37,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 Remaining findings: legacy disposal/typed lint, maintained classes, client formatting/imports, caught-failure census and the agent-bridge client-lib-floor violation.
 
-Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-1151285-2026-10-16T00-31-01-305Z/check-structure.json`. Separate current-law drift, immutable ADR proposals and external SDK/member names; add no allowance.
-
-D161 names a removed health module. `pnpm check:agents` reports the missing source. Resolve through documentation lifecycle law; preserve the immutable decision and avoid placeholder modules.
+D161 cites a removed health module; immutable ADR lifecycle law blocks a direct edit. Citation grants also exceed their budget. Add no allowance or placeholder. Evidence: `reports/review/1042-boundary-home-independent-review.md`.
 
 Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 
@@ -58,3 +56,5 @@ Native ESLint partition and real CLI controls pass. The [hosted artifact](https:
 The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-cache-proof.ts` still builds a copied `MessageView` without it. This item owns its corpus-backed replacement; do not insert a fabricated default to silence the type failure.
 
 Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
+
+Maintained-support types and native prototype instrumentation remain open. Preserve production edges and bounded controls. Evidence: `reports/review/1002-coherent-abi-integration.md`.

@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Apply D324 factory ownership and D326 env posture ownership in the placement checks and native successor. Preserve explicitly sanctioned adapter and transport homes. Judge inferred and nested cross-tier API exposure, not only named type imports. Plain wire data keeps its wire home. Delete only markers covered by a qualified home; move other shapes to their actual sanctioned owner.
+Apply D324 factory ownership and D327 env policy ownership in the placement checks and native successor. Preserve explicitly sanctioned adapter and transport homes. Judge inferred and nested cross-tier API exposure, not only named type imports. Plain wire data keeps its wire home. Delete only markers covered by a qualified home; move other shapes to their actual sanctioned owner.
 
 ## Why
 
@@ -24,4 +24,4 @@ Native controls preserve local factory ownership, cross-tier exposure, sanctione
 
 ## Evidence
 
-The reviewed security adapter contract batch is integrated with affected runtime and static controls. Tier-4 APIs retain their explicit owners. Host request facts belong in the existing auth adapter contract. D326 names the env posture contract; implementation and native enforcement remain open. Evidence: `reports/review/1042-security-type-homes.md` and `reports/review/1042-security-type-homes-independent-review.md`.
+Reviewed adapter, transport, env and canonical subscription declarations are integrated. Existing runtime security controls remain unchanged. D327 owns the bounded env policy category. Native placement, importer metadata, generic contribution and complete population qualification remain open. Evidence: `reports/review/1042-boundary-home-adjudication.md` and `reports/review/1042-boundary-home-independent-review.md`.

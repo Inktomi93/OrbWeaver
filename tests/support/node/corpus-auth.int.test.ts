@@ -5,7 +5,7 @@ import "./composed-real.ts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
-import { CSRF_HEADER } from "@orb/contracts/identity";
+import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { localPath, sessions, users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -161,11 +161,13 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   if (owner === undefined || member === undefined || sourceDatabase === undefined) {
     throw new Error("The committed corpus has no captured local admission cohort");
   }
+  const ownerView = viewerViewSchema.parse(owner);
+  const memberView = viewerViewSchema.parse(member);
   const sourceBytes = await readFile(sourceDatabase);
   const sourceWire = await readFile(join(source.layout.root, "corpus.json"));
   await using root = await createCorpusHarness(undefined, { authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" } });
   const cloneWire = await readFile(join(root.corpus.layout.root, "corpus.json"));
-  const accountIds = [owner.userId, member.userId];
+  const accountIds = [ownerView.userId, memberView.userId];
   expect(root.ownerId).toBe(owner.userId);
   expect(await root.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
   const credentialsBefore = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
@@ -176,8 +178,8 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   const address = await root.listen();
   const origin = `http://${address.address}:${String(address.port)}`;
   for (const [viewer, password] of [
-    [owner, ownerPassword],
-    [member, memberPassword],
+    [ownerView, ownerPassword],
+    [memberView, memberPassword],
   ] as const) {
     const reset = await fetch(new URL("/api/trpc/admin.resetPassword", origin), {
       method: "POST",
@@ -191,12 +193,12 @@ test("local corpus admission is prepared after the last clone and cannot cross v
   const credentialsAfter = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
   expect(credentialsAfter).toHaveLength(2);
   expect(credentialsAfter.every((row) => row.passwordHash !== null)).toBe(true);
-  const ownerAdmission = await captureCookieAuth(root, await root.principalFor(owner.userId), ownerPassword);
-  const memberAdmission = await captureCookieAuth(root, await root.principalFor(member.userId), memberPassword);
+  const ownerAdmission = await captureCookieAuth(root, await root.principalFor(ownerView.userId), ownerPassword);
+  const memberAdmission = await captureCookieAuth(root, await root.principalFor(memberView.userId), memberPassword);
   expect(ownerAdmission.identity.viewer).toEqual(owner);
   expect(memberAdmission.identity).toEqual(source.wire.memberIdentities?.sharedMember);
-  await expect(captureCorpusCookieIdentity(root, owner, memberAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
-  await expect(captureCorpusCookieIdentity(root, member, ownerAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
+  await expect(captureCorpusCookieIdentity(root, ownerView, memberAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
+  await expect(captureCorpusCookieIdentity(root, memberView, ownerAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
   for (const [cookie, csrf] of [
     [ownerAdmission.cookie, false],
     [memberAdmission.cookie, true],
@@ -210,15 +212,15 @@ test("local corpus admission is prepared after the last clone and cannot cross v
     expect(refused.status).toBe(403);
     expect(refused.headers.getSetCookie()).toEqual([]);
   }
-  expect((await captureCorpusCookieIdentity(root, owner, ownerAdmission.cookie)).viewer).toEqual(owner);
-  expect((await captureCorpusCookieIdentity(root, member, memberAdmission.cookie)).viewer).toEqual(member);
+  expect((await captureCorpusCookieIdentity(root, ownerView, ownerAdmission.cookie)).viewer).toEqual(owner);
+  expect((await captureCorpusCookieIdentity(root, memberView, memberAdmission.cookie)).viewer).toEqual(member);
   await using next = await createCorpusHarness(root.corpus.layout.root);
   expect(await next.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
   const nextCredentials = await next.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
   expect(nextCredentials).toHaveLength(2);
   expect(nextCredentials.every((row) => row.passwordHash === null)).toBe(true);
-  await expect(captureCorpusCookieIdentity(next, owner, ownerAdmission.cookie)).rejects.toThrow("request refused (401)");
-  await expect(captureCorpusCookieIdentity(next, member, memberAdmission.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(next, ownerView, ownerAdmission.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(next, memberView, memberAdmission.cookie)).rejects.toThrow("request refused (401)");
   for (const [viewer, password] of [
     [owner, ownerPassword],
     [member, memberPassword],

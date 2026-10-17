@@ -30,7 +30,7 @@ Dispatch the corpus smoke matrix independently. Its native shape and clone check
 
 Migrate qualified ESLint-only MOVE rows and DELETE scaffolding before registries. Security rows wait for behavioral successors. Prototype lint lands before shared ESLint edits. Preserve KEEP data and necessary missing-data refusal in its producer or consumer when deleting health twins.
 
-Keep cold multi-world cost separate. Item 965 owns AppRouter/tooling declaration bridges with fresh complete transitive declarations, not the prototype census.
+Keep cold multi-world cost separate. Immutable router artifacts are integrated; item 965 owns executing freshness and declaration adoption.
 
 D321 records the owner rulings; item 1041 owns the audited gate migration. Custom gate analysis serves the KEEP set. Do not port MOVE or DELETE rows into the fact store. Shared providers count once for cost.
 
@@ -151,7 +151,7 @@ The fact store is built once per world program, updated from file changes and pe
 
 ### Shared semantic inventory store
 
-The [native inventory store item](../../work/1002-persist-native-semantic-inventory-facts-and-release-world.md) owns qualification. Persisted facts live in `tooling/src/floor/code-facts/` and native worker lifecycle in `tooling/src/floor/compiler/`. Existing inventory collectors retain their judgments and query shared compiler facts. Consumer routing, bounded persistence and lazy readers are implemented. Current reuse is partition-level; complete current-demand replay and consumer equivalence remain open. Unported typed readers still require their native programs.
+The [native inventory item](../../work/1002-persist-native-semantic-inventory-facts-and-release-world.md) owns qualification. Facts live in `tooling/src/floor/code-facts/`; workers live in `tooling/src/floor/compiler/`. Collectors retain their judgments through shared native facts. Routing, bounded persistence and lazy readers are integrated. Reuse remains partition-level; complete replay and consumer equivalence remain open. Unported typed readers retain native programs.
 
 Factory readers retain a query-only transaction on the selected complete generation. Raw binding reuse stays inside that owned snapshot; borrowed readers remain fresh. Owned reads reuse validated immutable invocation identity. Session admission indexes private registrations; caller keys and graph checks remain current. Acquisition validates exact native membership before exposing a reader. Owned readers index private partition membership. Physical source lookup reuses live wrappers without treating their contents or compiler epochs as immutable. Ordinary installed controls qualify this lookup reuse. Maintained-support qualification completes with the legacy-only mint finding. Complete target cost and standard-runner qualification remain open.
 
@@ -175,7 +175,7 @@ Keep transaction overlays separate from committed facts. Derive their roots from
 
 Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Legacy CI and typecheck evidence remains available without extracting legacy semantic worlds, as D320 requires. Cross-world file duplication does not explain the separate single-world callable cost.
 
-SDK-owned wrapper generations and capture census reuse preserve native source admission. Ordinary installed controls pass; complete invocation, full-schema and cost qualification remain open.
+SDK-owned wrapper generations preserve native admission. Executing-input currentness and sealed consumers are integrated; public-boundary qualification remains red. Batch repeated cold replay within existing validation boundaries. Keep ignored dependency bytes separate from authored admission. Evidence: `reports/review/1002-public-58-failure-disposition.md`. Complete equivalence and cost remain open.
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
