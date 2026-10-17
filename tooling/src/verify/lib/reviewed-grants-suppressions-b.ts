@@ -4,6 +4,14 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-orb-no-banned-tw-utility",
+    policyId: "suppressions",
+    subject: "orb/no-banned-tw-utility",
+    operation: "source",
+    why: "RULING — the canonical shrink-to-fit transcript bubble retains max-w-prose; applying the teaching/body reading measure would narrow transcript geometry against its owner ruling. Only the actual production recipe receives a line-local directive.",
+    endsWhen: "a separately ruled transcript bubble cap receives its own token and replaces this recipe, or the final source directive disappears.",
+  },
+  {
     id: "suppressions:source-lint-style-use-shorthand-function-type",
     policyId: "suppressions",
     subject: "lint/style/useShorthandFunctionType",

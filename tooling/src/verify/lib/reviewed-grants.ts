@@ -22,7 +22,6 @@ import { REVIEWED_GRANTS_PACKAGE_SUBPATH } from "./reviewed-grants-package-subpa
 import { REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER } from "./reviewed-grants-singlestreamtransport-soleenvreader.ts";
 import { REVIEWED_GRANTS_SUPPRESSIONS_A } from "./reviewed-grants-suppressions-a.ts";
 import { REVIEWED_GRANTS_SUPPRESSIONS_B } from "./reviewed-grants-suppressions-b.ts";
-import { REVIEWED_GRANTS_TAILWIND } from "./reviewed-grants-tailwind.ts";
 import { REVIEWED_GRANTS_TEST_HAND_SHAPE } from "./reviewed-grants-test-hand-shape.ts";
 import { REVIEWED_GRANTS_TEST_PRODUCTION_CLONE } from "./reviewed-grants-test-production-clone.ts";
 import { REVIEWED_GRANTS_TEST_REACH_CLIENT } from "./reviewed-grants-test-reach-client.ts";
@@ -51,7 +50,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER,
       ...REVIEWED_GRANTS_SUPPRESSIONS_A,
       ...REVIEWED_GRANTS_SUPPRESSIONS_B,
-      ...REVIEWED_GRANTS_TAILWIND,
       ...REVIEWED_GRANTS_TEST_REACH_CLIENT,
       ...REVIEWED_GRANTS_TEST_HAND_SHAPE,
       ...REVIEWED_GRANTS_TEST_PRODUCTION_CLONE,

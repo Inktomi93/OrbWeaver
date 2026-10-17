@@ -22,7 +22,7 @@
 //
 // FAMILY: tailwind-class-token, tooling/src/verify/lib/tailwind-class-token.ts#readTailwindClassTokens —
 // consumed in the production hook to read the variant segments off the authored token, the same reader
-// `no-hover-display-swap` and `no-banned-tw-utility` use for the same question. The variant split is not
+// `no-hover-display-swap` uses for the same question. The variant split is not
 // re-implemented here: an arbitrary variant (`[&:hover]:`) carries a colon inside brackets and a private
 // `split(":")` would mis-read it.
 //

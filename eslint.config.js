@@ -950,6 +950,22 @@ const CLIENT_REGISTRY_RESTRICTIONS = [
   })),
 ];
 
+const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
+const CLASS_TOKEN_RESTRICTIONS = [
+  {
+    id: "no-banned-tw-utility",
+    scope: rootSources("@client", "@ui"),
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${BANNED_UTILITY}${CLASS_LITERAL_END}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${BANNED_UTILITY}${CLASS_SPAN_END}/])`,
+        message:
+          "Tailwind's max-w-prose matches no house reading measure. Body/teaching prose takes max-w-(--reading-measure-prose) on the paragraph; editor content takes max-w-(--width-content-col).",
+      },
+    ],
+  },
+];
+
 const DETERMINISM_TEST_SOURCES = ["tests/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
 const ESCAPE_MINT_NAMES = "/^(escapeRegExp|escapeRegex)$/";
 const DETERMINISM_RESTRICTIONS = [
@@ -991,6 +1007,7 @@ const DETERMINISM_RESTRICTIONS = [
 ];
 
 const RESTRICTIONS = [
+  ...CLASS_TOKEN_RESTRICTIONS,
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
@@ -1988,7 +2005,7 @@ export default [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
-    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS].some(({ id }) =>
+    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS, ...CLASS_TOKEN_RESTRICTIONS].some(({ id }) =>
       Object.hasOwn(block.rules, `orb/${id}`),
     )
       ? block

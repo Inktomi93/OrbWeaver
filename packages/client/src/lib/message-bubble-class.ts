@@ -33,5 +33,6 @@ const BUBBLE_TOKENS: Record<MessageRole, string> = {
  *  question, not a mechanical re-point — filed, not guessed. */
 export function messageBubbleClass(role: MessageRole): string {
   // `cn` is typed `string | undefined` (never undefined at runtime) — coalesce so callers get a `string`.
+  // eslint-disable-next-line orb/no-banned-tw-utility -- The shrink-to-fit transcript cap is not the teaching/prose measure; remove when a transcript cap is ruled and gets its own token.
   return cn("w-fit min-w-0 max-w-prose rounded-card px-block py-row", BUBBLE_TOKENS[role]) ?? "";
 }
