@@ -220,43 +220,76 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
 }
 
-function recheckSourceTypeSuppressionMetadata(root: string, paths: readonly string[]): Promise<number> {
+interface NativeMetadataFamily {
+  readonly hard: boolean;
+  readonly patterns: readonly string[];
+  readonly rules: readonly string[];
+  readonly label: string;
+}
+
+function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
   if (!paths.some(affectsSourceTypeSuppressionNativeLint) || paths.includes(".")) {
-    return Promise.resolve(EXIT.clean);
+    return [];
   }
   for (const path of SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS) {
     readFileSync(resolve(root, path));
   }
-  return nativeSyntaxPass(root, [...SOURCE_TYPE_SUPPRESSION_GLOBS], {
-    hard: true,
-    rules: new Set([SOURCE_TYPE_SUPPRESSION_RULE]),
-    label: "source-type-suppression-native",
-  });
+  return [
+    {
+      hard: true,
+      patterns: SOURCE_TYPE_SUPPRESSION_GLOBS,
+      rules: [SOURCE_TYPE_SUPPRESSION_RULE],
+      label: "source-type-suppression-native",
+    },
+  ];
 }
 
-async function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Promise<number> {
+function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Promise<number> {
   const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
   const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const map = paths.some(affectsClientMapNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const frontendRoots = [...POPULATION_ROOTS["@client"], ...POPULATION_ROOTS["@ui"]];
   const lexical = paths.some(affectsClientLexicalNativeLint) && !coversNativeRoots(paths, frontendRoots);
-  let supplemental: number = baseUi ? await recheckBaseUiMetadata(root) : EXIT.clean;
-  if (supplemental === EXIT.toolError) {
-    return EXIT.toolError;
+  const families = [
+    ...(baseUi ? baseUiMetadata(root) : []),
+    ...(context ? [contextMetadata(root)] : []),
+    ...(map ? [clientMapMetadata(root)] : []),
+    ...(lexical ? [clientLexicalMetadata(root)] : []),
+    ...sourceTypeSuppressionMetadata(root, paths),
+  ];
+  return recheckNativeFamilies(root, families);
+}
+
+async function recheckNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
+  const hard = families.filter((family) => family.hard);
+  const hardPatterns = hard.flatMap(({ patterns }) => patterns);
+  let verdict = hard.length === 0 ? EXIT.clean : await nativeSyntaxPass(root, hardPatterns, hard);
+  if (verdict === EXIT.toolError) {
+    return verdict;
   }
-  if (context) {
-    supplemental = Math.max(supplemental, await recheckContextMetadata(root));
+  // Ordinary comments retain authority. Only families requesting the same native pattern can share its rules.
+  const byPattern = new Map<string, NativeMetadataFamily[]>();
+  for (const family of families.filter((entry) => !entry.hard)) {
+    for (const pattern of family.patterns) {
+      const entries = byPattern.get(pattern) ?? [];
+      entries.push(family);
+      byPattern.set(pattern, entries);
+    }
   }
-  if (supplemental !== EXIT.toolError && map) {
-    supplemental = Math.max(supplemental, await recheckClientMapMetadata(root));
+  const groups = new Map<string, { patterns: string[]; families: readonly NativeMetadataFamily[] }>();
+  for (const [pattern, entries] of byPattern) {
+    const key = JSON.stringify(entries.map(({ rules }) => rules));
+    const group = groups.get(key) ?? { patterns: [], families: entries };
+    group.patterns.push(pattern);
+    groups.set(key, group);
   }
-  if (supplemental !== EXIT.toolError && lexical) {
-    supplemental = Math.max(supplemental, await recheckClientLexicalMetadata(root));
+  for (const group of groups.values()) {
+    verdict = Math.max(verdict, await nativeSyntaxPass(root, group.patterns, group.families));
+    if (verdict === EXIT.toolError) {
+      return verdict;
+    }
   }
-  if (supplemental !== EXIT.toolError) {
-    supplemental = Math.max(supplemental, await recheckSourceTypeSuppressionMetadata(root, paths));
-  }
-  return supplemental;
+  return verdict;
 }
 
 function coversNativeRoots(paths: readonly string[], roots: readonly string[]): boolean {
@@ -266,7 +299,7 @@ function coversNativeRoots(paths: readonly string[], roots: readonly string[]): 
 }
 
 // Metadata changes rejudge seal syntax without creating any typed ordinary owner program.
-async function recheckBaseUiMetadata(root: string): Promise<number> {
+function baseUiMetadata(root: string): NativeMetadataFamily[] {
   for (const path of BASE_UI_NATIVE_INPUT_PATHS) {
     readFileSync(resolve(root, path));
   }
@@ -275,77 +308,75 @@ async function recheckBaseUiMetadata(root: string): Promise<number> {
     throw new Error(`Native Base UI policies cannot read the surface manifest: ${manifest.reason}`);
   }
   const patterns = POPULATION_ROOTS["@ui"].map((prefix) => `${prefix}**/*.{ts,tsx}`);
-  let verdict: number = EXIT.clean;
-  for (const hard of [true, false]) {
-    const rules = new Set<string>(hard ? [BASE_UI_HANDLER_RULE] : [BASE_UI_DATA_RULE, BASE_UI_STATE_RULE]);
-    verdict = Math.max(verdict, await nativeSyntaxPass(root, patterns, { hard, rules, label: "base-ui-native" }));
-    if (verdict === EXIT.toolError) {
-      return verdict;
-    }
-  }
-  return verdict;
+  return [true, false].map((hard) => ({
+    hard,
+    patterns,
+    rules: hard ? [BASE_UI_HANDLER_RULE] : [BASE_UI_DATA_RULE, BASE_UI_STATE_RULE],
+    label: "base-ui-native",
+  }));
 }
 
-function recheckContextMetadata(root: string): Promise<number> {
+function contextMetadata(root: string): NativeMetadataFamily {
   for (const path of CONTEXT_NATIVE_INPUT_PATHS) {
     readFileSync(resolve(root, path));
   }
-  return nativeSyntaxPass(
-    root,
-    POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
-    {
-      hard: false,
-      rules: new Set<string>(CONTEXT_NATIVE_RULES),
-      label: "context-native",
-    },
-  );
+  return {
+    patterns: POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
+    hard: false,
+    rules: CONTEXT_NATIVE_RULES,
+    label: "context-native",
+  };
 }
 
-function recheckClientMapMetadata(root: string): Promise<number> {
+function clientMapMetadata(root: string): NativeMetadataFamily {
   for (const path of CLIENT_MAP_NATIVE_INPUT_PATHS) {
     readFileSync(resolve(root, path));
   }
-  return nativeSyntaxPass(
-    root,
-    POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
-    {
-      hard: false,
-      rules: new Set([CLIENT_MAP_NATIVE_RULE]),
-      label: "parallel-map-native",
-    },
-  );
+  return {
+    patterns: POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
+    hard: false,
+    rules: [CLIENT_MAP_NATIVE_RULE],
+    label: "parallel-map-native",
+  };
 }
 
-function recheckClientLexicalMetadata(root: string): Promise<number> {
+function clientLexicalMetadata(root: string): NativeMetadataFamily {
   for (const path of CLIENT_LEXICAL_NATIVE_INPUT_PATHS) {
     readFileSync(resolve(root, path));
   }
   const roots = [...POPULATION_ROOTS["@client"], ...POPULATION_ROOTS["@ui"]];
-  return nativeSyntaxPass(
-    root,
-    roots.map((prefix) => `${prefix}**/*.{ts,tsx}`),
-    {
-      hard: false,
-      rules: new Set<string>(CLIENT_LEXICAL_NATIVE_RULES),
-      label: "client-lexical-native",
-    },
-  );
+  return {
+    patterns: roots.map((prefix) => `${prefix}**/*.{ts,tsx}`),
+    hard: false,
+    rules: CLIENT_LEXICAL_NATIVE_RULES,
+    label: "client-lexical-native",
+  };
 }
 
-async function nativeSyntaxPass(
-  root: string,
-  patterns: string[],
-  { hard, rules, label }: { readonly hard: boolean; readonly rules: ReadonlySet<string>; readonly label: string },
-): Promise<number> {
+async function nativeSyntaxPass(root: string, patterns: string[], families: readonly NativeMetadataFamily[]): Promise<number> {
+  const hard = families[0]?.hard === true;
+  const rules = new Set(families.flatMap((family) => family.rules));
+  const label = families.map((family) => family.label).join("+");
   const { ESLint } = await import("eslint");
   const eslint = new ESLint({
     cwd: root,
     overrideConfigFile: resolve(root, hard ? HARD_CONFIG_REL : CONFIG_REL),
     allowInlineConfig: !hard,
+    errorOnUnmatchedPattern: true,
     ruleFilter: ({ ruleId }): boolean => rules.has(ruleId),
-    overrideConfig: [{ languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } }],
+    overrideConfig: [
+      { languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } },
+      // HARD cannot re-enable these rules inline; local ignores preserve native admission and original rule options.
+      ...(hard
+        ? families.map((family) => ({
+            ignores: [...family.patterns],
+            rules: Object.fromEntries(family.rules.map((rule) => [rule, "off"] as const)),
+          }))
+        : []),
+    ],
   });
-  const results = await eslint.lintFiles(patterns);
+  // ESLint refuses EACH unmatched/ignored glob before deduplicating files: a populated sibling cannot mask it.
+  const results = await eslint.lintFiles([...new Set(patterns)]);
   if (results.length === 0) {
     throw new Error(`Native ${label} metadata recheck admitted zero sources; no verdict is available`);
   }
