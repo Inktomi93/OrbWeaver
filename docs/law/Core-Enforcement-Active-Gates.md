@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(320 registered gates)
+(319 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -99,7 +99,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | an entry/compose module runs a… |
-| `config-anchor-in-registry` | — | reviewed-grant/error | @client | a file stamps configAnchorId(…) but… |
 | `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
 | `content-part-seam` | — | reviewed-grant/error | @product | ChatContentPart is named outside the… |
 | `context-definition-shape` | — | ordinary/error | @client | a CONTEXT-definition shape violates… |

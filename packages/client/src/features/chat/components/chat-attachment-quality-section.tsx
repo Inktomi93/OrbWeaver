@@ -8,7 +8,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { ATTACHMENT_QUALITY_LABELS, ATTACHMENT_QUALITY_SUBCATEGORY, IMAGE_DETAIL_ITEMS, VIDEO_RESOLUTION_ITEMS } from "../lib/chat-attachment-quality-model.ts";
 
 interface QualityUpdate {
@@ -24,18 +23,18 @@ const QualityForm = createAutosaveEntityForm<AttachmentQuality>({ defaultValues:
 const ENTITY_ID = "chat-attachment-quality";
 
 /** The host's outbound attachment preferences; originals remain untouched. */
-export function ChatAttachmentQualitySection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function ChatAttachmentQualitySection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your attachment quality" onRetry={retry} />}
     >
-      <QualityFormBody sectionId={sectionId} />
+      <QualityFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function QualityFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function QualityFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -43,15 +42,23 @@ function QualityFormBody({ sectionId }: { readonly sectionId: string }): ReactEl
   const save = (attachmentQuality: AttachmentQuality): Promise<unknown> => update.mutateAsync({ section: "chat", patch: { attachmentQuality } });
   return (
     <QualityForm entityId={ENTITY_ID} serverValues={data.config.chat.attachmentQuality} save={save}>
-      {(session): ReactElement => <QualityFields sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <QualityFields anchorId={anchorId} sectionId={sectionId} session={session} />}
     </QualityForm>
   );
 }
 
-function QualityFields({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<AttachmentQuality> }): ReactElement {
+function QualityFields({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<AttachmentQuality>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section heading={ATTACHMENT_QUALITY_SUBCATEGORY.label} divider={true} id={configAnchorId("chat-behavior", ATTACHMENT_QUALITY_SUBCATEGORY.id)}>
+    <Section heading={ATTACHMENT_QUALITY_SUBCATEGORY.label} divider={true} id={anchorId}>
       <ConfigTeachScope value={{ group: "chat-behavior", sub: ATTACHMENT_QUALITY_SUBCATEGORY }}>
         <SettingRowGroup>
           <SettingRow settingId="attachment-quality" span={true}>

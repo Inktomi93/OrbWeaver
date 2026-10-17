@@ -71,7 +71,7 @@ SDK execution joins native Query and observed direct-child completion. It does n
 
 ### Why this order
 
-The hard parts come first because they decide the shape of every rebuilt test. A test written before its foundation exists gets written twice. Build all of these before any suite is ported. The engine and the harness run in parallel, as the order of work says:
+Complete these foundations before general suite ports. Build the engine and harness in parallel:
 
 - The compose cleanup (964), because the composition root can only reach a rule that lives in its domain.
 - The server test composition root with every edge injectable (958): database, clock, ids, random, timers, the provider edge, the plugin host and the network. Production exposes each seam; a seam missing here forces a fake back into every test.
@@ -204,7 +204,9 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native ESLint owns lexical arbitrary-value, color, viewport, pointer and width restrictions. Shared z-index and skin readers remain; hover, banned utilities and dark claims await qualification. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
+Native ESLint owns lexical class restrictions; shared z-index and skin readers remain. Hover, banned utilities and dark claims await qualification. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
+
+Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
 Internal resolved role data is opaque; private codecs preserve the kernel, projection and host-identity split. Principal builders delegate to the real root. Existing role gates remain; legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
 
@@ -288,7 +290,7 @@ Retrofits inside legacy test files (vanity aliases, casts, waiver bookkeeping, f
 | Server integration | domain logic and permissions, cross-tenant cases included, on the composition root | a fake that stands in for domain logic |
 | Unit | pure logic in `@orb/kit` and `@orb/contracts` | I/O |
 
-A CT stubs every wire, so a CT can stay green while the real wire is broken; only e2e proves the wire. A CT that walks a flow pays every CT cost (stub ratchets, the unfed-read ledger, the config-mirror gate, flake handling) to prove what e2e proves for real. Item 963 moves each flow-walking route and shell CT into an e2e case and deletes it. CTs mount through the compose door (960) with stubs from builders (959), so a stub cannot drift from the contract.
+Only e2e proves real wires. Item 963 replaces flow-walking route and shell CTs with e2e cases. CTs mount through the compose door (960) with stubs from builders (959), so a stub cannot drift from the contract.
 
 ### How a rebuilt test is written
 

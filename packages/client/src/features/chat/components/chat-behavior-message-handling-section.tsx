@@ -19,7 +19,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
   AUTO_CONTINUE_ROUNDS_MAX,
@@ -49,18 +48,18 @@ const MessageHandlingAutosaveForm = createAutosaveEntityForm<ChatMessageHandling
 const MESSAGE_HANDLING_ENTITY_ID = "chat-message-handling";
 
 /** The Chat & message handling section body — mounted at the chat-behavior pane's sections anchor. */
-export function ChatMessageHandlingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function ChatMessageHandlingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your chat behavior settings" onRetry={retry} />}
     >
-      <MessageHandlingFormBody sectionId={sectionId} />
+      <MessageHandlingFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MessageHandlingFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MessageHandlingFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -70,20 +69,23 @@ function MessageHandlingFormBody({ sectionId }: { readonly sectionId: string }):
 
   return (
     <MessageHandlingAutosaveForm entityId={MESSAGE_HANDLING_ENTITY_ID} serverValues={projectMessageHandlingForm(data.config.chat)} save={save}>
-      {(session): ReactElement => <MessageHandlingBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <MessageHandlingBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </MessageHandlingAutosaveForm>
   );
 }
 
-function MessageHandlingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<ChatMessageHandlingForm> }): ReactElement {
+function MessageHandlingBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<ChatMessageHandlingForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label}
-      id={configAnchorId("chat-behavior", CHAT_MESSAGE_HANDLING_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={CHAT_MESSAGE_HANDLING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose (incl. the B1/B7 inherit-shape
           caveats and the reapTemporaryChats copy) lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_MESSAGE_HANDLING_SUBCATEGORY }}>

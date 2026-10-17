@@ -10,5 +10,5 @@ export const automationBudgetSection: ConfigSectionContribution = {
   id: "automation-budget",
   anchor: "automation",
   nav: AUTOMATION_BUDGET_SUBCATEGORY,
-  body: () => <OwnerBudgetSection />,
+  body: (anchorId) => <OwnerBudgetSection anchorId={anchorId} />,
 };

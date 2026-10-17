@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/namespace-call-demand-1002
+lane: codex/native-promise-catch-identity-1002
 plan: test-foundation
 ---
 

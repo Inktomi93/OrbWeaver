@@ -15,5 +15,5 @@ export const rateLimitsSection: ConfigSectionContribution = {
   anchor: "admin",
   nav: RATE_LIMITS_SUBCATEGORY,
   owns: { tier: "app", keys: ["rateLimits"] },
-  body: () => <RateLimitsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <RateLimitsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

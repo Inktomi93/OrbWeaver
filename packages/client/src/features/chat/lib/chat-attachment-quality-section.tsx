@@ -8,5 +8,5 @@ export const chatAttachmentQualitySection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: ATTACHMENT_QUALITY_SUBCATEGORY,
   owns: { tier: "user", section: "chat", keys: ATTACHMENT_QUALITY_KEYS },
-  body: () => <ChatAttachmentQualitySection sectionId={SECTION_ID} />,
+  body: (anchorId) => <ChatAttachmentQualitySection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

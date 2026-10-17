@@ -9,5 +9,5 @@ export const backupImportSection: ConfigSectionContribution = {
   id: "backup-import",
   anchor: "backup",
   nav: BACKUP_IMPORT_SUBCATEGORY,
-  body: () => <BackupImportSection />,
+  body: (anchorId) => <BackupImportSection anchorId={anchorId} />,
 };

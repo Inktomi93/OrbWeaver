@@ -11,5 +11,5 @@ export const connectionsRolesSection: ConfigSectionContribution = {
   anchor: "connections",
   nav: CONNECTIONS_ROLES_SUBCATEGORY,
   owns: { tier: "user", section: "seeds", keys: ["summarizePreset"] },
-  body: () => <ConnectionsRolesSection />,
+  body: (anchorId) => <ConnectionsRolesSection anchorId={anchorId} />,
 };

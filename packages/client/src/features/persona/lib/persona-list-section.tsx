@@ -12,5 +12,5 @@ export const personaListSection: ConfigSectionContribution = {
   id: "persona-list",
   anchor: "personas",
   nav: PERSONA_LIST_SUBCATEGORY,
-  body: () => <PersonaListSection />,
+  body: (anchorId) => <PersonaListSection anchorId={anchorId} />,
 };

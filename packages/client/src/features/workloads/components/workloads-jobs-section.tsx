@@ -21,7 +21,6 @@ import { ModelRunConfirmDialog, QueryBoundary, useModelRunConfirm } from "#compo
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { configAnchorId } from "#state";
 import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
 import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
@@ -46,7 +45,7 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
 }
 
 /** The Jobs section body — mounted at the workloads pane's sections anchor. */
-export function WorkloadsJobsSection(): ReactElement {
+export function WorkloadsJobsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into the job table — the longest block in Workloads.
     <QueryBoundary
@@ -54,13 +53,13 @@ export function WorkloadsJobsSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your jobs" onRetry={retry} />}
       reserveKey="config.workloads.jobs"
     >
-      <WorkloadsJobsBody />
+      <WorkloadsJobsBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
 /** Suspends on the caller's workload list + the viewer, then renders the tabs + rows + run dialog. */
-function WorkloadsJobsBody(): ReactElement {
+function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: workloads }, { data: viewer }] = useSuspenseQueries({
@@ -111,7 +110,7 @@ function WorkloadsJobsBody(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={configAnchorId("workloads", WORKLOADS_JOBS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={WORKLOADS_JOBS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSection")}>
         <Tabs
           value={filter}

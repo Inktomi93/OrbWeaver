@@ -9,5 +9,5 @@ export const connectionsKeysSection: ConfigSectionContribution = {
   id: "connections-keys",
   anchor: "connections",
   nav: CONNECTIONS_KEYS_SUBCATEGORY,
-  body: () => <ConnectionsKeysSection />,
+  body: (anchorId) => <ConnectionsKeysSection anchorId={anchorId} />,
 };

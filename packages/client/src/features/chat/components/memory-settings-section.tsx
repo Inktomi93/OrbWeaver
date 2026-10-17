@@ -25,7 +25,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { MEMORY_COST_SENTENCE } from "#lib";
 import type { SaveLifecycleState } from "#state";
-import { configAnchorId, openConfigTo } from "#state";
+import { openConfigTo } from "#state";
 import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
@@ -40,18 +40,18 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 }
 
 /** The Memory section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function MemorySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function MemorySettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your memory settings" onRetry={retry} />}
     >
-      <MemorySettingsBody sectionId={sectionId} />
+      <MemorySettingsBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -62,7 +62,7 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
   const enabled = data.config.memory.enabled;
 
   return (
-    <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         {/* TURNING IT ON ASKS FIRST; turning it off does not. On is the switch that spends: it is where the cost,
             the model that pays and the fate of existing chats are said, and where the backfill is offered. */}

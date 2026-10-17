@@ -20,12 +20,11 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
-import { configAnchorId } from "#state";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "../lib/admin-link-sso-nav.ts";
 import { AdminLinkSsoDialog } from "./admin-link-sso-dialog.tsx";
 
 /** The Link-SSO section body — mounted at the admin pane's sections anchor. */
-export function AdminLinkSsoSection(): ReactElement {
+export function AdminLinkSsoSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin section that settles into the linkable-account list.
     <QueryBoundary
@@ -33,12 +32,12 @@ export function AdminLinkSsoSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       reserveKey="config.admin.linkSso"
     >
-      <AdminLinkSsoBody />
+      <AdminLinkSsoBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function AdminLinkSsoBody(): ReactElement {
+function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const { data: users } = useSuspenseQuery(trpc.admin.listUsers.queryOptions());
   const [linking, setLinking] = useState<{ readonly userId: UserId; readonly handle: Handle } | null>(null);
@@ -49,7 +48,7 @@ function AdminLinkSsoBody(): ReactElement {
   const linkable = users.filter((user) => user.role !== "owner" && user.externalId === null);
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_LINK_SSO_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminLinkSsoSection")}>
         <Text voice="label" className="text-muted-foreground">
           Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place — otherwise a user whose IdP username differs from

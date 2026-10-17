@@ -17,7 +17,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model.ts";
 import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items.ts";
 
@@ -40,18 +39,18 @@ const MessageDetailsAutosaveForm = createAutosaveEntityForm<MessageDetailsForm>(
 const MESSAGE_DETAILS_ENTITY_ID = "appearance-message-details";
 
 /** The Message-details section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceMessageDetailsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceMessageDetailsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your message-detail settings" onRetry={retry} />}
     >
-      <MessageDetailsFormBody sectionId={sectionId} />
+      <MessageDetailsFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MessageDetailsFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MessageDetailsFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -65,20 +64,23 @@ function MessageDetailsFormBody({ sectionId }: { readonly sectionId: string }): 
       serverValues={pickKeys(data.config.appearance, APPEARANCE_MESSAGE_DETAILS_KEYS)}
       save={save}
     >
-      {(session): ReactElement => <MessageDetailsBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <MessageDetailsBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </MessageDetailsAutosaveForm>
   );
 }
 
-function MessageDetailsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<MessageDetailsForm> }): ReactElement {
+function MessageDetailsBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<MessageDetailsForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`
           (incl. the #167 "where to look" line for Show model). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY }}>

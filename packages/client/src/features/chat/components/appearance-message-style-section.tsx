@@ -25,7 +25,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
 import { ChatStyleCards } from "./appearance-chat-style-cards.tsx";
 
@@ -49,18 +48,18 @@ const MessageStyleAutosaveForm = createAutosaveEntityForm<MessageStyleForm>({
 const MESSAGE_STYLE_ENTITY_ID = "appearance-message-style";
 
 /** The Message-style section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceMessageStyleSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceMessageStyleSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your message-style settings" onRetry={retry} />}
     >
-      <MessageStyleFormBody sectionId={sectionId} />
+      <MessageStyleFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MessageStyleFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MessageStyleFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // Cache-first: the settings host already loaded this read, so a section owning its own read costs nothing.
@@ -71,20 +70,23 @@ function MessageStyleFormBody({ sectionId }: { readonly sectionId: string }): Re
 
   return (
     <MessageStyleAutosaveForm entityId={MESSAGE_STYLE_ENTITY_ID} serverValues={pickKeys(data.config.appearance, APPEARANCE_MESSAGE_STYLE_KEYS)} save={save}>
-      {(session): ReactElement => <MessageStyleBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <MessageStyleBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </MessageStyleAutosaveForm>
   );
 }
 
-function MessageStyleBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<MessageStyleForm> }): ReactElement {
+function MessageStyleBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<MessageStyleForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_MESSAGE_STYLE_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`.
           The per-mode legend stays INSIDE the option rows (`CHAT_STYLE_DESCRIPTIONS`, side-eye 2026-08-16). */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_MESSAGE_STYLE_SUBCATEGORY }}>

@@ -27,18 +27,17 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { configAnchorId } from "#state";
 import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.ts";
 
 /** The version section's own suspense/error boundary — it reads for itself, so it recovers for itself. */
-export function AboutSection(): ReactElement {
+export function AboutSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={2} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this install's version" onRetry={retry} />}
       reserveKey="config.about.version"
     >
-      <AboutBody />
+      <AboutBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
@@ -56,12 +55,12 @@ function provenanceLine(version: VersionIdentity): string {
     : `Stamped into the container image when it was built, ${timeLib.formatDateTime(Date.parse(version.builtAt))}.`;
 }
 
-function AboutBody(): ReactElement {
+function AboutBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const { data: version } = useSuspenseQuery(trpc.settings.getVersion.queryOptions());
 
   return (
-    <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("about", ABOUT_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
         {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
             text shows once and the field gets the row's whole width. */}
@@ -80,13 +79,13 @@ function AboutBody(): ReactElement {
 
 /** The admin's manual update check. It needs no version read of its own: the server compares its own frozen
  *  identity against the upstream head. */
-export function AboutUpdatesSection(): ReactElement {
+export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   // MANUAL by construction (see the header): nothing fetches until the button calls `refetch`.
   const update = useQuery({ ...trpc.settings.checkForUpdate.queryOptions(), enabled: false });
 
   return (
-    <Section divider={true} heading={ABOUT_UPDATES_SUBCATEGORY.label} id={configAnchorId("about", ABOUT_UPDATES_SUBCATEGORY.id)}>
+    <Section divider={true} heading={ABOUT_UPDATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Row align="center" gap="row">
           <Button

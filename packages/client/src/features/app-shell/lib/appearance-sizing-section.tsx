@@ -15,5 +15,5 @@ export const appearanceSizingSection: ConfigSectionContribution = {
   advanced: true,
   nav: APPEARANCE_SIZING_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_SIZING_KEYS },
-  body: () => <AppearanceSizingSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceSizingSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

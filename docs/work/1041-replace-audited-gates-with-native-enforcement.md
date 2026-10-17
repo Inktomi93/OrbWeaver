@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-role-authority-1041
+lane: codex/compose-query-capability-1041
 plan: test-foundation
 ---
 
@@ -24,7 +24,7 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 
 ## Evidence
 
-D321 records the owner rulings. The canonical audit and raw-output crosswalk are in `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances; their different totals do not establish missing coverage.
+D321 records the owner rulings. The canonical audit crosswalk is `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances.
 
 Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
 
@@ -32,7 +32,7 @@ SQL delivery passes review and controls. Evidence: `reports/review/1027-native-s
 
 Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Turn identity and typed role gates remain active pending qualified successors.
 
-Native ESLint file-size limits preserve source scopes and replace the custom counters. Existing test monolith debt moves to shrinking native bulk entries; new findings stay blocking. Structural antipattern routing excludes native lint. Review and bounded controls pass. Evidence: `reports/review/native-foundation-wave-ordinary.md`. Security, registry, runtime and CSS migrations remain open.
+Native file-size limits preserve scopes and shrinking test debt. Structural antipattern routing excludes native lint. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
 Chat constructs narrow engine inputs and binds memory outside it. Native imports and production-root turn/memory controls pass security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructors remain unqualified replacement debt, not inherited compiler diagnostics.
 
@@ -43,3 +43,5 @@ Production device-local names and required persistence options use native factor
 Native lexical class restrictions replace their custom owners; semantic consumers remain. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
 
 Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
+
+Production registries supply config anchors and safe navigation with owned jump cancellation. Native types and route-map lint replace exact claims; semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts need real-door replacement.

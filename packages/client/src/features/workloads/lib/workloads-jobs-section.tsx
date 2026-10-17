@@ -13,5 +13,5 @@ export const workloadsJobsSection: ConfigSectionContribution = {
   id: "workloads-jobs",
   anchor: "workloads",
   nav: WORKLOADS_JOBS_SUBCATEGORY,
-  body: () => <WorkloadsJobsSection />,
+  body: (anchorId) => <WorkloadsJobsSection anchorId={anchorId} />,
 };

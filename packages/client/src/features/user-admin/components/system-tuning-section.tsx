@@ -16,7 +16,6 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
@@ -103,7 +102,7 @@ function toDraft(resolved: EffectiveAppConfig): Draft {
 }
 
 /** The section's own suspense/error boundary so it is self-contained. */
-export function SystemTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — the other of the two LONGEST admin knob stacks.
     <QueryBoundary
@@ -111,12 +110,12 @@ export function SystemTuningSection({ sectionId }: { readonly sectionId: string 
       renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
       reserveKey="config.admin.systemTuning"
     >
-      <SystemTuningBody sectionId={sectionId} />
+      <SystemTuningBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -164,7 +163,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   };
 
   return (
-    <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={configAnchorId("admin", SYSTEM_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={SYSTEM_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="label" className="text-muted-foreground">
           Deployment-wide runtime tuning. Each applies live (per request / batch / check). Absent knobs run on the deployment floor.

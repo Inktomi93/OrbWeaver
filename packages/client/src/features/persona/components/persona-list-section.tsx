@@ -9,13 +9,11 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { configAnchorId } from "#state";
-import { PERSONA_LIST_SUBCATEGORY } from "../lib/personas-nav.ts";
 import { PersonaList } from "./persona-list.tsx";
 
-export function PersonaListSection(): ReactElement {
+export function PersonaListSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Stack gap="row" id={configAnchorId("personas", PERSONA_LIST_SUBCATEGORY.id)}>
+    <Stack gap="row" id={anchorId}>
       {/* RESERVED (#1098). This is a CONFIG section with every later Personas section stacked under it, and
           it settles into a list of portrait rows — a one-line sentence in its place is the boot-CLS shape
           (F14): everything below jumps by the whole list when the read lands. `avatar-row` is the settled

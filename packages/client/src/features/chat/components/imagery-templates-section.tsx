@@ -23,7 +23,6 @@ import { QueryBoundary } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form.ts";
 import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";
@@ -104,18 +103,18 @@ const CARDS: readonly CardDescriptor[] = [
 ];
 
 /** The Image-prompts section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function ImageryTemplatesSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function ImageryTemplatesSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={3} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your image-prompt templates" onRetry={retry} />}
     >
-      <ImageryTemplatesFormBody sectionId={sectionId} />
+      <ImageryTemplatesFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function ImageryTemplatesFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function ImageryTemplatesFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -125,17 +124,25 @@ function ImageryTemplatesFormBody({ sectionId }: { readonly sectionId: string })
 
   return (
     <ImageryTemplatesAutosaveForm entityId={IMAGERY_TEMPLATES_ENTITY_ID} serverValues={projectImageryTemplatesForm(data.config.imagery)} save={save}>
-      {(session): ReactElement => <ImageryTemplatesBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <ImageryTemplatesBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </ImageryTemplatesAutosaveForm>
   );
 }
 
-function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<ImageryTemplatesForm> }): ReactElement {
+function ImageryTemplatesBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<ImageryTemplatesForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   // IMGMAC — the author's user-macro plane, unioned onto the two identity macros for the EXTRACTION cards.
   const suggestions = extractionSuggestions(usePromptMacroSuggestions());
   return (
-    <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={configAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
+    <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
         <Text voice="gloss">
           How each image-generation mode builds its prompt. Leave a field blank to use the built-in default (shown as the placeholder). Your opening line still

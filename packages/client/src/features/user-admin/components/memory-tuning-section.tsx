@@ -20,7 +20,6 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
@@ -126,7 +125,7 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 }
 
 /** The section's own suspense/error boundary so it is self-contained. */
-export function MemoryTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
@@ -134,12 +133,12 @@ export function MemoryTuningSection({ sectionId }: { readonly sectionId: string 
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
       reserveKey="config.admin.memoryTuning"
     >
-      <MemoryTuningBody sectionId={sectionId} />
+      <MemoryTuningBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -169,7 +168,7 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   };
 
   return (
-    <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={configAnchorId("admin", MEMORY_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="label" className="text-muted-foreground">
           Recall &amp; consolidation. Unchanged controls use the deployment defaults.

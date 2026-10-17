@@ -11,5 +11,5 @@ export const automationLibraryRulesSection: ConfigSectionContribution = {
   id: "automation-library-rules",
   anchor: "automation",
   nav: AUTOMATION_RULES_SUBCATEGORY,
-  body: () => <OwnerRulesSection />,
+  body: (anchorId) => <OwnerRulesSection anchorId={anchorId} />,
 };

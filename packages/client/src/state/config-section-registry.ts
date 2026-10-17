@@ -53,8 +53,8 @@ export type SettingsKeyClaim =
 
 /** A contributed config section (§6c). `nav` reuses the existing `ConfigSubcategory` so a contributed
  *  section is a first-class LIST/search citizen with zero new vocabulary (derive, don't re-declare) — the
- *  host merges it into the group's subcategory list. `body` renders the section keyed to
- *  `configAnchorId(anchor, nav.id)` so the host's scroll-spy and search jump work unchanged. */
+ *  host merges it into the group's subcategory list. The resolver supplies the body's anchor so an
+ *  unregistered component cannot independently mint a navigation target. */
 export interface ConfigSectionContribution {
   /** The registry key + React key (a duplicate throws at door construction). */
   readonly id: string;
@@ -72,8 +72,8 @@ export interface ConfigSectionContribution {
    *  default). LIST/search citizenship is unchanged — a landing on a folded
    *  section opens the fold. Absent = a plain section. */
   readonly advanced?: boolean;
-  /** The contributed `<Section>` node. Anchored via `configAnchorId(anchor, nav.id)` by the section. */
-  readonly body: () => ReactNode;
+  /** Stamp this registry-owned ID on the contribution's existing section root. */
+  readonly body: (anchorId: string) => ReactNode;
 }
 
 /** A resolved contributed section — the node plus its nav. Which PARTITION it landed in is the partition's
@@ -144,8 +144,28 @@ function projectSections<TSection>(
   return { primary: partition.primary.map(map), advanced: partition.advanced.map(map) };
 }
 
+function configAnchorId(group: ConfigGroupId, sub: string): string {
+  return `config-anchor-${group}-${sub}`;
+}
+
+/** An unavailable or viewer-hidden address has no target, even when its strings are well typed. */
+export function resolveConfigSectionAnchor(
+  registry: ContributorRegistry<ConfigSectionContribution>,
+  group: ConfigGroupId,
+  sub: string,
+  viewer: SettingsViewerView,
+): string | null {
+  const contribution = registry.list().find((candidate) => candidate.anchor === group && candidate.nav.id === sub && (candidate.when?.(viewer) ?? true));
+  return contribution === undefined ? null : configAnchorId(contribution.anchor, contribution.nav.id);
+}
+
+/** The spy reads the same address family as this group's registered contributions. */
+export function resolveConfigSectionAnchorPrefix(registry: ContributorRegistry<ConfigSectionContribution>, group: ConfigGroupId): string | null {
+  return registry.list().some((candidate) => candidate.anchor === group) ? configAnchorId(group, "") : null;
+}
+
 function resolveOne(c: ConfigSectionContribution): ResolvedConfigSection {
-  return { id: c.id, nav: c.nav, node: c.body() };
+  return { id: c.id, nav: c.nav, node: c.body(configAnchorId(c.anchor, c.nav.id)) };
 }
 
 /** The NODE projection (the render half): one anchor's visible sections as mounted nodes, partitioned. The

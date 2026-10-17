@@ -15,7 +15,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { configAnchorId } from "#state";
 import { PLUGINS_INSTALLED_SUBCATEGORY } from "../lib/plugins-nav.ts";
 import { PluginRow } from "./plugin-row.tsx";
 
@@ -53,9 +52,9 @@ function InstalledPluginsList(): ReactElement {
   );
 }
 
-export function PluginsInstalledSection(): ReactElement {
+export function PluginsInstalledSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section divider={true} heading={PLUGINS_INSTALLED_SUBCATEGORY.label} id={configAnchorId("plugins", PLUGINS_INSTALLED_SUBCATEGORY.id)}>
+    <Section divider={true} heading={PLUGINS_INSTALLED_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
         fallback={<SkeletonRows count={2} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your plugins" onRetry={retry} />}

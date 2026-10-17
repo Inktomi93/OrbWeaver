@@ -33,7 +33,7 @@ export const mediaTrustSection: ConfigSectionContribution = {
   anchor: "admin",
   nav: MEDIA_TRUST_SUBCATEGORY,
   owns: { tier: "app", keys: ["forbidExternalMedia", "trustHtml", "allowInteractiveCards", "maxImageBytes"] },
-  body: () => <MediaTrustSection sectionId={MEDIA_TRUST_ID} />,
+  body: (anchorId) => <MediaTrustSection anchorId={anchorId} sectionId={MEDIA_TRUST_ID} />,
 };
 
 export const multiUserSection: ConfigSectionContribution = {
@@ -41,7 +41,7 @@ export const multiUserSection: ConfigSectionContribution = {
   anchor: "admin",
   nav: MULTI_USER_SUBCATEGORY,
   owns: { tier: "app", keys: ["localMultiUser", "discreetLogin", "privateEndpointAllowlist"] },
-  body: () => <MultiUserSection sectionId={MULTI_USER_ID} />,
+  body: (anchorId) => <MultiUserSection anchorId={anchorId} sectionId={MULTI_USER_ID} />,
 };
 
 export const operationsSection: ConfigSectionContribution = {
@@ -49,5 +49,5 @@ export const operationsSection: ConfigSectionContribution = {
   anchor: "admin",
   nav: OPERATIONS_SUBCATEGORY,
   owns: { tier: "app", keys: ["corpusAutoindex", "logLevel"] },
-  body: () => <OperationsSection sectionId={OPERATIONS_ID} />,
+  body: (anchorId) => <OperationsSection anchorId={anchorId} sectionId={OPERATIONS_ID} />,
 };

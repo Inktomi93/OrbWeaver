@@ -26,7 +26,6 @@ import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, u
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { removeActionName } from "#lib";
-import { configAnchorId } from "#state";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
 import { BACKGROUND_FIT_ITEMS } from "../lib/appearance-select-items.ts";
@@ -52,18 +51,18 @@ const BackgroundAutosaveForm = createAutosaveEntityForm<BackgroundForm>({
 const BACKGROUND_ENTITY_ID = "appearance-background";
 
 /** The Background section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceBackgroundSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceBackgroundSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your background settings" onRetry={retry} />}
     >
-      <BackgroundFormBody sectionId={sectionId} />
+      <BackgroundFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function BackgroundFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function BackgroundFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -73,7 +72,7 @@ function BackgroundFormBody({ sectionId }: { readonly sectionId: string }): Reac
 
   return (
     <BackgroundAutosaveForm entityId={BACKGROUND_ENTITY_ID} serverValues={pickKeys(data.config.appearance, APPEARANCE_BACKGROUND_KEYS)} save={save}>
-      {(session): ReactElement => <BackgroundBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <BackgroundBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </BackgroundAutosaveForm>
   );
 }
@@ -101,7 +100,15 @@ function writeNone(form: AutosaveSession<BackgroundForm>["form"]): void {
   form.setFieldValue("backgroundImageKind", "none");
 }
 
-function BackgroundBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<BackgroundForm> }): ReactElement {
+function BackgroundBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<BackgroundForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   // A newly-added background — uploaded or materialized from a URL — SAVES to the library (BG-D) and becomes
   // the live one in the same autosave patch. Byte-identical adds legitimately produce two rows: `assetId` is
@@ -126,12 +133,7 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
     }
   };
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_BACKGROUND_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_BACKGROUND_SUBCATEGORY.label} id={anchorId}>
       {/* R-BG (#866 S4): an inherently VISUAL choice picks by THUMBNAIL — one grid: None · every library
           entry (which is where the bundled scene plates live since `kind:"seeded"` retired); the selected
           tile wears the ring; `backgroundImageKind` derives from the tap and is never a user-facing

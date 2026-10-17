@@ -21,14 +21,13 @@ import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { configAnchorId } from "#state";
 import { useSetEnabled } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_APPROVALS_SUBCATEGORY } from "../lib/admin-approvals-nav.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
 /** The Approvals section body — mounted at the admin pane's sections anchor. */
-export function AdminApprovalsSection(): ReactElement {
+export function AdminApprovalsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin section that settles into the pending-account list; the whole admin pane stacks below it.
     <QueryBoundary
@@ -36,12 +35,12 @@ export function AdminApprovalsSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       reserveKey="config.admin.approvals"
     >
-      <AdminApprovalsBody />
+      <AdminApprovalsBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function AdminApprovalsBody(): ReactElement {
+function AdminApprovalsBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const { data: users } = useSuspenseQuery(trpc.admin.listUsers.queryOptions());
 
@@ -50,7 +49,7 @@ function AdminApprovalsBody(): ReactElement {
   const pending = users.filter((user) => !user.enabled && user.role !== "owner");
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_APPROVALS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
         <Text voice="label" className="text-muted-foreground">
           Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.

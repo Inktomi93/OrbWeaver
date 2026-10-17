@@ -17,5 +17,5 @@ export const imageryTemplatesSection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: IMAGERY_TEMPLATES_SUBCATEGORY,
   owns: { tier: "user", section: "imagery", keys: ["templates", "captions"] },
-  body: () => <ImageryTemplatesSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <ImageryTemplatesSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

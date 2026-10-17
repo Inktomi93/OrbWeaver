@@ -16,5 +16,5 @@ export const librarySettingsSection: ConfigSectionContribution = {
   anchor: "appearance",
   nav: LIBRARY_SETTINGS_SUBCATEGORY,
   owns: { tier: "user", section: "library", keys: ["pageSize"] },
-  body: () => <LibrarySettingsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <LibrarySettingsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

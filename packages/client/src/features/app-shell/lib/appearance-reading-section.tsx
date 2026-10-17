@@ -15,5 +15,5 @@ export const appearanceReadingSection: ConfigSectionContribution = {
   advanced: true,
   nav: APPEARANCE_READING_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_READING_KEYS },
-  body: () => <AppearanceReadingSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceReadingSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

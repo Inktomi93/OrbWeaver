@@ -15,12 +15,12 @@ export const adminCatalogSection: ConfigSectionContribution = {
   id: "admin-model-catalog",
   anchor: "admin",
   nav: ADMIN_CATALOG_SUBCATEGORY,
-  body: () => <AdminCatalogSection />,
+  body: (anchorId) => <AdminCatalogSection anchorId={anchorId} />,
 };
 
 export const adminEmbeddingsSection: ConfigSectionContribution = {
   id: "admin-card-embeddings",
   anchor: "admin",
   nav: ADMIN_EMBEDDINGS_SUBCATEGORY,
-  body: () => <AdminEmbedCardSection />,
+  body: (anchorId) => <AdminEmbedCardSection anchorId={anchorId} />,
 };

@@ -19,5 +19,5 @@ export const proseSettingsSection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: PROSE_SETTINGS_SUBCATEGORY,
   owns: { tier: "user", section: "prose", keys: USER_PROSE_SLOT_IDS },
-  body: () => <ProseSettingsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <ProseSettingsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

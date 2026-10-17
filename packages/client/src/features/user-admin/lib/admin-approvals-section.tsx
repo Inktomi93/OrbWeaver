@@ -13,5 +13,5 @@ export const adminApprovalsSection: ConfigSectionContribution = {
   id: "admin-approvals",
   anchor: "admin",
   nav: ADMIN_APPROVALS_SUBCATEGORY,
-  body: () => <AdminApprovalsSection />,
+  body: (anchorId) => <AdminApprovalsSection anchorId={anchorId} />,
 };

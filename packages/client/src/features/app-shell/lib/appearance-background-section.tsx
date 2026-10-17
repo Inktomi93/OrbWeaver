@@ -13,5 +13,5 @@ export const appearanceBackgroundSection: ConfigSectionContribution = {
   anchor: "appearance",
   nav: APPEARANCE_BACKGROUND_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_BACKGROUND_KEYS, libraryKeys: APPEARANCE_BACKGROUND_LIBRARY_KEYS },
-  body: () => <AppearanceBackgroundSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceBackgroundSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

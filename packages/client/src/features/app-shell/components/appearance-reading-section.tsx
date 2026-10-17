@@ -19,7 +19,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -54,18 +53,18 @@ const ReadingAutosaveForm = createAutosaveEntityForm<ReadingForm>({
 const READING_ENTITY_ID = "appearance-reading";
 
 /** The Reading-typography section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceReadingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceReadingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your reading settings" onRetry={retry} />}
     >
-      <ReadingFormBody sectionId={sectionId} />
+      <ReadingFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function ReadingFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function ReadingFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -75,20 +74,23 @@ function ReadingFormBody({ sectionId }: { readonly sectionId: string }): ReactEl
 
   return (
     <ReadingAutosaveForm entityId={READING_ENTITY_ID} serverValues={pickKeys(data.config.appearance, APPEARANCE_READING_KEYS)} save={save}>
-      {(session): ReactElement => <ReadingBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <ReadingBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </ReadingAutosaveForm>
   );
 }
 
-function ReadingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<ReadingForm> }): ReactElement {
+function ReadingBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<ReadingForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_READING_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_READING_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_READING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_READING_SUBCATEGORY }}>
         <SettingRowGroup>

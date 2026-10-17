@@ -10,7 +10,7 @@ export const aboutSection: ConfigSectionContribution = {
   id: "about-version",
   anchor: "about",
   nav: ABOUT_SUBCATEGORY,
-  body: () => <AboutSection />,
+  body: (anchorId) => <AboutSection anchorId={anchorId} />,
 };
 
 export const aboutUpdatesSection: ConfigSectionContribution = {
@@ -18,5 +18,5 @@ export const aboutUpdatesSection: ConfigSectionContribution = {
   anchor: "about",
   nav: ABOUT_UPDATES_SUBCATEGORY,
   when: (viewer) => viewer.isAdmin,
-  body: () => <AboutUpdatesSection />,
+  body: (anchorId) => <AboutUpdatesSection anchorId={anchorId} />,
 };

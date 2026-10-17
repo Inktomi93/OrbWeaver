@@ -19,7 +19,6 @@ import { QueryBoundary } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form.ts";
 import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import {
@@ -45,18 +44,18 @@ const useUpdateDatabank = createEntityMutation<UpdateDatabankVars, unknown>({
 });
 
 /** The Databank section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function DatabankSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function DatabankSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your databank settings" onRetry={retry} />}
     >
-      <DatabankSettingsFormBody sectionId={sectionId} />
+      <DatabankSettingsFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function DatabankSettingsFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function DatabankSettingsFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -66,15 +65,23 @@ function DatabankSettingsFormBody({ sectionId }: { readonly sectionId: string })
 
   return (
     <DatabankSettingsAutosaveForm entityId={DATABANK_SETTINGS_ENTITY_ID} serverValues={projectDatabankForm(data.config.databank)} save={save}>
-      {(session): ReactElement => <DatabankSettingsBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <DatabankSettingsBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </DatabankSettingsAutosaveForm>
   );
 }
 
-function DatabankSettingsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<DatabankSettingsForm> }): ReactElement {
+function DatabankSettingsBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<DatabankSettingsForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={DATABANK_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", DATABANK_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={DATABANK_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

@@ -12,7 +12,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chromeRegistryCompleteness } from "../../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
-import { gate as configAnchorInRegistry } from "../../../../../tooling/src/verify/gates/config-anchor-in-registry.ts";
 import { gate as configGroupCompleteness } from "../../../../../tooling/src/verify/gates/config-group-completeness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
 import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
@@ -67,17 +66,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Not co-located",
-  },
-  {
-    policy: configAnchorInRegistry,
-    // A component stamps a config anchor that no ConfigSectionContribution renders.
-    overlays: [
-      add(
-        `${CHAT_COMPONENTS}/liveness-orphan-section.tsx`,
-        'import { configAnchorId } from "#state";\nexport const LivenessOrphanSection = (): unknown => configAnchorId("chats", "liveness");\n',
-      ),
-    ],
-    messageIncludes: "features/chat/components/liveness-orphan-section.tsx",
   },
   {
     policy: configGroupCompleteness,

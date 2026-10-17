@@ -18,7 +18,6 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { LOG_LEVEL_ITEMS } from "../lib/log-level-items.ts";
@@ -27,7 +26,7 @@ import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from 
 import { RestartServerControl } from "./restart-server-control.tsx";
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
-export function OperationsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function OperationsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
@@ -35,12 +34,12 @@ export function OperationsSection({ sectionId }: { readonly sectionId: string })
       renderError={(_error, retry): ReactElement => <QueryErrorState label="operations — administrators only" onRetry={retry} />}
       reserveKey="config.admin.operations"
     >
-      <OperationsBody sectionId={sectionId} />
+      <OperationsBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data }, { data: viewer }] = useSuspenseQueries({
@@ -60,7 +59,7 @@ function OperationsBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={configAnchorId("admin", OPERATIONS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Indexing and log level apply live — no restart needed.</Text>
         <AdminOverrideSwitch

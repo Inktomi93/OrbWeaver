@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-03
+updated: 2026-10-17
 ---
 
 # Client Architecture Lockdown
@@ -34,8 +34,8 @@ updated: 2026-10-03
 | You are about to build… | The ONE right move | NOT | Wall |
 | - | - | - | - |
 | a new rail section | a `SectionDefinition` in `features/<owner>/lib/`, exported on the front door, added to the `main.tsx` assembly (§6) | entries in rail/panel/placeholder/context maps + a route branch | G1/G2 + tsc |
-| a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the sanctioned PLANNED state (§6a; refinery is the founding member) | a rail entry with no registration; shipping half-wired | G1 |
-| a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by YOUR feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a `surface` render hand-stamping anchors | G4 (`config-group-completeness`) + tsc |
+| a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context on this arm (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
+| a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by your feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a body that stamps an independently minted anchor | G4 + tsc |
 | a tab on the chat context panel from ANOTHER feature | a `ContextTabDef` contributor with a `when` predicate, registered in `main.tsx` (§6c) | importing `#features/chat`; editing the chat panel | G8 + `client-features-no-cross` |
 | a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in app-shell's `MODAL_SLOTS` + a route override; a `RAIL_ACTIONS`-style parallel trigger map | `modal-registry-completeness` + G2 |
 | an entity list row | `@orb/ui/list-row` or `#components` `LibraryRow` | a hand-rolled interactive row | G6 |
@@ -282,7 +282,7 @@ The shape's law is the header of `client/src/state/section-registry.ts` (§15).
 - `AppShell` stays domain-agnostic: it consumes the registry (`sections.get(active)`) instead of a `Partial<Record<…>>` prop; `panelDefaults` arrives from the registry.
 - **`SectionDefinition` is non-generic.** `context` is a `ContextDefinition` that has already applied its section's context-state type `S` (§6b) — `S` never crosses the shell seam.
 
-**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. G1 holds four walls: the `planned` reason is a non-empty string; a planned section is fully placeholder (no `list`, no `header`, `context: { kind: "none" }` — a planned section that also wires real bodies is RED); the planned marker and the real body are the same field, so building the section forces deleting the marker in the same edit — a stale exemption is unrepresentable; and a rail-visible section with no registration at all stays RED. A section id is always in exactly one honest state — full, declared-planned with a reason, or absent from the tuple.
+**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `state/section-registry.ts` excludes list, header and tab context on this arm. G1 still checks the non-empty reason, authored declarations and rail membership. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
 
 Register a section by exporting its `SectionDefinition` from the owning feature's `lib/`, then adding it to
 the `main.tsx` door assembly, total over `SECTION_IDS`. Never add a `RAIL_SECTIONS` entry, a
@@ -299,7 +299,7 @@ them:
 4. **Per-section selection stores** — the pointer is a `createDrillSelectionStore` mint in `state/`, centrally homed so a sibling can read it (§9).
 5. **`agent-nav/`'s vocabulary validation** — `__orb.nav` validates against `SECTION_IDS`.
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
-7. **Mobile fate** — `rail.mobile` (`MobileCuration`) is an explicit per-section decision, `"tab"` or `"sheet"`; there is no default.
+7. **Mobile fate** — `RailEntry.mobile` is required by the `state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a G2 parallel map forming.
 9. **Placeholder copy** — `placeholder-copy-registry` requires a distinct (title, description) per section.
 10. **The rail prose** — `UI-Architecture-and-Layout.md` §4.1's section list.
@@ -431,9 +431,7 @@ state, not a page; a `home` section also exists (a rail entry and the persisted 
 assembled at the door, D121/D211), but a route that hand-assembles other features is still forbidden. `app-root.tsx` reads the section registry and
 stays trivial. What legitimately stays on it: the `useUserBus` mount (mounted at the root so no feature
 unmount can drop it), `AriaAnnouncer`, the `?join=` token capture plus `JoinInviteDialog`,
-`FirstRunPersonaDialog`, and `CharacterGalleryAnchor` (the one gallery dialog every surface opens through `openCharacterGallery`). G1's anti-god-map case: a `sections={{…}}`/`modals={{…}}` object-literal map in a
-route file, or a feature front-door import in `routes/**` other than the two sanctioned composition seams
-(`router.tsx` → `features/auth`, and `app-root.tsx`), is RED.
+`FirstRunPersonaDialog`, and `CharacterGalleryAnchor` (the one gallery dialog every surface opens through `openCharacterGallery`). Door-assembled home tiles use `HomeTileContribution` in `state/home-tile-contracts.ts`: dormant bodies have no action; live bodies may declare one. Native `orb/section-route-registry-map` and `orb/modal-route-registry-map` reject inline route maps, including simple parentheses; they do not cover aliases, calls or `as`/`satisfies` wrappers. G1 retains the route feature-import boundary: imports outside the two sanctioned seams (`router.tsx` → `features/auth`, and `app-root.tsx`) are RED.
 
 ## 8. The settings host + pane registry
 
@@ -456,6 +454,12 @@ consumes — plain derived values only, no `data/` import, §5 rule 6), `CONFIG_
 `sessions.me` probe (§10's sanctioned non-suspense exception) and supplies it at nav/search/pane filter
 time.
 
+`state/config-section-registry.ts` derives each `anchorId` from its contribution's `anchor` and `nav.id`;
+keep the formatter unexported. `body(anchorId)` forwards this required value through component props to the
+existing DOM root. The viewer-aware resolver returns unavailable for missing or hidden targets; the prefix
+resolver does so for empty groups, and the scroll-spy reads that prefix. Jumps wait up to five seconds for
+registered targets. Supersede or unmount cancels observer, timer, suppression, queued flash and focus work.
+
 - The settings shell is a thin host: nav, fuzzy search and scroll-spy read `registry.get(active).body` —
   a category with no branch can no longer silently placeholder (G4 forces the explicit `{placeholder: true}`
   flag).
@@ -473,8 +477,8 @@ time.
 
 Add a settings group by exporting a `ConfigGroupDefinition` (a skimmer, nothing else) from the owning
 feature's `lib/`, exporting one `ConfigSectionContribution` per anchored section, and registering both at
-the door (`compose/authed-composition.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Never add a surface
-outside its owning feature's `lib/` or hand-stamp anchors outside the contribution seam — that is the
-god-feature growth vector G4 exists to kill.
+the door (`compose/authed-composition.tsx`'s group registry, total over `CONFIG_GROUP_IDS`). Keep each
+surface in its owning feature's `lib/`; forward the registry-supplied address instead of minting one at the
+component.
 
 Split off [client-architecture-state-and-gates.md](client-architecture-state-and-gates.md) for the 48 KiB law cap (§9 state model through §16 the gate spec).

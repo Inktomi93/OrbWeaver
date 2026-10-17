@@ -13,5 +13,5 @@ export const adminLinkSsoSection: ConfigSectionContribution = {
   id: "admin-link-sso",
   anchor: "admin",
   nav: ADMIN_LINK_SSO_SUBCATEGORY,
-  body: () => <AdminLinkSsoSection />,
+  body: (anchorId) => <AdminLinkSsoSection anchorId={anchorId} />,
 };

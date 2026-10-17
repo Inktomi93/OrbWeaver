@@ -7,13 +7,12 @@
 
 import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { configAnchorId } from "#state";
 import { BACKUP_IMPORT_SUBCATEGORY } from "../lib/backup-nav.ts";
 import { ImportLibrarySection } from "./import-library-section.tsx";
 
-export function BackupImportSection(): ReactElement {
+export function BackupImportSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section divider={true} heading={BACKUP_IMPORT_SUBCATEGORY.label} id={configAnchorId("backup", BACKUP_IMPORT_SUBCATEGORY.id)}>
+    <Section divider={true} heading={BACKUP_IMPORT_SUBCATEGORY.label} id={anchorId}>
       <ImportLibrarySection />
     </Section>
   );

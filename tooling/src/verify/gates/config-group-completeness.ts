@@ -20,9 +20,8 @@
 // shared module-origin reader to that exact collection's exported declaration, so an unrelated local named
 // the same thing does not register a library and an aliased import still does.
 //
-// THE ANCHOR ARM IS NOT HERE. "A file that stamps `configAnchorId(…)` must be registry-registered" has
-// recurring repository PERMISSIONS for the anchor READERS rather than per-occurrence waivers, so it is
-// `config-anchor-in-registry` under reviewed-grant authority — one authority per policy.
+// The production config-section resolver supplies body IDs and resolves reader targets from its registry;
+// its raw formatter is not exported, so the retired anchor-correlation arm has no independent mint to judge.
 //
 // FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`,
 // here two kinds: `config-group` and `collection`) plus `lib/registry-definition-{anchor,field,home}.ts`,

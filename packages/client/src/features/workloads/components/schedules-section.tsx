@@ -33,7 +33,6 @@ import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { configAnchorId } from "#state";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model.ts";
@@ -43,7 +42,7 @@ import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dial
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 
 /** The Schedules section body — mounted at the workloads pane's sections anchor. */
-export function SchedulesSection(): ReactElement {
+export function SchedulesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into one row per schedule.
     <QueryBoundary
@@ -51,12 +50,12 @@ export function SchedulesSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your schedules" onRetry={retry} />}
       reserveKey="config.workloads.schedules"
     >
-      <SchedulesBody />
+      <SchedulesBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function SchedulesBody(): ReactElement {
+function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: schedules }, { data: viewer }] = useSuspenseQueries({
@@ -82,12 +81,7 @@ function SchedulesBody(): ReactElement {
   };
 
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label}
-      id={configAnchorId("workloads", WORKLOADS_SCHEDULES_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
           <Text voice="label" className="text-muted-foreground">

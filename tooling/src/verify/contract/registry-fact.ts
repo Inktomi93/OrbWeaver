@@ -3,7 +3,7 @@ import type { InterfaceDeclaration, Node, ObjectLiteralExpression, TypeAliasDecl
 import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { StaticAuthoredValue } from "../../floor/code-facts/static-authored-value-contract.ts";
 
-export const REGISTRY_DEFINITION_KINDS = ["section", "modal", "home-tile", "config-group", "collection", "config-section", "chrome"] as const;
+export const REGISTRY_DEFINITION_KINDS = ["section", "modal", "home-tile", "config-group", "collection", "chrome"] as const;
 export type RegistryDefinitionKind = (typeof REGISTRY_DEFINITION_KINDS)[number];
 
 export type RegistryTypeDeclaration = InterfaceDeclaration | TypeAliasDeclaration;

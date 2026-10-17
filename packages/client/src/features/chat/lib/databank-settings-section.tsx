@@ -18,5 +18,5 @@ export const databankSettingsSection: ConfigSectionContribution = {
   // Claims at the TOP-level key: `retrieval`'s leaves (k/minScore/rerank) are this section's business.
   // `chunk` is deliberately NOT claimed — cited in UNCLAIMED_SETTINGS_KEYS (ingest-time params).
   owns: { tier: "user", section: "databank", keys: ["retrieval", "slotTokenBudget"] },
-  body: () => <DatabankSettingsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <DatabankSettingsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

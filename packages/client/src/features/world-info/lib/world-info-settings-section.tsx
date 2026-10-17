@@ -16,5 +16,5 @@ export const worldInfoSettingsSection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: WORLD_INFO_SETTINGS_SUBCATEGORY,
   owns: { tier: "user", section: "worldInfo", keys: ["scanDepth", "tokenBudget"] },
-  body: () => <WorldInfoSettingsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <WorldInfoSettingsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };
