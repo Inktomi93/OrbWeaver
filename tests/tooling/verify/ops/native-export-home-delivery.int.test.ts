@@ -1,19 +1,19 @@
+// Native child commands execute; in-process verdicts borrow pinned historical SQLite observations.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node, SourceFile } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as content } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as scrubberReferences } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const NODE_SOURCE = "packages/server/src/domain/chat/verbs/native-export.ts";
 const BROWSER_SOURCE = "packages/client/src/features/chat/native-export.tsx";
@@ -45,11 +45,17 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of LOADED_POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
+
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => vi.restoreAllMocks());
 
 function poisonSyntax(project: Project): Disposable {
   const readExports = SourceFile.prototype.getExportedDeclarations;
@@ -86,34 +92,33 @@ test(
   "native export homes and references survive poisoned syntax through actual structure and scoped doors",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
-    const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
     const context = projectCtx(scratch);
-    const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
-    try {
-      const structure = await runStructure(scratch, [`--check=${content.id}`]);
-      const scoped = await runScopedCli(scratch, ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${CONTENT_HOME},${SCRUBBER_HOME}`]);
-      expect({ structure, scoped }).toEqual({ structure: 1, scoped: 1 });
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        knownPolicies: LOADED_POLICIES,
-        policies: POLICIES,
-        requestedPaths: [NODE_SOURCE, BROWSER_SOURCE, CONTENT_HOME, SCRUBBER_HOME],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(
-        result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, line, column, token }) => ({ file, line, column, token })) })),
-      ).toEqual([{ id: content.id, findings: [{ file: NODE_SOURCE, line: 1, column: 14, token: "ChatContentPart" }] }]);
-      expect(result.policies.map(({ receipts }) => receipts)).toMatchObject([
-        [{ kind: "population", source: "ChatContentPart declaration home", members: 1, unresolved: 0 }],
-      ]);
-    } finally {
-      getContext.mockRestore();
-    }
+    const syntaxReads: number[] = [];
+    const workers: string[] = [];
+    const observation = { forbidSyntax: true, syntaxReads, workers };
+    const structure = await nativeVerifyFixture(scratch, "structure", [`--check=${content.id}`], observation);
+    const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${CONTENT_HOME},${SCRUBBER_HOME}`], observation);
+    expect({ structure, scoped }).toEqual({ structure: 1, scoped: 1 });
+    expect(syntaxReads).toEqual([0, 0]);
+    expect(workers.length).toBeGreaterThan(0);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      ...nativeTypeFactOptions(context),
+      knownPolicies: LOADED_POLICIES,
+      policies: POLICIES,
+      requestedPaths: [NODE_SOURCE, BROWSER_SOURCE, CONTENT_HOME, SCRUBBER_HOME],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(
+      result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, line, column, token }) => ({ file, line, column, token })) })),
+    ).toEqual([{ id: content.id, findings: [{ file: NODE_SOURCE, line: 1, column: 14, token: "ChatContentPart" }] }]);
+    expect(result.policies.map(({ receipts }) => receipts)).toMatchObject([
+      [{ kind: "population", source: "ChatContentPart declaration home", members: 1, unresolved: 0 }],
+    ]);
   },
   scaledBudget(60_000),
 );

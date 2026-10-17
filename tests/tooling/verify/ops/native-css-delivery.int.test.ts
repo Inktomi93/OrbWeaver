@@ -1,10 +1,9 @@
 // Native DOM ownership must survive the public verifier doors without consulting syntax-carrier semantics.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project } from "ts-morph";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { replayInvocationEvidence } from "../../../../tooling/src/floor/code-facts/invocation-evidence-replay.ts";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { mapTypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
@@ -32,9 +31,18 @@ import { staticClassSourceIndex } from "../../../../tooling/src/verify/lib/stati
 import { nativeStaticClassRead } from "../../../../tooling/src/verify/lib/static-class-native.ts";
 import { StaticClassEvaluator } from "../../../../tooling/src/verify/lib/static-class-value.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+});
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const ENTRY = "packages/client/src/features/native-css.tsx";
 const POLICIES = [lengths, selectors];
@@ -105,7 +113,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const id of MODULES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -224,6 +232,7 @@ for (const policy of POLICIES) {
   test(
     `${policy.id} public structure requires native CSS evidence with ordinary semantics poisoned`,
     async ({ scratch, repoRoot }) => {
+      const nativeSyntaxReads: number[] = [];
       fixture(scratch, repoRoot);
       const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
       const context = projectCtx(scratch);
@@ -243,15 +252,20 @@ for (const policy of POLICIES) {
       const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       using _poison = poisonSyntax(context.project);
       try {
-        const exits = [await runStructure(scratch, [`--check=${policy.id}`]), await runScopedCli(scratch, ["--scope", "packages/client,packages/ui"])];
+        const exits = [
+          await nativeVerifyFixture(scratch, "structure", [`--check=${policy.id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }),
+          await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/client,packages/ui"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }),
+        ];
         const result = run();
         expect({ exits, errors: result.factErrors, withheld: result.authority.withheldPolicyIds }).toEqual({ exits: [0, 0], errors: [], withheld: [] });
         expect(result.authority.effectiveFindings).toEqual([]);
       } finally {
         getContext.mockRestore();
       }
+
+      expect(nativeSyntaxReads).toEqual([0, 0]);
     },
-    scaledBudget(60_000),
+    scaledBudget(60_000 * 4),
   );
 }
 
