@@ -17,8 +17,8 @@ export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[]
     policyId: "zod-error-issues-home",
     subject: "packages/contracts/src/rpg/extraction.ts",
     operation: "error-issues-read",
-    why: "MODEL-facing: `issueLines` renders the salvage drop list in the same `path: message` convention. The shared-plane proof means the structured plane and its tool validate through the identical schema, so the two refusal texts must agree.",
-    endsWhen: "the structured plane and its tool stop sharing one schema, at which point the two texts no longer have to agree.",
+    why: "STRUCTURED LOSSES: issue paths select invalid top-level fields for salvage; per-plane drops retain separate path/message entries; recorded tool-call diagnostics append the model-sent value behind the canonical marker so the server can decode and strip hidden content for members. These feed loss records, logs and the viewer disclosure, not just a model correction. A prettified string cannot replace the salvage paths or the per-loss/sent-value protocol.",
+    endsWhen: "salvage and recorded-loss consumers no longer require per-issue paths/messages or the member-safe sent-value projection.",
   },
   {
     id: "zod-error-issues-home:rule-editor-commit",
@@ -57,7 +57,7 @@ export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[]
     policyId: "zod-error-issues-home",
     subject: "packages/contracts/src/versioned-config/index.ts",
     operation: "error-issues-read",
-    why: "the structured FIRST issue (path plus message) IS this contract's parse-outcome payload (#1592): the import refusal needs the PATH to name the offending field, which `z.prettifyError` flattens into prose, and nothing here prints a raw message. TRANSLATED FROM A MARKER — the site carried a permanent `@orb-gate-ignore`, and a reviewed-grant policy has no inline door, so the standing permission is this row and the marker is deleted.",
+    why: "the first issue becomes the typed VersionedParseIssue path/message payload, not a rendered ZodError. The ST preset importer resolves sections.<n> paths back to the authored prompt identifier before rendering its refusal, while stored-config write guards report only the failure kind and row scope, never blob contents. Replacing that payload with prettified prose would erase the importer's field-to-source mapping.",
     endsWhen: "the degraded-parse payload stops carrying a field path (the caller renders the whole refusal itself).",
   },
   {
