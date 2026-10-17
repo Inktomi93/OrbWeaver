@@ -47,7 +47,7 @@ test("registry retains deleted lexical helper without ordinary source", () => {
   expect(REGISTRY.find(({ name }) => name === "lint:eslint")?.scopedArgv?.(selection)).toEqual(["node", "tooling/src/verify/cli.ts", "eslint-scoped", HELPER]);
 });
 
-test("helper-only edit rejudges client literal IDs", async ({ plantedTree, repoRoot }) => {
+test("helper-only edit rejudges client literal IDs", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, 'export const A=<div data-testid="raw"/>;');
   expect(await runScopedEslint(root, [HELPER])).toBe(1);
 });
