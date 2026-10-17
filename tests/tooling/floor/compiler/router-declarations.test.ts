@@ -261,3 +261,122 @@ test("a concurrent different-epoch producer cannot overwrite the newer successfu
     await worker.terminate();
   }
 });
+
+test("consumed native text cannot be certified against restored bytes, including native BOM encodings", async ({ plantedTree }) => {
+  const root = await plantedTree(fixtureFiles());
+  const first = prepareRouterDeclarations(root);
+  const entry = readFileSync(first.entry, "utf8");
+  const source = join(root, SOURCE, "index.ts");
+  const read = ts.sys.readFile;
+  let reads = 0;
+  const spy = vi.spyOn(ts.sys, "readFile").mockImplementation((path, encoding) => {
+    if (path !== source) {
+      return read(path, encoding);
+    }
+    reads += 1;
+    writeFileSync(source, ROUTER.replace('"first"', '"second"'));
+    try {
+      return read(path, encoding);
+    } finally {
+      writeFileSync(source, ROUTER);
+    }
+  });
+  try {
+    expect(() => prepareRouterDeclarations(root)).toThrow("inputs changed");
+    expect(reads).toBe(1);
+    expect(readFileSync(first.entry, "utf8")).toBe(entry);
+  } finally {
+    spy.mockRestore();
+  }
+  for (const bytes of [
+    Buffer.from(ROUTER),
+    Buffer.from(`\uFEFF${ROUTER}`),
+    Buffer.from(`\uFEFF${ROUTER}`, "utf16le"),
+    Buffer.from(`\uFEFF${ROUTER}`, "utf16le").swap16(),
+  ]) {
+    writeFileSync(source, bytes);
+    const prepared = prepareRouterDeclarations(root);
+    prepared.assertSubjectCurrent();
+    expect(readFileSync(join(prepared.generation, SOURCE, "index.d.ts"), "utf8")).toContain('"first"');
+  }
+});
+
+test("publication ownership closes the final-check/rename race and rolls back a failed old writer", async ({ plantedTree, repoRoot }) => {
+  const root = await plantedTree(fixtureFiles());
+  const initial = prepareRouterDeclarations(root);
+  const initialEntry = readFileSync(initial.entry, "utf8");
+  const gateA = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+  const gateB = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+  const producer = pathToFileURL(join(repoRoot, "tooling/src/floor/compiler/router-declarations.ts")).href;
+  const entry = initial.entry;
+  const source = `const { parentPort, workerData } = require("node:worker_threads");
+    (async () => {
+      const fs = require("node:fs"); const { syncBuiltinESMExports } = require("node:module");
+      const { prepareRouterDeclarations } = await import(${JSON.stringify(producer)});
+      const rename = fs.renameSync; const open = fs.openSync; const remove = fs.rmSync;
+      let paused = false; let blocked = false; let rollbackEntry;
+      fs.rmSync = (path, ...args) => {
+        if (workerData.role === "a" && String(path).endsWith("/.publication.lock")) {
+          rollbackEntry = fs.readFileSync(${JSON.stringify(entry)}, "utf8");
+        }
+        return remove(path, ...args);
+      };
+      fs.renameSync = (from, to) => {
+        if (workerData.role === "a" && String(from).includes("/.entry-") && to === ${JSON.stringify(entry)} && !paused) {
+          paused = true; parentPort.postMessage("at-rename"); Atomics.wait(workerData.gate, 0, 0);
+        }
+        return rename(from, to);
+      };
+      fs.openSync = (...args) => {
+        try { return open(...args); } catch (error) {
+          if (workerData.role === "b" && String(args[0]).endsWith("/.publication.lock") && error.code === "EEXIST" && !blocked) {
+            blocked = true; parentPort.postMessage("blocked");
+          }
+          throw error;
+        }
+      };
+      syncBuiltinESMExports();
+      try {
+        const prepared = prepareRouterDeclarations(${JSON.stringify(root)});
+        parentPort.postMessage({ published: fs.readFileSync(prepared.entry, "utf8") });
+        if (workerData.role === "b") {
+          Atomics.wait(workerData.gate, 0, 0); prepared.assertSubjectCurrent(); parentPort.postMessage("current");
+        }
+      } catch (error) { parentPort.postMessage({ error: error.message, rollbackEntry }); }
+      parentPort.close();
+    })();`;
+  // Ensure A selects a different family, so its actual forwarding rename is exercised.
+  writeFileSync(join(root, SOURCE, "index.ts"), ROUTER.replace('"first"', '"older"'));
+  const older = new Worker(source, { eval: true, workerData: { role: "a", gate: gateA } });
+  let newer: Worker | undefined;
+  try {
+    expect(await once(older, "message")).toEqual(["at-rename"]);
+    writeFileSync(join(root, SOURCE, "index.ts"), ROUTER.replace('"first"', '"newer"'));
+    newer = new Worker(source, { eval: true, workerData: { role: "b", gate: gateB } });
+    const [firstMessage] = await once(newer, "message");
+    const published = firstMessage === "blocked" ? once(newer, "message") : Promise.resolve([firstMessage]);
+    const oldResult = once(older, "message");
+    Atomics.store(gateA, 0, 1);
+    Atomics.notify(gateA, 0);
+    expect(await oldResult).toEqual([{ error: "Router declaration subject inputs changed; no current verdict is available.", rollbackEntry: initialEntry }]);
+    expect(await published).toEqual([{ published: readFileSync(entry, "utf8") }]);
+    const current = once(newer, "message");
+    Atomics.store(gateB, 0, 1);
+    Atomics.notify(gateB, 0);
+    expect(await current).toEqual(["current"]);
+    expect(readdirSync(join(root, "packages/server/dist/router-types"))).not.toContain(".publication.lock");
+  } finally {
+    Atomics.store(gateA, 0, 1);
+    Atomics.notify(gateA, 0);
+    Atomics.store(gateB, 0, 1);
+    Atomics.notify(gateB, 0);
+    await older.terminate();
+    await newer?.terminate();
+  }
+  const selected = readFileSync(entry, "utf8");
+  const abandonedGuard = join(root, "packages/server/dist/router-types/.publication.lock");
+  writeFileSync(abandonedGuard, "exited-producer", { flag: "wx" });
+  expect(() => prepareRouterDeclarations(root)).toThrow(abandonedGuard);
+  expect(readFileSync(abandonedGuard, "utf8")).toBe("exited-producer");
+  expect(readFileSync(entry, "utf8")).toBe(selected);
+});

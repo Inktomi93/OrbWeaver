@@ -1,9 +1,85 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
+import { closeSync, existsSync, openSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative } from "node:path";
+import process from "node:process";
 import type { InventoryInput } from "../code-facts/semantic-inventory-contract.ts";
 import { contentVersion, inputsCurrent, inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
+import { budget } from "../host/load-budget.ts";
+import { waitSync } from "../process/sync-sleep.ts";
 import type { RouterDeclarationPreparation, RouterDeclarationPublication } from "./router-declarations-contract.ts";
+
+const PUBLICATION_TAKE_ATTEMPTS = 40;
+const PUBLICATION_RETRY_MS = 25;
+const heldPublications = new Set<string>();
+
+function publicationGuard(output: string): () => void {
+  const path = join(output, ".publication.lock");
+  if (heldPublications.has(path)) {
+    throw new Error(`Router declaration publication already held by this process: ${path}`);
+  }
+  for (let attempt = 0; attempt < PUBLICATION_TAKE_ATTEMPTS; attempt += 1) {
+    let descriptor: number;
+    try {
+      descriptor = openSync(path, "wx");
+    } catch (error) {
+      if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
+        throw error;
+      }
+      waitSync(budget(PUBLICATION_RETRY_MS));
+      continue;
+    }
+    const release = (): void => {
+      heldPublications.delete(path);
+      try {
+        closeSync(descriptor);
+      } finally {
+        rmSync(path);
+      }
+    };
+    heldPublications.add(path);
+    try {
+      writeFileSync(descriptor, String(process.pid));
+    } catch (error) {
+      release();
+      throw error;
+    }
+    return release;
+  }
+  throw new Error(`Router declaration publication remained busy; guard is never stolen: ${path}`);
+}
+
+function selectForwardingEntry(entry: string, forwarding: string, text: string, assertInputsCurrent: () => void): string {
+  const release = publicationGuard(dirname(entry));
+  try {
+    const previous = existsSync(entry) ? readFileSync(entry) : undefined;
+    let replaced = false;
+    try {
+      assertInputsCurrent();
+      if (!existsSync(entry) || readFileSync(entry, "utf8") !== text) {
+        renameSync(forwarding, entry);
+        replaced = true;
+      }
+      const version = inputVersion(entry, "file");
+      assertInputsCurrent();
+      if (inputVersion(entry, "file") !== version || readFileSync(entry, "utf8") !== text) {
+        throw new Error("Router declaration entry changed during publication.");
+      }
+      return version;
+    } catch (error) {
+      if (replaced) {
+        if (previous === undefined) {
+          rmSync(entry);
+        } else {
+          writeFileSync(forwarding, previous, { flag: "wx" });
+          renameSync(forwarding, entry);
+        }
+      }
+      throw error;
+    }
+  } finally {
+    release();
+  }
+}
 
 function familyContents(directory: string): readonly (readonly [string, string])[] {
   return readdirSync(directory, { recursive: true, withFileTypes: true })
@@ -76,17 +152,16 @@ export function publishRouterDeclarations({
   const forwarding = join(output, `.entry-${randomUUID()}.d.ts`);
   try {
     writeFileSync(forwarding, text, { flag: "wx" });
-    assertInputsCurrent();
-    if (!inputsCurrent(outputInputs, { authored: new Set() })) {
-      throw new Error("Router declaration family changed before publication.");
-    }
-    if (!existsSync(entry) || readFileSync(entry, "utf8") !== text) {
-      renameSync(forwarding, entry);
-    }
-    const entryVersion = inputVersion(entry, "file");
-    const assertSubjectCurrent = (): void => {
+    const validate = (): void => {
       assertInputsCurrent();
-      if (inputVersion(entry, "file") !== entryVersion || readFileSync(entry, "utf8") !== text || !inputsCurrent(outputInputs, { authored: new Set() })) {
+      if (!inputsCurrent(outputInputs, { authored: new Set() })) {
+        throw new Error("Router declaration family changed before publication.");
+      }
+    };
+    const entryVersion = selectForwardingEntry(entry, forwarding, text, validate);
+    const assertSubjectCurrent = (): void => {
+      validate();
+      if (inputVersion(entry, "file") !== entryVersion || readFileSync(entry, "utf8") !== text) {
         throw new Error("Router declaration entry or immutable family changed; no current verdict is available.");
       }
     };
