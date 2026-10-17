@@ -21,11 +21,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 
 const COHORT = [routes, portal, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
-const COMPANIONS = new Map<GatePolicy, string>([
-  // Loader-only baseui-read family companion; source-only scope defers its entire-population manifest check.
-  [portal, "baseui-anatomy-completeness"],
-  [sections, "section-registry-completeness"],
-]);
+const COMPANIONS = new Map<GatePolicy, string>([[sections, "section-registry-completeness"]]);
 
 test(
   "the four native consumers preserve their complete declared rejection and acceptance controls",

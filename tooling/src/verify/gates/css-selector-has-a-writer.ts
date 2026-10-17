@@ -131,8 +131,7 @@ function vendorCensus(ctx: GatePolicyContext): VendorHookCensus {
   }
   // THE VERSION IS DELIBERATELY EMPTY. `installedSurfaceFrom`'s header states the contract: `mode: "ast"`
   // publishes PATHS only, so a consumer that compares ANATOMY passes `""` and says so. This policy compares
-  // state-attribute NAMES and VALUES; the version-drift arm is `baseui-surface-manifest`'s, and it declares
-  // the metadata door for it.
+  // state-attribute NAMES and VALUES; tests/ui/baseui-surface.suite.test.ts owns the version comparison.
   const surface = installedSurfaceFrom(installed.declarationPaths, "");
   if (surface === undefined) {
     // FAIL CLOSED, LOUDLY. An anchorless declaration set means the reader learned nothing about the

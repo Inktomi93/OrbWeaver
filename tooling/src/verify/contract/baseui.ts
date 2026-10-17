@@ -67,7 +67,7 @@ export interface InstalledSurface {
 }
 
 /** What the `@orb/ui` seal does with an anatomy part.
- *  - `exposed`      — the seal renders it (`baseui-anatomy-completeness` proves the claim against the JSX);
+ *  - `exposed`      — the seal renders it (the native UI surface contract proves the claim against the JSX);
  *  - `sealed-away`  — deliberately not rendered, `why` states the decision AND what would end it;
  *  - `n-a`          — nothing in `@orb/ui` wraps this component at all;
  *  - `unresolved`   — the birth state a version bump mints. ALWAYS RED; a human adjudicates it away. */

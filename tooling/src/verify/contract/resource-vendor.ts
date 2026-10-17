@@ -5,7 +5,7 @@
 // proved the committed `docs/vendor/base-ui` Markdown mirror's documented custom-property set was IDENTICAL
 // to the set this reader already parses from the installed `*CssVars.d.ts` declarations — the mirror carried
 // no fact the installed side didn't already carry, so it was deleted rather than relocated. Base UI's own
-// public-surface version drift is caught independently by `baseui-surface-manifest`
+// public-surface version drift is caught independently by `tests/ui/baseui-surface.suite.test.ts`
 // (`tooling/src/verify/gates/baseui-surface.manifest.json`, generated from the installed package by
 // `ops/gen/baseui-surface.ts`) — this surface owns no version-comparison arm of its own.
 //

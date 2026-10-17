@@ -15,11 +15,8 @@
 // BasePortalProps["container"]` and thread it through `container={container ?? portalContainer}`. An honest
 // zero, held as a ratchet: the eleventh seal is the one that would have forgotten.
 //
-// FAMILY `baseui-read` — the shared reader is `lib/baseui-read.ts#baseUiBindings` (which `@base-ui/react/*`
-// named bindings a file imports, value and type alike). `baseui-anatomy-completeness`,
-// `baseui-derives-not-respells`, `baseui-state-data-attributes` and `baseui-surface-manifest` are the other
-// members; this one is the only member that consumes NO committed manifest, which is why it declares
-// `resources: []` while its siblings declare the `json:baseui-manifest` door.
+// FAMILY `baseui-read`: retained portal ownership uses the shared binding reader. Native lint and
+// tests/ui/baseui-surface.suite.test.ts share its vocabulary; no other custom Base UI policy remains.
 //
 // POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at (pruned from public history) (this module
 // last changed at 58f4124c3e): `scanRoot: (p) => p.includes(UI_SRC)` with `UI_SRC = "packages/ui/src/"`, plus

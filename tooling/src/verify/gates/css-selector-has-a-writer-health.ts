@@ -8,47 +8,9 @@
 // contract disagrees with what is installed" are not sites an author absolves, and neither has an authored
 // subject to anchor a marker on. `hard` is EARNED here rather than forced by a coordinate problem.
 //
-// WHAT THIS POLICY DELIBERATELY DOES NOT CARRY, and where it went. The legacy descriptor also reconciled
-// the committed Base UI surface manifest against the installed package in both directions
-// (`baseUiManifestOnly` / `baseUiInstalledOnly`, reported at the manifest and at a `node_modules` path).
-// Those arms are RETIRED, not lost, for two reasons and with a successor:
-//
-//   1. THE SUBJECT IS NOT CSS. "The committed Base UI record disagrees with the installed package" is
-//      `baseui-surface-manifest`'s whole subject — the version-bump tripwire — and a second gate asking it
-//      one aggregate over is guide §8 MERGE rule's MERGE case, not a second detector.
-//   2. THE SUCCESSOR IS STRICTLY STRONGER. This module compared a SET OF ATTRIBUTE NAMES aggregated across
-//      every component, so a state that vanished from one part while surviving on another produced no
-//      difference at all. `baseui-surface-manifest#identity()` compares PER PART, and once `part.state`
-//      joins that identity (p-baseui-family, #1584) it reports the same drift with the part named.
-//
-// Both arms were measured UNENFORCED by the §5b audit (cuts w04/w05: iterating `[]` killed no row) and
-// measured EMPTY on the real tree at `(pruned from public history)` (manifest 75 attributes, installed 75, symmetric
-// difference zero in both directions), so the retirement removes no live catch. The receipt for the
-// successor is `baseui-surface-manifest`'s own row, not this module's.
-//
-// THE SUCCESSOR IS PROVEN IN BOTH DIRECTIONS, and the sentence that said otherwise was BORN STALE — a
-// correction worth keeping because of how it happened (the CSS unit-2 verifier review ledger row 5, #2305).
-// The retirement above leans on `baseui-surface-manifest`, and each term it leans on is pinned:
-//   * the `state` term — cutting `|${part.state.join(",")}` out of `identity()` reds
-//     `baseui-surface-manifest:mustFlag[2]` alone;
-//   * the VANISHED-PART direction — its `mustFlag[3]`, `count: 2`, "`Select.Separator` vanished from the
-//     installed package";
-//   * the VANISHED-COMPONENT direction — its `mustFlag[4]`, `count: 1`, "component `Dialog` vanished from
-//     the installed package".
-// Those last two are the direct analogue of the `baseUiManifestOnly` arm retired here, and they landed in
-// `494b601a0b` EIGHTEEN MINUTES before the commit that wrote "measured unenforced by any proof row" — an
-// ancestor of it, so the claim was false on the tree it shipped on. Read-first §0 ruling 3 is the rule it
-// broke: a recorded refusal is a snapshot, not a standing verdict, and it is re-derived before it is
-// inherited. #2297 stays OPEN for its OTHER rows and is cited for those, never for these three.
-//
-// #2309 DOES NOT REACH THIS CITATION, and the check is one read rather than an assumption: it is a
-// CHANGED-MODE SELECTION defect — a selected-files resource policy whose per-file visitors receive zero
-// source files when only a declared resource changed. `baseui-surface-manifest` declares
-// `population: { of: "none" }` and `execution: "entire-population"` and subscribes no visitor, so it has no
-// source population to under-select and defers whole under a narrowed request. The arms above cannot go
-// stale-clean by that mechanism — which held BEFORE #2309 was repaired (the 2026-09-13 resource-selection repair,
-// the `policy-effective-population` seam) and holds after it, because the reason is the declared population,
-// not the planner.
+// Base UI surface/state reconciliation belongs to the ordinary application Node contract in
+// tests/ui/baseui-surface.suite.test.ts, which compares the complete installed surface per part.
+// This policy owns only CSS census blindness and the Streamdown emission contract.
 //
 // AUTHORITY: `hard`. No marker door, and the legacy bare `@orb-gate-ignore` door had none in use — marker
 // census 0 = 0 = 0, measured 2026-09-12 over 7,725 tracked files with a 1,196-hit positive control.
@@ -96,7 +58,7 @@ function vendorUnemitted(value: (typeof STREAMDOWN_HOOK_VALUES)[number]): string
 }
 
 /** THE EMPTY VENDOR SIDES the surface reader hands a policy that declares only `vendor-css-surface`. The
- *  Base UI reconciliation moved to `baseui-surface-manifest` (see the header), so this module reads the
+ *  Base UI reconciliation belongs to the native UI surface contract (see the header), so this module reads the
  *  Streamdown half alone and states the other two as empty rather than pretending to have measured them. */
 const NO_BASE_UI = { version: "", components: {} } as const;
 
