@@ -12,14 +12,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "markdown uses token-only composition or moves to a different structural home.",
   },
   {
-    id: "skin-fragment-tier-permission:lib",
-    policyId: "skin-fragment-tier-permission",
-    subject: "packages/ui/src/lib/",
-    operation: "spell-skin-fragment-tier",
-    why: "this is the canonical definition home for shared focus, scrim, arrow, touch-target and disabled fragments.",
-    endsWhen: "the shared fragments move to a different canonical definition home.",
-  },
-  {
     id: "query-freshness-coverage:assets-resolveblobrefs",
     policyId: "query-freshness-coverage",
     subject: "assets.resolveBlobRefs",

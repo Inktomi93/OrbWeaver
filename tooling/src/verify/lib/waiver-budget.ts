@@ -66,7 +66,6 @@ const APPLICATION = Object.freeze({
   "seed-theme-ink-contrast": 9,
   "selection-store-via-factory": 3,
   "single-stream-transport": 2,
-  "skin-fragment-tier-permission": 1,
   "sole-env-reader": 10,
   "sub-floor-disclosure": 2,
   suppressions: 47,

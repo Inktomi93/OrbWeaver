@@ -4,7 +4,7 @@ import { defineFact } from "../contract/fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { waivableCoordinate } from "./waivable-coordinate.ts";
 
-const UI_TIER_IDS = ["z-index", "skin-fragment"] as const;
+const UI_TIER_IDS = ["z-index"] as const;
 // @orb-waive no-inline-types(UiTierId): consumed within this fact module only; the gate reads through the fact, not the type; ends when a gate imports it directly
 export type UiTierId = (typeof UI_TIER_IDS)[number];
 
@@ -14,7 +14,6 @@ export interface UiTierHome {
 
 export const UI_TIER_HOMES = {
   "z-index": [{ path: "packages/ui/src/layout/" }, { path: "packages/ui/src/markdown/" }],
-  "skin-fragment": [{ path: "packages/ui/src/lib/" }],
 } as const satisfies Readonly<Record<UiTierId, readonly UiTierHome[]>>;
 
 export const Z_TOKEN_NAMES = ["base", "raised", "overlay", "modal", "popover", "toast", "tooltip"] as const;
@@ -22,15 +21,6 @@ const Z_TOKEN_SET: ReadonlySet<string> = new Set(Z_TOKEN_NAMES);
 const Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 const SEMANTIC_Z_REGEX = /\bz-\(--z-([a-z0-9-]+)\)/gu;
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
-
-const SKIN_SIGNATURES = [
-  "focus-visible:ring-",
-  "before:size-touch-target",
-  "rotate-45 border border-border bg-popover",
-  "bg-backdrop",
-  "data-disabled:pointer-events-none data-disabled:opacity-50",
-  "disabled:pointer-events-none disabled:opacity-50",
-] as const;
 
 export interface UiTierOccurrence {
   readonly tier: UiTierId;
@@ -76,18 +66,6 @@ function scanZIndex(occurrences: UiTierOccurrence[], node: MorphNode, path: stri
   }
 }
 
-function scanSkin(occurrences: UiTierOccurrence[], node: MorphNode, path: string, text: string): void {
-  if (!path.startsWith("packages/ui/src/")) {
-    return;
-  }
-  for (const signature of SKIN_SIGNATURES) {
-    const offset = text.indexOf(signature);
-    if (offset !== -1) {
-      addOccurrence(occurrences, { tier: "skin-fragment", node, path, token: signature, offset });
-    }
-  }
-}
-
 export const uiTierPermissionFact = defineFact({
   id: "ui-tier-permissions",
   population: ["@client", "@ui"],
@@ -109,7 +87,6 @@ export const uiTierPermissionFact = defineFact({
             const path = ctx.relativePath(sourceFile);
             const text = node.getText();
             scanZIndex(occurrences, node, path, text);
-            scanSkin(occurrences, node, path, text);
           },
         },
       ],
@@ -128,8 +105,8 @@ export function readUiTierFacts(ctx: GatePolicyContext): UiTierFacts {
   return facts;
 }
 
-export function tierOccurrences(facts: UiTierFacts, tier: UiTierId, home: string | null): readonly UiTierOccurrence[] {
-  return facts.occurrences.filter((occurrence) => occurrence.tier === tier && occurrence.home === home);
+export function tierOccurrences(facts: UiTierFacts, _tier: UiTierId, home: string | null): readonly UiTierOccurrence[] {
+  return facts.occurrences.filter((occurrence) => occurrence.home === home);
 }
 
 export function liveHomeFiles(facts: UiTierFacts, home: string): readonly SourceFile[] {
