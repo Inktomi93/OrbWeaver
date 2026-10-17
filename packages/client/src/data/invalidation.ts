@@ -23,6 +23,7 @@ import {
   chatCanonReads,
   chatReads,
   hiddenRevealRead,
+  personaWriteReads,
   promptPreviewReads,
   ROOM_ENTITY_FILTERS,
   RPG_BUS_FILTERS,
@@ -98,9 +99,7 @@ const BUS_FILTERS: BusFilterMap = {
   turnCompleted: (_e, trpc) => [...chatCanonReads(trpc), ...runtimeVariablesRead(trpc)],
   turnAborted: (_e, trpc) => chatReads(trpc),
 
-  // A re-anchored persona rewrites `{{user}}` (and the persona block) in the NEXT turn's prompt — the room
-  // read AND the prompt preview.
-  personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.worldInfo.listForChat.pathFilter(), ...promptPreviewReads(trpc)],
+  personaSwitched: (e, trpc) => personaWriteReads(trpc, e.chatId),
 
   reactionsChanged: (_e, trpc) => reactionsRead(trpc),
   // Attachment changes move the ASSEMBLY POOL — the WI reads, the room, and the prompt preview built from it.

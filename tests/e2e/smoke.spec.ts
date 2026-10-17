@@ -84,11 +84,14 @@ test("the SPA shell mounts and single-user boots with no login form", {
 // isolated stage at 6f266ea6cf, so this was never a regression, just a deep link nobody had built. It lives in
 // `@smoke` because it is a BOOT contract: every `snap /<section>` probe and every bookmarked section link
 // depends on it, and a silent 404 here reads as "the app is broken" to whoever hits it next.
-test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page }) => {
+test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page, isMobile }) => {
   await page.goto("/chats");
   await expect(page.getByRole("main")).toBeVisible({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByText(NOT_FOUND_COPY)).toHaveCount(0);
-  await expect(page.getByRole("main", { name: "Chats content", exact: true })).toBeVisible();
+  const main = isMobile
+    ? page.getByRole("main").filter({ has: page.getByRole("list", { name: "Chats list", exact: true }) })
+    : page.getByRole("main", { name: "Chats content", exact: true });
+  await expect(main).toBeVisible();
   // The address bar is where in-app rail navigation leaves it — one URL story for both entrances.
   await expect(page).toHaveURL(APP_URL);
 });

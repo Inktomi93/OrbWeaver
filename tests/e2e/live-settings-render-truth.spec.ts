@@ -64,6 +64,7 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
   test("theme + background change through the UI are visible immediately AND survive a plain reload with storage intact", { tag: "@smoke" }, async ({
     page,
+    isMobile,
   }) => {
     test.setTimeout(90_000);
 
@@ -84,6 +85,9 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
     // ── 1. Change the THEME through the real Looks section (#866 S4 — the theme modal retired into the
     //       Appearance group; the rail "Settings" is a SECTION now; picking a card APPLIES, #297). ──
+    if (isMobile) {
+      await page.getByRole("button", { name: "You", exact: true }).click();
+    }
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Appearance" }).click();
     // The shipped looks render as CARDS; picking one applies it (the `selectedThemeId` patch).
@@ -167,6 +171,9 @@ test.describe("settings render-truth (no-clear-needed) — #16", () => {
 
     // ── 5. The #11 save-circuit-breaker never tripped (no autosave "error" surfaced). The AutosaveStatus
     // affordance renders a Retry control only in the error state — its absence is the breaker-silent proof. ──
+    if (isMobile) {
+      await page.getByRole("button", { name: "You", exact: true }).click();
+    }
     await page.getByRole("button", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Appearance" }).click();
     // The appearance autosave status shows the owner-ruled honest "Saved" readout when clean; a tripped

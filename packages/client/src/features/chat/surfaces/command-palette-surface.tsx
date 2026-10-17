@@ -32,7 +32,7 @@ import { QueryErrorState, useTRPC } from "#data";
 import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
-import { CommandPaletteSourceRegistryContext, closeModal, selectChat, setActiveSection, useActiveChatId } from "#state";
+import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
@@ -79,7 +79,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   const paletteSources = use(CommandPaletteSourceRegistryContext)?.list() ?? [];
 
   const jumpToChat = (id: ChatId): void => {
-    selectChat(id);
+    resumeChat(id);
     closeModal();
   };
   const jumpToSection = (id: SectionId): void => {
