@@ -8,6 +8,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 
 const ROOT = join(import.meta.dirname, "../../../..");
 const eslint = new ESLint({ cwd: ROOT });
+const PROTOTYPE_RULES = ["no-extend-native", "no-proto", "no-restricted-properties"];
 
 // Only the effective native restriction options are exercised; typed rules keep their own compiler tests.
 async function findings(path: string, source: string, ruleIds: readonly string[] = ["no-restricted-syntax"]): Promise<readonly string[]> {
@@ -16,8 +17,9 @@ async function findings(path: string, source: string, ruleIds: readonly string[]
   const messages = new Linter().verify(
     source,
     {
-      files: ["**/*.{ts,tsx}"],
+      files: ["**/*.{js,cjs,mjs,ts,tsx}"],
       languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
+      plugins: config.plugins,
       rules: Object.fromEntries(ruleIds.map((id) => [id, config.rules[id] ?? "off"])),
     },
     { filename: path },
@@ -26,8 +28,82 @@ async function findings(path: string, source: string, ruleIds: readonly string[]
     messages.filter(({ fatal }) => fatal),
     path,
   ).toEqual([]);
+  expect(
+    messages.every(({ ruleId }) => typeof ruleId === "string"),
+    path,
+  ).toBe(true);
   return messages.map(({ message }) => message);
 }
+
+test("native prototype policy rejects native extensions and prototype replacement capabilities", async () => {
+  for (const path of ["packages/server/src/probe.ts", "packages/client/src/probe.tsx", "tooling/src/probe.ts", "tests/tooling/probe.ts", "scripts/probe.ts"]) {
+    for (const source of [
+      "Object.prototype.extra = 1;",
+      'Array["prototype"]["extra"] = 1;',
+      'Object.defineProperty(Object.prototype,"signal",{get(){return undefined;}});',
+      'Object["defineProperties"](Array["prototype"],{extra:{value:1}});',
+      "Object.setPrototypeOf(value, prototype);",
+      'Reflect["setPrototypeOf"](value, prototype);',
+      "const replace = Object.setPrototypeOf; replace(value, prototype);",
+      "const {setPrototypeOf:replace} = Reflect; replace(value, prototype);",
+      "Object.setPrototypeOf.call(Object, value, prototype);",
+      "value.__proto__ = prototype;",
+      'const legacy = value["__proto__"];',
+    ]) {
+      expect(await findings(path, source, PROTOTYPE_RULES), `${path}: ${source}`).toHaveLength(1);
+    }
+  }
+});
+
+test("native prototype policy rejects explicit Reflect and custom prototype mutation targets", async () => {
+  for (const path of ["packages/server/src/probe.ts", "packages/client/src/probe.tsx", "tooling/src/probe.ts", "scripts/probe.mjs"]) {
+    for (const source of [
+      'Reflect.defineProperty(Object.prototype,"signal",{get(){return undefined;}});',
+      'class Custom{};Object.defineProperty(Custom.prototype,"signal",{get(){return undefined;}});',
+      'class Custom{};Object["defineProperties"](Custom["prototype"],{signal:{value:1}});',
+      'class Custom{};Reflect[`defineProperty`](Custom[`prototype`],"signal",{value:1});',
+      "class Custom{};Object.assign(Custom.prototype,{signal:1});",
+      'Reflect.set(Object.prototype,"signal",1);',
+      'Reflect.deleteProperty(Object.prototype,"signal");',
+    ]) {
+      expect(await findings(path, source, ["orb/no-prototype-mutation"]), `${path}: ${source}`).toHaveLength(1);
+    }
+    for (const source of [
+      'Object.defineProperty(record,"value",{value:Custom.prototype});',
+      'Reflect.defineProperty(record,"prototype",{value:Custom.prototype});',
+      "Object.assign(record,{prototype:Custom.prototype});",
+      'Reflect.set(record,"prototype",Custom.prototype);',
+      'Object.getOwnPropertyDescriptor(Custom.prototype,"value");',
+      'Object.defineProperty(record.prototypeValue,"value",{value:1});',
+    ]) {
+      expect(await findings(path, source, ["orb/no-prototype-mutation"]), `${path}: ${source}`).toEqual([]);
+    }
+  }
+});
+
+test("native prototype policy core rules preserve ordinary own descriptors and global shadows", async () => {
+  for (const path of ["packages/server/src/probe.ts", "packages/contracts/src/probe.ts", "packages/ui/src/probe.tsx", "tooling/src/probe.ts"]) {
+    for (const source of [
+      'const target={};Object.defineProperty(target,"value",{value:1});',
+      "Object.defineProperties(target,{value:{get(){return 1;}}});",
+      'Reflect.defineProperty(target,"value",{value:1});',
+      "const target={};Object.assign(target,{value:1});",
+      'Object.prototype.hasOwnProperty.call(target,"value");',
+      "Object.getPrototypeOf(target);",
+      'function inspect(Object){Object.defineProperty(Object.prototype,"value",{value:1});}',
+      'const data={"setPrototypeOf":1,"__proto__":null};',
+      '// Object.setPrototypeOf(value, prototype)\nconst description="Object.prototype.extra = 1";',
+    ]) {
+      expect(await findings(path, source, PROTOTYPE_RULES), `${path}: ${source}`).toEqual([]);
+    }
+  }
+});
+
+test("native prototype policy does not widen maintained analysis into legacy and generated source", async () => {
+  for (const path of ["tests/legacy/ui/probe.test.ts", "packages/ui/src/tokens/index.ts", "packages/ui/src/tokens/probe.gen.ts"]) {
+    expect(await findings(path, "Object.prototype.extra = 1;", PROTOTYPE_RULES), path).toEqual([]);
+  }
+});
 
 test("settings table admission rejects named, aliased, namespace and reexport reaches outside its owner", async () => {
   const path = "packages/server/src/domain/connection/persistence/probe.ts";

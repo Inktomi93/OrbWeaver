@@ -1173,7 +1173,36 @@ const BASEUI_INPUT_REVISION = createHash("sha256")
   .update(JSON.stringify(BASE_UI_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
   .digest("hex");
 
+const PROTOTYPE_NATIVE_IGNORES = [...STRICT_SYNTAX_IGNORES, "**/*.d.{ts,mts,cts}", "tooling/src/snap/lib/devtools-frontend/**"];
+const PROTOTYPE_MUTATION_SELECTORS = [
+  {
+    selector: [
+      ["Object", ["defineProperty", "defineProperties", "assign"]],
+      ["Reflect", ["defineProperty", "set", "deleteProperty"]],
+    ]
+      .map(
+        ([owner, methods]) =>
+          `CallExpression[callee.type='MemberExpression'][callee.object.name='${owner}'][arguments.0.type='MemberExpression']` +
+          ":matches([arguments.0.computed=false][arguments.0.property.name='prototype'], " +
+          "[arguments.0.computed=true][arguments.0.property.value='prototype'], " +
+          "[arguments.0.computed=true][arguments.0.property.expressions.length=0][arguments.0.property.quasis.0.value.cooked='prototype'])" +
+          `:matches([callee.computed=false][callee.property.name=${alternation(methods)}], ` +
+          `[callee.computed=true][callee.property.value=${alternation(methods)}], ` +
+          `[callee.computed=true][callee.property.expressions.length=0][callee.property.quasis.0.value.cooked=${alternation(methods)}])`,
+      )
+      .join(", "),
+    message: "Prototype mutation invalidates native own-data provenance; define data on the owning object instead.",
+  },
+];
+
 const RESTRICTIONS = [
+  {
+    id: "no-prototype-mutation",
+    scope: MAINTAINED_GLOBAL_SURFACES.flatMap(({ files }) => files),
+    notUnder: PROTOTYPE_NATIVE_IGNORES,
+    homes: [],
+    selectors: PROTOTYPE_MUTATION_SELECTORS,
+  },
   ...Z_INDEX_RESTRICTIONS,
   ...BASEUI_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
@@ -3348,6 +3377,18 @@ function maintainedRulePacks() {
     "regexp/use-ignore-case": "off",
     "regexp/no-unused-capturing-group": "off",
   };
+  const prototypeRules = {
+    "no-extend-native": "error",
+    "no-proto": "error",
+    "no-restricted-properties": [
+      "error",
+      ...["Object", "Reflect"].map((object) => ({
+        object,
+        property: "setPrototypeOf",
+        message: "Prototype mutation invalidates native own-data provenance; create the intended object without replacing its prototype.",
+      })),
+    ],
+  };
 
   return [
     {
@@ -3474,6 +3515,11 @@ function maintainedRulePacks() {
       ignores: [...(surface.ignores ?? []), "tooling/src/snap/lib/devtools-frontend/**"],
       plugins: { "@eslint-community/eslint-comments": eslintComments, regexp },
       rules: globalRules,
+    })),
+    ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
+      ...surface,
+      ignores: [...(surface.ignores ?? []), ...PROTOTYPE_NATIVE_IGNORES],
+      rules: prototypeRules,
     })),
     {
       // The guard's operand-tail regex ends in `>\S*` and `\d*>>?&?\d*`, which overlap on `>>&1`. The two
