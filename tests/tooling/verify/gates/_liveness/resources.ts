@@ -15,7 +15,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiSurfaceManifest } from "../../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
-import { gate as clientPackageNoSideEffects } from "../../../../../tooling/src/verify/gates/client-package-no-side-effects.ts";
 import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
@@ -27,7 +26,6 @@ import { gate as ledgerSymbolLiveness } from "../../../../../tooling/src/verify/
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as noNulBytesInSource } from "../../../../../tooling/src/verify/gates/no-nul-bytes-in-source.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
-import { gate as rootDevelopmentDependencies } from "../../../../../tooling/src/verify/gates/root-development-dependencies.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as serverLayout } from "../../../../../tooling/src/verify/gates/server-layout.ts";
@@ -36,7 +34,6 @@ import { gate as surfaceInAContainerHealth } from "../../../../../tooling/src/ve
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as tokensContract } from "../../../../../tooling/src/verify/gates/tokens-contract.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
-import { gate as uiExportsMapComplete } from "../../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 const DEPCRUISE = ".dependency-cruiser.cjs";
@@ -68,11 +65,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     // The ledger loses its `Meter` component, which the installed package still ships.
     overlays: [replace("tooling/src/verify/gates/baseui-surface.manifest.json", '"Meter": {', '"LivenessMeter": {')],
     messageIncludes: "absent from the manifest",
-  },
-  {
-    policy: clientPackageNoSideEffects,
-    overlays: [replace("packages/client/package.json", '"name": "@orb/client",', '"name": "@orb/client",\n  "sideEffects": ["**/*.css"],')],
-    messageIncludes: "declares `sideEffects`",
   },
   {
     policy: commentedCode,
@@ -220,15 +212,5 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingRunnerConfigLiterals,
     overlays: [replace("vitest.config.ts", "testTimeout: budget(5000),", "testTimeout: 5000,")],
     messageIncludes: "Literal: `testTimeout: 5000`",
-  },
-  {
-    policy: uiExportsMapComplete,
-    overlays: [source("packages/ui/src/primitives/liveness-hint/index.ts", "export const LivenessHint = 1;\n")],
-    messageIncludes: "no entry at all",
-  },
-  {
-    policy: rootDevelopmentDependencies,
-    overlays: [replace("package.json", '"devDependencies": {', '"dependencies": { "tsx": "^4.0.0" },\n  "devDependencies": {')],
-    messageIncludes: "Dependency: tsx.",
   },
 ];

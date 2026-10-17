@@ -6,12 +6,11 @@ import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/p
 import { gate as featureOwnsDefinition } from "../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as packageLayout } from "../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as serverLayout } from "../../../../tooling/src/verify/gates/server-layout.ts";
-import { gate as uiExportsMapComplete } from "../../../../tooling/src/verify/gates/ui-exports-map-complete.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [featureOwnsDefinition, packageLayout, serverLayout, uiExportsMapComplete] as const;
+const policies = [featureOwnsDefinition, packageLayout, serverLayout] as const;
 
 test("first resource layout policies keep their two-sided proofs", { timeout: scaledBudget(20_000) }, () => {
   expect(verifyPolicyProofs(policies)).toEqual([]);
@@ -36,8 +35,8 @@ test("package root exceptions require one exact reviewed-grant identity", ({ scr
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "package-layout", file: path, subject: path, operation: "loose-package-root-module" }]);
 });
 
-/** The §4.5 refusal and receipt pins for the two resource exemplars (docs/law/resource-policy-contract.md
- *  §3.6), and the reason the in-module `if (fact.status !== "ready") return;` guard was deleted from both: a
+/** The §4.5 refusal and receipt pins for the server resource exemplar (docs/law/resource-policy-contract.md
+ *  §3.6), and the reason the in-module `if (fact.status !== "ready") return;` guard was deleted from the policy: a
  *  BROKEN declared resource never reaches `evaluate` at all. `resolveResourceDeclarations` throws during
  *  the POPULATION phase (`lib/resource-declaration.ts`), the owner is marked incomplete and WITHHELD, and
  *  the run surfaces a TOOL ERROR — never the clean zero a silent return would have produced. No proof row
@@ -137,57 +136,11 @@ test("an EMPTY declared tree is a refusal, not a verdict of six missing tiers", 
   expect(refusalShape(result)).toEqual(populationRefusal("server-layout", "resource declaration authored-tree:server is empty"));
 });
 
-const UI_BUTTON = { "packages/ui/src/primitives/button/index.ts": "export const Button = 1;\n" } as const;
-const UI_MANIFEST = { "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{"./button":"./src/primitives/button/index.ts"}}' } as const;
-
-function uiExportsPass(scratch: string, overlay: Readonly<Record<string, string>>): PolicyPassResult {
-  return runPolicyPass({
-    knownPolicies: [uiExportsMapComplete],
-    policies: [uiExportsMapComplete],
-    root: scratch,
-    project: new Project({ skipAddingFilesFromTsConfig: true }),
-    resourceOptions: { overlay },
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-}
-
-test("a complete resource population lets ui-exports-map-complete reach a verdict and file one receipt per declaration", ({ scratch }) => {
-  const result = uiExportsPass(scratch, { ...UI_BUTTON, ...UI_MANIFEST });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.authority.withheldPolicyIds).toEqual([]);
-  // 6 members = the two fixture files plus the four directories between the `packages` root and the
-  // deepest leaf (`ui`, `ui/src`, `ui/src/primitives`, `ui/src/primitives/button`); the root itself is
-  // never a member, and nothing else is on this scratch root.
-  expect(result.policies.map(({ receipts }) => receipts)).toEqual([
-    [
-      { kind: "resource", source: "authored-tree:packages", resources: 6, unresolved: 0 },
-      { kind: "resource", source: "package:ui", resources: 1, unresolved: 0 },
-    ],
-  ]);
-});
-
-test("ui-exports-map-complete: a missing manifest refuses at the population phase", ({ scratch }) => {
-  const result = uiExportsPass(scratch, { ...UI_BUTTON });
-
-  expect(refusalShape(result)).toEqual(populationRefusal("ui-exports-map-complete", "resource declaration package-metadata:ui is missing"));
-});
-
-test("ui-exports-map-complete: a malformed manifest refuses with its own status word", ({ scratch }) => {
-  const result = uiExportsPass(scratch, { ...UI_BUTTON, "packages/ui/package.json": '{"name":' });
-
-  expect(refusalShape(result)).toEqual(
-    populationRefusal("ui-exports-map-complete", "resource declaration package-metadata:ui is unresolved: malformed package metadata"),
-  );
-});
-
 // ---------------------------------------------------------------------------------------------------
 // THE §4.5 REFUSAL PINS for `feature-owns-definition`'s one declared resource (`authored-tree:client-feature`),
 // owed by `docs/law/resource-policy-contract.md` §3.6 — one pin per declared resource per REACHABLE non-ready status
 // — and absent until 2026-09-13 (#2327, the `policy-refusal-coverage` warning debt). The two pin sets above
-// cover `server-layout` and `ui-exports-map-complete`; this module declares the SAME KIND with a different
+// cover `server-layout`; this module declares the SAME KIND with a different
 // id and inherits none of them, which is exactly why the contract asks per DECLARED RESOURCE.
 //
 // THE STATUS SET IS READ OFF THE TREE READER, not copied from the manifest kind above.
@@ -259,21 +212,4 @@ test("feature-owns-definition: the twin's silence is a READ — one feature with
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "feature-owns-definition", token: "orphan" }]);
-});
-
-test("ui-exports-map-complete: an exports block that is not a string map is the REFUSAL half of the retired A4 arm", ({ scratch }) => {
-  // Conditional exports are a legal npm shape the closed `PackageMetadata` contract does not model — the
-  // provider refuses rather than flattening, so the policy never judges a map it could not read. The
-  // VERDICT half (no `exports` key at all → `{}` → one A1 per module) is `mustFlag[5]` in the module.
-  const result = uiExportsPass(scratch, {
-    ...UI_BUTTON,
-    "packages/ui/package.json": '{"name":"@orb/ui","private":true,"exports":{"./button":{"import":"./src/primitives/button/index.ts"}}}',
-  });
-
-  expect(refusalShape(result)).toEqual(
-    populationRefusal(
-      "ui-exports-map-complete",
-      "resource declaration package-metadata:ui is unresolved: package metadata does not match the closed ui package contract",
-    ),
-  );
 });

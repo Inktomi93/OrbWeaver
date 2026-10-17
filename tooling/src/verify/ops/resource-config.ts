@@ -72,7 +72,6 @@ function packageFacts(value: unknown, id: PackageResourceId, path: string): Pack
     scripts,
     dependencies,
     exports,
-    declaresSideEffects: Object.hasOwn(source, "sideEffects"),
   };
 }
 

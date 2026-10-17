@@ -41,8 +41,8 @@
 // declares and requires the linked sheets, together, to carry every `APP_STYLESHEET_SENTINELS` entry — one
 // construct per sheet the front door reaches, each named with its authoring source. No linked sheet, or a missing
 // sentinel, is a VIOLATION (exit 1). An unreadable html, a stylesheet link outside `/assets/*.css`, or a linked
-// sheet absent from disk is UNMEASURABLE (exit 2). The static half, the `client-package-no-side-effects` gate,
-// reds the field itself under `pnpm check`; this half catches every OTHER way the bundler can lose the sheet.
+// sheet absent from disk is UNMEASURABLE (exit 2). The native client package-effects test rejects the
+// manifest field itself; this build check catches every other way the bundler can lose the sheet.
 //
 // THE DEV-ONLY INSTRUMENTS RIDE IT TOO (work item 0030): no emitted chunk, preloaded or lazy, may carry a
 // module `main.tsx` loads only under `import.meta.env.DEV`. The build adds `--sourcemap hidden`, which adds

@@ -28,7 +28,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
  *  marks it as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
 const ABSENT_POLICY = "probe-no-such-policy";
 const REVIEWED = "no-raw-intl-time";
-const HARD_RESOURCE = "root-development-dependencies";
+const HARD_RESOURCE = "server-layout";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
  *  `severity: "warning"`; `8300c13bbc` raised that policy to `"error"` (its warning-debt flip condition was met
@@ -365,7 +365,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   repoRoot,
   runCli,
 }) => {
-  // no package.json in this root: root-development-dependencies's `package-metadata:root` resource cannot resolve, so its
+  // No server tree in this root: server-layout's authored-tree resource cannot resolve, so its
   // population phase throws — the ordinary sibling beside it still waives its finding.
   const root = await plantedTree(
     mixedTree(repoRoot, {
@@ -383,7 +383,9 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   expect(failed.withheld).toBe(true);
   expect(failed.ok).toBe(false);
   expect(report.run.final.withheld).toBe(1);
-  expect(policyOf(report).toolErrors).toEqual([{ policyId: HARD_RESOURCE, phase: "population", message: expect.stringContaining("package.json") }]);
+  expect(policyOf(report).toolErrors).toEqual([
+    { policyId: HARD_RESOURCE, phase: "population", message: expect.stringContaining("authored-tree:server is missing") },
+  ]);
   expect(policyOf(report).authority.withheldPolicyIds).toEqual([HARD_RESOURCE]);
   expect(policyOf(report).authority.toolErrors.map((e) => e.kind)).toEqual(["owner-incomplete"]);
   // the sibling reconciled: its waiver was consumed, its row is ok, and it is NOT withheld
