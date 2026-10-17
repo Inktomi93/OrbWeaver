@@ -30,7 +30,7 @@ SQL delivery, production HTTP/network authority, regex deadlines, canon freeze a
 
 Native Base UI occurrence rules and metadata admission qualify. Surface/anatomy contracts use Node CI; portal/CSS semantics remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md` and `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
-Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls, independent review and bounded ordinary main qualification pass. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
+Native context/register syntax and metadata admission qualify. Published-state origins, count health and registry assembly remain custom. Typed harness failures stay explicit. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
 Native parallel-map checks pass individually on main; the combined run retains a timing failure. Selection and other tuple consumers remain. Evidence: `reports/review/1041-native-parallel-map-ordinary.md`.
 
@@ -47,3 +47,5 @@ Sealed sizing, native DevTools closure and shared metadata scans pass wave revie
 Native package manifest contracts pass wave review and scoped runtime controls. Application contracts run in ordinary Node CI; root dependencies remain tooling-owned. Acquisition refusals remain. Evidence: `reports/review/1041-native-package-manifests-ordinary.md`.
 
 Production token validation and history run in Node CI; generated type facts remain. Native Git/text whole-source checks pass; application mode lacks a verdict because legacy collection fails. Evidence: `reports/review/1041-native-token-git-ordinary.md`.
+
+Compiler expiry uses application Node CI; containment and memo enforcement remain. Evidence: `reports/review/1041-native-ui-health-ordinary.md`.

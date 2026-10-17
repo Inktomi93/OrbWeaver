@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(286 registered gates)
+(284 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -202,7 +202,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-autosave-flush` | — | ordinary/error | @client\* | this features/\*\* function body calls… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
-| `no-manual-memo-compiler-health` | — | hard/error | @tooling\* | the installed React Compiler no… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
 | `no-mint-via-cast` | id-brand-flow | hard/error | @product | castId wraps a fresh-id generator —… |
 | `no-multiplexed-mutation-error` | tanstack-query-origin | ordinary/error | @client\* | multiplexed mutation errors — v5… |
@@ -289,7 +288,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |
 | `surface-a11y-focus` | surface-composition | ordinary/error | @client\* | surface is missing A11y focus… |
 | `surface-in-a-container` | surface-composition | ordinary/error | @client\* | surface establishes raw structural… |
-| `surface-in-a-container-health` | — | hard/error | none | stale shell exemption —… |
 | `table-explicit-primary-key` | drizzle-schema | hard/error | @db\* | a sqliteTable has no PRIMARY KEY —… |
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |

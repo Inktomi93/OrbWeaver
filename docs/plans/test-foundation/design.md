@@ -169,7 +169,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Ordinary demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Native callable controls retain allocation, selected-slot/copy closure and unconditional publication after private-premise revocation. Private supplies carry actual consumers, bindings and live premises through nested/default/optional reads; they publish no callers. Security review and ordinary native controls pass. Mutation, escape, missing/foreign/stale evidence and true recursion refuse. Original target/publication, sparse-env and store/cost qualification remain open. Evidence: `reports/review/1002-private-supplied-context-ordinary.md`.
+Private callable supplies preserve allocation, bindings and live premises without publishing callers. Security review and ordinary controls pass. The untransformed original query completes but refuses a chat-service member origin. Target/publication, sparse-env and store/cost remain open. Evidence: `reports/review/1002-original-private-supply-terminal.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -213,7 +213,7 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
-Native schema tests own portability; native runtime owns DevTools bytes. Native lint owns client literal IDs, scroll positioning, sealed sizes and source suppression refusal. Shared metadata retains scope and authority. Browser imports validate before effects. Story and generated-token readers remain. Native manifest/token contracts use Node CI. Native Git/text safety owns raw bytes and candidate-index modes; application qualification still fails on legacy collection.
+Native schema tests own portability; native runtime owns DevTools bytes. Native lint owns client literals, scroll positioning, sealed sizes and suppression refusal. Shared metadata preserves scope and authority. Browser imports validate before effects. Story and generated-token readers remain. Native manifest/token and compiler-expiry contracts use Node CI. Containment and canonical memo enforcement remain. Native Git/text safety owns raw bytes and index modes; application qualification fails on legacy collection.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 
