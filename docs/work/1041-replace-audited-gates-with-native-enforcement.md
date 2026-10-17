@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-client-policy-1041
+lane: codex/native-assets-1041
 plan: test-foundation
 ---
 
@@ -28,17 +28,17 @@ Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. The [foundation plan]
 
 SQL delivery, production HTTP/network authority, regex deadlines, canon freeze and query-boundary cohorts pass scoped review and controls. Raw-origin, asset, public-Caller role, per-call and uninstantiated-list obligations remain. Evidence: `reports/review/1041-native-wave-ordinary.md` and `reports/review/1041-egress-watchdog-ordinary.md`.
 
-Native Base UI occurrence rules and metadata admission qualify. Surface/anatomy contracts use Node CI; portal/CSS semantics remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md` and `reports/review/1041-native-baseui-ledger-ordinary.md`.
+Native Base UI rules and metadata admission qualify. Surface/anatomy contracts use Node CI; portal/CSS semantics remain. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
 Native context/register syntax and metadata admission qualify. Published-state origins, count health and registry assembly remain custom. Typed harness failures stay explicit. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
-Native parallel-map checks pass individually on main; the combined run retains a timing failure. Selection and other tuple consumers remain. Evidence: `reports/review/1041-native-parallel-map-ordinary.md`.
+Native parallel-map checks pass individually; combined timing fails. Selection and tuple consumers remain. Evidence: `reports/review/1041-native-parallel-map-ordinary.md`.
 
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
 Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Scoped ordinary main qualification passes with inherited type diagnostics. Evidence: `reports/review/1041-native-bus-boundary-ordinary.md`.
 
-Native portability, client literals and source-suppression refusal pass independent review and scoped integration. Retained readers remain. Evidence: `reports/review/1041-native-replacement-wave-ordinary.md`.
+Native portability, literals and suppression refusal pass scoped review and integration. Retained readers remain. Evidence: `reports/review/1041-native-replacement-wave-ordinary.md`.
 
 The asset-write native successor remains unqualified: valid table transfers and canonical origins exceed its lexical proposal. Existing enforcement remains. Evidence: `reports/review/1041-assets-native-successor-disposition.md`.
 
@@ -48,4 +48,4 @@ Native package manifest contracts pass wave review and scoped runtime controls. 
 
 Production token validation and history run in Node CI; generated type facts remain. Native Git/text whole-source checks pass; application mode lacks a verdict because legacy collection fails. Evidence: `reports/review/1041-native-token-git-ordinary.md`.
 
-Compiler expiry uses application Node CI; containment and memo enforcement remain. Evidence: `reports/review/1041-native-ui-health-ordinary.md`.
+Compiler expiry uses Node CI; containment and memo enforcement remain. Evidence: `reports/review/1041-native-ui-health-ordinary.md`. Native floorless geometry uses public UI metadata and output contracts; complete frontend qualification stays open. Evidence: `reports/review/1041-native-floorless-ordinary.md`.

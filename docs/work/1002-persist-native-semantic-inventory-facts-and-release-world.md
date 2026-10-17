@@ -38,7 +38,7 @@ Native resources preserve disposal, refusal and invalidation; opaque callbacks r
 
 Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
 
-Private supplies retain live premises, actual calls and argument/allocation identity without publishing callers. Security review and ordinary main controls pass. The untransformed original query completes but refuses a chat-service member origin. Target/publication, sparse-env and complete cost remain open. Evidence: `reports/review/1002-original-private-supply-terminal.md`.
+Private supplies preserve live premises and allocation bindings without publishing callers. Reviewed helper-byte invalidation passes native publication controls. Original chat-service origin, sparse-env, complete dependency closure and cost remain open. Evidence: `reports/review/1002-private-helper-input-ordinary.md`.
 
 Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Traced replay confirms census reuse; target and full cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
 

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-13
+updated: 2026-10-17
 priority: P2
 area: packages
 plan: test-foundation
@@ -23,7 +23,7 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 ## Evidence
 
-Native production Knip completes on `08ca7b6d38`; raw inventory is `reports/knip-production-findings.json`. Reconciliation at `dbee8aaaf8` removes only stale baseline keys. Unbaselined findings stay visible; repeated export locations do not prove dead implementations. The memory work item owns measurement limitations.
+Native production Knip completes; raw inventory is `reports/knip-production-findings.json`. Only proven stale baseline keys are removed. Live findings stay visible; repeated locations do not prove dead implementations. The floorless migration adds no reported finding. Adjudication remains open. Evidence: `reports/review/1041-native-floorless-ordinary.md`.
 
 The reviewed client, DB and kit re-export batch is merged at `f2101d2246`, including the evaluation-preserving codemod correction at `dba31a7efc`. Independent review confirms the complete batch. The emitted-ESM controls, scoped lint and affected native compiler programs pass. Declarations, implementations, same-package callers and uncertain consumers remain unchanged. The plan records the retained macro API vocabulary.
 

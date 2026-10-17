@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(284 registered gates)
+(282 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -150,7 +150,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `firehose-import-allowlist-health` | — | hard/error | @server | subscribeAllChatEvents is no longer… |
 | `fk-columns-indexed` | drizzle-schema | hard/error | @db\* | a foreign-key column does not LEAD… |
 | `fk-ondelete-stated` | drizzle-schema | ordinary/error | @db\* | a .references(...) has no onDelete… |
-| `floorless-control-vocabulary-health` | floorless-control | hard/error | @client,@ui | the floorless Button vocabulary no… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
 | `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
@@ -182,7 +181,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
 | `no-fake-disabled-id` | id-brand-flow | ordinary/error | @client | empty-string branded id creates a… |
-| `no-floorless-control-in-wrap` | floorless-control | ordinary/error | @client,@ui | a floorless-size Button… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
 | `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
