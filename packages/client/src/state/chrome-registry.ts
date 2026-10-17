@@ -53,14 +53,16 @@ interface WidgetBehavior {
 /** A rail SECTION's entry. Its zone is a `RailZone`, so no section entry can reach `topbar.trail`. */
 interface SectionChromeEntry extends ChromeEntryAxes {
   readonly zone: RailZone;
+  readonly mobile: MobileCuration;
   readonly behavior: SectionBehavior;
 }
 
-/** A modal trigger's or a widget's entry, legal in every zone. */
-export interface ActionChromeEntry extends ChromeEntryAxes {
-  readonly zone: ChromeZone;
-  readonly behavior: ModalBehavior | WidgetBehavior;
-}
+/** Rail actions declare their phone fate; topbar actions may use the zone's default. */
+export type ActionChromeEntry = ChromeEntryAxes &
+  (
+    | { readonly zone: RailZone; readonly mobile: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
+    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
+  );
 
 /** A shell chrome affordance as ONE definition: the presentation axes every source shares, plus where it
  *  points. The zone and the behavior travel together, so a lens narrows both by checking the zone. */
@@ -74,14 +76,6 @@ interface ChromeEntryAxes {
    *  section-registry.ts (kills rail-slots.ts's duplicate tuple). No consumer this wave. */
   readonly group?: SectionGroup;
   readonly order?: number;
-  /** The entry's PHONE FATE. On the rail it is the tab-vs-You-sheet decision and it is REQUIRED (the
-   *  `chrome-registry-completeness` gate); on `topbar.trail` it is OPTIONAL and defaults to "stay on the
-   *  row" — declaring `"sheet"` moves the entry off a 320px topbar into the You sheet, which projects it by
-   *  KIND: a widget's `body("sheet")` lens (the notifications inbox, 2026-08-07: a 48px control was
-   *  competing with the one thing that says where you are) or a modal trigger's row (the ⌘K palette, whose
-   *  `mobile` is declared on its `ModalTrigger` and derived here, #1789). The axis is chrome-wide; it used
-   *  to be rail-only, back when the sheet projected nothing from this zone. */
-  readonly mobile?: MobileCuration;
   /** Capability gate, called UNCONDITIONALLY per entry — the registry list is frozen at the door
    *  (contentBySection precedent), so hooks-over-a-stable-list is legal. `false` ⇒ render NOTHING (no
    *  gap) — preserves the notification bell's no-flash-then-yank rule. Omitted ⇒ always visible. */
@@ -139,7 +133,7 @@ export function sheetOverflowChrome(entries: readonly ChromeEntry[]): readonly C
  * (always the bar's first tab), or when it is not a rail section at all.
  */
 export function mobileBarCuration(entries: readonly ChromeEntry[], activeSection: SectionId): ReadonlyMap<string, MobileCuration> {
-  const curation = new Map<string, MobileCuration>(entries.map((entry) => [entry.id, entry.mobile ?? (entry.zone === "topbar.trail" ? "tab" : "sheet")]));
+  const curation = new Map<string, MobileCuration>(entries.map((entry) => [entry.id, chromeMobileCuration(entry)]));
   // Only a GROUPED `rail.nav` section — or a `rail.end` section — can hold a bar slot: the rail renders its
   // nav list group by group, so an ungrouped nav entry has no cell to take and displacing a tab for it
   // would shrink the bar to three. A `rail.end` SECTION (Settings since the config revamp, #866 S1) renders
@@ -165,4 +159,9 @@ export function mobileBarCuration(entries: readonly ChromeEntry[], activeSection
     curation.set(displaced.id, "sheet");
   }
   return curation;
+}
+
+/** Modal derivation and the phone's final projection share the same zone defaults. */
+export function chromeMobileCuration(entry: Pick<ChromeEntry, "zone" | "mobile">): MobileCuration {
+  return entry.mobile ?? (entry.zone === "topbar.trail" ? "tab" : "sheet");
 }

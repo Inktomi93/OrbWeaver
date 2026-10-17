@@ -20,5 +20,5 @@ export const pluginDistributeSection: ConfigSectionContribution = {
   anchor: "plugins",
   nav: PLUGIN_DISTRIBUTE_SUBCATEGORY,
   when: (viewer) => viewer.isAdmin,
-  body: () => <PluginDistributeSection />,
+  body: (anchorId) => <PluginDistributeSection anchorId={anchorId} />,
 };

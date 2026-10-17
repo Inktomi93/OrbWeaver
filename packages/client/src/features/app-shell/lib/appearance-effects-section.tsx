@@ -15,5 +15,5 @@ export const appearanceEffectsSection: ConfigSectionContribution = {
   advanced: true,
   nav: APPEARANCE_EFFECTS_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_EFFECTS_KEYS },
-  body: () => <AppearanceEffectsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceEffectsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

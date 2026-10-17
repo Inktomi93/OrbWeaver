@@ -42,7 +42,7 @@ import { QueryBoundary, RowActionsMenu, useReindexConfirm, useUpdateConnection }
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { connectionSummary } from "#lib";
-import { clearConnectionEditorRequest, configAnchorId, configSettingControlId, useRequestedConnectionEditor } from "#state";
+import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
@@ -63,7 +63,7 @@ type ListFocusIntent =
 // Whichever add verb is showing carries the leaf's control id, so an add-connection landing focuses it.
 const ADD_CONNECTION_CONTROL_ID = configSettingControlId("connections", ADD_CONNECTION_SETTING);
 
-export function ConnectionsListSection(): ReactElement {
+export function ConnectionsListSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into one row per connection.
     <QueryBoundary
@@ -71,12 +71,12 @@ export function ConnectionsListSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your connections" onRetry={retry} />}
       reserveKey="config.connections.list"
     >
-      <ConnectionsBody />
+      <ConnectionsBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function ConnectionsBody(): ReactElement {
+function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: connections }, { data: bindings }, { data: credentials }, { data: available }] = useSuspenseQueries({
@@ -129,7 +129,7 @@ function ConnectionsBody(): ReactElement {
 
   if (editingId !== null) {
     return (
-      <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
+      <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={anchorId}>
         <ConnectionEditor
           key={requestCount}
           advancedOpen={advancedOpenFor === editingId}
@@ -156,7 +156,7 @@ function ConnectionsBody(): ReactElement {
   }
 
   return (
-    <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
+    <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={anchorId}>
       <Row gap="field" align="center" justify="between" className="flex-wrap">
         <Text voice="quiet" className="max-w-(--reading-measure-prose)">
           One provider and one model per connection. Your roles use these connections in rooms you host and for your work outside rooms. Shared-room turns use

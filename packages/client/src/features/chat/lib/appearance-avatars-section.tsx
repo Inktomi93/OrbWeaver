@@ -13,5 +13,5 @@ export const appearanceAvatarsSection: ConfigSectionContribution = {
   anchor: "appearance",
   nav: APPEARANCE_AVATARS_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_AVATARS_KEYS },
-  body: () => <AppearanceAvatarsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceAvatarsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

@@ -21,7 +21,6 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -53,7 +52,7 @@ function toBytes(draft: string): number | null {
 }
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
-export function MediaTrustSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
@@ -61,12 +60,12 @@ export function MediaTrustSection({ sectionId }: { readonly sectionId: string })
       renderError={(_error, retry): ReactElement => <QueryErrorState label="media & trust — administrators only" onRetry={retry} />}
       reserveKey="config.admin.mediaTrust"
     >
-      <MediaTrustBody sectionId={sectionId} />
+      <MediaTrustBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -101,7 +100,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section className="@container" divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={configAnchorId("admin", MEDIA_TRUST_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={MEDIA_TRUST_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.</Text>
         <AdminOverrideSwitch

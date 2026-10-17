@@ -26,7 +26,6 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { configAnchorId } from "#state";
 import { AUTOMATION_BUDGET_SUBCATEGORY, AUTOMATION_RULES_SUBCATEGORY } from "../lib/automation-nav.ts";
 import { useSetOwnerBudgets } from "../lib/owner-budget-mutations.ts";
 import { RuleManager } from "./rule-manager.tsx";
@@ -38,9 +37,9 @@ const OWNER_CAP_MIN = 0;
 const OWNER_CAP_MAX = 240;
 
 /** The rate ceiling every owner-global rule counts against — the anchored section. */
-export function OwnerBudgetSection(): ReactElement {
+export function OwnerBudgetSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section divider={true} heading={AUTOMATION_BUDGET_SUBCATEGORY.label} id={configAnchorId("automation", AUTOMATION_BUDGET_SUBCATEGORY.id)}>
+    <Section divider={true} heading={AUTOMATION_BUDGET_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
         fallback={<SkeletonRows count={1} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your automation limit" onRetry={retry} />}
@@ -114,9 +113,9 @@ function OwnerBudgetBody(): ReactElement {
 
 /** The owner-global rule list + the "Add a rule" picker for the global half of the catalogue — the anchored
  *  section. */
-export function OwnerRulesSection(): ReactElement {
+export function OwnerRulesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section divider={true} heading={AUTOMATION_RULES_SUBCATEGORY.label} id={configAnchorId("automation", AUTOMATION_RULES_SUBCATEGORY.id)}>
+    <Section divider={true} heading={AUTOMATION_RULES_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
         fallback={<SkeletonRows count={3} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your library-wide rules" onRetry={retry} />}

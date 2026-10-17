@@ -19,7 +19,6 @@ import { QueryBoundary, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
-import { configAnchorId } from "#state";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
 interface UpdateLibraryVars {
@@ -45,7 +44,7 @@ function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
 }
 
 /** The Library settings section body — mounted at the appearance pane's contributed-sections anchor. */
-export function LibrarySettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function LibrarySettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098), fallback UNCHANGED — it settles into ONE rows-per-page control, so a SkeletonRows
     // list would claim rows that never arrive; the sentence is the honest wait. The key still earns its
@@ -55,14 +54,14 @@ export function LibrarySettingsSection({ sectionId }: { readonly sectionId: stri
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your library settings" onRetry={retry} />}
       reserveKey="config.appearance.library"
     >
-      <LibraryPageSizeRow sectionId={sectionId} />
+      <LibraryPageSizeRow anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
 /** The rows-per-page control. A blank/out-of-range input is dropped (never a wipe-triggering write; the
  *  server re-validate + `.catch` self-heal is the true enforcement, these bound the input). */
-function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): ReactElement {
+function LibraryPageSizeRow({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -74,7 +73,7 @@ function LibraryPageSizeRow({ sectionId }: { readonly sectionId: string }): Reac
     }
   };
   return (
-    <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("appearance", LIBRARY_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={LIBRARY_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       {/* #932: the ONE Appearance row that was never a `SettingRow` — and the one `row-void` still filed
           after the conversion, at 616px of 1176px (52%) in the focus arm, because a bare horizontal
           `<Field>` docks its control against the PANE. `SettingRowGroup` gives it the same shared track

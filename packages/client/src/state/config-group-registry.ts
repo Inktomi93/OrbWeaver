@@ -215,12 +215,6 @@ export type ConfigGroupDefinition = ConfigGroupBase & { readonly body: ConfigGro
 /** The closed, tsc-total registry the door assembles and `makeConfigSection` consumes. */
 export type ConfigGroupRegistry = Registry<ConfigGroupId, ConfigGroupDefinition>;
 
-/** The DOM id of a subcategory's anchor node — derived from the registry keys, never a scattered string
- *  literal. Shared by every group surface (owner features + the config host's scroll-spy and search). */
-export function configAnchorId(groupId: ConfigGroupId, subId: string): string {
-  return `config-anchor-${groupId}-${subId}`;
-}
-
 /** The DOM id of a setting leaf's own control — the element a setting-level landing focuses. A section
  *  stamps it on the control a deep link to that leaf means; a leaf without one keeps focus where it was. */
 export function configSettingControlId(groupId: ConfigGroupId, settingId: string): string {

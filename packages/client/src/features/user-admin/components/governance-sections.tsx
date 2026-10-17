@@ -23,7 +23,6 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
@@ -42,7 +41,7 @@ function useIsBoxOwner(): boolean {
 }
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */
-export function MultiUserSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
@@ -50,12 +49,12 @@ export function MultiUserSection({ sectionId }: { readonly sectionId: string }):
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
       reserveKey="config.admin.multiUser"
     >
-      <MultiUserBody sectionId={sectionId} />
+      <MultiUserBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -103,7 +102,7 @@ function MultiUserBody({ sectionId }: { readonly sectionId: string }): ReactElem
   };
 
   return (
-    <Section className="@container" divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={configAnchorId("admin", MULTI_USER_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={MULTI_USER_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss">Seating and sign-in posture. Multi-CHARACTER chats always work; this is about additional HUMANS.</Text>
         <SharingPosturePanel />

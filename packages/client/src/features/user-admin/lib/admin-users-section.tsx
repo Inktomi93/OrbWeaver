@@ -14,5 +14,5 @@ export const adminUsersSection: ConfigSectionContribution = {
   id: "admin-users",
   anchor: "admin",
   nav: ADMIN_USERS_SUBCATEGORY,
-  body: () => <AdminUsersSection />,
+  body: (anchorId) => <AdminUsersSection anchorId={anchorId} />,
 };

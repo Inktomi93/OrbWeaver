@@ -13,7 +13,6 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { configAnchorId } from "#state";
 import { useEmbedCharacterCard, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
 
@@ -21,13 +20,13 @@ import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/
 const OPENROUTER_PROVIDER_ID = "openrouter";
 
 /** The OpenRouter catalog refresher — re-fetches the enriched list every OpenRouter connection's picker browses. */
-export function AdminCatalogSection(): ReactElement {
+export function AdminCatalogSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const refreshCatalog = useRefreshCatalog({ trpc, invalidation });
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_CATALOG_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_CATALOG_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text voice="gloss">Re-fetch the OpenRouter model catalog every OpenRouter connection browses. Runs live against the provider.</Text>
         <Row gap="field" align="center" className="flex-wrap">
@@ -46,7 +45,7 @@ export function AdminCatalogSection(): ReactElement {
 }
 
 /** Inline single-card embed — embed one character card into the vector index by its id. */
-export function AdminEmbedCardSection(): ReactElement {
+export function AdminEmbedCardSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const embed = useEmbedCharacterCard({ trpc, invalidation });
@@ -66,7 +65,7 @@ export function AdminEmbedCardSection(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_EMBEDDINGS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_EMBEDDINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text voice="gloss">Embed one character card into the vector index by its id (the inline path; the bulk path is the background index job).</Text>
         <Row gap="field" align="center" className="flex-wrap">

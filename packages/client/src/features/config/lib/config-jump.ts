@@ -7,8 +7,6 @@
 
 import { scrollBehavior } from "@orb/ui/lib";
 import type { RefObject } from "react";
-import type { ConfigGroupId } from "#state";
-import { configAnchorId } from "#state";
 import { afterPaint, flashAnchor } from "./config-scroll-spy.ts";
 
 // Wall-clock bound for the anchor-appearance observer (a suspending group can outlast any frame count under
@@ -23,7 +21,7 @@ const SPY_REARM_FALLBACK_MS = 700;
  *  S4) can see a stray `scrollend` from a prior adjustment first, and re-arming on it hands the spy the
  *  MID-FLIGHT frames it exists to skip (measured: an Effects landing lit "Sizing & motion" on the way).
  *  The wall-clock fallback refreshes per scroll event, so it fires only after the motion truly stops. */
-function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
+function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): () => void {
   suppressSpyRef.current = true;
   const container = contentRef.current;
   let sawScroll = false;
@@ -53,6 +51,7 @@ function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, s
   container?.addEventListener("scroll", onScroll, { passive: true });
   container?.addEventListener("scrollend", onScrollEnd);
   refreshFallback();
+  return rearm;
 }
 
 /** Scroll the CONTENT scroller back to its top — deferred a frame like every other programmatic scroll here
@@ -70,20 +69,33 @@ export function scrollContentToTop(contentRef: RefObject<HTMLDivElement | null>,
  * runs once the anchor has painted, with the anchor element.
  */
 export function scrollToAnchor(
-  anchor: { readonly group: ConfigGroupId; readonly sub: string },
+  anchorId: string,
   contentRef: RefObject<HTMLDivElement | null>,
   suppressSpyRef: RefObject<boolean>,
   onLanded?: (anchor: HTMLElement) => void,
-): void {
-  beginProgrammaticScroll(contentRef, suppressSpyRef);
-  const anchorId = configAnchorId(anchor.group, anchor.sub);
+): () => void {
+  const releaseScroll = beginProgrammaticScroll(contentRef, suppressSpyRef);
+  let cancelled = false;
+  let done = false;
+  let observer: MutationObserver | undefined;
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const cancel = (): void => {
+    cancelled = true;
+    done = true;
+    observer?.disconnect();
+    globalThis.clearTimeout(timer);
+    releaseScroll();
+  };
   const container = contentRef.current;
   if (container === null) {
-    return;
+    return cancel;
   }
   const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
   const land = (target: HTMLElement): void => {
     afterPaint((): void => {
+      if (cancelled) {
+        return;
+      }
       flashAnchor(target);
       onLanded?.(target);
     });
@@ -91,26 +103,26 @@ export function scrollToAnchor(
   const existing = find();
   if (existing !== null) {
     land(existing);
-    return;
+    return cancel;
   }
-  let done = false;
   const finish = (target: HTMLElement | null): void => {
     if (done) {
       return;
     }
     done = true;
-    observer.disconnect();
+    observer?.disconnect();
     globalThis.clearTimeout(timer);
     if (target !== null) {
       land(target);
     }
   };
-  const observer = new MutationObserver((): void => {
+  observer = new MutationObserver((): void => {
     const target = find();
     if (target !== null) {
       finish(target);
     }
   });
-  const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
+  timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
   observer.observe(container, { childList: true, subtree: true });
+  return cancel;
 }

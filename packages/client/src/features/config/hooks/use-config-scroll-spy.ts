@@ -21,7 +21,7 @@
 import type { RefObject } from "react";
 import { useEffect, useRef } from "react";
 import type { ConfigGroupId } from "#state";
-import { configAnchorId, setActiveConfigSub } from "#state";
+import { resolveConfigSectionAnchorPrefix, setActiveConfigSub, useConfigSectionRegistry } from "#state";
 import { computeActiveSub, computeVisibleSettings } from "../lib/config-scroll-spy.ts";
 
 /** How many frames the initial pass will wait for the group's anchors to mount before measuring anyway. */
@@ -42,13 +42,18 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
 } {
   const contentRef = useRef<HTMLDivElement>(null);
   const suppressSpyRef = useRef(false);
+  const registry = useConfigSectionRegistry();
 
   useEffect(() => {
     const container = contentRef.current;
     if (container === null || activeGroup === null) {
       return;
     }
-    const prefix = configAnchorId(activeGroup, "");
+    const prefix = resolveConfigSectionAnchorPrefix(registry, activeGroup);
+    if (prefix === null) {
+      setActiveConfigSub(undefined, []);
+      return;
+    }
     let ticking = false;
     let waited = false;
     let tick = 0;
@@ -130,7 +135,7 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
       mutations.disconnect();
       container.removeEventListener("scroll", schedule);
     };
-  }, [activeGroup]);
+  }, [activeGroup, registry]);
 
   return { contentRef, suppressSpyRef };
 }

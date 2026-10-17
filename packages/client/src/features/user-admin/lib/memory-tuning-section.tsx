@@ -16,5 +16,5 @@ export const memoryTuningSection: ConfigSectionContribution = {
   anchor: "admin",
   nav: MEMORY_TUNING_SUBCATEGORY,
   owns: { tier: "app", keys: ["memoryDefaults"] },
-  body: () => <MemoryTuningSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <MemoryTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

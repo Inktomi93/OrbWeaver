@@ -17,7 +17,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "../lib/appearance-avatars-model.ts";
 import { AVATAR_ASPECT_ITEMS, AVATAR_RING_ITEMS, AVATAR_SHAPE_ITEMS, AVATAR_SIZE_ITEMS } from "../lib/appearance-select-items.ts";
 
@@ -40,18 +39,18 @@ const AvatarsAutosaveForm = createAutosaveEntityForm<AvatarsForm>({
 const AVATARS_ENTITY_ID = "appearance-avatars";
 
 /** The Avatars section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceAvatarsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceAvatarsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your avatar settings" onRetry={retry} />}
     >
-      <AvatarsFormBody sectionId={sectionId} />
+      <AvatarsFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function AvatarsFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function AvatarsFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -61,20 +60,23 @@ function AvatarsFormBody({ sectionId }: { readonly sectionId: string }): ReactEl
 
   return (
     <AvatarsAutosaveForm entityId={AVATARS_ENTITY_ID} serverValues={pickKeys(data.config.appearance, APPEARANCE_AVATARS_KEYS)} save={save}>
-      {(session): ReactElement => <AvatarsBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <AvatarsBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </AvatarsAutosaveForm>
   );
 }
 
-function AvatarsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<AvatarsForm> }): ReactElement {
+function AvatarsBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<AvatarsForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_AVATARS_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_AVATARS_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_AVATARS_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "appearance", sub: APPEARANCE_AVATARS_SUBCATEGORY }}>
         <SettingRowGroup>

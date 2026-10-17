@@ -9,7 +9,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { configAnchorId } from "#state";
 import { PERSONA_NOTIFICATIONS_SUBCATEGORY } from "../lib/personas-nav.ts";
 
 interface PersonaPrefsPatchVars {
@@ -22,9 +21,9 @@ const useSetPersonaPrefs = createEntityMutation<PersonaPrefsPatchVars, unknown>(
   errorToast: "Couldn't save your persona settings.",
 });
 
-export function PersonaNotificationsSection(): ReactElement {
+export function PersonaNotificationsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section heading={PERSONA_NOTIFICATIONS_SUBCATEGORY.label} id={configAnchorId("personas", PERSONA_NOTIFICATIONS_SUBCATEGORY.id)}>
+    <Section heading={PERSONA_NOTIFICATIONS_SUBCATEGORY.label} id={anchorId}>
       {/* A pending control reserves one row; the measured boundary retains its settled height on reopen. */}
       <QueryBoundary
         fallback={<SkeletonRows count={1} shape="line" />}

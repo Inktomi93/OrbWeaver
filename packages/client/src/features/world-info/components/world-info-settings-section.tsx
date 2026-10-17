@@ -19,7 +19,6 @@ import { QueryBoundary } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "../hooks/use-world-info-settings-form.ts";
 import { SCAN_DEPTH_MAX, SCAN_DEPTH_MIN, WI_TOKEN_BUDGET_MAX, WI_TOKEN_BUDGET_MIN } from "../lib/world-info-settings-model.ts";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.ts";
@@ -38,7 +37,7 @@ const useUpdateWorldInfoSettings = createEntityMutation<UpdateWorldInfoVars, unk
 });
 
 /** The World-info settings section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function WorldInfoSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function WorldInfoSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098). The settled child is the WHOLE section — heading, two number fields and the save
     // status — so a one-line sentence in its place moved every contributed section below it on the
@@ -49,12 +48,12 @@ export function WorldInfoSettingsSection({ sectionId }: { readonly sectionId: st
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your world-info settings" onRetry={retry} />}
       reserveKey="config.worldInfo.settings"
     >
-      <WorldInfoSettingsFormBody sectionId={sectionId} />
+      <WorldInfoSettingsFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function WorldInfoSettingsFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function WorldInfoSettingsFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -65,15 +64,23 @@ function WorldInfoSettingsFormBody({ sectionId }: { readonly sectionId: string }
 
   return (
     <WorldInfoSettingsAutosaveForm entityId={WORLD_INFO_SETTINGS_ENTITY_ID} serverValues={data.config.worldInfo} save={save}>
-      {(session): ReactElement => <WorldInfoSettingsBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <WorldInfoSettingsBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </WorldInfoSettingsAutosaveForm>
   );
 }
 
-function WorldInfoSettingsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorldInfoSettingsForm> }): ReactElement {
+function WorldInfoSettingsBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<WorldInfoSettingsForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", WORLD_INFO_SETTINGS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={WORLD_INFO_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

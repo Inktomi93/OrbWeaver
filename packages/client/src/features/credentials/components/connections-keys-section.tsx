@@ -17,11 +17,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { configAnchorId } from "#state";
 import { CONNECTIONS_KEYS_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { CredentialKeyRow } from "./credential-key-row.tsx";
 
-export function ConnectionsKeysSection(): ReactElement {
+export function ConnectionsKeysSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into the saved-key library, with every later Connections section stacked under it.
     <QueryBoundary
@@ -29,12 +28,12 @@ export function ConnectionsKeysSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your saved keys" onRetry={retry} />}
       reserveKey="config.connections.keys"
     >
-      <SavedKeysSection />
+      <SavedKeysSection anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function SavedKeysSection(): ReactElement {
+function SavedKeysSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: credentials } = useSuspenseQuery(trpc.credentials.list.queryOptions());
@@ -45,7 +44,7 @@ function SavedKeysSection(): ReactElement {
   const providerLabels = new Map(providers.map((row) => [row.provider.id as string, providerDisplayLabel(row.provider)]));
 
   return (
-    <Section divider={true} heading={CONNECTIONS_KEYS_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_KEYS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={CONNECTIONS_KEYS_SUBCATEGORY.label} id={anchorId}>
       <Text voice="gloss">
         Choose a saved key when adding a connection, or paste a new one there. Here you can replace or revoke saved keys. Keys are encrypted and never shown
         again.

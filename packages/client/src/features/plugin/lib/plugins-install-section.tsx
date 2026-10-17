@@ -10,5 +10,5 @@ export const pluginsInstallSection: ConfigSectionContribution = {
   id: "plugins-install",
   anchor: "plugins",
   nav: PLUGINS_INSTALL_SUBCATEGORY,
-  body: () => <PluginsInstallSection />,
+  body: (anchorId) => <PluginsInstallSection anchorId={anchorId} />,
 };

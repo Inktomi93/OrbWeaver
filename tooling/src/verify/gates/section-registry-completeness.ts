@@ -1,35 +1,10 @@
-// Policy: section-registry-completeness (client-architecture-lockdown.md §6 / client-architecture-state-and-gates.md §16 G1) — the section
-// registry's structural walls tsc cannot see. tsc forces the door Record total over SECTION_IDS; this adds
-// CO-LOCATION, the DECLARED-PLANNED discipline (O1), DUPLICATE ID, and the anti-god-map ban on a route
-// re-forming a `sections` object-literal map.
-//
-// The subject is the shared `registryDefinitionFacts.section` provider, which covers BOTH sanctioned authoring
-// shapes — the annotated const AND the `make<X>Section(): SectionDefinition` factory (§6b/M3, live on four
-// of the ten sections) — by canonical TYPE identity, so an aliased or re-exported annotation is the same
-// subject and a local type that merely shares the name is not. The definition's own object literal is
-// resolved across files, so an imported initializer is not an unjudgeable blob: it is a definition whose
-// HOME is checked directly.
-//
-// Native ESLint import selectors own route feature doors and their exact composition/auth permissions.
-//
-// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`,
-// one provider per definition kind) plus `lib/registry-definition-{anchor,field,home}.ts`, consumed
-// identically by all seven members, so the co-location law and the finding anchor cannot drift apart.
-// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (a8fc8f34e4^); the final population is `@client`. The ROUTES fence stays INSIDE the god-map arm rather
-// than in the population, because the other four arms judge the whole client tree.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `section-registry-completeness` descriptor at 700f6b375ecc1e4264e8c67b575315706e21068e, the parent of the
-// conversion `a8fc8f34e4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
-// `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,143 harness candidates at that tree (`git ls-tree` ∩
-// `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness
-// dispatch was 7,143). legacy − final = ∅. final − legacy = ∅. Controls: inside
-// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
-// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
-import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+// Section definitions retain canonical type identity, declaration/resolved homes, duplicate IDs and planned honesty.
+// Both annotated constants and section-returning factories are supplied by registryDefinitionFacts.section.
+// Native orb/section-route-registry-map owns route override objects, including simple parenthesized objects.
+// Family registry-definitions shares the registry fact and definition anchor/field/home readers.
+// Population remains @client; native type constraints do not replace unreadable or unassembled definitions.
+import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
+import { Node } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { DEFINITION_SLOTS } from "../contract/registry-definition-home.ts";
 import type { RegistryDefinitionFact } from "../contract/registry-fact.ts";
@@ -39,8 +14,6 @@ import { definitionField, definitionObjectField, definitionStringField } from ".
 import { isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
-const ROUTES = "packages/client/src/routes/";
-const GOD_MAP_PROP = "sections";
 /** The one context kind that is NOT a real body: a section that renders no context pane. */
 const CONTEXT_NONE = "none";
 
@@ -48,9 +21,9 @@ const MESSAGE =
   "a section is dishonest: a SectionDefinition whose declaration or resolved definition is not co-located at " +
   "packages/client/src/features/<owner>/lib/<id>-section.{ts,tsx}, a definition this policy cannot resolve to an " +
   "authored object literal, an unreadable or duplicate id, a DECLARED-PLANNED section with an empty reason or a real " +
-  "body, or a route re-forming the `sections` god-map — client-architecture-lockdown.md §6.";
+  "body — client-architecture-lockdown.md §6.";
 const FIX =
-  "co-locate the definition and write it as an authored object literal, or a `make<X>Section(): SectionDefinition` factory returning one; a planned section is a non-empty reason and no body (context kind none); a route is a thin mount — sections ride the registry. For a deliberate exception, write an adjacent `@orb-waive section-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the section (`xSection`, `makeXSection`), and on the god-map arm it is the JSX attribute name `sections`.";
+  "co-locate the definition and write it as an authored object literal, or a `make<X>Section(): SectionDefinition` factory returning one; a planned section is a non-empty reason and no body (context kind none). For a deliberate exception, write an adjacent `@orb-waive section-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the section (`xSection`, `makeXSection`).";
 
 interface Claim {
   readonly name: string;
@@ -84,19 +57,6 @@ function wiresRealBody(object: ObjectLiteralExpression): boolean {
   return kind !== undefined && kind.kind === "resolved" && kind.value !== CONTEXT_NONE;
 }
 
-/** A `sections={{…}}` object-literal prop — the deleted override god-map re-formed at a route. */
-function isGodMapAttribute(node: MorphNode): boolean {
-  if (!(Node.isJsxAttribute(node) && node.getNameNode().getText() === GOD_MAP_PROP)) {
-    return false;
-  }
-  const initializer = node.getInitializer();
-  if (initializer === undefined || !Node.isJsxExpression(initializer)) {
-    return false;
-  }
-  const expression = initializer.getExpression();
-  return expression !== undefined && Node.isObjectLiteralExpression(expression);
-}
-
 export const gate = defineGate({
   id: "section-registry-completeness",
   family: "registry-definitions",
@@ -111,7 +71,6 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const claimedIds = new Map<string, Claim>();
-    const godMaps: MorphNode[] = [];
     const report = (node: MorphNode, detail: string): void => ctx.report.node(node, { ...definitionAnchor(node), message: `${MESSAGE} ${detail}`, fix: FIX });
 
     const resolveHome = (definition: RegistryDefinitionFact, name: string): Home | undefined => {
@@ -173,16 +132,6 @@ export const gate = defineGate({
     };
 
     return {
-      visitors: [
-        {
-          kinds: [SyntaxKind.JsxAttribute],
-          visit: (node, sourceFile: SourceFile) => {
-            if (ctx.relativePath(sourceFile).startsWith(ROUTES) && isGodMapAttribute(node)) {
-              godMaps.push(node);
-            }
-          },
-        },
-      ],
       evaluate: () => {
         const view = ctx.fact(registryDefinitionFacts.section);
         ctx.receipt({ kind: "population", source: view.source, members: view.definitions.length, unresolved: 0 });
@@ -192,9 +141,6 @@ export const gate = defineGate({
           if (home !== undefined && claimId(definition, name, home)) {
             judgePlanned(definition, name, home);
           }
-        }
-        for (const attribute of godMaps) {
-          report(attribute, "A route declares a `sections={{…}}` object-literal prop — the override god-map the registry replaced.");
         }
       },
     };
@@ -276,17 +222,6 @@ export const gate = defineGate({
       expect: { count: 1, token: "aSection", messageIncludes: "Definition outside its home" },
       why: "THE #944 CASE, judged instead of refused: the IMPORTED initializer means the sanctioned `*-section.ts` path holds no definition",
     },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
-        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell sections={{ chats: 1, characters: 2 }} />;\n",
-      },
-      expect: { count: 1, token: "sections", messageIncludes: "god-map" },
-      why: "a `sections` prop object literal in a route — the anti-god-map arm",
-    },
   ],
   mustPass: [
     {
@@ -326,36 +261,6 @@ export const gate = defineGate({
           'interface SectionDefinition {\n  readonly id: string;\n}\nexport const bSection: SectionDefinition = { id: "a", content: () => null };\n',
       },
       why: "THE COUNTERFACTUAL: `bSection` is annotated with a LOCAL type that merely shares the name, so it is not a section and cannot collide with a section's id",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
-        "packages/client/src/routes/app-root.tsx": "export const G = <AppShell sections={sectionRegistry} />;\n",
-      },
-      why: "the god-map arm's FALSE branch: a `sections` prop that forwards the assembled registry is not an object-literal override map",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
-        "packages/client/src/features/x/components/panel.tsx": "export const P = <AppShell sections={{ chats: 1 }} />;\n",
-      },
-      why: "THE ROUTE FENCE, pinned: the god-map arm judges `packages/client/src/routes/` ONLY, because a `sections={{…}}` prop anywhere else is an ordinary component prop and not the deleted override map. Deleting the `startsWith(ROUTES)` guard flags this component and REDS this row — without it the fence is a claim the positives never visit",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/section-registry.ts": "export interface SectionDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-section.ts":
-          'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const aSection: SectionDefinition = { id: "a", content: () => null, context: { kind: "none" } };\n',
-        "packages/client/src/routes/other-route.tsx": "export const G = <AppShell overrides={{ chats: 1 }} />;\n",
-      },
-      why: "THE ATTRIBUTE-NAME FENCE, pinned: the arm bans the `sections` override map specifically, not every object-literal prop a route passes down. Replacing the `GOD_MAP_PROP` comparison with a bare JsxAttribute test flags this route and REDS this row",
     },
     {
       mode: "types",

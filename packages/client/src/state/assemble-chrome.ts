@@ -24,7 +24,7 @@
 // longer a modal placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed through.
 
 import type { ChromeEntry, ChromeZone } from "./chrome-registry.ts";
-import { CHROME_ZONES } from "./chrome-registry.ts";
+import { CHROME_ZONES, chromeMobileCuration } from "./chrome-registry.ts";
 import type { ModalDefinition, ModalTriggerPlacement } from "./modal-registry.ts";
 import type { SectionDefinition } from "./section-registry.ts";
 
@@ -65,14 +65,15 @@ function sectionEntry(def: SectionDefinition, index: number): ChromeEntry {
  *  absent is what `ChromeEntry` documents as "the zone's default"). The affordance opens the modal (the
  *  behavior arm carries the id and the trigger's glyph, which the trail draws). */
 function modalEntry(def: ModalDefinition, zone: ChromeZone, index: number): ChromeEntry {
-  return {
+  const entry = {
     id: def.id,
     label: def.trigger.label,
     zone,
     order: def.trigger.order ?? index,
     ...(def.trigger.mobile === undefined ? {} : { mobile: def.trigger.mobile }),
-    behavior: { kind: "modal", modalId: def.id, icon: def.trigger.icon },
+    behavior: { kind: "modal" as const, modalId: def.id, icon: def.trigger.icon },
   };
+  return zone === "topbar.trail" ? { ...entry, zone } : { ...entry, zone, mobile: chromeMobileCuration(entry) };
 }
 
 /**

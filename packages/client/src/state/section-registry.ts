@@ -127,12 +127,7 @@ interface SectionDefinitionBase {
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;
-  /** REQUIRED — a real content pane, or the DECLARED-PLANNED arm (`{ planned: "<reason>" }`). */
-  readonly content: (() => ReactNode) | { readonly planned: string };
   readonly contentInset: "section" | { readonly planned: string };
-  readonly header?: () => ReactNode;
-  /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
-  readonly context: ContextDefinition;
   /** The shell calls every section useSelectionTitle hook unconditionally inside a component keyed on the
    *  active section. It may read that section cache. Null falls back to the section label rather than
    *  blanking the bar. An open member is named; with none open a section may name its roster and census
@@ -146,4 +141,16 @@ interface SectionDefinitionBase {
  *  host mints its own projection via `defineContextTabs<S>`, so `S` never crosses this seam. A section
  *  with neither a real `content` pane nor the DECLARED-PLANNED arm is the refinery bug — structurally
  *  impossible here; so is a `list` with no `selection` (the mobile ONE-SHELL rule, see `SectionSelection`). */
-export type SectionDefinition = SectionDefinitionBase & (SectionWithList | SectionWithoutList);
+export type SectionDefinition = SectionDefinitionBase &
+  (
+    | ({
+        readonly content: () => ReactNode;
+        readonly header?: () => ReactNode;
+        readonly context: ContextDefinition;
+      } & (SectionWithList | SectionWithoutList))
+    | (SectionWithoutList & {
+        readonly content: { readonly planned: string };
+        readonly header?: never;
+        readonly context: Extract<ContextDefinition, { readonly kind: "none" }>;
+      })
+  );

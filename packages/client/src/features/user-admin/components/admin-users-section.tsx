@@ -19,7 +19,6 @@ import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { configAnchorId } from "#state";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
 import { AdminCreateUserDialog } from "./admin-create-user-dialog.tsx";
@@ -33,7 +32,7 @@ interface UserTarget {
 }
 
 /** The Users section body — mounted at the admin pane's sections anchor. */
-export function AdminUsersSection(): ReactElement {
+export function AdminUsersSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin section that settles into the account table — the tallest block on the pane.
     <QueryBoundary
@@ -41,12 +40,12 @@ export function AdminUsersSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
       reserveKey="config.admin.users"
     >
-      <AdminUsersBody />
+      <AdminUsersBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
 
-function AdminUsersBody(): ReactElement {
+function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [{ data: users }, { data: viewer }] = useSuspenseQueries({
@@ -95,7 +94,7 @@ function AdminUsersBody(): ReactElement {
   };
 
   return (
-    <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_USERS_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ADMIN_USERS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminUsersSection")}>
         <Row align="center" justify="between">
           <Text voice="label" className="text-muted-foreground">

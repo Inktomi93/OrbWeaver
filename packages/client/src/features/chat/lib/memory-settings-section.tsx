@@ -17,5 +17,5 @@ export const memorySettingsSection: ConfigSectionContribution = {
   nav: MEMORY_SETTINGS_SUBCATEGORY,
   // The whole `memory` namespace is this one switch (S1: the patch names only `enabled`).
   owns: { tier: "user", section: "memory", keys: ["enabled"] },
-  body: () => <MemorySettingsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <MemorySettingsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

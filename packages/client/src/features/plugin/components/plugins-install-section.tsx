@@ -5,13 +5,12 @@
 
 import { Section } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { configAnchorId } from "#state";
 import { PLUGINS_INSTALL_SUBCATEGORY } from "../lib/plugins-nav.ts";
 import { PluginInstallCard } from "./plugin-install-card.tsx";
 
-export function PluginsInstallSection(): ReactElement {
+export function PluginsInstallSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
-    <Section divider={true} heading={PLUGINS_INSTALL_SUBCATEGORY.label} id={configAnchorId("plugins", PLUGINS_INSTALL_SUBCATEGORY.id)}>
+    <Section divider={true} heading={PLUGINS_INSTALL_SUBCATEGORY.label} id={anchorId}>
       <PluginInstallCard />
     </Section>
   );

@@ -16,7 +16,6 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
-import { configAnchorId } from "#state";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
 import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav.ts";
@@ -54,7 +53,7 @@ function diffRateLimits(baseline: ResolvedRateLimits, draft: Draft): RateLimits 
 
 /** The section's own suspense/error boundary so it is self-contained (renders inside the admin pane's
  *  boundary in-app, but also stands alone). */
-export function RateLimitsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function RateLimitsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — an admin settings section that settles into one row per limit.
     <QueryBoundary
@@ -62,12 +61,12 @@ export function RateLimitsSection({ sectionId }: { readonly sectionId: string })
       renderError={(_error, retry): ReactElement => <QueryErrorState label="rate limits — administrators only" onRetry={retry} />}
       reserveKey="config.admin.rateLimits"
     >
-      <RateLimitsBody sectionId={sectionId} />
+      <RateLimitsBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
@@ -97,7 +96,7 @@ function RateLimitsBody({ sectionId }: { readonly sectionId: string }): ReactEle
   };
 
   return (
-    <Section divider={true} heading={RATE_LIMITS_SUBCATEGORY.label} id={configAnchorId("admin", RATE_LIMITS_SUBCATEGORY.id)}>
+    <Section divider={true} heading={RATE_LIMITS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         {FIELDS.map(({ key, label, hint }) => (
           <AdminOverrideField

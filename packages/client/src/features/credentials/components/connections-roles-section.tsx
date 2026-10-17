@@ -12,7 +12,7 @@ import { ConnectionRoleSlot, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { CONNECTIONS_LIST_ADDRESS, ROLE_ROWS_ORDERED } from "#lib";
-import { configAnchorId, configSettingControlId, openConfigTo, requestConnectionEditor } from "#state";
+import { configSettingControlId, openConfigTo, requestConnectionEditor } from "#state";
 import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";
 import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
@@ -24,7 +24,7 @@ function settingControlId(settingId: string | undefined): string | undefined {
   return settingId === undefined ? undefined : configSettingControlId("connections", settingId);
 }
 
-export function ConnectionsRolesSection(): ReactElement {
+export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
@@ -32,7 +32,7 @@ export function ConnectionsRolesSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your model roles" onRetry={retry} />}
       reserveKey="config.connections.roles"
     >
-      <ModelRolesBody />
+      <ModelRolesBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
@@ -76,7 +76,7 @@ function BuiltinRerankerHint({
   );
 }
 
-function ModelRolesBody(): ReactElement {
+function ModelRolesBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
@@ -85,7 +85,7 @@ function ModelRolesBody(): ReactElement {
   const builtinProviderIds = new Set(available.filter((entry) => entry.provider.catalog === "builtin").map((entry) => entry.provider.id));
 
   return (
-    <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_ROLES_SUBCATEGORY.id)}>
+    <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={anchorId}>
       {/* Funding belongs to the frozen room host; triggering a shared turn does not spend this viewer's role. */}
       <Text prose={true} voice="gloss" className={PROSE_MEASURE}>
         Pick which connection each role uses. An unset role does nothing — there is no default model. These roles apply in rooms you host and to your work

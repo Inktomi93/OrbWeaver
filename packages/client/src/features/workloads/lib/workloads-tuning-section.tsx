@@ -16,5 +16,5 @@ export const workloadsTuningSection: ConfigSectionContribution = {
   anchor: "workloads",
   nav: WORKLOADS_TUNING_SUBCATEGORY,
   owns: { tier: "user", section: "workloads", keys: ["dupThreshold", "computeThemesK", "maxPairs", "hubFraction"] },
-  body: () => <WorkloadsTuningSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <WorkloadsTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

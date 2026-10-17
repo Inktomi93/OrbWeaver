@@ -710,9 +710,24 @@ const CLASS_RESTRICTIONS = [
   },
 ];
 
+const CLIENT_REGISTRY_RESTRICTIONS = [
+  ...["sections", "modals"].map((name) => ({
+    id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
+    scope: ["packages/client/src/routes/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector: `JSXAttribute[name.name='${name}'][value.type='JSXExpressionContainer'][value.expression.type='ObjectExpression']`,
+        message: "Routes forward assembled registries; they do not reconstruct registry override maps.",
+      },
+    ],
+  })),
+];
+
 const RESTRICTIONS = [
   ...INFRA_AUTH_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
+  ...CLIENT_REGISTRY_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),

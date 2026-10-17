@@ -32,7 +32,6 @@ import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, u
 import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import {
   PROSE_SETTINGS_SUBCATEGORY,
   projectProseForm,
@@ -93,18 +92,18 @@ function slotSuggestions(id: ProseSlotId): readonly MacroSuggestion[] {
 }
 
 /** The Prose section body — mounted at the chat-behavior pane's contributed-sections anchor. */
-export function ProseSettingsSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function ProseSettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your prose overrides" onRetry={retry} />}
     >
-      <ProseFormBody sectionId={sectionId} />
+      <ProseFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function ProseFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function ProseFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -121,27 +120,23 @@ function ProseFormBody({ sectionId }: { readonly sectionId: string }): ReactElem
 
   return (
     <ProseAutosaveForm entityId={PROSE_ENTITY_ID} serverValues={projectProseForm(stored)} save={save}>
-      {(session): ReactElement => <ProseBody sectionId={sectionId} session={session} stored={stored} onKeepMine={keepMine} />}
+      {(session): ReactElement => <ProseBody anchorId={anchorId} sectionId={sectionId} session={session} stored={stored} onKeepMine={keepMine} />}
     </ProseAutosaveForm>
   );
 }
 
 interface ProseBodyProps {
+  readonly anchorId: string;
   readonly sectionId: string;
   readonly session: AutosaveSession<ProseForm>;
   readonly stored: ProseOverrides;
   readonly onKeepMine: (id: ProseSlotId, text: string) => void;
 }
 
-function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): ReactElement {
+function ProseBody({ anchorId, sectionId, session, stored, onKeepMine }: ProseBodyProps): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={PROSE_SETTINGS_SUBCATEGORY.label}
-      id={configAnchorId("chat-behavior", PROSE_SETTINGS_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={PROSE_SETTINGS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="block">
         <Text voice="gloss">
           The wording the app sends to a model on your behalf — summarizers, the memory writer, and the group turn arbiter. Leave a field blank to use the

@@ -13,5 +13,5 @@ export const appearanceMessageDetailsSection: ConfigSectionContribution = {
   anchor: "appearance",
   nav: APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY,
   owns: { tier: "user", section: "appearance", keys: APPEARANCE_MESSAGE_DETAILS_KEYS },
-  body: () => <AppearanceMessageDetailsSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <AppearanceMessageDetailsSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

@@ -21,7 +21,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
@@ -47,18 +46,18 @@ const SizingAutosaveForm = createAutosaveEntityForm<SizingForm>({
 const SIZING_ENTITY_ID = "appearance-sizing";
 
 /** The Sizing & motion section body — mounted at the appearance pane's contributed-sections anchor. */
-export function AppearanceSizingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function AppearanceSizingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your sizing settings" onRetry={retry} />}
     >
-      <SizingFormBody sectionId={sectionId} />
+      <SizingFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function SizingFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -68,21 +67,24 @@ function SizingFormBody({ sectionId }: { readonly sectionId: string }): ReactEle
 
   return (
     <SizingAutosaveForm entityId={SIZING_ENTITY_ID} serverValues={pickKeys(data.config.appearance, APPEARANCE_SIZING_KEYS)} save={save}>
-      {(session): ReactElement => <SizingBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <SizingBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </SizingAutosaveForm>
   );
 }
 
-function SizingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<SizingForm> }): ReactElement {
+function SizingBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<SizingForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   const dialIsDead = useIsBelowShellContentFloor();
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={APPEARANCE_SIZING_SUBCATEGORY.label}
-      id={configAnchorId("appearance", APPEARANCE_SIZING_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={APPEARANCE_SIZING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): a row is label + control — the per-row
           prose re-homed into each leaf's `teach` (the context pane renders it for the focused row). The
           scope is the SAME nav const the contribution registers, so a row can never publish an address its

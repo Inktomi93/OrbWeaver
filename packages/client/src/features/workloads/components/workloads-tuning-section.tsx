@@ -18,7 +18,6 @@ import { QueryBoundary } from "#components";
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
 import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
@@ -46,7 +45,7 @@ const useUpdateWorkloadsTuning = createEntityMutation<UpdateWorkloadsVars, unkno
 });
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
-export function WorkloadsTuningSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into a knob stack.
     <QueryBoundary
@@ -54,12 +53,12 @@ export function WorkloadsTuningSection({ sectionId }: { readonly sectionId: stri
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
       reserveKey="config.workloads.tuning"
     >
-      <WorkloadsTuningFormBody sectionId={sectionId} />
+      <WorkloadsTuningFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function WorkloadsTuningFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function WorkloadsTuningFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -69,15 +68,23 @@ function WorkloadsTuningFormBody({ sectionId }: { readonly sectionId: string }):
 
   return (
     <WorkloadsTuningAutosaveForm entityId={WORKLOADS_TUNING_ENTITY_ID} serverValues={projectWorkloadsTuningForm(data.config.workloads)} save={save}>
-      {(session): ReactElement => <WorkloadsTuningBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <WorkloadsTuningBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </WorkloadsTuningAutosaveForm>
   );
 }
 
-function WorkloadsTuningBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<WorkloadsTuningForm> }): ReactElement {
+function WorkloadsTuningBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<WorkloadsTuningForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={configAnchorId("workloads", WORKLOADS_TUNING_SUBCATEGORY.id)}>
+    <Section divider={true} heading={WORKLOADS_TUNING_SUBCATEGORY.label} id={anchorId}>
       <FieldLayout orientation="horizontal">
         <Container>
           <Stack gap="field">

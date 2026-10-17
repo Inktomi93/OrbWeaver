@@ -43,6 +43,7 @@ import {
   isCollectionGroup,
   isPlaceholderGroup,
   rendersOwnBody,
+  resolveConfigSectionAnchor,
   setActiveConfigSub,
   setConfigFocus,
   useActiveConfigGroup,
@@ -114,6 +115,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     const viewer = { isAdmin, isOwner };
     // The cleanup marks this landing superseded, so its late focus below stands down.
     let superseded = false;
+    let cancelJump: (() => void) | undefined;
     // The reader moving on is INPUT (a press or a key) after the request, or focus landing on a control other
     // than where the request found it: assistive technology and `element.focus()` move focus with no input
     // event. The shell's focus rescue and the LIST's arrival focus move it too, and neither is the reader, so
@@ -133,6 +135,7 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
     doc?.addEventListener("keydown", noteReader, { capture: true, signal: listening.signal });
     const supersede = (): void => {
       superseded = true;
+      cancelJump?.();
       listening.abort();
     };
     if (target === null) {
@@ -166,7 +169,11 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
               control.focus({ preventScroll: true });
             }
           };
-    scrollToAnchor({ group: target.group, sub: target.sub }, contentRef, suppressSpyRef, landOnControl);
+    const anchorId = resolveConfigSectionAnchor(sectionRegistry, target.group, target.sub, viewer);
+    if (anchorId === null) {
+      return supersede;
+    }
+    cancelJump = scrollToAnchor(anchorId, contentRef, suppressSpyRef, landOnControl);
     // A SETTING-level landing also teaches: the focused-row seam gets the leaf so the context pane opens
     // on its lesson (VS Code's per-setting URL, #866 S3 — the search hit and `openConfigTo(g, s, leaf)`).
     if (setting !== null) {

@@ -52,7 +52,7 @@ export interface DormantDoorway {
  *  the per-tile QueryBoundary); the contribution supplies only its own body. A feature raises a tile,
  *  home skims it — home imports ZERO features (`client-features-no-cross`), so "put some future stuff on
  *  the home page" is forever ONE co-located file plus ONE array member at the door (G8). */
-export interface HomeTileContribution {
+interface HomeTileContributionBase {
   /** Registry key + React key (a duplicate THROWS at door construction). */
   readonly id: string;
   /** The tile's name, rendered by HOME in the `kicker` voice — a tile never draws its own band. */
@@ -80,9 +80,6 @@ export interface HomeTileContribution {
    *  orphaning the section from Home with no door left to it at all. No claimer does this today (every
    *  `sectionId` tile is unconditionally visible); a future one MUST resolve this before pairing the two. */
   readonly sectionId?: SectionId;
-  /** The tile's ONE trailing affordance ("All characters →"). Never a second primary (CD3), and never
-   *  supplied alongside the DORMANT arm (a doorway has no controls). */
-  readonly action?: ReactNode;
   /** Live CAPABILITY gate, called UNCONDITIONALLY over the door-frozen list (the `ChromeEntry.useVisible`
    *  contract) by the tile's own component, never in a map body. `false` ⇒ render NOTHING (no gap, no
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */
@@ -124,8 +121,8 @@ export interface HomeTileContribution {
    *  height is copy that wraps (the masthead). A px constant is right at one width only. It replaces the
    *  skeleton rows and reserves nothing itself, and still loses to the measured box. */
   readonly skeleton?: () => ReactNode;
-  /** A real body, or the DECLARED-DORMANT arm — the structural twin of `SectionDefinition.content`'s
-   *  `{planned}` (lockdown O1): the marker and the body are the SAME field, so building the tile forces
-   *  deleting the marker in the same edit. A stale doorway is unrepresentable, not merely detected. */
-  readonly body: (() => ReactNode) | { readonly dormant: DormantDoorway };
 }
+
+/** A dormant doorway has no controls; building its body replaces that arm in the same edit. */
+export type HomeTileContribution = HomeTileContributionBase &
+  ({ readonly body: () => ReactNode; readonly action?: ReactNode } | { readonly body: { readonly dormant: DormantDoorway }; readonly action?: never });

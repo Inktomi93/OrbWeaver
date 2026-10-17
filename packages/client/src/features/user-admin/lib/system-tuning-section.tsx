@@ -18,5 +18,5 @@ export const systemTuningSection: ConfigSectionContribution = {
     tier: "app",
     keys: ["promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "promptCacheMinDepth"],
   },
-  body: () => <SystemTuningSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <SystemTuningSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

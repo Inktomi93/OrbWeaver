@@ -128,7 +128,7 @@ export type {
   SettingTeach,
   SettingTeachDecl,
 } from "./config-group-registry.ts";
-export { configAnchorId, configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
+export { configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
   __readConfigTargetForTest,
@@ -159,7 +159,13 @@ export {
 export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
 // `ResolvedConfigSection` is deliberately absent: no importer outside `state/` reads it by name (#978).
 export type { ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
-export { configSectionNavParts, configSectionNavs, resolveConfigSections } from "./config-section-registry.ts";
+export {
+  configSectionNavParts,
+  configSectionNavs,
+  resolveConfigSectionAnchor,
+  resolveConfigSectionAnchorPrefix,
+  resolveConfigSections,
+} from "./config-section-registry.ts";
 export type { ConfigSectionRegistry } from "./config-section-registry-context.ts";
 // The bare context rides out beside the throwing hook for the SANCTIONED nullable read (`use(Context)`,
 // create-registry-context.tsx's own carve-out) — `useConfigLeaf` stays inert without a provider.

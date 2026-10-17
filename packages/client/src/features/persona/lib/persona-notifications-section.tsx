@@ -12,5 +12,5 @@ export const personaNotificationsSection: ConfigSectionContribution = {
   anchor: "personas",
   nav: PERSONA_NOTIFICATIONS_SUBCATEGORY,
   owns: { tier: "user", section: "persona", keys: ["showNotifications"] },
-  body: () => <PersonaNotificationsSection />,
+  body: (anchorId) => <PersonaNotificationsSection anchorId={anchorId} />,
 };

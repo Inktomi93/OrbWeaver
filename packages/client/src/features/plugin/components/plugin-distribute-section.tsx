@@ -31,7 +31,6 @@ import { useState } from "react";
 import { ConfirmDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { configAnchorId } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { PLUGIN_DISTRIBUTE_SUBCATEGORY } from "../lib/plugin-distribute-nav.ts";
@@ -46,7 +45,7 @@ type PublishState =
   | { readonly step: "rejected"; readonly message: string };
 
 /** The section body — mounted at the Plugins pane's sections anchor, admin-gated by its contribution def. */
-export function PluginDistributeSection(): ReactElement {
+export function PluginDistributeSection({ anchorId }: { readonly anchorId: string }): ReactElement {
   return (
     // RESERVED (#1098) — a config section that settles into the published-plugin list; it sits above the
     // rest of the Plugins pane, so its read landing moved every section below it.
@@ -55,7 +54,7 @@ export function PluginDistributeSection(): ReactElement {
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the distribution list — it's available to administrators only" onRetry={retry} />}
       reserveKey="config.plugins.distribute"
     >
-      <PluginDistributeBody />
+      <PluginDistributeBody anchorId={anchorId} />
     </QueryBoundary>
   );
 }
@@ -80,7 +79,7 @@ function withdrawSentence(result: { readonly applied: number; readonly skipped: 
   return `${removed} Kept (they had updated it themselves): ${who}.`;
 }
 
-function PluginDistributeBody(): ReactElement {
+function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): ReactElement {
   const trpc = useTRPC();
   const { data: published } = useSuspenseQuery(trpc.plugin.listDistributed.queryOptions());
   const invalidation = useInvalidation();
@@ -121,12 +120,7 @@ function PluginDistributeBody(): ReactElement {
   };
 
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label}
-      id={configAnchorId("plugins", PLUGIN_DISTRIBUTE_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text prose={true} voice="gloss">
           Give a plugin to everyone on this server. Each account gets its own copy — switched off, allowed nothing — and the people who use it decide what it

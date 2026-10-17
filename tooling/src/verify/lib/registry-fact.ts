@@ -30,7 +30,6 @@ const TYPE_NAMES = {
   "home-tile": "HomeTileContribution",
   "config-group": "ConfigGroupDefinition",
   collection: "CollectionContribution",
-  "config-section": "ConfigSectionContribution",
   chrome: "ChromeEntry",
 } as const satisfies Readonly<Record<RegistryDefinitionKind, string>>;
 
@@ -380,7 +379,6 @@ export const registryDefinitionFacts = {
   "home-tile": defineRegistryDefinitionFact("home-tile"),
   "config-group": defineRegistryDefinitionFact("config-group"),
   collection: defineRegistryDefinitionFact("collection"),
-  "config-section": defineRegistryDefinitionFact("config-section"),
   chrome: defineRegistryDefinitionFact("chrome"),
 } satisfies Readonly<Record<RegistryDefinitionKind, GateFact<RegistryDefinitionKindFacts>>>;
 

@@ -14,5 +14,5 @@ export const appearanceLooksSection: ConfigSectionContribution = {
   anchor: "appearance",
   nav: APPEARANCE_LOOKS_SUBCATEGORY,
   owns: { tier: "user", section: "theme", keys: ["selectedThemeId"] },
-  body: () => <AppearanceLooksSection />,
+  body: (anchorId) => <AppearanceLooksSection anchorId={anchorId} />,
 };

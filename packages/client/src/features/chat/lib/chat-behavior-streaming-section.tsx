@@ -13,5 +13,5 @@ export const chatStreamingSection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: CHAT_STREAMING_SUBCATEGORY,
   owns: { tier: "user", section: "chat", keys: CHAT_STREAMING_KEYS },
-  body: () => <ChatStreamingSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <ChatStreamingSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

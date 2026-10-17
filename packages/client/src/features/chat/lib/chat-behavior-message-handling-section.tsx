@@ -15,5 +15,5 @@ export const chatMessageHandlingSection: ConfigSectionContribution = {
   anchor: "chat-behavior",
   nav: CHAT_MESSAGE_HANDLING_SUBCATEGORY,
   owns: { tier: "user", section: "chat", keys: CHAT_MESSAGE_HANDLING_KEYS },
-  body: () => <ChatMessageHandlingSection sectionId={SECTION_ID} />,
+  body: (anchorId) => <ChatMessageHandlingSection anchorId={anchorId} sectionId={SECTION_ID} />,
 };

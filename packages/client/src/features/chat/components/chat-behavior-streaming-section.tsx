@@ -18,7 +18,6 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { createEntityMutation, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { configAnchorId } from "#state";
 import {
   CHAT_STREAMING_KEYS,
   CHAT_STREAMING_SUBCATEGORY,
@@ -46,18 +45,18 @@ const StreamingAutosaveForm = createAutosaveEntityForm<StreamingForm>({
 const STREAMING_ENTITY_ID = "chat-streaming";
 
 /** The Streaming section body — mounted at the chat-behavior pane's sections anchor. */
-export function ChatStreamingSection({ sectionId }: { readonly sectionId: string }): ReactElement {
+export function ChatStreamingSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={4} shape="line" />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your streaming settings" onRetry={retry} />}
     >
-      <StreamingFormBody sectionId={sectionId} />
+      <StreamingFormBody anchorId={anchorId} sectionId={sectionId} />
     </QueryBoundary>
   );
 }
 
-function StreamingFormBody({ sectionId }: { readonly sectionId: string }): ReactElement {
+function StreamingFormBody({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
@@ -67,20 +66,23 @@ function StreamingFormBody({ sectionId }: { readonly sectionId: string }): React
 
   return (
     <StreamingAutosaveForm entityId={STREAMING_ENTITY_ID} serverValues={pickKeys(data.config.chat, CHAT_STREAMING_KEYS)} save={save}>
-      {(session): ReactElement => <StreamingBody sectionId={sectionId} session={session} />}
+      {(session): ReactElement => <StreamingBody anchorId={anchorId} sectionId={sectionId} session={session} />}
     </StreamingAutosaveForm>
   );
 }
 
-function StreamingBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<StreamingForm> }): ReactElement {
+function StreamingBody({
+  anchorId,
+  sectionId,
+  session,
+}: {
+  readonly anchorId: string;
+  readonly sectionId: string;
+  readonly session: AutosaveSession<StreamingForm>;
+}): ReactElement {
   const { form, saveState, retrySave } = session;
   return (
-    <Section
-      className="@container"
-      divider={true}
-      heading={CHAT_STREAMING_SUBCATEGORY.label}
-      id={configAnchorId("chat-behavior", CHAT_STREAMING_SUBCATEGORY.id)}
-    >
+    <Section className="@container" divider={true} heading={CHAT_STREAMING_SUBCATEGORY.label} id={anchorId}>
       {/* THE TEACHER LAW (#866 S3): rows are label + control — the prose lives on each leaf's `teach`. */}
       <ConfigTeachScope value={{ group: "chat-behavior", sub: CHAT_STREAMING_SUBCATEGORY }}>
         <SettingRowGroup>

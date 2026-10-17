@@ -1,35 +1,9 @@
-// Policy: modal-registry-completeness (client-architecture-lockdown.md §6d / client-architecture-state-and-gates.md §16 G13) — the modal
-// registry's structural walls tsc cannot see. tsc forces the door Record total over MODAL_SLOT_IDS; this
-// adds CO-LOCATION, DUPLICATE ID, the DECLARED-PLANNED honesty rule, the mobile-tab SINGLETON placement,
-// the `surface` REACHABILITY rule (§E-7), and the anti-god-map ban on a route re-forming a `modals` map.
-//
-// Definition identity is the shared `registryDefinitionFacts.modal` provider: a modal is whatever the checker says is
-// annotated with the canonical exported `ModalDefinition`, so an alias, a namespace qualification, or a
-// re-export is the same subject and a local shadow type is not. The definition's own object literal is
-// resolved across files, which is STRICTLY STRONGER than the legacy same-file read: an imported
-// initializer is no longer an unjudgeable blob, it is a definition whose HOME is checked directly.
-//
-// The `surface` reachability arm resolves its openers semantically (`resolveCallableOrigin`), so a local
-// function that happens to be named `openModal` no longer satisfies the rule and an aliased import does.
-// The import-name prefilter is a CANDIDATE filter only; every candidate is confirmed through the shared
-// reader before it counts as an opener — measured 2026-09-11: removing the prefilter changes no proof row,
-// which is exactly what "candidate filter, not a narrowing" has to mean.
-//
-// FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`)
-// plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
-// POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (8b86eeec75^); the final population is `@client`, with the ROUTES fence kept inside the god-map arm.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `modal-registry-completeness` descriptor at 231f4bdbd9ff792161fbcdf04450267f745737b6, the parent of the conversion
-// `8b86eeec75` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
-// descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
-// `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,141 harness candidates at that tree (`git ls-tree` ∩
-// `floor/compiler/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness
-// dispatch was 7,141). legacy − final = ∅. final − legacy = ∅. Controls: inside
-// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
-// `packages/contracts/src/assets/__cbbhr_out_index.ts` rejected by both.
-import type { Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";
+// Modal definitions retain canonical identity, declaration/resolved homes, duplicate IDs, planned honesty and singleton placement.
+// Surface reachability resolves the actual opener through aliases; a local same-name function is not an opener.
+// Native orb/modal-route-registry-map owns route override objects, including simple parenthesized objects.
+// Family registry-definitions shares registryDefinitionFacts.modal and definition anchor/field/home readers.
+// Population remains @client; assembled-list tests do not replace unreadable or unassembled definitions.
+import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveCallableOrigin } from "../../floor/code-facts/reference-fact-call.ts";
 import { readStaticAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
@@ -43,8 +17,6 @@ import { isDefinitionHome } from "../lib/registry-definition-home.ts";
 import { registryDefinitionFacts } from "../lib/registry-fact.ts";
 
 const OPENER = "openModal";
-const ROUTES = "packages/client/src/routes/";
-const GOD_MAP_PROP = "modals";
 /** The one placement the mobile-bar derivation renders as EXACTLY ONE affordance (the You sheet). */
 const SINGLETON_PLACEMENT = "mobile-tab";
 /** The placement whose modals are reached ONLY by an explicit `openModal(id)` opener. */
@@ -54,10 +26,9 @@ const MESSAGE =
   "a modal is dishonest: a ModalDefinition whose declaration or resolved definition is not co-located at " +
   "packages/client/src/features/<owner>/lib/<id>-modal.{ts,tsx}, a definition this policy cannot resolve to an authored " +
   "object literal, an unreadable or duplicate id, a DECLARED-PLANNED modal with an empty reason, two modals claiming the " +
-  "mobile-tab singleton placement, a `surface` modal with no openModal(id) opener, or a route re-forming the `modals` " +
-  "override god-map — client-architecture-lockdown.md §6d.";
+  "mobile-tab singleton placement, or a `surface` modal with no openModal(id) opener — client-architecture-lockdown.md §6d.";
 const FIX =
-  'co-locate the definition and write it as an authored object literal; a planned modal is a non-empty reason; one modal per mobile-tab; give a `surface` modal at least one openModal("<id>") call site; a route is a thin mount — modals ride the registry. For a deliberate exception, write an adjacent `@orb-waive modal-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the modal (`xModal`), and on the god-map arm it is the JSX attribute name `modals`.';
+  'co-locate the definition and write it as an authored object literal; a planned modal is a non-empty reason; one modal per mobile-tab; give a `surface` modal at least one openModal("<id>") call site. For a deliberate exception, write an adjacent `@orb-waive modal-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the modal (`xModal`).';
 
 interface Opener {
   readonly call: MorphNode;
@@ -119,19 +90,6 @@ function openedSlotId(call: MorphNode): string | undefined {
   return scalar.kind === "resolved" && typeof scalar.value === "string" ? scalar.value : undefined;
 }
 
-/** A `modals={{…}}` object-literal prop — the deleted override god-map re-formed at a route. */
-function isGodMapAttribute(node: MorphNode): boolean {
-  if (!(Node.isJsxAttribute(node) && node.getNameNode().getText() === GOD_MAP_PROP)) {
-    return false;
-  }
-  const initializer = node.getInitializer();
-  if (initializer === undefined || !Node.isJsxExpression(initializer)) {
-    return false;
-  }
-  const expression = initializer.getExpression();
-  return expression !== undefined && Node.isObjectLiteralExpression(expression);
-}
-
 /** The `{ planned }` reason of a modal body, or undefined when the body is not the declared-planned arm. */
 function plannedReason(object: ObjectLiteralExpression): { readonly resolved: boolean; readonly empty: boolean } | undefined {
   const body = definitionObjectField(object, "body");
@@ -160,7 +118,6 @@ export const gate = defineGate({
   create: (ctx) => {
     const openerNames = new Set<string>([OPENER]);
     const openerCandidates: Opener[] = [];
-    const godMaps: MorphNode[] = [];
     const claimedIds = new Map<string, Claim>();
     const claimedSingletons = new Map<string, Claim>();
     const openedIds = new Set<string>();
@@ -266,14 +223,6 @@ export const gate = defineGate({
             }
           },
         },
-        {
-          kinds: [SyntaxKind.JsxAttribute],
-          visit: (node, sourceFile: SourceFile) => {
-            if (ctx.relativePath(sourceFile).startsWith(ROUTES) && isGodMapAttribute(node)) {
-              godMaps.push(node);
-            }
-          },
-        },
       ],
       evaluate: () => {
         const view = ctx.fact(registryDefinitionFacts.modal);
@@ -294,9 +243,6 @@ export const gate = defineGate({
               `Unreachable surface modal "${surface.id}": a \`surface\` modal with a real body has no explicit ${OPENER}("${surface.id}") call site, so nothing can open it.`,
             );
           }
-        }
-        for (const attribute of godMaps) {
-          report(attribute, "A route declares a `modals={{…}}` object-literal prop — the override god-map the registry replaced.");
         }
       },
     };
@@ -403,17 +349,6 @@ export const gate = defineGate({
       expect: { count: 1, token: "xModal", messageIncludes: "Unreachable surface modal" },
       why: "THE SEMANTIC UPGRADE: a LOCAL function named `openModal` is not the canonical shell opener, so the modal is still unreachable. The legacy text match counted it and reported a clean modal",
     },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-modal.tsx":
-          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
-        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell modals={{ theme: 1, settings: 2 }} />;\n",
-      },
-      expect: { count: 1, token: "modals", messageIncludes: "god-map" },
-      why: "a `modals` prop object literal in a route — the anti-god-map arm",
-    },
   ],
   mustPass: [
     {
@@ -475,36 +410,6 @@ export const gate = defineGate({
           'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
       },
       why: "THE SHADOW CONTROL: a LOCAL type that merely shares the name is not the canonical ModalDefinition, so an uncolocated declaration annotated with it is not this policy's subject",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-modal.tsx":
-          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
-        "packages/client/src/routes/some-route.tsx": "export const G = <AppShell modals={modalRegistry} />;\n",
-      },
-      why: "the god-map arm's FALSE branch: a `modals` prop that forwards the assembled registry is not an object-literal override map",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-modal.tsx":
-          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
-        "packages/client/src/features/x/components/panel.tsx": "export const P = <AppShell modals={{ theme: 1 }} />;\n",
-      },
-      why: "THE ROUTE FENCE, pinned: the god-map arm judges `packages/client/src/routes/` ONLY, because a `modals={{…}}` prop anywhere else is an ordinary component prop. Deleting the `startsWith(ROUTES)` guard flags this component and REDS this row — without it the fence is a claim no positive row visits",
-    },
-    {
-      mode: "types",
-      files: {
-        "packages/client/src/state/modal-registry.ts": "export interface ModalDefinition { readonly id: string }\n",
-        "packages/client/src/features/a/lib/a-modal.tsx":
-          'import type { ModalDefinition } from "../../../state/modal-registry.ts";\nexport const aModal: ModalDefinition = { id: "a", trigger: { placement: "rail.end" }, body: () => null };\n',
-        "packages/client/src/routes/other-route.tsx": "export const G = <AppShell overrides={{ theme: 1 }} />;\n",
-      },
-      why: "THE ATTRIBUTE-NAME FENCE, pinned: the arm bans the `modals` override map specifically, not every object-literal prop a route passes down. Replacing the `GOD_MAP_PROP` comparison with a bare JsxAttribute test flags this route and REDS this row",
     },
     {
       mode: "types",
