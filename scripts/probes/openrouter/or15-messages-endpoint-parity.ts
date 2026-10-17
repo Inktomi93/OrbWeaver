@@ -26,7 +26,7 @@ import { curatedRows } from "../../../packages/inference/src/capability/sources/
 import { measuredRows } from "../../../packages/inference/src/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import type { AnthropicChatRequest, ChatResult } from "../../../packages/inference/src/contract/chat.ts";
-import { makeApiKeySecret, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeApiKeySecret, makeResolved } from "../../../tests/legacy/inference/_support.ts";
 import { addSpend, jsonl, printTable, readEnvKey, totalSpend } from "./_kit.ts";
 
 export const id = "or15";

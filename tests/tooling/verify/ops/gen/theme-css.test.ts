@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-
 // #2230: the real baseline dispatch must compare generator bytes, never a declaration count.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";

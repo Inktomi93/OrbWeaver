@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // Both-direction controls for the PLACEMENT-COLLISION censuses (#816 arms ii/iii —
 // tooling/src/ui-audit/ops/walker/census-occlusion.ts).
 //

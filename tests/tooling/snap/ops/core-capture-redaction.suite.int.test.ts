@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(CoreCaptureRunIndex): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-
 // The always-written core capture is a disk boundary: raw browser canaries must be gone before its
 // findings reach run.json, the bounded end card, or a later browser-free report.
 import { readFile, writeFile } from "node:fs/promises";

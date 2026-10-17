@@ -15,10 +15,10 @@ import type { Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { planLocalLightPrefetch } from "@orb/server/entry/boot";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
+import { makeResolved } from "../../../inference/_support.ts";
 
 const OWNER: Principal = principal(castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 

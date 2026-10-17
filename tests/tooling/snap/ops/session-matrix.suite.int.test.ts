@@ -18,8 +18,6 @@
 // read as refused. The fix is this test's own premise, not `tooling/src/snap/**`: mint one background asset
 // row so discovery has something to plant.
 
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly mode: string; readonly cells: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";

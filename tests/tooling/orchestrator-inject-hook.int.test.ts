@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication({ hookSpecificOutput: { hookEventName: string; additionalContext: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hooks: { ["SessionStart"]: { hooks: HookHandler[] }[] } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The SessionStart orchestrator-skill injection (.claude/hooks/orchestrator-inject.mjs): every registered part
 // runs through the real hook, the parts rejoin to the exact skill body, each stays under the harness cap, and
 // a subagent gets nothing.

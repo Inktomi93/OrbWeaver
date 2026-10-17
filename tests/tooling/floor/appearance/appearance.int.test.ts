@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-
 // The appearance shim, proven where it actually lives: a REAL browser run of the snap CLI against a stub
 // origin that answers the batched `settings.getUserSettings` GET the app makes. The pure merge semantics are
 // pinned in probe-appearance.test.ts; what this file proves is the part no unit can see —
@@ -150,7 +148,6 @@ test("the manifest records WHICH arm was measured, so a report cannot be read ag
   const shimmed = await runSnap(["--appearance-preset", "compact", "--json", "--out", manifestShot, "--eval", READ_STATE]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
 
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const manifest = JSON.parse(readFileSync(manifestJson, "utf8")) as {
     environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null; reducedMotion: boolean };
   };
@@ -167,7 +164,6 @@ test("the manifest distinguishes a requested appearance patch from one never app
   const manifestJson = `${scratch}/orb-snap-appearance-manifest.json`;
   const shimmed = await runSnapAt("/no-settings", ["--appearance", '{"density":"compact"}', "--json", "--out", manifestShot]);
   expect(shimmed.status, shimmed.stdout + shimmed.stderr).toBe(0);
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const manifest = JSON.parse(readFileSync(manifestJson, "utf8")) as {
     environment: { appearance: Record<string, unknown> | null; appearanceApplied: boolean | null };
   };

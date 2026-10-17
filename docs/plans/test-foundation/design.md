@@ -22,9 +22,9 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Read the [bottleneck research](../../../reports/review/seven-day-bottleneck-claude-analysis.md) in full before callable or migration dispatch. Its snapshots and counts are leads; derive the current affected set without another whole-tree audit.
 
-[D323](../../adr/0323-prototype-exposure-per-native-generation.md) replaces per-read prototype closure with one native-generation census. Land prototype-mutation lint first. Reuse the existing classifier and program epoch; preserve allocation, bindings, paths, mutation and escape refusal. Stop helper-specific callable repairs; no TS7 experiments, heap increases or population cuts.
+[D323](../../adr/0323-prototype-exposure-per-native-generation.md) replaces per-read prototype closure with one native-generation census. Land prototype-mutation lint first. Reuse the classifier and program epoch; preserve allocation, bindings, paths, mutation and escape refusal. Ordinary computed data reads and calls are not prototype exposure. Keep contextual callable obligations at their existing owners. Report admitted mutation sites once; refuse outside-population exposure with its source location instead of bypassing the reporter. Stop helper-specific repairs; no TS7 experiments, heap increases or population cuts.
 
-Run the unchanged original chat-accounting driver once after the census change, recording invocations, receiver allocations and swept inputs. Then run the complete selected owner-scoped-reads policy, not a whole-tree check. If it refuses outside prototype exposure, report that site and counters, then stop this repair line.
+The original chat-accounting driver completes with a non-prototype signal-origin refusal. Stop this repair line. Run the complete selected owner-scoped-reads policy after coherent currentness delivery, not against the incomplete producer tree. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
 Dispatch the corpus smoke matrix independently. Its native shape and clone checks are available; callable resolution, store cost and gate migration do not block item 898. Complete its provider, authentication, width, style and flow acceptance before general legacy suite ports.
 
@@ -40,7 +40,7 @@ Start the audited migration after the assigned SQL correction's acceptance. Keep
 
 D320 eligibility is integrated; items 1002 and 1027 retain metadata qualification. Derive scope from canonical world/test-kind metadata. Preserve every selected program option, root and resolved closure. Demand and generation completeness name that scope; historical evidence keeps its original scope.
 
-Reduce structural cost before more micro-optimization: remove legacy deep analysis, eliminate unnecessary typed claims, and isolate accidental server closures through the AppRouter type bridge. Declaration bridges require fresh generated output and qualified transitive closure; do not replace them with copied shapes. Compiler baselines guide cost diagnosis but do not establish equivalent analysis work.
+Prioritize D320 eligibility, native replacements and fresh declaration bridges. The [occurrence-index design](../native-occurrence-index/design.md) replaces repeated bulk reference searches. Preserve world-specific bindings and dependency invalidation. Attribute reference extraction separately from invocation and callable work. Compiler baselines do not prove equivalent analysis.
 
 The [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) classifies source, not qualified successors. Re-derive partly written migrations before continuing.
 
@@ -66,7 +66,7 @@ Legacy isolation, native lint, explicit exports, native integers and domain-owne
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts remain work. Canonical row builders and output suppliers meet their declared contracts. Wire-output boundary accounting and allocated native supplier qualification are established. The committed corpus serves each test layer. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
-The committed corpus and builders qualify for their contracts. Selected server, CT, E2E, plugin, media and Snap consumers use production entries and independent clones. Separate provider recipes, stable timing and hosted CI remain unqualified; software rendering withholds the application snapshot. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-completion-boundary-audit.md`. Item 898 owns the complete smoke matrix; item 977 owns UI/reporting findings. Shared readers block general legacy ports, not corpus smoke.
+Corpus and builders meet their contracts. Selected consumers use production entries and independent clones. Item 898 owns complete provider, authentication, style, viewport and flow qualification. Its source and CI admission are integrated; local and hosted matrix acceptance remains open. Provider recipes, stable timing and application snapshots remain unqualified. Item 977 owns UI/reporting findings. Shared readers block general legacy ports, not smoke.
 
 SDK execution joins native Query and observed direct-child completion, not arbitrary executable sandboxing or universal descendant containment.
 
@@ -92,7 +92,7 @@ Complete these foundations before general suite ports. Build the engine and harn
 
 Dependencies that hold the order: the server harness uses clean production composition; 966 waits on 954. A structural move such as a file split runs after content lanes in the same files, never beside them.
 
-Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, which proves the app works end to end; server suites by domain on the composition root; CTs on the door with builder stubs; the rest. Tooling tests stay as they are; they test the tools, not the product.
+Then rebuild corpus e2e smoke, server domains on the composition root, CTs on the door with builder stubs, and remaining suites. Tooling suites stay outside the application legacy migration.
 
 ### Rules
 
@@ -181,7 +181,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Ordinary demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Private callable supplies preserve allocation, bindings and live premises. Quoted-key decoding and prototype-setter refusal pass ordinary controls. The original query completes but still refuses the chat-service signal origin. Target, sparse-env, dependency closure and store/cost remain open. Evidence: `reports/review/1002-post-quoted-original-ordinary.md`.
+Callable provenance retains allocation, bindings and live premises. The generation prototype census passes independent review. The target still refuses `ctx.backgroundSignal` at `packages/server/src/domain/chat/service.ts:93`. Stop helper-specific repair. Complete owner-policy and current-store cost qualification remain open. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -215,9 +215,9 @@ Device-local factory names derive from the production registry. Native factory o
 
 Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Public URL policy rejects caller-supplied configured authority. Real composed controls enforce regex deadlines; ordinary integrated runtime and native type controls pass. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Existing compiler and certification reds remain. Evidence: `reports/review/1041-native-wave-ordinary.md`.
 
-Native Base UI lint owns derivation, handlers and state styling. Surface/anatomy contracts run in ordinary Node CI; portal and CSS semantic owners remain. Metadata admission invalidates caches. Maintained CTs use captured reads. Bounded controls pass; full migration remains open. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
+Native Base UI lint owns derivation, handlers, state styling and qualified portal checks. Surface/anatomy contracts run in Node CI; CSS semantics remain structural. Metadata admission invalidates caches. Maintained CTs use captured reads. Bounded controls pass; complete migration remains open. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md` and `reports/review/1041-qualified-native-batch.md`.
 
-Context/register lint preserves publication and count owners. Parallel-map timing remains open. Native spacing, typography and hover syntax qualify; home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`. Native derived-store syntax qualifies; typed stability remains. Evidence: `reports/review/1041-native-derived-store-ordinary.md`.
+Context/register lint preserves publication and count owners. Parallel-map timing remains open. Native spacing, typography and hover syntax qualify; home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`. Native derived-store syntax and parser-owned selector stability pass bounded controls. Evidence: `reports/review/1041-native-derived-store-ordinary.md` and `reports/review/1041-qualified-native-batch.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
@@ -274,11 +274,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 ### Execution and verification
 
-Give lanes cohesive assignments with ownership, behavior and scoped floors. Batch review corrections. Main schedules heavy runs; lanes request whole-tree checks. Use measured host limits.
-
-Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
-
-Use one independent review per substantive wave and reuse matching completed checks. Recheck only concrete failures or changed behavior. D317 owns the single application check before an owner-authorized push; no whole-tree check follows each merge. The dev stack is disposable; the release container is outside this program's authority.
+Give lanes cohesive assignments with ownership, behavior and scoped floors. Main schedules load under measured limits; scoped checks can overlap. Batch review corrections and reuse matching checks. Follow the lane skill for owner-authorized commit bypasses; retain message validation and record deferred checks. D317 owns the pre-push application check, not a check after each merge. The dev stack is disposable; protect the release container.
 
 ### Compose holds wiring only
 

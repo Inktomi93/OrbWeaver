@@ -35,9 +35,11 @@ Each listed check is green on main or has a recorded cause and owner.
 
 ## Evidence
 
-Remaining findings: legacy disposal and typed-lint errors; maintained classes; client formatting/imports; caught-failure census; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Application Knip findings do not reconcile production debt. Preserve supported doors.
+Remaining findings: legacy disposal/typed lint, maintained classes, client formatting/imports, caught-failure census and the agent-bridge client-lib-floor violation.
 
 Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-1151285-2026-10-16T00-31-01-305Z/check-structure.json`. Separate current-law drift, immutable ADR proposals and external SDK/member names; add no allowance.
+
+D161 names a removed health module. `pnpm check:agents` reports the missing source. Resolve through documentation lifecycle law; preserve the immutable decision and avoid placeholder modules.
 
 Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 

@@ -8,6 +8,7 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { hasQualifiedMainPush, resolveCiQualification } from "@orb/tooling/verify";
 import YAML from "yaml";
 import { z } from "zod";
+import { CORPUS_PROJECT_CELLS } from "../tests/e2e/support/modes.ts";
 import type { CiQualificationConfig, CiQualificationJobGroup } from "../tooling/src/verify/contract/qualification.ts";
 
 const RUNTIME_CONDITION = "needs.changes.outputs.code == 'true'";
@@ -28,14 +29,22 @@ const WORKFLOW = z.object({
 
 function jobNames(id: string, job: z.infer<typeof JOB>): readonly string[] {
   const matrix = job.strategy?.matrix;
-  if (typeof matrix === "string") {
+  if (id === "e2e-corpus" && matrix !== "${{ fromJSON(needs.changes.outputs.corpus-matrix) }}") {
+    throw new Error("corpus product qualification requires the canonical dynamic matrix");
+  }
+  if (typeof matrix === "string" && id !== "e2e-corpus") {
     throw new Error(`unexpanded dynamic product qualification population ${id}`);
   }
-  const shards = matrix?.shard;
-  const names =
-    shards === undefined
-      ? [job.name ?? id]
-      : shards.map((shard) => (job.name ?? id).replace("${{ matrix.shard }}", String(shard)).replace("${{ strategy.job-total }}", String(shards.length)));
+  const shards = typeof matrix === "object" ? matrix.shard : undefined;
+  let names: readonly string[];
+  if (id === "e2e-corpus") {
+    names = CORPUS_PROJECT_CELLS.map(({ name }) => (job.name ?? id).replace("${{ matrix.project }}", name));
+  } else {
+    names =
+      shards === undefined
+        ? [job.name ?? id]
+        : shards.map((shard) => (job.name ?? id).replace("${{ matrix.shard }}", String(shard)).replace("${{ strategy.job-total }}", String(shards.length)));
+  }
   if (names.length === 0 || names.some((name) => name.includes("${{")) || new Set(names).size !== names.length) {
     throw new Error(`ambiguous product qualification population ${id}`);
   }
@@ -51,8 +60,8 @@ function productJobs(jobs: z.infer<typeof WORKFLOW>["jobs"]): Pick<CiQualificati
   const runtimeJobs: string[] = [];
   const runtimeJobGroups: CiQualificationJobGroup[] = [];
   const needs = jobs["ci-ok"]?.needs;
-  if (!(Array.isArray(needs) && ["changes", "static", "node", "node-legacy", "ct", "ct-legacy", "e2e-smoke"].every((id) => needs.includes(id)))) {
-    throw new Error("product qualification requires the closed changes/static/runtime/smoke aggregate");
+  if (!(Array.isArray(needs) && ["changes", "static", "node", "node-legacy", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus"].every((id) => needs.includes(id)))) {
+    throw new Error("product qualification requires the closed changes/static/runtime/smoke/corpus aggregate");
   }
   if (jobs["static"]?.if !== undefined || JSON.stringify(jobs["static"]?.needs) !== JSON.stringify(["changes"])) {
     throw new Error("static product qualification must depend only on changes and cannot be conditional");

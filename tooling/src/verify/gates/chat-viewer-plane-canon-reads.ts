@@ -1,39 +1,18 @@
-// Policy: chat-viewer-plane-canon-reads (ledger D161, chat read-visibility: two planes, one verdict) — a
-// VIEWER-PLANE chat verb may not reach a ROOM-PLANE floorless canon reader. THE OCCURRENCE ARM; the three
-// fail-loud blindness arms are the `-health` sibling, because they are unsuppressible and this door is not.
-//
-// RULE AND ARMS. Keyed off the LIVE authority matrix (`substrate/auth/matrix.ts::CHAT_VERB_AUTHORITY`),
-// never a path list: a verb whose matrix authority is anything other than `host`/`non-chat-scoped` is
-// viewer plane, and a bulk canon reader reached from its factory — directly or through a module-local
-// helper — is a finding on the reader CALL, unless that reader's own result is filtered through a
-// directly-negated `isBelowHistoryFloor` bound to the filtered element and the viewer's resolved floor.
-// The complete model, the banned-set rationale and the resolver law are in `lib/chat-plane-read.ts`.
-// DECLARED LIMIT, carried from the legacy module and still true: reach is module-local (a helper in the
-// same file), not cross-module.
-//
-// FAMILY `chat-viewer-plane`, reader `lib/chat-plane-read.ts` — `chatPlaneVisitors`/`resolveChatMatrix`/
-// `judgeChatPlane` here, `resolveChatMatrix`/`rottedReaders`/`judgeChatPlane` in the health sibling, both
-// reached from `create`. The canonical subject declarations `BULK_CANON_READERS` and
-// `ROOM_PLANE_AUTHORITIES` are the vocabulary both arms judge against.
-//
-// POPULATION PORT (legacy `1994ec3d0`, `scanRoot: (p) => /(?:^|\/)packages\/server\/src\/domain\/chat\//`):
-// `legacy − final` = the whole-project matrix sweep. The legacy module found `CHAT_VERB_AUTHORITY` by NAME
-// through `ctx.project.getSourceFiles()`, outside its own scanRoot; the final contract forbids that, so the
-// matrix must live in the declared population. On today's tree it does (`substrate/auth/matrix.ts`), so
-// the effective difference is zero — and a matrix moved OUT of domain/chat now reports blindness through
-// the health sibling instead of resolving invisibly from outside the fence. `final − legacy` = none: the
-// `under` glob admits exactly the `.ts`/`.tsx` the scanRoot regex did. Measured receipts are in
-// `tests/tooling/verify/gates/chat-viewer-plane-family.suite.test.ts`.
-//
-// RETIRED PRIVATE-MARKER CENSUS. The legacy `@orb-gate-ignore chat-viewer-plane-canon-reads(<verb>:<reader>)`
-// door had ZERO live occurrences repo-wide at conversion (the single match was this module's own MESSAGE
-// prose), and its position was an ALLOWLIST-key DISCRIMINATOR, not an authored slice — so it could not port
-// by spelling (standing law §2.1). It is recorded as a dead door, not relocated. The legacy gate-local
-// `ALLOWLIST` (3 `verb:reader` rows) and its stale-ratchet arm did not survive conversion either (§5/§8);
-// each row's reason is now the `reason` of a central `@orb-waive` at its own call site, and central
-// reconciliation owns the stale judgment.
+// Viewer-plane chat verbs require a viewer-floor filter before floorless canon reaches a caller (D161).
+// Unreadable matrices and declared viewer verbs without annotated owners refuse before occurrence judgments.
+// Reachability follows module-local helpers; waivers license reported calls, never missing prerequisites.
+
 import { defineGate } from "../contract/policy.ts";
-import { CHAT_DOMAIN_UNDER, chatPlaneVisitors, createChatPlaneIndex, judgeChatPlane, MATRIX_CONST, resolveChatMatrix } from "../lib/chat-plane-read.ts";
+import {
+  CHAT_DOMAIN_UNDER,
+  chatPlaneVisitors,
+  createChatPlaneIndex,
+  isViewerPlane,
+  judgeChatPlane,
+  MATRIX_CONST,
+  resolveChatMatrix,
+  SERVICE_TYPE,
+} from "../lib/chat-plane-read.ts";
 
 const MESSAGE =
   "a VIEWER-PLANE chat verb (matrix authority other than host/non-chat-scoped) reaches a ROOM-PLANE floorless " +
@@ -48,11 +27,11 @@ const FIX =
   "caller), license it at the call site with " +
   "`// @orb-waive chat-viewer-plane-canon-reads(<the reader name at the reported column>): <why no canon bytes reach the caller>`.";
 
-const BLIND = `${MATRIX_CONST} could not be read in the chat domain — this policy keys every verdict off it, so a clean result would be blindness rather than safety. Refusing the run; the health sibling reports the missing matrix.`;
+const BLIND = `${MATRIX_CONST} could not be read in the chat domain — this policy keys every verdict off it, so a clean result would be blindness rather than safety. Refusing the run.`;
 
 export const gate = defineGate({
   id: "chat-viewer-plane-canon-reads",
-  family: "chat-viewer-plane",
+  family: "chat-viewer-plane-canon-reads",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@server"], under: [CHAT_DOMAIN_UNDER] },
@@ -72,7 +51,13 @@ export const gate = defineGate({
         if (matrix === undefined) {
           throw new Error(`chat-viewer-plane-canon-reads: ${BLIND}`);
         }
-        for (const violation of judgeChatPlane(index, matrix).violations) {
+        const judgment = judgeChatPlane(index, matrix);
+        for (const [verb, authority] of matrix.verbs) {
+          if (isViewerPlane(authority) && !judgment.covered.has(verb)) {
+            throw new Error(`viewer-plane verb "${verb}" has no discoverable ${SERVICE_TYPE}["${verb}"]-annotated factory under domain/chat; it is UNCHECKED`);
+          }
+        }
+        for (const violation of judgment.violations) {
           const plural = violation.verbs.length === 1 ? "" : "s";
           const named = violation.verbs.map((verb) => `\`${verb}\``).join(", ");
           ctx.report.node(violation.call, { message: `${MESSAGE} Reached from viewer-plane verb${plural} ${named}; reader \`${violation.reader}\`.` });
@@ -260,6 +245,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", cleanupChats: "non-chat-scoped" } as const;\n',
+      },
+      why: "Room-plane verbs create no viewer-plane implementation obligation; this is not a global nonempty-factory certification.",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": 'export const BASE_AUTHORITY = { replayChatEvents: "member" } as const;\n',
         "packages/server/src/domain/chat/substrate/auth/matrix.ts":
           'import { BASE_AUTHORITY } from "./base-matrix";\nexport const CHAT_VERB_AUTHORITY = { ...BASE_AUTHORITY, listMessages: "member" } as const;\n',
@@ -338,6 +331,14 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts": 'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const;\n',
+      },
+      expect: { messageIncludes: "UNCHECKED" },
+      why: "A declared viewer-plane verb needs its annotated implementation before any reachability verdict; this prerequisite cannot be waived.",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/domain/chat/persistence/queries.ts":
           "export async function loadCanonHistory(): Promise<number[]> {\n  return [];\n}\nexport async function loadCanonHistoryAfter(): Promise<number[]> {\n  return [];\n}\nexport async function loadChatEventReplay(): Promise<number[]> {\n  return [];\n}\n",
       },
@@ -354,6 +355,96 @@ export const gate = defineGate({
       },
       expect: { messageIncludes: "unsupported CHAT_VERB_AUTHORITY expression" },
       why: "a matrix this reader cannot establish must never read as a SMALLER matrix on the occurrence arm either — the reach verdict withholds with the health sibling rather than judging a partial matrix",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { ...MISSING_BASE, listMessages: "member" } as const;\n',
+      },
+      expect: { messageIncludes: 'CHAT_VERB_AUTHORITY binding "MISSING_BASE" resolves to no local declaration or named import' },
+      why: "a matrix spread of an identifier nothing binds refuses rather than folding the rows it can see",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          "export const OTHER = { ...CHAT_VERB_AUTHORITY };\nexport const CHAT_VERB_AUTHORITY = { ...OTHER } as const;\n",
+      },
+      expect: { messageIncludes: "CHAT_VERB_AUTHORITY composition cycle" },
+      why: "a matrix composition cycle refuses instead of recursing — `seen` is threaded across the fold/resolve boundary, so the recursion cannot blow the stack instead",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/base-matrix.ts": "export const BASE_AUTHORITY = {} as const;\n",
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'import { BASE_AUTHORITY } from "./base-matrix";\nexport const CHAT_VERB_AUTHORITY = { ...BASE_AUTHORITY, listMessages: "member" } as const;\n',
+      },
+      expect: { messageIncludes: "which resolved to zero verbs" },
+      why: "a spread that contributes ZERO verbs refuses — an empty contribution is the silent-shrink shape the blindness arm cannot see, because the matrix stays non-empty",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: authorityFor() } as const;\n',
+      },
+      expect: { messageIncludes: "unsupported CHAT_VERB_AUTHORITY value" },
+      why: "a matrix VALUE built by a CALL refuses — an unreadable authority must never DROP its verb, which is the one direction that is silent",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: MISSING } as const;\n',
+      },
+      expect: { messageIncludes: 'CHAT_VERB_AUTHORITY value binding "MISSING" resolves to no local declaration or named import' },
+      why: "a matrix VALUE identifier nothing binds refuses rather than silently dropping that verb from the classified set",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'const A = B;\nconst B = A;\nexport const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages: A } as const;\n',
+      },
+      expect: { messageIncludes: "CHAT_VERB_AUTHORITY value binding cycle" },
+      why: "a matrix VALUE binding cycle (`const A = B; const B = A;`) refuses instead of recursing — the value chain is its OWN cycle domain",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts": 'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages } as const;\n',
+      },
+      expect: { messageIncludes: 'CHAT_VERB_AUTHORITY value binding "listMessages" resolves to no local declaration or named import' },
+      why: "a SHORTHAND row nothing binds refuses — before #1091 it fell out of the fold with no throw and no count",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", [verbKey]: "member" } as const;\n',
+      },
+      expect: { messageIncludes: "computed CHAT_VERB_AUTHORITY key" },
+      why: "a COMPUTED key that is not a string literal refuses — a key this reader cannot NAME matches no factory, so it would report an UNCHECKED verb that does not exist while the real one went unjudged",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", listMessages() { return "member"; } } as const;\n',
+      },
+      expect: { messageIncludes: "unsupported CHAT_VERB_AUTHORITY member kind MethodDeclaration" },
+      why: "a METHOD member refuses by its own kind — a member kind the fold cannot answer must never be dropped",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/chat/substrate/auth/matrix.ts":
+          'export const CHAT_VERB_AUTHORITY = { previewAssembly: "host", get listMessages() { return "member"; } } as const;\n',
+      },
+      expect: { messageIncludes: "unsupported CHAT_VERB_AUTHORITY member kind GetAccessor" },
+      why: "a GETTER member refuses by its own kind — the fold is TOTAL, so every member either writes a row or throws",
     },
   ],
 });

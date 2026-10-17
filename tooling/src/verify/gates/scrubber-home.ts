@@ -1,59 +1,7 @@
-// Policy: scrubber-home (security — the §3.6 member-strip trust boundary; 808ba09cc6 "the cold-scrubber
-// leak"). The hidden-span stream scrubber (`@orb/kit/content::createHiddenSpanStreamScrubber`) is STATEFUL
-// over a slot's whole stream: a scrubber constructed anywhere but the producer stamp cold-starts mid-stream,
-// and a reader that begins — or resumes — while a `<lie …/>` open is in flight sees no `<` in the tail and
-// forwards the secret's bytes (worse, the withheld-open stall is an ORACLE telling a member exactly when to
-// reconnect). Per-subscription scrub state cannot survive replay→live handoffs; the producer stamp is the
-// ONE home, and REACHING for the factory — importing it or calling it — outside that home is the breach.
-//
-// IDENTITY, NOT SPELLING: the legacy call arm matched the callee's TEXT against the symbol name, which the
-// module's own header called out as a declared blind spot (an aliased import hid the call arm) and which
-// false-reds any same-named local. Both arms now resolve through the shared sealed-origin reader, so an
-// alias, a namespace member, a computed-literal member and a barrel re-export are the same factory, while a
-// same-named export of another module provably is not.
-//
-// AUTHORITY IS reviewed-grant: the producer stamp is a recurring repository PERMISSION, one exact
-// `(subject, operation)` row in the central table, and its liveness is that row's own STALE alarm — the day
-// the stamp moves or stops constructing a scrubber, the row is consumed zero times and says so. That is the
-// legacy MODE A arm for the producer home, owned centrally.
-//
-// THE LEGACY `packages/kit/src/content/` ROW IS DELETED, NOT TRANSLATED. Under identity resolution the kit
-// module DECLARES the factory and neither imports nor calls it, so it produces no finding and the row would
-// license nothing — the legacy call arm only bit there because it matched a NAME. What that row was really
-// protecting is the DEFINITION home's liveness, which is a completeness claim rather than a permission and
-// is therefore a hard sibling policy of its own: `scrubber-factory-home`, same family.
-//
-// FAMILY `scrubber-home` — the shared computation is the factory's declaration home, `lib/scrubber-home.ts`
-// (`SCRUBBER_SYMBOL` + `SCRUBBER_HOME`), which both halves import because the two halves of one trust boundary
-// must name the SAME directory or the completeness sibling stops covering the reference policy (#0038: it was
-// re-stated in the sibling until then). The split is by AUTHORITY (reviewed-grant permission vs hard completeness), which the
-// contract requires to be two policy ids under one `family` string. The sealed-origin reader underneath
-// (`lib/sealed-origin.ts`) is a corpus-wide primitive, not what makes these two a family.
-// POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PACKAGES_SRC.test('/' + p)`
-// where `PACKAGES_SRC = /\/packages\/[^/]+\/src\//` (`b5acbf2594^:101`) — ANY workspace package's `src`. The
-// final population is `@packages`, the explicit SIX-root list, which does not admit
-// `packages/showcase-plugins/src/` (the `@showcase` root added 2026-09-11). One directory narrower, and it
-// is the standing `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a
-// decision taken here. The kit DEFINITION home stays IN the population on both sides — the legacy row that
-// excused it is deleted, and judging that directory is `scrubber-factory-home`'s whole job.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `scrubber-home` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
-// candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
-// and final `population` admits 3,371. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
-// of an authored package outside the declared composite roots (`@showcase` is not in `@authored`/`@packages`, #1980,
-// `contract/population.ts`); a one-file NARROWING. final − legacy = ∅. Controls: inside
-// `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
-// `scripts/codemods/__cbbhr_out_rename-roster-participants.ts` (virtual) rejected by both.
-//
-// WIDENED 2026-09-20 (lane cb-population-truth, #2488): `@packages` → `@product` — the sealed factory lives in
-// `@orb/kit/content` and `packages/inference/src/` imports kit, so the breach this policy exists to catch was
-// reachable there and judged by nothing — and that package is now the tree's primary credentialed-egress
-// surface. MEASURED (`pnpm check:structure --check scrubber-home`, whole tree): population 3,315 → 3,427,
-// findings 0 → 0, grant consumption unchanged at 1. A security SEAL over a clean tree.
-// CURRENT 2026-09-21: `@product` includes shipped showcase/default-content sources, closing the historical
-// showcase narrowing above. The widened policy remains clean on the real tree.
+// Stateful hidden-span scrubbers belong at the producer; a per-reader cold start can expose a hidden tag tail.
+// Native declaration identity follows aliases and barrels; unreadable declared doors remain violations.
+// The producer construction permission is centrally reviewed (D118).
+
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fact.ts";

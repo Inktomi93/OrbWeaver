@@ -3,7 +3,6 @@
 // `node` that carries no heap floor (`pnpm-workspace.yaml` `nodeOptions` reaches `pnpm run`/`pnpm exec`
 // children only), and a whole-project ts-morph pass OOMs under it at node's ~4GB self-cap.
 
-// @orb-waive-file no-test-fabrication({ readonly scripts?: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

@@ -64,7 +64,7 @@ export {
 export type { ConnectionBindingRow, SdkSessionEntryRow, UserConnectionRow } from "./connection.ts";
 export { captureSdkSessionRows, seedConnectionBinding, seedUserConnection } from "./connection.ts";
 export type { AuditLogRow, SeededUserCredential, UserCredentialRow } from "./credentials.ts";
-export { seedUserCredential } from "./credentials.ts";
+export { makeApiKeySecret, makeResolvedSecret, seedUserCredential } from "./credentials.ts";
 export type { CapturedDatabankViews, CharacterDocumentRow, ChatDocumentRow, DocumentRow, GlobalDocumentRow, SeededCreatedDocument } from "./databank.ts";
 export { captureDatabankViews, seedCharacterDocument, seedChatDocument, seedCreatedDocument, seedDocument, seedGlobalDocument } from "./databank.ts";
 export type {
@@ -127,13 +127,11 @@ export { seedManualRefineryRun, seedRefinerySchema, seedRefinerySession } from "
 export type { CharacterRegexScriptRow, ChatRegexScriptRow, GlobalRegexScriptRow, PresetRegexScriptRow, RegexScriptDbRow } from "./regex.ts";
 export { captureRegexRows, seedCharacterRegexScript, seedChatRegexScript, seedGlobalRegexScript, seedPresetRegexScript, seedRegexScript } from "./regex.ts";
 export {
-  makeApiKeySecret,
   makeCachePolicy,
   makeCapability,
   makeGenerationCapability,
   makeResolved,
   makeResolvedCacheView,
-  makeResolvedSecret,
   makeResolvedView,
 } from "./resolved-connection.ts";
 export type { RosterPresetMemberRow, RosterPresetRow, RosterPresetRuleRow, SeededRosterPreset } from "./roster-preset.ts";

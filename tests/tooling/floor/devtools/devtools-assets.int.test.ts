@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ families: { notices: { file: string }[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join, normalize, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";

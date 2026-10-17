@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication({ hookSpecificOutput: { hookEventName: string; permissionDecision: string; updatedInput: { projectPath: string } } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hookSpecificOutput: { permissionDecision: string; permissionDecisionReason: string } }): baselined when the gate widened to value casts; burn-down item 906.
-
 import { spawnSync } from "node:child_process";
 import { copyFileSync, mkdirSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

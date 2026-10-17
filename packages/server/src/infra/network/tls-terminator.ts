@@ -9,26 +9,7 @@ import type { Server } from "node:https";
 import { createServer } from "node:https";
 import type { Socket } from "node:net";
 import { pipeline } from "node:stream";
-
-// @orb-waive no-inline-package-interface(TlsTerminatorOptions): baselined when the gate landed; burn-down item 952.
-/** Where the https listener binds, what it serves, and the app listener it forwards to. */
-export interface TlsTerminatorOptions {
-  readonly port: number;
-  /** The app listener's own interface; undefined binds every interface. */
-  readonly host: string | undefined;
-  readonly certificatePem: string;
-  readonly keyPem: string;
-  /** The app listener's loopback origin, such as `http://127.0.0.1:8788`, read per request. */
-  readonly upstream: () => string;
-}
-
-// @orb-waive no-inline-package-interface(TlsTerminator): baselined when the gate landed; burn-down item 952.
-/** A listening terminator. A renewal swaps the certificate in place; `close` ends every connection. */
-export interface TlsTerminator {
-  readonly port: number;
-  readonly replaceCertificate: (certificatePem: string, keyPem: string) => void;
-  readonly close: () => Promise<void>;
-}
+import type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";
 
 const BAD_REQUEST = 400;
 const BAD_GATEWAY = 502;
@@ -211,3 +192,5 @@ export function startTlsTerminator(options: TlsTerminatorOptions): Promise<TlsTe
     });
   });
 }
+
+export type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";

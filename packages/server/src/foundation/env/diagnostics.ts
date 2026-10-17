@@ -49,19 +49,7 @@
 // tightening and is deliberately NOT taken here: it would silently disable capture on a running deployment
 // that has it on today, which is a posture flip the operator owns. The warning names the exact fix instead.
 
-import type { NodeEnvironment } from "#primitives/node-environment";
-
-// @orb-waive no-inline-package-interface(OwnerFallbackCredentialInput): baselined when the gate landed; burn-down item 952.
-/** The raw env values the OWNER-FALLBACK credential rule reads — passed in so this file never touches
- *  `process.env` (the `BindPostureInput` shape). `authFallback` is a LAUNCH-time value, never a `.env` key
- *  (`foundation/env`'s superRefine refuses one), so a box's answer here is decided by how it was started. */
-export interface OwnerFallbackCredentialInput {
-  readonly nodeEnv: NodeEnvironment;
-  readonly authFallback: "owner" | "deny";
-  /** `AUTH_FALLBACK_TRUSTED_PEERS` resolved to an ACTIVE widening (`fallback-peers.ts::resolveOwnerFallbackPeers`
-   *  `.widened`). `true` retracts this credential — see the rule below. */
-  readonly fallbackWidened: boolean;
-}
+import type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./contract.ts";
 
 /**
  * IS THE UN-CREDENTIALED LOOPBACK OWNER FALLBACK THIS BOX'S OPERATOR CREDENTIAL, or an acknowledged
@@ -100,34 +88,6 @@ export interface OwnerFallbackCredentialInput {
  */
 export function resolveOwnerFallbackCredential(input: OwnerFallbackCredentialInput): boolean {
   return input.authFallback === "owner" && input.nodeEnv !== "production" && !input.fallbackWidened;
-}
-
-/** The composed verdict. Keys on RETENTION × PERIMETER — the credential planes are reported as facts
- *  beside it, because the door has a second credential (an admin session) that no env knob can remove. */
-export const DIAGNOSTICS_EXPOSURES = ["minimal", "retaining", "retaining-open"] as const;
-// @orb-waive no-inline-types(DiagnosticsExposure): the §7.5 keystone — this derived type MUST co-locate with its `as const` tuple, and the exposure axis is a server-foundation env axis, not a cross-boundary contract. Ends when the exposure axis becomes a cross-boundary contract and the tuple moves to @orb/contracts with it.
-export type DiagnosticsExposure = (typeof DIAGNOSTICS_EXPOSURES)[number];
-
-// @orb-waive no-inline-package-interface(DiagnosticsPostureInput): baselined when the gate landed; burn-down item 952.
-/** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
-export interface DiagnosticsPostureInput {
-  readonly debugToken: string | undefined;
-  readonly ipAllowlist: string | undefined;
-  readonly wireCapture: "on" | "off";
-  readonly rpgTrace: "on" | "off";
-}
-
-// @orb-waive no-inline-package-interface(DiagnosticsPosture): baselined when the gate landed; burn-down item 952.
-/** The composed posture. Every field is a FACT about the running box, safe to print in a boot log and on
- *  the (already host-gated) `/api/_debug/info` probe — no secret value appears, only whether one is set. */
-export interface DiagnosticsPosture {
-  /** `true` when `IP_ALLOWLIST` is non-empty — the 403-before-auth ring is armed. */
-  readonly perimeter: boolean;
-  /** `true` when `DEBUG_TOKEN` is set. The admin-SESSION credential exists either way. */
-  readonly tokenConfigured: boolean;
-  /** The recorders currently retaining bytes, by env knob. Empty ⇒ nothing is held. */
-  readonly retaining: readonly string[];
-  readonly exposure: DiagnosticsExposure;
 }
 
 /** An empty/whitespace-only allowlist is NOT a perimeter — `parseAllowlist` yields zero entries and
@@ -170,3 +130,7 @@ export function diagnosticsPostureWarnings(posture: DiagnosticsPosture): readonl
   }
   return lines;
 }
+
+export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./contract.ts";
+// biome-ignore lint/performance/noBarrelFile: D326 preserves this policy module's supported tuple export from its canonical contract owner.
+export { DIAGNOSTICS_EXPOSURES } from "./contract.ts";

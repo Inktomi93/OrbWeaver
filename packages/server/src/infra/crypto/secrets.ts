@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import type { Sealed, SecretBox } from "./contract.ts";
 
 // AES-256-GCM encryption-at-rest for per-user secrets. Exposed as an injectable SecretBox (the project's
 // DI idiom) so the credentials store/resolver receive it and tests can supply a known key; the
@@ -16,29 +17,6 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 const GCM_ALGORITHM = "aes-256-gcm";
 // GCM's standard/recommended IV length is 12 bytes (96 bits).
 const IV_BYTES = 12;
-
-// @orb-waive no-inline-package-interface(Sealed): baselined when the gate landed; burn-down item 952.
-/** Encrypted-blob shape (AES-256-GCM); stored on `user_credentials`. */
-export interface Sealed {
-  /** base64 ciphertext. */
-  ciphertext: string;
-  /** base64-encoded 12-byte IV (fresh per encrypt). */
-  iv: string;
-  /** base64 GCM auth tag. */
-  tag: string;
-}
-
-// @orb-waive no-inline-package-interface(SecretBox): baselined when the gate landed; burn-down item 952.
-/** The encryption seam for per-user credentials; constructed once at entry/ and injected into
- *  `credentials.context`. The box receives the `aad` VALUE from the credentials domain on each call. */
-export interface SecretBox {
-  /** false when no valid CREDENTIALS_KEY is configured → per-user credential storage is off. */
-  readonly enabled: boolean;
-  /** Seal `plaintext`, binding it to `aad`. Throws if the box is disabled. */
-  encrypt: (plaintext: string, aad: string) => Sealed;
-  /** Open a sealed value, verifying `aad`. Throws if disabled, or if the key/AAD/tag don't verify. */
-  decrypt: (sealed: Sealed, aad: string) => string;
-}
 
 /** Build a SecretBox over a 32-byte key, or a disabled box when `key` is null (no valid key configured).
  *  The disabled box never throws here — only at encrypt/decrypt CALL time. */
@@ -71,3 +49,5 @@ export function createSecretBox(key: Buffer | null): SecretBox {
     },
   };
 }
+
+export type { Sealed, SecretBox } from "./contract.ts";

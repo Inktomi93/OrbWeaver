@@ -10,6 +10,7 @@ export type { EgressResolver, ScopedEgress, ScopedEgressOptions } from "./contra
 export type { NativeHttpBindings } from "./contract/http-server.ts";
 export type { PhysicalPeerRead } from "./contract/ingress.ts";
 export type { OwnedResponseBody } from "./contract/response-body.ts";
+export type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";
 export {
   __firewallConnectForTest,
   __pinnedAgentForTest,
@@ -58,4 +59,4 @@ export {
 export type { PluginGitSource, PluginGitSourceDeps } from "./plugin-git.ts";
 export { createNetworkPluginGitSource, createPluginGitSource, guardedGitHttp, materializePluginGitEntries, pluginGitSource } from "./plugin-git.ts";
 export { createOwnedResponseBody } from "./response-body.ts";
-export { startTlsTerminator, type TlsTerminator, type TlsTerminatorOptions } from "./tls-terminator.ts";
+export { startTlsTerminator } from "./tls-terminator.ts";

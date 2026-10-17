@@ -38,7 +38,6 @@ test("a closed inactive off-canvas pane stays in identity accounting without req
   const result = await runCli("snap", ["--file", join(scratch, "closed-pane.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(ActivityAuditReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
   expect(report.domPopulation.accounting).toMatchObject({ walked: 7, renderedSubjects: 4, retainedHiddenSubjects: 3 });
   expect(report.findings.some(({ selector }) => selector?.includes("closed-") ?? false)).toBe(false);
@@ -67,7 +66,6 @@ test("visible inactive paint and boxless ancestors remain judged", async ({ runC
   const result = await runCli("snap", ["--file", join(scratch, "pane-controls.html"), "--viewport", "360x640", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(ActivityAuditReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
   for (const testId of ["partial-paint", "zero-box-paint", "escaped-paint"]) {
     expect(report.findings.some(({ rule, selector }) => rule === "inactive-control-legibility" && (selector?.includes(testId) ?? false))).toBe(true);
@@ -106,7 +104,6 @@ test("retained Activity-shaped DOM stays in identity accounting but outside the 
   const result = await runCli("snap", ["--file", join(scratch, "activity-retained.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(ActivityAuditReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
 
   expect(report.findings.some(({ selector }) => selector?.includes("retained") ?? false)).toBe(false);
@@ -139,7 +136,6 @@ test("a retained main landmark cannot satisfy the rendered-surface landmark rule
     '<!doctype html><html data-app-ready="settled" style="color-scheme:dark"><head><meta charset="utf-8"><title>hidden main</title></head><body style="margin:0;background:#000;color:#fff;font:16px system-ui"><section role="region" aria-label="Active"><h1>Active surface</h1></section><section style="display:none"><main>retained</main></section></body></html>',
   );
   const auditRun = await runCli("snap", ["--file", join(scratch, "hidden-main.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(ActivityAuditReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as ActivityAuditReport;
   expect(report.findings.some(({ rule }) => rule === "landmark-missing")).toBe(true);
 });
@@ -155,7 +151,6 @@ test("a visibility-visible descendant is rendered and operable while its non-ove
   const auditRun = await runCli("snap", ["--file", join(scratch, "visibility-override.html"), "--fail-on", "P3", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(ActivityAuditReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(auditRun.stdout), "utf8")) as ActivityAuditReport;
 
   expect(report.populationAccounting["aria-name"]?.candidates).toBe(1);

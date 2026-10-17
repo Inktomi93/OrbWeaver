@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(BiomeConfig): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(BiomeReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // The PERMANENT PIN for the D12 arm of the ledger's banned shapes. The `@orb/contracts/sessions` ban is a
 // plain module-specifier ban, so biome's native `style/noRestrictedImports` owns it completely
 // (GATE-AUTHORING §10: never mirror an enabled native lint rule) — it retired out of the old

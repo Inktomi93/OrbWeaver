@@ -53,7 +53,7 @@ import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/co
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
-import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -70,6 +70,7 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import {
   addVariant,
   batchParticipantViews,

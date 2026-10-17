@@ -10,10 +10,11 @@ import type { ChatResult, ResolveOutcome } from "@orb/inference";
 import type { ChatId, Handle, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { buildCannedRpgWithText, buildRpg, CANNED_POPULATE, emptySpy, hostPrincipal, seedHostGameChat } from "./_rpg-support.ts";
 

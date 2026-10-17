@@ -1,27 +1,18 @@
-// Policy: no-test-fabrication (docs/law/Spine-Testing.md §10) — tests may not erase a contract with `X as any`,
-// fabricate typed entities with `X as unknown as Y`, assert an object/array literal `as Y`, or assert a value
-// `as Y` that the checker cannot prove (an `any`/`unknown` operand, or one not assignable to Y; the shared
-// `floor/code-facts/assignability.ts` decides). Every spelling survives a receiving contract gaining or renaming a
-// required field; use a typed factory, `satisfies`, a parse, or an explicit unknown/raw boundary instead.
-//
-// AUTHORITY: ordinary/error. The gate-owned `FABRICATION-OK` parser, stale table, and line-based findings are
-// retired. A deliberate occurrence uses the central exact-position waiver. Double casts report the authored
-// `unknown` keyword; literal and value casts report the asserted type's waivable leading slice. Both are exact node
-// coordinates; a type with no usable prefix anchors on its assertion keyword. A collision in one carrier
-// remains deliberately unwaivable through the central over-broad alarm. The 429 live legacy markers were re-attested to consumed cast nodes before source translation.
-//
-// FAMILY `no-test-fabrication` is a singleton over one cast classifier. POPULATION PORT: legacy
-// `scanRoot: p.startsWith("tests/")` and final `{ in:["@authored"], under:["tests/**"] }` admit the same
-// root test corpus; a production-source counterexample remains in mustPass. `selected-files` is honest: every
-// verdict is local to one AsExpression and its checker types, and no finalizer or shared fact exists.
+// Singleton cast classifier: tests cannot erase contracts with any, double casts or asserted literals.
+// Value casts additionally require native assignability, except tests/tooling under D325; all other arms retain it.
+// Ordinary/error uses central exact-position waivers; the retired gate-owned parser and stale table stay retired.
+// Double casts anchor unknown; literal/value casts anchor the type's waivable prefix or assertion keyword.
+// Each verdict is local to one assertion; production sources and legacy tests remain outside the population.
 import type { AsExpression, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
+import { compilePopulation } from "../lib/population-resolver.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "unknown"]);
+const judgesValueCast = compilePopulation({ in: ["@tests"], notUnder: ["tests/tooling/**"] });
 const ANY_CAST_MSG =
   "`X as any` in a test erases the receiving contract, so contract drift cannot fail the fixture. Use a production-derived type/factory, or an exact waiver only when invalid runtime input is the subject (Spine-Testing.md §3).";
 const DOUBLE_CAST_MSG =
@@ -119,7 +110,7 @@ export const gate = defineGate({
               reportTyped(ctx, node, literal, LITERAL_CAST_MSG(literal.getText()));
               return;
             }
-            if (valueCastTarget(node) !== undefined) {
+            if (judgesValueCast(ctx.relativePath(node.getSourceFile())) && valueCastTarget(node) !== undefined) {
               ctx.nativeTypes?.request({ kind: "cast-relations", nodes: [node] });
               candidates.push(node);
             }
@@ -174,6 +165,12 @@ export const gate = defineGate({
     },
     {
       mode: "types",
+      files: { "tests/support/node/x.ts": "export const x = {} as unknown as { a: number };\n" },
+      expect: { count: 1, token: "unknown", messageIncludes: "double-cast" },
+      why: "shared product builders must construct real values rather than using the tooling value-cast boundary",
+    },
+    {
+      mode: "types",
       files: { "tests/tooling/lit.test.ts": "export const b = { n: 1 } as Widget;\n" },
       expect: { count: 1, token: "Widget", messageIncludes: "literal" },
       why: "an object literal asserted complete as a concrete type",
@@ -193,7 +190,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/tooling/snap/run-bundle.test.ts":
+        "tests/client/snap/run-bundle.test.ts":
           "interface RunIndex {\n  readonly v: number;\n}\ndeclare const text: string;\nexport const index = JSON.parse(text) as RunIndex;\n",
       },
       expect: { count: 1, token: "RunIndex", messageIncludes: "value cast" },
@@ -202,7 +199,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/tooling/raw.test.ts": "interface Widget {\n  readonly n: number;\n}\ndeclare const raw: unknown;\nexport const value = raw as Widget;\n",
+        "tests/support/node/raw.ts": "interface Widget {\n  readonly n: number;\n}\ndeclare const raw: unknown;\nexport const value = raw as Widget;\n",
       },
       expect: { count: 1, token: "Widget", messageIncludes: "value cast" },
       why: "an `unknown` operand asserted into a shape: the value was never parsed",
@@ -210,7 +207,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/tooling/frame.test.ts":
+        "tests/client/frame.test.ts":
           "interface SdkFrame {\n  readonly kind: string;\n  readonly seq: number;\n}\ndeclare const frame: { readonly kind: string };\nexport const value = frame as SdkFrame;\n",
       },
       expect: { count: 1, token: "SdkFrame", messageIncludes: "value cast" },
@@ -218,6 +215,14 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "tests/tooling/artifact.test.ts":
+          "interface Artifact { readonly n: number }\ndeclare const raw: unknown;\nexport const value = raw as Artifact;\nexport const parsed = JSON.parse('{}') as Artifact;\n",
+      },
+      why: "D325 leaves tooling artifact value casts to the author without exempting any, literal or double casts",
+    },
     {
       mode: "types",
       files: {
@@ -234,7 +239,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/tooling/waived-value.test.ts":
+        "tests/support/node/waived-value.ts":
           "interface Widget {\n  readonly n: number;\n}\ndeclare const raw: unknown;\n// @orb-waive no-test-fabrication(Widget): deliberate invalid-input probe; ends when the reader accepts unknown.\nexport const value = raw as Widget;\n",
       },
       why: "the central positioned waiver licenses exactly one value cast, at the asserted type's leading slice",
@@ -242,7 +247,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        "tests/tooling/waived-global.test.ts":
+        "tests/client/waived-global.test.ts":
           "declare const host: unknown;\n// @orb-waive no-test-fabrication(typeof globalThis & { __reset:): deliberate global hook read; ends when the hook is injected.\nexport const reset = (host as typeof globalThis & { __reset: () => void }).__reset;\n",
       },
       why: "A HEAD CUT BEFORE A PARENTHESIS ends without its trailing space, so a marker can name it; reporting `{ __reset: ` with the space left the finding permanently unwaivable",

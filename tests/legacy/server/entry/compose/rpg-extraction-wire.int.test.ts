@@ -7,8 +7,9 @@ import "@orb/testkit/node/composed-real.ts";
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { seedCharacter, seedMessage, seedParticipant } from "../../domain/chat/_support.ts";
 import {
   buildCannedRpg,

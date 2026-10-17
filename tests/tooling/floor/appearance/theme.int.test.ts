@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-
 // The THEME arm of the settings shim, proven where it actually lives: a REAL browser run of the snap CLI
 // against a stub origin that answers BOTH tRPC reads the app makes — the batched `settings.getUserSettings`
 // GET and the `settings.listThemes` GET the shim itself asks to turn a NAME into the account's real id. The

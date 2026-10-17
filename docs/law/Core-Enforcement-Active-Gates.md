@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(276 registered gates)
+(245 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -73,27 +73,22 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `assets-single-writer` | — | reviewed-grant/error | @server,@db\* | an assets-table write or storeBlob… |
 | `assumes-single-replica` | — | ordinary/error | @server,@inference\* | module-scope mutable per-process… |
 | `audit-client-tests` | — | ordinary/error | @tests\* | a test file carries a structural… |
-| `baseui-portal-container-seam` | — | ordinary/error | @ui | a sealed Base UI portal does not… |
 | `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |
-| `brand-in-name-position` | id-brand-flow | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@inference,@tests | a parameter or field uses bare string… |
 | `bus-belt-total` | bus-definition | hard/error | @contracts,@client,@server | bus set is not TOTAL over its union —… |
 | `bus-consumer-belt` | bus-definition | hard/error | @contracts,@client,@server | a bus union has NO consumer coverage… |
 | `bus-definition-belts` | bus-definition | hard/error | @contracts,@client,@server | bus event union in @orb/contracts… |
-| `bus-fact-health` | bus-fact | hard/error | @contracts,@server | shared bus fact is incomplete — bus… |
 | `bus-on-data-no-store-write` | — | ordinary/error | @client\* | raw store write (.setState) inside a… |
 | `bus-payload-allowlist-health` | — | hard/error | @contracts | a bus-event wire shape could not be… |
-| `bus-producer-coverage` | bus-fact | ordinary/error | @contracts,@server | declared bus member has NO server… |
+| `bus-producer-coverage` | — | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
 | `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
 | `caught-failure-ownership` | — | ordinary/error | @product,@tooling | UNPROVEN OWNERSHIP for a caught… |
 | `caught-failure-ownership-health` | caught-failure-ownership | hard/error | @product,@tooling | the committed caught-failure census… |
 | `chat-stream-writes-in-bus-only` | — | reviewed-grant/error | @authored\* | the chatStream WRITE api is taken… |
-| `chat-viewer-plane-canon-reads` | chat-viewer-plane | ordinary/error | @server\* | a VIEWER-PLANE chat verb (matrix… |
-| `chat-viewer-plane-canon-reads-health` | chat-viewer-plane | hard/error | @server\* | the chat two-plane family is BLIND:… |
+| `chat-viewer-plane-canon-reads` | — | ordinary/error | @server\* | a VIEWER-PLANE chat verb (matrix… |
 | `chrome-registry-completeness` | registry-definitions | ordinary/error | @client | a chrome widget is dishonest: a… |
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
-| `client-cache-surgery-only-in-data` | tanstack-query-origin | reviewed-grant/error | @client\* | an imperative QueryClient cache call… |
 | `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
@@ -133,7 +128,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `depcruise-grant-liveness-health` | — | hard/error | none | the count of IRREDUCIBLE… |
 | `design-audit-rule-proof` | — | hard/error | @tooling,@tests\* | the design-audit proof denominator is… |
 | `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
-| `detached-work-traced-health` | detached-work-traced | hard/error | @server,@inference | detached-work-traced derived ZERO… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
@@ -152,7 +146,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `fk-ondelete-stated` | drizzle-schema | ordinary/error | @db\* | a .references(...) has no onDelete… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
-| `gate-modernization` | — | hard/error | @tooling\* | a gate file breaks the gate-authoring… |
 | `handle-key-writer` | external-id-single-writer | hard/error | @server | a users write that sets handle… |
 | `home-tile-registry-completeness` | registry-definitions | ordinary/error | @client | a home tile is dishonest: a… |
 | `injected-op-caller-param` | — | ordinary/error | @server,@kit | a cross-domain op takes an entity id… |
@@ -160,12 +153,9 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
 | `json-column-read-parsed` | open-json-column-key-parity | ordinary/error | @server\* | typed JSON column read by cast — the… |
 | `json-column-write-parity` | — | reviewed-grant/error | @db,@server,@contracts\* | WHOLE-RECORD REPLACE of a JSON column… |
-| `json-column-write-parity-health` | json-column-write-parity | hard/error | @db,@server,@contracts\* | DERIVED NOTHING — no text(..., {… |
 | `knob-wire-coverage` | — | reviewed-grant/error | @contracts,@server,@client,@ui | a declared knob is wired to nothing —… |
 | `ledger-symbol-liveness` | — | ordinary/error | none | a backticked file path in a D-ledger… |
-| `list-row-adoption` | — | ordinary/error | @client\* | a LIST-region row render returns… |
-| `macro-resolution-health` | macro-resolution | hard/error | @kit,@client,@ui | a macro resolver declaration… |
-| `macro-resolution-home` | macro-resolution | reviewed-grant/error | @client,@ui | macro resolution requires an exact… |
+| `macro-resolution-home` | — | reviewed-grant/error | @client,@ui | macro resolution requires an exact… |
 | `member-card-clamped` | — | ordinary/error | @authored | a member-card clamp boundary broke:… |
 | `membership-enforcer` | — | ordinary/error | @server\* | the chat scope is MEMBERSHIP-scoped,… |
 | `membership-fan-guard` | — | ordinary/error | @server\* | emitUserEvent identifier under… |
@@ -175,8 +165,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
-| `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
-| `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
 | `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
@@ -188,28 +176,19 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
-| `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
-| `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
 | `no-inline-package-interface` | no-inline-types | ordinary/error | @server,@inference,@ui-authoring\* | exported interface in server entry,… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
-| `no-interactive-role-in-features` | — | ordinary/error | @client\* | hand-rolled interactive ARIA role in… |
 | `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
-| `no-manual-autosave-flush` | — | ordinary/error | @client\* | this features/\*\* function body calls… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
-| `no-mint-via-cast` | id-brand-flow | hard/error | @product | castId wraps a fresh-id generator —… |
-| `no-multiplexed-mutation-error` | tanstack-query-origin | ordinary/error | @client\* | multiplexed mutation errors — v5… |
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
-| `no-raw-clock` | ambient-determinism | reviewed-grant/error | @product\* | raw Date.now() / new Date() —… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
-| `no-raw-intl-time` | — | reviewed-grant/error | @authored | raw Intl API or .toLocale\*() date… |
-| `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
@@ -218,7 +197,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
 | `open-json-column-key-parity` | — | reviewed-grant/error | @db,@server\* | an OPEN JSON column (mode:"json" +… |
-| `open-json-column-key-parity-health` | open-json-column-key-parity | hard/error | @db,@server\* | open-json-column-key-parity: DERIVED… |
 | `over-art-plate-arm` | — | ordinary/error | none | over-art plate law (UI-Theming-and-Con… |
 | `own-tables-only` | drizzle-schema | hard/error | @server\* | a domain touches its OWN tables… |
 | `owner-role-split` | role-vocabulary | reviewed-grant/error | @server,@inference | global-role literal comparison… |
@@ -237,7 +215,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `playwright-lane-outside-fast-check` | — | hard/error | @tooling | browser-mode test suffixes (.ct.tsx,… |
 | `plugin-dump-guard` | — | hard/error | @server\* | a QuickJS membrane ctx.dump can… |
 | `policy-binding-resolution` | policy-soundness | hard/error | @tooling\* | a FINAL policy module resolves a… |
-| `policy-family-readers` | policy-soundness | hard/error | @tooling\* | the family reader resolves no shared… |
 | `policy-fixture-substrate` | policy-soundness | hard/error | @tests\* | a family test filesystem mutation has… |
 | `policy-legacy-imports` | policy-soundness | hard/error | @tooling\* | a FINAL policy module imports the… |
 | `policy-proof-expectations` | policy-soundness | hard/error | @tooling\* | a mustFlag proof row is… |
@@ -247,7 +224,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `query-boundary-reservation` | — | ordinary/error | @client | a QueryBoundary whose fallback is a… |
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
-| `query-freshness-coverage-health` | query-freshness-coverage | hard/error | @client | the Invalidation anchor is present… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
 | `receded-ink-integrity` | — | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
@@ -260,7 +236,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `sanctioned-css-homes` | css-home-topology | hard/error | none | a repository-owned product stylesheet… |
 | `schema-banned-shapes` | drizzle-schema | hard/error | @db\* | a ledger-REJECTED schema shape has… |
 | `schema-branding` | drizzle-schema | ordinary/error | @db\* | a schema entity id is unbranded or an… |
-| `scrubber-factory-home` | scrubber-home | hard/error | @kit | the kit content home no longer… |
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
 | `section-factory-contribution-bundle` | registry-definitions | ordinary/error | @client | a section factory grew a positional… |
 | `section-registry-completeness` | registry-definitions | ordinary/error | @client | a section is dishonest: a… |
@@ -269,8 +244,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `serde-core-definition-uniqueness` | — | hard/error | @server | a SECOND declaration of a serde-core… |
 | `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
 | `server-layout` | — | hard/error | none | an illegal or missing top-level entry… |
-| `session-channel-boundary` | session-channel | ordinary/error | @client | a BroadcastChannel constructed… |
-| `session-channel-boundary-health` | session-channel | hard/error | @client | session-channel-boundary is BLIND:… |
+| `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
@@ -287,8 +261,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
-| `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
-| `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
 | `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
@@ -302,7 +274,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tests-raw-package-reach` | — | reviewed-grant/error | @tests | a test reaches a package's internals… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |
-| `tooling-argv-front-door-health` | process-member | hard/error | @tooling | blind gate — no tool cli.ts was seen… |
 | `tooling-artifact-path-home` | tooling-artifact | reviewed-grant/error | @tooling | a hand-rolled reports/\<kind> path —… |
 | `tooling-artifact-run-slot` | tooling-artifact | hard/error | @tooling | an instrument that files artifacts… |
 | `tooling-browser-door` | — | reviewed-grant/error | @tooling | a second Playwright door — a browser… |
@@ -339,10 +310,8 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `wire-json-parsed-at-consumer` | — | ordinary/error | @client,@server,@inference | a response body is cast instead of… |
 | `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
 | `z-index-tier-health` | — | hard/error | @client,@ui | the z-index implementation home set… |
-| `zod-error-issues-home` | zod-modern-spellings | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
-| `zod-modern-spellings` | — | ordinary/error | @product,@tests | a superseded zod spelling — the 4.4.3… |
+| `zod-error-issues-home` | — | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
-| `zustand-selector-stability` | — | ordinary/error | @authored\* | zustand selector returns a fresh… |
 
 Two deleted gate-local tables are still named here, on purpose, so their `dangling-ref-citations`
 reviewed grants stay live: `duplicate-action-doors`'s `EXEMPT_PROCEDURES` (its successor grants name

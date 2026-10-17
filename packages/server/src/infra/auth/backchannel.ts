@@ -16,36 +16,13 @@ import type { JWTPayload } from "jose";
 import { jwtVerify } from "jose";
 import { z } from "zod";
 import { securityEvent } from "#foundation/observability";
-import type { JwksReader } from "./contract.ts";
+import type { BackchannelLogoutVerifier, BackchannelVerifyArgs, JwksReader, LogoutTokenSubject } from "./contract.ts";
 
 // The back-channel-logout event URI the `events` claim MUST carry (OIDC BCL §2.4).
 const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
 // The same asymmetric alg pin jwks.ts uses for forward-header verify: jose already blocks alg:none and
 // key/alg-class confusion; pinning stops a future JWKS quirk widening what we accept (no RS256→HS256 downgrade).
 const PINNED_ALGS = ["RS256", "ES256"] as const;
-
-// @orb-waive no-inline-package-interface(LogoutTokenSubject): baselined when the gate landed; burn-down item 952.
-/** The subject a validated `logout_token` names — `sub` (the stable external id we key sessions on) and/or
- *  `sid`. At least one is non-null (§2.4). We revoke by `sub`; `sid` alone is validated but unactionable
- *  (we do not store a per-session IdP sid). */
-export interface LogoutTokenSubject {
-  readonly sub: string | null;
-  readonly sid: string | null;
-}
-
-// @orb-waive no-inline-package-interface(BackchannelVerifyArgs): baselined when the gate landed; burn-down item 952.
-export interface BackchannelVerifyArgs {
-  readonly logoutToken: string;
-  /** The issuer JWKS — an HTTPS URL or JSON literal admitted by the graph's {@link JwksReader}. */
-  readonly jwks: string;
-  readonly issuer: string;
-  readonly audience: string;
-}
-
-// @orb-waive no-inline-package-interface(BackchannelLogoutVerifier): baselined when the gate landed; burn-down item 952.
-export interface BackchannelLogoutVerifier {
-  readonly verify: (args: BackchannelVerifyArgs) => Promise<LogoutTokenSubject | null>;
-}
 
 const backchannelEventsSchema = z.object({ [BACKCHANNEL_EVENT]: z.object({}).loose() });
 const logoutTokenIdSchema = z.string();
@@ -122,3 +99,5 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
     },
   };
 }
+
+export type { BackchannelLogoutVerifier, BackchannelVerifyArgs, LogoutTokenSubject } from "./contract.ts";

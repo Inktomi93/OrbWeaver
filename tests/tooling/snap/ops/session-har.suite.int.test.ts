@@ -1,16 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(CDPSession): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly cookies: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly entries: readonly Record<string, unknown>[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly failure: unknown }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly generation: number }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly headers: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly headers: readonly { readonly name: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly log?: { readonly _orbRetention?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly pageIndex: number }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly wait?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
-
 // #1296: HAR is real correlated CDP Network evidence, never the shallow Playwright request summary.
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
@@ -166,10 +153,8 @@ function rejectNetworkEnable(cdp: CDPSession): CDPSession {
 
 function withoutPath(value: unknown, path: readonly string[]): unknown {
   const clone = structuredClone(value);
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   let cursor = clone as Record<string, unknown>;
   for (const key of path.slice(0, -1)) {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     cursor = cursor[key] as Record<string, unknown>;
   }
   Reflect.deleteProperty(cursor, path.at(-1) as string);
@@ -330,7 +315,6 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
     await expect(boot).toExitWith(EXIT.violations);
     const exported = await runCli("snap", ["--session-export", name], { env, timeoutMs: scaledBudget(60_000, 4) });
     await expect(exported).toExitWith(EXIT.clean);
-    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const exportIndex = JSON.parse(readFileSync(indexPath(exported.stdout), "utf8")) as {
       readonly identity: { readonly runId: string };
       readonly provenance: {
@@ -375,7 +359,6 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
     try {
       const concurrentExport = await runCli("snap", ["--session-export", name], { env, timeoutMs: scaledBudget(60_000, 4) });
       await expect(concurrentExport).toExitWith(EXIT.clean);
-      // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
       const concurrentIndex = JSON.parse(readFileSync(indexPath(concurrentExport.stdout), "utf8")) as {
         readonly identity: { readonly runId: string };
         readonly provenance: { readonly concurrency: readonly string[] };

@@ -24,7 +24,7 @@ import {
 } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal as principalOf } from "@orb/testkit/node/factories/principal.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { McpCallResult } from "@orb/testkit/node/mcp-in-memory.ts";
 import { connectMcpInMemory } from "@orb/testkit/node/mcp-in-memory.ts";
@@ -36,7 +36,7 @@ import type { ImageryService } from "#server/domain/imagery/index.ts";
 import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
-import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../../../inference/_support.ts";
+import { fakeConnection, fakeDeps, fakeModelCache, makeResolved, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { defOf, execOf, makeHarness } from "../../domain/tool-use/_support.ts";
 
 function row(role: TurnMessage["role"], text: string, name?: string): TurnMessage {

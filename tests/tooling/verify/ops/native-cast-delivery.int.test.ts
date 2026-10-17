@@ -11,7 +11,6 @@ import {
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-
 import { gate as looseIds } from "../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
 import { gate as fabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -55,6 +54,31 @@ function fixture(
   }
   execFixtureGit(root, ["init", "-q"]);
 }
+
+test("tooling value casts need neither native relations nor a native service at both execution doors", async ({ scratch, repoRoot }) => {
+  const path = "tests/tooling/artifact.test.ts";
+  fixture(scratch, repoRoot, {
+    [path]: "interface Artifact {readonly n:number} declare const raw:unknown; export const value=raw as Artifact;",
+    "tests/tooling/plain.test.ts": "export const value=1;",
+  });
+  const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
+  const workers = await import("../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts");
+  const original = contexts.projectCtx;
+  const context = vi.spyOn(contexts, "projectCtx").mockImplementation((root) => {
+    const { nativeTypeFacts: omitted, ...rest } = original(root);
+    expect(omitted).toBeDefined();
+    return rest;
+  });
+  const worker = vi.spyOn(workers, "runInventoryPartitionWorker");
+  try {
+    expect(await runStructure(scratch, ["--check=no-test-fabrication", `--file=${path}`])).toBe(0);
+    expect(await runScopedCli(scratch, ["--scope", path])).toBe(0);
+    expect(worker).not.toHaveBeenCalled();
+  } finally {
+    context.mockRestore();
+    worker.mockRestore();
+  }
+});
 
 test(
   "actual structure and scoped casts retain native Node and DOM timer meanings",

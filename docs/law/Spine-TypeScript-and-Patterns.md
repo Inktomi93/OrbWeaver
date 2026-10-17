@@ -22,6 +22,9 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **client-only view** | client | client |
 | **component or sealed UI primitive API** | the owning component, hook, factory or renderer | primitive callers and tests |
 | **server factory API** (a factory's deps, options, handle and result shapes in entry, transport, infra or foundation) | the file that declares the factory | the factory's callers in its tier |
+| **server adapter API shared across tiers** | adapter-owned contracts under [Tier-3-Infra](Tier-3-Infra.md#spine-intersections) | permitted server callers; no client reach |
+| **transport context, port and driver API** | explicit owners in [Tier-4-Transport](Tier-4-Transport.md#what-this-tier-owns) | permitted server callers |
+| **env posture policy API** | env-owned contract under [D326](../adr/0326-foundation-env-posture-contract.md) | permitted server callers; no client reach |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
 **The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.

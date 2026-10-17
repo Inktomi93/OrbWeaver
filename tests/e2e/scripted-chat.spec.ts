@@ -5,9 +5,9 @@
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
-import { charactersRailButton, messageRow, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
+import { charactersRailButton, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import type { FixtureProvider, FixtureTurn } from "./support/fixture-provider.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import type { CanonMessage } from "./support/trpc.ts";
@@ -24,6 +24,7 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
   await page.goto("/");
   await waitForAppReady(page);
   await charactersRailButton(page).click();
+  await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(CHARACTER);
   const cta = page.getByRole("button", { name: `Chat with ${CHARACTER}`, exact: true });
   const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
   await expect(row).toBeVisible();
@@ -45,7 +46,7 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
 async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: number, turn: FixtureTurn): Promise<void> {
   await expect.poll(() => fixture.requests.length).toBe(index + 1);
   const request = fixture.requests[index];
-  expect(request?.body).toContain(JSON.stringify(turn.userMessage));
+  expect(request?.body).toContain(turn.userMessage);
   expect(request?.finished).toBe(false);
   expect(request?.closed).toBe(false);
   await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(turn.prefix);
@@ -54,7 +55,13 @@ async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: num
 }
 
 async function assertProviderSocketClosed(fixture: FixtureProvider, index: number): Promise<void> {
-  await expect.poll(() => fixture.requests[index]?.socketClosed).toBe(true);
+  await expect
+    .poll(() => ({
+      socketClosed: fixture.requests[index]?.socketClosed,
+      responseClosed: fixture.requests[index]?.closed,
+      finished: fixture.requests[index]?.finished,
+    }))
+    .toEqual({ socketClosed: true, responseClosed: true, finished: false });
 }
 
 async function assertIdle(page: Page, timeout = 5000): Promise<void> {
@@ -64,16 +71,30 @@ async function assertIdle(page: Page, timeout = 5000): Promise<void> {
   await expect(page.locator('[data-slot="ghost-message-row"]')).toHaveCount(0, { timeout });
 }
 
-async function assertRenderedCanon(page: Page, messages: readonly CanonMessage[], timeout = 5000): Promise<void> {
-  const rows = page.locator('[data-slot="message-row"]');
-  await expect
-    .poll(() => rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("data-message-id"))), { timeout })
-    .toEqual(messages.map((message) => message.id));
-  for (const message of messages) {
-    const row = messageRow(page, message.id);
-    await expect(row).toHaveAttribute("data-role", message.role, { timeout });
-    await expect(row.getByRole("paragraph")).toHaveText(message.content, { timeout });
+async function readRenderedCanon(page: Page, count: number): Promise<(readonly [string | null, string | null, readonly string[]])[]> {
+  const rows = page.getByRole("log", { name: "Conversation messages", exact: true }).locator('[data-slot="message-list-row"]');
+  const active = rows.and(page.locator('[tabindex="0"]'));
+  await active.focus();
+  await active.press("Home");
+  const rendered: (readonly [string | null, string | null, readonly string[]])[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const row = rows.and(page.locator(`[aria-posinset="${String(index + 1)}"]`));
+    await expect(row).toBeFocused();
+    await expect(row).toHaveAttribute("aria-setsize", String(count));
+    await expect(row).toBeInViewport();
+    const message = row.locator('[data-slot="message-row"]');
+    const paragraphs = message.getByRole("paragraph");
+    await paragraphs.scrollIntoViewIfNeeded();
+    rendered.push([await message.getAttribute("data-message-id"), await message.getAttribute("data-role"), await paragraphs.allTextContents()]);
+    if (index + 1 < count) {
+      await row.press("ArrowDown");
+    }
   }
+  return rendered;
+}
+
+function assertRenderedCanon(rendered: Awaited<ReturnType<typeof readRenderedCanon>>, messages: readonly CanonMessage[]): void {
+  expect(rendered).toEqual(messages.map((message) => [message.id, message.role, [message.content]]));
 }
 
 function scriptedChatTitle(stopped: boolean): string {
@@ -126,22 +147,23 @@ for (const stopped of [false, true]) {
       expect(new Set(before.map((message) => message.id)).size).toBe(before.length);
       expect(before.map((message) => message.seq)).toEqual(before.map((message) => message.seq).toSorted((a, b) => a - b));
       expect(before.filter((message) => message.role === "assistant").every((message) => message.characterId === characterId)).toBe(true);
-      await assertRenderedCanon(page, before);
+      const rendered = await readRenderedCanon(page, before.length);
+      assertRenderedCanon(rendered, before);
       // Controlled wrong identities/content/order must fail the same rendered oracle that reload uses.
       const first = before[0];
       if (first === undefined) {
         throw new Error("owned transcript has no greeting");
       }
-      await expect(assertRenderedCanon(page, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)], 100)).rejects.toThrow();
-      await expect(assertRenderedCanon(page, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)], 100)).rejects.toThrow();
-      await expect(assertRenderedCanon(page, [...before].reverse(), 100)).rejects.toThrow();
+      expect(() => assertRenderedCanon(rendered, [{ ...first, id: before[1]?.id ?? first.id }, ...before.slice(1)])).toThrow();
+      expect(() => assertRenderedCanon(rendered, [{ ...first, content: "Wrong synthetic content" }, ...before.slice(1)])).toThrow();
+      expect(() => assertRenderedCanon(rendered, [...before].reverse())).toThrow();
       await renameOpenChat(page, TITLE);
       await page.reload();
       await waitForAppReady(page);
       await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
       await assertIdle(page);
       expect(await listCanon(chatId)).toEqual(before);
-      await assertRenderedCanon(page, before);
+      assertRenderedCanon(await readRenderedCanon(page, before.length), before);
     } finally {
       await fixture.close();
       await removeCharacter(characterId);

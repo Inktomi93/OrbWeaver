@@ -6,7 +6,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { UserId } from "@orb/kit/ids";
-import type { RuntimeTool } from "./contract.ts";
+import type { RuntimeTool, UserRuntimeDirs } from "./contract.ts";
 
 /** A TypeID (`user_…`) is `[a-z0-9_]+`; anything else could escape the root and is refused before a path is built. */
 const OWNER_SEGMENT = /^[a-z0-9_]+$/;
@@ -15,14 +15,6 @@ function assertOwnerSegment(ownerId: string): void {
   if (!OWNER_SEGMENT.test(ownerId)) {
     throw new Error(`userRuntimeDir: refusing owner segment ${JSON.stringify(ownerId)}`);
   }
-}
-
-// @orb-waive no-inline-package-interface(UserRuntimeDirs): baselined when the gate landed; burn-down item 952.
-export interface UserRuntimeDirs {
-  /** The path — created on first read (0700), so a spawn never races a missing directory. */
-  readonly dirFor: (ownerId: UserId, tool: RuntimeTool) => string;
-  /** Remove the user's whole tool dir — the credentials domain calls it when the row is deleted. */
-  readonly remove: (ownerId: UserId, tool: RuntimeTool) => void;
 }
 
 export function createUserRuntimeDirs(root: string): UserRuntimeDirs {
@@ -42,3 +34,5 @@ export function createUserRuntimeDirs(root: string): UserRuntimeDirs {
     },
   };
 }
+
+export type { UserRuntimeDirs } from "./contract.ts";

@@ -12,7 +12,7 @@ import type { Resolved } from "@orb/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -20,6 +20,7 @@ import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { QuietGenerateParams } from "#server/domain/chat/contract/context.ts";
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createQuietGenerate } from "#server/domain/chat/verbs/quiet-generate.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import { seedChat, testConnection } from "../_support.ts";
 
 let db: Db;

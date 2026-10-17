@@ -1,11 +1,10 @@
 // Resolved-connection fixtures; reusable capability defaults live in the ISO builder home.
 
-// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-import type { ResolvedSecret, ResolvedSecretKind } from "@orb/contracts/credentials";
+import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { CachePolicy, Capability, GenerationCapability, ResolvedCacheConnectionView, ResolvedConnectionView, Task } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
-import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { createSeededIds } from "../../iso/ids.ts";
 import { makeCapability, makeGenerationCapability } from "../../iso/inference-capability.ts";
@@ -35,26 +34,7 @@ export const TEST_OWNER_ID: UserId = castId<UserId>("user_test_owner");
  */
 export const TEST_CONNECTION_ID: UserConnectionId = castId<UserConnectionId>("user_connection_test0001");
 
-/** FABRICATION-OK brand cast — the ONE sanctioned place outside the domain mint; `ResolvedSecret` is
- *  brand-protected and unforgeable, so every builder routes its fully-typed input through this single cast. */
-export function makeResolvedSecret(
-  kind: ResolvedSecretKind = "none",
-  secret: string | null = null,
-  credentialId: UserCredentialId | null = null,
-): ResolvedSecret {
-  // @orb-waive no-test-fabrication(unknown): the ONE sanctioned brand cast (see the JSDoc above) — ResolvedSecret is unforgeable. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return { kind, secret, credentialId } as unknown as ResolvedSecret;
-}
-
-/** A brand-protected KEYED `apiKey` secret (the hosted-row shape). */
-export function makeApiKeySecret(
-  secret = "sk-test",
-  credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001"),
-): ResolvedSecret {
-  return makeResolvedSecret("apiKey", secret, credentialId);
-}
-
-export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId">> {
+export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Resolved<T>, "task" | "capability" | "providerId" | "credential">> {
   readonly task?: T | undefined;
   /** A built-in registry id (the row is looked up; the brand is applied here). */
   readonly providerId?: string | undefined;
@@ -63,9 +43,8 @@ export interface MakeResolvedOverrides<T extends Task> extends Partial<Omit<Reso
   readonly capability?: Capability | undefined;
 }
 
-/** A server-side `Resolved<T>` (default task `chat`) over a built-in provider row; every axis overridable. */
-export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOverrides<T> = {}): Resolved<T> {
-  const task = (overrides.task ?? "chat") as T;
+function resolvedFields(overrides: MakeResolvedOverrides<Task> = {}): Omit<Resolved, "credential"> {
+  const task = overrides.task ?? "chat";
   const providerId = overrides.providerId ?? TEST_PROVIDER_ID;
   const provider = overrides.provider ?? builtinProvider(providerId);
   if (provider === undefined) {
@@ -84,7 +63,6 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
     capability,
     requirement: requirementMet(capability, taskDef(task).requires),
     provider,
-    credential: makeResolvedSecret(),
     baseUrl: provider.baseUrl ?? (provider.auth === "endpoint" ? TEST_BASE_URL : null),
     features: foldFeatures(provider.features, undefined),
     extras: null,
@@ -96,9 +74,17 @@ export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOve
   };
 }
 
+/** A resolved connection consumes authority produced by the caller's credential owner. */
+export function makeResolved(overrides: MakeResolvedOverrides<"chat"> & { readonly credential: ResolvedSecret }): Resolved<"chat">;
+export function makeResolved<T extends Task>(overrides: MakeResolvedOverrides<T> & { readonly task: T; readonly credential: ResolvedSecret }): Resolved<T>;
+export function makeResolved(overrides: MakeResolvedOverrides<Task> & { readonly credential: ResolvedSecret }): Resolved {
+  const { credential, ...fields } = overrides;
+  return { ...resolvedFields(fields), credential };
+}
+
 /** A credential-free snapshot; an explicit connection id links it to another supplied fixture. */
 export function makeResolvedView(overrides: Partial<ResolvedConnectionView> = {}): ResolvedConnectionView {
-  const { task, providerId, wire, api, model, capability, requirement } = makeResolved();
+  const { task, providerId, wire, api, model, capability, requirement } = resolvedFields();
   return { task, connectionId: viewIds.typeId(ID_PREFIX.userConnection), providerId, wire, api, model, capability, requirement, ...overrides };
 }
 

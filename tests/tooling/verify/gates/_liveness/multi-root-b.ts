@@ -33,7 +33,6 @@ import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
-import { gate as scrubberFactoryHome } from "../../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 import { gate as structuredPlanOneHome } from "../../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
 
@@ -156,12 +155,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: realCorpusLivenessManifest,
     overlays: [probeGate({ id: "liveness-unpinned" })],
     messageIncludes: "no real-corpus liveness pin",
-  },
-  {
-    policy: scrubberFactoryHome,
-    // The content home keeps its helpers and loses the stateful factory's name.
-    overlays: [edit("packages/kit/src/content/index.ts", "export function createHiddenSpanStreamScrubber(", "export function createLivenessRenamedScrubber(")],
-    messageIncludes: "createHiddenSpanStreamScrubber",
   },
   {
     policy: staleDraftDecisionHealth,

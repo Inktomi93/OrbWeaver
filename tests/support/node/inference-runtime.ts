@@ -9,7 +9,7 @@ import { createInferenceRuntime, resolveEmbed } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
-import { makeResolvedSecret, TEST_BASE_URL } from "./factories/resolved-connection.ts";
+import { TEST_BASE_URL } from "./factories/resolved-connection.ts";
 
 type EmbeddingRuntime = Parameters<typeof createResolveEmbeddingConnection>[0];
 type EmbeddingTask = "embed" | "imageEmbed";
@@ -54,8 +54,8 @@ function rowOf(ownerId: UserId, id: UserConnectionId, task: EmbeddingTask, view:
   };
 }
 
-/** Everything but the stores is the inert edge: no network, no credentials, no accounting. */
-function scriptedDeps(stores: Pick<InferenceDeps, "connections" | "bindings">): InferenceDeps {
+// The caller owns credential resolution; scripted stores cannot manufacture execution authority.
+function scriptedDeps(stores: Pick<InferenceDeps, "connections" | "bindings" | "resolveCredential">): InferenceDeps {
   const snapshots = new Map<string, string>();
   return {
     ...stores,
@@ -79,7 +79,6 @@ function scriptedDeps(stores: Pick<InferenceDeps, "connections" | "bindings">): 
         return Promise.resolve();
       },
     },
-    resolveCredential: () => Promise.resolve(makeResolvedSecret()),
     providerStore: {
       list: () => Promise.resolve({ rows: [], installs: [] }),
       putAdmin: () => Promise.reject(new Error("the scripted runtime registers no providers")),
@@ -96,7 +95,7 @@ function scriptedDeps(stores: Pick<InferenceDeps, "connections" | "bindings">): 
 /** One task's production resolve over that task's scripted view. The view is re-read on every resolve, so a test
  *  that re-scripts it sees the next resolve move with it. */
 function scriptedTaskRuntime(
-  roleClients: { readonly resolved: RoleClients["resolved"] },
+  roleClients: { readonly resolved: RoleClients["resolved"]; readonly resolveCredential: InferenceDeps["resolveCredential"] },
   task: EmbeddingTask,
   connectionOf: ((funder: UserId, task: EmbeddingTask) => UserConnectionId) | undefined,
   owned: (funder: UserId) => readonly ScriptedOwnedRow[],
@@ -118,6 +117,7 @@ function scriptedTaskRuntime(
   };
   const runtime = createInferenceRuntime(
     scriptedDeps({
+      resolveCredential: roleClients.resolveCredential,
       connections: {
         get: (id) => Promise.resolve(rows.get(id) ?? null),
         listForOwner: (ownerId) => Promise.resolve([...rows.values()].filter((row) => row.ownerId === ownerId)),
@@ -157,12 +157,15 @@ export function makeEmbeddingRuntime(
       opts: { readonly signal?: AbortSignal | undefined },
     ) => ReturnType<RoleClients["imageEmbed"]>;
   },
+  resolveCredential: InferenceDeps["resolveCredential"],
   connectionOf?: (funder: UserId, task: EmbeddingTask) => UserConnectionId,
   owned: (funder: UserId) => readonly ScriptedOwnedRow[] = () => [],
 ): EmbeddingRuntime {
   // One scripted store and runtime per task: a fake bundle may bind both tasks to one row id with two different models,
   // which one stored row cannot say, so each task's resolve reads its own view of that row.
-  const scripted = new Map(EMBEDDING_TASKS.map((task) => [task, scriptedTaskRuntime(roleClients, task, connectionOf, owned)] as const));
+  const scripted = new Map(
+    EMBEDDING_TASKS.map((task) => [task, scriptedTaskRuntime({ ...roleClients, resolveCredential }, task, connectionOf, owned)] as const),
+  );
   return {
     resolve: (args): ReturnType<EmbeddingRuntime["resolve"]> => {
       const task = args.task;

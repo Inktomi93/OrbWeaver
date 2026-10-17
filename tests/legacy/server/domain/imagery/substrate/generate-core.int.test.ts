@@ -10,7 +10,7 @@ import { closeDb, imageryGenerations, modelStats, ownerStats, userConnections } 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { runOpenAiCompatGenerateImage } from "#inference/backends/openai-compat/images.ts";
@@ -18,7 +18,7 @@ import { passthroughImageNormalizer } from "#inference/backends/wire/image-norma
 import { GenerationFailedError } from "#server/domain/imagery/index.ts";
 import { runGeneration, sumCost } from "#server/domain/imagery/substrate/generate-core.ts";
 import { applyStatsDelta, reconcileStats } from "#server/domain/stats/index.ts";
-import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../../../../inference/_support.ts";
+import { fakeApiKeySecret, fakeDeps, fakeResolved, makeResolved } from "../../../../inference/_support.ts";
 import { makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_support.ts";
 
 /** The request shape `runGeneration` takes, named so the deliberate fabrication below has a ONE-LINE

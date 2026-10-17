@@ -1,8 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { createWrappedNode, Node } from "ts-morph";
-import ts from "typescript";
+import { createWrappedNode, Node, ts } from "ts-morph";
 import { vi } from "vitest";
 import { readStaticAuthoredScalar } from "../../../../tooling/src/floor/code-facts/static-authored-value.ts";
 import { resolveTypeMemberOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";

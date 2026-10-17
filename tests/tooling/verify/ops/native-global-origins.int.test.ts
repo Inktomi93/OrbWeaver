@@ -54,7 +54,7 @@ function lint(config: Linter.Config, native: ts.Program, path: string, source: s
     source,
     {
       files: ["**/*.ts"],
-      plugins: config.plugins,
+      ...(config.plugins === undefined ? {} : { plugins: config.plugins }),
       languageOptions: { parser: tseslint.parser, parserOptions: { programs: [native], projectService: false } },
       linterOptions: { reportUnusedDisableDirectives: "error" },
       rules: { [CLOCK]: "error", [RANDOM]: "error" },
@@ -126,7 +126,7 @@ test("native ambient judgments refuse absent or null owning parser Programs", as
         "export const value=0;",
         {
           files: ["**/*.ts"],
-          plugins: config.plugins,
+          ...(config.plugins === undefined ? {} : { plugins: config.plugins }),
           languageOptions: { parser: tseslint.parser, parserOptions: { projectService: false } },
           rules: { [rule]: "error" },
         },

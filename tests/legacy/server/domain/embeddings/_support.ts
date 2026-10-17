@@ -55,6 +55,7 @@ import type { EmbeddingsIndexerContext, EmbeddingsService } from "#server/domain
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
+import { makeResolvedSecret } from "../../../inference/_support.ts";
 
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */
 export const EMBED_DIM = 8;
@@ -292,6 +293,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
               : resolved;
           },
         },
+        () => Promise.resolve(makeResolvedSecret()),
         vectorConnectionOf,
       ),
       (userId) => Promise.resolve(principal(userId)),

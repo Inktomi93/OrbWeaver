@@ -143,6 +143,8 @@ export async function gotoChatsList(page: Page): Promise<void> {
   await page.goto("/");
   await waitForAppReady(page);
   const chatsRail = chatsRailButton(page);
+  const closeDetails = page.getByRole("button", { name: "Close details", exact: true });
+  const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
   const chatsList = page.getByRole("list", { name: "Chats list" });
   const emptyState = page.getByText("No chats yet");
   // COLD-BOOT RESILIENCE (the reason this is a retry loop, not a bare click). The FIRST navigation into the
@@ -151,6 +153,12 @@ export async function gotoChatsList(page: Page): Promise<void> {
   // one-shot rail click and lands the caller back on the home surface. So poll: (re-)click the rail and
   // confirm the list surface settled; a mid-boot reload just re-enters the loop. Warm navigation clicks once.
   await expect(async () => {
+    if (await closeDetails.isVisible()) {
+      await closeDetails.click();
+    }
+    if (await backToChats.isVisible()) {
+      await backToChats.click();
+    }
     await chatsRail.click({ timeout: WAIT_SHORT_MS });
     await expect(chatsList.or(emptyState).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
   }).toPass({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
@@ -326,6 +334,11 @@ const CHARACTER_CHIP = '[data-slot="character-chip"]';
  *  unambiguous on the shared DB. */
 export async function openChatByTitle(page: Page, title: string): Promise<void> {
   await gotoChatsList(page);
+  const search = page.getByRole("textbox", { name: "Search chats", exact: true });
+  if (!(await search.isVisible())) {
+    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+  }
+  await search.fill(title);
   const row = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: title }).first();
   await expect(row).toBeVisible({ timeout: COLD_CHAT_SURFACE_TIMEOUT });
   await row.click();

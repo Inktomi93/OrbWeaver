@@ -15,9 +15,9 @@ import type { ResolveArgs, ResolveOutcome } from "@orb/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "#server/domain/connection/substrate/embed-space.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 
 const CALLER = principal(castId<UserId>("user_space_owner"));
 

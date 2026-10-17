@@ -16,7 +16,7 @@ import { DomainOperationError } from "@orb/kit/errors";
 import { settingInstruction } from "#foundation/env";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
-import type { AllowedHostsReader, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";
+import type { AllowedHostsReader, HostFacts, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";
 import { normalizeHost } from "./host.ts";
 import { createKeyedNoticeThrottle } from "./notice-throttle.ts";
 
@@ -24,19 +24,6 @@ const VALUE_SEPARATOR = ",";
 // RFC 1035's name bound: a longer value is no DNS name, and the refusal and the log line echo at most this much.
 const MAX_ECHO_CHARS = 253;
 const RELAY_HOST_INVALID = "relay_host_invalid";
-
-// @orb-waive no-inline-package-interface(HostFacts): baselined when the gate landed; burn-down item 952.
-/** The request facts the decision reads. `forwardedHost` counts only when `peer` is a trusted hop. */
-export interface HostFacts {
-  /** The `Host` header, absent on HTTP/2 and on an in-process request. */
-  readonly hostHeader: string | undefined;
-  /** The authority of the request URL, which the node adapter builds from `Host` or the absolute request line. */
-  readonly urlHost: string;
-  readonly forwardedHost: string | undefined;
-  /** The raw TCP peer; read only when `forwardedHost` is present. */
-  readonly peer: () => string | undefined;
-  readonly trustedProxies: readonly string[];
-}
 
 /** One authority as a bare, comparable host: lower-cased, no port, no brackets, no trailing dot. An IPv6 zone id
  *  stays on; `isAlwaysAllowedHost` owns reading an IP literal. */
@@ -151,3 +138,5 @@ export function createHostNotAllowedNotice(now: () => number, inContainer: boole
     });
   };
 }
+
+export type { HostFacts } from "./contract.ts";

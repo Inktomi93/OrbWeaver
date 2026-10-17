@@ -25,7 +25,6 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { and, eq } from "drizzle-orm";
 import type { ConnectionContext, ConnectionService } from "#server/domain/connection/index.ts";
 import { createConnectionPorts, createConnectionService } from "#server/domain/connection/index.ts";
@@ -38,6 +37,7 @@ import { createGatherRetrieval } from "../../../packages/server/src/domain/datab
 import { countOwnedVectors } from "../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import type { SearchService } from "../../../packages/server/src/domain/search/index.ts";
 import { seedLocalLightOnBoot } from "../../../packages/server/src/entry/boot/seed-local-light.ts";
+import { makeResolvedSecret } from "../../../tests/legacy/inference/_support.ts";
 import { makeChatContext } from "../../../tests/legacy/server/domain/chat/_support.ts";
 import {
   makeSearch,

@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly scripts?: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
-
 // Native proof for the repository-resource execution group. `groupOrder` is the cross-group barrier;
 // `fileParallelism:false` is the separate within-group lock. Tags or names alone provide neither.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";

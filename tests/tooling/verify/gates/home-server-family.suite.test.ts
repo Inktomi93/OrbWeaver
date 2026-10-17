@@ -1,7 +1,4 @@
-// The sanctioned-home SERVER family (#1584): nine legacy gates whose exceptions were recurring repository
-// PERMISSIONS carried in gate-local `SANCTIONED_HOMES`/allowlist tables, converted to reviewed-grant policies
-// whose exceptions live in the ONE central grant table — plus the hard `scrubber-factory-home` sibling split
-// off `scrubber-home` because a definition site's liveness is a completeness claim and not a permission.
+// Sanctioned-home policies retain exact reviewed permissions and unreadable-input refusal.
 //
 // Beyond the per-policy proofs this file pins the two things a proof CANNOT: the receipt refusals (a policy
 // whose home or vocabulary stopped resolving must WITHHOLD its verdict rather than render a clean pass) and
@@ -26,7 +23,6 @@ import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/ser
 import { gate as contentPartSeam } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as noDirectUsersRead } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as ownerRoleSplit } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
-import { gate as scrubberFactoryHome } from "../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as scrubberHome } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as singleStreamTransport } from "../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole-env-reader.ts";
@@ -42,7 +38,6 @@ const FAMILY: readonly GatePolicy[] = [
   contentPartSeam,
   noDirectUsersRead,
   ownerRoleSplit,
-  scrubberFactoryHome,
   scrubberHome,
   singleStreamTransport,
   soleEnvReader,
@@ -241,16 +236,6 @@ test("the D51 seam WITHHOLDS its verdict when the content-part declaration leave
   expect(moved.toolErrors).toMatchObject([{ policyId: "content-part-seam", phase: "receipt", message: expect.stringContaining("declaration home") }]);
   expect(moved.authority.withheldPolicyIds).toEqual(["content-part-seam"]);
   expect(moved.authority.effectiveFindings).toEqual([]);
-});
-
-test("the scrubber's DEFINITION home refuses when its directory holds no source, and reports when the export is gone", () => {
-  const gone = passOf(scrubberFactoryHome, { "packages/kit/src/time/index.ts": "export const nowMs = (): number => 0;\n" });
-  expect(gone.toolErrors).toMatchObject([{ policyId: "scrubber-factory-home", phase: "receipt", message: expect.stringContaining("kit content home") }]);
-  expect(gone.authority.withheldPolicyIds).toEqual(["scrubber-factory-home"]);
-
-  const renamed = passOf(scrubberFactoryHome, { "packages/kit/src/content/index.ts": "export const stripHiddenSpans = (text: string): string => text;\n" });
-  expect(renamed.toolErrors).toEqual([]);
-  expect(renamed.authority.effectiveFindings).toMatchObject([{ policyId: "scrubber-factory-home" }]);
 });
 
 test.each([

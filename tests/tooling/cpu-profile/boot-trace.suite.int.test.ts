@@ -1,11 +1,3 @@
-// @orb-waive-file no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(BootTraceReport): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly artifacts: readonly SnapRunArtifact[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly traceEvents: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly traceEvents: readonly { readonly name?: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: this fixture plants every capability the one observed Chrome-MCP navigation trace
 // returned: an image LCP, a stylesheet dependency chain, an oversized uncompressed document/image, and
 // forced synchronous layout. The real perf-meter CLI must start tracing BEFORE its navigation, retain the

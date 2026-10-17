@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(MembershipReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // The PERMANENT PIN for the `tests-membership` stage's #1228 triple-slash-lib-leak tripwire
 // (`findTripleSlashLibLeaks`, tooling/src/verify/ops/tests-type-membership.ts). What it defends, and why:
 //

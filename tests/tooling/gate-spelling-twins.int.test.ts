@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly blind: SpellingBlindSet }): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE AUTHORING CONTROL for #1506 — a gate cannot ship the spelling hole.
 //
 // A gate's own conformance rows prove it bites THE SHAPE ITS AUTHOR WROTE. Nothing proved it bites the

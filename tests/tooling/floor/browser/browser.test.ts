@@ -28,7 +28,6 @@ test("probe cleanup reports every independent teardown failure", async () => {
 
   const failure = await closeProbeSession(session).catch((error: unknown) => error);
   expect(failure).toBeInstanceOf(AggregateError);
-  // @orb-waive no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
   expect((failure as AggregateError).errors).toEqual([firstFailure, secondFailure, browserFailure]);
 });
 
@@ -54,7 +53,6 @@ test("probe ownership preserves the body failure and also surfaces cleanup failu
 
   const failure = await withProbeSession(session, () => Promise.reject(bodyFailure)).catch((error: unknown) => error);
   expect(failure).toBeInstanceOf(AggregateError);
-  // @orb-waive no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
   expect((failure as AggregateError).errors).toEqual([bodyFailure, cleanupFailure]);
 });
 
