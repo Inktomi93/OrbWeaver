@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(Record<string, { readonly follow?: boolean }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(StageDef): baselined when the gate widened to value casts; burn-down item 906.
-
 // The `pnpm verify` orchestrator's pure helpers (UNIFIED-VERIFICATION-DESIGN.md §3.1/§3.3): the per-tool
 // exit-code classifiers and the run-level max-severity aggregation. Pins the SAME 0/1/2/3 contract the
 // retired `pnpm check` orchestrator spoke — now generalized to the registry's named adapters (this test
@@ -293,7 +290,6 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
     expect(result.code, result.stdout + result.stderr).toBe(checkerExit);
     expect(result.stdout).toContain("tier=product · scope=application");
     expect(result.stdout).toContain("tier: product, scope: application");
-    // @orb-waive no-test-fabrication(VerifyReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
     expect(report).toMatchObject({
       tier: "product",
@@ -573,7 +569,6 @@ test("one native stage and one package script replace the three legacy compiler 
   for (const retired of ["types:packages", "types:graph", "types:tests-dom"]) {
     expect(REGISTRY.some(({ name }) => name === retired)).toBe(false);
   }
-  // @orb-waive no-test-fabrication({ readonly scripts: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
   const scripts = (JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as { readonly scripts: Record<string, string> })
     .scripts;
   expect(scripts["typecheck"]).toBe("node tooling/src/verify/cli.ts typecheck");
@@ -642,7 +637,6 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
   expect(stage("browser:ct").tiers).toEqual(["changed", "push", "full", "product"]);
   // The composition remains the explicit combined product-test command: if `test` stops composing
   // test:ct, callers asking for the combined behavioral suites silently lose CT coverage.
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const rootPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
@@ -667,7 +661,6 @@ test("the push tier carries the behavioral suites the static tier omits (the `bo
 });
 
 test("public command families keep one canonical front door", () => {
-  // @orb-waive no-test-fabrication({ readonly scripts: Record<string, string> }): baselined when the gate widened to value casts; burn-down item 906.
   const scripts = (JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as { readonly scripts: Record<string, string> })
     .scripts;
   expect(scripts["check:type-ownership"]).toContain("tests-membership");
@@ -1034,7 +1027,6 @@ test("lint:eslint scopedArgv: tooling AND every test dir are in the eslint surfa
   }
   // ...and the SCRIPT half, pinned against package.json itself — a regex that agreed with nothing would
   // read exactly like coverage.
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
@@ -1045,7 +1037,6 @@ test("lint:eslint reaches root and package-root Node tools through shared world 
   for (const file of ["knip.ts", "playwright-ct.config.ts", "packages/ui/token-contract.ts"]) {
     expect(resolveSelection({ kind: "file", paths: [file] }).eslintPaths).toEqual([file]);
   }
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const eslintPkg = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
     readonly scripts: Record<string, string>;
   };
@@ -1720,7 +1711,6 @@ process.exitCode = await runVerify(${JSON.stringify(scratch)}, parsed);
     env: childEnv,
   });
   const output = `${child.stdout}${child.stderr}`;
-  // @orb-waive no-test-fabrication(VerifyReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(readFileSync(join(scratch, "reports", "verify.json"), "utf8")) as VerifyReport;
   return { code: child.code, output, report };
 }

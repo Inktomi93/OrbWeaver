@@ -24,7 +24,7 @@ import type { DeliveredCue } from "../../../packages/server/src/domain/chat/cont
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
-import { makeApiKeySecret, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeApiKeySecret, makeResolved } from "../../../tests/legacy/inference/_support.ts";
 import { filler, jsonl, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or13";

@@ -79,8 +79,10 @@ export class PluginNoGitSourceError extends DomainOperationError {
  *  file — upload a new bundle to update it", not "not found". Thrown AFTER the owner-scoped load (so it never
  *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
 export class PluginNoSourceUrlError extends DomainOperationError {
-  // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
-  constructor(pluginId: string) {
+  constructor(
+    // eslint-disable-next-line orb/brand-in-name-position -- echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+    pluginId: string,
+  ) {
     super(
       "plugin_no_source_url",
       `plugin ${pluginId} was installed from a file, not a URL — upload a new bundle to update it (there is no remembered source to re-fetch)`,
@@ -97,8 +99,10 @@ export class PluginNoSourceUrlError extends DomainOperationError {
  *  It is also the SWEEP's teeth: A's seeded probe row is not a showcase slug, so a dropped ownership pre-check
  *  would surface this distinguishable BAD_REQUEST instead of the leak-free NOT_FOUND the probe pins. */
 export class PluginNotShowcaseError extends DomainOperationError {
-  // @orb-waive brand-in-name-position(pluginId): echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
-  constructor(pluginId: string) {
+  constructor(
+    // eslint-disable-next-line orb/brand-in-name-position -- echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+    pluginId: string,
+  ) {
     super(
       "plugin_not_showcase",
       `plugin ${pluginId} is not one of the examples this build ships — there is no bundled copy to update it from (upload a new bundle instead)`,
@@ -176,8 +180,10 @@ export class PluginCrashedError extends DomainUnavailableError {}
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
  *  way). Maps to NOT_FOUND. */
 export class PluginNotFoundError extends DomainNotFoundError {
-  // @orb-waive brand-in-name-position(pluginId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-  constructor(pluginId: string) {
+  constructor(
+    // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
+    pluginId: string,
+  ) {
     super("plugin", pluginId);
   }
 }

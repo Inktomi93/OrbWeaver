@@ -12,6 +12,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 import {
   API_FIXTURE,
   API_ROOT,
+  CORPUS_JOB_NAMES,
   GENERATION,
   goodJob,
   goodProductJobs,
@@ -247,7 +248,7 @@ test.for(["current", "previous-generation", "missing-node-legacy", "missing-ct-l
       )
       .map((job) =>
         scenario === "previous-generation"
-          ? { ...job, steps: job.steps.map((step) => ({ ...step, name: step.name.replace(GENERATION, "Orbweaver qualification product-v3") })) }
+          ? { ...job, steps: job.steps.map((step) => ({ ...step, name: step.name.replace(GENERATION, "Orbweaver qualification product-v4") })) }
           : job,
       );
     writeFileSync(
@@ -262,5 +263,59 @@ test.for(["current", "previous-generation", "missing-node-legacy", "missing-ct-l
     expect(result.status, result.stdout + result.stderr).toBe(scenario === "current" ? 0 : 1);
     expect(result.stdout).toBe("");
     expect(result.stderr).toBe(scenario === "current" ? "" : `release: CI for ${head} is not green under the current qualification generation\n`);
+  },
+);
+
+test.for(["complete", "missing-cell", "duplicate-cell", "failed-cell", "unexpanded-runtime", "unknown-matrix", "numeric-matrix", "unexpanded-name"] as const)(
+  "the production release producer requires the canonical corpus population: %s",
+  async (scenario, { scratch, repoRoot, fakeBin }) => {
+    await fakeBin("gh", API_FIXTURE);
+    execFixtureGit(scratch, ["init", "--initial-branch=main"]);
+    execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
+    execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
+    writeFileSync(join(scratch, ".gitignore"), "fake-bin\nci-*\n");
+    mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
+    let source = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8");
+    if (scenario === "unknown-matrix") {
+      source = source.replace("${{ fromJSON(needs.changes.outputs.corpus-matrix) }}", "${{ fromJSON(needs.untrusted.outputs.matrix) }}");
+    } else if (scenario === "numeric-matrix") {
+      source = source.replace("${{ fromJSON(needs.changes.outputs.corpus-matrix) }}", "{ shard: [1] }");
+    } else if (scenario === "unexpanded-name") {
+      source = source.replace("e2e corpus (${{ matrix.project }})", "e2e corpus (${{ matrix.unexpanded }})");
+    }
+    writeFileSync(join(scratch, ".github/workflows/ci.yml"), source);
+    execFixtureGit(scratch, ["add", "."]);
+    execFixtureGit(scratch, ["commit", "-m", "canonical corpus qualification"]);
+    const head = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
+    const cell = CORPUS_JOB_NAMES[0];
+    if (cell === undefined) {
+      throw new Error("canonical corpus qualification has no cells");
+    }
+    const complete = [goodJob(head), ...goodProductJobs(head)];
+    let jobs = complete;
+    if (scenario === "missing-cell") {
+      jobs = complete.filter(({ name }) => name !== cell);
+    } else if (scenario === "duplicate-cell") {
+      jobs = [...complete, { ...goodJob(head, 1000), name: cell, steps: [] }];
+    } else if (scenario === "failed-cell") {
+      jobs = complete.map((job) => (job.name === cell ? { ...job, conclusion: "failure" } : job));
+    } else if (scenario === "unexpanded-runtime") {
+      jobs = [
+        ...complete.filter(({ name }) => !CORPUS_JOB_NAMES.includes(name)),
+        { ...goodJob(head, 1000), name: "e2e corpus (${{ matrix.project }})", steps: [] },
+      ];
+    }
+    writeFileSync(
+      join(scratch, "ci-api.json"),
+      JSON.stringify({ ...metadata(head), [`${API_ROOT}/runs/1/attempts/2/jobs?per_page=100&page=1`]: { ["total_count"]: jobs.length, jobs } }),
+    );
+    const result = spawnSync(process.execPath, [join(repoRoot, "scripts/ci-qualification.ts"), "release", head], {
+      cwd: scratch,
+      encoding: "utf8",
+      env: inheritedProcessEnv(),
+    });
+    const malformed = scenario === "unknown-matrix" || scenario === "numeric-matrix" || scenario === "unexpanded-name";
+    const proofExit = scenario === "complete" ? 0 : 1;
+    expect(result.status, result.stdout + result.stderr).toBe(malformed ? 2 : proofExit);
   },
 );

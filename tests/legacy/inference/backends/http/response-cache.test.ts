@@ -2,13 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { modelIdSchema, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { cachePolicyContextOf, responseCacheHeaders, responseCacheOf } from "#inference/backends/http/response-cache.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "#inference/backends/http/sanitize.ts";
 import type { ResolveCachePolicyInput } from "#inference/contract/resolve.ts";
 import { resolveCachePolicy } from "#inference/funnel/resolve-cache.ts";
 import { appendEvidence } from "../../../../../scripts/probes/caching/evidence.ts";
+import { makeResolved } from "../../_support.ts";
 
 function configuredCache(headers: Readonly<Record<string, string>> | undefined): ResolveCachePolicyInput["context"]["configuredReplay"] {
   return cachePolicyContextOf(makeResolved({ providerId: "openrouter", transport: { headers: headers ?? {} } }), true).configuredReplay;

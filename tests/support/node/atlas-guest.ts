@@ -65,7 +65,7 @@ export interface AtlasDrive {
 
 /** What one ingest answers: the character it landed on, and whether this call CREATED it. */
 export interface AtlasIngestOutcome {
-  // @orb-waive brand-in-name-position(characterId): the guest SANDBOX wire — the fake host hands the guest the same bare string host-v1's `characterId` is, and the guest reads it with no brand validation; branding it would claim a check this boundary never performs. Ends if host-v1 brands its characterId.
+  // eslint-disable-next-line orb/brand-in-name-position -- the guest SANDBOX wire — the fake host hands the guest the same bare string host-v1's `characterId` is, and the guest reads it with no brand validation; branding it would claim a check this boundary never performs. Ends if host-v1 brands its characterId.
   readonly characterId: string;
   readonly created: boolean;
 }
@@ -131,8 +131,11 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
           // No art plane here: the guest's PNG-first arm folds to the JSON arm on rejection, which is the
           // path a PNG-less hub takes in production too.
           ingestAsset: (): Promise<never> => Promise.reject(new Error("no art plane in this harness")),
-          // @orb-waive brand-in-name-position(characterId): the guest SANDBOX wire — the fake host hands the guest the same bare string host-v1's `characterId` is, and the guest reads it with no brand validation; branding it would claim a check this boundary never performs. Ends if host-v1 brands its characterId.
-          setCardData: (characterId: string, data: unknown): Promise<void> => {
+          setCardData: (
+            // eslint-disable-next-line orb/brand-in-name-position -- the guest SANDBOX wire — the fake host hands the guest the same bare string host-v1's `characterId` is, and the guest reads it with no brand validation; branding it would claim a check this boundary never performs. Ends if host-v1 brands its characterId.
+            characterId: string,
+            data: unknown,
+          ): Promise<void> => {
             cardData.set(characterId, data);
             return Promise.resolve();
           },

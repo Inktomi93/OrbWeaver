@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: a planted `label-content-name-mismatch` node — the exact axe finding the retired
 // chrome-devtools MCP produced and snap could not — must
 // be REPORTED BY NAME with its selector and must RED the run; the clean twin must print

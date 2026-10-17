@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(RunIndexProjection): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly captures: readonly { readonly fileActions: readonly unknown[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: the real Snap CLI drives picker and DataTransfer file feeders and reports the
 // selected file identity/tree; a missing feeder, wrong target, or illegal directory shape reddens.
 // @instrument-absence-proof: a selector that emits no filechooser and a path outside the fixture

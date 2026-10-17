@@ -86,9 +86,11 @@ function applyCachedView(queryClient: QueryClient, trpc: Trpc, chatId: ChatBusEv
   // tRPC's JSON projection reconstructs optional-field arrays as mutable transport values.
   const cachedView = { ...view, toolCalls: [...view.toolCalls] };
   const key = trpc.chat.listMessages.queryKey({ chatId });
+  // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- The bus carrier patches only an existing cached page; remove when it stops merging canon events into query data.
   if (queryClient.getQueryData(key) === undefined) {
     return false;
   }
+  // eslint-disable-next-line orb/client-cache-surgery-only-in-data -- The bus carrier applies canonical event rows before the authoritative refetch returns; remove when those rows are no longer patched.
   queryClient.setQueryData(key, (page) => {
     if (page === undefined) {
       return page;

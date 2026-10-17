@@ -1,9 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(DiagnosticRunIndex): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(readonly OrbConsoleCompleteness[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(readonly { readonly text: string; readonly evidenceWindow: number }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly diagnostics?: readonly { readonly raw?: unknown }[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The structured browser-diagnostics substrate, exercised through its real Chromium and Snap/session
 // doors. The page plants every source we promise to agents; zero records is never a passing control.
 import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -374,7 +368,6 @@ test("Snap JSON and a live session export retain the lossless diagnostics ring",
     });
     await expect(overflow).toExitWith(EXIT.violations);
     expect(overflow.stdout).toContain("dropped 2 record(s) at cap 128");
-    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const overflowManifest = JSON.parse(readFileSync(overflowManifestPath, "utf8")) as {
       readonly diagnosticCompleteness?: readonly OrbConsoleCompleteness[];
     };
@@ -394,7 +387,6 @@ test("Snap JSON and a live session export retain the lossless diagnostics ring",
     await expect(exported).toExitWith(EXIT.clean);
     const exportIndexPath = /RESULT snap exit=\d+ index=(\S+)/u.exec(exported.stdout)?.[1];
     expect(exportIndexPath).toBeDefined();
-    // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
     const exportIndex = JSON.parse(readFileSync(exportIndexPath ?? "", "utf8")) as {
       readonly artifacts: ReadonlyArray<{ readonly channel: string; readonly path: string }>;
     };

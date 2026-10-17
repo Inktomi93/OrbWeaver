@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
-
 // #2505 — THE GATE THAT NEVER RAN A MUTANT. `quality:mutation-gate` could not produce a verdict whenever a
 // lane worktree existed, which on this repo is most of the time.
 //

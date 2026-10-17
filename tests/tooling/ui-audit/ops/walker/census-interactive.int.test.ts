@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // The NATIVE LABEL association, proven through the whole instrument (#1009). The accessible-name census
 // (ops/walker/census-interactive.ts) read aria-label / aria-labelledby / visible text / title / alt and
 // nothing else, so a control named the way HTML has always named controls — `<label for=…>` — was filed

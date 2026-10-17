@@ -28,13 +28,16 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import process from "node:process";
+import { authMeSchema, viewerViewSchema } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 import type { Browser, Request } from "@playwright/test";
 import { chromium, devices } from "@playwright/test";
+import { loginLocal } from "./actors.ts";
 import { APP_READY_ATTRIBUTE, openNewestChat, waitForAppReady } from "./chat-room.ts";
 import { startFixtureProvider } from "./fixture-provider.ts";
 import type { ModeProject } from "./modes.ts";
 import {
+  CORPUS_LOCAL_PASSWORDS,
   DEV_TARGET_ALLOWED,
   E2E_LOCAL_ENGINE_BASE_URL,
   E2E_LOCAL_ENGINE_FALLBACK_MODEL,
@@ -44,6 +47,7 @@ import {
   LOCAL_MEMBER,
   LOCAL_OWNER,
   SELECTED_CORPUS_FIXTURE,
+  SELECTED_LOCAL_CORPUS_FIXTURE,
   selectedModeProjects,
 } from "./modes.ts";
 import { probeTarget, targetRefusal } from "./target-guard.ts";
@@ -367,6 +371,40 @@ export async function __warmClientsForTest(modes: readonly ModeProject[], report
   }
 }
 
+async function seedCorpusLocal(mode: ModeProject): Promise<void> {
+  const wire = SELECTED_LOCAL_CORPUS_FIXTURE?.wire;
+  const ownerCapture = wire?.reads["sessions.me"][0]?.output;
+  const owner = ownerCapture === undefined ? undefined : viewerViewSchema.parse(ownerCapture);
+  const member = wire?.memberIdentities?.sharedMember.viewer;
+  const ownerPassword = CORPUS_LOCAL_PASSWORDS.owner;
+  const memberPassword = CORPUS_LOCAL_PASSWORDS.member;
+  if (owner === undefined || member === undefined || ownerPassword === undefined || memberPassword === undefined) {
+    throw new Error("Corpus local admission requires its cloned humans and run-owned credentials");
+  }
+  const client = createTrpcClient(mode.backendUrl);
+  await client.mutation("settings.updateAppSettings", { partial: { localMultiUser: true } });
+  for (const [viewer, password] of [
+    [owner, ownerPassword],
+    [member, memberPassword],
+  ] as const) {
+    await client.mutation("admin.resetPassword", { userId: viewer.userId, password });
+    const actor = await loginLocal(mode.backendUrl, viewer.handle, password);
+    const session = await createTrpcClient(mode.backendUrl, { ...actor.headers, forwarded: "" }).query("sessions.me", undefined);
+    const response = await fetch(`${mode.backendUrl}/api/auth/me`, { headers: { ...actor.headers, forwarded: "" } });
+    const identity = authMeSchema.parse(await response.json());
+    if (
+      !(response.ok && identity.authenticated) ||
+      identity.handle !== viewer.handle ||
+      identity.role !== viewer.globalRole ||
+      session.userId !== viewer.userId ||
+      session.handle !== viewer.handle ||
+      session.globalRole !== viewer.globalRole
+    ) {
+      throw new Error("Corpus local cookie did not authenticate the captured human");
+    }
+  }
+}
+
 /** Playwright `globalSetup` — runs once, after the webServers are up, before the first spec. Seeds EVERY
  *  mode-project's stack that actually BOOTED (a `--project=<name>`-scoped run boots only that project's
  *  webServer, so a fetch to a non-booted origin would hang — we probe /healthz first and skip the ones that
@@ -390,6 +428,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   try {
     if (SELECTED_CORPUS_FIXTURE === undefined) {
       await Promise.all(booted.map(({ mode }) => seedMode(mode, fixture?.baseUrl)));
+    } else {
+      for (const { mode } of booted.filter((candidate) => candidate.mode.name === "local")) {
+        await seedCorpusLocal(mode);
+      }
     }
     // AFTER the seed, never before: the `room` warm pass opens a chat from the list, which only exists once
     // `ensureChat` has run.

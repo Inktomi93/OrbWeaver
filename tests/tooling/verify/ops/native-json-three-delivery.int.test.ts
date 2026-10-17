@@ -30,7 +30,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import type { NativeTypeFacts } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { gate as read } from "../../../../tooling/src/verify/gates/json-column-read-parsed.ts";
 import { gate as write } from "../../../../tooling/src/verify/gates/json-column-write-parity.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
 import { jsonColumnObservationPlan, jsonColumnObservedReaders } from "../../../../tooling/src/verify/lib/json-column-observed-readers.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -44,8 +43,8 @@ const nativeSpan = (node: Node): InventorySpan => ({
   end: node.getEnd(),
   kind: node.getKind(),
 });
-const POLICIES = [read, write, health];
-const SIBLINGS = [...POLICIES.map(({ id }) => id), "open-json-column-key-parity", "open-json-column-key-parity-health"];
+const POLICIES = [read, write];
+const SIBLINGS = [...POLICIES.map(({ id }) => id), "open-json-column-key-parity"];
 const SCHEMA = "packages/db/src/schema/settings.ts";
 const ENTRY = "packages/server/src/domain/settings/persistence/proof.ts";
 
@@ -146,7 +145,6 @@ test(
           { file: ENTRY, subject: `${ENTRY}#replace`, operation: "versioned-config-replace", token: "payload" },
           { file: ENTRY, subject: "settings.payload", operation: "json-column-straddle", token: "payload" },
         ]);
-        expect.soft(result.policies.find(({ id }) => id === health.id)?.findings).toEqual([]);
       } finally {
         useContext.mockRestore();
         definitionPoison.mockRestore();

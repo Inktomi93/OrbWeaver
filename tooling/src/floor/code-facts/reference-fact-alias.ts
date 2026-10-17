@@ -7,6 +7,7 @@
 import { descendantsOfKind } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { Identifier, Node as MorphNode, Symbol as MorphSymbol, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { ReturnedValueSource } from "./reference-fact-contract.ts";
 
 /** Shorthand references denote their value binding, not the synthesized object-property symbol. */
 export function lexicalReferenceSymbol(identifier: Identifier): MorphSymbol | undefined {
@@ -299,4 +300,18 @@ export function aliasEdges(sourceFile: SourceFile): Map<object, Set<object>> {
     }
   }
   return edges;
+}
+
+/** Allocation identity uses only formal bindings in the origin’s lexical scopes. */
+export function matchingAllocationBindings(
+  literal: MorphNode,
+  left: Pick<ReturnedValueSource, "bindings">,
+  right: Pick<ReturnedValueSource, "bindings">,
+): boolean {
+  const scopes = new Set(literal.getAncestors().map((node) => node.compilerNode));
+  return [...left.bindings.keys(), ...right.bindings.keys()].every(
+    (parameter) =>
+      !(Node.isParameterDeclaration(parameter) && scopes.has(parameter.getParent().compilerNode)) ||
+      left.bindings.get(parameter)?.compilerNode === right.bindings.get(parameter)?.compilerNode,
+  );
 }

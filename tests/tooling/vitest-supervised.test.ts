@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-
 // Guard for scripts/vitest-supervised.ts (issues #345, #1012) — the sharded hang-watchdog runner behind
 // `pnpm test`. A research-zone script test (test-layout exempts flat tests/tooling/ files that cover
 // scripts/), it drives the supervisor against a FAKE vitest via ORB_VITEST_BIN and asserts:

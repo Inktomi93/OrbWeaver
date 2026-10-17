@@ -20,19 +20,17 @@ import { gate as modalBodyNotPlaceholder } from "../../../../../tooling/src/veri
 import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
-import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
+
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as queryFreshnessCoverageHealth } from "../../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sectionRegistryCompleteness } from "../../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
-import { gate as sessionChannelBoundaryHealth } from "../../../../../tooling/src/verify/gates/session-channel-boundary-health.ts";
 import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gates/stale-draft-commit.ts";
 import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
 
@@ -149,16 +147,7 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: "isDirty-never-clears",
   },
-  {
-    policy: noInlineInvalidateOutsideSeam,
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-invalidate.ts`,
-        'import { useQueryClient } from "@tanstack/react-query";\nexport function run(): void {\n  void useQueryClient().invalidateQueries();\n}\n',
-      ),
-    ],
-    messageIncludes: "inline `invalidateQueries` call outside the central seam",
-  },
+
   {
     policy: persistenceBoundary,
     overlays: [add(`${CHAT_LIB}/liveness-storage.ts`, 'export const read = (): string | null => localStorage.getItem("k");\n')],
@@ -189,18 +178,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "STATIC count and no `reserveKey`",
-  },
-  {
-    policy: queryFreshnessCoverageHealth,
-    // The anchor interface stays; the factory the coverage side reads is gone.
-    overlays: [
-      {
-        kind: "neutralise",
-        path: "packages/client/src/data/invalidation.ts",
-        source: "export interface Invalidation {\n  readonly invalidate: () => void;\n}\n",
-      },
-    ],
-    messageIncludes: "createInvalidation is absent",
   },
   {
     policy: queryFreshnessCoverage,
@@ -253,11 +230,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Not co-located",
-  },
-  {
-    policy: sessionChannelBoundaryHealth,
-    overlays: [{ kind: "neutralise", path: "packages/client/src/lib/session-channel.ts", source: "export function postSessionMessage(): void {}\n" }],
-    messageIncludes: "constructs no BroadcastChannel",
   },
   {
     policy: sessionChannelBoundary,

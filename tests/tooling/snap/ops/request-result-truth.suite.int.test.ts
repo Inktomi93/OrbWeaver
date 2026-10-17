@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(NonNullable<typeof parsed.query>): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: normalized terminal RESULT pairs travel through the real immutable writer, validator,
 // and browser-free renderer without reinterpretation. A zero request denominator is refused everywhere;
 // the nonzero sibling proves this is denominator-derived, not a blanket requests refusal.

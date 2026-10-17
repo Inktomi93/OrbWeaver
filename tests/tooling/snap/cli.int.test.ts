@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: plants a WCAG-failing low-contrast paragraph in a local mock and asserts the
 // --contrast instrument REDs on it (exit 1, FAIL line) — with the readable twin as the negative control
 // proving the instrument is not always-red. `--file` mode: no stack, a real headless chromium.

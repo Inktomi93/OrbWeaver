@@ -4,23 +4,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
   {
-    id: "no-raw-intl-time:kit-time",
-    policyId: "no-raw-intl-time",
-    subject: "packages/kit/src/time/index.ts",
-    operation: "intl-formatter",
-    why: "`@orb/kit/time` IS the memoized Intl seam: `createTimeLib` constructs the `DateTimeFormat`/`RelativeTimeFormat` instances it then hands every call site, which is the whole reason the rest of the repo may not.",
-    endsWhen:
-      "time formatting moves off Intl, or the time engine leaves this file — the row stales at its dead path instead of exempting one that no longer exists.",
-  },
-  {
-    id: "no-raw-random:entry-compose-chat",
-    policyId: "no-raw-random",
-    subject: "packages/server/src/entry/compose/chat.ts",
-    operation: "ambient-entropy-draw",
-    why: "the composition root SEEDS the turn PRNG it injects into the chat engine (Tier-5-Entry.md) — the seed has to be drawn somewhere, and the root is the one tier allowed to.",
-    endsWhen: "the seed is supplied to the root as an injected value rather than drawn here; the row is then consumed zero times and reds.",
-  },
-  {
     id: "persistence-boundary:durable-local",
     policyId: "persistence-boundary",
     subject: "packages/client/src/state/durable-local.ts",

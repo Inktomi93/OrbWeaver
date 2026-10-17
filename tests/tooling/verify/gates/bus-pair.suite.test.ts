@@ -1,7 +1,7 @@
 // Conformance entry for the bus DEFINITION family: what stayed behind when `bus-definition-belts` and
 // `user-bus-coverage` converted, minus the two policies that have since been retired into
 // `bus-producer-coverage` (`user-bus-coverage` itself and `bus-coverage-owner`, whose guarantee the generic
-// policy's belted-roster denominator carries — its pins now live beside it in `bus-fact-health.test.ts`).
+// policy's belted-roster denominator carries — its pins now live beside it in `bus-producer-coverage.test.ts`).
 // `bus-producer-coverage` owns EVERY declared member of every belted bus by construction, `connectionsChanged`
 // included, proven by its own regression-guard fixture and not by a pin here. Every proof runs through the
 // production dispatcher, and the arms a proof row cannot express — a REFUSAL, and the retirement of a whole

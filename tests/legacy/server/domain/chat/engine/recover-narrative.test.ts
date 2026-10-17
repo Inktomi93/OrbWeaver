@@ -17,13 +17,14 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { aggregateEconomics, runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
 import { resolveTurnNarrative } from "#server/domain/chat/engine/recover-narrative.ts";
 import type { ToolCallInput } from "#server/domain/tool-use/contract/params.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 
 type PipelineArgs = Parameters<typeof runTurnPipeline>[0];
 type PipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;

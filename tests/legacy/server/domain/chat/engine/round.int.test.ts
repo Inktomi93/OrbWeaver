@@ -14,7 +14,6 @@ import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import type { SpeakerCandidate } from "#server/domain/chat/contract/arbitration.ts";
@@ -25,6 +24,7 @@ import { driveRound } from "#server/domain/chat/engine/round.ts";
 import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonCues, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");

@@ -187,7 +187,7 @@ interface EgressContext {
   readonly fetch: typeof fetch;
   readonly timers: NonNullable<ScopedEgressOptions["timers"]>;
   readonly pending: Set<Promise<void>>;
-  readonly requests: Set<AbortController>;
+  readonly requests: Map<AbortController, Request | undefined>;
   readonly discards: Set<() => void>;
   readonly agents: Set<Agent>;
   readonly failures: Error[];
@@ -205,7 +205,7 @@ function createEgressContext(options: ScopedEgressOptions, global: boolean): Egr
     fetch: options.fetch ?? ((input, init): Promise<Response> => globalThis.fetch(input, init)),
     timers: options.timers ?? systemTimers,
     pending: new Set(),
-    requests: new Set(),
+    requests: new Map(),
     discards: new Set(),
     agents: new Set(),
     failures: [],
@@ -865,7 +865,7 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
   // consumed; unref'd so an unread response never keeps the event loop alive. Composed with any caller signal.
   const deadlineCtrl = new AbortController();
   const lifetimeCtrl = new AbortController();
-  context.requests.add(lifetimeCtrl);
+  context.requests.set(lifetimeCtrl, undefined);
   const completion = Promise.withResolvers<void>();
   context.pending.add(completion.promise);
   const cancelTimer = context.timers.timeoutUnref(() => deadlineCtrl.abort(), deadlineMs);
@@ -1390,7 +1390,8 @@ async function configuredEndpointFetchFor(context: EgressContext, input: Paramet
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, request.signal]);
   const completion = Promise.withResolvers<void>();
-  context.requests.add(controller);
+  // Request GC can detach its dependent signal; retain it until the existing body owner releases the request.
+  context.requests.set(controller, request);
   context.pending.add(completion.promise);
   let connector: Agent | undefined;
   const release = (): void => {
@@ -1443,7 +1444,7 @@ export function createScopedEgress(options: ScopedEgressOptions = {}): ScopedEgr
   let disposal: Promise<void> | undefined;
   const cancel = (): void => {
     context.closed = true;
-    for (const controller of context.requests) {
+    for (const controller of context.requests.keys()) {
       controller.abort();
     }
     for (const discard of context.discards) {

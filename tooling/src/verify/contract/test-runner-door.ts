@@ -1,6 +1,3 @@
-// The door verdict `lib/test-runner-door.ts#readFixtureDoor` answers with (#1988).
-// `gates/test-fixture-imports.ts` imports it BY NAME and narrows every arm, so it crosses the lib↔policy
-// boundary and `lib/` is not a type home (Spine-TypeScript-and-Patterns.md §7.4, Core-Tooling-Law.md §2.5).
 import type { SourceFile } from "ts-morph";
 
 export type FixtureDoor =

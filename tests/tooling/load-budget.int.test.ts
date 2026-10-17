@@ -60,9 +60,7 @@ test("a PLANTED slow child is a legible ORB-LOAD-KILL, not a generic failure (ex
   }
   // The classification fires: the error self-identifies as a load kill, distinct from any assertion red.
   expect(isLoadKill(thrown)).toBe(true);
-  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as Error).message).toContain(LOAD_KILL_MARKER);
-  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as Error).message).toContain("NOT a verdict");
 });
 

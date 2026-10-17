@@ -2,9 +2,9 @@
 import type { CardImportResult } from "@orb/contracts/import";
 import { cardImportResultSchema } from "@orb/contracts/import";
 import type { Page } from "@playwright/test";
-import { expect, test } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import type { TrpcOutput } from "./support/trpc.ts";
 
 const NAME = "Smoke Imported Archivist";
@@ -69,6 +69,7 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     await page.reload();
     await waitForAppReady(page);
     await charactersRailButton(page).click();
+    await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(NAME);
     const cta = page.getByRole("button", { name: `Chat with ${NAME}`, exact: true });
     const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
     await expect(row).toBeVisible();

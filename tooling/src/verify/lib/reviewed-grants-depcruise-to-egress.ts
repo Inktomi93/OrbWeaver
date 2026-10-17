@@ -206,14 +206,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     endsWhen:
       "this module stops reading the identity root — which is the mode-A staleness the legacy EXEMPT_DOMAINS arm checked by hand, now the central zero-consumption alarm.",
   },
-  {
-    id: "no-inline-invalidate-outside-seam:invalidation",
-    policyId: "no-inline-invalidate-outside-seam",
-    subject: "packages/client/src/data/invalidation.ts",
-    operation: "inline-invalidate-queries",
-    why: "the ONE sanctioned `invalidateQueries` call: this file owns the exhaustive event→`queryFilter()` maps that every `invalidate(event)` resolves through (UI-Gates-and-Lessons.md §11.3). It carries a second row under `client-cache-surgery-only-in-data` because that policy fences the same call at the DIRECTORY grain — two doc rows, two licences.",
-    endsWhen: "the seam expresses invalidation as data consumed by the query client rather than as its own call, or the seam file moves.",
-  },
+
   {
     id: "no-manual-memo:fuzzy-search",
     policyId: "no-manual-memo",
@@ -237,23 +230,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains its only memoization.",
     endsWhen: "the installed compiler delists @tanstack/react-virtual; tests/client/react-compiler-contract.test.ts reports that transition.",
-  },
-  {
-    id: "no-raw-clock:entry-lifecycle",
-    policyId: "no-raw-clock",
-    subject: "packages/server/src/entry/lifecycle.ts",
-    operation: "ambient-clock-read",
-    why: "the composition root CONSTRUCTS the clock it injects into every tier (Tier-5-Entry.md) — a root that cannot read the ambient clock cannot mint one.",
-    endsWhen: "the clock is minted from a platform seam the root receives rather than read here; the row is then consumed zero times and reds.",
-  },
-  {
-    id: "no-raw-clock:kit-time-engine",
-    policyId: "no-raw-clock",
-    subject: "packages/kit/src/time/index.ts",
-    operation: "ambient-clock-read",
-    why: "`@orb/kit/time` IS the clock seam — `createClock`/`nowMs` read the ambient clock here exactly once so nothing else has to.",
-    endsWhen:
-      "the time engine moves out of this module or stops defaulting to the ambient clock; the row is then consumed zero times and reds at its dead subject.",
   },
   {
     id: "no-raw-egress:egress-hop",

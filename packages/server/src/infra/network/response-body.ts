@@ -100,12 +100,23 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
         }
         // Native clone() changes the producer's branch; acquire its current body only when work starts.
         reader ??= producer.body?.getReader();
+        const closedByAbort =
+          reader?.closed.then(
+            () => false,
+            (error: unknown) => signal.aborted && error === reason && error === signal.reason,
+          ) ?? Promise.resolve(false);
         cancellation ??= (reader?.cancel(reason) ?? Promise.resolve()).then(
           () => {
             release();
             outward.error(reason);
           },
-          (error: unknown) => {
+          async (error: unknown) => {
+            // An already-errored native fetch rejects cancel with its owned abort; a rejecting cancel hook closes its reader instead.
+            if (error === reason && (await closedByAbort)) {
+              release();
+              outward.error(reason);
+              return;
+            }
             failures.add(error);
             release();
             outward.error(error);

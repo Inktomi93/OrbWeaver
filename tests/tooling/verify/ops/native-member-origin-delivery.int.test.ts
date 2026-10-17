@@ -24,7 +24,6 @@ import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/sema
 import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as autosave } from "../../../../tooling/src/verify/gates/no-manual-autosave-flush.ts";
 import { gate as subscription } from "../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { classifyOriginRefusal, classifyOriginRefusalDeclarations, originRefusalDeclarations } from "../../../../tooling/src/verify/lib/origin-verdict.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -39,7 +38,7 @@ const FORM = "packages/client/src/features/probe/flush.ts";
 const ROUTER = "packages/server/src/transport/trpc/routers/probe.ts";
 const STREAM = "packages/server/src/transport/trpc/routers/stream.ts";
 const CHAT = "packages/server/src/transport/trpc/routers/chat.ts";
-const POLICIES = ["no-manual-autosave-flush", "single-stream-transport"] as const;
+const POLICIES = ["single-stream-transport"] as const;
 
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const write = (path: string, text: string): void => {
@@ -134,22 +133,17 @@ function assertNativeOrigins(root: string, browser: boolean): void {
 }
 
 test(
-  "both command doors preserve native member origins for the real installed form and subscription builders",
+  "both command doors preserve native member origins for the retained subscription builder",
   async ({ scratch, repoRoot }) => {
     const exits: number[] = [];
     for (const browser of [false, true]) {
       const root = join(scratch, browser ? "browser" : "node");
       fixture(root, repoRoot, browser);
       assertNativeOrigins(root, browser);
-      for (const [id, path] of [
-        [POLICIES[0], FORM],
-        [POLICIES[1], ROUTER],
-      ] as const) {
-        exits.push(await runStructure(root, [`--check=${id}`]));
-        exits.push(await runScopedCli(root, ["--scope", path === ROUTER ? "packages/server/src/transport/trpc/routers" : path]));
-      }
+      exits.push(await runStructure(root, [`--check=${POLICIES[0]}`]));
+      exits.push(await runScopedCli(root, ["--scope", "packages/server/src/transport/trpc/routers"]));
     }
-    expect(exits).toEqual([0, 0, 0, 0, 1, 1, 1, 1]);
+    expect(exits).toEqual([0, 0, 1, 1]);
   },
   scaledBudget(60_000),
 );
@@ -172,7 +166,7 @@ function mixedFixture(root: string, repoRoot: string): void {
   );
 }
 
-test("both member consumers share one closed generation across their real Node/browser owners without a syntax checker", {
+test("the retained member consumer reuses its closed native generation without a syntax checker", {
   timeout: scaledBudget(60_000),
 }, async ({ scratch, repoRoot }) => {
   mixedFixture(scratch, repoRoot);
@@ -183,30 +177,24 @@ test("both member consumers share one closed generation across their real Node/b
     throw new Error("syntax checker fallback");
   });
   try {
-    for (const policies of [
-      [autosave, subscription],
-      [subscription, autosave],
-    ]) {
+    for (const policies of [[subscription], [subscription]]) {
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
         ...nativeTypeFactOptions(context),
-        knownPolicies: [autosave, subscription],
+        knownPolicies: [subscription],
         policies,
         reviewedGrants: reviewedGrantsFor(policies),
         failOnWarnings: false,
       });
       expect(result.toolErrors).toEqual([]);
       expect(result.authority.authorityAlarms).toEqual([]);
-      expect(result.authority.effectiveFindings.map(({ policyId, file, token }) => [policyId, file, token])).toEqual([[autosave.id, FORM, "pushFieldValue"]]);
+      expect(result.authority.effectiveFindings.map(({ policyId, file, token }) => [policyId, file, token])).toEqual([]);
       expect(result.authority.grantedFindings).toHaveLength(2);
       expect(result.policies.every(({ owner }) => owner.status === "success")).toBe(true);
     }
     expect(checker).not.toHaveBeenCalled();
-    expect(worker.mock.calls.map(([request]) => [request.descriptor.id, request.families])).toEqual([
-      ["packages/client/tsconfig.json", ["bindings", "type-member-origins"]],
-      ["tsconfig.json", ["bindings", "type-member-origins"]],
-    ]);
+    expect(worker.mock.calls.map(([request]) => [request.descriptor.id, request.families])).toEqual([["tsconfig.json", ["bindings", "type-member-origins"]]]);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     for (const partition of readInventoryGeneration(db, latestInventoryGeneration(db))) {
       const request = worker.mock.calls.find(([candidate]) => candidate.descriptor.id === partition.program)?.[0];
@@ -223,7 +211,7 @@ test("both member consumers share one closed generation across their real Node/b
   }
 });
 
-test("missing native services and failed workers withhold both consumers through both command doors", { timeout: scaledBudget(60_000) }, async ({
+test("missing native services and failed workers withhold the retained consumer through both command doors", { timeout: scaledBudget(60_000) }, async ({
   scratch,
   repoRoot,
 }) => {
@@ -238,7 +226,7 @@ test("missing native services and failed workers withhold both consumers through
   const runDoors = async (): Promise<void> => {
     for (const id of POLICIES) {
       expect(await runStructure(scratch, [`--check=${id}`])).toBe(2);
-      expect(await runScopedCli(scratch, ["--scope", id === autosave.id ? FORM : "packages/server/src/transport/trpc/routers"])).toBe(2);
+      expect(await runScopedCli(scratch, ["--scope", "packages/server/src/transport/trpc/routers"])).toBe(2);
     }
   };
   try {
@@ -252,7 +240,7 @@ test("missing native services and failed workers withhold both consumers through
   });
   try {
     await runDoors();
-    expect(failed).toHaveBeenCalledTimes(4);
+    expect(failed).toHaveBeenCalledTimes(2);
   } finally {
     failed.mockRestore();
   }
@@ -261,7 +249,7 @@ test("missing native services and failed workers withhold both consumers through
 test(
   "each consumer keeps all its declared proof judgments on the shared isolated native adapter",
   () => {
-    expect(verifyPolicyProofs([autosave, subscription])).toEqual([]);
+    expect(verifyPolicyProofs([subscription])).toEqual([]);
   },
   scaledBudget(60_000),
 );
@@ -428,7 +416,8 @@ test("a truncated native leaf binding refuses rather than becoming an empty or f
   if (source === undefined || call === undefined || callee === undefined || !Node.isPropertyAccessExpression(callee)) {
     throw new Error("native leaf binding fixture call is missing");
   }
-  expect(inventory.callMemberOrigin(call, "tsconfig.json").leafDeclarations.length).toBeGreaterThan(0);
+  const before = inventory.callMemberOrigin(call, "tsconfig.json");
+  expect(before.leafDeclarations.length).toBeGreaterThan(0);
   using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const partition = readInventoryGeneration(db, inventory.generation)[0];
   if (partition === undefined) {
@@ -447,7 +436,17 @@ test("a truncated native leaf binding refuses rather than becoming an empty or f
   db.prepare("DELETE FROM inventory_declaration WHERE partition=? AND kind='bindings' AND owner=?").run(partition.id, binding["ordinal"]);
   expect(db.prepare("DELETE FROM inventory_fact WHERE partition=? AND kind='bindings' AND ordinal=?").run(partition.id, binding["ordinal"]).changes).toBe(1);
   db.exec("COMMIT");
-  expect(() => inventory.callMemberOrigin(call, "tsconfig.json")).toThrow("leaf binding is unavailable");
+  expect(originSnapshot(inventory.callMemberOrigin(call, "tsconfig.json"))).toEqual(originSnapshot(before));
+  using corrupted = inventoryReader(scratch, inventory.generation, readInventoryGeneration(db, inventory.generation), { db, dispose: () => undefined });
+  const corruptCall = corrupted
+    .sourceCorpus()
+    .getSourceFile(FORM)
+    ?.getDescendantsOfKind(SyntaxKind.CallExpression)
+    .find((node) => node.getExpression().getText().endsWith("pushFieldValue"));
+  if (corruptCall === undefined) {
+    throw new Error("corrupted native leaf binding fixture call is missing");
+  }
+  expect(() => corrupted.callMemberOrigin(corruptCall, "tsconfig.json")).toThrow("leaf binding is unavailable");
 });
 
 for (const role of ["value", "trace", "leaf"] as const) {
@@ -493,7 +492,17 @@ for (const role of ["value", "trace", "leaf"] as const) {
               .run(partition.id, query["ordinal"], role, partition.id, query["ordinal"], role).changes;
       expect(removed).toBe(1);
       db.exec("COMMIT");
-      expect(() => inventory.callMemberOrigin(call, "tsconfig.json")).toThrow("native call member declaration population is incomplete");
+      expect(originSnapshot(inventory.callMemberOrigin(call, "tsconfig.json"))).toEqual(originSnapshot(before));
+      using corrupted = inventoryReader(scratch, inventory.generation, readInventoryGeneration(db, inventory.generation), { db, dispose: () => undefined });
+      const corruptCall = corrupted
+        .sourceCorpus()
+        .getSourceFile(FORM)
+        ?.getDescendantsOfKind(SyntaxKind.CallExpression)
+        .find((node) => node.getExpression().getText().endsWith("pushFieldValue"));
+      if (corruptCall === undefined) {
+        throw new Error("corrupted native declaration population fixture call is missing");
+      }
+      expect(() => corrupted.callMemberOrigin(corruptCall, "tsconfig.json")).toThrow("native call member declaration population is incomplete");
     },
     scaledBudget(60_000),
   );
@@ -548,7 +557,7 @@ test(
   scaledBudget(60_000),
 );
 
-test("native body/proc identity still governs ordinary waivers and exact reviewed grants", { timeout: scaledBudget(60_000) }, ({ scratch, repoRoot }) => {
+test("native procedure identity still governs exact reviewed grants", { timeout: scaledBudget(60_000) }, ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot, true);
   const context = projectCtx(scratch);
   const actualGrants = reviewedGrantsFor([subscription]);
@@ -569,7 +578,7 @@ test("native body/proc identity still governs ordinary waivers and exact reviewe
       root: scratch,
       project: context.project,
       ...nativeTypeFactOptions(context),
-      knownPolicies: [autosave, subscription],
+      knownPolicies: [subscription],
       policies: [subscription],
       reviewedGrants: [...actualGrants, selected],
       failOnWarnings: false,
@@ -578,36 +587,6 @@ test("native body/proc identity still governs ordinary waivers and exact reviewe
     expect(result.authority.effectiveFindings).toHaveLength(effective);
     expect(result.authority.grantedFindings).toHaveLength(granted);
     expect(result.authority.authorityAlarms.some((alarm) => alarm.kind === "stale-reviewed-grant" && alarm.grantId === grant.id)).toBe(stale);
-  }
-  for (const [position, waived, effective] of [
-    ["pushFieldValue", 1, 0],
-    ["handleSubmit", 0, 1],
-  ] as const) {
-    const root = join(scratch, position);
-    fixture(root, repoRoot, true);
-    const original = readFileSync(join(root, FORM), "utf8");
-    writeFileSync(
-      join(root, FORM),
-      original.replace(
-        "  form.pushFieldValue",
-        `  // @orb-waive no-manual-autosave-flush(${position}): native fixture waiver identity; ends with this case.\n  form.pushFieldValue`,
-      ),
-    );
-    const owner = projectCtx(root);
-    const result = runPolicyPass({
-      root,
-      project: owner.project,
-      ...nativeTypeFactOptions(owner),
-      knownPolicies: [autosave, subscription],
-      policies: [autosave],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.policies[0]?.findings).toHaveLength(1);
-    expect(result.authority.waivedFindings).toHaveLength(waived);
-    expect(result.authority.effectiveFindings).toHaveLength(effective);
-    expect(result.authority.authorityAlarms.length === 0).toBe(waived === 1);
   }
 });
 

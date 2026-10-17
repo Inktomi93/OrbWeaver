@@ -3,11 +3,9 @@
 // Native facts establish ambient identity; policy judgments remain in the verifier.
 
 import { computedNameNeedsBindings, referenceResolutionServices, resolveGlobalMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
-import { descendantsOfKind } from "@orb/tooling/floor/compiler/ts-workspace";
-import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import type { AmbientInvocationVerdict, AmbientReferencePass, AmbientReferenceServices, AmbientSource } from "../contract/ambient-determinism.ts";
-import type { GatePolicyContext } from "../contract/policy.ts";
+import type { Node as MorphNode } from "ts-morph";
+import { Node } from "ts-morph";
+import type { AmbientInvocationVerdict, AmbientReferenceServices, AmbientSource } from "../contract/ambient-determinism.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
 
 function samePath(left: readonly string[], right: readonly string[]): boolean {
@@ -55,75 +53,4 @@ export function readAmbientInvocation(node: MorphNode, sources: readonly Ambient
   }
   const match = sources.find((source) => source.globalName === origin.value.globalName && samePath(source.memberPath, origin.value.memberPath));
   return match === undefined ? { kind: "other" } : { kind: "ambient", source: match };
-}
-
-/** Candidate-source syntax closes const-name/key lookups before the shared native generation is sealed. */
-export function ambientReferencePass(ctx: GatePolicyContext): AmbientReferencePass {
-  const sources = new Set<SourceFile>();
-  const origins = new Set<MorphNode>();
-  const bindings = new Set<MorphNode>();
-  const keys = new Set<MorphNode>();
-  return {
-    register: (callee): void => {
-      const native = ctx.nativeTypes;
-      if (native === undefined) {
-        throw new Error("native ambient origin context is unavailable");
-      }
-      origins.add(callee);
-      native.request({ kind: "global-origins", nodes: [callee] });
-      const source = callee.getSourceFile();
-      if (sources.has(source)) {
-        return;
-      }
-      sources.add(source);
-      const identifiers = descendantsOfKind(source, SyntaxKind.Identifier);
-      for (const node of identifiers) {
-        bindings.add(node);
-      }
-      native.request({ kind: "global-bindings", nodes: identifiers });
-      const inputs = descendantsOfKind(source, SyntaxKind.ElementAccessExpression)
-        .map((node) => node.getArgumentExpression())
-        .filter((node) => node !== undefined)
-        .filter(computedNameNeedsBindings);
-      for (const key of inputs) {
-        keys.add(key);
-      }
-      native.request({ kind: "computed-names", nodes: inputs });
-    },
-    read: (): AmbientReferenceServices => {
-      const native = ctx.nativeTypes;
-      if (native === undefined) {
-        throw new Error("native ambient origin context is unavailable");
-      }
-      const global = native.globalOrigins([...origins]);
-      const declarations = native.globalBindings([...bindings]);
-      const names = native.computedNames([...keys]);
-      return {
-        globalOrigin: (node): ReturnType<AmbientReferenceServices["globalOrigin"]> => {
-          const fact = global.get(node);
-          if (fact === undefined) {
-            throw new Error("native ambient origin is unavailable");
-          }
-          return fact;
-        },
-        declarations: (node): readonly MorphNode[] => {
-          const fact = declarations.get(node);
-          if (fact === undefined) {
-            throw new Error("native ambient binding is unavailable");
-          }
-          return fact;
-        },
-        readComputedName: (node): ReturnType<AmbientReferenceServices["readComputedName"]> => {
-          if (!computedNameNeedsBindings(node)) {
-            return referenceResolutionServices.readComputedName(node);
-          }
-          const fact = names.get(node);
-          if (fact === undefined) {
-            throw new Error("native ambient computed name is unavailable");
-          }
-          return fact;
-        },
-      };
-    },
-  };
 }

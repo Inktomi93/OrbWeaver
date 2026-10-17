@@ -2,7 +2,6 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as coverage } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/query-freshness-coverage-health.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
@@ -10,7 +9,7 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-const POLICIES = [coverage, health] as const;
+const POLICIES = [coverage] as const;
 const STATIC_SUBJECTS = [
   "assets.resolveBlobRefs",
   "assets.resolveChatBlobRefs",
@@ -45,7 +44,7 @@ const STATIC_SUBJECTS = [
   "plugin.getLog",
 ] as const;
 
-test("the coverage and blindness owners pass all declared proofs", () => {
+test("the coverage owner passes all declared proofs", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
 
@@ -73,7 +72,6 @@ test("every production classification is an exact central grant and listChatActi
       ?.findings.map(({ subject }) => subject)
       .toSorted(),
   ).toEqual([...STATIC_SUBJECTS].toSorted());
-  expect(result.policies.find(({ id }) => id === health.id)?.findings).toEqual([]);
   expect(result.authority.reviewedGrantConsumption).toEqual(
     grants.map(({ id }) => ({ id, count: 1 })).toSorted((left, right) => left.id.localeCompare(right.id)),
   );

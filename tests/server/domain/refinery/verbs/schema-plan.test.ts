@@ -4,6 +4,8 @@ import "@orb/testkit/node/composed-real.ts";
 import { NoConnectionError } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { createPlanSchema, createResolveStructuredBinding } from "@orb/server/domain/refinery";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/credentials.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolved, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -15,7 +17,12 @@ const SCHEMA = projectJsonSchema(z.object({ answer: z.string() }));
 test("cached resolution carries the row-derived Principal and only NoConnection degrades to unbound", async ({ harness }) => {
   await harness.actor({ id: TEST_OWNER_ID });
   const actor = await principal(harness, TEST_OWNER_ID);
-  const resolved = makeResolved({ task: "structured", allowBackground: false });
+  const credential = await makeResolvedSecret(harness.services.credentials.resolve, {
+    ownerId: TEST_OWNER_ID,
+    credentialId: null,
+    providerId: testProviderId("custom-openai"),
+  });
+  const resolved = makeResolved({ task: "structured", allowBackground: false, credential });
   const resolve = vi.fn<Parameters<typeof createResolveStructuredBinding>[0]["resolve"]>().mockResolvedValue({ resolved, warnings: [] });
   const principalOf = vi.fn(async () => actor);
   const binding = createResolveStructuredBinding({ resolve, principalOf });
@@ -29,20 +36,26 @@ test("cached resolution carries the row-derived Principal and only NoConnection 
   await expect(binding(TEST_OWNER_ID)).rejects.toBe(failure);
 });
 
-test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async () => {
+test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async ({ services }) => {
+  const credential = await makeResolvedSecret(services.credentials.resolve, {
+    ownerId: TEST_OWNER_ID,
+    credentialId: null,
+    providerId: testProviderId("custom-openai"),
+  });
   const params = vi.fn<Parameters<typeof createPlanSchema>[0]["resolveUtilityPresetParams"]>().mockResolvedValue(undefined);
   const resolveStructuredBinding = vi.fn<Parameters<typeof createPlanSchema>[0]["resolveStructuredBinding"]>().mockResolvedValue(null);
   const plan = createPlanSchema({ resolveStructuredBinding, resolveUtilityPresetParams: params });
   expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "unbound" });
-  const connection = makeResolved({ task: "structured", allowBackground: false });
+  const connection = makeResolved({ task: "structured", allowBackground: false, credential });
   resolveStructuredBinding.mockResolvedValue(connection);
   expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "background-refused", model: connection.model });
   expect(params).not.toHaveBeenCalled();
-  resolveStructuredBinding.mockResolvedValue(makeResolved({ task: "structured", allowBackground: true }));
+  resolveStructuredBinding.mockResolvedValue(makeResolved({ task: "structured", allowBackground: true, credential }));
   expect(await plan(TEST_OWNER_ID, SCHEMA)).toEqual({ outcome: "no-structured", model: connection.model });
   expect(params).toHaveBeenCalledWith(TEST_OWNER_ID);
   resolveStructuredBinding.mockResolvedValue(
     makeResolved({
+      credential,
       task: "structured",
       allowBackground: true,
       generation: { output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text"] } },

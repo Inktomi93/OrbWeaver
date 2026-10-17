@@ -66,6 +66,7 @@ import type { ResolveEmbeddingConnection } from "#server/domain/embeddings/index
 import { createEmbeddingsService, SpaceMismatchError } from "#server/domain/embeddings/index.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
+import { makeResolvedSecret } from "../../../inference/_support.ts";
 import { makeStoreHarness } from "../embeddings/_support.ts";
 
 /** The one 1024-dim space the schema's `F32_BLOB(1024)` columns require. */
@@ -290,7 +291,10 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
 
 /** Compose's embedding-connection resolve over a fake runtime that embeds through `roleClients`. */
 function searchEmbeddingConnection(roleClients: RoleClients): ResolveEmbeddingConnection {
-  return createResolveEmbeddingConnection(makeEmbeddingRuntime(roleClients, ownConnection), (userId) => Promise.resolve(principal(userId)));
+  return createResolveEmbeddingConnection(
+    makeEmbeddingRuntime(roleClients, () => Promise.resolve(makeResolvedSecret()), ownConnection),
+    (userId) => Promise.resolve(principal(userId)),
+  );
 }
 
 /** Each owner binds their own connection row, as two real users do. */

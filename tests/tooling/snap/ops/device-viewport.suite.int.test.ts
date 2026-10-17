@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: WHICH DEVICE DID THIS RUN MEASURE? (#1668). `--mobile --viewport 320x740` kept the
 // size and silently dropped `pointer: coarse` + DPR 3 + the mobile UA — a lane reading "320 coarse" was
 // measuring a DESKTOP at 320 and reporting chrome numbers ~40px short of the touch floor, with no warning

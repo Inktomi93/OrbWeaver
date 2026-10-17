@@ -2,14 +2,16 @@
 // @subject tests/support/node/corpus-auth.ts
 // @subject packages/server/src/entry/auth/seam.ts
 import "./composed-real.ts";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { blobIconUrl, blobUrl } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { sessions } from "@orb/db";
+import { localPath, sessions, users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { authConfigFromEnv, readSessionCookie } from "@orb/server/entry/auth";
 import { createCas } from "@orb/server/infra/storage/cas";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
@@ -149,4 +151,88 @@ test("a frozen wire identity rejects a changed live role instead of normalizing 
   const fresh = await (await root.internalCallerFor(member.userId)).sessions.me();
   expect(fresh.globalRole).toBe("admin");
   expect((await captureCorpusCookieIdentity(root, fresh, captured.cookie)).viewer).toEqual(fresh);
+});
+
+test("local corpus admission is prepared after the last clone and cannot cross viewers, clones or the source publication", { tags: "slow" }, async () => {
+  const source = loadCorpusFixture();
+  const owner = source.wire.reads["sessions.me"][0]?.output;
+  const member = source.wire.memberIdentities?.sharedMember.viewer;
+  const sourceDatabase = localPath(source.layout.databaseUrl);
+  if (owner === undefined || member === undefined || sourceDatabase === undefined) {
+    throw new Error("The committed corpus has no captured local admission cohort");
+  }
+  const sourceBytes = await readFile(sourceDatabase);
+  const sourceWire = await readFile(join(source.layout.root, "corpus.json"));
+  await using root = await createCorpusHarness(undefined, { authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "owner" } });
+  const cloneWire = await readFile(join(root.corpus.layout.root, "corpus.json"));
+  const accountIds = [owner.userId, member.userId];
+  expect(root.ownerId).toBe(owner.userId);
+  expect(await root.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
+  const credentialsBefore = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
+  expect(credentialsBefore).toHaveLength(2);
+  expect(credentialsBefore.every((row) => row.passwordHash === null)).toBe(true);
+  const ownerPassword = `owner-${root.ids.uuid()}`;
+  const memberPassword = `member-${root.ids.uuid()}`;
+  const address = await root.listen();
+  const origin = `http://${address.address}:${String(address.port)}`;
+  for (const [viewer, password] of [
+    [owner, ownerPassword],
+    [member, memberPassword],
+  ] as const) {
+    const reset = await fetch(new URL("/api/trpc/admin.resetPassword", origin), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userId: viewer.userId, password }),
+    });
+    await reset.arrayBuffer();
+    expect(reset.status).toBe(200);
+    expect(await root.app.sessions.authenticate(viewer.handle, password)).toBe(viewer.userId);
+  }
+  const credentialsAfter = await root.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
+  expect(credentialsAfter).toHaveLength(2);
+  expect(credentialsAfter.every((row) => row.passwordHash !== null)).toBe(true);
+  const ownerAdmission = await captureCookieAuth(root, await root.principalFor(owner.userId), ownerPassword);
+  const memberAdmission = await captureCookieAuth(root, await root.principalFor(member.userId), memberPassword);
+  expect(ownerAdmission.identity.viewer).toEqual(owner);
+  expect(memberAdmission.identity).toEqual(source.wire.memberIdentities?.sharedMember);
+  await expect(captureCorpusCookieIdentity(root, owner, memberAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
+  await expect(captureCorpusCookieIdentity(root, member, ownerAdmission.cookie)).rejects.toThrow("does not admit the expected viewer");
+  for (const [cookie, csrf] of [
+    [ownerAdmission.cookie, false],
+    [memberAdmission.cookie, true],
+  ] as const) {
+    const refused = await fetch(new URL("/api/trpc/admin.resetPassword", origin), {
+      method: "POST",
+      headers: { "content-type": "application/json", forwarded: "", cookie, ...(csrf ? { [CSRF_HEADER]: "1" } : {}) },
+      body: JSON.stringify({ userId: owner.userId, password: memberPassword }),
+    });
+    await refused.arrayBuffer();
+    expect(refused.status).toBe(403);
+    expect(refused.headers.getSetCookie()).toEqual([]);
+  }
+  expect((await captureCorpusCookieIdentity(root, owner, ownerAdmission.cookie)).viewer).toEqual(owner);
+  expect((await captureCorpusCookieIdentity(root, member, memberAdmission.cookie)).viewer).toEqual(member);
+  await using next = await createCorpusHarness(root.corpus.layout.root);
+  expect(await next.db.select({ id: sessions.id }).from(sessions)).toEqual([]);
+  const nextCredentials = await next.db.select({ passwordHash: users.passwordHash }).from(users).where(inArray(users.id, accountIds));
+  expect(nextCredentials).toHaveLength(2);
+  expect(nextCredentials.every((row) => row.passwordHash === null)).toBe(true);
+  await expect(captureCorpusCookieIdentity(next, owner, ownerAdmission.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(next, member, memberAdmission.cookie)).rejects.toThrow("request refused (401)");
+  for (const [viewer, password] of [
+    [owner, ownerPassword],
+    [member, memberPassword],
+  ] as const) {
+    const stale = await next.http.request("/api/auth/login", {
+      method: "POST",
+      headers: { [CSRF_HEADER]: "1" },
+      body: new URLSearchParams({ handle: viewer.handle, password }),
+    });
+    await stale.arrayBuffer();
+    expect(stale.status).toBe(401);
+    expect(stale.headers.getSetCookie()).toEqual([]);
+  }
+  expect((await readFile(sourceDatabase)).equals(sourceBytes)).toBe(true);
+  expect((await readFile(join(source.layout.root, "corpus.json"))).equals(sourceWire)).toBe(true);
+  expect((await readFile(join(root.corpus.layout.root, "corpus.json"))).equals(cloneWire)).toBe(true);
 });

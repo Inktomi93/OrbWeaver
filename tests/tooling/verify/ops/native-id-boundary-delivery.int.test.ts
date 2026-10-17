@@ -2,14 +2,16 @@ import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { ESLint, Linter } from "eslint";
 import type { Project } from "ts-morph";
 import { Identifier, Node, SyntaxKind } from "ts-morph";
+import ts from "typescript";
+import tseslint from "typescript-eslint";
 import { vi } from "vitest";
 import { canonicalIdBrand, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../../../tooling/src/floor/code-facts/id-brand.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as disabled } from "../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
-import { gate as mint } from "../../../../tooling/src/verify/gates/no-mint-via-cast.ts";
 import { gate } from "../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -77,7 +79,7 @@ export const decoy=localKit.castId('');
 `
         : ""),
   );
-  const policies = [gate, mint, disabled];
+  const policies = [gate, disabled];
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: { ...common, types: [] }, files: policies.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of policies) {
     put(`tooling/src/verify/gates/${id}.ts`, `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`);
@@ -196,10 +198,9 @@ test(
     const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      expect(await runStructure(scratch, ["--check=no-mint-via-cast"])).toBe(1);
       expect(await runStructure(scratch, ["--check=no-fake-disabled-id"])).toBe(1);
       expect(await runScopedCli(scratch, ["--scope", "packages"])).toBe(1);
-      const policies = [gate, mint, disabled];
+      const policies = [gate, disabled];
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -211,8 +212,6 @@ test(
       });
       expect(result.toolErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
-      expect(result.policies.find(({ id }) => id === mint.id)?.findings).toMatchObject([{ file: BROWSER, line: 16, column: 21, token: "brand" }]);
-      expect(result.policies.find(({ id }) => id === mint.id)?.findings[0]?.message).toBeUndefined();
       expect(result.policies.find(({ id }) => id === disabled.id)?.findings).toMatchObject([{ file: BROWSER, line: 15, token: "brand" }]);
       expect(result.authority.waivedFindings).toEqual([]);
       expect(result.authority.authorityAlarms).toEqual([]);
@@ -318,3 +317,30 @@ test(
   },
   scaledBudget(60_000),
 );
+
+test("native mint keeps the real ID fixture's exact alias coordinate and direct-wrapper/entropy limits", async ({ scratch, repoRoot }) => {
+  fixture(scratch, repoRoot, true);
+  const rule = "orb/no-mint-via-cast";
+  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, BROWSER));
+  const path = join(scratch, BROWSER);
+  const program = ts.createProgram([path], {
+    target: ts.ScriptTarget.ES2022,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    strict: true,
+    types: [],
+    lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+  });
+  const messages = new Linter({ cwd: scratch }).verify(
+    readFileSync(path, "utf8"),
+    {
+      files: ["**/*.ts"],
+      plugins: config.plugins,
+      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false } },
+      rules: { [rule]: "error" },
+    },
+    { filename: path },
+  );
+  expect(messages).toMatchObject([{ ruleId: rule, line: 16, column: 21, message: expect.stringContaining("castId wraps a fresh-id generator") }]);
+  expect(messages).toHaveLength(1);
+});

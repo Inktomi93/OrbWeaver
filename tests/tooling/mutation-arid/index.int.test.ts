@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(Parameters<typeof shouldIgnoreArid>[0]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: the family-(2) predicate must fire on the AST BABEL ACTUALLY EMITS for a real
 //   `default:` exhaustiveness arm — the unit pins build their nodes by hand, so they prove the LOGIC and
 //   not the SHAPE. If babel spelled a default arm `test: undefined` where the rule expects `null` (or

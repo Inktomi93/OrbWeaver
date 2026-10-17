@@ -1,8 +1,9 @@
 // Public structure entrypoints reconcile owned ordinary fixtures with real reviewed-grant/resource policies.
 // Authority, loader and artifact behavior must not depend on a borrowed application policy's lifetime.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -27,7 +28,7 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
 /** An id that names NOTHING in any corpus — the subject of the unknown-policy waiver alarm below. `probe-`
  *  marks it as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
 const ABSENT_POLICY = "probe-no-such-policy";
-const REVIEWED = "no-raw-intl-time";
+const REVIEWED = "scrubber-home";
 const HARD_RESOURCE = "server-layout";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
@@ -74,20 +75,25 @@ function shim(repoRoot: string, id: string): string {
   return `export { gate } from ${JSON.stringify(pathToFileURL(join(repoRoot, GATES, `${id}.ts`)).href)};\n`;
 }
 
-/** A raw Intl formatter is effective outside the exact subjects of the central reviewed grants. */
-const GRANT_SUBJECT = "packages/kit/src/time/index.ts";
-const INTL_GRANT_IDS = ["no-raw-intl-time:kit-time"] as const;
+/** The actual scrubber factory is licensed only at the retained producer stamp. */
+const GRANT_SUBJECT = "packages/server/src/domain/chat/substrate/member-visibility.ts";
+const REVIEWED_GRANT_IDS = ["scrubber-home:member-visibility-stamp"] as const;
 /** A planted tree is judged against the waivers and grants IT plants, never the real tree's committed budget:
  *  `rows` is the application budget per policy id, and the implementation part is empty. */
 const plantedBudget = (rows: Readonly<Record<string, number>>): string => JSON.stringify({ application: rows, implementation: {} });
 const STRAY_READ = "packages/client/src/features/probe/x.tsx";
 const CLIENT_STRAY_FILE = "packages/client/src/features/probe/y.ts";
-const INTL_LINE = 'export const G = (): unknown => new Intl.DateTimeFormat("en-US");\n';
+const FACTORY_SUBJECT = "packages/kit/src/content/index.ts";
+const FACTORY_SOURCE = "export function createHiddenSpanStreamScrubber(): {readonly push:(text:string)=>string} {return {push:text=>text};}\n";
+function reviewedLine(subject: string): string {
+  const door = relative(dirname(subject), FACTORY_SUBJECT).replaceAll("\\", "/");
+  return `import {createHiddenSpanStreamScrubber} from ${JSON.stringify(door.startsWith(".") ? door : `./${door}`)};\nexport const G=createHiddenSpanStreamScrubber();\n`;
+}
+const REVIEWED_LINE = reviewedLine(STRAY_READ);
 const PLATELESS_COMPOSER =
   'html[data-blur-composer] [data-slot="composer"] {\n  background-color: color-mix(in oklab, var(--color-sidebar) 70%, transparent);\n}\n';
 
 function readArtifact(root: string): StructureReport {
-  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(readFileSync(join(root, "reports", "check-structure.json"), "utf8")) as StructureReport;
 }
 
@@ -108,10 +114,27 @@ function policyOf(report: StructureReport): StructurePolicyReport {
 }
 
 const mixedTree = (repoRoot: string, files: Readonly<Record<string, string>>): Readonly<Record<string, string>> => ({
+  ".gitignore": "reports/\n.cache/\nnode_modules/\n",
+  "tsconfig.json": JSON.stringify({
+    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, types: [], lib: ["ES2022", "DOM"], jsx: "preserve" },
+    include: ["packages/**/*.ts", "packages/**/*.tsx"],
+  }),
+  "tooling/tsconfig.json": JSON.stringify({
+    compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", types: [] },
+    include: ["src/verify/gates/**/*.ts"],
+  }),
   [`${GATES}/${ORDINARY}.ts`]: ordinaryPolicyModule(repoRoot),
   [`${GATES}/${REVIEWED}.ts`]: shim(repoRoot, REVIEWED),
+  [FACTORY_SUBJECT]: FACTORY_SOURCE,
   ...files,
 });
+
+async function corpusTree(plant: ToolFixtures["plantedTree"], files: Readonly<Record<string, string>>): Promise<string> {
+  const root = await plant(files);
+  execFixtureGit(root, ["init", "--quiet", "--template="]);
+  execFixtureGit(root, ["add", "."]);
+  return root;
+}
 
 // ── 1-4. both contracts execute in ONE invocation, contribute to ONE report, distinguishable per contract ─────
 
@@ -120,8 +143,9 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [STRAY_READ]: INTL_LINE }));
+  const root = await corpusTree(plantedTree, mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [STRAY_READ]: REVIEWED_LINE }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({}), () => runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }));
+  expect(policyOf(readArtifact(root)).toolErrors).toEqual([]);
   // violations, no tool error: exit 1, one artifact, one completeness line naming the roster it ran
   await expect(res).toExitWith(1);
   expect(res.stdout).toContain("ran 2/2 registered gate(s) (2/2 policies)");
@@ -170,9 +194,9 @@ test("one invocation runs the whole roster into one artifact, each row in the co
   expect(policyOf(report).authority.toolErrors).toEqual([]);
   expect(policyOf(report).factErrors).toEqual([]);
   expect(policyOf(report).toolErrors).toEqual([]);
-  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(INTL_GRANT_IDS.map(() => "stale-reviewed-grant"));
-  expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(INTL_GRANT_IDS);
-  const blocking = 2 + INTL_GRANT_IDS.length;
+  expect(policyOf(report).authority.alarms.map((a) => a.kind)).toEqual(REVIEWED_GRANT_IDS.map(() => "stale-reviewed-grant"));
+  expect(policyOf(report).authority.alarms.flatMap((a) => (a.kind === "stale-reviewed-grant" ? [a.grantId] : []))).toEqual(REVIEWED_GRANT_IDS);
+  const blocking = 2 + REVIEWED_GRANT_IDS.length;
   expect(policyOf(report).authority.verdict).toEqual({ errors: blocking, warnings: 0, blocking, failOnWarnings: false });
   // total = the blocking count the authority verdict produced; ok false
   expect(report.total).toBe(blocking);
@@ -185,7 +209,7 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
   runCli,
 }) => {
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
-  const root = await plantedTree({
+  const root = await corpusTree(plantedTree, {
     "packages/client/tsconfig.json": JSON.stringify({
       compilerOptions: { ...compilerOptions, lib: ["ES2022", "DOM"], jsx: "react-jsx", customConditions: ["browser"] },
       files: ["src/lib/probe.ts", "src/features/probe/x.tsx", "src/features/probe/warned.ts"],
@@ -196,7 +220,7 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
     }),
     ...mixedTree(repoRoot, {
       [ORDINARY_SUBJECT]: ORDINARY_LINE,
-      [STRAY_READ]: INTL_LINE,
+      [STRAY_READ]: REVIEWED_LINE,
       "packages/client/src/styles/probe.css": PLATELESS_COMPOSER,
       "packages/ui/src/styles/keep.css": ".keep { color: var(--color-foreground); }\n",
       [WARNING_SUBJECT]: WARNING_SUBJECT_SOURCE,
@@ -243,7 +267,8 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
 test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms as unknown on an id nobody registers and as wrong-authority on a reviewed-grant policy", {
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(
+  const root = await corpusTree(
+    plantedTree,
     mixedTree(repoRoot, {
       // the central door on a final ordinary finding, at the reported position: waived
       [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(${ORDINARY_MARKER}): planted — the central door on an ordinary finding\n${ORDINARY_LINE}`,
@@ -253,7 +278,7 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
       // every authored TS/TSX path sits inside some population. The carrier below is inside one, deliberately.
       [CLIENT_STRAY_FILE]: `// @orb-waive ${ABSENT_POLICY}(cache): planted — names a policy the corpus does not hold\nexport const y = 1;\n`,
       // the central door naming a REVIEWED-GRANT policy: no waiver door there — wrong authority
-      [STRAY_READ]: `// @orb-waive ${REVIEWED}(DateTimeFormat): planted — a waiver on a reviewed-grant finding\n${INTL_LINE}`,
+      [STRAY_READ]: `// @orb-waive ${REVIEWED}(createHiddenSpanStreamScrubber): planted — a waiver on a reviewed-grant finding\n${REVIEWED_LINE}`,
     }),
   );
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [ORDINARY]: 1 }), () =>
@@ -283,17 +308,18 @@ test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms a
 test("a reviewed grant reaches only a final reviewed-grant policy: the real row's subject is granted, the other real rows stay stale", {
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: INTL_LINE }));
+  const root = await corpusTree(plantedTree, mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: reviewedLine(GRANT_SUBJECT) }));
   const res = await withProcessEnv(WAIVER_BUDGET_ENV, plantedBudget({ [REVIEWED]: 1 }), () =>
     runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS }),
   );
+  expect(policyOf(readArtifact(root)).toolErrors).toEqual([]);
   await expect(res).toExitWith(1);
   const report = readArtifact(root);
   const reviewed = rowOf(report, REVIEWED);
   expect(reviewed.violations).toEqual([]);
   expect(reviewed.granted).toBe(1);
-  expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "no-raw-intl-time:kit-time")?.count).toBe(1);
-  // The planted kit-time subject binds the only row, so no identity stays stale.
+  expect(policyOf(report).authority.reviewedGrantConsumption.find(({ id }) => id === "scrubber-home:member-visibility-stamp")?.count).toBe(1);
+  // The planted producer stamp binds the only row, so no identity stays stale.
   const stale = policyOf(report).authority.alarms.filter((a) => a.kind === "stale-reviewed-grant");
   expect(stale).toEqual([]);
   // and the door hands the pass ONLY rows naming a loaded policy: no invalid-grant error for the rest of the table
@@ -305,7 +331,8 @@ test("a reviewed grant reaches only a final reviewed-grant policy: the real row'
 test("a planted budget that differs from what the tree waives alarms: a rise says fix the finding, a fall says lower the row", {
   timeout: RUN_TIMEOUT_MS * 2,
 }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(
+  const root = await corpusTree(
+    plantedTree,
     mixedTree(repoRoot, {
       [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(${ORDINARY_MARKER}): planted — one waiver against a mismatched budget\n${ORDINARY_LINE}`,
     }),
@@ -331,7 +358,8 @@ test("an unbranded lookalike in the corpus is a load refusal (exit 2, the in-fli
   timeout: RUN_TIMEOUT_MS,
 }, async ({ plantedTree, repoRoot, runCli }) => {
   const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
-  const root = await plantedTree(
+  const root = await corpusTree(
+    plantedTree,
     mixedTree(repoRoot, {
       [`${GATES}/spread-copy.ts`]: `import { defineGate } from ${JSON.stringify(contract)};\nimport { gate as real } from ${JSON.stringify("./" + ORDINARY + ".ts")};\nvoid defineGate;\nexport const gate = { ...real, id: "spread-copy", family: "spread-copy" };\n`,
     }),
@@ -345,14 +373,13 @@ test("an unbranded lookalike in the corpus is a load refusal (exit 2, the in-fli
   // the load never got far enough to write a report — the stub survives, and it says so
   const slots = readdirSync(join(root, "reports", "runs", "structure"));
   expect(slots).toHaveLength(1);
-  // @orb-waive no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
   const stub = JSON.parse(readFileSync(join(root, "reports", "runs", "structure", slots[0] ?? "", "check-structure.json"), "utf8")) as StructureReport;
   expect(stub.run.complete).toBe(false);
   expect(existsSync(join(root, "reports", "check-structure.json"))).toBe(false);
 });
 
 test("a duplicate policy id across two modules is a load refusal naming both paths", { timeout: RUN_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [`${GATES}/aaa-twin.ts`]: `export {gate} from "./${ORDINARY}.ts";\n` }));
+  const root = await corpusTree(plantedTree, mixedTree(repoRoot, { [`${GATES}/aaa-twin.ts`]: `export {gate} from "./${ORDINARY}.ts";\n` }));
   const res = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   await expect(res).toExitWith(2);
   expect(res.stderr).toContain(`duplicate gate policy id ${ORDINARY}: tooling/src/verify/gates/aaa-twin.ts, tooling/src/verify/gates/${ORDINARY}.ts`);
@@ -367,7 +394,8 @@ test("a resource policy whose resource is missing is withheld with explicit fail
 }) => {
   // No server tree in this root: server-layout's authored-tree resource cannot resolve, so its
   // population phase throws — the ordinary sibling beside it still waives its finding.
-  const root = await plantedTree(
+  const root = await corpusTree(
+    plantedTree,
     mixedTree(repoRoot, {
       [`${GATES}/${HARD_RESOURCE}.ts`]: shim(repoRoot, HARD_RESOURCE),
       [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(${ORDINARY_MARKER}): planted — reconciled beside a failed owner\n${ORDINARY_LINE}`,
@@ -423,7 +451,7 @@ test("two runs over the same tree produce the same exit and the same artifact mo
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: INTL_LINE }));
+  const root = await corpusTree(plantedTree, mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE, [GRANT_SUBJECT]: reviewedLine(GRANT_SUBJECT) }));
   const first = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   const firstReport = stable(readArtifact(root));
   const second = await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
@@ -438,7 +466,7 @@ test("check:show reads the artifact: a policy row in its own vocabulary, with it
   repoRoot,
   runCli,
 }) => {
-  const root = await plantedTree(mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE }));
+  const root = await corpusTree(plantedTree, mixedTree(repoRoot, { [ORDINARY_SUBJECT]: ORDINARY_LINE }));
   expect((await runCli("verify", ["structure"], { cwd: root, timeoutMs: RUN_TIMEOUT_MS })).code).toBe(1);
   const shown = await runCli("verify", ["show", "--gate", ORDINARY], { cwd: root, timeoutMs: RUN_TIMEOUT_MS });
   expect(shown.stdout).toContain(`✗ ${ORDINARY} (1 violation)`);

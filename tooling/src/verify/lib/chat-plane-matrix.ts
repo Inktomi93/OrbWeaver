@@ -159,7 +159,7 @@ function foldMatrix(obj: ObjectLiteralExpression, out: MatrixFold, seen: Readonl
 
 /** The matrix as verb → authority, RESOLVED through object spreads of local/imported sibling matrices
  *  (#947), from the delivered `constName` variable declarations; `undefined` when none is readable, which is
- *  the BLINDNESS condition the health sibling reports and the reach sibling refuses on. */
+ *  a missing prerequisite on which the consumer refuses a reachability verdict. */
 export function resolveAuthorityMatrix(declarations: readonly MorphNode[], constName: string): ChatVerbMatrix | undefined {
   let found: ChatVerbMatrix | undefined;
   for (const declaration of declarations) {

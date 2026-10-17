@@ -44,13 +44,12 @@
 // (`global.d.ts`, `index.d.ts`), leaving 788 — the same 788 this header's grant paragraph records.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Identifier, Node, ParameterDeclaration, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { BaseUiBinding, InstalledSurface, RenderSite, SurfaceManifest, SurfaceManifestRead } from "../contract/baseui.ts";
 import { INSTALLED_PACKAGE_DEFINITIONS } from "../contract/resource-installed.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
-import { unwrapExpression } from "./ast-read.ts";
 import { surfaceManifestFrom as manifestFrom } from "./baseui-manifest.ts";
 import {
   BASE_UI_MODULE_PREFIX,
@@ -302,71 +301,6 @@ function collectRenderedParts(
     byPart.set(part, [...(byPart.get(part) ?? []), { file: where.file, line }]);
     out.set(binding.exported, byPart);
   }
-}
-
-// ── SEAL-SHAPE READERS (the `baseui-read` family's subtree walks live HERE, never in a policy) ───────
-//
-// Every one of these takes a node and answers a question about the subtree under it. They are in `lib/`
-// rather than in the `baseui-*` policies for a CONTRACT reason, not a taste one: `gate:contract`'s
-// `direct-walk` rule forbids `getDescendantsOfKind` inside a gate module regardless of receiver, and the
-// sanctioned alternative it names is "visitors, ctx.files, or a shared reader". A `className` expression's
-// identifiers and a portal's `container` target are both SUBTREE questions about ONE delivered node, which
-// no kind-indexed visitor can answer without re-deriving the ancestor chain — so they are readers.
-
-const CONTAINER_PROP = "container";
-
-/** Does `expression` read `document.body` — the unsafe Base UI portal default, spelled explicitly? */
-export function readsDocumentBody(expression: Node): boolean {
-  return [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)].some(
-    (node) => node.isKind(SyntaxKind.PropertyAccessExpression) && node.getName() === "body" && node.getExpression().getText() === "document",
-  );
-}
-
-function isParameterRead(node: Node, parameters: readonly ParameterDeclaration[], declarations: (node: Identifier) => readonly Node[]): boolean {
-  return (
-    node.isKind(SyntaxKind.Identifier) &&
-    declarations(node).some((definition) => parameters.some((parameter) => parameter.compilerNode === definition.compilerNode))
-  );
-}
-
-function bindingFromParameter(binding: Node, parameters: readonly ParameterDeclaration[], declarations: (node: Identifier) => readonly Node[]): boolean {
-  const parameter = binding.getFirstAncestorByKind(SyntaxKind.Parameter);
-  if (parameter !== undefined) {
-    return parameters.includes(parameter);
-  }
-  const initializer = binding.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getInitializer();
-  return initializer !== undefined && isParameterRead(unwrapExpression(initializer), parameters, declarations);
-}
-
-/** Does `expression` consume a `container` prop of one of `parameters` — as `props.container`, or as a
- *  destructured `{ container }` binding (directly, or via a `const { container } = props` statement)?
- *
- *  PRESENCE IS NOT WIRING, which is the whole point: a `container={somethingElse}` attribute satisfies a
- *  naive attribute check while delivering exactly the unsafe default. */
-export function consumesContainerProp(
-  expression: Node,
-  parameters: readonly ParameterDeclaration[],
-  declarations: (node: Identifier) => readonly Node[],
-): boolean {
-  for (const access of [expression, ...expression.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)]) {
-    if (
-      access.isKind(SyntaxKind.PropertyAccessExpression) &&
-      access.getName() === CONTAINER_PROP &&
-      isParameterRead(unwrapExpression(access.getExpression()), parameters, declarations)
-    ) {
-      return true;
-    }
-  }
-  for (const id of [expression, ...expression.getDescendantsOfKind(SyntaxKind.Identifier)]) {
-    if (
-      id.isKind(SyntaxKind.Identifier) &&
-      id.getText() === CONTAINER_PROP &&
-      declarations(id).some((definition) => definition.isKind(SyntaxKind.BindingElement) && bindingFromParameter(definition, parameters, declarations))
-    ) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /** Absolute ts-morph path → the repo-relative posix path gates report with. */

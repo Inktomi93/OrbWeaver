@@ -7,6 +7,8 @@ import { generationOf } from "@orb/inference";
 import type { CaptionImageDeps, ImageProviderDeps } from "@orb/server/domain/imagery";
 import { createCaptionImage, createImageProviderOps, createImageryInstructions } from "@orb/server/domain/imagery";
 import { makeGenerationUsage } from "@orb/testkit/iso/generation-usage.ts";
+import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/credentials.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
@@ -17,7 +19,12 @@ const CAPTION_MODE = "character_multimodal";
 
 test("generation resolution uses the run-as Principal and preserves only imagery warnings without changing accounting", async ({ harness }) => {
   const runAs = await principal(harness, (await harness.actor({ role: "admin" })).id);
-  const resolved = makeResolved({ task: "generateImage", ownerId: runAs.userId });
+  const credential = await makeResolvedSecret(harness.services.credentials.resolve, {
+    ownerId: runAs.userId,
+    credentialId: null,
+    providerId: testProviderId("custom-openai"),
+  });
+  const resolved = makeResolved({ task: "generateImage", ownerId: runAs.userId, credential });
   const resolve = vi.fn<ImageProviderDeps["resolve"]>(() => Promise.resolve({ resolved, warnings: [] }));
   const usage = makeGenerationUsage(0.25);
   const generateImage = vi.fn<ImageProviderDeps["generateImage"]>(() =>

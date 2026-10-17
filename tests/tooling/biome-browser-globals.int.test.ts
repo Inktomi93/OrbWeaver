@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(BiomeConfig): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(BiomeReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // The PERMANENT PIN for the browser-purity lint override (#1312): biome.json's `style/noRestrictedGlobals`
 // row over `packages/ui/**` + `packages/client/**`. WHY lint and not types: `types: []` (inherited from
 // tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`; it cannot suppress a triple-slash

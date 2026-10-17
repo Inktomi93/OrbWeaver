@@ -61,7 +61,7 @@ import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { makeCapability, makeResolved, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { can } from "#server/domain/admin/index.ts";
@@ -79,6 +79,7 @@ import {
   createResolveRetainedChatRebase,
   settleRetainedChatRebase,
 } from "#server/domain/stats/index.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { makeStoreHarness, seedVectorConnection } from "../embeddings/_support.ts";
 
 /** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`

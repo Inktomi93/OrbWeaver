@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(keyof typeof AUTHORED_TREE_PATHS): baselined when the gate widened to value casts; burn-down item 906.
-
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { PRODUCT_STYLESHEETS } from "../../../../tooling/src/verify/contract/css-family.ts";
 import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceTreeEntry } from "../../../../tooling/src/verify/contract/resource.ts";

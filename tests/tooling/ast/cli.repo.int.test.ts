@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ file: string }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ label: string; total: number; shown: number; hits: unknown[]; meta: { verb: string } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The real `pnpm ast` process boundary: dispatch, governed corpus selection, stdout/stderr separation,
 // audited zeroes, and exit classes. Lens behavior and formatting use the same production verbs over tiny
 // projects in ops/verbs.test.ts, avoiding a full repository load for every semantic assertion.

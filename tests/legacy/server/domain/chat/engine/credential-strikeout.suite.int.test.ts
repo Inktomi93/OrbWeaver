@@ -32,7 +32,6 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeApiKeySecret } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe, vi } from "vitest";
@@ -43,6 +42,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { createTurnRetrievalWarningEpisode } from "#server/domain/chat/substrate/turn-retrieval-warning.ts";
 import type { SearchContext } from "#server/domain/search/context.ts";
 import { createDigests } from "#server/domain/search/verbs/digests.ts";
+import { makeApiKeySecret } from "../../../../inference/_support.ts";
 import { makeStoreHarness } from "../../embeddings/_support.ts";
 import {
   fakeRecallResult,

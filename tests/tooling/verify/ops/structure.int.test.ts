@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ run: RunView }): baselined when the gate widened to value casts; burn-down item 906.
-
 // RUN COMPLETENESS (#410) — the planted-control proof that `reports/check-structure.json` cannot be read
 // as a verdict unless the run that wrote it actually finished and reconciled.
 //

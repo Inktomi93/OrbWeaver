@@ -119,7 +119,7 @@ export type PortableChatInjection = Readonly<Omit<z.output<typeof wireInjectionS
  *  means the user seat, which on restore is the importer (the only human the room has). */
 export interface PortableRpgSheet {
   /** Foreign-file identity. The import verb validates and resolves it against the destination library. */
-  // @orb-waive brand-in-name-position(characterHandle): this is untrusted portable-file text, parsed and resolved against the destination library only by the import verb; branding it here would claim validation the serde boundary has not performed. Ends if the bundle schema parses this field to CharacterHandle before exposing it.
+  // eslint-disable-next-line orb/brand-in-name-position -- this is untrusted portable-file text, parsed and resolved against the destination library only by the import verb; branding it here would claim validation the serde boundary has not performed. Ends if the bundle schema parses this field to CharacterHandle before exposing it.
   readonly characterHandle: string | null;
   readonly sheet: RpgSheet;
 }

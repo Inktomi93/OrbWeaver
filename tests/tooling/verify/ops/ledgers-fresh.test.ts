@@ -137,7 +137,6 @@ test("a line inserted ABOVE a census site leaves the census fresh — the commit
 
 test("a census site that VANISHED reds, naming its siteId", async ({ plantedTree }) => {
   const root = await plantCensus(plantedTree, SITE_SOURCE, "export const NO_SITE = 1;\n");
-  // @orb-waive no-test-fabrication(CaughtFailurePopulation): baselined when the gate widened to value casts; burn-down item 906.
   const committed = JSON.parse(readFileSync(join(root, POPULATION_REL), "utf8")) as CaughtFailurePopulation;
   expect(censusDrift(committed, deriveCaughtFailurePopulation(root)).drift.join("\n")).toContain(`gone   ${SITE_ID}`);
   expect(await censusCheck(root)).toBe(1);
@@ -148,7 +147,6 @@ test("a same-token catch inserted in a DIFFERENT function above re-keys nothing 
   // must not shift `absorb`'s `::catch::1` to `::catch::2`, which would read as one site gone and two new.
   const before = "export function before(): void {\n  try {\n    risky();\n  } catch {}\n}\n";
   const root = await plantCensus(plantedTree, SITE_SOURCE, `${before}${SITE_SOURCE}`);
-  // @orb-waive no-test-fabrication(CaughtFailurePopulation): baselined when the gate widened to value casts; burn-down item 906.
   const committed = JSON.parse(readFileSync(join(root, POPULATION_REL), "utf8")) as CaughtFailurePopulation;
   const rows = censusDrift(committed, deriveCaughtFailurePopulation(root)).drift.filter((line) => !line.startsWith("totals"));
   expect(rows).toHaveLength(1);

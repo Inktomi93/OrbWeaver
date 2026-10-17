@@ -11,14 +11,14 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
-import { fileURLToPath } from "node:url";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
-import { execNicedSync, runNicedSync } from "@orb/tooling/floor/process/proc";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
+import { compilerConfigRoster } from "../../floor/compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
 import { BASE_UI_DATA_RULE, BASE_UI_HANDLER_RULE, BASE_UI_NATIVE_INPUT_PATHS, BASE_UI_STATE_RULE } from "../contract/baseui.ts";
-import type { EslintFileAdmission } from "../contract/config-snapshot.ts";
+import type { EslintFileAdmission, EslintNativeMetadataFamily as NativeMetadataFamily } from "../contract/config-snapshot.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS } from "../contract/population.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
@@ -26,6 +26,7 @@ import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { affectsBaseUiLint, surfaceManifestFrom } from "../lib/baseui-manifest.ts";
 import { affectsClientLexicalNativeLint, CLIENT_LEXICAL_NATIVE_INPUT_PATHS, CLIENT_LEXICAL_NATIVE_RULES } from "../lib/client-lexical-native.ts";
 import { affectsClientMapNativeLint, CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "../lib/client-map-native.ts";
+import { DISCOVERY_MAX_BUFFER_BYTES, readAdmittedEslintPopulation, readDiscoveredPopulation, readTypedEslintAdmissions } from "../lib/config-snapshot.ts";
 import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RULES } from "../lib/context-definition-shape.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
@@ -41,6 +42,7 @@ import {
   TEST_TOOLING_IMPORT_NATIVE_FAMILIES,
   TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS,
 } from "../lib/test-tooling-imports-native.ts";
+import { affectsTypedNativeLint, TYPED_NATIVE_POLICIES } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -48,7 +50,6 @@ refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 const CONFIG_REL = "eslint.config.js";
 const HARD_CONFIG_REL = "eslint-hard.config.js";
 const HARD_CHILD_FLAGS = ["--config", HARD_CONFIG_REL, "--no-config-lookup", "--no-inline-config"] as const;
-const DISCOVERY_ENTRY = fileURLToPath(new URL("./config-snapshot-entry.ts", import.meta.url));
 /** Flags shared by every partition child. `--cache-location` is added per owner in {@link runPartitions}.
  *  `--concurrency off`: every ESLint worker thread loads the partition's program again. */
 const CHILD_FLAGS = ["--max-warnings", "0", "--cache", "--cache-strategy", "content", "--concurrency", "off"] as const;
@@ -68,34 +69,6 @@ function ownerFor(path: string, owners: readonly string[]): string {
     return owners[0] ?? "<unowned>";
   }
   throw new Error(`ESLint file ${path} has ${owners.length === 0 ? "no native compiler owner" : `ambiguous native compiler owners {${owners.join(", ")}}`}`);
-}
-
-/** The discovery wire reader (#2212). `count` and `files` are serialized from the same producer-owned
- *  enumeration, so equality proves envelope consistency rather than independent completion. Malformed JSON
- *  and inconsistent envelopes both refuse with this discovery site named; neither is evidence of ENOBUFS. */
-export function parsedDiscovery(text: string): readonly string[] {
-  let value: unknown;
-  try {
-    value = JSON.parse(text) as unknown;
-  } catch (error) {
-    throw new Error("ESLint discovery child emitted malformed serialized population data; no lint verdict is available", { cause: error });
-  }
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("ESLint discovery child emitted a malformed population envelope (expected { count, files })");
-  }
-  const { count, files } = value as { readonly count?: unknown; readonly files?: unknown };
-  if (!(Array.isArray(files) && files.every((path): path is string => typeof path === "string" && path !== ""))) {
-    throw new Error("ESLint discovery child emitted a malformed filename list");
-  }
-  if (!Number.isSafeInteger(count)) {
-    throw new Error("ESLint discovery child emitted a malformed population envelope (count must be a safe integer)");
-  }
-  if (files.length !== count) {
-    throw new Error(
-      `ESLint discovery envelope is inconsistent: count ${String(count)} does not match ${String(files.length)} filenames; no lint verdict is available`,
-    );
-  }
-  return files;
 }
 
 export function partitionEslintFiles(
@@ -127,60 +100,10 @@ export function partitionEslintFiles(
   return groups;
 }
 
-/** #2211: a discovery population once exceeded node's default capture ceiling, which kills the child with
- *  ENOBUFS rather than returning clipped stdout. The current fenced repository measured about 446 KiB on
- *  2026-09-13, so that incident no longer reproduces; 64 MiB remains a named production fuse. */
-const BYTES_PER_KIB = 1024;
-const KIB_PER_MIB = 1024;
-const DISCOVERY_BUFFER_MIB = 64;
-export const DISCOVERY_MAX_BUFFER_BYTES = DISCOVERY_BUFFER_MIB * KIB_PER_MIB * BYTES_PER_KIB;
-
-/** THE DISCOVERY DOOR, and the ceiling is NAMED HERE rather than left to node (#2211/#2212). The child writes
- *  the whole producer-owned filename population to stdout. Node does not return a clipped value when the
- *  capture ceiling is exceeded; it kills the child with ENOBUFS. The current fenced payload is below node's
- *  default, while the explicit 64 MiB ceiling preserves a stable fuse as the repository grows.
- *
- *  A BLOWN CEILING REFUSES BY NAME. `spawnSync`'s bare "spawnSync nice ENOBUFS" names the wrapper, not the
- *  population that outgrew it, and an operator reading that has no way to know WHICH door died or what to do
- *  — #2211 took a barrier tail plus a stack frame to attribute. The translation below states the site, the
- *  ceiling it was given, and the remedy, so the next occurrence is self-describing at the point of failure.
- *  `maxBuffer` is a parameter so a control can drive the refusal with a deliberately tiny ceiling; a fuse
- *  nobody has ever seen blow is a fuse nobody knows is wired. */
-export function readDiscoveredPopulation(root: string, maxBuffer: number = DISCOVERY_MAX_BUFFER_BYTES, patterns: readonly string[] = []): readonly string[] {
-  try {
-    return parsedDiscovery(execNicedSync("pnpm", ["exec", "node", DISCOVERY_ENTRY, "eslint-discovery", ...patterns], { cwd: root, maxBuffer }));
-  } catch (error) {
-    if (!isBufferOverflow(error)) {
-      throw error;
-    }
-    throw new Error(
-      `ESLint discovery outgrew its ${String(maxBuffer)}-byte stdout ceiling (tooling/src/verify/ops/eslint.ts, DISCOVERY_BUFFER_MIB): the child was ` +
-        "KILLED with ENOBUFS rather than truncated, so the admitted population could not be enumerated and NO lint verdict exists for this run. " +
-        "Raise the ceiling, or hand the population over a file instead of stdout.",
-      { cause: error },
-    );
-  }
-}
-
-/** ENOBUFS as node reports it from `execFileSync`: the code on the error, with the message as the fallback
- *  for a wrapper that rebuilds the error (`withCapturedStderr` folds captured stderr into `.message`). */
-function isBufferOverflow(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-  const { code, message } = error as { readonly code?: unknown; readonly message?: unknown };
-  return code === "ENOBUFS" || (typeof message === "string" && message.includes("ENOBUFS"));
-}
-
 /** The population ESLint itself enumerates for `patterns` (`.` when none), cross-checked against native
  *  ConfigArray admission. */
-async function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly EslintFileAdmission[]> {
-  const discovered = readDiscoveredPopulation(root, DISCOVERY_MAX_BUFFER_BYTES, patterns);
-  const admitted = await readEslintFileAdmissions(root, CONFIG_REL, discovered);
-  if (admitted.length !== discovered.length || admitted.some(({ path }, index) => path !== discovered[index])) {
-    throw new Error("ESLint discovery and native ConfigArray admission resolved different filename populations");
-  }
-  return admitted;
+function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly EslintFileAdmission[]> {
+  return readAdmittedEslintPopulation(root, CONFIG_REL, readDiscoveredPopulation(root, DISCOVERY_MAX_BUFFER_BYTES, patterns));
 }
 
 export async function runEslint(root: string): Promise<number> {
@@ -211,7 +134,9 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
         CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path) ||
         CLIENT_LEXICAL_NATIVE_INPUT_PATHS.some((input) => input === path) ||
         SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.some((input) => input === path)
+        TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+        TYPED_NATIVE_POLICIES.some((entry) => entry.inputs.some((input) => input === path)) ||
+        compilerConfigRoster([path]).length > 0
       ) ||
       (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
   );
@@ -224,13 +149,6 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     return supplemental;
   }
   return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
-}
-
-interface NativeMetadataFamily {
-  readonly hard: boolean;
-  readonly patterns: readonly string[];
-  readonly rules: readonly string[];
-  readonly label: string;
 }
 
 function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
@@ -257,6 +175,7 @@ function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Pr
   const frontendRoots = [...POPULATION_ROOTS["@client"], ...POPULATION_ROOTS["@ui"]];
   const lexical = paths.some(affectsClientLexicalNativeLint) && !coversNativeRoots(paths, frontendRoots);
   const families = [
+    ...typedNativeMetadata(root, paths),
     ...(baseUi ? baseUiMetadata(root) : []),
     ...(context ? [contextMetadata(root)] : []),
     ...(map ? [clientMapMetadata(root)] : []),
@@ -267,16 +186,54 @@ function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Pr
   return recheckNativeFamilies(root, families);
 }
 
+function typedNativeMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
+  if (!paths.some(affectsTypedNativeLint) || paths.includes(".")) {
+    return [];
+  }
+  const configs = compilerConfigRoster(paths);
+  if (configs.length > 0) {
+    for (const config of compilerConfigRoster(readPolicyRepositoryInventory(root).paths)) {
+      readFileSync(resolve(root, config));
+    }
+  }
+  return TYPED_NATIVE_POLICIES.filter(
+    (entry) => configs.length > 0 || paths.some((path) => entry.inputs.some((input) => input === path || input.startsWith(`${path.replace(/\/$/u, "")}/`))),
+  ).map((entry) => ({
+    hard: false,
+    requiresTypeInformation: true,
+    inputs: entry.inputs,
+    patterns: ["."],
+    rules: [`orb/${entry.id}`],
+    label: `typed-native:${entry.id}`,
+  }));
+}
+
+async function recheckTypedNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
+  if (families.length === 0) {
+    return EXIT.clean;
+  }
+  const admitted = await admittedPopulation(root, [...new Set(families.flatMap((family) => family.patterns))]);
+  const selected = await readTypedEslintAdmissions(root, CONFIG_REL, admitted, families);
+  return selected.length === 0 ? EXIT.clean : runProfiles(root, selected, "metadata-typed-");
+}
+
 async function recheckNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
+  const typedVerdict = await recheckTypedNativeFamilies(
+    root,
+    families.filter((family) => family.requiresTypeInformation === true),
+  );
+  if (typedVerdict === EXIT.toolError) {
+    return typedVerdict;
+  }
   const hard = families.filter((family) => family.hard);
   const hardPatterns = hard.flatMap(({ patterns }) => patterns);
-  let verdict = hard.length === 0 ? EXIT.clean : await nativeSyntaxPass(root, hardPatterns, hard);
+  let verdict = Math.max(typedVerdict, hard.length === 0 ? EXIT.clean : await nativeSyntaxPass(root, hardPatterns, hard));
   if (verdict === EXIT.toolError) {
     return verdict;
   }
   // Ordinary comments retain authority. Only families requesting the same native pattern can share its rules.
   const byPattern = new Map<string, NativeMetadataFamily[]>();
-  for (const family of families.filter((entry) => !entry.hard)) {
+  for (const family of families.filter((entry) => !(entry.hard || entry.requiresTypeInformation === true))) {
     for (const pattern of family.patterns) {
       const entries = byPattern.get(pattern) ?? [];
       entries.push(family);

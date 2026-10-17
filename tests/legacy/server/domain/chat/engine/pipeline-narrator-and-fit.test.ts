@@ -7,9 +7,10 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { makeCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { makeResolved } from "../../../../inference/_support.ts";
 import type { TurnRequest } from "./_pipeline-support.ts";
 import {
   ARIA,

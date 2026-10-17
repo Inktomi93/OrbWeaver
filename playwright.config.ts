@@ -3,7 +3,7 @@ import process from "node:process";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
-import { DEV_TARGET_ALLOWED, E2E_REPORT_PREFIX, MODE_PROJECTS, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
+import { BROWSER_PROJECTS, DEV_TARGET_ALLOWED, E2E_REPORT_PREFIX, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
 // Playwright, never vitest (browser-mode hangs — docs/law/Spine-Testing.md §7). Separate runner, NOT in `pnpm
@@ -44,10 +44,11 @@ const reporters: ReporterDescription[] = [
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL
 // (its vite origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
 // mode's stack.
-const projects = MODE_PROJECTS.map((mode) => ({
-  name: mode.name,
+const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
+  name,
   testMatch: mode.testMatch,
-  use: { ...devices["Desktop Chrome"], baseURL: mode.baseUrl },
+  metadata: { chatStyle, authMode: mode.name },
+  use: { ...devices[device], baseURL: mode.baseUrl },
 }));
 
 // One webServer per mode. EVERY mode boots its OWN isolated stack on distinct ports and NEVER blind-reuses

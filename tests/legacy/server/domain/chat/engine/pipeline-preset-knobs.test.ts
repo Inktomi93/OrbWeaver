@@ -8,10 +8,11 @@ import type { Resolved } from "@orb/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { makeCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { buildTurnUserMacros } from "#server/domain/chat/assembly/user-macros.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import type { TurnRequest } from "./_pipeline-support.ts";
 import {
   ARIA,

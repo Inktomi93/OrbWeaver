@@ -2,15 +2,18 @@
 // Exact central home grants replace the private SANCTIONED table. The shared fact preserves
 // the legacy name-keyed import/bare-call grammar; this does not prove downstream data flow.
 import { defineGate } from "../contract/policy.ts";
-import { macroResolutionFact } from "../lib/macro-resolution-fact.ts";
+import { MACRO_RESOLVERS, macroResolutionFact } from "../lib/macro-resolution-fact.ts";
 import { reportReviewedGrantFileCandidates } from "../lib/reviewed-grant-findings.ts";
 
 const MESSAGE =
   "macro resolution requires an exact reviewed read-only home; editable surfaces must display and persist RAW template text. (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "render the raw template in writable fields. Review an exact read-only home centrally; editor-adjacent readouts also need a token-roundtrip CT.";
+const RESOLVER_PROOF = {
+  "packages/kit/src/macro/example.ts": MACRO_RESOLVERS.map((name) => `export function ${name}() {}`).join("\n"),
+};
 export const gate = defineGate({
   id: "macro-resolution-home",
-  family: "macro-resolution",
+  family: "macro-resolution-home",
   authority: "reviewed-grant",
   severity: "error",
   population: ["@client", "@ui"],
@@ -40,7 +43,7 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: { "packages/client/src/features/preset/editor.tsx": 'import { processMacros } from "@orb/kit/macro"; processMacros();' },
+      files: { ...RESOLVER_PROOF, "packages/client/src/features/preset/editor.tsx": 'import { processMacros } from "@orb/kit/macro"; processMacros();' },
       grant: { subject: "packages/client/src/features/preset/editor.tsx", operation: "macro-resolution" },
       expect: { count: 1, messageIncludes: "processMacros" },
       why: "an import and call in one editor are one exact home obligation, with both actionable sites retained",
@@ -49,7 +52,10 @@ export const gate = defineGate({
   mustPass: [
     {
       mode: "source",
-      files: { "packages/client/src/features/preset/editor.tsx": 'import { scanMacroRuns } from "@orb/kit/macro"; scanMacroRuns("{{user}}");' },
+      files: {
+        ...RESOLVER_PROOF,
+        "packages/client/src/features/preset/editor.tsx": 'import { scanMacroRuns } from "@orb/kit/macro"; scanMacroRuns("{{user}}");',
+      },
       why: "tokenizing a template does not resolve it and stays legal in an editor",
     },
   ],

@@ -42,7 +42,7 @@ concurrency:
 
 env:
   ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
-  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v4
+  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v5-corpus
   ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
   ORB_CI_FULL_CACHE_PREFIX: full-hosted-v1-verified
 
@@ -55,6 +55,7 @@ jobs:
       code: ${{ steps.diff.outputs.code }}
       base: ${{ steps.diff.outputs.base }}
       head: ${{ steps.diff.outputs.head }}
+      corpus-matrix: ${{ steps.corpus.outputs.matrix }}
     permissions:
       contents: read
       actions: read
@@ -71,6 +72,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
         run: pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"
+      - id: corpus
+        name: Plan canonical corpus projects
+        run: pnpm exec node scripts/ci-plan.ts corpus
 
   static:
     needs: [changes]
@@ -291,8 +295,6 @@ jobs:
         with:
           browsers: "true"
       - run: pnpm e2e:smoke
-      - name: Qualify the committed corpus through an independent writable clone
-        run: pnpm --config.verify-deps-before-run=false e2e:corpus
       - if: failure()
         name: Say how to reproduce
         run: |
@@ -300,7 +302,6 @@ jobs:
             echo "### $GITHUB_JOB failed"
             echo
             echo "Reproduce locally: \`pnpm e2e:smoke\`"
-            echo "Committed corpus: \`pnpm --config.verify-deps-before-run=false e2e:corpus\`"
             echo
             echo "Logs and reports are in the \`reports-e2e-smoke\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"
@@ -313,10 +314,49 @@ jobs:
             test-results/
           retention-days: 7
 
+  e2e-corpus:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: *media-runner
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.changes.outputs.corpus-matrix) }}
+    name: e2e corpus (${{ matrix.project }})
+    env:
+      CORPUS_PROJECT: ${{ matrix.project }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+        with:
+          browsers: "true"
+      - name: Qualify one canonical corpus project through its independent clone
+        run: pnpm e2e:corpus:matrix --project="$CORPUS_PROJECT"
+      - if: failure()
+        name: Say how to reproduce
+        run: |
+          {
+            echo "### $GITHUB_JOB failed"
+            echo
+            echo "Reproduce locally: pnpm e2e:corpus:matrix --project=\"$CORPUS_PROJECT\""
+            echo
+            echo "Logs and reports are in the reports-e2e-corpus-$CORPUS_PROJECT artifact on this run."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports-e2e-corpus-${{ matrix.project }}
+          path: |
+            reports/
+            test-results/
+          retention-days: 7
+
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
-    needs: [changes, static, node, node-legacy, ct, ct-legacy, e2e-smoke]
+    needs: [changes, static, node, node-legacy, ct, ct-legacy, e2e-smoke, e2e-corpus]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
@@ -334,7 +374,7 @@ jobs:
           echo "$NEEDS" | jq -e '
             .changes.result == "success" and .static.result == "success" and
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
-            (.changes.outputs.code as $code | [.node, .["node-legacy"], .ct, .["ct-legacy"], .["e2e-smoke"]]
+            (.changes.outputs.code as $code | [.node, .["node-legacy"], .ct, .["ct-legacy"], .["e2e-smoke"], .["e2e-corpus"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
           ' > /dev/null || {
             echo "::error title=CI gate::changes.outputs.code=$(echo "$NEEDS" | jq -r '.changes.outputs.code')"

@@ -13,7 +13,6 @@ import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/
 import { gate as beltTotal } from "../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as consumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as definitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
-import { gate as factHealth } from "../../../../tooling/src/verify/gates/bus-fact-health.ts";
 import { gate as payloadHealth } from "../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as producerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -31,7 +30,7 @@ const NODE_ARM = "packages/contracts/src/native/node-arm.ts";
 const BROWSER_ARM = "packages/contracts/src/native/browser-arm.ts";
 const SHARED_ARM = "packages/contracts/src/native/shared.ts";
 const SOURCES = [NODE_BUS, BROWSER_BUS, NODE_ARM, BROWSER_ARM, SHARED_ARM];
-const POLICIES = [beltTotal, consumerBelt, definitionBelts, factHealth, payloadHealth, producerCoverage];
+const POLICIES = [beltTotal, consumerBelt, definitionBelts, payloadHealth, producerCoverage];
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -156,7 +155,7 @@ test(
         structure.push(await runStructure(scratch, [`--check=${id}`]));
       }
       const scoped = await runScopedCli(scratch, ["--scope", SOURCES.join(",")]);
-      expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 0, 1], scoped: 1 });
+      expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 1], scoped: 1 });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,

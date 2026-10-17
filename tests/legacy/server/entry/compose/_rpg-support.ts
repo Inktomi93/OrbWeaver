@@ -13,13 +13,14 @@ import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, 
 import { castId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { detectModelFamily } from "#inference/capability/families.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import type { RpgTraceSink } from "#server/domain/rpg/index.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 export type { RpgTurnContext } from "#server/domain/chat/index.ts";

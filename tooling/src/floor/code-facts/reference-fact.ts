@@ -1,16 +1,16 @@
 // Final spelling-independent binding/reference facts for the shared gate runtime.
 
-import type { Identifier, Node as MorphNode, SourceFile, ts } from "ts-morph";
+import type { Identifier, Node as MorphNode, Project, SourceFile, ts } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { beginNativeReferencePass, endNativeReferencePass, nativeCompilerSourceFiles } from "../compiler/ts-workspace.ts";
 import { isDocumentationLinkReference as documentationLinkReference } from "./reference-documentation.ts";
-import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
+import { lexicalReferenceSymbol, matchingAllocationBindings } from "./reference-fact-alias.ts";
 import type {
   GlobalMemberOrigin,
   InheritedReadEffectContext,
-  InheritedReadPremise,
   MemberReference,
   ModuleMemberOrigin,
+  PrototypeExposureStatistics,
   ReferenceFact,
   ReferenceResolutionServices,
   ReferenceUnresolvedReason,
@@ -21,7 +21,7 @@ import type {
 import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import { readMemberAccessWith, readMemberReferenceWith } from "./reference-fact-member.ts";
 import { readModuleAliasBindingWith, resolveModuleMemberOriginWith } from "./reference-fact-module.ts";
-import { sourceWriteFacts, unprovenReferenceUse } from "./reference-fact-writes.ts";
+import { isDirectWriteTarget, sourceWriteFacts, unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { inventoryExports } from "./semantic-inventory-reader.ts";
 
 interface ResolutionState {
@@ -33,14 +33,28 @@ interface ResolutionState {
 type WriteInspection = { readonly kind: "stable" } | { readonly kind: "written" } | { readonly kind: "unsupported"; readonly detail: string };
 type WriteScope = "binding" | "value";
 
-// Native source effects share one invocation lifetime; standalone readers keep fresh query-local facts.
-// Program-keyed inherited-read projections cannot outlive the source/write cache that supplied them.
+interface PrototypeExposureGeneration {
+  readonly sources: readonly { readonly source: SourceFile; readonly native: ts.SourceFile }[];
+  readonly token: object | undefined;
+  readonly exposures: readonly MorphNode[];
+}
+
+// A native-generation census never stores a captured value judgment or a conditional premise.
 interface ReferencePassCaches {
   readonly writesBySource: Map<object, SourceWriteFacts>;
-  readonly inheritedReads: Map<ts.Program, readonly MorphNode[]>;
   writeProgram?: ts.Program;
+  readonly inheritedReads: Map<ts.Program, PrototypeExposureGeneration>;
+  readonly inheritedBuilding: Set<ts.Program>;
+  readonly inheritedStatistics: {
+    invocations: number;
+    censusRuns: number;
+    inputsSwept: number;
+    readonly allocations: Map<ts.Node, { readonly program: ts.Program; readonly bindings: ReadonlyMap<MorphNode, MorphNode> }[]>;
+    readonly sweeps: Map<number, number>;
+  };
 }
 let openPass: ReferencePassCaches | undefined;
+let completedPrototypeStatistics: PrototypeExposureStatistics | undefined;
 
 /** Open the pass-scoped reader caches. Refuses a nested open: passes never overlap. */
 export function beginReferencePass(): void {
@@ -48,7 +62,13 @@ export function beginReferencePass(): void {
     throw new Error("beginReferencePass: a reference pass is already open — passes never overlap");
   }
   beginNativeReferencePass();
-  openPass = { writesBySource: new Map(), inheritedReads: new Map() };
+  completedPrototypeStatistics = undefined;
+  openPass = {
+    writesBySource: new Map(),
+    inheritedReads: new Map(),
+    inheritedBuilding: new Set(),
+    inheritedStatistics: { invocations: 0, censusRuns: 0, inputsSwept: 0, allocations: new Map(), sweeps: new Map() },
+  };
 }
 
 /** Close the pass-scoped reader caches; every cached set is dropped with the pass. */
@@ -56,6 +76,7 @@ export function endReferencePass(): void {
   try {
     endNativeReferencePass();
   } finally {
+    completedPrototypeStatistics = prototypeExposureStatistics();
     openPass = undefined;
   }
 }
@@ -210,134 +231,75 @@ function observedWithoutTransfer(node: MorphNode): boolean {
   );
 }
 
-function freshEffectValue(source: import("./reference-fact-contract.ts").ReturnedValueSource): boolean {
-  return (
-    source.present &&
-    source.path.length === 0 &&
-    (Node.isObjectLiteralExpression(source.value) ||
-      Node.isArrayLiteralExpression(source.value) ||
-      Node.isFunctionDeclaration(source.value) ||
-      Node.isFunctionExpression(source.value) ||
-      Node.isArrowFunction(source.value) ||
-      Node.isStringLiteral(source.value) ||
-      Node.isNumericLiteral(source.value) ||
-      [SyntaxKind.NullKeyword, SyntaxKind.TrueKeyword, SyntaxKind.FalseKeyword].includes(source.value.getKind()))
-  );
-}
-
-function freshEffectTarget(node: MorphNode | undefined, context: InheritedReadEffectContext): boolean {
+function freshEffectTarget(node: MorphNode | undefined): boolean {
   if (node === undefined) {
     return false;
   }
-  const value = context.values(node, [], new Map());
-  return value.kind === "resolved" && value.value.length > 0 && value.value.every(freshEffectValue);
-}
-
-function authoredEffectCallable(source: import("./reference-fact-contract.ts").ReturnedValueSource): boolean {
-  return (
-    source.present &&
-    source.path.length === 0 &&
-    (Node.isArrowFunction(source.value) || Node.isFunctionExpression(source.value) || Node.isFunctionDeclaration(source.value)) &&
-    source.value.getBody() !== undefined
-  );
-}
-
-function projectedEffectValue(
-  member: MorphNode,
-  context: InheritedReadEffectContext,
-  accepts: (source: import("./reference-fact-contract.ts").ReturnedValueSource) => boolean = freshEffectValue,
-): boolean {
-  if (!(Node.isPropertyAccessExpression(member) || Node.isElementAccessExpression(member))) {
+  const stable = resolveStableExpression(node);
+  if (stable.kind === "unresolved") {
     return false;
   }
-  if (Node.isPropertyAccessExpression(member)) {
-    const value = context.values(member.getExpression(), [member.getName()], new Map());
-    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
-  }
-  const expression = member.getArgumentExpression();
-  if (expression === undefined) {
-    return false;
-  }
-  const keys = context.values(expression, [], new Map());
-  if (keys.kind === "unresolved" || keys.value.length === 0) {
-    return false;
-  }
-  return keys.value.every((key) => {
-    if (!key.present || key.path.length > 0) {
-      return false;
-    }
-    const string = readStaticString(key.value);
-    const number = string.kind === "resolved" ? undefined : readStaticNumber(key.value);
-    let name: string | undefined;
-    if (string.kind === "resolved") {
-      name = string.value;
-    } else if (number?.kind === "resolved") {
-      name = String(number.value);
-    }
-    if (name === undefined) {
-      return false;
-    }
-    const value = context.values(member.getExpression(), [name], key.bindings);
-    return value.kind === "resolved" && value.value.length > 0 && value.value.every(accepts);
-  });
+  const value = stable.value;
+  return Node.isObjectLiteralExpression(value) || Node.isArrayLiteralExpression(value) || Node.isFunctionExpression(value) || Node.isArrowFunction(value);
 }
 
-function nativeFreezeMember(input: MorphNode, context: InheritedReadEffectContext): boolean {
-  const origin = resolveGlobalMemberOrigin(input);
-  return (
-    origin.kind === "resolved" &&
-    origin.value.globalName === "Object" &&
-    origin.value.memberPath.length === 1 &&
-    origin.value.memberPath[0] === "freeze" &&
-    origin.value.declarations.length > 0 &&
-    origin.value.declarations.every((declaration) => context.program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
-  );
-}
-
-function closedNativeFreezeAlias(input: MorphNode, context: InheritedReadEffectContext): boolean {
-  let value = input;
-  let parent = value.getParent();
-  while (Node.isParenthesizedExpression(parent) || Node.isAsExpression(parent) || Node.isSatisfiesExpression(parent) || Node.isNonNullExpression(parent)) {
-    value = parent;
-    parent = value.getParent();
-  }
+function intrinsicAliasExposure(input: MorphNode): MorphNode | undefined {
+  const declaration = input.getParent();
   if (
-    (Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent)) &&
-    parent.getExpression() === value &&
-    nativeFreezeMember(parent, context)
+    !Node.isVariableDeclaration(declaration) ||
+    declaration.getInitializer() !== input ||
+    declaration.getVariableStatement()?.getDeclarationKind() !== VariableDeclarationKind.Const
   ) {
-    const call = parent.getParent();
-    return (Node.isCallExpression(call) && call.getExpression() === parent) || closedNativeFreezeAlias(parent, context);
+    return prototypeExposureSite(input);
   }
-  if (!Node.isVariableDeclaration(parent) || parent.getInitializer() !== value) {
-    return false;
+  const name = declaration.getNameNode();
+  if (!Node.isIdentifier(name)) {
+    return prototypeExposureSite(input);
   }
-  const name = parent.getNameNode();
-  if (!(Node.isIdentifier(name) && nativeFreezeMember(input, context))) {
-    return false;
-  }
-  return (
-    unprovenReferenceUse(name, (use) => {
-      const call = use.getParent();
-      return Node.isCallExpression(call) && call.getExpression() === use;
-    }) === undefined
-  );
+  const escaped = unprovenReferenceUse(name, (use) => {
+    if (use === name || observedWithoutTransfer(use)) {
+      return true;
+    }
+    const call = use.getParent();
+    return Node.isCallExpression(call) && call.getExpression() === use && inheritedReadEffect(use) === undefined;
+  });
+  return escaped === undefined ? undefined : prototypeExposureSite(escaped);
 }
 
-function inheritedReadEffect(input: MorphNode, context: InheritedReadEffectContext): MorphNode | undefined {
+function intrinsicPrototypeOperation(input: MorphNode): GlobalMemberOrigin | undefined {
+  const origin = resolveGlobalMemberOrigin(input);
+  return origin.kind === "resolved" && ["Object", "Reflect"].includes(origin.value.globalName) && origin.value.memberPath.length === 1
+    ? origin.value
+    : undefined;
+}
+
+function nonIntrinsicEffect(input: MorphNode): MorphNode | undefined {
+  const member = readMemberAccess(input);
+  return member.kind === "resolved" &&
+    ["getPrototypeOf", "setPrototypeOf", "defineProperty", "defineProperties", "getOwnPropertyDescriptor", "getOwnPropertyDescriptors"].includes(
+      member.value.name,
+    )
+    ? undefined
+    : prototypeExposureSite(input);
+}
+
+function inheritedReadEffect(input: MorphNode): MorphNode | undefined {
   if (observedWithoutTransfer(input)) {
     return;
   }
+  const parent = input.getParent();
+  if (Node.isElementAccessExpression(input) && parent !== undefined && isDirectWriteTarget(parent, input) && freshEffectTarget(input.getExpression())) {
+    return;
+  }
   const call = input.getParent();
+  const origin = intrinsicPrototypeOperation(input);
   if (!Node.isCallExpression(call) || call.getExpression() !== input) {
-    return closedNativeFreezeAlias(input, context) || projectedEffectValue(input, context) ? undefined : input;
+    return origin === undefined ? prototypeExposureSite(input) : intrinsicAliasExposure(input);
   }
-  const origin = resolveGlobalMemberOrigin(input);
-  if (origin.kind === "unresolved" || !["Object", "Reflect"].includes(origin.value.globalName) || origin.value.memberPath.length !== 1) {
-    // Actual authored callees remain subject to the complete Project's body and parameter effect sites.
-    return projectedEffectValue(input, context, authoredEffectCallable) ? undefined : input;
+  if (origin === undefined) {
+    return nonIntrinsicEffect(input);
   }
-  const member = origin.value.memberPath[0];
+  const member = origin.memberPath[0];
   switch (member) {
     case "keys":
     case "values":
@@ -363,7 +325,7 @@ function inheritedReadEffect(input: MorphNode, context: InheritedReadEffectConte
     case "setPrototypeOf":
     case "set":
     case "deleteProperty":
-      return freshEffectTarget(call.getArguments()[0], context) ? undefined : input;
+      return freshEffectTarget(call.getArguments()[0]) ? undefined : call;
     case undefined:
     default:
       return input;
@@ -374,81 +336,172 @@ function collectInheritedReadInputs(sources: readonly SourceFile[], writes: Map<
   return sources.flatMap((source) => (source.isDeclarationFile() ? [] : sourceWriteFacts(source, writes).inheritedReads));
 }
 
-class InheritedReadTrialPremise implements InheritedReadPremise {
-  #read: InheritedReadPremise["require"] | undefined;
-  constructor(read: InheritedReadPremise["require"]) {
-    this.#read = read;
+function prototypeExposureSite(input: MorphNode): MorphNode {
+  let current = input;
+  for (let parent = current.getParent(); parent !== undefined; parent = current.getParent()) {
+    if ((Node.isPropertyAccessExpression(parent) || Node.isElementAccessExpression(parent)) && parent.getExpression() === current) {
+      current = parent;
+      continue;
+    }
+    if (Node.isCallExpression(parent) || (Node.isBinaryExpression(parent) && parent.getLeft() === current)) {
+      return parent;
+    }
+    return current;
   }
-  require(node: MorphNode, program: InheritedReadEffectContext["program"]): ReturnType<InheritedReadPremise["require"]> {
-    return this.#read?.(node, program) ?? unresolved("unsupported", node, state(), "the inherited-effect premise has expired");
+  return current;
+}
+
+function generationCurrent(project: Project, program: ts.Program, generation: PrototypeExposureGeneration): boolean {
+  if (project.getProgram().compilerObject !== program) {
+    return false;
   }
-  dispose(): void {
-    this.#read = undefined;
+  if (typeof project.getSourceFileCacheToken === "function") {
+    return generation.token !== undefined && project.getSourceFileCacheToken() === generation.token && project.getProgram().compilerObject === program;
+  }
+  return (
+    generation.sources.every(({ source, native }) => !source.wasForgotten() && source.compilerNode === native) &&
+    project.getProgram().compilerObject === program
+  );
+}
+
+function buildPrototypeExposureCensus(
+  node: MorphNode,
+  admission: {
+    readonly project: Project;
+    readonly program: ts.Program;
+    readonly pass: ReferencePassCaches | undefined;
+    readonly target: ResolutionState;
+    readonly admitted: () => boolean;
+  },
+): ReferenceFact<readonly MorphNode[]> {
+  const { project, program, pass, target, admitted } = admission;
+  pass?.inheritedBuilding.add(program);
+  try {
+    const sources = nativeCompilerSourceFiles(project).map((source) => ({ source, native: source.compilerNode }));
+    const token = typeof project.getSourceFileCacheToken === "function" ? project.getSourceFileCacheToken() : undefined;
+    const inputs = collectInheritedReadInputs(
+      sources.map(({ source }) => source),
+      new Map(),
+    );
+    const generation: PrototypeExposureGeneration = { sources, token, exposures: [] };
+    const current = (): boolean => generationCurrent(project, program, generation) && admitted();
+    if (!current()) {
+      return unresolved("unsupported", node, target, "native Project changed while collecting prototype exposures");
+    }
+    if (pass !== undefined) {
+      pass.inheritedStatistics.censusRuns++;
+    }
+    const exposures = new Map<ts.Node, MorphNode>();
+    for (const input of inputs) {
+      if (input.wasForgotten()) {
+        return unresolved("unsupported", node, target, "a prototype exposure source was forgotten");
+      }
+      if (pass !== undefined) {
+        pass.inheritedStatistics.inputsSwept++;
+      }
+      const effect = inheritedReadEffect(input);
+      if (effect !== undefined) {
+        exposures.set(effect.compilerNode, effect);
+      }
+    }
+    if (!current()) {
+      return unresolved("unsupported", node, target, "native Project changed while classifying prototype exposures");
+    }
+    const completed = { ...generation, exposures: [...exposures.values()] };
+    pass?.inheritedReads.set(program, completed);
+    return resolved(completed.exposures, target, node);
+  } finally {
+    pass?.inheritedBuilding.delete(program);
   }
 }
 
-/** Project source effects are neutral facts; every projection retains actual captured binding dependencies. */
-export function inspectInheritedReadEffects(node: MorphNode, context: InheritedReadEffectContext): ReferenceFact<true> {
+/** Complete native-generation exposure sites; captured values and callers are never evaluated. */
+export function readPrototypeExposureCensus(node: MorphNode, expectedProgram?: ts.Program): ReferenceFact<readonly MorphNode[]> {
+  const pass = openPass;
   const target = state();
   if (node.wasForgotten()) {
     return unresolved("unsupported", node, target, "inherited read input belongs to a forgotten source");
   }
   const project = node.getProject();
   const program = project.getProgram().compilerObject;
-  if (context.program.program !== program || program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode) {
+  const admitted = (): boolean =>
+    openPass === pass &&
+    !node.wasForgotten() &&
+    (expectedProgram === undefined || expectedProgram === program) &&
+    project.getProgram().compilerObject === program &&
+    program.getSourceFile(node.getSourceFile().getFilePath()) === node.getSourceFile().compilerNode;
+  if (!admitted()) {
     return unresolved("unsupported", node, target, "inherited read input is not the captured native Project source");
   }
-  if (openPass !== undefined && openPass.writeProgram !== program) {
-    openPass.writesBySource.clear();
-    openPass.writeProgram = program;
+  if (pass !== undefined && pass.writeProgram !== program) {
+    pass.writesBySource.clear();
+    pass.writeProgram = program;
   }
-  const cached = openPass?.inheritedReads.get(program);
-  const sources = nativeCompilerSourceFiles(project);
-  const identities = sources.map((source) => source.compilerNode);
-  const inputs = cached ?? collectInheritedReadInputs(sources, target.writesBySource);
-  if (cached === undefined) {
-    openPass?.inheritedReads.set(program, inputs);
+  const cached = pass?.inheritedReads.get(program);
+  if (cached !== undefined && generationCurrent(project, program, cached) && cached.exposures.every((site) => !site.wasForgotten()) && admitted()) {
+    return resolved(cached.exposures, target, node);
   }
-  const pass = openPass;
-  const currentInvocation = (): boolean => openPass === pass && !node.wasForgotten() && project.getProgram().compilerObject === program;
-  const current = (): boolean => currentInvocation() && sources.every((source, index) => !source.wasForgotten() && source.compilerNode === identities[index]);
-  const prove = (): ReferenceFact<true> => {
-    const premise =
-      context.program.withInheritedReadTrial === undefined
-        ? undefined
-        : new InheritedReadTrialPremise((input, captured) =>
-            captured === context.program &&
-            captured.inheritedReadTrialActive?.() === true &&
-            currentInvocation() &&
-            !input.wasForgotten() &&
-            input.getProject() === project &&
-            program.getSourceFile(input.getSourceFile().getFilePath()) === input.getSourceFile().compilerNode
-              ? { kind: "conditional" }
-              : unresolved("unsupported", input, target, "the inherited-effect premise is outside its live native trial"),
-          );
-    const trial: InheritedReadEffectContext = {
-      program: context.program,
-      values: (value, path, bindings) => context.values(value, path, bindings, premise),
-    };
-    try {
-      for (const input of inputs) {
-        if (input.wasForgotten()) {
-          return unresolved("unsupported", node, target, "an inherited effect source was forgotten");
-        }
-        const effect = inheritedReadEffect(input, trial);
-        if (effect !== undefined) {
-          return unresolved("unsupported", effect, target, "the loaded Project contains an unclosed inherited descriptor or prototype exposure");
-        }
-      }
-      // Each complete-population transition must preserve the premise before it can be discharged.
-      return current()
-        ? resolved(true, target, node)
-        : unresolved("unsupported", node, target, "native Project changed while projecting inherited read effects");
-    } finally {
-      premise?.dispose();
+  if (pass?.inheritedBuilding.has(program) === true) {
+    return unresolved("cycle", node, target, "the prototype census is already constructing this native generation");
+  }
+  return buildPrototypeExposureCensus(node, { project, program, pass, target, admitted });
+}
+
+function recordPrototypeReceiver(node: MorphNode, context: InheritedReadEffectContext): void {
+  const statistics = openPass?.inheritedStatistics;
+  if (statistics === undefined) {
+    return;
+  }
+  statistics.invocations++;
+  if (!node.wasForgotten()) {
+    const allocations = statistics.allocations.get(node.compilerNode) ?? [];
+    const current = { program: context.program.program, bindings: context.bindings ?? new Map<MorphNode, MorphNode>() };
+    if (!allocations.some((previous) => previous.program === current.program && matchingAllocationBindings(node, previous, current))) {
+      allocations.push({ program: current.program, bindings: new Map(current.bindings) });
+      statistics.allocations.set(node.compilerNode, allocations);
     }
-  };
-  return context.program.withInheritedReadTrial?.(node, context.program, prove) ?? prove();
+  }
+}
+
+/** An absent own-data read requires the current generation to contain no prototype exposure. */
+export function inspectInheritedReadEffects(node: MorphNode, context: InheritedReadEffectContext): ReferenceFact<true> {
+  const pass = openPass;
+  const program = context.program.program;
+  const statistics = openPass?.inheritedStatistics;
+  const before = statistics?.inputsSwept ?? 0;
+  recordPrototypeReceiver(node, context);
+  try {
+    const census = readPrototypeExposureCensus(node, program);
+    if (openPass !== pass || context.program.program !== program) {
+      return unresolved("unsupported", node, state(), "the reference invocation changed during prototype census admission");
+    }
+    if (census.kind === "unresolved") {
+      return census;
+    }
+    const exposure = census.value[0];
+    return exposure === undefined
+      ? { ...census, value: true }
+      : unresolved("unsupported", exposure, state(), "the loaded Project contains a prototype exposure");
+  } finally {
+    if (statistics !== undefined) {
+      const swept = statistics.inputsSwept - before;
+      statistics.sweeps.set(swept, (statistics.sweeps.get(swept) ?? 0) + 1);
+    }
+  }
+}
+
+/** Passive invocation counters; reading them performs no census, capture demand or value projection. */
+export function prototypeExposureStatistics(): PrototypeExposureStatistics | undefined {
+  const statistics = openPass?.inheritedStatistics;
+  return statistics === undefined
+    ? completedPrototypeStatistics
+    : {
+        invocations: statistics.invocations,
+        distinctReceiverAllocations: [...statistics.allocations.values()].reduce((count, allocations) => count + allocations.length, 0),
+        censusRuns: statistics.censusRuns,
+        inputsSwept: statistics.inputsSwept,
+        inputsSweptPerInvocation: [...statistics.sweeps].map(([inputs, invocations]) => ({ inputs, invocations })),
+      };
 }
 
 function uniqueDeclaration(identifier: Identifier, target: ResolutionState): ReferenceFact<MorphNode> {

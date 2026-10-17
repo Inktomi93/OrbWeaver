@@ -41,13 +41,17 @@ import { markGenerationComplete } from "#server/domain/embeddings/persistence/sp
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { makeResolvedSecret } from "../../../../inference/_support.ts";
 import { seedUser, vectorConnectionOf } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
 /** Compose's own resolve over the scripted encoders: the owner's bound row, snapshotted as production snapshots it. */
 function connectionOf(clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
-  return createResolveEmbeddingConnection(makeEmbeddingRuntime(clients, vectorConnectionOf), (userId) => Promise.resolve(principal(userId)))(ownerId, task);
+  return createResolveEmbeddingConnection(
+    makeEmbeddingRuntime(clients, () => Promise.resolve(makeResolvedSecret()), vectorConnectionOf),
+    (userId) => Promise.resolve(principal(userId)),
+  )(ownerId, task);
 }
 
 async function drive(controls: FakeRoleClientControls = {}): Promise<{

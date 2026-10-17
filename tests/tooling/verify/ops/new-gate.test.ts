@@ -16,7 +16,6 @@ import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { gate as policyFamilyReaders } from "../../../../tooling/src/verify/gates/policy-family-readers.ts";
 import { gate as policySoundness } from "../../../../tooling/src/verify/gates/policy-soundness.ts";
 import { loadGateCorpus } from "../../../../tooling/src/verify/lib/loader.ts";
 import { markdownTables } from "../../../../tooling/src/verify/lib/markdown-tables.ts";
@@ -222,40 +221,6 @@ test("a local defineGate namesake cannot provide family identity", ({ scratch, r
   );
   expect(() => runNewGate(scratch, [NAME, ...SHARED_ARGS])).toThrow("not a canonical final gate");
   expect(existsSync(join(scratch, GATES_REL, `${NAME}.ts`))).toBe(false);
-});
-
-test("shared draft stays visible to Q08 until actual production consumption is authored", ({ scratch, repoRoot }) => {
-  plantFamily(scratch, repoRoot, "create: () => ({ evaluate: () => shared.length })");
-  expect(runNewGate(scratch, [NAME, ...SHARED_ARGS])).toBe(0);
-  const project = new Project({ tsConfigFilePath: join(scratch, "tsconfig.json") });
-  const source = project.getSourceFileOrThrow(join(scratch, GATES_REL, `${NAME}.ts`));
-  const emitted = source.getFullText();
-  const drive = (): ReturnType<typeof runPolicyPass> => {
-    const result = runPolicyPass({
-      knownPolicies: [policyFamilyReaders],
-      policies: [policyFamilyReaders],
-      root: scratch,
-      project,
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.toolErrors).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.policies.map(({ owner }) => owner)).toEqual([{ status: "success", population: "complete" }]);
-    return result;
-  };
-  const draft = drive();
-  expect(draft.authority.effectiveFindings.some((finding) => finding.file.endsWith(`${NAME}.ts`))).toBe(true);
-  // The canonical vocabulary now drives the predicate itself; no unused import or nominal void-read.
-  source.replaceWithText(
-    `import { subjects } from "../lib/shared.ts";\n${emitted}`.replace(
-      "node.getText() === BANNED_IDENTIFIER",
-      "subjects.some(subject => node.getText() === subject)",
-    ),
-  );
-  expect(drive().authority.effectiveFindings).toEqual([]);
 });
 
 // This authoring surface's enforcer references must be authored links, not an unmaintained list in a test.

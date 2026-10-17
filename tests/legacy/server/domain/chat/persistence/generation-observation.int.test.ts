@@ -28,7 +28,6 @@ import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 import { seedMessage } from "@orb/testkit/node/factories/message.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeApiKeySecret, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, inArray, sql } from "drizzle-orm";
@@ -43,7 +42,7 @@ import { appendGenerationObservation, createGenerationObservationSession } from 
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { applyStatsDelta, bumpStatsCanonVersion, reconcileStats } from "#server/domain/stats/index.ts";
-import { memoryTokenLexicon } from "../../../../inference/_support.ts";
+import { makeApiKeySecret, makeResolved, memoryTokenLexicon } from "../../../../inference/_support.ts";
 import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../../inference/backends/_hosted-support.ts";
 import { makeChatContext, noClaim } from "../_support.ts";

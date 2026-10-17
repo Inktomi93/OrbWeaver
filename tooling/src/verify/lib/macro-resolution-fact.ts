@@ -54,8 +54,12 @@ export const macroResolutionFact = defineFact({
         },
       ],
       finish: () => {
+        const missing = MACRO_RESOLVERS.filter((name) => !declared.has(name));
+        if (missing.length > 0) {
+          throw new Error(`macro resolver declarations disappeared: ${missing.join(", ")}; the name-keyed editor boundary cannot be judged`);
+        }
         ctx.receipt({ kind: "population", source: "macro-resolution-source-files", members: ctx.files.length });
-        return { declared, uses };
+        return { uses };
       },
     };
   },

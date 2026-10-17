@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(StageDef): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE PRODUCT-TEST STAGE FITS ITS BUDGET (#1848) — the registry half of the fix, asserted against the
 // REGISTRY, because that is what a `pnpm verify` run actually reads.
 //

@@ -16,8 +16,8 @@
 // Model-free (settings hit no model), so NOT `@live` — it runs in the routine suite. Storage is NEVER
 // cleared; the finally block restores appearance + theme to defaults via the API (no storage touch).
 
-import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./support/chat-room.ts";
+import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_INSTANT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 

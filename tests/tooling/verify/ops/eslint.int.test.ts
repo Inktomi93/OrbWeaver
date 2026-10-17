@@ -5,14 +5,9 @@ import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
+import { DISCOVERY_MAX_BUFFER_BYTES, parsedDiscovery, readDiscoveredPopulation } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { eslintConfiguredPaths, readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import {
-  DISCOVERY_MAX_BUFFER_BYTES,
-  parsedDiscovery,
-  partitionEslintFiles,
-  readDiscoveredPopulation,
-  runScopedEslint,
-} from "../../../../tooling/src/verify/ops/eslint.ts";
+import { partitionEslintFiles, runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

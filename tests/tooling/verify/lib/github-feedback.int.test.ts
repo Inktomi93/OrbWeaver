@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(VerifyReport): baselined when the gate widened to value casts; burn-down item 906.
-
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

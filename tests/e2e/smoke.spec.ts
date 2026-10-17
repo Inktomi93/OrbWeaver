@@ -17,7 +17,7 @@
 import { chatDetailSchema } from "@orb/contracts/chat";
 import { documentDetailViewSchema } from "@orb/contracts/databank";
 import { corpusReadInput } from "@orb/testkit/iso/corpus.ts";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import { trpcQuery } from "./support/trpc.ts";
@@ -120,6 +120,7 @@ test("the home page renders the home surface (tRPC query works)", {
   await expect(page.locator(APP_READY)).toBeAttached({ timeout: WAIT_SETTLE_MS });
   await expect(page.getByRole("main", { name: "Home content" })).toBeVisible({ timeout: WAIT_UI_MS });
   await expect(page.getByText("Couldn't load your chats")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start a temp chat", exact: true })).toBeVisible();
 });
 
 test("the selected corpus clone serves the captured room identity, content and visible title", { tag: ["@smoke", "@corpus"] }, async ({ page }) => {
@@ -146,5 +147,5 @@ test("the selected corpus clone serves the captured room identity, content and v
   await page.goto("/chats");
   // The corpus room can be outside the virtualized viewport; search through the real server-backed control.
   await page.getByRole("textbox", { name: "Search chats", exact: true }).fill(title);
-  await expect(page.getByRole("list", { name: "Chats list", exact: true }).getByText(title, { exact: true })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Chats list", exact: true }).getByRole("button", { name: title, exact: true }).first()).toBeVisible();
 });

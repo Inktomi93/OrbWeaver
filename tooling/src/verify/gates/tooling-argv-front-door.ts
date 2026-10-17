@@ -15,8 +15,7 @@
 // PERMISSIONS, so the six rows are six exact `(subject, operation)` rows in the central reviewed-grant table,
 // each carrying its legacy `why` and an `endsWhen`; the legacy arm-B two-sided stale sweep IS central grant
 // liveness (a row consumed zero times after a complete run is STALE, whether its file stopped reading argv or
-// is gone). Zero live `@orb-gate-ignore` markers ever used the legacy ordinary door. The blindness tripwire
-// (arm C) is `tooling-argv-front-door-health`, hard, in this family.
+// is gone). Zero live `@orb-gate-ignore` markers used the legacy ordinary door.
 //
 // THE PARTITION DELIBERATELY NOT TAKEN: five of the six entries are module-scope `runTool` PROGRAMS, so
 // "a runTool program is a front door like cli.ts" was derivable and would have emptied the table to one
@@ -24,8 +23,7 @@
 // unreviewed where today it needs a censused row, which is the catch-regression guide §6.4 exists to find.
 // Do not re-propose it.
 //
-// FAMILY `process-member` (with `tooling-argv-front-door-health` and, since #1950 group 4,
-// `tooling-process-exit-home`, the same reader over the `exit` member) — the shared reader is `lib/process-member-origin.ts`
+// FAMILY `process-member` shares the process-member origin reader with tooling-process-exit-home.
 // (`classifyProcessMemberRead`): IDENTITY, NOT SPELLING. The legacy check compared the receiver's TEXT to
 // `process`; the subject is now the `argv` member of the REAL `process` — the ambient global or the default
 // export of the `node:process` door (mustFlag[2], the live spelling) — so a local object named `process` is

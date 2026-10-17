@@ -5,13 +5,14 @@ import { join } from "node:path";
 import { expect, fixturePath, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { TranscriptResult } from "@orb/tooling/floor/process/proc";
-import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { parse } from "yaml";
 import { z } from "zod";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../tooling/src/verify/contract/instrument-affected.ts";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../tooling/src/verify/contract/selection.ts";
+import { CORPUS_PROJECT_CELLS } from "../e2e/support/modes.ts";
 import { scaledBudget } from "./_load-budget.ts";
 import { read, workflowJobs } from "./_workflow-support.ts";
 
@@ -75,6 +76,9 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     ...needs.flatMap((id) => {
       const job = jobs[id];
       const matrix = job?.strategy?.matrix;
+      if (id === "e2e-corpus") {
+        return CORPUS_PROJECT_CELLS.map(({ name }) => z.string().parse(job?.name).replace("${{ matrix.project }}", name));
+      }
       const shards = typeof matrix === "object" ? matrix.shard : undefined;
       return shards === undefined
         ? [id]
@@ -96,16 +100,12 @@ test("CI's actual diff classifier treats agent hooks and configs as code, not do
     ".gitignore": "api-proof.json\n",
     ".github/workflows/ci.yml": workflow,
     "package.json": JSON.stringify(runtime),
+    "pnpm-lock.yaml": read(repoRoot, "pnpm-lock.yaml"),
   });
   await fakeBin("gh", QUALIFIED_DIFF_API);
   execFixtureGit(tree, ["init", "--initial-branch=main"]);
   execFixtureGit(tree, ["config", "user.name", "Workflow proof"]);
   execFixtureGit(tree, ["config", "user.email", "proof@example.invalid"]);
-  const prepared = await spawnNiced("pnpm", ["install", "--lockfile-only", "--ignore-scripts"], {
-    cwd: tree,
-    timeoutMs: CLASSIFIER_SETUP_TIMEOUT_MS,
-  });
-  expect(prepared.code, prepared.stderr).toBe(0);
   const commit = (): string => {
     execFixtureGit(tree, ["add", "."]);
     execFixtureGit(tree, ["commit", "-m", "fixture"]);

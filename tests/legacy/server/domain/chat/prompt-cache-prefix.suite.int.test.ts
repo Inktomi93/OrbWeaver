@@ -19,7 +19,6 @@ import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -31,6 +30,7 @@ import type { ResolveForeignInputsOp } from "#server/domain/chat/contract/foreig
 import type { GroupOutput, TurnMessage, TurnRequest } from "#server/domain/chat/contract/results.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
 import { parseWorldBookFile } from "#server/primitives/serde/world-info/index.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import type { ChatScenario } from "./_scenario.ts";
 import { scenario } from "./_scenario.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
