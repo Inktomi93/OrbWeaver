@@ -265,7 +265,7 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
     }
     seen.add(tab.id);
   }
-  // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — defineContextTabs runs at MODULE scope inside each section's definition file (const charactersSection = { context: defineContextTabs(...) }), so the returned hook has a stable identity the Compiler can analyze (see forms/editor/create-saved-entity-form.ts).
+  // biome-ignore lint/nursery/noComponentHookFactories: D54 constructs this hook with the retained composition graph, not on each render.
   function useResolved(): ResolvedContextTabs | null {
     const state = spec.useContextState();
     if (state === null) {

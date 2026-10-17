@@ -46,7 +46,6 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
   const active = view.tabs.find((tab) => tab.id === view.activeTab) ?? null;
   const activeStrip = active?.strip ?? null;
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const tabKey = view.tabs.map((tab) => tab.id).join(",");
   /** The selection this bracket last scrolled for — `undefined` until the first commit. */
   const seenTab = useRef<string | null | undefined>(undefined);
   // #908 — DEFER INACTIVE TAB SUBTREES. Only mount a tab's body when it has been selected at least once.
@@ -73,7 +72,6 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
   // `tabindex="0"`-correct and programmatically focusable (the #112 one-tab-stop CT caught it). Guarded
   // by comparing against the last selection seen rather than a first-run flag, so a strict-mode double
   // effect in dev cannot consume the guard and scroll at mount anyway.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activeTab + tabKey are the intentional re-run triggers (selection change / tab-set change); the body reads the resolved active cell from the DOM, so neither appears in it.
   useEffect(() => {
     const previous = seenTab.current;
     seenTab.current = view.activeTab;
@@ -82,7 +80,7 @@ export function ContextBracket({ view, band, empty, railLabel, paneLabel, dismis
     }
     const activeEl = rootRef.current?.querySelector<HTMLElement>('[data-slot="tabs-tab"][data-active]');
     activeEl?.scrollIntoView({ inline: "nearest", block: "nearest" });
-  }, [view.activeTab, tabKey]);
+  }, [view.activeTab]);
 
   const hasBand = band !== undefined && band !== null;
   const hasDismiss = onDismiss !== undefined;
