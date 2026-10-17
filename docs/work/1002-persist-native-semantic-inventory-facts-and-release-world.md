@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-source-currentness-1002
 plan: test-foundation
 ---
 
@@ -40,7 +39,7 @@ Reached-call capture preserves explicit references, native lifetimes and atomic 
 
 Annotated storage and finite copies preserve native origins, allocation, ordered presence and return closure. Combined controls and review pass. Original replay refuses `ctx.backgroundSignal` in `chat/service.ts`; neither selected nor delegate invocation publishes, and the delegate caller is absent. Evidence: `reports/review/1002-original-callable-current-c49-diagnosis.md`.
 
-Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Target and cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
+Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Root prepares a traced original query; target and cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
 
 Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 
