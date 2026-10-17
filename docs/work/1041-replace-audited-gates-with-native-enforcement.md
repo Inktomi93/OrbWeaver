@@ -28,7 +28,7 @@ Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. The [foundation plan]
 
 SQL delivery, production HTTP/network authority, regex deadlines, canon freeze and query-boundary cohorts pass scoped review and controls. Raw-origin, asset, public-Caller role, per-call and uninstantiated-list obligations remain. Evidence: `reports/review/1041-native-wave-ordinary.md` and `reports/review/1041-egress-watchdog-ordinary.md`.
 
-Native Base UI occurrence rules and metadata admission qualify. Semantic anatomy, surface, portal and CSS owners remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md`.
+Native Base UI occurrence rules and metadata admission qualify. Surface/anatomy contracts use Node CI; portal/CSS semantics remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md` and `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
 Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls, independent review and bounded ordinary main qualification pass. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
@@ -46,4 +46,4 @@ Sealed sizing, native DevTools closure and shared metadata scans pass wave revie
 
 Native package manifest contracts pass wave review and scoped runtime controls. Application contracts run in ordinary Node CI; root dependencies remain tooling-owned. Acquisition refusals remain. Evidence: `reports/review/1041-native-package-manifests-ordinary.md`.
 
-Native Base UI surface/anatomy contracts pass review and main controls. Portal and CSS readers remain; acquisition refusals and package-plumbing cases are preserved. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
+Production token validation and history run in Node CI; generated type facts remain. Native Git/text whole-source checks pass; application mode lacks a verdict because legacy collection fails. Evidence: `reports/review/1041-native-token-git-ordinary.md`.

@@ -152,11 +152,14 @@ export function playwrightFiles(root: string, config: string, extraEnv?: Readonl
     maxBuffer: LIST_FILES_MAX_BUFFER,
     env: inheritedProcessEnv(extraEnv),
   });
+  const listing = classifyCtListing(root, { status: res.status, stdout: res.stdout, stderr: res.stderr });
+  if ("error" in listing) {
+    return listing;
+  }
   if (res.status !== 0) {
     return { error: `playwright collection failed for ${config} (status ${String(res.status)}): ${res.stderr || res.stdout}` };
   }
-  const listing = classifyCtListing(root, { status: res.status, stdout: res.stdout, stderr: res.stderr });
-  return "error" in listing ? listing : { files: new Set(listing.files) };
+  return { files: new Set(listing.files) };
 }
 
 const FIX_HINT =

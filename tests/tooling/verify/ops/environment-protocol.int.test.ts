@@ -77,3 +77,28 @@ test.skipIf(process.platform === "win32")(
     );
   },
 );
+
+test.skipIf(process.platform === "win32")(
+  "collection preserves reported load errors beside stderr warnings without accepting failed empty listings",
+  ({ scratch }) => {
+    const bin = join(scratch, "node_modules", ".bin");
+    mkdirSync(bin, { recursive: true });
+    const loadFailure = "Error: fixture module could not be loaded";
+    for (const [message, expected] of [
+      [loadFailure, loadFailure],
+      ["Error: No tests found", "playwright collection failed"],
+    ] as const) {
+      writeFileSync(
+        join(bin, "playwright"),
+        [
+          "#!/usr/bin/env node",
+          'console.error("native collection warning");',
+          `console.log(${JSON.stringify(JSON.stringify({ config: { rootDir: scratch }, suites: [], errors: [{ message }] }))});`,
+          "process.exitCode = 1;",
+        ].join("\n"),
+        { mode: 0o755 },
+      );
+      expect(playwrightFiles(scratch, "isolated.config.ts")).toMatchObject({ error: expect.stringContaining(expected) });
+    }
+  },
+);

@@ -38,7 +38,7 @@ Native resources preserve disposal, refusal and invalidation; opaque callbacks r
 
 Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
 
-Native callable controls retain allocation and publication boundaries. Receiver/allocation pass; invocations remain unpublished. Complete mode-candidate evidence identifies recursive key-supplier and consumer closure. A source-derived sibling read reproduces the refusal; repair remains open. Evidence: `reports/review/1002-native-signal-projection-diagnosis.md`.
+Private supplies retain live premises, actual calls and argument/allocation identity without publishing callers. Security review and ordinary main controls pass. Original target/publication, sparse-env and complete cost remain open. Evidence: `reports/review/1002-private-supplied-context-ordinary.md`.
 
 Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Traced replay confirms census reuse; target and full cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
 
@@ -46,4 +46,4 @@ Missing-reference admission passes bounded controls except the partial-env failu
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
 
-Native namespaces preserve caller closure, assimilation refusal and premise lifetime. Captured catch call demand requires actual publication after private-trial revocation. Scoped controls and review pass. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Target qualification stays open.
+Native namespaces preserve caller closure, assimilation refusal and premise lifetime. Public call demand requires publication; private supplies remain premise-scoped. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`.

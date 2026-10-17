@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(289 registered gates)
+(286 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -206,7 +206,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
 | `no-mint-via-cast` | id-brand-flow | hard/error | @product | castId wraps a fresh-id generator —… |
 | `no-multiplexed-mutation-error` | tanstack-query-origin | ordinary/error | @client\* | multiplexed mutation errors — v5… |
-| `no-nul-bytes-in-source` | — | hard/error | none | a raw NUL (0x00) byte in a text… |
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-raw-clock` | ambient-determinism | reviewed-grant/error | @product\* | raw Date.now() / new Date() —… |
@@ -295,7 +294,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
-| `test-executable-mode` | tooling-os-neutral | hard/error | @tests | an executable Git mode on a test… |
 | `test-factory-contract` | — | ordinary/error | @client,@ui,@server,@db,@contracts,@kit,@tooling,@tests,@scripts\* | a test factory violates the… |
 | `test-fixture-imports` | — | ordinary/error | @authored\* | a test/it/expect binding bypasses the… |
 | `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
@@ -311,7 +309,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tests-package-subpath` | — | hard/error | @tests | a test reaches by a relative path… |
 | `tests-raw-package-reach` | tests-package-subpath | reviewed-grant/error | @tests | a test reaches a package's internals… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
-| `tokens-contract` | — | hard/error | none | the token vault violates the pinned… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |
 | `tooling-argv-front-door-health` | process-member | hard/error | @tooling | blind gate — no tool cli.ts was seen… |
 | `tooling-artifact-path-home` | tooling-artifact | reviewed-grant/error | @tooling | a hand-rolled reports/\<kind> path —… |

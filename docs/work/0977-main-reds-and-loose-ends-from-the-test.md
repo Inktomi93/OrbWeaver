@@ -23,6 +23,8 @@ Legacy condition, coercion, sort and nullish findings stay with replacement case
 
 Legacy auth-config CT stubs contain invalid payloads. Boundary parsing owns their source evidence; corpus builders replace the inputs. Preserve cases without weakening parsing.
 
+Application collection fails when legacy CTs supply invalid IDs to strict shared builders. Preserve parsing; replacement suites own these cases. Evidence: `reports/review/1041-native-token-git-ordinary.md`.
+
 ## Why
 
 Reds on main poison every lane's evidence and hide new failures.
