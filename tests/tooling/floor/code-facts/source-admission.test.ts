@@ -3,6 +3,7 @@ import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { observeCallReturns, readCallReturnProgram, readObservedCallableConsumers } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import { CapturedSourceMap } from "../../../../tooling/src/floor/code-facts/capture-map.ts";
 import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { CallReturnObservation, CallReturnProgram, ReferenceFact } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
 import { nativeReferenceNodes } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
@@ -176,6 +177,128 @@ for (const dependency of ["unrelated", "missing admission", "guard reentrant adm
       }
     });
     expect(snapshots[0]).toEqual(snapshots[1]);
+  });
+}
+
+test("capture-owned currentness reuses its validated population without replaying source-wrapper checks", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/source.ts", "function first(){return 1;}first();");
+  const extra = project.createSourceFile("/extra.ts", "function second(){return 2;}second();");
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns([source, extra].flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)));
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the population currentness capture is missing");
+    }
+    const subject = source.getFunctionOrThrow("first").getNameNodeOrThrow();
+    const checked = vi.spyOn(extra, "wasForgotten");
+    try {
+      const first = readCallReturnProgram(subject, observed);
+      const before = checked.mock.calls.length;
+      const second = readCallReturnProgram(subject, observed);
+      const after = checked.mock.calls.length;
+      expect(first.kind === "resolved" ? first.value : undefined).toBe(program);
+      expect(second.kind === "resolved" ? second.value : undefined).toBe(program);
+      expect(program.sources.has(extra)).toBe(true);
+      expect(program.byCall.size).toBe(2);
+      extra.forget();
+      expect(readCallReturnProgram(subject, observed).kind).toBe("unresolved");
+      expect(after).toBe(before);
+    } finally {
+      checked.mockRestore();
+    }
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const mutation of [
+  "value",
+  "same-size membership",
+  "delete",
+  "clear",
+  "reentrant membership",
+  "reentrant native check",
+  "unavailable SDK authority",
+] as const) {
+  test(`capture-owned currentness fences actual ${mutation} source-map mutation`, () => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    const source = project.createSourceFile("/source.ts", "function first(){return 1;}first();");
+    const extra = project.createSourceFile("/extra.ts", "function second(){return 2;}second();");
+    const foreign = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } }).createSourceFile(
+      "/extra.ts",
+      "function second(){return 2;}second();",
+    );
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns([source, extra].flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)));
+      const program = observed.programs[0];
+      if (program === undefined || !CapturedSourceMap.owns(program.sources)) {
+        throw new Error("the owned source capture is missing");
+      }
+      const sources = program.sources;
+      const subject = source.getFunctionOrThrow("first").getNameNodeOrThrow();
+      expect(readCallReturnProgram(subject, observed).kind).toBe("resolved");
+      const native = project.getSourceFileCompilerNode.bind(project);
+      const checked = vi.spyOn(project, "getSourceFileCompilerNode");
+      const tokenRead = vi.spyOn(project, "getSourceFileCacheToken");
+      const has = sources.has.bind(sources);
+      const membership = vi.spyOn(sources, "has");
+      try {
+        sources.set(extra, extra.compilerNode);
+        expect(readCallReturnProgram(subject, observed).kind).toBe("resolved");
+        expect(checked).not.toHaveBeenCalled();
+        switch (mutation) {
+          case "value":
+            sources.set(extra, source.compilerNode);
+            break;
+          case "same-size membership":
+            sources.delete(extra);
+            sources.set(foreign, foreign.compilerNode);
+            break;
+          case "delete":
+            sources.delete(source);
+            break;
+          case "clear":
+            sources.clear();
+            break;
+          case "reentrant membership":
+            membership.mockImplementationOnce((file) => {
+              const result = has(file);
+              sources.delete(extra);
+              sources.set(extra, extra.compilerNode);
+              return result;
+            });
+            break;
+          case "reentrant native check":
+            sources.delete(extra);
+            sources.set(extra, extra.compilerNode);
+            checked.mockImplementationOnce((file, token) => {
+              const result = native(file, token);
+              sources.delete(extra);
+              sources.set(extra, extra.compilerNode);
+              return result;
+            });
+            break;
+          case "unavailable SDK authority":
+            tokenRead.mockReturnValueOnce(undefined);
+            break;
+        }
+        expect(readCallReturnProgram(subject, observed).kind).toBe("unresolved");
+        sources.clear();
+        sources.set(source, source.compilerNode);
+        sources.set(extra, extra.compilerNode);
+        expect(readCallReturnProgram(subject, observed).kind).toBe("resolved");
+        expect(checked).toHaveBeenCalled();
+      } finally {
+        membership.mockRestore();
+        tokenRead.mockRestore();
+        checked.mockRestore();
+      }
+    } finally {
+      endReferencePass();
+    }
   });
 }
 

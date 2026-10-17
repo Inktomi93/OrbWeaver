@@ -7,6 +7,13 @@ import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs
 export interface NativeReferenceRead {
   readonly used: boolean;
   readonly validate: (() => boolean) | undefined;
+  readonly invocation?: NativeReferenceInvocation;
+}
+
+/** Existing reader-invocation identity, without opening a native query or retaining a native handle. */
+export interface NativeReferenceInvocation {
+  readonly identity: object;
+  readonly current: () => boolean;
 }
 
 export interface WorkspaceOptions {

@@ -7,10 +7,10 @@ import {
   readObservedCallableConsumers as callableConsumers,
   readCallReturnProgram as capturedProgram,
   readCallReturnReference as capturedReference,
-  RefinementMap,
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
+import { CapturedSourceMap, RefinementMap } from "./capture-map.ts";
 import {
   isDocumentationLinkReference,
   readModuleAliasBinding,
@@ -985,9 +985,13 @@ class RefinementLedger {
       read.nodes.set(node, node.compilerNode);
     }
   }
-  sourceMap(): Map<import("ts-morph").SourceFile, ts.SourceFile> {
-    const sources: RefinementMap<import("ts-morph").SourceFile, ts.SourceFile> = new RefinementMap(
-      [],
+  sourceMap(
+    project: import("ts-morph").Project,
+    invocation: import("../compiler/ts-workspace-contract.ts").NativeReferenceInvocation | undefined,
+  ): Map<import("ts-morph").SourceFile, ts.SourceFile> {
+    const sources = new CapturedSourceMap(
+      project,
+      invocation,
       (source, native) => {
         const read = this.active;
         if (read === undefined || read.opaque) {
@@ -1003,6 +1007,7 @@ class RefinementLedger {
       },
       () => this.opaque(),
     );
+    this.releaseReaders.add(() => sources.release());
     return sources;
   }
   refresh(): void {
@@ -1502,7 +1507,7 @@ export function observeCallReturns(
     const project = observation.call.getProject();
     let group = groups.get(project);
     if (group === undefined) {
-      group = { calls: [], sources: ledger.sourceMap(), refinement: refinementIndexes(ledger) };
+      group = { calls: [], sources: ledger.sourceMap(project, nativeReads().invocation), refinement: refinementIndexes(ledger) };
       groups.set(project, group);
     }
     if (observation.targets.kind === "resolved" && !optionalInvocationSite(observation.call)) {

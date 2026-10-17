@@ -511,6 +511,36 @@ test("captured native query validation retains only actual pass dependencies", (
   expect(raw()).toEqual({ used: true, validate: undefined });
 });
 
+test("an unused native capture releases its source-currentness lifetime without acquiring a native pass", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const acquisition = vi.spyOn(project.getLanguageService().compilerObject, "createReadonlyReferencePass");
+  const released = vi.fn();
+  beginReferencePass();
+  let invocation: ReturnType<ReturnType<typeof captureNativeReferenceReads>>["invocation"];
+  try {
+    const read = captureNativeReferenceReads(released)();
+    invocation = read.invocation;
+    expect(read.used).toBe(false);
+    expect(read.validate).toBeUndefined();
+    expect(invocation?.current()).toBe(true);
+    expect(acquisition).not.toHaveBeenCalled();
+    expect(released).not.toHaveBeenCalled();
+  } finally {
+    endReferencePass();
+    acquisition.mockRestore();
+  }
+  expect(invocation?.current()).toBe(false);
+  expect(released).toHaveBeenCalledTimes(1);
+  beginReferencePass();
+  try {
+    const next = captureNativeReferenceReads()().invocation;
+    expect(next?.identity).not.toBe(invocation?.identity);
+    expect(invocation?.current()).toBe(false);
+  } finally {
+    endReferencePass();
+  }
+});
+
 for (const mutation of ["source", "options", "forgotten"] as const) {
   test(`captured native query validation retains ${mutation} refusal`, () => {
     const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
