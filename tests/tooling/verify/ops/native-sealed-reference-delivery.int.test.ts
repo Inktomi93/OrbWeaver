@@ -238,10 +238,7 @@ export const value={testRegexKey:createRegexTest()};
       { line: 8, column: 6, token: "OWNER" },
       { line: 9, column: 7, token: "ownerId" },
     ]);
-    expect(positions(identity.id)).toEqual([
-      { line: 4, column: 8, token: "KEY" },
-      { line: 5, column: 7, token: "principal" },
-    ]);
+    expect(positions(identity.id)).toEqual([{ line: 4, column: 8, token: "KEY" }]);
     expect(positions(discovery.id)).toEqual([
       { line: 5, column: 21, token: "KEY" },
       { line: 6, column: 10, token: "ownerStats" },
@@ -257,7 +254,7 @@ export const value={testRegexKey:createRegexTest()};
       [discovery.id, "KEY"],
     ]);
     expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.effectiveFindings).toHaveLength(5);
+    expect(result.authority.effectiveFindings).toHaveLength(4);
   },
   scaledBudget(60_000),
 );

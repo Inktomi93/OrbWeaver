@@ -88,6 +88,15 @@ test("foreign participant axes retain their own semantics", () => {
   expectTypeOf<Awaited<ReturnType<Caller["chat"]["listChats"]>>["items"][number]["viewerRole"]>().toEqualTypeOf<
     import("@orb/contracts/identity").ParticipantRole
   >();
+  expectTypeOf(async (caller: Caller, chatId: import("@orb/kit/ids").ChatId) => {
+    const chat = await caller.chat.getChat({ chatId });
+    const canWrite = chat.participants.some((participant) => participant.role === "host");
+    return canWrite;
+  }).returns.resolves.toBeBoolean();
+  expectTypeOf(async (caller: Caller) => {
+    const page = await caller.chat.listChats({});
+    return page.items.some((chat) => chat.viewerRole === "host");
+  }).returns.resolves.toBeBoolean();
   const foreignMember: { role: "host" | "guest" } = { role: "host" };
   const message: { role: "system" | "user" | "assistant" } = { role: "user" };
   expectTypeOf(foreignMember.role === "host").toBeBoolean();

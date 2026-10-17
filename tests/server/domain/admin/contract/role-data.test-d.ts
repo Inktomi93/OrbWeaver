@@ -41,6 +41,14 @@ test("storage inputs and unrelated closed role axes remain raw data", () => {
   expectTypeOf<Parameters<AdminService["setRole"]>[0]["role"]>().toEqualTypeOf<import("@orb/contracts/identity").UserRole>();
   expectTypeOf<Awaited<ReturnType<Caller["sessions"]["me"]>>["globalRole"]>().toEqualTypeOf<import("@orb/contracts/identity").UserRole>();
   expectTypeOf<Awaited<ReturnType<Caller["admin"]["listUsers"]>>[number]["role"]>().toEqualTypeOf<import("@orb/contracts/identity").UserRole>();
+  expectTypeOf(async (caller: Caller) => {
+    const { globalRole: role } = await caller.sessions.me();
+    return role === "admin";
+  }).returns.resolves.toBeBoolean();
+  expectTypeOf(async (caller: Caller) => {
+    const users = await caller.admin.listUsers();
+    return users.some((user) => user.role === "owner");
+  }).returns.resolves.toBeBoolean();
   const foreign: { role: "owner" | "guest" } = { role: "owner" };
   const message: { role: "system" | "user" | "assistant" } = { role: "user" };
   expectTypeOf(foreign.role === "owner").toBeBoolean();
