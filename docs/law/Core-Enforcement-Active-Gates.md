@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(282 registered gates)
+(280 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -302,8 +302,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests,@legacy-tests | dead test-id (UI-Gates-and-Lessons.md… |
 | `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
 | `testid-typed-only-stories` | — | ordinary/error | @tests\* | freeform data-testid string in a CT… |
-| `tests-package-subpath` | — | hard/error | @tests | a test reaches by a relative path… |
-| `tests-raw-package-reach` | tests-package-subpath | reviewed-grant/error | @tests | a test reaches a package's internals… |
+| `tests-raw-package-reach` | — | reviewed-grant/error | @tests | a test reaches a package's internals… |
 | `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |
 | `tooling-argv-front-door-health` | process-member | hard/error | @tooling | blind gate — no tool cli.ts was seen… |
@@ -319,7 +318,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tooling-port-registry` | plumbing-literals | reviewed-grant/error | @tooling,@tests\* | a TCP port outside the ONE registry —… |
 | `tooling-process-exit-home` | process-member | reviewed-grant/error | @tooling | a bare process.exit outside the… |
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
-| `tooling-root-config-import` | — | reviewed-grant/error | @tooling | a tooling module imports outside the… |
 | `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
 | `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |

@@ -101,6 +101,16 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly rpg: RpgTurnOps | null;
 }
 
+// Collect forbidden keys before intersecting so a narrow union member cannot hide a wider one.
+type EngineContextAuthorityKeys<Context extends EngineContext> = Context extends EngineContext ? Exclude<keyof Context, keyof EngineContext> : never;
+type EngineRpgAuthorityKeys<Ops extends RpgTurnOps | null> = Ops extends RpgTurnOps ? Exclude<keyof Ops, keyof RpgTurnOps> : never;
+
+/** Reject extra authority on every inferred producer alternative, including its nested RPG port. */
+export type EngineContextInput<Context extends EngineContext> = Context &
+  Record<EngineContextAuthorityKeys<Context>, never> & {
+    readonly rpg: (NonNullable<Context["rpg"]> & Record<EngineRpgAuthorityKeys<Context["rpg"]>, never>) | null;
+  };
+
 /** Composition binds memory and compaction outside the engine; no callback accepts a chat context. */
 export interface EngineDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
