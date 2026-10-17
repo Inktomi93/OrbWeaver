@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
+status: superseded
 updated: 2026-10-17
+superseded-by: docs/adr/0327-foundation-env-policy-contracts.md
 ---
 
 # Foundation env posture APIs have an owned contract

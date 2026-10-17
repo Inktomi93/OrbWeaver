@@ -24,7 +24,7 @@ import type { SearchSuggestion, SuggestParams } from "#server/domain/search/inde
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
-import type { AuthSeam, SeamResult } from "#server/entry/auth/index.ts";
+import type { AuthSeam, AuthSeamResolution } from "#server/entry/auth/index.ts";
 import { versionIdentity } from "#server/foundation/version/index.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
@@ -92,7 +92,7 @@ const PRUNE_URL = "http://localhost/api/trpc/tag.pruneUnusedTags";
  *  for the "resolve once" pin). */
 function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam {
   return {
-    resolvePrincipal: (): Promise<SeamResult> => {
+    resolvePrincipal: (): Promise<AuthSeamResolution> => {
       onResolve?.();
       return Promise.resolve({ principal, sessionId: null, csrfHeaderPresent: false });
     },
@@ -630,7 +630,7 @@ describe("createApp", () => {
     initTracing();
     const requestId = "auth-fault-req-1";
     const throwingSeam: AuthSeam = {
-      resolvePrincipal: (): Promise<SeamResult> => Promise.reject(new Error("boom-auth-infra")),
+      resolvePrincipal: (): Promise<AuthSeamResolution> => Promise.reject(new Error("boom-auth-infra")),
       debugGateAdmits: (): boolean => false,
     };
     const app = createApp(deps({ seam: throwingSeam }));
@@ -663,7 +663,7 @@ describe("createApp", () => {
     const requestId = "auth-fault-join-1";
     const secret = "jointoken-must-not-be-recorded";
     const throwingSeam: AuthSeam = {
-      resolvePrincipal: (): Promise<SeamResult> => Promise.reject(new Error("boom-auth-infra")),
+      resolvePrincipal: (): Promise<AuthSeamResolution> => Promise.reject(new Error("boom-auth-infra")),
       debugGateAdmits: (): boolean => false,
     };
     const app = createApp(deps({ seam: throwingSeam }));
@@ -1019,7 +1019,7 @@ describe("app: a NON-Error throw is a policied 500, not a bare adapter answer (#
     initTracing();
     const requestId = "req-1761-nonerror-auth-1";
     const throwingSeam: AuthSeam = {
-      resolvePrincipal: (): Promise<SeamResult> => Promise.reject({ code: "not-an-error-object" }),
+      resolvePrincipal: (): Promise<AuthSeamResolution> => Promise.reject({ code: "not-an-error-object" }),
       debugGateAdmits: (): boolean => false,
     };
     const app = createApp(deps({ seam: throwingSeam }));
