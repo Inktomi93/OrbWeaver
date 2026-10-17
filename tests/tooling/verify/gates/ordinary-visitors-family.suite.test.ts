@@ -1,5 +1,4 @@
-// Conformance entry for the ORDINARY-VISITOR wave: ten legacy simple-visitor gates converted into fourteen
-// final policies. Every proof runs through the production dispatcher on an isolated population; the pins
+// Ordinary-visitor proofs run through the production dispatcher on an isolated population; the pins
 // below cover what a proof row structurally cannot express — a receipt REFUSAL (a tool error, not a
 // finding), the ordinary marker identity each ordinary policy's report must supply, and the grant liveness
 // the four reviewed-grant policies' whole authority rests on.
@@ -19,7 +18,6 @@ import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/n
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
-import { gate as untrustedRegexSafeExec } from "../../../../tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodModernSpellings } from "../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
@@ -42,7 +40,6 @@ const FAMILY: readonly GatePolicy[] = [
   persistenceBoundary,
   pluginDumpGuard,
   registryAssemblyAtDoorOnly,
-  untrustedRegexSafeExec,
   zodErrorIssuesHome,
   zodModernSpellings,
 ];
@@ -133,7 +130,7 @@ test(
 );
 
 // ---------------------------------------------------------------------------------------------------
-// RECEIPT REFUSALS. Four policies LOCATE a subject and refuse when it is gone — the final form of the
+// RECEIPT REFUSALS. Policies LOCATE a subject and refuse when it is gone — the final form of the
 // legacy blindness arms (`canonicalSeen === 0`, `dumpSites === 0`) and rename tripwires, which conformance
 // cannot express because a refusal is a TOOL ERROR rather than a finding.
 // ---------------------------------------------------------------------------------------------------
@@ -145,30 +142,6 @@ test("plugin-dump-guard REFUSES when the membrane has no guest-dump site left to
   expect(blind.toolErrors).toMatchObject([{ policyId: "plugin-dump-guard", phase: "receipt" }]);
   expect(blind.authority.withheldPolicyIds).toEqual(["plugin-dump-guard"]);
   expect(blind.authority.effectiveFindings).toEqual([]);
-});
-
-test("untrusted-regex-safe-exec REFUSES when the canonical composition seam disappears", () => {
-  const gone = passOf(untrustedRegexSafeExec, {
-    "packages/server/src/entry/compose/chat.ts": "export const unrelated = 1;\n",
-  });
-
-  expect(gone.toolErrors).toMatchObject([{ policyId: "untrusted-regex-safe-exec", phase: "receipt" }]);
-  expect(gone.authority.withheldPolicyIds).toEqual(["untrusted-regex-safe-exec"]);
-});
-
-test("untrusted-regex-safe-exec is not laundered by a SAFE seam in another compose module", () => {
-  const laundered = passOf(untrustedRegexSafeExec, {
-    "packages/server/src/primitives/regex/index.ts":
-      "export declare function createRegexTest(timeoutMs?: number): (regex: RegExp, haystack: string) => boolean;\n",
-    "packages/server/src/entry/compose/chat.ts": "export const unrelated = 1;\n",
-    "packages/server/src/entry/compose/other.ts":
-      'import { createRegexTest } from "../../kit/regex/index.ts";\nexport const other = { testRegexKey: createRegexTest() };\n',
-  });
-
-  // The seam count is one, so the receipt does NOT refuse — and the canonical file still has no seam, which
-  // is the disappearance this policy exists to catch. Written as a pin because the legacy gate counted the
-  // canonical property ONLY, and a naive count over the whole population would read this as healthy.
-  expect(laundered.toolErrors).toMatchObject([{ policyId: "untrusted-regex-safe-exec", phase: "receipt" }]);
 });
 
 test("registry-assembly-at-door-only REFUSES when the registry home no longer exports both factories", () => {

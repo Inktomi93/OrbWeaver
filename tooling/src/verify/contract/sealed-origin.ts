@@ -1,13 +1,4 @@
-// The verdict `lib/sealed-origin.ts#readSealedOrigin` answers with (#1988). Eight policies narrow it
-// (`membership-enforcer`, `vector-scope-derived`, `no-direct-users-read`, `turn-identity`,
-// `discovery-no-stats-rollups`, `scrubber-home`, `content-part-seam`, `untrusted-regex-safe-exec`) — born
-// nine, less `providers-runner-seal`, RETIRED 2026-09-20 with the `@orb/inference` extraction — so it
-// crosses the lib↔policy boundary and `lib/` is not a type home
-// (Spine-TypeScript-and-Patterns.md §7.4, Core-Tooling-Law.md §2.5).
-//
-// It is an OBJECT union carrying the resolved origin, not the three-string identity axis, so it derives
-// from `origin-verdict.ts` no more than `ModuleMemberOrigin` does: its `unresolved` arm carries the whole
-// refusing fact so the caller can report WHAT could not be read.
+// Sealed-origin verdicts cross the reader/policy boundary; unresolved evidence retains its complete refusal.
 
 import type { Node } from "ts-morph";
 import type { ModuleMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
