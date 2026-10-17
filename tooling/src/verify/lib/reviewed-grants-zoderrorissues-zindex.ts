@@ -1,4 +1,4 @@
-// Reviewed grants: zod-error-issues-home, z-index-tier-permission.
+// Reviewed grants: zod-error-issues-home.
 // Split from reviewed-grants-tooling-to-permission.ts at the 450-line cap — see reviewed-grants.ts for
 // the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
@@ -67,13 +67,5 @@ export const REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX: readonly ReviewedGateGrant[]
     operation: "error-issues-read",
     why: "the same write-guard RE-EMIT for `entryMetadataWriteSchema`, whose header cites the persona rationale verbatim — issues forwarded structurally with their paths, never flattened to a display string.",
     endsWhen: "the entry write guard stops re-emitting inner issues (the inner schema is composed directly into the outer one).",
-  },
-  {
-    id: "z-index-tier-permission:layout",
-    policyId: "z-index-tier-permission",
-    subject: "packages/ui/src/layout/",
-    operation: "spell-z-index-tier",
-    why: "layout primitives implement the shared stacking vocabulary and must remain able to author its raw representation.",
-    endsWhen: "layout primitives stop implementing stacking or move to a different structural home.",
   },
 ];

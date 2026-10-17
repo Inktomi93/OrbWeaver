@@ -165,9 +165,9 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: policyFamilyReaders,
-    // A member joining a REAL shared-reader family (`ui-z-index-tier`) whose create consumes no
+    // A member joining a REAL shared-reader family (`tailwind-class-token`) whose create consumes no
     // shared production dependency at all.
-    overlays: [probeGate({ id: "liveness-family", family: "ui-z-index-tier" })],
+    overlays: [probeGate({ id: "liveness-family", family: "tailwind-class-token" })],
     messageIncludes: "resolves no shared canonical production dependency",
   },
   {

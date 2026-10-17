@@ -25,7 +25,6 @@ import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/ga
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
 import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-typography-in-features.ts";
-import { gate as noRawZIndex } from "../../../../../tooling/src/verify/gates/no-raw-z-index.ts";
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
@@ -37,7 +36,6 @@ import { gate as themeOverrideOnlyViaScope } from "../../../../../tooling/src/ve
 import { gate as typographyTierHomeHealth } from "../../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
 import { gate as uiSizeViaVariant } from "../../../../../tooling/src/verify/gates/ui-size-via-variant.ts";
 import { gate as zIndexTierHealth } from "../../../../../tooling/src/verify/gates/z-index-tier-health.ts";
-import { gate as zIndexTierPermission } from "../../../../../tooling/src/verify/gates/z-index-tier-permission.ts";
 
 const FEATURE = "packages/client/src/features/chat/components";
 const UI = "packages/ui/src/primitives";
@@ -139,11 +137,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "raw font-size utility",
   },
   {
-    policy: noRawZIndex,
-    overlays: [featureClass("z", "z-50")],
-    messageIncludes: "raw z-N",
-  },
-  {
     policy: noTailwindDarkVariant,
     overlays: [add("packages/ui/src/liveness-dark.tsx", 'const CARD = "dark:bg-card";\nexport const G = <div className={CARD} />;\n')],
     messageIncludes: "dark: utility",
@@ -204,16 +197,5 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: zIndexTierHealth,
     overlays: [{ kind: "remove", path: MARKDOWN_HOME }],
     messageIncludes: MARKDOWN_HOME,
-  },
-  {
-    policy: zIndexTierPermission,
-    // A REVIEWED-GRANT fold: every z-index spelling in the markdown home folds into
-    // one candidate the central grant licenses. This path sorts before every real markdown file, so the fold
-    // anchors here, and its site list names line 3 only if the fold read this file's two spellings.
-    overlays: [
-      add(`${MARKDOWN_HOME}_liveness-z.tsx`, 'export const probe = 1;\n\nexport const x = <><div className="z-50" /><div className="z-[60]" /></>;\n'),
-    ],
-    messageIncludes: "line(s): 1, 3.",
-    granted: true,
   },
 ];

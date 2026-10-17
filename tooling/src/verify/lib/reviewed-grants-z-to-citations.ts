@@ -1,16 +1,8 @@
-// Reviewed grants for visual tier permissions and query freshness.
+// Reviewed grants for query freshness.
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
-  {
-    id: "z-index-tier-permission:markdown",
-    policyId: "z-index-tier-permission",
-    subject: "packages/ui/src/markdown/",
-    operation: "spell-z-index-tier",
-    why: "the markdown renderer maps prose surfaces onto the shared stacking vocabulary at this reviewed home.",
-    endsWhen: "markdown uses token-only composition or moves to a different structural home.",
-  },
   {
     id: "query-freshness-coverage:assets-resolveblobrefs",
     policyId: "query-freshness-coverage",

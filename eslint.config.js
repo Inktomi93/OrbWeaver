@@ -91,6 +91,7 @@ import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_W
 import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
+import { Z_TOKEN_SCOPES } from "@orb/ui/z-scope";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -115,6 +116,7 @@ import {
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
+import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -980,6 +982,26 @@ const CLASS_TOKEN_RESTRICTIONS = [
   },
 ];
 
+const Z_INDEX_HOMES = Object.entries(Z_INDEX_IMPLEMENTATION_HOMES).map(([path, { why }]) => ({ path: `${path}**`, why }));
+const GOVERNED_Z_NAMES = Object.keys(Z_TOKEN_SCOPES)
+  .map((path) => RegExp.escape(path.slice("z.".length)))
+  .join("|");
+const UNKNOWN_SEMANTIC_Z = String.raw`\bz-\(--z-(?!(?:${GOVERNED_Z_NAMES})\))[a-z0-9-]+\)`;
+const Z_INDEX_RESTRICTIONS = [
+  { id: "no-raw-z-index", scope: rootSources("@client", "@ui"), homes: Z_INDEX_HOMES },
+  {
+    id: "no-unknown-z-index-token",
+    scope: rootSources("@client", "@ui"),
+    homes: Z_INDEX_HOMES,
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${UNKNOWN_SEMANTIC_Z}/], TemplateElement[value.raw=/${UNKNOWN_SEMANTIC_Z}/])`,
+        message: "Unknown semantic z-index token; use the canonical vocabulary in packages/ui/src/tokens/z-scope.ts.",
+      },
+    ],
+  },
+];
+
 const DETERMINISM_TEST_SOURCES = ["tests/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
 const ESCAPE_MINT_NAMES = "/^(escapeRegExp|escapeRegex)$/";
 const DETERMINISM_RESTRICTIONS = [
@@ -1021,6 +1043,7 @@ const DETERMINISM_RESTRICTIONS = [
 ];
 
 const RESTRICTIONS = [
+  ...Z_INDEX_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
@@ -1323,7 +1346,39 @@ function restrictionRule({ selectors = [], globals = [] }) {
     },
   };
 }
-const restrictionPlugin = { rules: Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])) };
+const RAW_Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
+const Z_CLASS_COMPOSERS = new Set(["cn", "clsx", "cva", "tv"]);
+// The nearest carrier is significant; a descendant selector would reclaim nested foreign calls or attributes.
+const rawZIndexRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      if (!RAW_Z_INDEX_REGEX.test(context.sourceCode.getText(node))) {
+        return;
+      }
+      const ancestors = context.sourceCode.getAncestors(node);
+      const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
+      const call = ancestors.findLast((ancestor) => ancestor.type === "CallExpression");
+      if (
+        (attribute?.name.type === "JSXIdentifier" && attribute.name.name === "className") ||
+        (call?.callee.type === "Identifier" && Z_CLASS_COMPOSERS.has(call.callee.name))
+      ) {
+        context.report({ node, message: "Raw z-index in a class carrier; use a governed semantic token from packages/ui/src/tokens/z-scope.ts." });
+      }
+    };
+    return {
+      "Literal[value=type(string)]"(node) {
+        report(node);
+      },
+      "TemplateLiteral[expressions.length=0]"(node) {
+        report(node);
+      },
+    };
+  },
+};
+const restrictionPlugin = {
+  rules: { ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])), "no-raw-z-index": rawZIndexRule },
+};
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
   const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
   return {
@@ -2027,6 +2082,7 @@ export default [
       ...TURN_IDENTITY_RESTRICTIONS,
       ...DETERMINISM_RESTRICTIONS,
       ...CLASS_TOKEN_RESTRICTIONS,
+      ...Z_INDEX_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },

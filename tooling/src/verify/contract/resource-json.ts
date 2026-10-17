@@ -30,7 +30,7 @@ export type JsonValue = null | boolean | number | string | readonly JsonValue[] 
 export const JSON_RESOURCE_PATHS = {
   /** `no-blanket-suppression`: the authored override suppression policy. */
   biome: "biome.json",
-  /** `no-raw-z-index` and the token policies: the canonical token vault. */
+  /** `integer-line-boxes` and the token policies: the canonical token vault. */
   tokens: "packages/ui/src/tokens/tokens.json",
   /** The Base UI family: the committed surface the installed package is adjudicated against. */
   "baseui-manifest": "tooling/src/verify/gates/baseui-surface.manifest.json",

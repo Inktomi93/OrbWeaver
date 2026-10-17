@@ -102,7 +102,7 @@ const CLASS_ATTRIBUTE = /^class(Name)?$/u;
 const QUOTES = /["']/gu;
 /** A token the ordinary-waiver grammar cannot carry: its position group is `[^()\r\n]+`. */
 const UNWAIVABLE_TOKEN = /[()\r\n]/u;
-/** The class-composition callees whose arguments are class strings. Mirrors no-raw-z-index's list. */
+/** The class-composition callees whose arguments are class strings. */
 const CLASS_CALLEES = new Set(["cn", "cx", "clsx", "cva", "tv", "twMerge", "twJoin"]);
 /** `tv`/`cva` config keys whose leaves are class strings (variant leaves are reached through the callee). */
 const CLASS_KEYS = new Set(["base", "class", "className"]);
