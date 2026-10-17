@@ -7,6 +7,7 @@ import {
   readObservedCallableConsumers as callableConsumers,
   readCallReturnProgram as capturedProgram,
   readCallReturnReference as capturedReference,
+  RefinementMap,
   readCallBindings as suppliedBindings,
   readSuppliedParameter as suppliedParameter,
 } from "./call-supplied.ts";
@@ -809,6 +810,7 @@ interface RefinementCell {
 interface RefinementReadSet {
   readonly cells: Set<RefinementCell>;
   readonly nodes: Map<MorphNode, ts.Node>;
+  readonly sourceAdmissions: Map<CallReturnProgram["sources"], Map<import("ts-morph").SourceFile, ts.SourceFile | undefined>>;
   opaque: boolean;
 }
 
@@ -822,52 +824,7 @@ interface RefinementEntry extends RefinementReadSet {
   readonly nativeValues: boolean;
   readonly namespaceValue: CallReturnProgram["nativeNamespaceValue"];
   readonly namespaceAlias: CallReturnProgram["nativeNamespaceAlias"];
-  readonly sourceCount: number;
   readonly validateNative: (() => boolean) | undefined;
-}
-
-class RefinementMap<K, V extends object> extends Map<K, V> {
-  readonly #read: (key: K, value: V | undefined, presence: boolean) => void;
-  readonly #opaque: () => void;
-  constructor(values: Iterable<readonly [K, V]>, read: (key: K, value: V | undefined, presence: boolean) => void, opaque: () => void) {
-    super(values);
-    this.#read = read;
-    this.#opaque = opaque;
-  }
-  override get(key: K): V | undefined {
-    const value = super.get(key);
-    this.#read(key, value, false);
-    return value;
-  }
-  override has(key: K): boolean {
-    const value = super.has(key);
-    this.#read(key, super.get(key), true);
-    return value;
-  }
-  override get size(): number {
-    this.#opaque();
-    return super.size;
-  }
-  override entries(): ReturnType<Map<K, V>["entries"]> {
-    this.#opaque();
-    return super.entries();
-  }
-  override keys(): ReturnType<Map<K, V>["keys"]> {
-    this.#opaque();
-    return super.keys();
-  }
-  override values(): ReturnType<Map<K, V>["values"]> {
-    this.#opaque();
-    return super.values();
-  }
-  override [Symbol.iterator](): ReturnType<Map<K, V>[typeof Symbol.iterator]> {
-    this.#opaque();
-    return super[Symbol.iterator]();
-  }
-  override forEach(...args: Parameters<Map<K, V>["forEach"]>): void {
-    this.#opaque();
-    super.forEach(...args);
-  }
 }
 
 class RefinementIndex<K, V extends object> {
@@ -1012,6 +969,7 @@ class RefinementLedger {
       this.active.opaque = true;
       this.active.cells.clear();
       this.active.nodes.clear();
+      this.active.sourceAdmissions.clear();
     }
   }
   remember(nodes: readonly MorphNode[]): void {
@@ -1026,6 +984,26 @@ class RefinementLedger {
       }
       read.nodes.set(node, node.compilerNode);
     }
+  }
+  sourceMap(): Map<import("ts-morph").SourceFile, ts.SourceFile> {
+    const sources: RefinementMap<import("ts-morph").SourceFile, ts.SourceFile> = new RefinementMap(
+      [],
+      (source, native) => {
+        const read = this.active;
+        if (read === undefined || read.opaque) {
+          return;
+        }
+        const admissions = read.sourceAdmissions.getOrInsertComputed(sources, () => new Map());
+        if (admissions.has(source) && admissions.get(source) !== native) {
+          this.opaque();
+        } else {
+          admissions.set(source, native);
+          this.remember([source]);
+        }
+      },
+      () => this.opaque(),
+    );
+    return sources;
   }
   refresh(): void {
     for (const cell of this.cells) {
@@ -1052,7 +1030,6 @@ class RefinementLedger {
     if (
       program.program !== entry.nativeProgram ||
       program.sources !== entry.sources ||
-      program.sources.size !== entry.sourceCount ||
       program.callableContext !== entry.context ||
       program.referencesObserved !== entry.referencesObserved ||
       (program.suppliedCallableTargets === true) !== entry.supplied ||
@@ -1061,6 +1038,17 @@ class RefinementLedger {
       program.nativeNamespaceAlias !== entry.namespaceAlias
     ) {
       return false;
+    }
+    for (const [sources, admissions] of entry.sourceAdmissions) {
+      const freshness = RefinementMap.freshness(sources);
+      if (freshness === undefined) {
+        return false;
+      }
+      for (const [source, native] of admissions) {
+        if (freshness.get(source) !== native) {
+          return false;
+        }
+      }
     }
     for (const [node, native] of entry.nodes) {
       if (node.wasForgotten() || node.compilerNode !== native) {
@@ -1090,7 +1078,7 @@ class RefinementLedger {
     const key = previous.call.compilerNode;
     this.#remove(key);
     this.#dirty.delete(key);
-    const read: RefinementReadSet = { cells: new Set(), nodes: new Map(), opaque: false };
+    const read: RefinementReadSet = { cells: new Set(), nodes: new Map(), sourceAdmissions: new Map(), opaque: false };
     const native = captureNativeReferenceReads(this.release);
     const options = {
       suppliedCallableTargets: projection.suppliedCallableTargets === true,
@@ -1121,7 +1109,6 @@ class RefinementLedger {
           nativeValues: program.nativeValueTransfers === true,
           namespaceValue: program.nativeNamespaceValue,
           namespaceAlias: program.nativeNamespaceAlias,
-          sourceCount: program.sources.size,
           validateNative: validation.validate,
         };
         this.#entries.set(key, entry);
@@ -1515,7 +1502,7 @@ export function observeCallReturns(
     const project = observation.call.getProject();
     let group = groups.get(project);
     if (group === undefined) {
-      group = { calls: [], sources: new Map(), refinement: refinementIndexes(ledger) };
+      group = { calls: [], sources: ledger.sourceMap(), refinement: refinementIndexes(ledger) };
       groups.set(project, group);
     }
     if (observation.targets.kind === "resolved" && !optionalInvocationSite(observation.call)) {
@@ -1915,7 +1902,7 @@ export function observeCallReturns(
               callableProofEpoch: () => ({
                 ...indexes,
                 callCount: indexes.calls.length,
-                sourceCount: group.sources.size,
+                sourceCount: RefinementMap.freshness(group.sources)?.count() ?? group.sources.size,
                 admittedCount: admitted.proofSize,
                 referenceRevision: observedReferences.length,
                 demandRevision: demandedOwners.size,

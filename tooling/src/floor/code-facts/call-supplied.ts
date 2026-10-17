@@ -17,6 +17,64 @@ import type {
 import { unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { unresolved as referenceRefusal } from "./type-member-origin-core.ts";
 
+/** Keyed semantic reads and whole-view opacity share the exact constructor-owned Map storage. */
+export class RefinementMap<K, V extends object> extends Map<K, V> {
+  readonly #read: (key: K, value: V | undefined, presence: boolean) => void;
+  readonly #opaque: () => void;
+  readonly #freshness = Object.freeze({
+    get: (key: K): V | undefined => super.get(key),
+    keys: (): MapIterator<K> => super.keys(),
+    count: (): number => super.size,
+  });
+  constructor(values: Iterable<readonly [K, V]>, read: (key: K, value: V | undefined, presence: boolean) => void, opaque: () => void) {
+    super(values);
+    this.#read = read;
+    this.#opaque = opaque;
+  }
+  static #owns<ViewKey, ViewValue extends object>(view: ReadonlyMap<ViewKey, ViewValue>): view is RefinementMap<ViewKey, ViewValue> {
+    return #freshness in view;
+  }
+  static freshness<ViewKey, ViewValue extends object>(
+    view: ReadonlyMap<ViewKey, ViewValue>,
+  ): (Pick<ReadonlyMap<ViewKey, ViewValue>, "get" | "keys"> & { readonly count: () => number }) | undefined {
+    return RefinementMap.#owns(view) ? view.#freshness : undefined;
+  }
+  override get(key: K): V | undefined {
+    const value = super.get(key);
+    this.#read(key, value, false);
+    return value;
+  }
+  override has(key: K): boolean {
+    const value = super.has(key);
+    this.#read(key, super.get(key), true);
+    return value;
+  }
+  override get size(): number {
+    this.#opaque();
+    return super.size;
+  }
+  override entries(): ReturnType<Map<K, V>["entries"]> {
+    this.#opaque();
+    return super.entries();
+  }
+  override keys(): ReturnType<Map<K, V>["keys"]> {
+    this.#opaque();
+    return super.keys();
+  }
+  override values(): ReturnType<Map<K, V>["values"]> {
+    this.#opaque();
+    return super.values();
+  }
+  override [Symbol.iterator](): ReturnType<Map<K, V>[typeof Symbol.iterator]> {
+    this.#opaque();
+    return super[Symbol.iterator]();
+  }
+  override forEach(...args: Parameters<Map<K, V>["forEach"]>): void {
+    this.#opaque();
+    super.forEach(...args);
+  }
+}
+
 function unresolved(reason: ReferenceUnresolvedReason, node: MorphNode, detail: string, declarations: readonly MorphNode[] = []): UnresolvedReferenceFact {
   return { ...referenceRefusal(reason, node, detail), trace: { declarations, origin: node } };
 }
@@ -312,11 +370,17 @@ export function readCallReturnProgram(node: MorphNode, observations: CallReturnO
     return unresolved("unsupported", node, "the captured value node was forgotten");
   }
   const source = node.getSourceFile();
-  const program = observations.programs.find((candidate) => candidate.sources.has(source));
+  const program = observations.programs.find((candidate) => {
+    if (RefinementMap.freshness(candidate.sources) === undefined) {
+      candidate.callableContext?.untrackedRead?.();
+    }
+    return candidate.sources.has(source);
+  });
   let staleSource = false;
   if (program !== undefined) {
-    for (const file of program.sources.keys()) {
-      if (file.wasForgotten() || file.compilerNode !== program.sources.get(file)) {
+    const sources = RefinementMap.freshness(program.sources) ?? program.sources;
+    for (const file of sources.keys()) {
+      if (file.wasForgotten() || file.compilerNode !== sources.get(file)) {
         staleSource = true;
         break;
       }
