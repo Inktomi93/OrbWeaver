@@ -15,8 +15,8 @@
 // LRU-bounded, sha256-keyed cache: the prior neo cache keyed on the raw header value with no eviction, so
 // a hostile upstream varying the header per request grew it unbounded. Keyed on sha256(metaJwks) and
 // capped, a varied-whitespace body that parses to the same JSON still churns keys but eviction bounds it.
-// ASSUMES(single-replica): the cache is process-local; a remote-JWKS-URL fetch is de-duped per process,
-// not across replicas (acceptable — jose's own remote set memoizes and refetches on rotation).
+// Each graph owns its key cache and injected transport; native JOSE memoizes remote retrieval and refetches
+// on rotation. No cached native key set can retain another graph's execution or lifetime.
 
 import { createHash } from "node:crypto";
 import type { ExternalId, Handle } from "@orb/kit/ids";
@@ -69,15 +69,10 @@ class LruMap<K, V> {
     }
     this.map.set(k, v);
   }
-  get size(): number {
-    return this.map.size;
-  }
   clear(): void {
     this.map.clear();
   }
 }
-
-const jwksCache = new LruMap<string, AnyKeySet>(JWKS_CACHE_CAP);
 
 function cacheKey(metaJwks: string): string {
   return createHash("sha256").update(metaJwks).digest("hex");
@@ -133,11 +128,6 @@ function readJwks(cache: LruMap<string, AnyKeySet>, execution: typeof fetch, met
   }
   cache.set(key, set);
   return set;
-}
-
-/** The process-compatible forward-header reader retains its existing cache and native transport. */
-export function jwksFor(metaJwks: string, allowlist: readonly string[]): AnyKeySet | null {
-  return readJwks(jwksCache, fetch, metaJwks, allowlist);
 }
 
 /** Own one configured client's key cache without replacing another graph's keys or fetch operation. */
@@ -201,12 +191,12 @@ function claimsFromPayload(payload: JWTPayload): ForwardJwtClaims {
   };
 }
 
-/** The `ForwardJwtVerifier` the seam injects into infra/auth. Wires jwksFor → jwtVerify → claim mapping;
+/** The `ForwardJwtVerifier` the seam injects into infra/auth. Wires its owned key reader → jwtVerify → claim mapping;
  *  returns null on any JWKS-build or signature/shape failure (fail-closed points 3 + 5). */
-export function createForwardJwtVerifier(): ForwardJwtVerifier {
+export function createForwardJwtVerifier(readKeyset: JwksReader["jwksFor"]): ForwardJwtVerifier {
   return {
     verify: async (args: ForwardJwtVerifyArgs): Promise<ForwardJwtClaims | null> => {
-      const keyset = jwksFor(args.metaJwks, args.allowlist);
+      const keyset = readKeyset(args.metaJwks, args.allowlist);
       if (keyset === null) {
         return null;
       }
@@ -217,14 +207,4 @@ export function createForwardJwtVerifier(): ForwardJwtVerifier {
       return claimsFromPayload(payload);
     },
   };
-}
-
-/** @internal — test seam: inspect the LRU size for eviction tests. */
-export function jwksCacheSize(): number {
-  return jwksCache.size;
-}
-
-/** @internal — test seam: clear the process-shared cache between tests. */
-export function resetJwksCache(): void {
-  jwksCache.clear();
 }

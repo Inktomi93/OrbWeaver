@@ -7,7 +7,7 @@ import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { isReservedSignupHandle } from "#domain/sessions";
 import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env";
 import type { AuthConfig } from "#infra/auth";
-import { createForwardJwtVerifier, createPasswordHasher, createRelayedFallbackNotice, ownerFallbackAllowed } from "#infra/auth";
+import { createPasswordHasher, createRelayedFallbackNotice, ownerFallbackAllowed } from "#infra/auth";
 import { createCas } from "#infra/storage";
 import { createMemoryRecallInspector, createRpgTraceInspector } from "#transport/debug-recorders";
 import type { AppDeps } from "../app.ts";
@@ -34,6 +34,7 @@ type HttpAppDeps = Pick<
     ServicesResult,
     | "liveBuses"
     | "services"
+    | "forwardJwtVerifier"
     | "rateLimit"
     | "multiHumanCapable"
     | "supervise"
@@ -111,7 +112,7 @@ export function createHttpApp(deps: HttpAppDeps): ReturnType<typeof createApp> {
       emitUserEvent: built.liveBuses.user.publishUserEvent,
       sessions: built.sessions,
       config: authConfig,
-      verifyForwardJwt: createForwardJwtVerifier(),
+      verifyForwardJwt: built.forwardJwtVerifier,
       ownerFallbackIsOperatorCredential: resolveOwnerFallbackCredential(ownerFallbackCredentialInput()),
       relayedFallbackNotice: createRelayedFallbackNotice(now),
       relayHosts: deps.relayHosts,

@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-Projected callable handoff and selected-slot storage pass bounded controls and security review. Actual captured helpers, allocation identity and private-premise revocation remain required. Evidence: `reports/review/1002-projected-callable-handoff-ordinary.md`. Current target and cost remain unqualified.
+Nested optional-member and actual nullish projection pass bounded controls and security review. Captured helper/allocation identity and private-premise revocation remain required. Evidence: `reports/review/1002-nested-member-continuation-delivery.md`. Ordinary integration, current target and cost remain unqualified.
 
 Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 

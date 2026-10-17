@@ -43,7 +43,7 @@ const APPLICATION = Object.freeze({
   "no-loose-id-cast": 6,
   "no-manual-memo": 3,
   "no-raw-clock": 2,
-  "no-raw-egress": 2,
+  "no-raw-egress": 1,
   "no-raw-id": 37,
   "no-raw-intl-time": 1,
   "no-raw-random": 1,

@@ -28,7 +28,7 @@ D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswal
 
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
-Native infra identity restrictions preserve generated/declaration coverage. Production-root identity/admin controls pass security review. Principal-origin and typed role claims remain. Evidence: `reports/review/1041-infra-admin-ordinary.md`.
+Graph-owned forward-JWT execution and edge-test adoption pass scoped controls and security review. Evidence: `reports/review/1041-native-entry-network.md`. Combined-root qualification remains open; CORS, raw-origin and body-cap policies remain.
 
 Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 

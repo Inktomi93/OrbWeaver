@@ -54,5 +54,3 @@ Native ESLint partition and real CLI controls pass. The [hosted artifact](https:
 The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-cache-proof.ts` still builds a copied `MessageView` without it. This item owns its corpus-backed replacement; do not insert a fabricated default to silence the type failure.
 
 Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
-
-Signed-header verification reaches ambient JWKS fetch instead of graph-owned execution. A real-root control confirms the bypass. The security network cohort owns correction and stale-grant removal. Evidence: `reports/review/1041-raw-egress-owner.json`. Existing permissions do not license it.

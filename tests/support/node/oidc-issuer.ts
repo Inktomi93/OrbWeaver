@@ -1,7 +1,7 @@
 // A scripted external issuer: native clients still own discovery, token processing and JWT verification.
 
 import { createHash } from "node:crypto";
-import type { JWTPayload } from "jose";
+import type { GenerateKeyPairAlgorithm, JWTHeaderParameters, JWTPayload, KeyInput } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import type { ServerHarnessOptions } from "./server.ts";
 
@@ -23,20 +23,42 @@ interface NativeIssuer {
   readonly calls: string[];
   readonly idTokens: string[];
   readonly authorize: (authorizationUrl: string, claims: JWTPayload) => URL;
+  readonly signedToken: (claims: JWTPayload, options?: SignedTokenOptions) => Promise<string>;
   readonly logoutToken: (claims: Readonly<Record<string, unknown>>, omittedClaims?: readonly string[]) => Promise<string>;
 }
 
+interface SignedTokenOptions {
+  readonly header?: JWTHeaderParameters;
+  readonly signingKey?: KeyInput;
+  readonly omittedClaims?: readonly string[];
+}
+
 /** Sign real issuer output; no Configuration, exchange, domain or accepted identity is fabricated. */
-export async function createNativeIssuer(): Promise<NativeIssuer> {
-  const keys = await generateKeyPair("RS256", { extractable: true });
-  const publicKey = { ...(await exportJWK(keys.publicKey)), kid: SIGNING_KEY, alg: "RS256", use: "sig" };
+export async function createNativeIssuer(options: { readonly algorithm?: GenerateKeyPairAlgorithm } = {}): Promise<NativeIssuer> {
+  const algorithm = options.algorithm ?? "RS256";
+  const keys = await generateKeyPair(algorithm, { extractable: true });
+  const publicKey = { ...(await exportJWK(keys.publicKey)), kid: SIGNING_KEY, alg: algorithm, use: "sig" };
   const grants = new Map<string, { readonly authorization: URL; readonly claims: JWTPayload }>();
   const calls: string[] = [];
   const idTokens: string[] = [];
   let authorizationCount = 0;
   let logoutCount = 0;
-  const sign = (claims: JWTPayload): Promise<string> =>
-    new SignJWT(claims).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY }).setIssuedAt().setExpirationTime(TOKEN_LIFETIME).sign(keys.privateKey);
+  const sign = (claims: JWTPayload, signing: SignedTokenOptions = {}): Promise<string> => {
+    const payload = { ...claims };
+    const omitted = signing.omittedClaims ?? [];
+    for (const claim of omitted) {
+      delete payload[claim];
+    }
+    const token = new SignJWT(payload).setProtectedHeader(signing.header ?? { alg: algorithm, kid: SIGNING_KEY });
+    // Native defaults must not repair raw negative cases or deliberately omitted required claims.
+    if (!(Object.hasOwn(claims, "iat") || omitted.includes("iat"))) {
+      token.setIssuedAt();
+    }
+    if (!(Object.hasOwn(claims, "exp") || omitted.includes("exp"))) {
+      token.setExpirationTime(TOKEN_LIFETIME);
+    }
+    return token.sign(signing.signingKey ?? keys.privateKey);
+  };
   async function tokenResponse(request: Request): Promise<Response> {
     const form = new URLSearchParams(await request.text());
     const code = form.get("code") ?? "";
@@ -68,6 +90,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
   return {
     calls,
     idTokens,
+    signedToken: sign,
     authorize: (authorizationUrl, claims): URL => {
       const authorization = new URL(authorizationUrl);
       // This private scripted issuer needs unique grants, not the entropy of a production authorization server.
@@ -88,15 +111,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
       for (const claim of omittedClaims) {
         delete payload[claim];
       }
-      const token = new SignJWT(payload).setProtectedHeader({ alg: "RS256", kid: SIGNING_KEY });
-      // Native defaults must not repair raw negative cases or deliberately omitted required claims.
-      if (!(Object.hasOwn(claims, "iat") || omittedClaims.includes("iat"))) {
-        token.setIssuedAt();
-      }
-      if (!(Object.hasOwn(claims, "exp") || omittedClaims.includes("exp"))) {
-        token.setExpirationTime(TOKEN_LIFETIME);
-      }
-      return token.sign(keys.privateKey);
+      return sign(payload, { omittedClaims });
     },
     fetch: async (input, init): Promise<Response> => {
       const request = new Request(input, init);
@@ -121,7 +136,7 @@ export async function createNativeIssuer(): Promise<NativeIssuer> {
           // biome-ignore lint/style/useNamingConvention: OIDC discovery fixes this wire field spelling.
           subject_types_supported: ["public"],
           // biome-ignore lint/style/useNamingConvention: OIDC discovery fixes this wire field spelling.
-          id_token_signing_alg_values_supported: ["RS256"],
+          id_token_signing_alg_values_supported: [algorithm],
           // biome-ignore lint/style/useNamingConvention: OIDC discovery fixes this wire field spelling.
           token_endpoint_auth_methods_supported: ["client_secret_post", "client_secret_basic"],
         });
