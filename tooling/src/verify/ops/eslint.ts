@@ -8,8 +8,8 @@
 // REPLACES the shared `.eslintcache` with only its own files, and the next whole-tree run finds zero
 // cache hits for every group except the one that ran last. A per-owner path makes each partition's cache
 // independent and persistent across runs.
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
@@ -17,8 +17,13 @@ import { execNicedSync, runNicedSync } from "@orb/tooling/floor/process/proc";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
+import { BASE_UI_DATA_RULE, BASE_UI_HANDLER_RULE, BASE_UI_NATIVE_INPUT_PATHS, BASE_UI_STATE_RULE } from "../contract/baseui.ts";
 import type { EslintFileAdmission } from "../contract/config-snapshot.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
+import { POPULATION_ROOTS } from "../contract/population.ts";
+import type { JsonValue } from "../contract/resource-json.ts";
+import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
+import { affectsBaseUiLint, surfaceManifestFrom } from "../lib/baseui-manifest.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
@@ -180,12 +185,64 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (paths.length === 0) {
     throw new UsageError(`eslint-scoped needs at least one path\n${ESLINT_SCOPED_USAGE}`);
   }
-  const admitted = await admittedPopulation(root, paths);
-  if (admitted.length === 0) {
-    process.stderr.write("[eslint] eslint.config.js ignores every scoped path; nothing to lint\n");
-    return EXIT.clean;
+  const metadata = paths.some(affectsBaseUiLint);
+  const coversUi = paths.some(
+    (path) =>
+      path === "." || POPULATION_ROOTS["@ui"].every((prefix) => `${path.replace(/\/$/u, "")}/` === prefix || prefix.startsWith(`${path.replace(/\/$/u, "")}/`)),
+  );
+  const supplemental = metadata && !coversUi ? await recheckBaseUiMetadata(root) : EXIT.clean;
+  if (supplemental === EXIT.toolError) {
+    return EXIT.toolError;
   }
-  return runProfiles(root, admitted, "scoped-");
+  const sources = paths.filter(
+    (path) => !BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) || (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
+  );
+  if (sources.length === 0) {
+    return supplemental;
+  }
+  const admitted = await admittedPopulation(root, sources);
+  if (admitted.length === 0) {
+    process.stderr.write("[eslint] eslint.config.js ignores every scoped source path; nothing ordinary to lint\n");
+    return supplemental;
+  }
+  return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
+}
+
+// Metadata changes rejudge seal syntax without creating any typed ordinary owner program.
+async function recheckBaseUiMetadata(root: string): Promise<number> {
+  for (const path of BASE_UI_NATIVE_INPUT_PATHS) {
+    readFileSync(resolve(root, path));
+  }
+  const manifest = surfaceManifestFrom(JSON.parse(readFileSync(resolve(root, JSON_RESOURCE_PATHS["baseui-manifest"]), "utf8")) as JsonValue);
+  if (!manifest.ok) {
+    throw new Error(`Native Base UI policies cannot read the surface manifest: ${manifest.reason}`);
+  }
+  const { ESLint } = await import("eslint");
+  const patterns = POPULATION_ROOTS["@ui"].map((prefix) => `${prefix}**/*.{ts,tsx}`);
+  let verdict: number = EXIT.clean;
+  for (const hard of [true, false]) {
+    const rules = new Set<string>(hard ? [BASE_UI_HANDLER_RULE] : [BASE_UI_DATA_RULE, BASE_UI_STATE_RULE]);
+    const eslint = new ESLint({
+      cwd: root,
+      overrideConfigFile: resolve(root, hard ? HARD_CONFIG_REL : CONFIG_REL),
+      allowInlineConfig: !hard,
+      ruleFilter: ({ ruleId }): boolean => rules.has(ruleId),
+      overrideConfig: [{ languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } }],
+    });
+    const results = await eslint.lintFiles(patterns);
+    if (results.length === 0) {
+      throw new Error("Native Base UI metadata recheck admitted zero UI sources; no verdict is available");
+    }
+    const formatter = await eslint.loadFormatter("stylish");
+    process.stdout.write(`[eslint] base-ui-native ${hard ? "hard" : "ordinary"}: ${String(results.length)} file(s)\n${await formatter.format(results)}`);
+    if (results.some((result) => result.fatalErrorCount > 0)) {
+      return EXIT.toolError;
+    }
+    if (results.some((result) => result.errorCount > 0 || result.warningCount > 0)) {
+      verdict = EXIT.violations;
+    }
+  }
+  return verdict;
 }
 
 async function runProfiles(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): Promise<number> {

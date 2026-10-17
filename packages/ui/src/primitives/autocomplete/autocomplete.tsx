@@ -43,8 +43,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * The candidate suggestions — display strings filtered against the input value automatically.
    * May be a render-derived array (fresh reference each render). Ignored when `groups` is provided.
    */
-  // @orb-waive baseui-derives-not-respells(items): Base UI's `items` is `readonly any[] | readonly Group<any>[]`; this seal is deliberately string-only (object-items and multi-select are the Combobox seal's job) and its `groups` prop owns the grouped arm. Ends if the seal ever accepts object items.
-  items?: readonly string[];
+  items?: Extract<BaseRootProps<string>["items"], readonly string[]>;
   /**
    * Grouped suggestions — each group renders a `GroupLabel` header over its items. Values are
    * still plain strings, not object-items/multi-select (that's the Combobox seal's job). Takes
@@ -58,10 +57,8 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   mode?: BaseRootProps<string>["mode"];
   placeholder?: string;
   /** Controlled input value — pair with `onValueChange`. */
-  // @orb-waive baseui-derives-not-respells(value): Base UI's `value` admits `null` (the cleared arm of its own value model); this seal's value IS the input's text, where the cleared state is `""`. Ends if the seal stops backing a text input.
-  value?: string;
-  // @orb-waive baseui-derives-not-respells(defaultValue): the uncontrolled half of `value` above — same narrowing, same end condition.
-  defaultValue?: string;
+  value?: Extract<BaseRootProps<string>["value"], string>;
+  defaultValue?: Extract<BaseRootProps<string>["defaultValue"], string>;
   onValueChange?: (value: string, details?: AutocompleteChangeDetails) => void;
   disabled?: BaseRootProps<string>["disabled"];
   /** Rendered inside the popup when the filter matches nothing. */

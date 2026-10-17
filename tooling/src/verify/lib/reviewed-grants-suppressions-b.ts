@@ -4,6 +4,15 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-orb-baseui-derives-not-respells",
+    policyId: "suppressions",
+    subject: "orb/baseui-derives-not-respells",
+    operation: "source",
+    why: "RULING — Combobox items remain string chips with groups supplied separately; Select items remain its renderer-owned flat/group option union. These two actual item models deliberately narrow Base UI's loose collection surface. Native-derived value/defaultValue and Autocomplete items need no directive; handler derivation remains HARD.",
+    endsWhen:
+      "the final actual item-model directive disappears, Combobox accepts object-backed collections, or Select stops rendering its own closed item model.",
+  },
+  {
     id: "suppressions:source-orb-no-banned-tw-utility",
     policyId: "suppressions",
     subject: "orb/no-banned-tw-utility",

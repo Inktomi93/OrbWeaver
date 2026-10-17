@@ -11,10 +11,7 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as baseuiAnatomyCompleteness } from "../../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
-import { gate as baseuiDerivesNotRespells } from "../../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
-import { gate as baseuiDerivesNotRespellsHealth } from "../../../../../tooling/src/verify/gates/baseui-derives-not-respells-health.ts";
 import { gate as baseuiPortalContainerSeam } from "../../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
-import { gate as baseuiStateDataAttributes } from "../../../../../tooling/src/verify/gates/baseui-state-data-attributes.ts";
 import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as clientCacheSurgeryOnlyInData } from "../../../../../tooling/src/verify/gates/client-cache-surgery-only-in-data.ts";
@@ -59,28 +56,7 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [{ kind: "remove", path: `${UI}/select/` }],
     messageIncludes: "no @orb/ui seal renders it",
   },
-  {
-    policy: baseuiDerivesNotRespellsHealth,
-    // A seal re-typing Select.Root's two-argument `onValueChange` with one argument.
-    overlays: [
-      add(
-        `${UI}/select/liveness-handler-seal.tsx`,
-        'import { Select as BaseSelect } from "@base-ui/react/select";\nexport interface LivenessHandlerSealProps {\n  onValueChange?: (value: string) => void;\n}\nexport const LivenessHandlerSeal = (p: LivenessHandlerSealProps) => <BaseSelect.Root {...p} />;\n',
-      ),
-    ],
-    messageIncludes: "DROPS 1 of its 2 arguments",
-  },
-  {
-    policy: baseuiDerivesNotRespells,
-    // A seal re-spelling a data prop Select.Root already declares.
-    overlays: [
-      add(
-        `${UI}/select/liveness-prop-seal.tsx`,
-        'import { Select as BaseSelect } from "@base-ui/react/select";\nexport interface LivenessPropSealProps {\n  disabled?: boolean;\n}\nexport const LivenessPropSeal = (p: LivenessPropSealProps) => <BaseSelect.Root {...p} />;\n',
-      ),
-    ],
-    messageIncludes: "hand-writes a data prop",
-  },
+
   {
     policy: baseuiPortalContainerSeam,
     overlays: [
@@ -91,17 +67,7 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: "accepts no `container` prop at all",
   },
-  {
-    policy: baseuiStateDataAttributes,
-    // A seal deriving a className from React state Base UI already publishes as `data-open`.
-    overlays: [
-      add(
-        `${UI}/popover/liveness-state-seal.tsx`,
-        'import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport function LivenessStateSeal() {\n  const [open] = useState(false);\n  return <BasePopover.Popup className={open ? "a" : "b"} />;\n}\n',
-      ),
-    ],
-    messageIncludes: "already publishes as a `data-*` attribute",
-  },
+
   {
     policy: boundFieldViaHook,
     overlays: [

@@ -1,5 +1,5 @@
 // The `baseui-read` and `surface-composition` FAMILIES — the #1584 conversion receipt for
-// `baseui-portal-container-seam`, `baseui-state-data-attributes`, `surface-a11y-focus`,
+// `baseui-portal-container-seam`, `surface-a11y-focus`,
 // `surface-in-a-container` and its `-health` split sibling. Two families in one file on purpose: they share
 // the real-tree drive below, and a family test is routinely filed under a wave rather than a member (grep the
 // POLICY ID across this directory, never the filename).
@@ -12,7 +12,7 @@
 //         separately make (`effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []`), plus the
 //         DISCRIMINATION control: the same fixture with the marker's position flipped must ALARM, or "my arm
 //         is green" is not "my arm discriminates".
-//   §4.5  the REFUSALS. `baseui-state-data-attributes` declares `json:baseui-manifest`; a missing or
+//   §4.5  the REFUSALS. `baseui-anatomy-completeness` declares `json:baseui-manifest`; a missing or
 //         unparseable one is a population-phase TOOL ERROR with the owner WITHHELD — never a finding and
 //         never a clean zero — and `toolFailure` runs before a proof row's arm verdict, so no row can carry
 //         the row (guide §6.3). These pins are also the SUCCESSOR PROOF for the legacy
@@ -32,10 +32,7 @@ import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as anatomyCompleteness } from "../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
-import { gate as derivesNotRespells } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells.ts";
-import { gate as derivesNotRespellsHealth } from "../../../../tooling/src/verify/gates/baseui-derives-not-respells-health.ts";
 import { gate as portalContainerSeam } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
-import { gate as stateDataAttributes } from "../../../../tooling/src/verify/gates/baseui-state-data-attributes.ts";
 import { gate as surfaceManifest } from "../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
@@ -46,17 +43,7 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
-const POLICIES = [
-  anatomyCompleteness,
-  derivesNotRespells,
-  derivesNotRespellsHealth,
-  portalContainerSeam,
-  stateDataAttributes,
-  surfaceManifest,
-  surfaceA11yFocus,
-  surfaceInAContainer,
-  surfaceInAContainerHealth,
-] as const;
+const POLICIES = [anatomyCompleteness, portalContainerSeam, surfaceManifest, surfaceA11yFocus, surfaceInAContainer, surfaceInAContainerHealth] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
 
 const MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
@@ -64,15 +51,6 @@ const MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
 const MANIFEST_JSON =
   '{ "version": "9.9.9", "components": { "Popover": { "module": "@base-ui/react/popover", "namespaced": true, "parts": {' +
   '"Popup": { "kind": "part", "symbol": "PopoverPopup", "from": "./popup/PopoverPopup.js", "props": [], "handlers": {}, "state": ["open", "side"], "inherits": ["BaseUIComponentProps"], "disposition": "exposed", "why": "" }' +
-  "} } } }\n";
-
-/** The same ledger one component over: a `Select` Root whose `items` is a DATA prop (the ordinary arm's
- *  subject) and whose `onValueChange` is a 2-arity handler (the hard sibling's), plus a non-Root `Value`
- *  part carrying `placeholder` — the dead position the discrimination control below names. */
-const DERIVES_MANIFEST_JSON =
-  '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
-  '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": ["items", "onValueChange"], "handlers": { "onValueChange": 2 }, "state": [], "inherits": [], "disposition": "exposed", "why": "" },' +
-  '"Value": { "kind": "part", "symbol": "SelectValue", "from": "./value/SelectValue.js", "props": ["placeholder"], "handlers": {}, "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
   "} } } }\n";
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
@@ -129,26 +107,7 @@ const IDENTITY_CASES: readonly IdentityCase[] = [
     body: (marker) =>
       `import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  className?: string;\n}\n${marker}export const P = (_props: DialogPopupProps) => <BaseDialog.Portal />;\n`,
   },
-  {
-    policy: stateDataAttributes,
-    path: SEAL_PATH,
-    position: "open",
-    deadPosition: "side",
-    body: (marker) =>
-      `import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport function Seal({ side }: { side: string }) {\n  const [open] = useState(false);\n  ${marker}  return <BasePopover.Popup className={open ? "a" : "b"} />;\n}\n`,
-    extra: { [MANIFEST_REL]: MANIFEST_JSON },
-  },
-  {
-    policy: derivesNotRespells,
-    path: "packages/ui/src/primitives/select/probe-select.tsx",
-    // The position is the PROP NAME, exactly as the seven live product markers already spell it — which is
-    // why the conversion's marker translation was a pure grammar swap with no anchor move.
-    position: "items",
-    deadPosition: "placeholder",
-    body: (marker) =>
-      `import type { SelectRootProps } from "@base-ui/react/select";\nimport { Select as BaseSelect } from "@base-ui/react/select";\nexport interface SealProps {\n  ${marker}  items?: readonly string[];\n}\nexport const Seal = (p: SealProps) => <BaseSelect.Root {...p} />;\n`,
-    extra: { [MANIFEST_REL]: DERIVES_MANIFEST_JSON },
-  },
+
   {
     policy: surfaceA11yFocus,
     path: "packages/client/src/features/x/surfaces/pane.tsx",
@@ -217,42 +176,6 @@ const SEAL_SOURCE =
   'import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport function Seal({ side }: { side: string }) {\n  const [open] = useState(false);\n  return <BasePopover.Popup className={open ? "a" : "b"} />;\n}\n';
 
 describe("§4.5 — a broken ledger is a REFUSAL, never a finding and never a clean zero", () => {
-  test("the complete run judges, and files one resource receipt with nothing unresolved", ({ scratch }) => {
-    const result = pass(stateDataAttributes, scratch, { [MANIFEST_REL]: MANIFEST_JSON, [SEAL_PATH]: SEAL_SOURCE });
-
-    expect(result.toolErrors).toEqual([]);
-    expect(result.authority.effectiveFindings).toHaveLength(1);
-    expect(result.policies.flatMap((owner) => owner.receipts.filter((receipt) => receipt.kind === "resource"))).toMatchObject([
-      { kind: "resource", source: "json:baseui-manifest", unresolved: 0 },
-    ]);
-  });
-
-  test("a MISSING ledger withholds the owner — the legacy silent `return` is dead", ({ scratch }) => {
-    const result = pass(stateDataAttributes, scratch, { [SEAL_PATH]: SEAL_SOURCE });
-
-    expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-    expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest");
-    expect(result.authority.withheldPolicyIds).toContain(stateDataAttributes.id);
-  });
-
-  test("an UNPARSEABLE ledger withholds the owner too — missing and malformed stay separate facts", ({ scratch }) => {
-    const result = pass(stateDataAttributes, scratch, { [MANIFEST_REL]: "{ not json\n", [SEAL_PATH]: SEAL_SOURCE });
-
-    expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-    expect(result.authority.withheldPolicyIds).toContain(stateDataAttributes.id);
-  });
-
-  test("an EMPTY ledger withholds the owner too — the third reachable `json` status", ({ scratch }) => {
-    // The status this block was missing (#2297): the reader answers `empty` for a zero-byte file BEFORE the
-    // parser runs, so a truncated write on the generated ledger is neither the missing nor the unparseable
-    // case above. This policy's header claims all three; this is the row that makes the claim true.
-    const result = pass(stateDataAttributes, scratch, { [MANIFEST_REL]: "", [SEAL_PATH]: SEAL_SOURCE });
-
-    expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-    expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest is empty");
-    expect(result.authority.withheldPolicyIds).toContain(stateDataAttributes.id);
-  });
-
   test("an EMPTY population refuses — this IS the retired `surface-a11y-focus` blindness tripwire", ({ scratch }) => {
     // Legacy carried a hand-rolled arm (`featuresSeen && surfacesSeen === 0` reporting at a DIRECTORY path)
     // against `surfaces/` being renamed out from under a directory-name-keyed scan. Under this contract the
@@ -274,7 +197,7 @@ describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase d
   // `evaluate` opens the door and `readyResourceValue` throws. Both are tool errors and neither is a
   // finding, so the outcome is identical; the PHASE is not, and a policy author who believes the population
   // phase guards an unpopulated kind has one guard fewer than they think.
-  for (const policy of [anatomyCompleteness, derivesNotRespells, derivesNotRespellsHealth, surfaceManifest]) {
+  for (const policy of [anatomyCompleteness, surfaceManifest]) {
     test(`${policy.id}: a MISSING ledger withholds the owner — the legacy silent \`return\` is dead`, ({ scratch }) => {
       const result = pass(policy, scratch, { [SEAL_PATH]: SEAL_SOURCE });
 
@@ -474,13 +397,6 @@ describe("the real tree — marker translation, and the conversion differential"
     // Exact identities catch a lost binding and an unintended new waiver without a stale aggregate count.
     expect(result.authority.effectiveFindings).toEqual([]);
     expect(result.authority.waivedFindings.map(({ finding }) => `${finding.policyId}:${finding.file}:${finding.token}`).toSorted()).toEqual([
-      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:defaultValue",
-      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:items",
-      "baseui-derives-not-respells:packages/ui/src/primitives/autocomplete/autocomplete.tsx:value",
-      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:defaultValue",
-      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:items",
-      "baseui-derives-not-respells:packages/ui/src/primitives/combobox/combobox.tsx:value",
-      "baseui-derives-not-respells:packages/ui/src/primitives/select/select.tsx:items",
       "surface-a11y-focus:packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:NewChatPicker",
       "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx:CorpusArtifactSurface",
       "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx:CorpusHomeSurface",
@@ -488,25 +404,6 @@ describe("the real tree — marker translation, and the conversion differential"
       "surface-a11y-focus:packages/client/src/features/tag/surfaces/tag-member-surface.tsx:TagMemberSurface",
     ]);
     expect(result.authority.authorityAlarms.filter((alarm) => POLICY_IDS.has(alarm.policyId))).toEqual([]);
-  });
-
-  test("the seven translated `baseui-derives-not-respells` markers close their arithmetic per file", ({ repoRoot }) => {
-    // The step-6 reconciliation as ARITHMETIC. Legacy `@orb-gate-ignore baseui-derives-not-respells(` count
-    // per file at (pruned from public history) was 3/3/1; current `@orb-waive` count is 3/3/1; the retired vocabulary survives
-    // in no product file. Every one was already on the line ABOVE its member, so no trailing-position site
-    // moved and no position changed — the legacy position WAS the prop name at its own offset inside the
-    // member, which is exactly what `locateFinding` requires, so this translation is a pure grammar swap.
-    const sites = {
-      "packages/ui/src/primitives/combobox/combobox.tsx": 3,
-      "packages/ui/src/primitives/autocomplete/autocomplete.tsx": 3,
-      "packages/ui/src/primitives/select/select.tsx": 1,
-    } as const;
-    const counts = (line: string, text: string): number => text.split("\n").filter((row) => row.trimStart().startsWith(line)).length;
-    for (const [rel, expected] of Object.entries(sites)) {
-      const text = readFileSync(join(repoRoot, rel), "utf8");
-      expect(counts("// @orb-waive baseui-derives-not-respells(", text), rel).toBe(expected);
-      expect(counts("// @orb-gate-ignore baseui-derives-not-respells(", text), rel).toBe(0);
-    }
   });
 
   test("the original surface waivers retain their authored positions and have no legacy marker", ({ repoRoot }) => {
@@ -519,95 +416,4 @@ describe("the real tree — marker translation, and the conversion differential"
     expect(texts.map((text) => text.split("\n").filter((line) => line.trimStart().startsWith("// @orb-waive surface-a11y-focus(")).length)).toEqual([1, 1]);
     expect(texts.map((text) => text.split("\n").filter((line) => line.trimStart().startsWith("// @surface-focus-elsewhere")).length)).toEqual([0, 0]);
   });
-});
-
-// ── §2309 — THE SCOPED-SELECTION CONTROL, on both live consumers of the ledger ───────────────────────
-//
-// The production control for the shared selection calculation (`lib/policy-effective-population.ts`), whose
-// pure truth table is `tests/tooling/verify/lib/policy-effective-population.test.ts`. It is HERE because the
-// defect was only ever visible through a real consumer: both `baseui-derives-not-respells` siblings declare
-// `population: "@ui"`, `execution: "selected-files"` and `json:baseui-manifest`, so a changed-mode request
-// can name the LEDGER without naming a single seal — and the ledger is exactly the input whose meaning
-// decides every seal's verdict.
-//
-// MEASURED AT `2339040dbb`, BEFORE THE FIX, with this same fixture pair:
-//   · request = [the ledger]  → both siblings `mode: "run"`, `owner: success`, `effectiveSourcePaths: []`,
-//     `findings: []`, `toolErrors: []` — a SUCCESSFUL CLEAN over zero subjects, while the identical tree at
-//     whole scope reported one finding each;
-//   · request = [the seal]    → both siblings `[create] resource request json:baseui-manifest is undeclared`,
-//     owner `incomplete`, WITHHELD — the narrowed resource population withdrew the door the policy declares.
-// Neither arm can be a proof row: a row supplies a fixture, never a narrowed REQUEST.
-describe("§2309 — a changed LEDGER re-judges every seal, and a changed SEAL still gets the whole ledger", () => {
-  /** The same seal under both siblings' arms: `items` is the ordinary DATA re-spelling, `onValueChange` the
-   *  hard HANDLER one. Its verdict is decided entirely by what the ledger says a `Select.Root` exposes. */
-  const DerivesSealPath = "packages/ui/src/primitives/select/probe-select.tsx";
-  const DerivesSealSource =
-    'import type { SelectRootProps } from "@base-ui/react/select";\nimport { Select as BaseSelect } from "@base-ui/react/select";\nexport interface SealProps {\n  items?: readonly string[];\n  onValueChange?: (value: string) => void;\n}\nexport const Seal = (p: SealProps) => <BaseSelect.Root {...p} />;\n';
-  /** THE SEMANTIC EDIT, and the only thing that differs between the two arms below: a `Select.Root` that
-   *  exposes NEITHER member leaves the seal above legal under both siblings. `DERIVES_MANIFEST_JSON` exposes
-   *  both, and the unchanged seal is then a re-spelling twice over. */
-  const LedgerBefore =
-    '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
-    '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": [], "handlers": {}, "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
-    "} } } }\n";
-
-  function scopedPass(policy: GatePolicy, root: string, ledger: string, requestedPaths: readonly string[]): PolicyPassResult {
-    const files = { [MANIFEST_REL]: ledger, [DerivesSealPath]: DerivesSealSource };
-    const project = new Project({ skipAddingFilesFromTsConfig: true });
-    project.createSourceFile(`${root}/${DerivesSealPath}`, DerivesSealSource, { overwrite: true });
-    return runPolicyPass({
-      knownPolicies: [policy],
-      policies: [policy],
-      root,
-      project,
-      requestedPaths,
-      resourceOptions: { overlay: files },
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-  }
-
-  for (const policy of [derivesNotRespells, derivesNotRespellsHealth]) {
-    test(`${policy.id}: a request naming ONLY the ledger re-judges the whole declared seal population`, ({ scratch }) => {
-      // THE CONTROL FIRST — the same request against the ledger the seal is legal under. It must be a clean
-      // that JUDGED: an empty `effectiveSourcePaths` would make the flagged arm below unfalsifiable, since a
-      // run over zero subjects is clean whatever the ledger says.
-      const before = scopedPass(policy, scratch, LedgerBefore, [MANIFEST_REL]);
-      expect(before.toolErrors).toEqual([]);
-      expect(before.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
-      expect(before.policies[0]?.population.effectiveSourcePaths).toEqual([DerivesSealPath]);
-      expect(before.authority.effectiveFindings).toEqual([]);
-
-      // THE ARM: only the ledger changed, and the seal nobody named is now a violation.
-      const after = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, [MANIFEST_REL]);
-      expect(after.toolErrors).toEqual([]);
-      expect(after.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
-      expect(after.policies[0]?.population.effectiveSourcePaths).toEqual([DerivesSealPath]);
-      expect(after.authority.withheldPolicyIds).toEqual([]);
-      expect(after.authority.effectiveFindings).toMatchObject([{ policyId: policy.id, file: DerivesSealPath }]);
-    });
-
-    test(`${policy.id}: a request naming ONLY the seal keeps the ledger readable and the selection exact`, ({ scratch }) => {
-      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, [DerivesSealPath]);
-
-      // No `[create] … is undeclared`: the declared resource is data, and a narrowed scope does not withdraw it.
-      expect(result.toolErrors).toEqual([]);
-      expect(result.policies[0]?.owner).toEqual({ status: "success", population: "complete" });
-      expect(result.policies[0]?.population).toMatchObject({
-        effectiveSourcePaths: [DerivesSealPath],
-        effectiveResourcePaths: [MANIFEST_REL],
-      });
-      expect(result.policies[0]?.receipts).toMatchObject([{ kind: "resource", source: "json:baseui-manifest", unresolved: 0 }]);
-      expect(result.authority.effectiveFindings).toMatchObject([{ policyId: policy.id, file: DerivesSealPath }]);
-    });
-
-    test(`${policy.id}: a request naming neither axis is still not-applicable — availability is not applicability`, ({ scratch }) => {
-      const result = scopedPass(policy, scratch, DERIVES_MANIFEST_JSON, ["docs/law/Constitution.md"]);
-
-      expect(result.toolErrors).toEqual([]);
-      expect(result.policies[0]?.owner).toMatchObject({ status: "not-applicable" });
-      expect(result.policies[0]?.population.effectiveResourcePaths).toEqual([]);
-      expect(result.authority.effectiveFindings).toEqual([]);
-    });
-  }
 });

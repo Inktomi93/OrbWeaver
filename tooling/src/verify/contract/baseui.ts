@@ -2,6 +2,23 @@
 // the committed manifest claims about it (`Manifest*`/`Disposition`), and what @orb/ui actually imports and
 // renders (`BaseUiBinding`/`RenderSite`). The readers live in ../lib/baseui-read.ts + ../lib/baseui-expand.ts.
 
+import { JSON_RESOURCE_PATHS } from "./resource-json.ts";
+
+export const BASE_UI_DATA_RULE = "orb/baseui-derives-not-respells";
+export const BASE_UI_HANDLER_RULE = "orb/baseui-derives-not-respells-health";
+export const BASE_UI_STATE_RULE = "orb/baseui-state-data-attributes";
+
+/** Native lint caches and scoped admission depend on these actual data and implementation inputs. */
+export const BASE_UI_NATIVE_INPUT_PATHS = [
+  JSON_RESOURCE_PATHS["baseui-manifest"],
+  "eslint.config.js",
+  "eslint-hard.config.js",
+  "tooling/src/verify/contract/baseui.ts",
+  "tooling/src/verify/contract/resource-json.ts",
+  "tooling/src/verify/lib/baseui-manifest.ts",
+  "tooling/src/verify/ops/eslint.ts",
+] as const;
+
 /** `part` = an anatomy part (its declaration file declares `<Symbol>Props`); `hook` / `type` = the other
  *  things a component module re-exports (`useFilteredItems`, `Field.ValidityData`). Only a `part` owes a
  *  disposition — a hook has no anatomy to expose or seal away. */

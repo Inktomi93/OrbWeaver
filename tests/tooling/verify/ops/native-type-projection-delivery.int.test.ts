@@ -22,7 +22,8 @@ import { scaledBudget } from "../../_load-budget.ts";
 const COHORT = [routes, portal, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
 const COMPANIONS = new Map<GatePolicy, string>([
-  [portal, "baseui-state-data-attributes"],
+  // Loader-only baseui-read family companion; source-only scope defers its entire-population manifest check.
+  [portal, "baseui-anatomy-completeness"],
   [sections, "section-registry-completeness"],
 ]);
 
