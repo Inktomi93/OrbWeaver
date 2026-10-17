@@ -51,7 +51,7 @@ import { GenerationObservationPersistenceError, generationOf, ProviderError, sup
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import { systemTimers } from "#infra/timers";
-import type { EngineContext, EngineDeps } from "../contract/engine-context.ts";
+import type { EngineContext, EngineContextInput, EngineDeps } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { GenerationObservationParent, GenerationObservationSession, RetainedTurnStats } from "../contract/generation-observation.ts";
 import type { TurnRetrievalWarningEpisode } from "../contract/memory.ts";
@@ -2129,7 +2129,7 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
  *  flight), runs the lifecycle in-lock under a TTL heartbeat, and always releases it. A `prep.lockFree`
  *  turn skips the lock (and the heartbeat) entirely so it runs concurrent with a locked send.
  *  `generateText` is the non-persisting, lock-free, bus-silent sibling (composer-fill). */
-export function createTurnEngine(ctx: EngineContext, deps: EngineDeps): TurnEngine {
+export function createTurnEngine<const Context extends EngineContext>(ctx: EngineContextInput<Context>, deps: EngineDeps): TurnEngine {
   // Single-flight is graph-local; unchanged coverage remains the core's durable compactedAtSeq judgment.
   const owned: OwnedEngineDeps = { ...deps, compactionInFlight: new Set<ChatId>() };
   const runTurn = async (prep: TurnPrep): Promise<TurnOutcome> => {
