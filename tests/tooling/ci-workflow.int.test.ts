@@ -2,14 +2,17 @@
 import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { TranscriptResult } from "@orb/tooling/floor/process/proc";
 import { spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
+import { applicationPartitionKeys } from "@orb/tooling/verify";
 import { parse } from "yaml";
 import { z } from "zod";
 import { INSTRUMENT_EXECUTION_COMPONENT_ENV } from "../../tooling/src/verify/contract/instrument-affected.ts";
+import { CORPUS_PROJECT_CELLS } from "../e2e/support/modes.ts";
 import { scaledBudget } from "./_load-budget.ts";
 import { read, setupSteps, workflowJobs } from "./_workflow-support.ts";
 
@@ -228,11 +231,57 @@ test("static tooling qualification provisions the pinned Chromium and retains ca
 
 test("CI preserves successful retry artifacts", ({ repoRoot }) => {
   const jobs = workflowJobs(repoRoot, "ci");
-  for (const name of ["e2e-smoke", "qualification", "qualification-partition"]) {
+  for (const name of ["e2e-smoke", "e2e-corpus", "qualification", "qualification-partition"]) {
     const upload = jobs[name]?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true);
     expect(upload?.if, name).toBe(name === "qualification" ? "${{ !cancelled() && needs.qualification-head.outputs.seen != 'true' }}" : "${{ !cancelled() }}");
-    expect(upload?.with?.["path"], name).toBe(name === "e2e-smoke" ? "reports/\ntest-results/\n" : "reports/");
+    expect(upload?.with?.["path"], name).toBe(name.startsWith("e2e-") ? "reports/\ntest-results/\n" : "reports/");
   }
+});
+
+test("CI plans every canonical corpus cell and forwards one exact project per isolated runner", { timeout: scaledBudget(20_000) }, async ({
+  repoRoot,
+  scratch,
+  fakeBin,
+}) => {
+  const jobs = workflowJobs(repoRoot, "ci");
+  const corpus = jobs["e2e-corpus"];
+  const plan = jobs["changes"]?.steps.find((step) => step.id === "corpus");
+  expect(plan?.run).toBe("pnpm exec node scripts/ci-plan.ts corpus");
+  expect(jobs["changes"]?.outputs?.["corpus-matrix"]).toBe("${{ steps.corpus.outputs.matrix }}");
+  expect(corpus?.strategy?.matrix).toBe("${{ fromJSON(needs.changes.outputs.corpus-matrix) }}");
+  expect(corpus?.name).toBe("e2e corpus (${{ matrix.project }})");
+  expect(corpus?.env).toEqual({ ["CORPUS_PROJECT"]: "${{ matrix.project }}" });
+  const output = join(scratch, "plan-output");
+  const planned = await spawnNiced(process.execPath, [join(repoRoot, "scripts/ci-plan.ts"), "corpus"], { cwd: repoRoot, env: { ["GITHUB_OUTPUT"]: output } });
+  expect(planned.code, planned.stderr).toBe(0);
+  const expected = { include: CORPUS_PROJECT_CELLS.map(({ name }) => ({ project: name })) };
+  expect(JSON.parse(planned.stdout)).toEqual(expected);
+  expect(readFileSync(output, "utf8")).toBe(`matrix=${JSON.stringify(expected)}\n`);
+  expect(new Set(expected.include.map(({ project }) => project)).size).toBe(expected.include.length);
+  const command = z.string().parse(corpus?.steps.find((step) => step.run?.startsWith("pnpm e2e:corpus:matrix") === true)?.run);
+  expect(command).not.toContain("${{");
+  await fakeBin(
+    "pnpm",
+    "import fs from 'node:fs';fs.writeFileSync('corpus-call.json',JSON.stringify(process.argv.slice(2)));process.exitCode=Number(process.env.FIXTURE_EXIT);",
+  );
+  for (const { name } of CORPUS_PROJECT_CELLS) {
+    const result = await spawnNiced("bash", ["-euo", "pipefail", "-c", command], { cwd: scratch, env: { ["CORPUS_PROJECT"]: name, ["FIXTURE_EXIT"]: "0" } });
+    expect(result.code, result.stderr).toBe(0);
+    expect(JSON.parse(read(scratch, "corpus-call.json"))).toEqual(["e2e:corpus:matrix", `--project=${name}`]);
+  }
+  const failed = await spawnNiced("bash", ["-euo", "pipefail", "-c", command], {
+    cwd: scratch,
+    env: { ["CORPUS_PROJECT"]: CORPUS_PROJECT_CELLS[0]?.name ?? "", ["FIXTURE_EXIT"]: "19" },
+  });
+  expect(failed.code).toBe(19);
+  expect(jobs["e2e-smoke"]?.steps.filter((step) => step.run?.startsWith("pnpm e2e") === true).map((step) => step.run)).toEqual(["pnpm e2e:smoke"]);
+});
+
+test.for(["full", "product"] as const)("CI preserves %s application partition planning", { timeout: scaledBudget(10_000) }, async (tier, { repoRoot }) => {
+  const result = await spawnNiced(process.execPath, [join(repoRoot, "scripts/ci-plan.ts"), tier], { cwd: repoRoot });
+  expect(result.code, result.stderr).toBe(0);
+  const matrix = z.object({ include: z.array(z.object({ partition: z.string(), shard: z.string(), key: z.string() })) }).parse(JSON.parse(result.stdout));
+  expect(matrix.include.map(({ partition, shard }) => (shard === "" ? partition : `${partition}:${shard}`))).toEqual(applicationPartitionKeys(tier));
 });
 
 test("setup has one cache owner and only saves successful misses from trusted triggers", ({ repoRoot }) => {

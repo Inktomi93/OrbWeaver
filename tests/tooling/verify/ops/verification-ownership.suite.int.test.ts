@@ -72,34 +72,42 @@ test("hosted full markers cannot reuse unversioned full evidence or change produ
   }
 });
 
-test("product authority requires real runtime success or exactly the inherited skips, independent of weekly", ({ repoRoot, scratch }) => {
-  const ci = workflow(repoRoot);
-  const gate = ci.jobs["ci-ok"];
-  if (!Array.isArray(gate?.needs)) {
-    throw new Error("missing product aggregate");
-  }
-  expect(gate.needs).toEqual(["changes", "static", "node", "ct", "e2e-smoke"]);
-  for (const code of ["true", "false"]) {
-    for (const result of ["success", "skipped", "cancelled", "failure"]) {
-      const needs = Object.fromEntries(gate.needs.map((name) => [name, { result: "success", outputs: { code } }]));
-      for (const name of ["node", "ct", "e2e-smoke"]) {
-        needs[name] = { result, outputs: { code } };
-      }
-      const run = spawnSync("bash", ["-e", "-c", gate.steps[0]?.run ?? ""], {
-        cwd: scratch,
-        env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
-      });
-      expect(run.status).toBe(result === (code === "true" ? "success" : "skipped") ? 0 : 1);
+test.for(["true", "false"] as const)(
+  "product authority requires real runtime success or exactly the inherited skips, independent of weekly: code=%s",
+  (code, { repoRoot, scratch }) => {
+    const ci = workflow(repoRoot);
+    const gate = ci.jobs["ci-ok"];
+    if (!Array.isArray(gate?.needs)) {
+      throw new Error("missing product aggregate");
     }
-  }
-});
+    expect(gate.needs).toEqual(["changes", "static", "node", "node-legacy", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus"]);
+    const expected = code === "true" ? "success" : "skipped";
+    for (const subject of gate.needs.slice(2)) {
+      for (const result of ["success", "skipped", "cancelled", "failure", "missing"]) {
+        const needs = Object.fromEntries(
+          gate.needs.map((name) => [name, { result: name === "changes" || name === "static" ? "success" : expected, outputs: { code } }]),
+        );
+        if (result === "missing") {
+          delete needs[subject];
+        } else {
+          needs[subject] = { result, outputs: { code } };
+        }
+        const run = spawnSync("bash", ["-e", "-c", gate.steps[0]?.run ?? ""], {
+          cwd: scratch,
+          env: inheritedProcessEnv({ ["NEEDS"]: JSON.stringify(needs), ["GITHUB_STEP_SUMMARY"]: join(scratch, "summary.md") }),
+        });
+        expect(run.status, `${code}/${subject}/${result}`).toBe(result === expected ? 0 : 1);
+      }
+    }
+  },
+);
 
 test("docs-only native runtime jobs really skip while static remains required", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
   expect(ci.jobs["static"]?.needs).toEqual(["changes"]);
   expect(ci.jobs["static"]?.if).toBeUndefined();
   expect(ci.jobs["static"]?.["timeout-minutes"]).toBe(60);
-  for (const name of ["node", "ct", "e2e-smoke"]) {
+  for (const name of ["node", "node-legacy", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus"]) {
     expect(ci.jobs[name]?.if).toBe("needs.changes.outputs.code == 'true'");
     expect(ci.jobs[name]?.needs).toBe("changes");
   }
@@ -169,7 +177,7 @@ test("nightly and independent weekly entry guards do not overlap or admit diagno
 
 test("native runtime jobs retain successful and failed reports and bounded canonical media prerequisites", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
-  for (const name of ["node", "ct", "e2e-smoke", "qualification-partition"]) {
+  for (const name of ["node", "node-legacy", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus", "qualification-partition"]) {
     const job = ci.jobs[name];
     expect(job?.["runs-on"], name).toBe("ubuntu-24.04");
     expect(job?.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@") === true)?.if, name).toBe("${{ !cancelled() }}");
@@ -177,8 +185,12 @@ test("native runtime jobs retain successful and failed reports and bounded canon
   for (const name of ["node", "qualification-partition"]) {
     expect(ci.jobs[name]?.steps.find((step) => step.id === "media")).toMatchObject({ run: "bash scripts/ci/install-media.sh", "timeout-minutes": 15 });
   }
-  expect(ci.jobs["node"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3")).toBe(true);
-  expect(ci.jobs["ct"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5")).toBe(true);
+  expect(ci.jobs["node"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1")).toBe(true);
+  expect(ci.jobs["ct"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/1")).toBe(true);
+  expect(ci.jobs["node-legacy"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy")).toBe(
+    true,
+  );
+  expect(ci.jobs["ct-legacy"]?.steps.some((step) => step.run === "pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5 --population=legacy")).toBe(true);
 });
 
 test("partition shell forwards only data and preserves child failure exits", async ({ repoRoot, scratch, fakeBin }) => {

@@ -3,16 +3,20 @@ import process from "node:process";
 import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { applicationPartitionKeys } from "@orb/tooling/verify";
+import { CORPUS_PROJECT_CELLS } from "../tests/e2e/support/modes.ts";
 
 await runTool(() => {
   const [tier, ...rest] = process.argv.slice(2);
-  if ((tier !== "full" && tier !== "product") || rest.length > 0) {
-    throw new UsageError("ci-plan requires full|product");
+  if ((tier !== "full" && tier !== "product" && tier !== "corpus") || rest.length > 0) {
+    throw new UsageError("ci-plan requires full|product|corpus");
   }
-  const include = applicationPartitionKeys(tier).map((key) => {
-    const [partition, shard = ""] = key.split(":");
-    return { partition, shard, key: key.replaceAll(":", "-").replaceAll("/", "-") };
-  });
+  const include =
+    tier === "corpus"
+      ? CORPUS_PROJECT_CELLS.map(({ name }) => ({ project: name }))
+      : applicationPartitionKeys(tier).map((key) => {
+          const [partition, shard = ""] = key.split(":");
+          return { partition, shard, key: key.replaceAll(":", "-").replaceAll("/", "-") };
+        });
   const matrix = JSON.stringify({ include });
   process.stdout.write(`${matrix}\n`);
   const output = inheritedProcessEnv()["GITHUB_OUTPUT"];
