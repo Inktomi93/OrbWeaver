@@ -504,6 +504,7 @@ for (const waived of [false, true]) {
     const marker = waived
       ? "// @orb-waive test-determinism(performance.now): the SUBJECT records actual elapsed execution; no injected clock measures physical work\n"
       : "";
+    // eslint-disable-next-line orb/test-ambient-source-string -- This elapsed-waiver control is parsed, never executed; remove with the native policy control.
     const clock = "performance.now()";
     const body = `${marker}const started=${clock};\n${marker}export const measurement={ms:${clock}-started};`;
     const result = await nativePolicy({ plantedTree, repoRoot }, body, determinism);
@@ -515,6 +516,7 @@ for (const waived of [false, true]) {
 }
 
 test("native external JWT protocol values remain an explicit policy fork", async ({ plantedTree, repoRoot }) => {
+  // eslint-disable-next-line orb/test-ambient-source-string -- This protocol-time rejection fixture is parsed, never executed; remove with the policy control.
   const clock = "Date.now()";
   const body = `import {randomUUID} from 'node:crypto'; import {SignJWT} from 'jose'; const token=new SignJWT({iss:'native-issuer',iat:Math.floor(${clock}/1000),jti:randomUUID()}); export const protocol=token;`;
   const result = await nativePolicy({ plantedTree, repoRoot }, body, determinism);
@@ -527,6 +529,7 @@ test("native external JWT protocol values remain an explicit policy fork", async
 test("native Node crypto identity retains ambient draws without classifying local or foreign UUID declarations", async ({ plantedTree, repoRoot }) => {
   const { project, root, source } = await nativeProgram(
     { plantedTree, repoRoot },
+    // eslint-disable-next-line orb/test-ambient-source-string -- This crypto-origin fixture is parsed, never executed; remove with these native identity controls.
     `import {randomUUID} from 'node:crypto';
 import {randomUUID as renamed} from 'crypto';
 import * as crypto from 'node:crypto';

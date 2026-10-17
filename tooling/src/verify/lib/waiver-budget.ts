@@ -98,7 +98,7 @@ const IMPLEMENTATION = Object.freeze({
   "no-loose-id-cast": 15,
   "no-test-fabrication": 583,
   "no-vanity-alias": 1,
-  suppressions: 5,
+  suppressions: 6,
   "test-determinism": 32,
   "tests-raw-package-reach": 4,
   "tooling-argv-front-door": 2,

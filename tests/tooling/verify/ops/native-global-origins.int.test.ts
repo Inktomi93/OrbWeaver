@@ -52,6 +52,7 @@ function fixture(root: string, repoRoot: string): void {
   write(NODE_SOURCE, SOURCE);
   write(
     SHADOW_SOURCE,
+    // eslint-disable-next-line orb/test-ambient-source-string -- This local-shadow source is parsed to reject false ambient origins, never executed; remove with that control.
     "const Math={random:()=>0}; class Date {static now():number{return 0;}} export const stamp=Date.now();export const draw=Math.random();export const date=new Date();",
   );
   write("augment.d.ts", "export {}; declare global { interface Math { inspectionOnly: boolean; } }");

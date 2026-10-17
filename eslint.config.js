@@ -87,7 +87,8 @@ import {
   TYPE_HOME_NATIVE_UNADMITTED_GLOBS,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
-import { BROWSER_PACKAGES, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
+import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
+import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import pluginQuery from "@tanstack/eslint-plugin-query";
@@ -949,7 +950,48 @@ const CLIENT_REGISTRY_RESTRICTIONS = [
   })),
 ];
 
+const DETERMINISM_TEST_SOURCES = ["tests/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
+const ESCAPE_MINT_NAMES = "/^(escapeRegExp|escapeRegex)$/";
+const DETERMINISM_RESTRICTIONS = [
+  {
+    id: "platform-escape-mint",
+    scope: [...POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)), ...DETERMINISM_TEST_SOURCES],
+    notUnder: [`${LEGACY_TEST_ROOT}/**`],
+    homes: [],
+    selectors: [
+      `FunctionDeclaration[id.name=${ESCAPE_MINT_NAMES}]`,
+      `TSDeclareFunction[id.name=${ESCAPE_MINT_NAMES}]`,
+      `VariableDeclarator[id.type='Identifier'][id.name=${ESCAPE_MINT_NAMES}][init.type=/^(ArrowFunctionExpression|FunctionExpression)$/]`,
+      `Property[computed=false][kind='init'][key.type='Identifier'][key.name=${ESCAPE_MINT_NAMES}][value.type=/^(ArrowFunctionExpression|FunctionExpression)$/]`,
+      `:matches(MethodDefinition, TSAbstractMethodDefinition)[computed=false][kind='method'][key.type='Identifier'][key.name=${ESCAPE_MINT_NAMES}]`,
+    ].map((selector) => ({ selector, message: "Use the native RegExp.escape API instead of declaring an escapeRegExp/escapeRegex function." })),
+  },
+  {
+    id: "test-ambient-source-string",
+    scope: DETERMINISM_TEST_SOURCES,
+    notUnder: [`${LEGACY_TEST_ROOT}/**`, "tests/e2e/**"],
+    homes: [],
+    selectors: AMBIENT_SOURCE_PATTERNS.map(({ re, what }) => ({
+      selector: `:matches(Literal[value=type(string)][raw=/${re.source}/], TemplateElement[value.raw=/${re.source}/])`,
+      message: `Ambient nondeterminism in source text: ${what}`,
+    })),
+  },
+  {
+    id: "test-wait-for-timeout",
+    scope: DETERMINISM_TEST_SOURCES,
+    notUnder: [`${LEGACY_TEST_ROOT}/**`, "tests/e2e/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: "CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.name='waitForTimeout']",
+        message: "Use a locator assertion or expect.poll instead of a fixed waitForTimeout delay.",
+      },
+    ],
+  },
+];
+
 const RESTRICTIONS = [
+  ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
   ...ROLE_DATA_RESTRICTIONS,
@@ -1946,7 +1988,9 @@ export default [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
-    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
+    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS].some(({ id }) =>
+      Object.hasOwn(block.rules, `orb/${id}`),
+    )
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
   ),

@@ -62,7 +62,10 @@ export const unrelated=local<Lookalike>();
         ? `
 import {castId as brand} from '../../kit/src/ids/index';
 const blank = '' as const;
-${waived ? "// @orb-waive no-fake-disabled-id(brand): native authority control; ends with this fixture." : ""}
+${
+  waived ? "// @orb-waive no-fake-disabled-id(brand): native authority control; ends with this fixture." : ""
+  // eslint-disable-next-line orb/test-ambient-source-string -- This ID-origin fixture is parsed, never executed; remove with these cast and entropy controls.
+}
 export const sentinel=brand(blank satisfies string);
 export const minted=brand(crypto.randomUUID().replace('-','').slice(0,12));
 export const entropy=brand(crypto.getRandomValues(new Uint8Array(32)).toString());

@@ -156,6 +156,15 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the gate and parser fixtures are authored as files rather than as embedded source strings, at which point the interpolation is real code and the rule stops firing.",
   },
   {
+    id: "suppressions:tests-orb-test-ambient-source-string",
+    policyId: "suppressions",
+    subject: "orb/test-ambient-source-string",
+    operation: "tests",
+    why: "TOOL FALSE POSITIVE — parser, search and self-proof source strings describe ambient calls without executing them. The physical child CPU stimulus instead requires actual elapsed time to exercise supervision. These line-local permissions apply only to the source-string rule, never to actual ambient runtime or business calls.",
+    endsWhen:
+      "the final legitimate source-text or physical-stimulus permission disappears, or the native source-string rule distinguishes these inputs without a line permission.",
+  },
+  {
     id: "suppressions:tests-ts-expect-error",
     policyId: "suppressions",
     subject: "@ts-expect-error",
