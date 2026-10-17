@@ -7,7 +7,10 @@
 // charset-clamped. `clientRequestId` (never bare `requestId`) avoids overwriting this call's own
 // request-scoped binding with the unrelated id of whatever request the client is reporting about.
 
+import type { ClientErrorReport } from "@orb/contracts/diagnostics";
 import { getLog } from "./logger.ts";
+
+export type { ClientErrorReport } from "@orb/contracts/diagnostics";
 
 const FIELD_MAX = 4000;
 /** The correlation id is opaque and short by construction (`X-Request-Id`'s own charset-only validation is
@@ -15,17 +18,6 @@ const FIELD_MAX = 4000;
  *  exported and callable from anywhere. */
 const REQUEST_ID_MAX = 200;
 const REQUEST_ID_UNSAFE = /[^A-Za-z0-9._:-]+/g;
-
-// @orb-waive no-inline-package-interface(ClientErrorReport): baselined when the gate landed; burn-down item 952.
-/** One client-reported error. Optional fields degrade the record, never reject it — wire validation
- *  lives in the `clientError` transport procedure, not here. */
-export interface ClientErrorReport {
-  message: string;
-  stack?: string | undefined;
-  ownerStack?: string | undefined;
-  url: string;
-  requestId?: string | undefined;
-}
 
 function truncate(value: string): string;
 function truncate(value: string | undefined): string | undefined;

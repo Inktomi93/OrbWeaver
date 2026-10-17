@@ -2,7 +2,7 @@
 // is what the client type-imports; it is `typeof` the root router, so its only possible home is here,
 // hence the one sanctioned no-inline-types exception below.
 
-import { bugReportDiagnosticsSchema } from "@orb/contracts/diagnostics";
+import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contracts/diagnostics";
 import { z } from "zod";
 import { isOwner } from "#domain/admin";
 import { readBugReportDiagnostics, recordClientError } from "#foundation/observability";
@@ -36,13 +36,6 @@ import { workloadsRouter } from "./routers/workloads.ts";
 import { worldInfoRouter } from "./routers/world-info.ts";
 import { authedProcedure, publicProcedure, t } from "./trpc.ts";
 
-// The client→server error-report verb's wire bounds. Generous but finite: rejects a pathologically
-// oversized payload at the transport edge before it's parsed/logged; the sink (recordClientError)
-// truncates independently to a log-line-friendly length.
-const CLIENT_ERROR_TEXT_MAX = 20_000;
-const CLIENT_ERROR_URL_MAX = 4000;
-const CLIENT_ERROR_REQUEST_ID_MAX = 200;
-
 export const appRouter = t.router({
   // @server-only: deployment readiness probe used by the boot supervisor and external health checks; it is
   // deliberately public, carries no input, and has no browser UI consumer.
@@ -54,21 +47,10 @@ export const appRouter = t.router({
   // The client error boundary's fire-and-forget report. publicProcedure (anonymous-allowed): a render
   // throw can happen before auth resolves, or because auth is broken. Always returns { ok: true } — the
   // sink is best-effort and never throws.
-  clientError: publicProcedure
-    .input(
-      z.object({
-        message: z.string().max(CLIENT_ERROR_TEXT_MAX),
-        stack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
-        ownerStack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
-        url: z.string().max(CLIENT_ERROR_URL_MAX),
-        // @orb-waive no-raw-id(requestId): opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
-        requestId: z.string().max(CLIENT_ERROR_REQUEST_ID_MAX).optional(),
-      }),
-    )
-    .mutation(({ input }) => {
-      recordClientError(input);
-      return { ok: true } as const;
-    }),
+  clientError: publicProcedure.input(clientErrorReportSchema).mutation(({ input }) => {
+    recordClientError(input);
+    return { ok: true } as const;
+  }),
 
   // The production "Report a bug" read: runtime facts for any signed-in caller, and the grammar-checked
   // error census for the OWNER only (`isOwner`, D17 — the log ring is principal-blind, the `/api/_debug`
