@@ -22,6 +22,7 @@
     "./badge": "./src/primitives/badge/index.ts",
     "./bar-list": "./src/charts/bar-list/index.ts",
     "./button": "./src/primitives/button/index.ts",
+    "./button/size-hit-area": "./src/primitives/button/size-hit-area.ts",
     "./card": "./src/primitives/card/index.ts",
     "./chart": "./src/charts/chart/index.ts",
     "./checkbox": "./src/primitives/checkbox/index.ts",

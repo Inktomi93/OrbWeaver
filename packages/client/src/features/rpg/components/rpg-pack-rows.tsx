@@ -58,7 +58,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
           aria-label={`${itemName}: use the ${name} icon`}
           key={name}
           intent="ghost"
-          // @orb-waive no-floorless-control-in-wrap(glyph-lg): owner ruling 2026-08-07: PICKER_GAP_AT_COARSE supplies the measured 44px pitch; the boxed-size alternative was declined.
+          // eslint-disable-next-line orb/no-floorless-control-in-wrap -- PICKER_GAP_AT_COARSE supplies the measured touch-target pitch without changing the fine picker; ends when this geometry or floorless size changes.
           size="glyph-lg"
           title={`${itemName}: use the ${name} icon`}
           onClick={(): void => onPick(name)}

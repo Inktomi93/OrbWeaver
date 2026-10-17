@@ -17,10 +17,8 @@ import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/ga
 import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
 import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/gates/density-tier-slot-map.ts";
-import { gate as floorlessControlVocabularyHealth } from "../../../../../tooling/src/verify/gates/floorless-control-vocabulary-health.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as macroResolutionHome } from "../../../../../tooling/src/verify/gates/macro-resolution-home.ts";
-import { gate as noFloorlessControlInWrap } from "../../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
@@ -88,12 +86,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "ROGUE STAMP",
   },
   {
-    policy: floorlessControlVocabularyHealth,
-    // The declaring source keeps a control size but loses every floorless arm the vocabulary derives.
-    overlays: [{ kind: "neutralise", path: `${UI}/button/variants.ts`, source: "export const buttonVariants = { size: { sm: 'h-control-sm' } };\n" }],
-    messageIncludes: "no longer",
-  },
-  {
     policy: integerLineBoxes,
     overlays: [featureClass("unpaired-leading", "text-label")],
     messageIncludes: "A line box off the integer-px grid",
@@ -102,16 +94,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: macroResolutionHome,
     overlays: [add("packages/client/src/features/preset/liveness-editor.tsx", 'import { processMacros } from "@orb/kit/macro";\nprocessMacros();\n')],
     messageIncludes: "processMacros",
-  },
-  {
-    policy: noFloorlessControlInWrap,
-    overlays: [
-      add(
-        "packages/client/src/features/rpg/components/liveness-icon-grid.tsx",
-        "const ICONS = ['a', 'b', 'c'];\nexport function IconGrid() {\n  return (\n    <div className=\"max-w-64 flex-wrap\">\n      {ICONS.map((name) => (\n        <Button key={name} size=\"glyph-lg\">{name}</Button>\n      ))}\n    </div>\n  );\n}\n",
-      ),
-    ],
-    messageIncludes: "floorless",
   },
   {
     policy: noHoverDisplaySwap,

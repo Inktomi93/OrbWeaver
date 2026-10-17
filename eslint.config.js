@@ -92,6 +92,7 @@ import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_W
 import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
+import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
 import { Z_TOKEN_SCOPES } from "@orb/ui/z-scope";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
@@ -1032,6 +1033,7 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
 const CLIENT_LEXICAL_RESTRICTIONS = [
+  { id: "no-floorless-control-in-wrap", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "ui-size-via-variant", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "testid-typed-only", scope: [CLIENT_SRC], homes: [] },
   { id: "scroll-container-positioned", scope: rootSources("@client", "@ui"), homes: [] },
@@ -2046,6 +2048,175 @@ const uiSizeRule = {
   },
 };
 
+const FLOORLESS_BUTTON_SIZES = new Set(
+  Object.entries(BUTTON_SIZE_OVERFLOW)
+    .filter(([, overflows]) => overflows)
+    .map(([size]) => size),
+);
+if (FLOORLESS_BUTTON_SIZES.size === 0) {
+  throw new Error("Native floorless-control vocabulary resolved no overflowing Button sizes");
+}
+const FLOORLESS_WRAP = /\bflex-wrap\b/u;
+const FLOORLESS_ROW_FLOOR = /\bmin-h-touch-target\b|\bmin-h-control-[a-z]+\b|pointer-coarse:min-h-[a-z-]+/u;
+const FLOORLESS_STACK_CONTROL = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
+
+function floorlessVariableBody(declaration, sourceCode) {
+  const init = declaration.init;
+  if (init === null || !["ArrowFunctionExpression", "FunctionExpression"].includes(init.type) || sourceCode.getTokenBefore(init)?.value !== "=") {
+    return;
+  }
+  return init.body;
+}
+
+function floorlessComponentBodies(program, sourceCode) {
+  const declarations = program.body.map((node) => (node.type.startsWith("Export") ? node.declaration : node)).filter(Boolean);
+  const bodies = new Map();
+  for (const node of declarations) {
+    if (node.type === "FunctionDeclaration" && node.id !== null && !bodies.has(node.id.name)) {
+      bodies.set(node.id.name, node.body);
+    }
+  }
+  for (const node of declarations.filter((declaration) => declaration.type === "VariableDeclaration")) {
+    for (const declaration of node.declarations) {
+      if (declaration.id.type !== "Identifier" || bodies.has(declaration.id.name)) {
+        continue;
+      }
+      bodies.set(declaration.id.name, floorlessVariableBody(declaration, sourceCode));
+    }
+  }
+  return bodies;
+}
+
+function floorlessMapCall(node, sourceCode) {
+  const call = node?.type === "ChainExpression" ? node.expression : node;
+  if (call?.type !== "CallExpression" || call.callee.type !== "MemberExpression" || call.callee.computed) {
+    return;
+  }
+  return sourceCode.getText(call.callee).endsWith(".map") && sourceCode.getFirstToken(call).range[0] === call.callee.range[0] ? call : undefined;
+}
+
+function floorlessDirectCallback(callback, call, sourceCode) {
+  const before = sourceCode.getTokenBefore(callback);
+  const afterCallee = sourceCode.getTokenAfter(call.typeArguments ?? call.callee);
+  const opening = afterCallee.value === "?." ? sourceCode.getTokenAfter(afterCallee) : afterCallee;
+  return before?.value === "," || before?.range[0] === opening.range[0];
+}
+
+function floorlessMappedRow(child, sourceCode) {
+  if (child.type !== "JSXExpressionContainer") {
+    return;
+  }
+  const call = floorlessMapCall(child.expression, sourceCode);
+  if (call === undefined || sourceCode.getTokenAfter(sourceCode.getFirstToken(child)).range[0] !== call.range[0]) {
+    return;
+  }
+  const callback = call.arguments[0];
+  if (callback?.type !== "ArrowFunctionExpression" || !floorlessDirectCallback(callback, call, sourceCode) || callback.body.type !== "JSXElement") {
+    return;
+  }
+  // ESTree erases parentheses; the declared map-row grammar unwraps exactly one return wrapper.
+  const beforeBody = sourceCode.getTokenBefore(callback.body);
+  const direct = beforeBody.value === "=>" || (beforeBody.value === "(" && sourceCode.getTokenBefore(beforeBody).value === "=>");
+  return direct ? callback.body : undefined;
+}
+
+const floorlessControlRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const counts = new Map();
+    const sizes = [];
+    const stacks = [];
+    let bodies;
+    const rowIsFloorless = (element) => {
+      const opening = element.openingElement;
+      const ownClass = opening.attributes.find((attribute) => attribute.type === "JSXAttribute" && attribute.name.name === "className");
+      if (ownClass !== undefined && FLOORLESS_ROW_FLOOR.test(sourceCode.getText(ownClass))) {
+        return false;
+      }
+      return (counts.get(element) ?? 0) > 0 || (counts.get(bodies.get(sourceCode.getText(opening.name))) ?? 0) > 0;
+    };
+    const mappedWithin = (owner, container) => {
+      let current = owner.parent;
+      while (current !== null && current !== undefined && current !== container) {
+        if (["ArrowFunctionExpression", "FunctionExpression"].includes(current.type)) {
+          const call = floorlessMapCall(current.parent, sourceCode);
+          if (call !== undefined && floorlessDirectCallback(current, call, sourceCode)) {
+            return true;
+          }
+        }
+        current = current.parent;
+      }
+      return false;
+    };
+    const wrapContainer = (opening) => {
+      let current = opening.selfClosing ? opening.parent.parent : opening.parent;
+      while (current !== null && current !== undefined) {
+        if (current.type === "JSXElement" && !current.openingElement.selfClosing && FLOORLESS_WRAP.test(sourceCode.getText(current.openingElement))) {
+          return current;
+        }
+        current = current.parent;
+      }
+    };
+    const report = (start, token) =>
+      context.report({
+        loc: { start: sourceCode.getLocFromIndex(start), end: sourceCode.getLocFromIndex(start + token.length) },
+        message: 'Floorless Button controls repeat at a wrapping or vertical pitch; use a control size, Stack rows="control", or an explicit row floor.',
+      });
+    const rowWeight = (child) => {
+      const mapped = floorlessMappedRow(child, sourceCode);
+      const row = child.type === "JSXElement" ? child : mapped;
+      if (row === undefined || !rowIsFloorless(row)) {
+        return 0;
+      }
+      return mapped === undefined ? 1 : 2;
+    };
+    const judgeStack = (stack) => {
+      if (FLOORLESS_STACK_CONTROL.test(sourceCode.getText(stack.openingElement))) {
+        return;
+      }
+      if (stack.children.reduce((weight, child) => weight + rowWeight(child), 0) >= 2) {
+        report(stack.openingElement.name.range[0], "Stack");
+      }
+    };
+    const judgeSize = ({ node, token }) => {
+      const container = wrapContainer(node.parent);
+      if (container !== undefined && (mappedWithin(node.parent, container) || (counts.get(container) ?? 0) >= 2)) {
+        report(node.value.range[0] + 1, token);
+      }
+    };
+    return {
+      Program: (program) => {
+        bodies = floorlessComponentBodies(program, sourceCode);
+      },
+      "JSXElement:exit"(node) {
+        if (!node.openingElement.selfClosing && sourceCode.getText(node.openingElement.name) === "Stack") {
+          stacks.push(node);
+        }
+      },
+      "JSXAttribute:exit"(node) {
+        if (node.name.name !== "size" || node.value?.type !== "Literal" || sourceCode.getText(node.parent.name) !== "Button") {
+          return;
+        }
+        const token = sourceCode.getText(node.value).slice(1, -1);
+        if (!FLOORLESS_BUTTON_SIZES.has(token)) {
+          return;
+        }
+        sizes.push({ node, token });
+        let ancestor = node.parent;
+        while (ancestor !== null && ancestor !== undefined) {
+          counts.set(ancestor, (counts.get(ancestor) ?? 0) + 1);
+          ancestor = ancestor.parent;
+        }
+      },
+      "Program:exit"() {
+        stacks.forEach(judgeStack);
+        sizes.forEach(judgeSize);
+      },
+    };
+  },
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -2059,6 +2230,7 @@ const restrictionPlugin = {
     "testid-typed-only": typedTestIdRule,
     "scroll-container-positioned": scrollContainerRule,
     "ui-size-via-variant": uiSizeRule,
+    "no-floorless-control-in-wrap": floorlessControlRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
