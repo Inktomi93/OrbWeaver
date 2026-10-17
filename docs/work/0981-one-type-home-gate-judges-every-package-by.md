@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-15
+status: doing
+updated: 2026-10-17
 priority: P1
+lane: codex/native-type-home-migration-981
 plan: test-foundation
 ---
 

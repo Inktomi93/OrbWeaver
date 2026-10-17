@@ -18,12 +18,6 @@ function covers(key: string, rel: string): boolean {
   return key.endsWith("/") ? rel.startsWith(key) : rel === key;
 }
 
-/** The sanctioned-home row covering `rel`, or undefined. Callers skip (and are exempt) only on a HIT —
- *  which is what makes the exemption a cited row rather than an invisible scope decision. */
-export function sanctionedHome(homes: TierImplementationHomes, rel: string): string | undefined {
-  return Object.keys(homes).find((key) => covers(key, rel));
-}
-
 /** The final-contract equivalent of {@link homeFiles}: every file in an explicit resolved `files` list a
  *  row covers, read through the policy's own `relativePath` rather than `ctx.project`/`ctx.root`. Additive
  *  — the `GateRunCtx`-shaped `homeFiles`/`reportUnresolvedHomes` below are untouched for gates still on the

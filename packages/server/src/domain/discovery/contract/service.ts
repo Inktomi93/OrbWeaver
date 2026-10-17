@@ -112,7 +112,7 @@ type AttachCardTagByName = TagService["attachCardTagByName"];
 type CharacterEconomicsOp = StatsService["characterEconomics"];
 type CharacterModelEconomicsOp = StatsService["characterModelEconomics"];
 
-// ── the standalone-compute DEPS shapes (the workload runners construct these directly) ─────────────────
+// Domain-owned compute dependencies, bound by discovery's service.
 
 /** Deps for the standalone `computeDuplicatePairs`. */
 export interface ComputeDuplicatesDeps {

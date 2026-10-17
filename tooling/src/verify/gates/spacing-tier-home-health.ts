@@ -1,42 +1,5 @@
-// Policy: spacing-tier-home-health — the RENAME TRIPWIRE for `no-raw-spacing-in-features`'s tier
-// permission (tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
-// tree either moved or died, and an exclusion carried in a `population` predicate would follow it into the
-// void silently. This policy shares the exact `TIER_IMPLEMENTATION_HOMES` table with its sibling and runs over the
-// ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
-// question the occurrence policy's per-file dispatch cannot answer.
-//
-// FAMILY `raw-spacing-tier` — a two-member SPLIT family with TWO shared `lib/` modules, and they are
-// different kinds of thing: the shared READER is `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`
-// here, `sanctionedHome` in the occurrence twin), and the shared TABLE is
-// `lib/raw-spacing-tier.ts#TIER_IMPLEMENTATION_HOMES`. The split is forced by `execution`: the occurrence check is
-// per-file and incremental-safe, this verdict needs the entire declared population, and one descriptor
-// carries one `execution` value.
-// Until 2026-09-12 this sentence read "imported from the sibling rather than re-spelled", describing a
-// GATE-TO-GATE import as though it were the sanctioned arrangement — the shape the owner banned that day
-// (#2096 / §12.3: a gate module never imports another gate module; a shared predicate moves to
-// `lib/<family>.ts`). The table moved to `lib/` and this sentence moved with it; a header that legitimises
-// a banned shape is read as precedent by the next lane, which is why it is corrected here and not later.
-// POPULATION PORT: byte-identical. The legacy descriptor (1b999db38d, the parent of a2a93cac72 — its
-// `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
-// `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
-// The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §6.1's structurally-unfalsifiable classification, wave 4):
-// `TIER_IMPLEMENTATION_HOMES`' keys are hardcoded under one package, so no fixture placed under an added population
-// root can ever land on one and no discriminating row EXISTS.
-// CUT DIRECTION IS INVERTED HERE (guide §6.1) — this is a tripwire, so its fences ACQUIT and opening one
-// makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
-// is `mustFlag[0]` going GREEN. A lane applying the occurrence direction reads both as unenforced.
-// §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts`: the narrowed-request
-// DEFERRAL pin with its whole-project control (d8a6cffee9), and the split-arm differential replaying every
-// legacy example through the frozen 1b999db38d descriptor and the UNION of both final policies (fa90c5832f).
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-spacing-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
-// `a2a93cac72`; this module did not exist there, so it is measured against the module it was carved from,
-// `no-raw-spacing-in-features` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// Over the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`),
-// legacy `scanRoot` admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅.
-// Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
-// `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by both.
+// Native ESLint owns raw spacing occurrences; this hard singleton retains the missing-home claim.
+// The entire admitted population and real token anchor preserve scoped deferral and fixture behavior.
 import { defineGate } from "../contract/policy.ts";
 import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-spacing-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
@@ -49,7 +12,7 @@ const ANCHOR = "packages/ui/src/tokens/index.ts";
 
 export const gate = defineGate({
   id: "spacing-tier-home-health",
-  family: "raw-spacing-tier",
+  family: "spacing-tier-home-health",
   authority: "hard",
   severity: "error",
   population: ["@client", "@ui"],
@@ -58,7 +21,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "a SANCTIONED-HOME row for the raw-spacing tier permission resolves to no file on the tree — the spacing-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-spacing-in-features.ts.",
+    "a SANCTIONED-HOME row for the raw-spacing tier permission resolves to no file on the tree — the spacing-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in lib/raw-spacing-tier.ts.",
   create: (ctx) => ({
     evaluate: () => {
       if (!ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR)) {
@@ -67,7 +30,7 @@ export const gate = defineGate({
       for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, TIER_IMPLEMENTATION_HOMES)) {
         ctx.report.file(ANCHOR, {
           line: 1,
-          message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the spacing-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-spacing-in-features.ts`,
+          message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the spacing-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in lib/raw-spacing-tier.ts`,
         });
       }
     },

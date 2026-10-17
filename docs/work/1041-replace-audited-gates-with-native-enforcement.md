@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-client-policy-1041
+lane: codex/native-type-home-migration-981
 plan: test-foundation
 ---
 
@@ -30,9 +30,9 @@ SQL delivery, production HTTP/network authority, regex deadlines, canon freeze a
 
 Native Base UI rules and metadata admission qualify. Surface/anatomy contracts use Node CI; portal/CSS semantics remain. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
-Native context/register syntax qualifies. Published-state origins, count health and registry assembly remain custom. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
+Native context/register syntax qualifies; origin and count owners remain. Parallel-map combined timing fails. Evidence: `reports/review/1041-native-context-registry-delivery.md` and `reports/review/1041-native-parallel-map-ordinary.md`.
 
-Native parallel-map checks pass individually; combined timing fails. Selection and tuple consumers remain. Evidence: `reports/review/1041-native-parallel-map-ordinary.md`.
+Native spacing, typography and hover checks pass complete frontend selection. Home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`.
 
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 

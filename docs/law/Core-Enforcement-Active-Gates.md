@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(280 registered gates)
+(277 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -187,7 +187,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
-| `no-hover-display-swap` | tailwind-class-token | ordinary/error | @client,@ui | hover-keyed DISPLAY utility — a… |
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
 | `no-inline-invalidate-outside-seam` | tanstack-query-origin | reviewed-grant/error | @client | an inline invalidateQueries call… |
 | `no-inline-optimistic-in-surface` | tanstack-query-origin | ordinary/error | @authored\* | Optimistic-mutation plumbing… |
@@ -211,8 +210,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
 | `no-raw-intl-time` | — | reviewed-grant/error | @authored | raw Intl API or .toLocale\*() date… |
 | `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
-| `no-raw-spacing-in-features` | raw-spacing-tier | ordinary/error | @client,@ui | raw spacing utility in a class string… |
-| `no-raw-typography-in-features` | raw-typography-tier | ordinary/error | @client,@ui | raw font-size utility in a class… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
@@ -252,7 +249,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
 | `query-freshness-coverage-health` | query-freshness-coverage | hard/error | @client | the Invalidation anchor is present… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
-| `receded-ink-integrity` | tailwind-class-token | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
+| `receded-ink-integrity` | — | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
 | `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
@@ -276,7 +273,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `session-channel-boundary-health` | session-channel | hard/error | @client | session-channel-boundary is BLIND:… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
-| `spacing-tier-home-health` | raw-spacing-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
+| `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | draft-commit | ordinary/error | @client | a once-seeded draft is being… |
 | `stale-draft-decision-health` | draft-commit | hard/error | @client,@db\* | the draft decision home no longer… |
 | `state-files` | — | ordinary/error | @client\* | the minted store handle is exported… |
@@ -326,7 +323,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
 | `typeid-prefix-boundary` | id-brand-flow | hard/error | @product | a canonical TypeID crosses a trust… |
 | `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
-| `typography-tier-home-health` | raw-typography-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
+| `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `ui-accname-survives-spread` | — | ordinary/error | @ui | an accessible-name attribute written… |
 | `ui-primitive-overlay-health` | ui-primitive | hard/error | @ui | the primitive overlay is missing its… |
 | `ui-primitive-permissions` | ui-primitive | reviewed-grant/error | @ui,@tests\* | a primitive shape, CT obligation,… |

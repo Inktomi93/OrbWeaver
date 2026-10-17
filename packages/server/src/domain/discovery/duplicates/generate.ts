@@ -29,8 +29,7 @@ import { computeGroupHubs, HUBNESS_DENSE_MAX } from "../substrate/hub-math.ts";
 import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 /** The raw-cosine floor a card pair must clear to be recorded as a near-duplicate (a hub-deflated near-dup
- *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). Re-exported from the
- *  front door for the workload runner's log + the tRPC default. */
+ *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). */
 export const DEFAULT_DUP_THRESHOLD = 0.92;
 
 // @orb-waive no-vanity-alias(MAX_DUPLICATE_VECTORS_PER_SPACE): baselined when the gate widened; burn-down item 906.
@@ -68,8 +67,8 @@ function canonical(a: CharacterId, b: CharacterId): { readonly a: CharacterId; r
 
 /**
  * Recompute EVERY owner's near-duplicate character pairs — a full atomic replace of
- * `duplicate_character_pairs`. Standalone `(db, deps, opts?)` so the `find-duplicates` runner drives it
- * without the whole service (the compute* passes stay standalone-exportable).
+ * `duplicate_character_pairs`. Discovery's service binds the dependencies used by its workload contribution
+ * (D117).
  */
 export async function computeDuplicatePairs(db: Db, deps: ComputeDuplicatesDeps, opts: ComputeDuplicatesOptions): Promise<DuplicateComputeStats> {
   const threshold = opts.threshold ?? DEFAULT_DUP_THRESHOLD;
@@ -279,7 +278,7 @@ function groupHashRowsByOwner(rows: readonly ChatHashRow[]): Map<UserId, ChatHas
 
 /**
  * Recompute EVERY owner's near-duplicate CHAT pairs — a full atomic replace of `duplicate_chat_pairs`.
- * Standalone `(db, deps, opts?)` so the `find-duplicates` runner drives it alongside the character arm.
+ * Discovery's service binds this helper alongside the character arm for its workload contribution (D117).
  */
 export async function computeChatDuplicatePairs(
   db: Db,

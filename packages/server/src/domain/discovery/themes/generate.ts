@@ -190,8 +190,8 @@ export async function countThemeNameCalls(db: Db, opts: ThemeNameEstimateOptions
 
 /**
  * Recompute EVERY owner's emergent themes — a full atomic replace of `theme_clusters` (the CASCADE clears
- * `digest_theme_assignments`, then both are reinserted). Standalone `(db, deps, opts?)` so the
- * `compute-themes` runner drives it without the whole service.
+ * `digest_theme_assignments`, then both are reinserted). Discovery's service binds the dependencies used by
+ * its workload contribution (D117).
  */
 export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: ComputeThemesOptions): Promise<ThemeComputeStats> {
   const seed = opts.seed ?? DEFAULT_SEED;

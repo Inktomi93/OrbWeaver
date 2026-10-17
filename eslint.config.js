@@ -130,6 +130,8 @@ import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts
 import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "./tooling/src/verify/lib/client-lexical-native.ts";
 import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
+import { TIER_IMPLEMENTATION_HOMES as SPACING_HOMES } from "./tooling/src/verify/lib/raw-spacing-tier.ts";
+import { TIER_IMPLEMENTATION_HOMES as TYPOGRAPHY_HOMES } from "./tooling/src/verify/lib/raw-typography-tier.ts";
 import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
 import {
   SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
@@ -1044,6 +1046,17 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
 const CLIENT_LEXICAL_RESTRICTIONS = [
+  {
+    id: "no-raw-spacing-in-features",
+    scope: rootSources("@client", "@ui"),
+    homes: Object.entries(SPACING_HOMES).map(([path, { why }]) => ({ path: path.endsWith("/") ? `${path}**` : path, why })),
+  },
+  {
+    id: "no-raw-typography-in-features",
+    scope: rootSources("@client", "@ui"),
+    homes: Object.entries(TYPOGRAPHY_HOMES).map(([path, { why }]) => ({ path: path.endsWith("/") ? `${path}**` : path, why })),
+  },
+  { id: "no-hover-display-swap", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "no-floorless-control-in-wrap", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "ui-size-via-variant", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "testid-typed-only", scope: [CLIENT_SRC], homes: [] },
@@ -1495,6 +1508,78 @@ const rawZIndexRule = {
         report(node);
       },
     };
+  },
+};
+
+// These two policies retain authored regexes, static templates and the nearest carrier, not class extraction.
+function rawTierClassRule(pattern, message) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const report = (node) => {
+        if (!pattern.test(context.sourceCode.getText(node))) {
+          return;
+        }
+        const ancestors = context.sourceCode.getAncestors(node);
+        const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
+        const call = ancestors.findLast((ancestor) => ancestor.type === "CallExpression");
+        if (
+          (attribute?.name.type === "JSXIdentifier" && attribute.name.name === "className") ||
+          (call?.callee.type === "Identifier" && call.range[0] === call.callee.range[0] && Z_CLASS_COMPOSERS.has(call.callee.name))
+        ) {
+          context.report({ node, message });
+        }
+      };
+      return { "Literal[value=type(string)]": report, "TemplateLiteral[expressions.length=0]": report };
+    },
+  };
+}
+
+const DISPLAY_UTILITIES = new Set([
+  "block",
+  "inline-block",
+  "inline",
+  "flex",
+  "inline-flex",
+  "grid",
+  "inline-grid",
+  "table",
+  "inline-table",
+  "table-caption",
+  "table-cell",
+  "table-column",
+  "table-column-group",
+  "table-footer-group",
+  "table-header-group",
+  "table-row-group",
+  "table-row",
+  "flow-root",
+  "list-item",
+  "contents",
+  "hidden",
+]);
+const HOVER_VARIANT_RE = /^(?:not-)?(?:group-|peer-)?hover(?:\/[A-Za-z0-9_-]+)?$/u;
+const ARBITRARY_HOVER_VARIANT_RE = /^\[&[^\]]*:hover[^\]]*\]$/u;
+const hoverDisplayRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      for (const part of readTailwindClassTokens(context.sourceCode.getText(node))) {
+        if (
+          DISPLAY_UTILITIES.has(part.utility) &&
+          part.variants.some((variant) => HOVER_VARIANT_RE.test(variant) || ARBITRARY_HOVER_VARIANT_RE.test(variant))
+        ) {
+          context.report({
+            loc: {
+              start: context.sourceCode.getLocFromIndex(node.range[0] + part.offset),
+              end: context.sourceCode.getLocFromIndex(node.range[0] + part.offset + part.token.length),
+            },
+            message: "Hover-keyed display swaps move the hit-test boundary; reserve the box and swap visibility or opacity instead.",
+          });
+        }
+      }
+    };
+    return { "Literal[value=type(string)]": report, TemplateElement: report };
   },
 };
 function baseUiIdentifiers(node, sourceCode) {
@@ -2300,6 +2385,15 @@ const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     "no-raw-z-index": rawZIndexRule,
+    "no-raw-spacing-in-features": rawTierClassRule(
+      /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u,
+      "Raw spacing in a class carrier; use a layout primitive or spacing intent token.",
+    ),
+    "no-raw-typography-in-features": rawTierClassRule(
+      /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])/u,
+      "Raw typography in a class carrier; use a typography intent token.",
+    ),
+    "no-hover-display-swap": hoverDisplayRule,
     "baseui-derives-not-respells": baseUiDerivesRule(false),
     "baseui-derives-not-respells-health": baseUiDerivesRule(true),
     "baseui-state-data-attributes": baseUiStateRule,

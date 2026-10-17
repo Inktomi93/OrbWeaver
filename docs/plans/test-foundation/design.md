@@ -44,7 +44,7 @@ Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the meas
 | Test inputs and mounting | Finish builders/corpus (959) and the client compose door (960). | Test data derives from production and CT wiring derives from client composition. |
 | Replacement suites | Corpus-backed e2e smoke, server domains, component CTs, then remaining suites. | Replacement preserves meaningful cases, catches a production defect and deletes the corresponding legacy harness. |
 
-Discovery every-owner authority is integrated. Remaining owner-read adjudication and type homes (981) are production work. Schedule owner-specific batches without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
+Discovery authority is integrated. Owner-read adjudication and type homes (981) remain production work. Required seam and correctness defects block dependent harness work, not independent batches.
 
 Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Builders/corpus foundations qualify. The graph-owned forward-JWT repair passes security review and ordinary root controls. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
 
@@ -205,7 +205,7 @@ Native lint owns lexical class, skin, banned utilities, z-index and determinism.
 
 Native Base UI lint owns derivation, handlers and state styling. Surface/anatomy contracts run in ordinary Node CI; portal and CSS semantic owners remain. Metadata admission invalidates caches. Maintained CTs use captured reads. Bounded controls pass; full migration remains open. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
-Context/register lint keeps publication and count owners; ordinary controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`. Parallel-map native lint uses canonical tuples; scoped main behavior passes with timing limits recorded.
+Context/register lint preserves publication and count owners. Parallel-map checks retain their timing limit. Native spacing, typography and hover syntax pass complete frontend selection; home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
