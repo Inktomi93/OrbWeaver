@@ -693,7 +693,9 @@ function defaultBindingSiblingValue(source: ReturnedValueSource, context: Return
   if (!source.present) {
     const key = source.path[0];
     const own =
-      source.path.length === 1 && key !== undefined && context.program !== undefined ? ownDataPresence(source, key, context.program, context) : undefined;
+      source.path.length === 1 && key !== undefined && context.program !== undefined
+        ? ownDataPresence(source, key, context.program, { continuation: context })
+        : undefined;
     return own !== undefined
       ? nativeInheritedEffects(source.value, { ...context, bindings: source.bindings })
       : valueRefusal(source.value, "unsupported", "a binding sibling has no closed ordinary absent descriptor");
@@ -2022,33 +2024,43 @@ function ordinarySpreadDataPresence(
     readonly program: CallReturnProgram;
     readonly activeValues: ReadonlySet<ts.Node> | undefined;
     readonly continuation: ReturnedValueContext | undefined;
+    readonly activeRecords?: ReadonlySet<ts.Node>;
   },
 ): readonly boolean[] | undefined {
   const { program, activeValues, continuation } = inputs;
+  const active = new Set([...(activeValues ?? []), ...(inputs.activeRecords ?? [])]);
   const sources = callableSuppliedLeaves(expression, [], program, {
     bindings: receiver.bindings,
-    active: activeValues ?? new Set(),
-    ...(activeValues === undefined ? {} : { activeValues }),
+    active,
+    activeValues: active,
     ...(continuation === undefined ? {} : { continuation }),
   });
   if (
     sources.kind === "unresolved" ||
     sources.value.length === 0 ||
-    sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value, undefined, program))
+    sources.value.some(
+      (source) =>
+        !ordinaryCallableCopySource(source, program, {
+          active: inputs.activeRecords ?? new Set(),
+          activeValues: active,
+          ...(continuation === undefined ? {} : { continuation }),
+        }),
+    )
   ) {
     return;
   }
-  return sources.value.map(
-    (source) =>
-      N.isObjectLiteralExpression(source.value) &&
-      source.value.getProperties().some((property) => {
-        if (N.isSpreadAssignment(property)) {
-          return false;
-        }
-        const name = returnedPropertyName(property, program);
-        return name.kind === "resolved" && name.value === key;
-      }),
-  );
+  const presence: boolean[] = [];
+  for (const source of sources.value) {
+    const own = ownDataPresence(source, key, program, {
+      ...(continuation === undefined ? {} : { continuation }),
+      ...(inputs.activeRecords === undefined ? {} : { activeRecords: inputs.activeRecords }),
+    });
+    if (own === undefined) {
+      return;
+    }
+    presence.push(...own);
+  }
+  return presence;
 }
 
 function spreadOwnData(
@@ -2060,9 +2072,10 @@ function spreadOwnData(
     readonly program: CallReturnProgram;
     readonly activeValues: ReadonlySet<ts.Node> | undefined;
     readonly continuation: ReturnedValueContext | undefined;
+    readonly activeRecords: ReadonlySet<ts.Node>;
   },
 ): readonly boolean[] | undefined {
-  const { receiver, program, activeValues } = inputs;
+  const { receiver, program, activeValues, activeRecords } = inputs;
   const present = ordinarySpreadDataPresence(expression, key, receiver, inputs);
   if (present !== undefined) {
     if (present.every(Boolean)) {
@@ -2073,7 +2086,23 @@ function spreadOwnData(
   if (activeValues !== undefined) {
     return;
   }
-  const projected = readReturnedValue(expression, [key], { programs: [program] }, { terminals: new Set(), bindings: receiver.bindings });
+  const observations = { programs: [program] };
+  const admitted = readCallReturnProgram(expression, observations);
+  if (
+    admitted.kind === "unresolved" ||
+    [...receiver.bindings].some((pair) => pair.some((bound) => readCallReturnProgram(bound, observations).kind === "unresolved"))
+  ) {
+    return;
+  }
+  const projected = returnedValue(expression, [key], {
+    program: admitted.value,
+    terminals: new Set(),
+    bindings: receiver.bindings,
+    active: new Set(activeRecords),
+    nativeIterations: new Map(),
+    nativeValueTransfers: false,
+    explicitAbsentReturns: false,
+  });
   return projected.kind === "resolved" && projected.value.every((source) => !source.present) ? previous : undefined;
 }
 
@@ -2081,15 +2110,23 @@ function ownDataPresence(
   receiver: ReturnedValueSource,
   key: string,
   program: CallReturnProgram,
-  continuation?: ReturnedValueContext,
+  inputs: { readonly continuation?: ReturnedValueContext; readonly activeRecords?: ReadonlySet<ts.Node> } = {},
 ): readonly boolean[] | undefined {
+  const { continuation, activeRecords = new Set() } = inputs;
   if (!N.isObjectLiteralExpression(receiver.value)) {
     return;
   }
+  const next = new Set(activeRecords).add(receiver.value.compilerNode);
   let presence: readonly boolean[] | undefined = [false];
   for (const property of receiver.value.getProperties()) {
     if (N.isSpreadAssignment(property)) {
-      presence = spreadOwnData(presence, property.getExpression(), key, { receiver, program, activeValues: continuation?.active, continuation });
+      presence = spreadOwnData(presence, property.getExpression(), key, {
+        receiver,
+        program,
+        activeValues: continuation?.active,
+        continuation,
+        activeRecords: next,
+      });
       continue;
     }
     const name = returnedPropertyName(property, program);
@@ -2255,7 +2292,12 @@ function freshCallableDataRead(member: import("./reference-fact-contract.ts").Me
   });
 }
 
-function ordinaryCallableRecord(node: Node, spread?: Node, program?: CallReturnProgram): boolean {
+function ordinaryCallableRecord(
+  node: Node,
+  spread?: Node,
+  program?: CallReturnProgram,
+  qualifySpread?: (spread: import("ts-morph").SpreadAssignment) => boolean,
+): boolean {
   if (!N.isObjectLiteralExpression(node)) {
     return false;
   }
@@ -2264,7 +2306,7 @@ function ordinaryCallableRecord(node: Node, spread?: Node, program?: CallReturnP
       return true;
     }
     if (N.isSpreadAssignment(property)) {
-      return false;
+      return qualifySpread?.(property) === true;
     }
     const key = returnedPropertyName(property, program);
     if (key.kind === "resolved" && typeof key.value !== "string" && N.isMethodDeclaration(property)) {
@@ -2282,26 +2324,108 @@ function ordinaryCallableRecord(node: Node, spread?: Node, program?: CallReturnP
   });
 }
 
-function callableRecordCopy(use: Node, proof: CallableUseProof): boolean | undefined {
-  const spread = use.getParent();
-  const literal = spread?.getParent();
-  if (proof.program === undefined || !N.isSpreadAssignment(spread) || spread.getExpression() !== use || !N.isObjectLiteralExpression(literal)) {
+function ordinaryCallableCopySource(
+  source: ReturnedValueSource,
+  program: CallReturnProgram,
+  inputs: {
+    readonly active: ReadonlySet<ts.Node>;
+    readonly activeValues?: ReadonlySet<ts.Node>;
+    readonly continuation?: ReturnedValueContext;
+    readonly reject?: (refusal: UnresolvedReferenceFact) => false;
+  },
+): boolean {
+  if (!source.present || source.path.length > 0 || inputs.active.has(source.value.compilerNode)) {
+    return false;
+  }
+  const admitted = readCallReturnProgram(source.value, { programs: [program] });
+  if (admitted.kind === "unresolved") {
+    return inputs.reject?.(admitted) ?? false;
+  }
+  const next = new Set(inputs.active).add(source.value.compilerNode);
+  const activeValues = new Set([...(inputs.activeValues ?? []), ...next]);
+  return ordinaryCallableRecord(source.value, undefined, program, (spread) => {
+    const expression = spread.getExpression();
+    const operands = callableSuppliedLeaves(expression, [], program, {
+      bindings: source.bindings,
+      active: activeValues,
+      activeValues,
+      ...(inputs.continuation === undefined ? {} : { continuation: inputs.continuation }),
+    });
+    if (operands.kind === "unresolved") {
+      return inputs.reject?.(operands) ?? false;
+    }
+    const receiver = inheritedReceiverRefusal(expression, operands, true);
+    if (receiver !== undefined) {
+      return inputs.reject?.(receiver) ?? false;
+    }
+    return (
+      operands.value.length > 0 && operands.value.every((operand) => ordinaryCallableCopySource(operand, program, { ...inputs, active: next, activeValues }))
+    );
+  });
+}
+
+function callableCopyReturnUse(literal: ObjectLiteralExpression, proof: CallableUseProof): boolean | undefined {
+  const statement = literal.getParent();
+  const program = proof.program;
+  const selected = proof.path.at(-1);
+  if (program === undefined || selected === undefined || !N.isReturnStatement(statement) || statement.getExpression() !== literal) {
     return;
   }
-  if (proof.active.has(literal.compilerNode) || !ordinaryCallableRecord(literal, spread, proof.program)) {
+  const projected = callableSuppliedLeaves(literal, proof.path, program, { bindings: proof.bindings, active: new Set() });
+  if (projected.kind === "unresolved") {
+    return refuseCallableUse(proof, projected);
+  }
+  if (
+    projected.value.length === 0 ||
+    projected.value.some(
+      (source) =>
+        !source.present ||
+        source.path.length > 0 ||
+        !proof.origins.some((origin) => source.value.compilerNode === origin.value.compilerNode && matchingAllocationBindings(origin.value, source, origin)),
+    ) ||
+    proof.origins.some(
+      (origin) =>
+        !projected.value.some((source) => source.value.compilerNode === origin.value.compilerNode && matchingAllocationBindings(origin.value, source, origin)),
+    )
+  ) {
+    return false;
+  }
+  return projected.value.every((source) => {
+    const refusal = returnedCallableOwnerUses(statement, {
+      owner: source.value,
+      sources: { ...projected, value: [source] },
+      program,
+      admits: proof.admits,
+      path: proof.path.slice(0, -1),
+      selected,
+      selectedPath: true,
+      ...(proof.completeInvocations === true ? { completeInvocations: true } : {}),
+    });
+    return refusal === undefined || refuseCallableUse(proof, refusal);
+  });
+}
+
+function callableRecordCopy(use: Node, proof: CallableUseProof): boolean | undefined {
+  const program = proof.program;
+  const spread = use.getParent();
+  const literal = spread?.getParent();
+  if (program === undefined || !N.isSpreadAssignment(spread) || spread.getExpression() !== use || !N.isObjectLiteralExpression(literal)) {
+    return;
+  }
+  if (proof.active.has(literal.compilerNode) || !ordinaryCallableRecord(literal, spread, program)) {
     return refuseCallableUse(proof, valueRefusal(literal, "unsupported", "the supplied record copy is cyclic or has an opaque own descriptor"));
   }
-  const sources = callableSuppliedLeaves(use, [], proof.program, { bindings: proof.bindings, active: new Set() });
+  const sources = callableSuppliedLeaves(use, [], program, { bindings: proof.bindings, active: new Set() });
   if (sources.kind === "unresolved") {
     return refuseCallableUse(proof, sources);
   }
   if (
     sources.value.length === 0 ||
-    sources.value.some((source) => !source.present || source.path.length > 0 || !ordinaryCallableRecord(source.value, undefined, proof.program))
+    sources.value.some((source) => !ordinaryCallableCopySource(source, program, { active: new Set(), reject: (refusal) => refuseCallableUse(proof, refusal) }))
   ) {
     return refuseCallableUse(proof, valueRefusal(use, "unsupported", "the supplied record copy has no finite ordinary own data sources"));
   }
-  return callableProjectionUse(literal, { ...proof, active: new Set(proof.active).add(literal.compilerNode) });
+  return callableCopyReturnUse(literal, proof) ?? callableProjectionUse(literal, { ...proof, active: new Set(proof.active).add(literal.compilerNode) });
 }
 
 function callableResourceHandoff(call: CallExpression, path: readonly string[], proof: CallableUseProof): boolean | undefined {
