@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: main
+lane: codex/native-client-policy-1041
 plan: test-foundation
 ---
 
@@ -44,4 +44,4 @@ Native portability, client literals and source-suppression refusal pass independ
 
 The asset-write native successor remains unqualified: valid table transfers and canonical origins exceed its lexical proposal. Existing enforcement remains. Evidence: `reports/review/1041-assets-native-successor-disposition.md`.
 
-Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Merged qualification remains open. Evidence: `reports/review/1041-native-retirement-wave-independent-review.md`.
+Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Scoped integration passes; Node retains its inherited diagnostics. Evidence: `reports/review/1041-native-retirement-wave-ordinary.md`.
