@@ -38,7 +38,6 @@ test("aborts from a document the harness navigated away from leave the verdict; 
     response.end(url === "/kept" ? KEPT_PAGE : STREAM_PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   const session = await launchProbeSession({
     headless: true,
@@ -98,7 +97,6 @@ test.each(["download", "no-content"] as const)("a %s navigation keeps the page, 
     response.end(STAYING_PAGE);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const origin = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
   const session = await launchProbeSession({
     headless: true,

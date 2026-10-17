@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ batches: { arms: Record<string, unknown>[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly diagnostics: { readonly state: string } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // #1301: RESULT pairs remain transcript evidence; typed results and discriminated scopes are separate.
 // @instrument-proof: current writer facts/scopes round-trip through the strict browser-free reader and a
 // planted malformed schema/scope refuses instead of falling back to RESULT parsing.
@@ -342,7 +338,6 @@ test("current writer is cold-agent-readable, preserves pair bytes, and never emi
   await writeFile(file, '<!doctype html><html><body><button id="ok">okay</button></body></html>');
   const run = await runCli("snap", ["--file", file, "--no-deadcss", "--no-failure-evidence"], { timeoutMs: CLI_TIMEOUT_MS });
   const path = indexPath(run.stdout);
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const raw = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
   const index = await readSnapRunIndex(path);
 
@@ -372,7 +367,6 @@ test("legacy v1 null triples normalize only in the reader and malformed current 
   const run = await runCli("snap", ["--file", file, "--no-shot", "--no-deadcss", "--no-failure-evidence"], { timeoutMs: CLI_TIMEOUT_MS });
   const path = indexPath(run.stdout);
   const original = await readFile(path, "utf8");
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const current = JSON.parse(original) as Record<string, unknown>;
   const artifacts = (current["artifacts"] as Record<string, unknown>[]).map(({ scope: _scope, ...row }) => ({
     ...row,

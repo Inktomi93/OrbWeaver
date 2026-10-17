@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-
 // Two-direction controls for the glow census's pseudo-element sweep, through real computed paint.
 //
 // WHY THIS TIER: the exemption is a STRUCTURAL reading of a pseudo-element's computed style

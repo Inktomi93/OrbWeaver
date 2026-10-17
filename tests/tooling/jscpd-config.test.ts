@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(JscpdConfig): baselined when the gate widened to value casts; burn-down item 906.
-
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -80,7 +78,6 @@ function runCpd(root: string, config: string, output: string): ReturnType<typeof
 }
 
 function readReport(output: string): JscpdReport {
-  // @orb-waive no-test-fabrication(JscpdReport): jscpd's JSON report is a third-party file with no schema in this repo, and the test reads two of its fields; ends if a jscpd report reader lands in tooling.
   return JSON.parse(readFileSync(join(output, "jscpd-report.json"), "utf8")) as JscpdReport;
 }
 

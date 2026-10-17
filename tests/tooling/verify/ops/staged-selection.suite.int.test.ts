@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(Readonly<Record<string, HookConfig>>): baselined when the gate widened to value casts; burn-down item 906.
-
 // The commit gate's selection is the index, not the working tree: a staged change is checked with its deletion and
 // rename semantics, and a tracked file edited but not staged, or an untracked file, never enters the commit's scope.
 // The working-change selection over the same repo is the control that still sees both.

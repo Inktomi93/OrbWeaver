@@ -275,7 +275,6 @@ test("pane-ink counts bottom illustrations and composed controls as designed occ
   const res = await runCli("snap", ["--file", join(scratch, "designed-bottom-ink.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   expect(
     report.findings.map((finding) => finding.rule),
@@ -293,7 +292,6 @@ async function runPaneExclusionFixture(
   const res = await runCli("snap", ["--file", join(scratch, `pane-${reason}.html`), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
-  // @orb-waive no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as RelationalPopulationReport;
   return { report, stdout: res.stdout, code: res.code };
 }

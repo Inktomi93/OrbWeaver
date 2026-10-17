@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-
 // ONE FORMULA, TWO SPELLINGS — pinned (#1327). `relLum` inside `WALKER_CENSUS_REGION` and
 // the kit's `relativeLuminance` (`@orb/kit/theme-derivation`) are the same WCAG 2.x relative-luminance kernel written twice,
 // necessarily: one ships to the page as an ES5 string (no imports reach in there), the other runs in Node.

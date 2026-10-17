@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(StructureReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE WARNING-PROMOTION DOOR, both sides (#2025; docs/law/gate-runtime-standardization.md §5).
 //
 // Owner ruling 2026-09-13: a final `severity: "warning"` finding stays GENUINELY NON-BLOCKING, with OPT-IN

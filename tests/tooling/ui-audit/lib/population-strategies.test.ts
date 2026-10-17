@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(Record<string, number>): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE PERMANENT PIN for the walker's route TAG reaching the printed row from EVERY accounting builder
 // that takes a census (#1808).
 //

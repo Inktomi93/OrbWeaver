@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(SourceFile): baselined when the gate widened to value casts; burn-down item 906.
-
 // `gate-modernization`'s FAMILY TEST — the mirror of `tooling/src/verify/gates/gate-modernization.ts`,
 // and the file any future arm's pins belong in.
 //

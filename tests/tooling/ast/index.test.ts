@@ -8,15 +8,6 @@
 //
 // The optional edge map must preserve each liveness set used by the AST lenses.
 
-// @orb-waive-file no-test-fabrication(ApiSurfaceEntry): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ChainCandidate): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Parameters<typeof isUnwiredExempt>[0]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(SwallowedCandidate): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ViewFieldCandidate): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ label: string; malformedMarkers?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ label: string; total: number; exemptions?: { target: string }[]; malformedMarkers?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ label: string; total: number; hits: Hit[]; exemptions?: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { MINI_DRIZZLE_ORM_FILES } from "@orb/testkit/node/mini-drizzle-orm.ts";
@@ -483,7 +474,6 @@ describe("ast prodonly lens (tooling entry points)", () => {
     } finally {
       release();
     }
-    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
     expect(hitFiles).not.toContain("packages/client/src/internal/lazy-target.ts");
@@ -543,7 +533,6 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
       release();
     }
 
-    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     const hitFiles = payload?.hits.map(({ file }) => file) ?? [];
     expect(hitFiles).not.toContain("packages/client/src/live.worker.ts");
@@ -578,7 +567,6 @@ export const templateWorker = new Worker(new URL(\`./\${stem}.worker.ts\`, impor
     } finally {
       release();
     }
-    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     expect(payload?.hits.map(({ file }) => file)).toContain("packages/inference/src/internal/index.ts");
   });
@@ -2486,7 +2474,6 @@ describe("ast clientgap lens (liveness split)", () => {
     } finally {
       release();
     }
-    // @orb-waive no-test-fabrication({ hits: Hit[] } | null): baselined when the gate widened to value casts; burn-down item 906.
     const payload = JSON.parse(lines.find((line) => line.startsWith("{")) ?? "null") as { hits: Hit[] } | null;
     expect(payload?.hits.map(({ text }) => text)).toEqual([expect.stringContaining("MissingView")]);
   });

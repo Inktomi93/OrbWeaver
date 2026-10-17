@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(typeof source.getDescendantsOfKind): baselined when the gate widened to value casts; burn-down item 906.
-
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind } from "ts-morph";
 import { loadPackageMetadata, loadStaticConfig } from "../../../../tooling/src/verify/ops/resource-config.ts";

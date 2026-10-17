@@ -1,9 +1,3 @@
-// @orb-waive-file no-test-fabrication([{ result: { data: { config: Record<string, unknown> } } }]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ presets: Record<string, { appearance?: Record<string, unknown> }> }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ presets: Record<string, { why?: string; appearance?: Record<string, unknown> }> }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ result: { data: { config: { appearance: Record<string, unknown> } } } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The appearance shim the browser probes share (tooling/src/floor/appearance/appearance.ts). Home per
 // Spine-Testing §2: a test of a scripts/ tool lives in tests/tooling/.
 //

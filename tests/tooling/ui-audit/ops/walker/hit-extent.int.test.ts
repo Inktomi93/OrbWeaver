@@ -168,7 +168,6 @@ test("#1678 — a pseudo-carried coarse floor is NOT a tap-target finding, and a
   // `--mobile`, because the 44px floor is pointer-CONDITIONAL (D62): at fine the rule owes 24px and the
   // 28px pseudo satisfies it, so a desktop run cannot tell the two shapes apart at all.
   const run = await runCli("snap", ["--file", file, "--mobile", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(TapTargetReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(run.stdout), "utf8")) as TapTargetReport;
   const flagged = tapTargetSelectors(report);
 
@@ -276,7 +275,6 @@ test("#2300 — ancestor credit, on a DOM where credit is the only thing that ca
   await writeFile(file, CREDIT_DOCUMENT);
 
   const run = await runCli("snap", ["--file", file, "--mobile", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(TapTargetReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(run.stdout), "utf8")) as TapTargetReport;
   const flagged = tapTargetSelectors(report);
 

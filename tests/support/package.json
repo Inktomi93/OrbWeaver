@@ -68,7 +68,6 @@
     "./node/db-holder.ts": "./node/db-holder.ts",
     "./node/db.int.test.ts": "./node/db.int.test.ts",
     "./node/db.ts": "./node/db.ts",
-    "./node/factories/anth-wire.ts": "./node/factories/anth-wire.ts",
     "./node/factories/asset-view.ts": "./node/factories/asset-view.ts",
     "./node/factories/asset.ts": "./node/factories/asset.ts",
     "./node/factories/automation-rule-actions.ts": "./node/factories/automation-rule-actions.ts",

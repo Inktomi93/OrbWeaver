@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly refusals: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The landing door from inside git's own merge hook: `land --merged` runs while `MERGE_HEAD` still
 // exists, which is the state a porcelain pathspec commit refuses, and a refused landing names git's reason.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";

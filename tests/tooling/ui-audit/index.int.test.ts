@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(TypographyPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly findings: readonly { readonly rule: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: a planted black-on-black paragraph (a 1:1 contrast defect) driven through the REAL
 // cli over a file:// base must exit 1 with a `contrast` finding; the white-on-black twin must exit 0 —
 // the deterministic scan cannot be a green-that-cannot-fail, and a misuse typo must never scan at all.
@@ -227,7 +223,6 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "tap-population.html"), repeatedTapTargetsPage([{ slot: "meter-row", count: 11 }]));
     const res = await runCli("snap", ["--file", join(scratch, "tap-population.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-    // @orb-waive no-test-fabrication(TapPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "one authored target-size decision must not print once per rendered instance").toHaveLength(1);
@@ -301,7 +296,6 @@ auditRuleTest(
     const res = await runCli("snap", ["--file", join(scratch, "tap-homes.html"), ...AUDIT], {
       timeoutMs: CLI_TIMEOUT_MS,
     });
-    // @orb-waive no-test-fabrication(TapPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "grouping on data-slot=button alone would incorrectly merge these homes").toHaveLength(2);
@@ -337,7 +331,6 @@ auditRuleTest(
     const res = await runCli("snap", ["--file", join(scratch, "rpg-target-homes.html"), ...AUDIT], {
       timeoutMs: CLI_TIMEOUT_MS,
     });
-    // @orb-waive no-test-fabrication(TapPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "four authored decisions must remain distinguishable after instance collapse").toHaveLength(4);
@@ -364,7 +357,6 @@ auditRuleTest(
     const res = await runCli("snap", ["--file", join(scratch, "nested-target.html"), ...AUDIT], {
       timeoutMs: CLI_TIMEOUT_MS,
     });
-    // @orb-waive no-test-fabrication(TapPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as TapPopulationReport;
     const findings = report.findings.filter((finding) => finding.rule === "tap-target");
     expect(findings, "DOM nesting alone cannot erase a separately-authored inner action").toHaveLength(2);
@@ -578,7 +570,6 @@ function serveOnce(html: string, status = 200): Promise<{ readonly base: string;
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
       const addr = server.address() as AddressInfo;
       resolve({
         base: `http://127.0.0.1:${addr.port}`,
@@ -1088,7 +1079,6 @@ fetch('/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D').then((response)
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
       const address = server.address() as AddressInfo;
       resolve({
         base: `http://127.0.0.1:${address.port}`,
@@ -1931,7 +1921,6 @@ auditRuleTest(
     // becomes #d2d2d2 on white — 1.5:1, and invisible to every rest-state rule in this instrument.
     await writeFile(join(scratch, "hover-fires.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
     const res = await runCli("snap", ["--file", join(scratch, "hover-fires.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-    // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
     const hover = report.findings.filter(({ rule }) => rule === "hover-contrast");
@@ -1953,7 +1942,6 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "hover-passes.html"), hoverPage(".nav-links a:hover { color: #101010; background: #ffffff }"));
     const res = await runCli("snap", ["--file", join(scratch, "hover-passes.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-    // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
     const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
     const row = report.populationAccounting?.["hover-contrast"];
 
@@ -1987,7 +1975,6 @@ test("every forced :hover is RELEASED — the rest verdict is identical with the
 <p class="dim">this line is unreadable at rest and stays that way</p></main></body></html>`,
   );
   const res = await runCli("snap", ["--file", join(scratch, "hover-release.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   // The rest-state defect is reported ONCE, by `contrast`, exactly as it was before this rule existed.
@@ -2007,7 +1994,6 @@ test("a coarse-pointer run REFUSES the hover question instead of reporting a cle
   // here would read as "117 controls checked, all fine" on a device that cannot hover.
   await writeFile(join(scratch, "hover-coarse.html"), hoverPage(".nav-links a:hover { color: #d2d2d2; background: #ffffff }"));
   const res = await runCli("snap", ["--file", join(scratch, "hover-coarse.html"), "--mobile", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   expect(hoverRow(res.stdout, "pass")).toBe("no-hover-media");
@@ -2035,7 +2021,6 @@ test("a control whose color transition covers the forced read is a NAMED exclusi
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
   const res = await runCli("snap", ["--file", join(scratch, "hover-transitioned.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -2074,7 +2059,6 @@ test("a candidate whose rest state does NOT read back is WITHHELD, never publish
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
   const res = await runCli("snap", ["--file", join(scratch, "hover-stuck.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
   const row = report.populationAccounting?.["hover-contrast"];
 
@@ -2101,7 +2085,6 @@ function serveCssOnce(css: string): Promise<{ readonly href: string; readonly cl
   });
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
       const addr = server.address() as AddressInfo;
       resolve({
         href: `http://127.0.0.1:${addr.port}/x.css`,
@@ -2166,7 +2149,6 @@ test("a forced-state pass that BREAKS is a NO VERDICT run, not a green one with 
 <body><main><nav class="nav-links"><a class="cta" href="#">Continue the story</a></nav></main></body></html>`,
   );
   const res = await runCli("snap", ["--file", join(scratch, "hover-broke.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  // @orb-waive no-test-fabrication(HoverPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as HoverPopulationReport;
 
   expect(hoverRow(res.stdout, "pass")).toBe("BROKE");
