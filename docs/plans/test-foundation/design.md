@@ -163,7 +163,7 @@ Keep transaction overlays separate from committed facts. Derive their roots from
 
 Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Legacy CI and typecheck evidence remains available without extracting legacy semantic worlds, as D320 requires. Cross-world file duplication does not explain the separate single-world callable cost.
 
-Exact Program source admission preserves compiler redirects and physical host input metadata. Ordinary installed controls qualify this dependency; complete invocation and full-schema qualification remain open.
+SDK-owned wrapper generations and capture census reuse preserve native source admission. Ordinary installed controls pass; complete invocation, full-schema and cost qualification remain open.
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
@@ -211,7 +211,7 @@ Production registries supply config anchors and safe navigation; cleanup cancels
 
 Opaque roles and root-derived Principals preserve internal authority. Public Caller DTOs expose raw roles, so role gates remain. Native lint owns the lowercase engine-name restriction; canonical Principal-origin analysis stays. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption remains open.
 
-Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; ordinary main qualification is open.
+Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

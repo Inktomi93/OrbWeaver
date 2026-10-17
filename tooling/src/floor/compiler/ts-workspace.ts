@@ -306,26 +306,32 @@ function nativeReferenceReadCurrent(project: Project, entry: NativeReferencePass
 export function captureNativeReferenceReads(release?: () => void): () => NativeReferenceRead {
   const revision = nativeReferenceReadRevision;
   const identity = nativeReferencePasses?.identity;
+  const invocation = identity === undefined ? undefined : { identity, current: (): boolean => nativeReferencePasses?.identity === identity };
+  const lifetime = invocation === undefined ? {} : { invocation };
+  if (release !== undefined) {
+    nativeReferencePasses?.releaseBindings.add(release);
+  }
   return () => {
     if (nativeReferenceReadRevision === revision) {
-      return { used: false, validate: undefined };
+      return { used: false, validate: undefined, ...lifetime };
     }
     const owner = nativeReferencePasses;
     if (owner === undefined || owner.identity !== identity) {
-      return { used: true, validate: undefined };
+      return { used: true, validate: undefined, ...lifetime };
     }
     const reads = [...owner.references].flatMap(([project, entry]) => {
       const sources = [...entry.reads.values()].filter((read) => read.revision > revision).map((read) => ({ ...read }));
       return sources.length === 0 ? [] : [{ project, entry, sources }];
     });
     if (reads.length === 0 || reads.some(({ entry }) => typeof entry.pass.validate !== "function")) {
-      return { used: true, validate: undefined };
+      return { used: true, validate: undefined, ...lifetime };
     }
     if (release !== undefined) {
       owner.releaseBindings.add(release);
     }
     return {
       used: true,
+      ...lifetime,
       validate: (): boolean => {
         if (nativeReferencePasses?.identity !== identity || reads.some(({ project, entry }) => nativeReferencePasses?.references.get(project) !== entry)) {
           return false;

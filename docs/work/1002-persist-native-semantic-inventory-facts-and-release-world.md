@@ -40,7 +40,7 @@ Reached-call capture preserves explicit references, native lifetimes and atomic 
 
 Annotated storage and finite copies preserve native origins, allocation, ordered presence and return closure. Combined controls and review pass. Original replay refuses `ctx.backgroundSignal` in `chat/service.ts`; neither selected nor delegate invocation publishes, and the delegate caller is absent. Evidence: `reports/review/1002-original-callable-current-c49-diagnosis.md`.
 
-Exact admission dependencies preserve native freshness and whole-source opacity without global refinement invalidation. Ordinary controls and review pass. Validation reuse needs SDK-owned wrapper invalidation, not Program identity alone; it is not built. Evidence: `reports/review/1002-native-source-currentness-cost-investigation.md`.
+Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Target and cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
 
 Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 

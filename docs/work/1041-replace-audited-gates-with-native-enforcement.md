@@ -38,4 +38,4 @@ Native parallel-map checks pass individually on main; the combined run retains a
 
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
-Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Ordinary main qualification is open. Evidence: `reports/review/1041-native-bus-boundary-delivery.md`.
+Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Scoped ordinary main qualification passes with inherited type diagnostics. Evidence: `reports/review/1041-native-bus-boundary-ordinary.md`.

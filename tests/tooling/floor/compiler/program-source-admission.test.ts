@@ -3,6 +3,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind, ts } from "ts-morph";
+import { vi } from "vitest";
+import { observeCallReturns, readCallReturnProgram } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
+import { beginReferencePass, endReferencePass } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
@@ -30,7 +33,7 @@ function packageFiles(): Readonly<Record<string, string>> {
   );
 }
 
-function redirectWorld(): {
+function redirectWorld(capture = false): {
   project: Project;
   program: ts.Program;
   native: ts.SourceFile;
@@ -43,6 +46,9 @@ function redirectWorld(): {
   }
   for (const root of ROOTS) {
     project.addSourceFileAtPath(`/${root}`);
+  }
+  if (capture) {
+    project.getSourceFileOrThrow("/left/use.ts").addStatements("function first(){return 1;}first();");
   }
   project.resolveSourceFileDependencies();
   const program = project.getProgram().compilerObject;
@@ -153,6 +159,141 @@ test("native admission rejects foreign, cloned and stale sources while forget an
   expect(project.getProgramSourceFile(nextNative, next).compilerNode).toBe(nextNative);
   expect(project.getSourceFile(native.fileName)).toBe(host);
   expect(project.getSourceFileOrThrow(`/${ROOTS[1]}`).getVariableDeclarationOrThrow("result").getType().getText()).toBe('"canonical"');
+});
+
+test("source-wrapper authority fences same-Program redirect forgetting and renewal", () => {
+  const { project, program, native, host } = redirectWorld();
+  const view = project.getProgramSourceFile(native, program);
+  expect(typeof project.getSourceFileCacheToken).toBe("function");
+  expect(typeof project.getSourceFileCompilerNode).toBe("function");
+  const before = project.getSourceFileCacheToken();
+  if (before === undefined) {
+    throw new Error("the native source-wrapper authority is unavailable outside a transition");
+  }
+  expect(project.getSourceFileCompilerNode(view, before)).toBe(native);
+  view.forget();
+  expect(project.getProgram().compilerObject).toBe(program);
+  const forgotten = project.getSourceFileCacheToken();
+  if (forgotten === undefined) {
+    throw new Error("the native source-wrapper transition did not finish");
+  }
+  expect(forgotten).not.toBe(before);
+  expect(project.getSourceFileCompilerNode(view, forgotten)).toBeUndefined();
+  expect(project.getSourceFileCompilerNode(host, forgotten)).toBe(host.compilerNode);
+  const renewed = project.getProgramSourceFile(native, program);
+  const after = project.getSourceFileCacheToken();
+  if (after === undefined) {
+    throw new Error("native redirect renewal did not finish");
+  }
+  expect(after).not.toBe(forgotten);
+  expect(project.getSourceFileCompilerNode(renewed, forgotten)).toBeUndefined();
+  expect(project.getSourceFileCompilerNode(renewed, after)).toBe(native);
+  expect(project.getProgram().compilerObject).toBe(program);
+});
+
+test("raw source-wrapper authority neither invokes wrapper readers nor borrows another factory", () => {
+  const { project, program, native, host } = redirectWorld();
+  const view = project.getProgramSourceFile(native, program);
+  const token = project.getSourceFileCacheToken();
+  if (token === undefined) {
+    throw new Error("the stable source-cache identity is missing");
+  }
+  const forgotten = vi.spyOn(view, "wasForgotten").mockImplementation(() => {
+    throw new Error("semantic liveness reader invoked");
+  });
+  const compiler = vi.spyOn(view, "compilerNode", "get").mockImplementation(() => {
+    throw new Error("semantic native reader invoked");
+  });
+  const enumeration = vi.spyOn(project, "getSourceFiles").mockImplementation(() => {
+    throw new Error("wrapper enumeration invoked");
+  });
+  try {
+    expect(project.getSourceFileCompilerNode(view, token)).toBe(native);
+    expect(project.getSourceFileCompilerNode(host, token)).toBe(host.compilerNode);
+    const foreign = new Project({ useInMemoryFileSystem: true, compilerOptions: options }).createSourceFile("/foreign.ts", "export const value=1;");
+    expect(project.getSourceFileCompilerNode(foreign, token)).toBeUndefined();
+    expect(project.getSourceFileCompilerNode(view, {})).toBeUndefined();
+    expect(forgotten).not.toHaveBeenCalled();
+    expect(compiler).not.toHaveBeenCalled();
+    expect(enumeration).not.toHaveBeenCalled();
+    expect(project.getSourceFileCacheToken()).toBe(token);
+  } finally {
+    forgotten.mockRestore();
+    compiler.mockRestore();
+    enumeration.mockRestore();
+  }
+});
+
+test("source-wrapper transitions stay unavailable across reentrant replacement notifications and reset", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: options });
+  const source = project.createSourceFile("/source.ts", "export const value=1;");
+  const before = project.getSourceFileCacheToken();
+  if (before === undefined) {
+    throw new Error("the initial source-cache identity is missing");
+  }
+  const during: (object | undefined)[] = [];
+  const modified = (): void => {
+    during.push(project.getSourceFileCacheToken());
+    expect(project.getSourceFileCompilerNode(source, before)).toBeUndefined();
+    project.createSourceFile("/nested.ts", "export const nested=2;");
+    during.push(project.getSourceFileCacheToken());
+  };
+  source.onModified(modified);
+  source.replaceWithText("export const value=3;");
+  source.onModified(modified, false);
+  expect(during).toEqual([undefined, undefined]);
+  const replaced = project.getSourceFileCacheToken();
+  if (replaced === undefined) {
+    throw new Error("replacement did not finish its transition");
+  }
+  expect(replaced).not.toBe(before);
+  expect(project.getSourceFileCompilerNode(source, replaced)).toBe(source.compilerNode);
+  source.move("/renamed.ts");
+  const renamed = project.getSourceFileCacheToken();
+  if (renamed === undefined) {
+    throw new Error("rename did not finish its transition");
+  }
+  expect(renamed).not.toBe(replaced);
+  expect(project.getSourceFileCompilerNode(source, renamed)).toBe(source.compilerNode);
+  project.compilerOptions.set({ strict: true });
+  expect(project.getSourceFileCacheToken()).not.toBe(renamed);
+  const current = project.getSourceFileCacheToken();
+  if (current === undefined) {
+    throw new Error("reset did not finish its transition");
+  }
+  source.forget();
+  expect(project.getSourceFileCacheToken()).not.toBe(current);
+  const forgotten = project.getSourceFileCacheToken();
+  if (forgotten === undefined) {
+    throw new Error("forget did not finish its transition");
+  }
+  expect(project.getSourceFileCompilerNode(source, forgotten)).toBeUndefined();
+});
+
+test("capture-owned source currentness refuses a forgotten redirect even when its native Program is unchanged", () => {
+  const { project, program, native } = redirectWorld(true);
+  const view = project.getProgramSourceFile(native, program);
+  const root = project.getSourceFileOrThrow("/left/use.ts");
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(root.getDescendantsOfKind(SyntaxKind.CallExpression), [...root.getDescendants(), ...view.getDescendants()]);
+    const captured = observed.programs[0];
+    if (captured === undefined) {
+      throw new Error("the actual redirect capture is missing");
+    }
+    expect(captured.sources.has(view)).toBe(true);
+    const subject = root.getFunctionOrThrow("first").getNameNodeOrThrow();
+    expect(readCallReturnProgram(subject, observed).kind).toBe("resolved");
+    expect(readCallReturnProgram(subject, observed).kind).toBe("resolved");
+    view.forget();
+    expect(project.getProgram().compilerObject).toBe(program);
+    expect(readCallReturnProgram(subject, observed).kind).toBe("unresolved");
+    const renewed = project.getProgramSourceFile(native, program);
+    expect(renewed).not.toBe(view);
+    expect(readCallReturnProgram(subject, observed).kind).toBe("unresolved");
+  } finally {
+    endReferencePass();
+  }
 });
 
 test(
