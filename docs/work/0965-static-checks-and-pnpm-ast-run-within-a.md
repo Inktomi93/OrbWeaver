@@ -35,6 +35,8 @@ Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. 
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
+The reviewed native router declaration producer and type-only package door are integrated. Native router equality, declaration closure, resolution-mode controls and the required cross-tenant sweep pass. The named main build passes. Consumer freshness and adoption remain unimplemented; generated-door evidence does not qualify client worlds. Evidence: `reports/review/965-router-declaration-bridge.md`.
+
 The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
 Bulk reference extraction calls the patched native reference pass per declaration only when that family is demanded. The pass caches candidates and results. The abandoned owner-policy worker did not demand that family; it supplies no bulk-reference cost attribution. Item 1045 owns occurrence delivery and matched measurement. Preserve native types and attribute invocation cost separately.

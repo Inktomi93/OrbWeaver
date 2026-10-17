@@ -26,4 +26,6 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 Corpus flow specs, scripted-provider and authentication modes, phone widths, chat styles and CI cell admission are integrated. Complete local execution and hosted qualification remain open. Settings groups use their real public behavior, including About and Backup. Production-defect controls and the complete mode matrix remain required; collection does not establish execution.
 
+The complete local matrix retains failed observations. Reviewed responsive navigation, exact virtualized canon, retained-room persona freshness and recent-thread repairs are integrated. Selected native flows and affected static checks pass. Remaining affected style cells, crash and network causes, hosted CI and owner-copy qualification remain open. Evidence: `reports/review/898-responsive-corpus-corrections.md`.
+
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion. Read `reports/review/seven-day-bottleneck-claude-analysis.md` before changing this dependency.
