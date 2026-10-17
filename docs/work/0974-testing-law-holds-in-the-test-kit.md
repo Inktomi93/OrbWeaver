@@ -1,7 +1,7 @@
 ---
 kind: work
 status: blocked
-updated: 2026-10-16
+updated: 2026-10-17
 priority: P2
 blocked: on 1027
 plan: test-foundation
@@ -34,3 +34,5 @@ Reviewed `6786449c11` admits native Node test-helper MJS through canonical compi
 The maintained support selection completes on ordinary native owners without tool errors, withheld results or authority alarms. Mock doctrine passes. Determinism reports only the legacy-only mint. Reviewed physical measurement markers are consumed; their source matches the reviewed authority. Scoped execution does not judge whole-population budgets. Evidence: `reports/review/974-maintained-support-completed.md`.
 
 Reviewed `645f47a859` declares ordinary authority for native physical measurements without policy or budget changes. Matching Biome passes. `tests/support/node/inference-runtime.ts` serves legacy embedding/search callers and copies assembly; delete it with their replacements, not a new-foundation retrofit. Complete maintained-population qualification remains open. Item 1027 owns remaining typed delivery; item 1002 owns replay cost.
+
+Direct policy fixtures acquire the production native-fact context. Assertions and source fixtures stay unchanged. Evidence: `reports/review/974-native-policy-context-repair.md`. Complete maintained-population qualification remains open.

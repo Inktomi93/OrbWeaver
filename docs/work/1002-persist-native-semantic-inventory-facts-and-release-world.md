@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/callable-consumer-demand-1002
+lane: codex/projected-callable-handoff-1002
 plan: test-foundation
 ---
 

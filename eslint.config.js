@@ -936,6 +936,20 @@ const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, index) =>
     },
   ],
 }));
+const TURN_IDENTITY_RESTRICTIONS = [
+  {
+    id: "turn-identity-name",
+    scope: ["packages/server/src/domain/chat/engine/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          ":matches(Identifier[name='principal']:not(Property[shorthand=true] > Identifier.key):not(ImportSpecifier[imported.name='principal'][local.name='principal'] > Identifier.imported):not(ExportSpecifier[local.name='principal'][exported.name='principal'] > Identifier.exported), JSXIdentifier[name='principal'])",
+        message: "D19: the turn engine receives frozen runAsUserId/funderUserId/triggeredBy facts, never a request principal binding.",
+      },
+    ],
+  },
+];
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -995,6 +1009,7 @@ const RESTRICTIONS = [
   ...INFRA_AUTH_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
   ...ROLE_DATA_RESTRICTIONS,
+  ...TURN_IDENTITY_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   {
     id: "class-token-splice",
@@ -1988,7 +2003,7 @@ export default [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
-    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS].some(({ id }) =>
+    [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS, ...ROLE_DATA_RESTRICTIONS, ...TURN_IDENTITY_RESTRICTIONS, ...DETERMINISM_RESTRICTIONS].some(({ id }) =>
       Object.hasOwn(block.rules, `orb/${id}`),
     )
       ? block

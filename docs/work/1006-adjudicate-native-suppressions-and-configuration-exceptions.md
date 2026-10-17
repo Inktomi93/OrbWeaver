@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-17
 priority: P2
 area: tooling
+lane: codex/native-exception-adjudication-1006
 plan: test-foundation
 ---
 

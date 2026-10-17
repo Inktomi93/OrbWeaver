@@ -74,8 +74,20 @@ async function nativePolicy(
   body: string,
   policy: GatePolicy,
 ): Promise<ReturnType<typeof runPolicyPass>> {
-  const { project, root } = await nativeProgram(fixtures, body);
-  return runPolicyPass({ knownPolicies: [policy], policies: [policy], root, project, reviewedGrants: [], failOnWarnings: false });
+  const { root } = await nativeProgram(fixtures, body);
+  return nativePolicyPass(root, policy);
+}
+function nativePolicyPass(root: string, policy: GatePolicy): ReturnType<typeof runPolicyPass> {
+  const context = projectCtx(root);
+  return runPolicyPass({
+    knownPolicies: [policy],
+    policies: [policy],
+    root,
+    project: context.project,
+    ...nativeTypeFactOptions(context),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
 }
 
 test("native MJS helpers retain Node ownership and both semantic policy boundaries", async ({ plantedTree, repoRoot }) => {
@@ -425,12 +437,10 @@ test("native callable invocation refuses stale captured world", async ({ planted
 });
 
 test("native imported bound mint retains actual construction origin", async ({ plantedTree, repoRoot }) => {
-  const { project, source, root } = await nativeProgram(
-    { plantedTree, repoRoot },
-    "import {mint as bound} from './bindings.js'; export const value=bound('chat');",
-    { "tests/support/node/bindings.ts": "import {mintTypeId} from '../../../packages/kit/src/ids/index.ts'; export const mint=mintTypeId.bind(null);" },
-  );
-  const result = runPolicyPass({ knownPolicies: [determinism], policies: [determinism], project, root, reviewedGrants: [], failOnWarnings: false });
+  const { source, root } = await nativeProgram({ plantedTree, repoRoot }, "import {mint as bound} from './bindings.js'; export const value=bound('chat');", {
+    "tests/support/node/bindings.ts": "import {mintTypeId} from '../../../packages/kit/src/ids/index.ts'; export const mint=mintTypeId.bind(null);",
+  });
+  const result = nativePolicyPass(root, determinism);
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toHaveLength(1);
   const fact = readCallableInvocation(source.getVariableDeclarationOrThrow("value").getInitializerOrThrow());
@@ -452,8 +462,8 @@ for (const scenario of [
   },
 ]) {
   test(`native reexported ${scenario.name} retains its declaring package`, async ({ plantedTree, repoRoot }) => {
-    const { project, root } = await nativeProgram({ plantedTree, repoRoot }, scenario.body, { "tests/support/node/exports.ts": scenario.exports });
-    const result = runPolicyPass({ knownPolicies: [scenario.policy], policies: [scenario.policy], project, root, reviewedGrants: [], failOnWarnings: false });
+    const { root } = await nativeProgram({ plantedTree, repoRoot }, scenario.body, { "tests/support/node/exports.ts": scenario.exports });
+    const result = nativePolicyPass(root, scenario.policy);
     expect(result.toolErrors).toEqual([]);
     expect(result.policies[0]?.owner.status).toBe("success");
     expect(result.authority.effectiveFindings).toHaveLength(1);
@@ -461,7 +471,7 @@ for (const scenario of [
 }
 
 test("native same-named foreign mint cannot borrow the renamed package origin", async ({ plantedTree, repoRoot }) => {
-  const { project, root } = await nativeProgram(
+  const { root } = await nativeProgram(
     { plantedTree, repoRoot },
     "import {mint} from './exports.js'; const bound=mint.bind(null); export const value=bound('chat');",
     {
@@ -469,7 +479,7 @@ test("native same-named foreign mint cannot borrow the renamed package origin", 
       "tests/support/node/foreign.ts": "export function typeidUnboxed(prefix:string):string{return prefix;}",
     },
   );
-  const result = runPolicyPass({ knownPolicies: [determinism], policies: [determinism], project, root, reviewedGrants: [], failOnWarnings: false });
+  const result = nativePolicyPass(root, determinism);
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
   expect(result.authority.effectiveFindings).toEqual([]);
@@ -527,7 +537,7 @@ test("native external JWT protocol values remain an explicit policy fork", async
 });
 
 test("native Node crypto identity retains ambient draws without classifying local or foreign UUID declarations", async ({ plantedTree, repoRoot }) => {
-  const { project, root, source } = await nativeProgram(
+  const { root, source } = await nativeProgram(
     { plantedTree, repoRoot },
     // eslint-disable-next-line orb/test-ambient-source-string -- This crypto-origin fixture is parsed, never executed; remove with these native identity controls.
     `import {randomUUID} from 'node:crypto';
@@ -567,7 +577,7 @@ export const unrelated=foreign();`,
     const initializer = source.getVariableDeclarationOrThrow(name).getInitializerIfKindOrThrow(SyntaxKind.CallExpression);
     expect(readPackageExportOrigin(initializer.getExpression(), ["node:crypto", "crypto"], new Set(["randomUUID"])).verdict).toBe("other");
   }
-  const result = runPolicyPass({ knownPolicies: [determinism], policies: [determinism], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = nativePolicyPass(root, determinism);
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.authority.effectiveFindings).toHaveLength(ambient.length);

@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-turn-role-authority-1041
+lane: codex/native-class-tokens-1041
 plan: test-foundation
 ---
 
@@ -42,7 +42,7 @@ Device-local names and persistence options use native types. Private and legacy 
 
 Native lint owns lexical class, skin and lexical determinism; semantic readers remain. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
 
-Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
+Native lint owns the lowercase engine-name restriction. Canonical Principal-origin and role checks remain: public Caller DTOs expose raw roles. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption stays open.
 
 Production registries supply config anchors and safe navigation with owned jump cancellation. Native types and route-map lint replace exact claims; semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts need real-door replacement.
 
