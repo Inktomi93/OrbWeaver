@@ -71,9 +71,10 @@ function nativeDeferredFixture(immediate: boolean, annotated: boolean, input: Pr
         import type {ChatContext,ChatRpgOps,ResolveChatUserMacroDefs,ReadChatUserMacros} from "./contracts.js";
         ${input.prefix ?? ""}
         function createStats(){return {settleRetainedChatRebase:()=>1};}
+        ${input.helper ?? ""}
         async function completeHandoffResumption(ctx:ChatContext,resume:{chatId:string;actorRekeys:readonly string[]}){await ctx.rpg?.handoffRekeyActors(resume.chatId,resume.actorRekeys);}
         function use(ctx:ChatContext){completeHandoffResumption(ctx,{chatId:"chat",actorRekeys:["actor"]});ctx.settleRetainedChatRebase();}
-        function buildChatService(input:{rpg:ChatRpgOps}){const stats=createStats();const context={...{left:0},...{right:0},settleRetainedChatRebase:stats.settleRetainedChatRebase,rpg:input.rpg??null};use(context);}
+        ${input.factory ?? "function buildChatService(input:{rpg:ChatRpgOps}){const stats=createStats();const context={...{left:0},...{right:0},settleRetainedChatRebase:stats.settleRetainedChatRebase,rpg:input.rpg??null};use(context);}"}
         function buildImagery(input:{resolveUserMacroDefs:ResolveChatUserMacroDefs}){return {load:(chatId:string)=>input.resolveUserMacroDefs(chatId)};}
         function composeServices(){
           const actualOps={handoffRekeyActors:async(chatId:string,cardCopies:readonly string[])=>{},resolveUserMacros:async(chatId:string)=>[] as readonly string[]};
@@ -103,6 +104,387 @@ function nativeDeferredFixture(immediate: boolean, annotated: boolean, input: Pr
     .getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
   const expected = source.getFunctionOrThrow("createStats").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
   return { project, source, calls, selected, actualCall, owner, expected, all, contract, factory };
+}
+
+function nativeAdapterFixture(fields: string, input: ProjectedFixtureInput = {}): NativeDeferredFixture {
+  return nativeDeferredFixture(false, true, {
+    ...input,
+    helper:
+      input.helper ??
+      "function createChatContext(input:ChatContext):ChatContext{return {...input,settleRetainedChatRebase:()=>input.settleRetainedChatRebase()};} function createChatService(input:ChatContext){const ctx=createChatContext(input);use(ctx);}",
+    factory:
+      input.factory ??
+      `function buildChatService(input:{rpg:ChatRpgOps}){const stats=createStats();const context={${fields}settleRetainedChatRebase:stats.settleRetainedChatRebase,rpg:input.rpg??null};createChatService(context);}`,
+  });
+}
+
+for (const nestedSpreads of [false, true]) {
+  test(`a native context adapter retains its actual selected wrapper: nestedSpreads=${nestedSpreads}`, () => {
+    const { project, source, factory, contract, calls, selected, actualCall, owner, expected } = nativeAdapterFixture(
+      nestedSpreads ? "...{left:0},...{right:0}," : "left:0,right:0,",
+    );
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        calls,
+        [source, factory, contract].flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the native context-adapter capture is missing");
+      }
+      const first = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      const adapter = source.getFunctionOrThrow("createChatContext");
+      const service = source.getFunctionOrThrow("createChatService");
+      const build = source.getFunctionOrThrow("buildChatService");
+      const wrapper = adapter.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+      const spread = adapter.getFirstDescendantByKindOrThrow(SyntaxKind.SpreadAssignment).getExpression();
+      const adapterCall = calls.find((call) => call.getExpression().getText() === "createChatContext");
+      const serviceCall = calls.find((call) => call.getExpression().getText() === "createChatService");
+      const buildCall = calls.find((call) => call.getExpression().getText() === "buildChatService");
+      const formal = adapter.getParameters()[0];
+      const assembly = build.getVariableDeclarationOrThrow("context").getInitializerOrThrow();
+      if (adapterCall === undefined || serviceCall === undefined || buildCall === undefined || formal === undefined) {
+        throw new Error("the actual context-adapter call or formal is missing");
+      }
+      const bindings = readCallBindings(adapterCall, adapter, readCallBindings(serviceCall, service, readCallBindings(buildCall, build, new Map())));
+      const sources = readReturnedValue(spread, [], observed, { terminals: new Set(), bindings });
+      const delegate = program.byCall.get(actualCall.compilerNode);
+      const witness = delegate?.invocationTargets ?? delegate?.targets;
+      const firstCaller = program.callers.get(owner.compilerNode)?.some((caller) => caller.call === actualCall) === true;
+      const settlement = program.suppliedCallableUses?.(actualCall);
+      const settled = program.byCall.get(actualCall.compilerNode);
+      const settledWitness = settled?.invocationTargets ?? settled?.targets;
+      expect(program.program).toBe(project.getProgram().compilerObject);
+      expect(program.program.getSourceFile(source.getFilePath())).toBe(source.compilerNode);
+      expect(program.byCall.get(adapterCall.compilerNode)?.targets).toMatchObject({ kind: "resolved", value: [adapter] });
+      expect(program.callers.get(adapter.compilerNode)?.map((caller) => caller.call)).toEqual([adapterCall]);
+      expect(bindings.get(formal)).toBe(adapterCall.getArguments()[0]);
+      expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+      expect(wrapper).not.toBe(expected);
+      expect(first.kind, first.kind === "unresolved" ? `${first.detail} at ${first.node.getText()}` : "resolved").toBe("resolved");
+      expect(first.kind === "resolved" ? first.value.map((leaf) => leaf.value) : []).toEqual([wrapper]);
+      expect(delegate?.call).toBe(actualCall);
+      expect(program.byCall.has(actualCall.compilerNode)).toBe(true);
+      expect(settlement?.kind, settlement?.kind === "unresolved" ? settlement.detail : "resolved").toBe("resolved");
+      expect(settledWitness?.kind === "resolved" ? settledWitness.value : []).toEqual([owner]);
+      expect(firstCaller).toBe(witness?.kind === "resolved" && witness.value.includes(owner));
+      expect(program.callers.get(owner.compilerNode)?.some((caller) => caller.call === actualCall) === true).toBe(
+        settledWitness?.kind === "resolved" && settledWitness.value.includes(owner),
+      );
+      expect(sources.kind === "resolved" ? sources.value.map((leaf) => leaf.value) : []).toEqual([assembly]);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+const COPY_OPERAND_CONTROLS = [
+  { name: "closed source alias", fields: "...part,", prefix: "const part={left:0};", resolved: true },
+  { name: "finite conditional source", fields: "...(choose?{left:0}:{right:0}),", prefix: "declare const choose:boolean;", resolved: true },
+  { name: "getter", fields: "...{get left(){return 0;}},", resolved: false },
+  { name: "opaque source", fields: "...part,", prefix: "declare const part:object;", resolved: false },
+  {
+    name: "unknown alternative",
+    fields: "...(choose?{left:0}:foreign),",
+    prefix: "declare const choose:boolean;declare const foreign:object;",
+    resolved: false,
+  },
+  {
+    name: "written source alias",
+    fields: "...part,",
+    prefix: "const part={left:0};",
+    after: 'Object.defineProperty(part,"left",{get:()=>0});',
+    resolved: false,
+  },
+  {
+    name: "escaping source alias",
+    fields: "...part,",
+    prefix: "declare function escape(value:object):void;const part={left:0};",
+    after: "escape(part);",
+    resolved: false,
+  },
+  { name: "mutable source binding", fields: "...part,", prefix: "let part={left:0};", after: "part={left:1};", resolved: false },
+  { name: "prototype mutation", fields: "...part,", prefix: "const part={left:0};", after: "Object.setPrototypeOf(part,{});", resolved: false },
+  { name: "recursive source", fields: "...part(),", prefix: "function part():{left:number}{return {...part()};}", resolved: false },
+  {
+    name: "mutating second alias",
+    fields: "...part,",
+    prefix: "const part={left:0};const alias=part;",
+    after: 'Object.defineProperty(alias,"left",{get:()=>0});',
+    resolved: false,
+  },
+  {
+    name: "mutating copied carrier",
+    fields: "...part,",
+    prefix: "const part={left:0};const carrier={part};const copied={...carrier};",
+    after: 'Object.defineProperty(copied.part,"left",{get:()=>0});',
+    resolved: false,
+  },
+] as const;
+
+for (const scenario of COPY_OPERAND_CONTROLS) {
+  test(`a native context copy operand closes ${scenario.name}`, () => {
+    const { project, source, factory, contract, calls, selected, actualCall } = nativeAdapterFixture(scenario.fields, {
+      prefix: "prefix" in scenario ? scenario.prefix : "",
+      after: "after" in scenario ? scenario.after : "",
+    });
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        calls,
+        [source, factory, contract].flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the native copy operand capture is missing");
+      }
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(program.program).toBe(project.getProgram().compilerObject);
+      expect(program.byCall.has(actualCall.compilerNode)).toBe(true);
+      expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+      expect(result.kind, result.kind === "unresolved" ? result.detail : "resolved").toBe(scenario.resolved ? "resolved" : "unresolved");
+      expect(program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+const COPY_RETURN_REFUSALS = [
+  { name: "selected slot override", prefix: "declare const foreign:()=>number;", field: "settleRetainedChatRebase:foreign," },
+  {
+    name: "foreign selected alternative",
+    prefix: "declare const choose:boolean;declare const foreign:()=>number;",
+    field: "settleRetainedChatRebase:choose?()=>input.settleRetainedChatRebase():foreign,",
+  },
+  { name: "cyclic factory alternative", prefix: "declare const choose:boolean;", cycle: true },
+  { name: "unclosed second allocation", prefix: "declare const alternate:ChatContext;", additionalCall: "createChatService(alternate);" },
+] as const;
+
+for (const scenario of COPY_RETURN_REFUSALS) {
+  test(`a native context copy return refuses ${scenario.name}`, () => {
+    const value = `{...input,${"field" in scenario ? scenario.field : "settleRetainedChatRebase:()=>input.settleRetainedChatRebase()"}}`;
+    const { source, factory, contract, selected } = nativeAdapterFixture("...{left:0},...{right:0},", {
+      prefix: scenario.prefix,
+      helper: `function createChatContext(input:ChatContext):ChatContext{return ${"cycle" in scenario ? `choose?${value}:createChatContext(input)` : value};} function createChatService(input:ChatContext){const ctx=createChatContext(input);use(ctx);}`,
+    });
+    if ("additionalCall" in scenario) {
+      source.addStatements(scenario.additionalCall);
+    }
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        source.getDescendantsOfKind(SyntaxKind.CallExpression),
+        [source, factory, contract].flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual copy return capture is missing");
+      }
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(result.kind).toBe("unresolved");
+      const service = source.getFunctionOrThrow("createChatService");
+      expect(program.callers.get(service.compilerNode)?.length).toBe("additionalCall" in scenario ? 2 : 1);
+      expect(
+        source
+          .getProject()
+          .getPreEmitDiagnostics()
+          .map((diagnostic) => diagnostic.getMessageText()),
+      ).toEqual([]);
+      expect(program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("a native context adapter keeps complete finite selected alternatives", () => {
+  const { project, source, factory, contract, calls, selected } = nativeAdapterFixture("...{left:0},...{right:0},", {
+    prefix: "declare const choose:boolean;",
+    helper:
+      "function createChatContext(input:ChatContext):ChatContext{return {...input,settleRetainedChatRebase:choose?()=>input.settleRetainedChatRebase():()=>2};} function createChatService(input:ChatContext){const ctx=createChatContext(input);use(ctx);}",
+  });
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(
+      calls,
+      [source, factory, contract].flatMap((file) => file.getDescendants()),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    if (program === undefined) {
+      throw new Error("the finite selected alternatives capture is missing");
+    }
+    const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+    const alternatives = source.getFunctionOrThrow("createChatContext").getDescendantsOfKind(SyntaxKind.ArrowFunction);
+    expect(program.program).toBe(project.getProgram().compilerObject);
+    expect(alternatives).toHaveLength(2);
+    expect(result.kind, result.kind === "unresolved" ? result.detail : "resolved").toBe("resolved");
+    expect(result.kind === "resolved" ? result.value.map((leaf) => leaf.value) : []).toEqual(alternatives);
+    expect(result.kind === "resolved" && result.value.every((leaf) => leaf.present && leaf.path.length === 0)).toBe(true);
+    expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+const NESTED_PRESENCE_CONTROLS = [
+  { name: "nested-only rpg", fields: "...{rpg:input.rpg??null},", key: "rpg", expected: ["delegate"], resolved: true },
+  { name: "later own rpg overwrite", fields: "...{rpg:null},...{rpg:input.rpg??null},", key: "rpg", expected: ["delegate"], resolved: true },
+  { name: "later null shadow", fields: "...{rpg:input.rpg??null},...{rpg:null},", key: "rpg", expected: ["null"], resolved: true },
+  {
+    name: "conditional present and absent",
+    fields: "rpg:input.rpg??null,...(choose?{marker:1}:{}),",
+    prefix: "declare const choose:boolean;",
+    key: "marker",
+    expected: ["1", "ABSENT"],
+    resolved: true,
+  },
+  {
+    name: "later own marker overwrite",
+    fields: "rpg:input.rpg??null,...(choose?{marker:1}:{}),...{marker:2},",
+    prefix: "declare const choose:boolean;",
+    key: "marker",
+    expected: ["2"],
+    resolved: true,
+  },
+  { name: "nested getter", fields: "rpg:input.rpg??null,...{get marker(){return 1;}},", key: "marker", expected: [], resolved: false },
+  {
+    name: "unknown conditional key source",
+    fields: "rpg:input.rpg??null,...(choose?{marker:1}:foreign),",
+    prefix: "declare const choose:boolean;declare const foreign:object;",
+    key: "marker",
+    expected: [],
+    resolved: false,
+  },
+  { name: "actual allocation alternatives", fields: "", key: "marker", expected: ["2", "3"], allocations: true, resolved: true },
+] as const;
+
+for (const scenario of NESTED_PRESENCE_CONTROLS) {
+  test(`a native context adapter preserves nested presence: ${scenario.name}`, () => {
+    const assembly = `${scenario.fields}settleRetainedChatRebase:stats.settleRetainedChatRebase`;
+    const { project, source, factory, contract, calls, selected, owner } = nativeAdapterFixture("", {
+      prefix: "prefix" in scenario ? scenario.prefix : "",
+      factory:
+        "allocations" in scenario
+          ? "function buildChatService(input:{rpg:ChatRpgOps}){const stats=createStats();const first={...{left:0},rpg:input.rpg??null,marker:2,settleRetainedChatRebase:stats.settleRetainedChatRebase};const second={...{right:0},rpg:input.rpg??null,marker:3,settleRetainedChatRebase:stats.settleRetainedChatRebase};createChatService(first);createChatService(second);}"
+          : `function buildChatService(input:{rpg:ChatRpgOps}){const stats=createStats();const context={${assembly}};createChatService(context);}`,
+    });
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        calls,
+        [source, factory, contract].flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the nested presence capture is missing");
+      }
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(result.kind, result.kind === "unresolved" ? `${result.detail} at ${result.node.getText()}` : "resolved").toBe(
+        scenario.resolved ? "resolved" : "unresolved",
+      );
+      expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+      const adapter = source.getFunctionOrThrow("createChatContext");
+      const service = source.getFunctionOrThrow("createChatService");
+      const build = source.getFunctionOrThrow("buildChatService");
+      const wrapper = adapter.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+      const adapterCall = calls.find((call) => call.getExpression().getText() === "createChatContext");
+      const buildCall = calls.find((call) => call.getExpression().getText() === "buildChatService");
+      const formal = service.getParameters()[0];
+      const adapterFormal = adapter.getParameters()[0];
+      const consumers = program.callers.get(service.compilerNode);
+      if (adapterCall === undefined || buildCall === undefined || formal === undefined || adapterFormal === undefined || consumers === undefined) {
+        throw new Error("the actual nested-presence caller/formal is missing");
+      }
+      const projected = scenario.resolved
+        ? consumers.map((consumer) => {
+            const bindings = readCallBindings(adapterCall, adapter, readCallBindings(consumer.call, service, readCallBindings(buildCall, build, new Map())));
+            const argument = consumer.call.getArguments()[0];
+            if (argument === undefined) {
+              throw new Error("the actual service argument is missing");
+            }
+            const allocation = build.getVariableDeclarationOrThrow(argument.getText());
+            const operand = adapter.getFirstDescendantByKindOrThrow(SyntaxKind.SpreadAssignment).getExpression();
+            const record = readReturnedValue(operand, [], observed, { terminals: new Set(), bindings });
+            const value = readReturnedValue(adapterCall, [scenario.key], observed, { terminals: new Set(), bindings });
+            const values =
+              value.kind === "resolved"
+                ? value.value.map((leaf) => {
+                    if (!leaf.present) {
+                      return "ABSENT";
+                    }
+                    return leaf.value === owner.getParent().getParent() ? "delegate" : leaf.value.getText();
+                  })
+                : [];
+            return {
+              bindingMatches:
+                argument.getSymbol()?.getValueDeclaration() === allocation &&
+                bindings.get(formal) === argument &&
+                bindings.get(adapterFormal) === adapterCall.getArguments()[0],
+              records: record.kind === "resolved" ? record.value.map((leaf) => leaf.value) : [],
+              allocation: allocation.getInitializerOrThrow(),
+              kind: value.kind,
+              values,
+            };
+          })
+        : [];
+      expect(projected.every((entry) => entry.bindingMatches)).toBe(true);
+      expect(projected.map((entry) => entry.records)).toEqual(projected.map((entry) => [entry.allocation]));
+      expect(projected.map((entry) => entry.kind)).toEqual(projected.map(() => "resolved"));
+      expect(projected.flatMap((entry) => entry.values)).toEqual(scenario.expected);
+      expect(result.kind === "resolved" ? result.value.map((leaf) => leaf.value) : []).toEqual(scenario.resolved ? [wrapper] : []);
+      expect(result.kind === "resolved" && result.value.every((leaf) => leaf.present && leaf.path.length === 0)).toBe(scenario.resolved);
+      const count = "allocations" in scenario ? 2 : 1;
+      expect(consumers).toHaveLength(count);
+      expect(new Set(consumers.map((consumer) => consumer.call.compilerNode)).size).toBe(count);
+      expect(new Set(consumers.map((consumer) => consumer.call.getArguments()[0]?.compilerNode)).size).toBe(count);
+      expect(program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const cyclic of [false, true]) {
+  test(`native ordinary spread absence preserves its fallback cycle chain: cyclic=${cyclic}`, () => {
+    const { project, source, factory, contract, calls, selected } = nativeDeferredFixture(false, true, {
+      prefix: cyclic ? "function tail():object{return {...tail()};}" : "const tail={unrelated(){return 0;}};",
+      factory: `function buildChatService(input:{rpg:ChatRpgOps}){const context={...${cyclic ? "tail()" : "tail"},settleRetainedChatRebase:()=>1,rpg:input.rpg??null};use(context);}`,
+    });
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(
+        calls,
+        [source, factory, contract].flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual ordinary spread fallback capture is missing");
+      }
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      const operand = source.getFunctionOrThrow("buildChatService").getFirstDescendantByKindOrThrow(SyntaxKind.SpreadAssignment).getExpression();
+      const absent = readReturnedValue(operand, ["rpg"], observed, { terminals: new Set(), bindings: new Map() });
+      const expected = source.getFunctionOrThrow("buildChatService").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+      expect(program.program).toBe(project.getProgram().compilerObject);
+      expect(project.getPreEmitDiagnostics().map((diagnostic) => diagnostic.getMessageText())).toEqual([]);
+      expect(result.kind).toBe("resolved");
+      expect(result.kind === "resolved" ? result.value.map((leaf) => leaf.value) : []).toEqual([expected]);
+      expect(absent.kind, absent.kind === "unresolved" ? absent.detail : "resolved").toBe(cyclic ? "unresolved" : "resolved");
+      expect(absent.kind === "resolved" ? absent.value.map((leaf) => ({ present: leaf.present, path: leaf.path })) : []).toEqual(
+        cyclic ? [] : [{ present: false, path: ["rpg"] }],
+      );
+      expect(program.inheritedReadTrialActive?.()).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
 }
 
 for (const immediate of [false, true]) {
