@@ -15,7 +15,8 @@
 // BasePortalProps["container"]` and thread it through `container={container ?? portalContainer}`. An honest
 // zero, held as a ratchet: the eleventh seal is the one that would have forgotten.
 //
-// FAMILY `baseui-read`: retained portal ownership uses the shared binding reader. Native lint and
+// This singleton owns portal wiring; native lint and the UI contract own the other Base UI claims.
+// Retained portal ownership uses the shared binding reader. Native lint and
 // tests/ui/baseui-surface.suite.test.ts share its vocabulary; no other custom Base UI policy remains.
 //
 // POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at (pruned from public history) (this module
@@ -159,7 +160,7 @@ function portalTags(sf: SourceFile): ReadonlySet<string> {
 
 export const gate = defineGate({
   id: "baseui-portal-container-seam",
-  family: "baseui-read",
+  family: "baseui-portal-container-seam",
   authority: "ordinary",
   severity: "error",
   population: "@ui",

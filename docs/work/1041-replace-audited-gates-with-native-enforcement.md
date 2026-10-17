@@ -28,8 +28,6 @@ Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. The [foundation plan]
 
 SQL delivery, production HTTP/network authority, regex deadlines, canon freeze and query-boundary cohorts pass scoped review and controls. Raw-origin, asset, public-Caller role, per-call and uninstantiated-list obligations remain. Evidence: `reports/review/1041-native-wave-ordinary.md` and `reports/review/1041-egress-watchdog-ordinary.md`.
 
-Native styling, determinism, persistence, production registries, schema membership and CSS replacements retain unmatched semantic owners. The foundation plan links their delivery evidence; source integration does not close complete equivalence or application qualification.
-
 Native Base UI occurrence rules and metadata admission qualify. Semantic anatomy, surface, portal and CSS owners remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md`.
 
 Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls, independent review and bounded ordinary main qualification pass. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
@@ -47,3 +45,5 @@ The asset-write native successor remains unqualified: valid table transfers and 
 Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Scoped integration passes; Node retains its inherited diagnostics. Evidence: `reports/review/1041-native-retirement-wave-ordinary.md`.
 
 Native package manifest contracts pass wave review and scoped runtime controls. Application contracts run in ordinary Node CI; root dependencies remain tooling-owned. Acquisition refusals remain. Evidence: `reports/review/1041-native-package-manifests-ordinary.md`.
+
+Native Base UI surface/anatomy contracts pass review and main controls. Portal and CSS readers remain; acquisition refusals and package-plumbing cases are preserved. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.

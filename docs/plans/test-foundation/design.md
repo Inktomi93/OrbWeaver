@@ -203,7 +203,7 @@ Device-local factory names derive from the production registry. Native factory o
 
 Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Public URL policy rejects caller-supplied configured authority. Real composed controls enforce regex deadlines; ordinary integrated runtime and native type controls pass. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Existing compiler and certification reds remain. Evidence: `reports/review/1041-native-wave-ordinary.md`.
 
-Native Base UI lint owns per-file derivation, mandatory handlers and parallel-state styling. Metadata admission invalidates caches; semantic owners remain. Maintained CTs use captured viewer/settings reads. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`. Bounded ordinary native controls pass; full migration remains open.
+Native Base UI lint owns derivation, handlers and state styling. Surface/anatomy contracts run in ordinary Node CI; portal and CSS semantic owners remain. Metadata admission invalidates caches. Maintained CTs use captured reads. Bounded controls pass; full migration remains open. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
 Context/register lint keeps publication and count owners; ordinary controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`. Parallel-map native lint uses canonical tuples; scoped main behavior passes with timing limits recorded.
 
