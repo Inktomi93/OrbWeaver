@@ -1,10 +1,8 @@
-import { viewerViewSchema } from "@orb/contracts/identity";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
+import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
-import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
-import { expect, test } from "@playwright/experimental-ct-react";
 import { PluginProtocolStory } from "../_ct-stories.tsx";
 
 const UI_SOURCE = `const ui = orb.ui(1);
@@ -25,14 +23,12 @@ ui.onEvent(async ({ event }) => {
   }
 });`;
 
-test("a refreshed action cannot inherit another action's open destructive confirmation", async ({ mount, page }) => {
+test("a refreshed action cannot inherit another action's open destructive confirmation", async ({ corpus, mount, page }) => {
   const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
   const refresh = trpcHold<"plugin.uiHostCall">();
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role }),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
     "plugin.getSurfaceState": () => null,
