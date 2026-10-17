@@ -208,7 +208,7 @@ Native ESLint owns lexical class restrictions; shared z-index and skin readers r
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
-Internal resolved role data is opaque; private codecs preserve the kernel, projection and host-identity split. Principal builders delegate to the real root. Existing role gates remain; legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
+Resolved role data is opaque; private codecs preserve kernel, projection and host identity. Principal builders and the required cross-tenant sweep delegate to the real root. Role gates remain; general legacy/probe adoption stays open. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

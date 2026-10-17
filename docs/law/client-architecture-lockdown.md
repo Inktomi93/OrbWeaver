@@ -34,7 +34,7 @@ updated: 2026-10-17
 | You are about to build… | The ONE right move | NOT | Wall |
 | - | - | - | - |
 | a new rail section | a `SectionDefinition` in `features/<owner>/lib/`, exported on the front door, added to the `main.tsx` assembly (§6) | entries in rail/panel/placeholder/context maps + a route branch | G1/G2 + tsc |
-| a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context on this arm (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
+| a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context in this case (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
 | a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by your feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a body that stamps an independently minted anchor | G4 + tsc |
 | a tab on the chat context panel from ANOTHER feature | a `ContextTabDef` contributor with a `when` predicate, registered in `main.tsx` (§6c) | importing `#features/chat`; editing the chat panel | G8 + `client-features-no-cross` |
 | a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in app-shell's `MODAL_SLOTS` + a route override; a `RAIL_ACTIONS`-style parallel trigger map | `modal-registry-completeness` + G2 |
@@ -282,7 +282,7 @@ The shape's law is the header of `client/src/state/section-registry.ts` (§15).
 - `AppShell` stays domain-agnostic: it consumes the registry (`sections.get(active)`) instead of a `Partial<Record<…>>` prop; `panelDefaults` arrives from the registry.
 - **`SectionDefinition` is non-generic.** `context` is a `ContextDefinition` that has already applied its section's context-state type `S` (§6b) — `S` never crosses the shell seam.
 
-**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `state/section-registry.ts` excludes list, header and tab context on this arm. G1 still checks the non-empty reason, authored declarations and rail membership. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
+**The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `state/section-registry.ts` excludes list, header and tab context in this case. G1 still checks the non-empty reason, authored declarations and rail membership. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
 
 Register a section by exporting its `SectionDefinition` from the owning feature's `lib/`, then adding it to
 the `main.tsx` door assembly, total over `SECTION_IDS`. Never add a `RAIL_SECTIONS` entry, a
