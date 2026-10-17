@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(303 registered gates)
+(302 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -103,7 +103,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
 | `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
 | `content-part-seam` | — | reviewed-grant/error | @product | ChatContentPart is named outside the… |
-| `context-definition-shape` | — | ordinary/error | @client | a CONTEXT-definition shape violates… |
+| `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
 | `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-banned-shapes` | — | hard/error | @contracts | a ledger-REJECTED contract shape has… |
 | `contract-derives-not-respells` | — | reviewed-grant/error | @server,@contracts,@db | a domain contract/ re-spells a shape… |
@@ -212,7 +212,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
 | `no-mint-via-cast` | id-brand-flow | hard/error | @product | castId wraps a fresh-id generator —… |
 | `no-multiplexed-mutation-error` | tanstack-query-origin | ordinary/error | @client\* | multiplexed mutation errors — v5… |
-| `no-mutating-register-api` | — | ordinary/error | @client | a mutating register()-named… |
 | `no-nul-bytes-in-source` | — | hard/error | none | a raw NUL (0x00) byte in a text… |
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |

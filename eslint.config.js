@@ -120,6 +120,7 @@ import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract
 import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
 import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
+import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -956,6 +957,44 @@ const TURN_IDENTITY_RESTRICTIONS = [
     ],
   },
 ];
+const CONTEXT_NATIVE_SETTINGS = {
+  "orb/context-vocabulary": {
+    mintHome: { source: REGISTRY_CONTRACTS_RE.source, flags: REGISTRY_CONTRACTS_RE.flags },
+    tabs: DEFINE_CONTEXT_TABS,
+    region: DEFINE_CONTEXT_REGION,
+  },
+  "orb/context-implementation": createHash("sha256")
+    .update(readFileSync(new URL(import.meta.url), "utf8"))
+    .digest("hex"),
+};
+const CLIENT_CONTEXT_RESTRICTIONS = [
+  { id: "context-definition-shape", scope: [CLIENT_SRC], homes: [] },
+  {
+    id: "context-shell-chrome",
+    scope: [CLIENT_FEATURES],
+    notUnder: ["packages/client/src/features/app-shell/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(Literal[value=type(string)][raw=/shell-panel-header/], TemplateElement[value.raw=/shell-panel-header/])",
+        message: "A feature must compose its own band, not paint the shell-panel-header chrome.",
+      },
+    ],
+  },
+  {
+    id: "no-mutating-register-api",
+    scope: [CLIENT_SRC],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          "FunctionDeclaration[id.name='register'], :matches(MethodDefinition, TSAbstractMethodDefinition)[computed=false][kind='method'][key.type='Identifier'][key.name='register'], Property[computed=false][method=true][key.type='Identifier'][key.name='register'], TSDeclareFunction[id.name='register']",
+        message: "Export definition values for door assembly, not a mutating register API.",
+      },
+    ],
+  },
+];
+
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -1070,6 +1109,7 @@ const RESTRICTIONS = [
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
+  ...CLIENT_CONTEXT_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -1646,6 +1686,119 @@ const baseUiStateRule = {
   },
 };
 
+const CONTEXT_BODIES_RECORD = /^(?:readonly\s+)?(?:Partial<\s*)?Record<\s*string\s*,\s*ReactNode\s*>>?$/u;
+
+function contextProperty(object, name) {
+  return object.properties.find(
+    (property) => property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === name,
+  );
+}
+
+function contextLiteral(node) {
+  let value = node;
+  while (value?.type === "TSAsExpression" || value?.type === "TSSatisfiesExpression" || value?.type === "TSNonNullExpression") {
+    value = value.expression;
+  }
+  if (value?.type === "Literal" && typeof value.value === "string") {
+    return value.value;
+  }
+  if (value?.type === "TemplateLiteral" && value.expressions.length === 0) {
+    return value.quasis[0].value.cooked;
+  }
+}
+
+// Native ESTree erases parentheses; supplied tokens distinguish the call's own delimiter from a wrapper.
+function contextDirectArgument(call, argument, sourceCode) {
+  const index = call.arguments.indexOf(argument);
+  const before = sourceCode.getTokenBefore(argument);
+  return index === 0
+    ? before === sourceCode.getTokenAfter(call.typeArguments ?? call.callee, { filter: (token) => token.value !== "?." })
+    : index > 0 && before.value === ",";
+}
+
+function contextBareCall(call, name) {
+  return call.callee.type === "Identifier" && call.callee.name === name && call.range[0] === call.callee.range[0];
+}
+
+function contextObject(context, object) {
+  if (REGISTRY_CONTRACTS_RE.test(context.filename)) {
+    return;
+  }
+  const sourceCode = context.sourceCode;
+  const kind = contextProperty(object, "kind");
+  const resolved = contextProperty(object, "useResolved");
+  if (kind?.kind === "init" && !kind.method && contextLiteral(kind.value) === "tabs" && resolved?.kind === "init") {
+    context.report({ node: resolved.key, message: "Mint tabs renderers through defineContextTabs, not a hand-rolled kind/useResolved object." });
+  }
+  const claims = contextProperty(object, "claims");
+  const band = contextProperty(object, "band");
+  const parent = object.parent;
+  const minted = parent.type === "CallExpression" && contextBareCall(parent, DEFINE_CONTEXT_REGION) && contextDirectArgument(parent, object, sourceCode);
+  if (claims?.kind === "init" && band !== undefined && !minted) {
+    context.report({ node: claims.key, message: "Mint region claims through defineContextRegion, not a hand-rolled claims/band object." });
+  }
+}
+
+const contextDefinitionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    return {
+      "ObjectExpression:exit": (node) => contextObject(context, node),
+      "CallExpression:exit"(node) {
+        const argument = node.arguments[0];
+        if (!contextBareCall(node, DEFINE_CONTEXT_TABS) || argument?.type !== "ObjectExpression" || !contextDirectArgument(node, argument, sourceCode)) {
+          return;
+        }
+        const tabs = contextProperty(argument, "tabs");
+        if (
+          tabs?.kind === "init" &&
+          !tabs.method &&
+          tabs.value.type === "ArrayExpression" &&
+          tabs.value.elements.length === 0 &&
+          sourceCode.getTokenBefore(tabs.value).value === ":" &&
+          contextProperty(argument, "contributors") === undefined
+        ) {
+          context.report({ node: tabs.key, message: "A tabs:[] context mint needs a contributors registry so it has reachable content." });
+        }
+      },
+      "JSXAttribute[name.name='bodies']:exit"(node) {
+        context.report({ node: node.name, message: "Keep tab identity and body together, not a separate bodies map." });
+      },
+      "TSPropertySignature:exit"(node) {
+        if (node.computed || node.key.type !== "Identifier" || node.key.name !== "bodies" || node.typeAnnotation === undefined) {
+          return;
+        }
+        const colon = sourceCode.getFirstToken(node.typeAnnotation);
+        if (sourceCode.getTokenAfter(colon).value === "(") {
+          return;
+        }
+        const text = sourceCode.getText(node.typeAnnotation.typeAnnotation).replace(/\s+/gu, " ").trim();
+        if (CONTEXT_BODIES_RECORD.test(text)) {
+          context.report({ node: node.key, message: "Keep tab identity and body together, not a separate bodies Record." });
+        }
+      },
+    };
+  },
+};
+const registerApiRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const entry = CLIENT_CONTEXT_RESTRICTIONS.find(({ id }) => id === "no-mutating-register-api");
+    return {
+      ...restrictionRule(entry).create(context),
+      "VariableDeclarator[id.type='Identifier'][id.name='register']:exit"(node) {
+        if (
+          (node.init?.type === "ArrowFunctionExpression" || node.init?.type === "FunctionExpression") &&
+          context.sourceCode.getTokenBefore(node.init).value === "="
+        ) {
+          context.report({ node: node.id, message: "Export definition values for door assembly, not a mutating register API." });
+        }
+      },
+    };
+  },
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -1653,6 +1806,8 @@ const restrictionPlugin = {
     "baseui-derives-not-respells": baseUiDerivesRule(false),
     "baseui-derives-not-respells-health": baseUiDerivesRule(true),
     "baseui-state-data-attributes": baseUiStateRule,
+    "context-definition-shape": contextDefinitionRule,
+    "no-mutating-register-api": registerApiRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
@@ -1665,6 +1820,7 @@ const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnde
     ...(BASEUI_RESTRICTIONS.some((entry) => entry.id === id)
       ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
       : {}),
+    ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });
@@ -2363,6 +2519,7 @@ const ORDINARY_CONFIG = [
       ...CLASS_TOKEN_RESTRICTIONS,
       ...Z_INDEX_RESTRICTIONS,
       ...BASEUI_RESTRICTIONS,
+      ...CLIENT_CONTEXT_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },

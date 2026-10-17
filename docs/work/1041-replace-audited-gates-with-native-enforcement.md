@@ -24,26 +24,16 @@ Migrated rows have qualified successors and adjudicated exceptions. Security con
 
 ## Evidence
 
-Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
+Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. The [foundation plan](../plans/test-foundation/design.md#gates-move-to-native-enforcement) owns qualified families, retained claims and order.
 
-SQL delivery passes review and controls; remaining gaps do not block migration. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`.
+SQL delivery, production HTTP/network authority, regex deadlines, canon freeze and query-boundary cohorts pass scoped review and controls. Raw-origin, asset, public-Caller role, per-call and uninstantiated-list obligations remain. Evidence: `reports/review/1041-native-wave-ordinary.md` and `reports/review/1041-egress-watchdog-ordinary.md`.
 
-Production owns forward-JWT execution and network lifetime. Public URL callers cannot request configured-endpoint authority; configured endpoints retain their separate capability. Production-root body limits preserve intake order and clean incomplete staging. Security review and ordinary integrated runtime and native type controls pass. Evidence: `reports/review/1041-egress-watchdog-independent-review.md` and `reports/review/1041-native-wave-ordinary.md`. Raw-origin and asset policies remain.
+Native styling, determinism, persistence, production registries, schema membership and CSS replacements retain unmatched semantic owners. The foundation plan links their delivery evidence; source integration does not close complete equivalence or application qualification.
 
-Composed preview controls enforce regex deadlines, normal matching and invalid-pattern fallback. Defect interventions discriminate protection. Review and integrated execution pass. Evidence: `reports/review/1041-native-regex-watchdog-delivery.md`.
+Native Base UI occurrence rules and metadata admission qualify. Semantic anatomy, surface, portal and CSS owners remain. Evidence: `reports/review/1041-native-baseui-seals-ordinary.md`.
 
-Chat binds memory outside narrow engine inputs. Native imports and production-root controls preserve authority. Principal-origin and role checks remain because public Callers expose raw roles. Legacy direct constructors need real-root replacement. Evidence: `reports/review/1041-engine-authority-ordinary.md` and `reports/review/1041-native-turn-role-authority-ordinary.md`.
+Native context/register syntax replaces lexical occurrence checks. Published-state origins, count health and registry assembly remain custom. Metadata changes reach scoped lint and invalidate native caches. Controls and independent review pass; ordinary main qualification remains open. Typed harness failures remain explicit, with only the captured differential establishing inheritance. Evidence: `reports/review/1041-native-context-registry-delivery.md`.
 
-Database constraints normalize freeze provenance; canon body writers preserve freshness and migration refuses invalid rows atomically. Inert DB wiring preserves native operands. Import/loader boundaries replace query detection; per-call analysis remains. Evidence: `reports/review/1041-freeze-provenance-ordinary.md` and `reports/review/1041-compose-query-capability-ordinary.md`.
+Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
-Native size limits preserve scopes and shrinking debt. Device-local names and required persistence options use native types. Evidence: `reports/review/native-foundation-wave-ordinary.md` and `reports/review/1041-persisted-factory-ordinary.md`.
-
-Native lint owns lexical class, skin, utility, z-index and determinism restrictions. Production registries supply anchors and navigation; semantic checks remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md` and `reports/review/1041-native-client-registries-ordinary.md`.
-
-Schema-export membership is removed; parity and issues origin remain. Bounded-list controls prove mounted/public limits; private/uninstantiated obligations retain their gate. Evidence: `reports/review/1041-native-zod-surface-ordinary.md` and `reports/review/1041-bounded-list-limit-ordinary.md`.
-
-Mandatory ESLint enforces CORS without inline suppression. Stylelint owns motion, color and integer/rest CSS. Their semantic checks and complete CSS-variable enforcement remain. Review, ordinary native controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-wave-ordinary.md`.
-
-Native Base UI lint owns derivation, handlers and parallel-state styling. Metadata admission invalidates caches; semantic checks remain. Bounded main controls pass; migration remains open. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`.
-
-Maintained CTs use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
+The recursive bus assertion prototype passes native compatibility controls. Collected Node/browser and real-root qualification remain unbuilt. Preserve the existing payload family and KEEP inputs until the successor qualifies. Evidence: `reports/review/1041-bus-boundary-proposal.md`.

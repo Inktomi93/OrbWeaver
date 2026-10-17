@@ -38,7 +38,7 @@ Native resources preserve disposal, refusal and invalidation; opaque callbacks r
 
 Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
 
-Annotated storage retains native origins and settlement after premise revocation. Finite copied records preserve ordered presence, allocations and selected-return closure. Copy controls and review pass; combined execution and original-target replay remain open. Evidence: `reports/review/1002-context-copy-adapter-delivery.md`.
+Annotated storage retains native origins and settlement after premise revocation. Finite copied records preserve ordered presence, allocations and selected-return closure. Copy controls, review and combined ordinary execution pass. Original-target replay remains open. Evidence: `reports/review/1002-context-copy-adapter-ordinary.md`.
 
 Exact positive and negative source-admission dependencies replace global refinement invalidation. Full native freshness validation and opaque whole-source semantics remain. Controls, review and ordinary integration pass; cost measurement remains open. Evidence: `reports/review/1002-source-admission-ledger-ordinary.md`.
 
