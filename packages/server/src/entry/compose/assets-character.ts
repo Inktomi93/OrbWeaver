@@ -157,7 +157,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   };
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full
-  // public-internet SSRF firewall (ANY_HOST, no ownerConfiguredEndpoint) — this is a user-pasted URL; the
+  // public-internet SSRF firewall (ANY_HOST, unconditional public-address pin) — this is a user-pasted URL; the
   // image magic-belt + the effective per-image byte cap bound the download (side-eye F-P0-2).
   const materializeBackgroundOp = createMaterializeBackground({
     ...(deps.fetchImpl === undefined ? {} : { fetchImpl: deps.fetchImpl }),
