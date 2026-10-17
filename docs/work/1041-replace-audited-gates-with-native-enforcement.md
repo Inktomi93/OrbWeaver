@@ -24,7 +24,7 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 
 ## Evidence
 
-D321 records the owner rulings. The canonical audit crosswalk is `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances.
+D321 records the owner rulings. The audit crosswalk is `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances.
 
 Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
 
@@ -40,7 +40,7 @@ Native database constraints enforce freeze-provenance row normalization. Complet
 
 Production device-local names and required persistence options use native factory types. Private implementation and legacy adapter imports remain restricted. Independent review passes. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Application qualification remains open.
 
-Native lexical class restrictions replace their custom owners; semantic consumers remain. Evidence: `reports/review/1041-native-class-discipline-ordinary.md`.
+Native lexical class and skin restrictions replace custom owners; shared z-index and semantic readers remain. Evidence: `reports/review/1041-skin-fragment-native-ordinary.md`.
 
 Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
 

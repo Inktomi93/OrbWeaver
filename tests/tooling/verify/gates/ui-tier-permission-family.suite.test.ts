@@ -1,4 +1,4 @@
-// Refusal pins for the z-index and skin-fragment families over the shared ui-tier-permissions fact.
+// Refusal pins for the z-index family over the shared ui-tier-permissions fact.
 //
 // WHY THEY LIVE HERE AND NOT AS `mustRefuse` ROWS. The fact counts `ctx.files` and throws nothing, and every
 // consumer's population sits inside the fact's (`@client`/`@ui`), so the one supply failure it can reach is
@@ -18,9 +18,6 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as zOutside } from "../../../../tooling/src/verify/gates/no-raw-z-index.ts";
-import { gate as skinHealth } from "../../../../tooling/src/verify/gates/skin-fragment-tier-health.ts";
-import { gate as skinPermission } from "../../../../tooling/src/verify/gates/skin-fragment-tier-permission.ts";
-import { gate as skinOutside } from "../../../../tooling/src/verify/gates/ui-skin-fragment-purity.ts";
 import { gate as zHealth } from "../../../../tooling/src/verify/gates/z-index-tier-health.ts";
 import { gate as zPermission } from "../../../../tooling/src/verify/gates/z-index-tier-permission.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -64,7 +61,7 @@ function refusalShape(result: PolicyPassResult): Record<string, unknown> {
 
 /** The consumers, iterated by value: the refusal-coverage recognizer follows a `for…of` binding to the
  *  iterated array, and a destructured `[policy, files]` head would hide the driven set from it. */
-const POLICIES = [zOutside, zPermission, zHealth, skinOutside, skinPermission, skinHealth];
+const POLICIES = [zOutside, zPermission, zHealth];
 
 /** The smallest overlay each population admits — the verdict half of the two-sided pin. */
 function admitted(policy: GatePolicy): Readonly<Record<string, string>> {

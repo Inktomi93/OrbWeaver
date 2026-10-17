@@ -30,8 +30,6 @@ import { gate as noMultiplexedMutationError } from "../../../../../tooling/src/v
 import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as settingsSectionAnchored } from "../../../../../tooling/src/verify/gates/settings-section-anchored.ts";
-import { gate as skinFragmentTierHealth } from "../../../../../tooling/src/verify/gates/skin-fragment-tier-health.ts";
-import { gate as skinFragmentTierPermission } from "../../../../../tooling/src/verify/gates/skin-fragment-tier-permission.ts";
 import { gate as stateFiles } from "../../../../../tooling/src/verify/gates/state-files.ts";
 import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
 import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
@@ -40,7 +38,6 @@ import { gate as testidLivenessHealth } from "../../../../../tooling/src/verify/
 import { gate as uiAccnameSurvivesSpread } from "../../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { gate as uiPrimitiveOverlayHealth } from "../../../../../tooling/src/verify/gates/ui-primitive-overlay-health.ts";
 import { gate as uiPrimitiveStructure } from "../../../../../tooling/src/verify/gates/ui-primitive-structure.ts";
-import { gate as uiSkinFragmentPurity } from "../../../../../tooling/src/verify/gates/ui-skin-fragment-purity.ts";
 import { gate as uiVariantAxesStamped } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
 import { gate as uiVariantAxesStampedHealth } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped-health.ts";
 
@@ -243,26 +240,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "heading-bearing <Section>",
   },
   {
-    policy: skinFragmentTierHealth,
-    overlays: [{ kind: "remove", path: "packages/ui/src/lib/" }],
-    messageIncludes: "packages/ui/src/lib/",
-  },
-  {
-    policy: skinFragmentTierPermission,
-    // A REVIEWED-GRANT fold, as for the pointer and z-index tiers: the home's skin fragments fold into one
-    // candidate the central grant licenses. The real home already spells fragments on many low lines, so the
-    // planted fragment sits on line 77, past every real site: the fold's sorted site list can end in 77 only
-    // if it read this file.
-    overlays: [
-      add(
-        "packages/ui/src/lib/_liveness-skin.ts",
-        `${"export const probe = 1;\n"}${"\n".repeat(75)}export const livenessSkin = "bg-backdrop focus-visible:ring-2";\n`,
-      ),
-    ],
-    messageIncludes: ", 77.",
-    granted: true,
-  },
-  {
     policy: stateFiles,
     overlays: [
       add(
@@ -323,12 +300,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: uiPrimitiveStructure,
     overlays: [add(`${UI}/liveness-thing/index.ts`, 'export * from "./variants";\n')],
     messageIncludes: "re-exports private variants",
-  },
-  {
-    policy: uiSkinFragmentPurity,
-    // The homed `OVERLAY_ARROW` fragment (packages/ui/src/lib/overlay-arrow.ts) re-spelled outside lib/.
-    overlays: [add(`${UI}/liveness-arrow/variants.ts`, 'export const livenessOverlay = { arrow: "size-row rotate-45 border border-border bg-popover" };\n')],
-    messageIncludes: "hand-spells a homed skin fragment",
   },
   {
     policy: uiVariantAxesStampedHealth,

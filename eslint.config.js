@@ -643,6 +643,22 @@ const WIDTH_CLASS = String.raw`(?:(?:max-|min-)?w-\[[^\s\]]+\]|(?:max-)?w-(?:[1-
 // These unfenced lexical bans also judge generated declarations; carrier-aware Tailwind rules do not.
 const CLASS_RESTRICTIONS = [
   {
+    id: "ui-skin-fragment-purity",
+    scope: rootSources("@ui"),
+    homes: [{ path: "packages/ui/src/lib/**", why: "Canonical shared focus, scrim, arrow, touch-target and disabled recipe definitions live here." }],
+    selectors: [
+      "focus-visible:ring-",
+      "before:size-touch-target",
+      "rotate-45 border border-border bg-popover",
+      "bg-backdrop",
+      "data-disabled:pointer-events-none data-disabled:opacity-50",
+      "disabled:pointer-events-none disabled:opacity-50",
+    ].map((signature) => ({
+      selector: `:matches(Literal[value=type(string)][raw=/${signature}/], TemplateElement[value.raw=/${signature}/])`,
+      message: "A string outside the canonical UI lib home hand-spells a skin fragment; compose the matching lib constant instead.",
+    })),
+  },
+  {
     id: "no-arbitrary-tw-values",
     scope: rootSources("@client", "@ui"),
     homes: [],

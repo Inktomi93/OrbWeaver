@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The last target remains unresolved at `ctx.backgroundSignal`. Capture publishes the catch. Same-native-Symbol ambient catch admission passes review and controls; target replay remains open. Evidence: `reports/review/1002-native-promise-catch-identity-ordinary.md`. Target and cost remain unqualified.
+The target remains unresolved at `ctx.backgroundSignal`. Native catch admission resolves; the later `createLifecycle` call lacks an admitted supplied consumer. Evidence: `reports/review/1002-native-promise-catch-identity-ordinary.md`. Target and cost remain unqualified.
 
 Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 

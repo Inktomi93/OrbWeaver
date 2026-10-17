@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(319 registered gates)
+(316 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -295,8 +295,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `session-channel-boundary-health` | session-channel | hard/error | @client | session-channel-boundary is BLIND:… |
 | `settings-section-anchored` | — | ordinary/error | @client\* | heading-bearing \<Section> in a… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
-| `skin-fragment-tier-health` | ui-skin-fragment-tier | hard/error | @ui | the reviewed skin-fragment definition… |
-| `skin-fragment-tier-permission` | ui-skin-fragment-tier | reviewed-grant/error | @ui | reviewed skin-fragment… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | raw-spacing-tier | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | draft-commit | ordinary/error | @client | a once-seeded draft is being… |
@@ -361,7 +359,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ui-primitive-permissions` | ui-primitive | reviewed-grant/error | @ui,@tests\* | a primitive shape, CT obligation,… |
 | `ui-primitive-structure` | ui-primitive | ordinary/error | @ui | UI source re-exports private variants… |
 | `ui-size-via-variant` | tailwind-class-token | ordinary/error | @client,@ui | sizes come from variants — a… |
-| `ui-skin-fragment-purity` | ui-skin-fragment-tier | ordinary/error | @ui | a static string outside… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
 | `untrusted-regex-safe-exec` | — | hard/error | @server\* | the canonical world-info regex-key… |
