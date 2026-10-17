@@ -81,7 +81,6 @@ function tlsConfig(port: number, certificate: string): Promise<TlsAnswer> {
 
 test("the real root obtains an IP certificate through native ACME, stores private bytes and serves verified TLS", async () => {
   await using subject = await setup();
-  // biome-ignore lint/nursery/useDisposables: subject owns this borrowed harness and closes it after the native protocol assertions.
   const { harness, caller, authority, setting } = subject;
   await expect(caller.share.enableIpCertificate(setting)).resolves.toMatchObject({ certificate: { state: "obtaining" } });
   await expect.poll(async () => (await caller.share.status()).certificate.state).toBe("active");
@@ -180,7 +179,6 @@ test("overlapping owner certificate enable then disable retains off settings and
   await expect(stat(join(subject.harness.secretsDir, IP_CERTIFICATE_FILE_NAMES.certificateKey))).rejects.toMatchObject({ code: "ENOENT" });
   for (const port of [a.httpsPort, subject.setting.httpsPort]) {
     await using sockets = new AsyncDisposableStack();
-    // biome-ignore lint/nursery/useDisposables: this stack joins close without rethrowing the connection refusal already asserted below.
     const socket = connect({ host: "127.0.0.1", port });
     const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
     sockets.defer(async () => {
@@ -198,7 +196,6 @@ test("overlapping owner certificate enable then disable retains off settings and
 
 test.each(["/directory", "/chall/1", "/order/1/finalize"])("disposal cancels and joins native ACME held at %s before removing its storage", async (path) => {
   await using subject = await setup(path);
-  // biome-ignore lint/nursery/useDisposables: subject owns this borrowed harness; the case invokes its idempotent disposal explicitly.
   const { harness, caller, held, setting } = subject;
   if (held === undefined) {
     throw new Error("authority gate missing");

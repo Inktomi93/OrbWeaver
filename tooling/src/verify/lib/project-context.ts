@@ -616,7 +616,6 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
   if (schemaDataSources.some((source) => owner(source) !== schemaDataProgram)) {
     throw new SemanticInventoryError("native schema roster crosses canonical owners");
   }
-  // biome-ignore lint/nursery/useDisposables: this reader transfers the store handle to its run-owned session.
   const inventory = createSemanticInventory({
     ...idBrandOptions(queries, owner, families),
     root,
