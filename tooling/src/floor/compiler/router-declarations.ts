@@ -1,12 +1,11 @@
 // The server's inferred router contract is emitted by its installed compiler, never copied by hand.
 // Internal aliases must resolve inside the emitted tree; external contracts retain their canonical homes.
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
-import process from "node:process";
 import ts from "typescript";
-import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-
-refuseDirectInvocation(import.meta.url, "pnpm build:router-types");
+import { routerDeclarationInputs } from "./router-declaration-inputs.ts";
+import { publishRouterDeclarations } from "./router-declaration-publication.ts";
+import type { RouterDeclarationPreparation } from "./router-declarations-contract.ts";
 
 type DeclarationImportSite = ts.ImportDeclaration | ts.ExportDeclaration | ts.ImportTypeNode;
 
@@ -33,7 +32,19 @@ function declarationResolutionMode(source: ts.SourceFile, site: DeclarationImpor
   return ts.getModeForUsageLocation(source, usage, options);
 }
 
-function declarationImports(root: string, options: ts.CompilerOptions, host: ts.CompilerHost): ts.TransformerFactory<ts.SourceFile | ts.Bundle> {
+function declarationReference(target: ts.SourceFile | string, serverSource: string, sourceDirectory: string, outputDirectory: string): string {
+  const fileName = typeof target === "string" ? target : target.fileName;
+  const declaration = typeof target !== "string" && target.isDeclarationFile;
+  const internal = fileName.replaceAll("\\", "/").startsWith(serverSource) && !declaration;
+  return relative(internal ? sourceDirectory : outputDirectory, fileName).replaceAll("\\", "/");
+}
+
+function declarationImports(
+  root: string,
+  options: ts.CompilerOptions & { readonly outDir: string },
+  host: ts.CompilerHost,
+  program: ts.Program,
+): ts.TransformerFactory<ts.SourceFile | ts.Bundle> {
   const serverSource = `${resolve(root, "packages/server/src").replaceAll("\\", "/")}/`;
   const printer = ts.createPrinter();
   return (context) => (source) => {
@@ -43,10 +54,18 @@ function declarationImports(root: string, options: ts.CompilerOptions, host: ts.
     const rewrite = (node: ts.StringLiteral, site: DeclarationImportSite): ts.StringLiteral => {
       const mode = declarationResolutionMode(source, site, options, printer);
       const target = ts.resolveModuleName(node.text, source.fileName, options, host, undefined, undefined, mode).resolvedModule?.resolvedFileName;
-      if (target === undefined || !target.replaceAll("\\", "/").startsWith(serverSource)) {
+      if (target === undefined) {
         return node;
       }
-      const path = relative(dirname(source.fileName), target).replaceAll("\\", "/");
+      if (!(node.text.startsWith(".") || target.replaceAll("\\", "/").startsWith(serverSource))) {
+        return node;
+      }
+      const path = declarationReference(
+        program.getSourceFile(target) ?? target,
+        serverSource,
+        dirname(source.fileName),
+        dirname(join(options.outDir, relative(root, source.fileName))),
+      );
       return context.factory.createStringLiteral(path.startsWith(".") ? path : `./${path}`);
     };
     const importType = (node: ts.ImportTypeNode): ts.ImportTypeNode => {
@@ -84,21 +103,26 @@ function diagnosticsText(diagnostics: readonly ts.Diagnostic[], root: string): s
   return ts.formatDiagnostics(diagnostics, { getCurrentDirectory: () => root, getCanonicalFileName: (path) => path, getNewLine: () => "\n" });
 }
 
-/** Rebuild the complete server declaration family; a failed generation leaves no previous artifact. */
-export function buildRouterDeclarations(root: string): number {
+/** Emit a fresh native family and atomically select it without invalidating historical readers. */
+export function prepareRouterDeclarations(root: string): RouterDeclarationPreparation {
   const serverRoot = join(root, "packages/server");
   const output = join(serverRoot, "dist/router-types");
-  const temporary = join(serverRoot, `dist/.router-types-${String(process.pid)}`);
-  rmSync(output, { recursive: true, force: true });
-  rmSync(temporary, { recursive: true, force: true });
+  const generations = join(output, "generations");
+  mkdirSync(generations, { recursive: true });
+  const temporary = mkdtempSync(join(generations, ".pending-"));
+  const observation = routerDeclarationInputs();
   try {
     const configPath = join(serverRoot, "tsconfig.json");
-    const config = ts.readConfigFile(configPath, ts.sys.readFile);
-    if (config.error !== undefined) {
-      throw new Error(diagnosticsText([config.error], root));
+    const parsed = ts.getParsedCommandLineOfConfigFile(configPath, undefined, {
+      ...observation.system,
+      onUnRecoverableConfigFileDiagnostic: (diagnostic) => {
+        throw new Error(diagnosticsText([diagnostic], root));
+      },
+    });
+    if (parsed === undefined) {
+      throw new Error("Native server config could not be parsed.");
     }
-    const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, serverRoot);
-    const options: ts.CompilerOptions = {
+    const options: ts.CompilerOptions & { readonly outDir: string } = {
       ...parsed.options,
       noEmit: false,
       noEmitOnError: true,
@@ -109,16 +133,41 @@ export function buildRouterDeclarations(root: string): number {
       outDir: temporary,
     };
     const host = ts.createCompilerHost(options);
-    const program = ts.createProgram([join(serverRoot, "src/index.ts"), ...parsed.fileNames.filter((path) => path.endsWith(".d.ts"))], options, host);
+    host.readFile = observation.system.readFile;
+    host.fileExists = observation.system.fileExists;
+    host.directoryExists = observation.system.directoryExists;
+    host.getDirectories = observation.system.getDirectories;
+    host.readDirectory = observation.system.readDirectory;
+    const program = ts.createProgram({
+      rootNames: parsed.fileNames,
+      options,
+      host,
+      ...(parsed.projectReferences === undefined ? {} : { projectReferences: parsed.projectReferences }),
+    });
     const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
     if (diagnostics.length > 0) {
       throw new Error(diagnosticsText(diagnostics, root));
     }
+    const roots = new Set(program.getRootFileNames());
+    const ambient = program
+      .getSourceFiles()
+      .filter(
+        (source) => !program.isSourceFileDefaultLibrary(source) && (source.isDeclarationFile || roots.has(source.fileName) || !ts.isExternalModule(source)),
+      );
+    const commandLine = { ...parsed, fileNames: program.getSourceFiles().map((file) => file.fileName), options };
+    const emittedAmbients = ambient
+      .filter((source) => !source.isDeclarationFile)
+      .flatMap((source) => ts.getOutputFileNames(commandLine, source.fileName, !ts.sys.useCaseSensitiveFileNames));
+    const ambientOutputs = new Set(emittedAmbients);
+    const ambientPaths = [
+      ...ambient.filter((source) => source.isDeclarationFile).map((source) => source.fileName),
+      ...emittedAmbients.filter((path) => !path.endsWith(".map")),
+    ];
     let declarations = 0;
     const emitted = program.emit(
       undefined,
       (path, text) => {
-        if (!relative(temporary, path).replaceAll("\\", "/").startsWith("packages/server/src/")) {
+        if (!(relative(temporary, path).replaceAll("\\", "/").startsWith("packages/server/src/") || ambientOutputs.has(path))) {
           return;
         }
         mkdirSync(dirname(path), { recursive: true });
@@ -129,13 +178,20 @@ export function buildRouterDeclarations(root: string): number {
       },
       undefined,
       true,
-      { afterDeclarations: [declarationImports(root, options, host)] },
+      { afterDeclarations: [declarationImports(root, options, host, program)] },
     );
     if (emitted.emitSkipped || emitted.diagnostics.length > 0 || declarations === 0) {
       throw new Error(`Router declaration generation failed (${String(declarations)} declarations).\n${diagnosticsText(emitted.diagnostics, root)}`);
     }
-    renameSync(temporary, output);
-    return declarations;
+    observation.assertCurrent();
+    return publishRouterDeclarations({
+      output,
+      staging: temporary,
+      ambientPaths,
+      declarations,
+      inputs: [...observation.inputs.values()],
+      assertInputsCurrent: observation.assertCurrent,
+    });
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }

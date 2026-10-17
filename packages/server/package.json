@@ -9,7 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./router-types": {
-      "types": "./dist/router-types/packages/server/src/index.d.ts"
+      "types": "./dist/router-types/index.d.ts"
     },
     "./domain/assets": "./src/domain/assets/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
