@@ -19,6 +19,7 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import "@orb/testkit/node/composed-real.ts";
+import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import {
@@ -77,7 +78,6 @@ import { describe, onTestFinished } from "vitest";
 import type { AutomationService } from "#server/domain/automation/index.ts";
 import type { ConnectionService } from "#server/domain/connection/index.ts";
 import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/index.ts";
-import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 import { seedTurns } from "../domain/chat/memory/_support.ts";
 
@@ -2439,7 +2439,7 @@ describe("cross-tenant IDOR sweep — numeric library censuses", () => {
 describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for a stranger", () => {
   /** Seed owner A's one-of-everything (front door where possible; direct db for the turn-engine-bound rows). */
   async function seedOwnerWorld(
-    owner: AppCaller,
+    { caller: owner, principal }: { readonly caller: AppCaller; readonly principal: Principal },
     db: Parameters<typeof seedChat>[0],
     automation: AutomationService,
     connectionService: Pick<ConnectionService, "registerPluginProviders">,
@@ -2547,7 +2547,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // Seed the ordinary composed domain front door; the strict mounted authoring wrappers are probed above.
     const automationRule = await automation.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: automationPrincipal(OWNER_USER_ID),
+      principal,
       chatId,
       name: MARK.automationRule,
       trigger: { bus: "chat", type: "messageCommitted" },
@@ -2563,7 +2563,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     //    rule, which is the baseline the stranger's setRuleEnabled probe must not move.
     const automationOwnerRule = await automation.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: automationPrincipal(OWNER_USER_ID),
+      principal,
       chatId: null,
       name: MARK.automationOwnerRule,
       trigger: { bus: "domain", type: "character.updated" },
@@ -2867,10 +2867,18 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     };
   }
 
-  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({ db, ownerCaller, otherCaller, services, app }) => {
+  test("owner A sees its own marker (the leak-detector has teeth) but a stranger never does", async ({
+    harness,
+    db,
+    ownerCaller,
+    otherCaller,
+    services,
+    app,
+  }) => {
     await app.settleBackground();
     const initialWorkloadIds = (await ownerCaller.workloads.list()).map((workload) => workload.id);
-    const ids = await seedOwnerWorld(ownerCaller, db, services.automation, services.connection);
+    const ownerPrincipal = await harness.principalFor(OWNER_USER_ID);
+    const ids = await seedOwnerWorld({ caller: ownerCaller, principal: ownerPrincipal }, db, services.automation, services.connection);
     const catalogTool = app.toolUse.registerPluginTool({
       name: "plugin_cross_tenant_probe",
       description: MARK.automationTool,
@@ -2880,9 +2888,9 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
         required: ["marker"],
         additionalProperties: false,
       },
-      installer: automationPrincipal(OWNER_USER_ID),
+      installer: ownerPrincipal,
       invoke: (): Promise<string> => Promise.resolve("catalog probe never executes a tool"),
-      resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(automationPrincipal(OWNER_USER_ID), chatId),
+      resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(ownerPrincipal, chatId),
     });
     onTestFinished(() => catalogTool.unregister());
 
@@ -3355,7 +3363,7 @@ const captionProbe = test.extend<{ providerFetch: typeof fetch }>({
 
 captionProbe(
   "cross-tenant IDOR sweep — a stranger cannot caption in owner A's room on A's Utility connection",
-  async ({ db, services, ownerCaller, otherCaller }) => {
+  async ({ harness, db, services, ownerCaller, otherCaller }) => {
     // The owner fixture seeds A's user row, which the room seat and the connection reference.
     expect(ownerCaller).toBeDefined();
     const room = await seedChat(db, "alpha_caption_room", { id: mintTypeId(ID_PREFIX.chat) });
@@ -3380,7 +3388,7 @@ captionProbe(
       connectionId: alphaUtility,
     });
     const avatar = await services.assets.store({
-      principal: automationPrincipal(OTHER_USER_ID),
+      principal: await harness.principalFor(OTHER_USER_ID),
       bytes: STRANGER_AVATAR_PNG,
       kind: "avatar",
       mime: "image/png",
