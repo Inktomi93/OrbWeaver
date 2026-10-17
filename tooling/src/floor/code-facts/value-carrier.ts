@@ -172,6 +172,9 @@ function returnedPropertyValue(
   if (keyName.value !== name) {
     return;
   }
+  if (name === OBJECT_LITERAL_PROTOTYPE_KEY && N.isPropertyAssignment(property) && !N.isComputedPropertyName(property.getNameNode())) {
+    return valueRefusal(property, "unsupported", "an object-literal prototype setter is not an own data property");
+  }
   const value = propertyValue(property);
   if (value === undefined) {
     return valueRefusal(property, "unsupported", "the returned member has no readable value");
@@ -202,7 +205,7 @@ function returnedPropertyName(
     }
     return readStaticString(key.getExpression());
   }
-  return { kind: "resolved", value: property.getName(), trace: { declarations: [], origin: property } };
+  return { kind: "resolved", value: N.isStringLiteral(key) ? key.getLiteralText() : property.getName(), trace: { declarations: [], origin: property } };
 }
 
 function overlayReturnedValue(
