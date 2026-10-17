@@ -129,3 +129,68 @@ test.skipIf(process.platform !== "linux")("completion inventory accepts unreadab
     statFailure = null;
   }
 });
+
+test.skipIf(process.platform !== "linux")("completion refusals retain sanitized decision-time reads without environment or raw error contents", () => {
+  const userId = process.getuid?.();
+  if (userId === undefined) {
+    throw new Error("Linux completion diagnostics require a native user identity");
+  }
+  const privateText = "PRIVATE_ENVIRONMENT_OR_ERROR_CONTENT";
+  const stat = (birth: string): string => `42 (${privateText}) S ${Array.from({ length: 18 }, () => "0").join(" ")} ${birth} 0`;
+  let metadataCode = "EACCES";
+  let statCode: string | null = null;
+  let statusCode: string | null = null;
+  const readFile = (path: string): string | null => {
+    if (path === `/proc/${process.pid}/stat`) {
+      return stat("20");
+    }
+    if (path.endsWith("/stat")) {
+      if (statCode !== null) {
+        throw Object.assign(new Error(privateText), { code: statCode });
+      }
+      return stat("30");
+    }
+    if (path.endsWith("/status")) {
+      if (statusCode !== null) {
+        throw Object.assign(new Error(privateText), { code: statusCode });
+      }
+      return `Name:\t${privateText}\nUid:\t${userId}\t${userId}\t${userId}\t${userId}\nPPid:\t1\n`;
+    }
+    if (path.endsWith("/environ")) {
+      throw Object.assign(new Error(privateText), { code: metadataCode });
+    }
+    return "";
+  };
+  const message = (): string => {
+    try {
+      completionProcesses({ platform: "linux", owner: { pid: process.pid, identity: "20" }, readDir: () => ["42"], readFile });
+    } catch (error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+      throw error;
+    }
+    throw new Error("inaccessible possible ownership must still refuse");
+  };
+  const live = message();
+  expect(live).not.toContain(privateText);
+  expect(live).toContain('"metadataRead":"EACCES"');
+  expect(live).toContain(`"owner":{"pid":${process.pid},"startTicks":"20"}`);
+  expect(live).toContain('"candidate":{"kind":"live","state":"S","startTicks":"30","statRead":"read"}');
+  expect(live).toContain('"statusRead":"read"');
+  expect(live).toContain(`"uids":{"real":${userId},"effective":${userId},"saved":${userId},"filesystem":${userId}}`);
+  statCode = "EACCES";
+  statusCode = "EPERM";
+  const inaccessible = message();
+  expect(inaccessible).not.toContain(privateText);
+  expect(inaccessible).toContain('"metadataRead":"EPERM"');
+  expect(inaccessible).toContain('"candidate":{"kind":"unknown","state":null,"startTicks":null,"statRead":"EACCES"}');
+  expect(inaccessible).toContain('"statusRead":"EPERM"');
+  expect(inaccessible).toContain('"uids":null');
+  statCode = null;
+  statusCode = null;
+  metadataCode = privateText;
+  const unclassified = message();
+  expect(unclassified).not.toContain(privateText);
+  expect(unclassified).toContain('"metadataRead":"unclassified-error"');
+});
