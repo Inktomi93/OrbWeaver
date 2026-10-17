@@ -1681,6 +1681,7 @@ function invocationImplementationInputs(families: readonly InventoryFamily[]): r
         "../code-facts/invocation-evidence-replay.ts",
         "../code-facts/reference-fact-invocation.ts",
         "../code-facts/call-supplied.ts",
+        "../code-facts/call-supplied-private.ts",
         "../code-facts/module-namespace.ts",
         "../code-facts/reference-documentation.ts",
         "../code-facts/type-member-origin-core.ts",
