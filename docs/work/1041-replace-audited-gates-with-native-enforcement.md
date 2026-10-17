@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-class-tokens-1041
+lane: codex/native-entry-network-1041
 plan: test-foundation
 ---
 
@@ -28,7 +28,7 @@ D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswal
 
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
-Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Canonical Principal-origin and typed role checks retain their unmatched claims.
+Native infra identity restrictions preserve generated/declaration coverage. Production-root identity/admin controls pass security review. Principal-origin and typed role claims remain. Evidence: `reports/review/1041-infra-admin-ordinary.md`.
 
 Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
@@ -38,7 +38,7 @@ Native database constraints enforce freeze-provenance row normalization. Complet
 
 Device-local names and persistence options use native types. Private and legacy imports stay restricted. Evidence: `reports/review/1041-persisted-factory-ordinary.md`.
 
-Native lint owns lexical class, skin, banned utilities and lexical determinism. Hover and dark semantic claims retain their custom owners. Evidence: `reports/review/1041-native-determinism-ordinary.md` and `reports/review/1041-native-class-tokens-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities, z-index spellings and lexical determinism. Hover/dark and z-home presence remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md`.
 
 Native lint owns the lowercase engine-name restriction. Canonical Principal-origin and role checks remain: public Caller DTOs expose raw roles. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption stays open.
 
@@ -46,4 +46,6 @@ Production registries supply config anchors and safe navigation with owned jump 
 
 Inert DB, statement and batch wiring preserves original operands. Native import/loader boundaries replace query detection; per-call analysis remains. Security review passes. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
 
-D322 removes schema-export membership hygiene, not authored parity or issues origin. Native forge errors preserve raw drafts and refusal. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`. Other issues grants remain unjudged.
+D322 removes schema-export membership hygiene, not authored parity or issues origin. Native forge errors preserve raw drafts and refusal. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`. Issues permissions retain their structured-data owners.
+
+Native runtime controls inspect mounted/public schemas and prove real over-limit refusal. Private/uninstantiated source obligations remain with the existing gate. Evidence: `reports/review/1041-bounded-list-limit-ordinary.md`.

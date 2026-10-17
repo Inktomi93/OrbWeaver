@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(314 registered gates)
+(312 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -225,7 +225,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
 | `no-raw-spacing-in-features` | raw-spacing-tier | ordinary/error | @client,@ui | raw spacing utility in a class string… |
 | `no-raw-typography-in-features` | raw-typography-tier | ordinary/error | @client,@ui | raw font-size utility in a class… |
-| `no-raw-z-index` | ui-z-index-tier | ordinary/error | @client,@ui | raw z-N or unknown semantic z-index… |
 | `no-rejected-cors-proxy` | — | hard/error | @server,@inference | corsproxy.io spelled in server source… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
@@ -369,8 +368,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
 | `wire-json-parsed-at-consumer` | — | ordinary/error | @client,@server,@inference | a response body is cast instead of… |
 | `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
-| `z-index-tier-health` | ui-z-index-tier | hard/error | @client,@ui | the reviewed z-index home set or… |
-| `z-index-tier-permission` | ui-z-index-tier | reviewed-grant/error | @client,@ui | reviewed z-index implementation home… |
+| `z-index-tier-health` | — | hard/error | @client,@ui | the z-index implementation home set… |
 | `zod-error-issues-home` | zod-modern-spellings | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-modern-spellings` | — | ordinary/error | @product,@tests | a superseded zod spelling — the 4.4.3… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |

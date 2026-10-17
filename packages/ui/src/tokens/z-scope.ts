@@ -29,8 +29,8 @@
 // `--z-raised`, the select's scroll arrows) — those order the float's own children and claim nothing.
 //
 // ENFORCEMENT TIERS, named so nobody reads one as the other:
-//   · TYPE (live): `satisfies Record<ZTokenPath, ZStackingScope>` — a new `z.*` token regenerates
-//     `TOKENS`, and a row missing here fails `tsc`. A scope is not optional metadata; it is minted with
+//   · TYPE (live): the nonempty source-key constraint reads the canonical source keys, so a
+//     vault change without its scope row fails compilation before generation. A scope is minted with
 //     the token.
 //   · TEST (live): `tests/legacy/ui/styles/css-structure.suite.test.ts` reads `shell.css` — the ONE structural
 //     shell stylesheet, and the file the drift lived in — and reds on any `portal-float` token in it,
@@ -48,10 +48,8 @@
 //     and both answers would be wrong. Note the CSS half is deliberately left to the test tier above:
 //     the gate corpus is ts-morph over TSX and does not parse stylesheets.
 
-import type { TokenPath } from "./index.ts";
-
-/** Every `z.*` path in the generated scale, derived — never a hand-spelled union that can drift from it. */
-export type ZTokenPath = Extract<TokenPath, `z.${string}`>;
+/** Every `z.*` path in the canonical source, without loading the vault at runtime. */
+export type ZTokenPath = `z.${keyof typeof import("./tokens.json").z}`;
 
 /** The axis, homed ONCE as a tuple so the union derives and a reader (or the future gate) can enumerate
  *  it. See the header for the rule each value carries. */
@@ -60,7 +58,7 @@ export const Z_STACKING_SCOPES = ["app-frame", "in-context", "portal-float"] as 
 /** Where a rung is allowed to be spelled. */
 export type ZStackingScope = (typeof Z_STACKING_SCOPES)[number];
 
-/** The map. TOTAL by `satisfies`: a new z token that declares no scope fails the typecheck. */
+/** Total over a nonempty source: `Record<never, ...>` alone would accept a stale map after all keys vanish. */
 export const Z_TOKEN_SCOPES = {
   "z.base": "in-context",
   "z.raised": "in-context",
@@ -69,7 +67,7 @@ export const Z_TOKEN_SCOPES = {
   "z.popover": "portal-float",
   "z.toast": "portal-float",
   "z.tooltip": "portal-float",
-} as const satisfies Record<ZTokenPath, ZStackingScope>;
+} as const satisfies ZTokenPath extends never ? never : Record<ZTokenPath, ZStackingScope>;
 
 /** `--z-overlay` → `z.overlay`, for a consumer holding the CSS custom property rather than the token path
  *  (a stylesheet reader, the future gate's class-recipe arm). Returns `undefined` for an unknown name —

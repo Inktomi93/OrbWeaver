@@ -73,14 +73,15 @@ The UI enforcement families:
   libs aren't in client's `package.json`), a deliberate NON-rule — not a dep-cruiser rule.
   `client ⇏ @orb/server` (wire types come from `@orb/contracts`).
 - **Raw class restrictions (native ESLint, `eslint.config.js`).** `orb/no-arbitrary-tw-values`,
-  `orb/no-color-literals`, `orb/no-media-queries-in-features`, `orb/no-pointer-variants-in-features`
-  and `orb/no-raw-container-widths` inspect raw literals and rule-specific template spans in their
-  declared scopes; they do not analyze assembled class values. Use a reasoned line exception only
-  for a legitimate site (D321#3).
-- **Semantic token checks (ts-morph, `tooling/src/verify/gates/`).** `no-raw-spacing-in-features`,
-  `no-raw-typography-in-features` and `no-raw-z-index` retain their typed analysis. The raw class
-  restrictions and semantic checks apply to their declared client/UI populations without a
-  `components/ui/`-style exemption (§11.0/§11.4).
+  `orb/no-color-literals`, `orb/no-media-queries-in-features`, `orb/no-pointer-variants-in-features`,
+  `orb/no-raw-container-widths`, `orb/no-raw-z-index` and `orb/no-unknown-z-index-token` inspect raw
+  literals and rule-specific template spans in their declared scopes; they do not analyze assembled
+  class values. Use a reasoned line exception only for a legitimate site (D321#3).
+- **Semantic token checks (ts-morph, `tooling/src/verify/gates/`).** `no-raw-spacing-in-features` and
+  `no-raw-typography-in-features` retain their typed analysis. They apply to their declared client/UI
+  populations without a `components/ui/`-style exemption (§11.0/§11.4).
+- **Z-index home health (`z-index-tier-health`).** The gate reports missing sanctioned implementation
+  homes; native ESLint restrictions own raw values and unknown semantic z utilities.
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
   the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
   `packages/client/src`, three exact exemptions: `features/app-shell/**` (the SHELL-tier painter),

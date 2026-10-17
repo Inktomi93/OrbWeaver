@@ -85,14 +85,13 @@ const APPLICATION = Object.freeze({
   "ui-primitive-permissions": 6,
   "ui-size-via-variant": 3,
   "wire-schema-vocab-one-home": 1,
-  "z-index-tier-permission": 2,
   "zod-error-issues-home": 8,
 });
 
 const IMPLEMENTATION = Object.freeze({
   "brand-in-name-position": 2,
   "caught-failure-ownership": 21,
-  "no-inline-types": 2,
+  "no-inline-types": 1,
   "no-loose-id-cast": 15,
   "no-test-fabrication": 583,
   "no-vanity-alias": 1,

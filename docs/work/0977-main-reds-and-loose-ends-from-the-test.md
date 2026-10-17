@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-16
+updated: 2026-10-17
 priority: P2
 ---
 
@@ -35,7 +35,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 Remaining findings: legacy disposal and typed-lint errors; maintained classes; client formatting/imports; caught-failure census; `client-lib-floor` from `packages/client/src/lib/agent-bridge.ts` to `packages/client/src/data/index.ts`. Application Knip findings do not reconcile production debt. Preserve supported doors.
 
-Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-1151285-2026-10-16T00-31-01-305Z/check-structure.json`. Main must separate current-law drift from immutable ADR proposals, external SDK names and package-member citations. Preserve decisions; add no allowance.
+Citation checks have no effective findings, tool errors or withheld verdicts; grants exceed their budget. Evidence: `reports/runs/structure/main-1151285-2026-10-16T00-31-01-305Z/check-structure.json`. Separate current-law drift, immutable ADR proposals and external SDK/member names; add no allowance.
 
 Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
 
@@ -43,7 +43,7 @@ Compose integration preserves census equality. Reindex/auth classifications rema
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Reviewed `f7005eb8b6` preserves modal slots and panel focus return. Corpus Snap uses an owned loopback provider, production endpoint updates and captured replay continuation. Native preview and exact-stage retirement pass. Reviewed refusal controls retain resources and reject off-origin transport. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-corpus-provider-stage-independent-review.md`. Separate provider recipes, cancellation reporting and software-rendered snapshots remain unqualified.
+Modal/panel focus return and owned-provider native preview controls pass. Separate provider recipes, cancellation reporting and software snapshots remain unqualified. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-corpus-provider-stage-independent-review.md`.
 
 JSON and wire parsing allowances are zero; whole-application qualification remains open.
 
@@ -54,3 +54,5 @@ Native ESLint partition and real CLI controls pass. The [hosted artifact](https:
 The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-cache-proof.ts` still builds a copied `MessageView` without it. This item owns its corpus-backed replacement; do not insert a fabricated default to silence the type failure.
 
 Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
+
+Signed-header verification reaches ambient JWKS fetch instead of graph-owned execution. A real-root control confirms the bypass. The security network cohort owns correction and stale-grant removal. Evidence: `reports/review/1041-raw-egress-owner.json`. Existing permissions do not license it.

@@ -48,7 +48,7 @@ Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the meas
 
 Discovery every-owner authority is integrated. Remaining owner-read adjudication and type homes (981) are production work. Schedule owner-specific batches without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
-Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Server-root and builders/corpus foundation acceptance is established. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
+Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Builders/corpus foundations qualify; server-root completion awaits graph-owned forward-JWT key retrieval. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
 
 ### Foundation boundaries
 
@@ -89,7 +89,7 @@ Then the rebuild, cheapest proof first: the e2e smoke matrix on the corpus, whic
 - Repair product, security and checker defects. Preserve useful legacy cases for replacement; stop fixture polish, copied-harness repair and waiver bookkeeping as independent deliverables.
 - Rejudge waivers and grants against their actual subjects. Their existence does not establish authority or justify weakening enforcement.
 - Recover unfinished production branches by coherent current-tree changes, not wholesale stale merges. The work items for contract derivation and stored-value parsing own their security blockers.
-- Complete engine and builders/corpus qualification remains open; source integration alone is not completion.
+- Complete engine and replacement qualification remains open; source integration alone is not completion.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
@@ -206,7 +206,7 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native lint owns lexical class, skin, banned utilities and lexical determinism. Hover, dark, z-index and semantic readers remain. Evidence: `reports/review/1041-native-determinism-ordinary.md` and `reports/review/1041-native-class-tokens-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities, z-index spellings and lexical determinism. Hover/dark semantics and z-home presence remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 

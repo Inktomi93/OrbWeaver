@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/projected-callable-handoff-1002
+lane: codex/nested-member-continuation-1002
 plan: test-foundation
 ---
 
@@ -18,7 +18,7 @@ Implement the persisted native-world inventory store and worker lifecycle. Colle
 
 ## Why
 
-Native facts need bounded persistence and indexed readers without giant JSON strings or whole-partition decoding. Qualify worker release and complete publication at real scale. The program requires shared persisted facts, not larger heaps, truncated populations or another detector.
+Persist indexed native facts without whole-partition decoding. Qualify worker release and complete publication; larger heaps, truncated populations and separate detectors do not supply the shared store.
 
 ## Done when
 
@@ -26,7 +26,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Bounded extraction, publication, release and reuse pass. Complete demand stays open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
+Bounded extraction, publication and reuse pass; complete demand stays open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
 Input, brand and lifetime controls pass. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Collector corrections preserve native meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
@@ -42,7 +42,7 @@ Projected callable handoff and selected-slot storage pass bounded controls and s
 
 Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 
-Missing-reference admission passes review and ordinary controls except the partial-env failure. Evidence: `reports/review/1002-captured-reference-source-ordinary.md`.
+Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
 
