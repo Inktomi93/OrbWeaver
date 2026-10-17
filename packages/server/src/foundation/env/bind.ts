@@ -52,10 +52,10 @@
 // re-spelled here rather than reused from `infra/network/ip-ranges` because foundation sits BELOW infra — an
 // upward import is physics-illegal (§2).
 
-import type { AuthMode, SignInTargetMode } from "@orb/contracts/identity";
+import type { SignInTargetMode } from "@orb/contracts/identity";
 import { signInModeEnvLines } from "@orb/contracts/identity";
-import type { NodeEnvironment } from "#primitives/node-environment";
 import { settingInstruction } from "./container.ts";
+import type { BindPosture, BindPostureInput } from "./contract.ts";
 
 /** The login mode that opens a single-user box to other devices. */
 const PASSWORD_MODE: SignInTargetMode = "local";
@@ -68,36 +68,6 @@ const LOOPBACK_ALIASES: ReadonlySet<string> = new Set(["localhost", "::1", "[::1
 
 /** The IPv4 loopback /8 — `127.0.0.0/8` routes to the local host, every octet of it. */
 const LOOPBACK_V4_RE = /^127(\.\d{1,3}){3}$/;
-
-// @orb-waive no-inline-package-interface(BindPostureInput): baselined when the gate landed; burn-down item 952.
-/** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
-export interface BindPostureInput {
-  readonly nodeEnv: NodeEnvironment;
-  readonly authMode: AuthMode;
-  /** `BIND_HOST` — unset means node's own default: EVERY interface. */
-  readonly bindHost: string | undefined;
-  /** `ALLOW_DEV_PUBLIC_BIND` — the deliberate-LAN-dev opt-in. */
-  readonly allowDevPublicBind: boolean;
-  /** `AUTH_FALLBACK_TRUSTED_PEERS` names at least one range: single-user's only door to a non-loopback bind. */
-  readonly ownerPeersDeclared: boolean;
-  /** `runsInContainer`: picks the fix the single-user refusal and notice name. */
-  readonly inContainer: boolean;
-}
-
-// @orb-waive no-inline-package-interface(BindPosture): baselined when the gate landed; burn-down item 952.
-/** The composed posture. Every field is a fact about this boot, safe to print in a boot log. */
-export interface BindPosture {
-  /** The host to hand `serve({ hostname })`. `undefined` ⇒ omit the option ⇒ every interface (node default). */
-  readonly host: string | undefined;
-  /** True when the resolved listener admits connections from beyond loopback. */
-  readonly publicBind: boolean;
-  /** Non-null ⇒ this env combination is BOOT-FATAL; the string is the operator-facing reason. */
-  readonly refusal: string | null;
-  /** The ONE boot-log line stating what this bind means for reachability. Always present: the restriction
-   *  arm has to be discoverable AT THE MOMENT OF CONFUSION — an operator whose FQDN just started answering
-   *  502 greps the boot log, and the 502 itself belongs to the proxy and cannot carry the hint. */
-  readonly notice: string;
-}
 
 /** The reachability sentence for each arm. The restricted one names the symptom (LAN/proxy/FQDN will not
  *  reach this process) AND both exits, because that is the line someone reads while confused. */
@@ -266,3 +236,5 @@ export function bindPostureWarnings(input: BindPostureInput, posture: BindPostur
       "deployment must run `pnpm stack up prod`. Unset the hatch when the LAN session is over.",
   ];
 }
+
+export type { BindPosture, BindPostureInput } from "./contract.ts";

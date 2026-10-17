@@ -245,3 +245,15 @@ export interface PasswordHasher {
    *  in and an SSO-only (null-hash) row simply fails to log in. */
   verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
 }
+
+/** The request facts the decision reads. `forwardedHost` counts only when `peer` is a trusted hop. */
+export interface HostFacts {
+  /** The `Host` header, absent on HTTP/2 and on an in-process request. */
+  readonly hostHeader: string | undefined;
+  /** The authority of the request URL, which the node adapter builds from `Host` or the absolute request line. */
+  readonly urlHost: string;
+  readonly forwardedHost: string | undefined;
+  /** The raw TCP peer; read only when `forwardedHost` is present. */
+  readonly peer: () => string | undefined;
+  readonly trustedProxies: readonly string[];
+}
