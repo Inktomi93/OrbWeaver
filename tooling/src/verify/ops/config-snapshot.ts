@@ -235,7 +235,14 @@ export async function readEslintFileAdmissions(root: string, config: string, pat
     const effective = await eslint.calculateConfigForFile(resolve(root, path));
     if (effective !== undefined) {
       const options = effective.languageOptions?.parserOptions;
-      admitted.push({ path, requiresTypeInformation: Boolean(options?.project) || Boolean(options?.projectService) || Boolean(options?.programs) });
+      admitted.push({
+        path,
+        requiresTypeInformation: Boolean(options?.project) || Boolean(options?.projectService) || Boolean(options?.programs),
+        hasEnabledRules: Object.values(effective.rules ?? {}).some((setting) => {
+          const severity = Array.isArray(setting) ? setting[0] : setting;
+          return severity === "error" || severity === "warn" || severity === 1 || severity === 2;
+        }),
+      });
     }
   }
   return admitted;

@@ -45,6 +45,7 @@ export const config = {
       // dependency lens only fires on a file that IMPORTS something (the runtime's own index.d.ts
       // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
       entry: [
+        "eslint-hard.config.js",
         "scripts/**/*.ts",
         "!scripts/probes/st-goldens/sillytavern-runtime/**",
         "playwright/**/*.{ts,tsx}",

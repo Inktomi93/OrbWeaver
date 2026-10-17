@@ -1,7 +1,5 @@
-// ESLint execution, whole-repository or scoped, is partitioned by native compiler owner so each process holds
-// one TypeScript program and programs die between processes. Discovery asks ESLint itself which files `.` or
-// the scoped paths mean; actual shards use the unchanged production config, parser, rules, processors,
-// formatter, cache, and diagnostics.
+// A fixed untyped HARD pass precedes ordinary native compiler-owner shards. Discovery and admission remain
+// native; ordinary parser worlds and exceptions are unchanged, and programs die between owner processes.
 //
 // CACHE PERSISTENCE (#1931). Each partition's ESLint child runs with `--cache --cache-location` pointing
 // to a PER-OWNER file under `.cache/eslint/`, with a separate scoped set so a scoped run never purges the
@@ -29,6 +27,8 @@ import { readEslintFileAdmissions } from "./config-snapshot.ts";
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
 const CONFIG_REL = "eslint.config.js";
+const HARD_CONFIG_REL = "eslint-hard.config.js";
+const HARD_CHILD_FLAGS = ["--config", HARD_CONFIG_REL, "--no-config-lookup", "--no-inline-config"] as const;
 const DISCOVERY_ENTRY = fileURLToPath(new URL("./config-snapshot-entry.ts", import.meta.url));
 /** Flags shared by every partition child. `--cache-location` is added per owner in {@link runPartitions}.
  *  `--concurrency off`: every ESLint worker thread loads the partition's program again. */
@@ -165,7 +165,7 @@ async function admittedPopulation(root: string, patterns: readonly string[]): Pr
 }
 
 export async function runEslint(root: string): Promise<number> {
-  return runPartitions(root, await admittedPopulation(root, []), "");
+  return runProfiles(root, await admittedPopulation(root, []), "");
 }
 
 export const ESLINT_SCOPED_USAGE =
@@ -185,11 +185,29 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     process.stderr.write("[eslint] eslint.config.js ignores every scoped path; nothing to lint\n");
     return EXIT.clean;
   }
-  return runPartitions(root, admitted, "scoped-");
+  return runProfiles(root, admitted, "scoped-");
+}
+
+async function runProfiles(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): Promise<number> {
+  const hardAdmissions = await readEslintFileAdmissions(
+    root,
+    HARD_CONFIG_REL,
+    admitted.map(({ path }) => path),
+  );
+  const typed = hardAdmissions.find(({ requiresTypeInformation }) => requiresTypeInformation);
+  if (typed !== undefined) {
+    throw new Error(`hard ESLint profile requested type information for ${typed.path}`);
+  }
+  const hard = hardAdmissions.filter(({ hasEnabledRules }) => hasEnabledRules);
+  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, `${cachePrefix}hard-`, HARD_CHILD_FLAGS);
+  if (hardVerdict === EXIT.toolError) {
+    return EXIT.toolError;
+  }
+  return Math.max(hardVerdict, runPartitions(root, admitted, cachePrefix));
 }
 
 /** One sequential ESLint child per compiler owner. The worst verdict wins; a tool error stops the run. */
-function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): number {
+function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string, extraFlags: readonly string[] = []): number {
   const filenames = admitted.map(({ path }) => path);
   const typedPaths = new Set(admitted.filter(({ requiresTypeInformation }) => requiresTypeInformation).map(({ path }) => path));
   const programs = typedPaths.size === 0 ? [] : readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root));
@@ -206,7 +224,7 @@ function runPartitions(root: string, admitted: readonly EslintFileAdmission[], c
     let childVerdict: number;
     try {
       const argumentsFile = join(argumentsDir, "arguments.json");
-      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, "--cache-location", ownerCacheFile, ...paths]));
+      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...extraFlags, "--cache-location", ownerCacheFile, ...paths]));
       const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], { cwd: root, stdio: "inherit" });
       childVerdict = eslintScheme(result.status);
     } finally {

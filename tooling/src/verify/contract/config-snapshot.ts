@@ -3,6 +3,7 @@ export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "depcruise"] as const;
 export interface EslintFileAdmission {
   readonly path: string;
   readonly requiresTypeInformation: boolean;
+  readonly hasEnabledRules: boolean;
 }
 
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];

@@ -25,7 +25,6 @@ import { gate as noLooseIdCast } from "../../../../../tooling/src/verify/gates/n
 import { gate as noMintViaCast } from "../../../../../tooling/src/verify/gates/no-mint-via-cast.ts";
 import { gate as noRawClock } from "../../../../../tooling/src/verify/gates/no-raw-clock.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
-import { gate as noRejectedCorsProxy } from "../../../../../tooling/src/verify/gates/no-rejected-cors-proxy.ts";
 import { gate as noUntypedSoftRef } from "../../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { gate as onePrincipalMintPopulation } from "../../../../../tooling/src/verify/gates/one-principal-mint-population.ts";
@@ -169,11 +168,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noRawEgress,
     overlays: [add(`${DOMAIN}/liveness-egress.ts`, 'export const livenessLoad = async (): Promise<unknown> => await fetch("https://liveness.invalid");\n')],
     messageIncludes: "raw `fetch` in server source",
-  },
-  {
-    policy: noRejectedCorsProxy,
-    overlays: [add(`${DOMAIN}/liveness-proxy.ts`, 'export const livenessProxy = "https://corsproxy.io/?url=";\n')],
-    messageIncludes: "corsproxy.io",
   },
   {
     policy: noUntypedSoftRef,
