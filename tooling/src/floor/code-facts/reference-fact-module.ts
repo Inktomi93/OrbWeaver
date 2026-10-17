@@ -22,6 +22,7 @@ import type {
   ReturnedValueContext,
   ReturnedValueSource,
 } from "./reference-fact-contract.ts";
+import { resolveGlobalMemberOriginWith } from "./reference-fact-global.ts";
 import type { CanonicalModuleTarget, NamespaceBinding } from "./reference-fact-module-helpers.ts";
 import { externalTarget, importDeclarationOf, originFromTarget, projectTarget, requiresResolvedSource } from "./reference-fact-module-helpers.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
@@ -618,12 +619,34 @@ function nativeNamespaceCatchIdentity(call: CallExpression, program: CallReturnP
     member.value.name !== "catch" ||
     signature === undefined ||
     !Node.isInterfaceDeclaration(owner) ||
-    owner.getName() !== "Promise" ||
-    !program.program.isSourceFileDefaultLibrary(signature.getSourceFile().compilerNode) ||
-    member.value.declarations.length === 0 ||
-    !member.value.declarations.every((declaration) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode))
+    owner.getName() !== "Promise"
   ) {
     return services.refusal(call, "unsupported", "the immediate import has no installed native Promise catch member");
+  }
+  // A declaration node may retain its unmerged symbol; its binding leaf carries the native merged identity.
+  const receiver = member.value.receiver.getType().getNonNullableType().getSymbol();
+  const ambient = resolveGlobalMemberOriginWith(owner.getNameNode(), services.references);
+  if (ambient.kind === "unresolved") {
+    return ambient;
+  }
+  const declarations = member.value.declarations.map((declaration) => ({ declaration, owner: declaration.getParent() }));
+  if (
+    receiver === undefined ||
+    owner.getNameNode().getSymbol()?.compilerSymbol !== receiver.compilerSymbol ||
+    ambient.value.globalName !== "Promise" ||
+    ambient.value.memberPath.length > 0 ||
+    !declarations.some(({ declaration }) => declaration.compilerNode === signature.compilerNode) ||
+    !declarations.some(({ declaration }) => program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)) ||
+    !declarations.every(
+      ({ declaration, owner: home }) =>
+        Node.isMethodSignature(declaration) &&
+        Node.isInterfaceDeclaration(home) &&
+        home.getNameNode().getSymbol()?.compilerSymbol === receiver.compilerSymbol &&
+        ambient.value.declarations.some((source) => source.compilerNode === home.compilerNode) &&
+        program.program.getSourceFile(declaration.getSourceFile().getFilePath()) === declaration.getSourceFile().compilerNode,
+    )
+  ) {
+    return services.refusal(call, "unsupported", "the namespace catch member does not retain its native Promise declaration identity");
   }
   return services.references.inspectSymbolWrites(member.value.symbol, call.getExpression());
 }
