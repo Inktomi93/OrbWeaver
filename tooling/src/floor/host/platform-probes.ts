@@ -2,6 +2,7 @@
 // quota files the load budget needs and the `/proc/net/tcp{,6}` socket table Linux falls back to without `ss`. It imports nothing from `proc.ts` or `load-budget*`, because the load
 // budget sits under the process doors (proc.ts takes its timeouts from it) and reads these files through here.
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
+import { constants } from "node:os";
 import process from "node:process";
 import type { ProcessCompletion, ProcessCompletionOwner, ProcessEntry, SocketRow } from "./platform-parse.ts";
 import { nulJoined, parseProcNetTcp, parseProcStatCpuMs, parseProcStatGroup, parseProcStatusParent, parseSocketInode } from "./platform-parse.ts";
@@ -16,17 +17,26 @@ export interface ProcReads {
 
 /** A targeted identity/state read, never a process scanner; unsupported platforms refuse completion. */
 export function processCompletion(pid: number, deps: ProcReads & { readonly platform?: NodeJS.Platform } = {}): ProcessCompletion {
+  return sampleCompletion(pid, deps).value;
+}
+
+interface CompletionSample {
+  readonly value: ProcessCompletion;
+  readonly state: string | null;
+  readonly startTicks: string | null;
+  readonly statRead: string;
+}
+
+function sampleCompletion(pid: number, deps: ProcReads & { readonly platform?: NodeJS.Platform }): CompletionSample {
+  const unavailable = (kind: "unknown" | "gone", statRead: string): CompletionSample => ({ value: { kind }, state: null, startTicks: null, statRead });
   if ((deps.platform ?? process.platform) !== "linux") {
-    return { kind: "unknown" };
+    return unavailable("unknown", "unsupported");
   }
   let stat: string | null;
   try {
     stat = deps.readFile === undefined ? readFileSync(`${PROC}/${String(pid)}/stat`, "utf8") : deps.readFile(`${PROC}/${String(pid)}/stat`);
   } catch (error) {
-    if (gone(error)) {
-      return { kind: "gone" };
-    }
-    return { kind: "unknown" };
+    return unavailable(gone(error) ? "gone" : "unknown", readErrorCode(error));
   }
   const close = stat?.lastIndexOf(")") ?? -1;
   const fields =
@@ -39,9 +49,9 @@ export function processCompletion(pid: number, deps: ProcReads & { readonly plat
   const state = fields[0];
   const identity = fields[STAT_STARTTIME_AFTER_COMM];
   if (state === undefined || !/^[RSDZTtXxKWPI]$/u.test(state) || identity === undefined || !PID_DIR_RE.test(identity)) {
-    return { kind: "unknown" };
+    return unavailable("unknown", stat === null ? "null" : "malformed");
   }
-  return { kind: state === "Z" || state === "X" ? "zombie" : "live", identity };
+  return { value: { kind: state === "Z" || state === "X" ? "zombie" : "live", identity }, state, startTicks: identity, statRead: "read" };
 }
 
 /** Reuse the native table walk, but a failed directory read is not a completed empty sweep. */
@@ -68,11 +78,18 @@ function gone(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && (error.code === "ENOENT" || error.code === "ESRCH");
 }
 
+function readErrorCode(error: unknown): string {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" && Object.hasOwn(constants.errno, error.code)
+    ? error.code
+    : "unclassified-error";
+}
+
 /** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children;
  *  ambiguous ownership under this UID must retain the clone, not become an empty marker selection. */
 function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined): (path: string) => string | null {
   const read = deps.readFile ?? ((path: string): string => readFileSync(path, "utf8"));
   return (path): string | null => {
+    let metadataRead = "null";
     try {
       const value = read(path);
       if (value !== null) {
@@ -82,35 +99,35 @@ function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | u
       if (gone(error)) {
         return null;
       }
+      metadataRead = readErrorCode(error);
     }
-    if (excludeInaccessibleProcess(path, read, owner)) {
-      return null;
-    }
-    throw new Error(`process completion metadata unavailable: ${path}`);
+    return excludeInaccessibleProcess(path, read, owner, metadataRead);
   };
 }
 
-function excludeInaccessibleProcess(path: string, read: (path: string) => string | null, owner: ProcessCompletionOwner | undefined): boolean {
+function excludeInaccessibleProcess(
+  path: string,
+  read: (path: string) => string | null,
+  owner: ProcessCompletionOwner | undefined,
+  metadataRead: string,
+): null {
   const pid = /^\/proc\/(?<pid>\d+)\//u.exec(path)?.groups?.["pid"];
+  let sample: CompletionSample | undefined;
   if (owner !== undefined && pid !== undefined) {
-    const candidate = processCompletion(Number(pid), { readFile: read });
+    sample = sampleCompletion(Number(pid), { readFile: read });
+    const candidate = sample.value;
     if (candidate.kind !== "unknown" && (candidate.kind === "gone" || candidate.kind === "zombie" || BigInt(candidate.identity) < BigInt(owner.identity))) {
-      return true;
+      return null;
     }
   }
-  let status: string | null;
-  try {
-    status = pid === undefined ? null : read(`${PROC}/${pid}/status`);
-  } catch (error) {
-    if (gone(error)) {
-      return true;
-    }
-    throw new Error(`process completion metadata unavailable: ${path}`, { cause: error });
+  const status = completionStatus(pid, read);
+  if (status.gone) {
+    return null;
   }
-  const ids = /^Uid:\s+(?<real>\d+)\s+(?<effective>\d+)\s+\d+\s+\d+/mu.exec(status ?? "")?.groups;
+  const ids = /^Uid:\s+(?<real>\d+)\s+(?<effective>\d+)\s+(?<saved>\d+)\s+(?<filesystem>\d+)/mu.exec(status.text ?? "")?.groups;
   const userId = process.getuid?.();
   const effectiveId = process.geteuid?.();
-  return (
+  if (
     ids !== undefined &&
     userId !== undefined &&
     effectiveId !== undefined &&
@@ -118,7 +135,32 @@ function excludeInaccessibleProcess(path: string, read: (path: string) => string
     Number(ids["real"]) !== effectiveId &&
     Number(ids["effective"]) !== userId &&
     Number(ids["effective"]) !== effectiveId
-  );
+  ) {
+    return null;
+  }
+  // Refusal diagnostics contain only kernel identity fields and known errno names, never metadata bytes or error messages.
+  const facts = {
+    metadataRead,
+    owner: owner === undefined ? null : { pid: owner.pid, startTicks: owner.identity },
+    candidate: sample === undefined ? null : { kind: sample.value.kind, state: sample.state, startTicks: sample.startTicks, statRead: sample.statRead },
+    statusRead: status.read,
+    uids:
+      ids === undefined
+        ? null
+        : { real: Number(ids["real"]), effective: Number(ids["effective"]), saved: Number(ids["saved"]), filesystem: Number(ids["filesystem"]) },
+    selfUid: userId ?? null,
+    selfEffectiveUid: effectiveId ?? null,
+  };
+  throw new Error(`process completion metadata unavailable: ${path} | completion-read ${JSON.stringify(facts)}`);
+}
+
+function completionStatus(pid: string | undefined, read: (path: string) => string | null): { text: string | null; read: string; gone: boolean } {
+  try {
+    const text = pid === undefined ? null : read(`${PROC}/${pid}/status`);
+    return { text, read: text === null ? "null" : "read", gone: false };
+  } catch (error) {
+    return { text: null, read: readErrorCode(error), gone: gone(error) };
+  }
 }
 
 const PROC = "/proc";
