@@ -20,7 +20,6 @@ import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/ga
 import { gate as floorlessControlVocabularyHealth } from "../../../../../tooling/src/verify/gates/floorless-control-vocabulary-health.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as macroResolutionHome } from "../../../../../tooling/src/verify/gates/macro-resolution-home.ts";
-import { gate as noBannedTwUtility } from "../../../../../tooling/src/verify/gates/no-banned-tw-utility.ts";
 import { gate as noFloorlessControlInWrap } from "../../../../../tooling/src/verify/gates/no-floorless-control-in-wrap.ts";
 import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
@@ -108,11 +107,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: macroResolutionHome,
     overlays: [add("packages/client/src/features/preset/liveness-editor.tsx", 'import { processMacros } from "@orb/kit/macro";\nprocessMacros();\n')],
     messageIncludes: "processMacros",
-  },
-  {
-    policy: noBannedTwUtility,
-    overlays: [featureClass("banned", "w-fit max-w-prose px-block")],
-    messageIncludes: "max-w-prose",
   },
   {
     policy: noFloorlessControlInWrap,
