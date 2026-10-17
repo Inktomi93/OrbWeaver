@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication("full"): baselined when the gate widened to value casts; burn-down item 906.
-
 // TIMING RETENTION (#411) — the store keeps a real second data point, and the comparison only ever speaks
 // about stages that are actually comparable.
 //

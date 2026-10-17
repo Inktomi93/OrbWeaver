@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
-
 // Snap filmstrip proof: bounded exact-page CDP capture, action-labelled PNG output, total cleanup,
 // interference refusals, and the absence of the retired Record command it replaced.
 import { existsSync } from "node:fs";
@@ -181,7 +179,6 @@ test("the CLI withholds an over-cap action tape whose required brackets cannot a
 
   await expect(run).toExitWith(EXIT.toolError);
   const indexPath = resultValue(run.stdout, "index");
-  // @orb-waive no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(indexPath, "utf8")) as SnapRunIndex;
   expect(index.verdict).toMatchObject({ exit: EXIT.toolError, state: "refused" });
   expect(index.verdict.arms.find((arm) => arm.arm === "filmstrip")).toMatchObject({
@@ -248,7 +245,6 @@ test("real animated capture writes a parseable labelled PNG and typed exact-scop
   await expect(run).toExitWith(EXIT.clean);
   expect(run.stdout).toContain("FILMSTRIP   frames=");
   const indexPath = resultValue(run.stdout, "index");
-  // @orb-waive no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(indexPath, "utf8")) as SnapRunIndex;
   const artifact = index.artifacts.find((candidate) => candidate.channel === "filmstrip");
   expect(artifact).toMatchObject({
@@ -294,7 +290,6 @@ test("pages retain one browser identity but receive distinct filmstrip artifacts
     { timeoutMs: CLI_TIMEOUT_MS },
   );
   await expect(run).toExitWith(EXIT.clean);
-  // @orb-waive no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(resultValue(run.stdout, "index"), "utf8")) as SnapRunIndex;
   const artifacts = index.artifacts.filter((artifact) => artifact.channel === "filmstrip");
   expect(artifacts.map((artifact) => artifact.relativePath).sort()).toEqual([
@@ -344,7 +339,6 @@ test("contexts retain isolated owner/member identities and distinct exact contex
       { timeoutMs: CLI_TIMEOUT_MS },
     );
     await expect(run).toExitWith(EXIT.clean);
-    // @orb-waive no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
     const index = JSON.parse(await readFile(resultValue(run.stdout, "index"), "utf8")) as SnapRunIndex;
     expect(index.resultPairs).toContainEqual(["users", "owner,member"]);
     const artifacts = index.artifacts.filter((artifact) => artifact.channel === "filmstrip");
@@ -411,7 +405,6 @@ test("scenario checkpoints each own a scoped filmstrip fact and artifact", async
   const run = await runCli("snap", ["--scenario", scenario, "--no-failure-evidence"], { timeoutMs: CLI_TIMEOUT_MS });
   await expect(run).toExitWith(EXIT.clean);
   const indexPath = resultValue(run.stdout, "index");
-  // @orb-waive no-test-fabrication(SnapRunIndex): baselined when the gate widened to value casts; burn-down item 906.
   const index = JSON.parse(await readFile(indexPath, "utf8")) as SnapRunIndex;
   const facts = index.results?.batches.flatMap((batch) => batch.arms).filter((fact) => fact.arm === "filmstrip") ?? [];
   const artifacts = index.artifacts.filter((artifact) => artifact.channel === "filmstrip");

@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication({ hookSpecificOutput: { additionalContext: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hookSpecificOutput?: { hookEventName?: string; additionalContext?: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hooks?: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
-
 // The edit hook (.claude/hooks/biome-check.mjs), driven across the real process boundary with a stub
 // `pnpm` on PATH. Every run gets its own runtime dir, so the hook's host-wide pools are the test's alone.
 import { spawnSync } from "node:child_process";

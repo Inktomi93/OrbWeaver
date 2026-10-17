@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly plugins: readonly Plugin[] }): baselined when the gate widened to value casts; burn-down item 906.
-
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";

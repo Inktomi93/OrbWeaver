@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ProfileArtifact): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ProfileSummaryArtifact): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: a real Vite development page imports this checkout's React development renderer, mounts
 // a named expensive component beside a cheap twin, and schedules an update through Snap's real argv
 // drive. The ranked artifact must put the planted hot path above the twin and retain the component tree,
@@ -210,7 +206,6 @@ async function startFixture(repoRoot: string, plantedTree: (files: Readonly<Reco
   // Vite reads `port: 0` as unset and walks up from 5173, which lands on a real Orb app port (the fixture stack's
   // 5175) when parallel suites hold the ports below it; snap then judges the route as the app's. Middleware mode
   // behind a server bound to port 0 gets a true ephemeral port.
-  // @orb-waive no-test-fabrication({ readonly createServer:): baselined when the gate widened to value casts; burn-down item 906.
   const vite = (await import(viteUrl)) as { readonly createServer: (config: unknown) => Promise<ViteServer> };
   const middleware = await vite.createServer({ root, configFile: false, logLevel: "silent", appType: "spa", server: { middlewareMode: true, hmr: false } });
   const server = createServer(middleware.middlewares);

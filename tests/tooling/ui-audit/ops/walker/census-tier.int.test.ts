@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(RelationalPopulationReport): baselined when the gate widened to value casts; burn-down item 906.
-
 // Both-direction controls for the density-tier resolution census (tooling/src/ui-audit/ops/walker/census-tier.ts
 // + lib/checks-quality.ts checkTierDrift). The fixtures reproduce the tiers.css MECHANISM in miniature — a
 // `--orb-tier-*` custom property set by `[data-surface-tier]`, consumed unlayered by a `[data-slot]` rule —

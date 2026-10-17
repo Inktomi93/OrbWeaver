@@ -8,9 +8,6 @@
 // real tree being clean is enforced separately by `pnpm depcruise`; a broken regex / backreference / typo
 // reds here.
 
-// @orb-waive-file no-test-fabrication({ default: DcConfig }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ stdout?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ summary: { violations: Violation[] } }): baselined when the gate widened to value casts; burn-down item 906.
 import { execFileSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE ARM REGISTRY'S DERIVATIONS (tooling/src/snap/ops/arms/registry.ts + contract/arms.ts). Every claim
 // the plug-in contract makes about "a new arm lands in ONE file" is a DERIVATION from `ARM_DEFS`, and a
 // derivation that quietly stops covering an arm looks exactly like a working one — an unlisted

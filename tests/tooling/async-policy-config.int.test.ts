@@ -1,7 +1,6 @@
 // The executed config proof for #730. This drives the real flat ESLint config through a real TS project
 // service file; inspecting the option object alone would be a green that cannot prove the rule sees Promises.
 
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";

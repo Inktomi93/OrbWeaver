@@ -74,7 +74,6 @@ interface ChildPids {
 async function readPids(file: string): Promise<ChildPids> {
   for (let i = 0; i < PID_WAIT_TICKS; i += 1) {
     if (existsSync(file)) {
-      // @orb-waive no-test-fabrication(ChildPids): baselined when the gate widened to value casts; burn-down item 906.
       return JSON.parse(readFileSync(file, "utf8")) as ChildPids;
     }
     await sleep(PID_WAIT_TICK_MS);
@@ -122,7 +121,6 @@ test("spawnNicedTranscript: a wedged child settles AT the deadline, says so, and
       timeoutMs: DEADLINE_MS,
     });
     const elapsed = wallNowMs() - started;
-    // @orb-waive no-test-fabrication(ChildPids): baselined when the gate widened to value casts; burn-down item 906.
     pids = JSON.parse(readFileSync(pidFile, "utf8")) as ChildPids;
 
     // It SETTLED — the whole point. Before the fix this promise never resolved at all.
@@ -254,9 +252,7 @@ test("#2211 THE DEFECT PROOF — on an ENOBUFS kill the diagnosis reaches the ME
     thrown = error;
   }
 
-  // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
-  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect(occurrences((thrown as Error).message, DIAGNOSIS)).toBe(1);
 });
 
@@ -272,7 +268,6 @@ test("#2211 — the caller's maxBuffer is FORWARDED: without it the ceiling is n
   }
 
   expect(thrown, "a 64KiB payload under a 1KiB ceiling must not come back as a value").toBeInstanceOf(Error);
-  // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as { code?: string }).code).toBe("ENOBUFS");
 });
 
@@ -363,8 +358,6 @@ test("#2272 CONTROL — the de-duplication does NOT cost the ENOBUFS repair: sti
     thrown = error;
   }
 
-  // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect((thrown as { code?: string }).code, "the tiny ceiling must KILL rather than truncate").toBe("ENOBUFS");
-  // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
   expect(occurrences((thrown as Error).message, DIAGNOSIS), "node appended nothing here — the helper is the whole repair").toBe(1);
 });

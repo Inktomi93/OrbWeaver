@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
-
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";

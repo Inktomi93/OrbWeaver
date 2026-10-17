@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly log: { readonly entries: readonly Record<string, unknown>[] } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
 
@@ -186,7 +184,6 @@ test("omitted optional protocol fields normalize to explicit HAR fallbacks", asy
     },
     responseExtra: null,
   });
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const har = (await buildNetworkHar(pageOwner(page))) as {
     readonly log: { readonly entries: readonly { readonly request: Record<string, unknown>; readonly response: Record<string, unknown> }[] };
   };
@@ -213,7 +210,6 @@ test("hung request and response body reads time out, release retention, and pers
   const [record] = await networkRecordsForPages([page]);
   expect(record?.requestBody).toEqual({ text: null, unavailableReason: "timeout", truncatedAt: null });
   expect(record?.responseBody).toEqual({ text: null, base64Encoded: false, unavailableReason: "timeout", truncatedAt: null });
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const har = (await buildNetworkHar(pageOwner(page))) as {
     readonly log: {
       readonly entries: readonly {

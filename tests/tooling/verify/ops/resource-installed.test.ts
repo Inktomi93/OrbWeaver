@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication("base-ui"): baselined when the gate widened to value casts; burn-down item 906.
-
 // Native installed-package loading preserves metadata/declaration reads and exact text-overlay refusals.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";

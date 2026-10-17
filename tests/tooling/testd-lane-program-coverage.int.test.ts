@@ -1,8 +1,3 @@
-// @orb-waive-file no-test-fabrication(NativeListEntry[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(readonly ProjectShape[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
-
 // A `.test-d.ts` has value only when one Vitest type project selects it under the one TS program that
 // roots it. This pin compares Vitest's native listing, TS7's native config roots, and Git's authored
 // test census so a glob, tsconfig, or checker change cannot silently drop, double-own, or vacuously pass it.

@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(TypecheckPlan): baselined when the gate widened to value casts; burn-down item 906.
-
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { TypecheckPlan } from "@orb/tooling/verify";
 import { scaledBudget } from "../../_load-budget.ts";

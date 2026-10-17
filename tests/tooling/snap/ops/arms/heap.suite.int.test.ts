@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(T): baselined when the gate widened to value casts; burn-down item 906.
-
 // @instrument-proof: a retained named object and detached DOM node must survive forced GC, appear in the
 // parsed comparison, and expose a bounded retaining path plus dominator chain through Snap's real page.
 //
@@ -69,14 +65,12 @@ function readJson<T>(path: string): Promise<T> {
 function indexPath(stdout: string): string {
   const match = /RESULT snap exit=\d+ index=(\S+)/u.exec(stdout);
   expect(match?.[1], `missing final Snap index in:\n${stdout}`).toBeTypeOf("string");
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   return match?.[1] as string;
 }
 
 function artifact(index: SnapRunIndex, schema: string): string {
   const found = index.artifacts.find((row) => row.schema === schema)?.path;
   expect(found, `missing ${schema} in ${JSON.stringify(index.artifacts)}`).toBeTypeOf("string");
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   return found as string;
 }
 

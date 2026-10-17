@@ -38,7 +38,6 @@ async function withApp<T>(
     response.end(APP);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
   const address = server.address() as AddressInfo;
   const browser = await chromium.launch({ headless: true });
   try {

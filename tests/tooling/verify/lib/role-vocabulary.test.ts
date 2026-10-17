@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(NonNullable<typeof comparison>): baselined when the gate widened to value casts; burn-down item 906.
-
 // The role-comparison reader is ARMED on both halves. The SYNTAX half normalizes operand order, the bracket
 // spelling and a const-aliased literal into one comparison fact (a literal-text match reads none of the
 // three). The AXIS half answers by the read's own TYPE, which is what separates the participant role from

@@ -19,9 +19,6 @@
 // clean fixture twin must report zero failed audits; an unreachable debugging port must THROW rather than
 // report a comfortable zero.
 
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(NonNullable<typeof good>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ items?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { readFile, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
@@ -283,23 +280,19 @@ test("lighthouse audits the page in the session's own browser (snapshot mode, no
       const config = { extends: "lighthouse:default" as const, settings: { onlyCategories: ["accessibility"] } };
       const flags = { logLevel: "error" as const, output: "json" as const };
 
-      // @orb-waive no-test-fabrication(NonNullable<typeof target>): baselined when the gate widened to value casts; burn-down item 906.
       const bad = await snapshot(target as NonNullable<typeof target>, { config, flags });
       expect(bad).toBeDefined();
-      // @orb-waive no-test-fabrication(NonNullable<typeof bad>): baselined when the gate widened to value casts; burn-down item 906.
       const badRead = readAudits((bad as NonNullable<typeof bad>).lhr);
       expect(badRead.scored.length).toBeGreaterThan(0);
       expect(badRead.failed.map((audit) => `${audit.id}=${audit.nodes}`)).toStrictEqual(["label-content-name-mismatch=1"]);
       // THE TRAP, pinned: the CATEGORY score stays a perfect 1 — this audit carries no category weight. An
       // arm that reported only `lighthouse-a11y=` would print a clean score over a real defect, so the
       // failed-audit list is the load-bearing output, not the score (§6.1's RESULT pairs).
-      // @orb-waive no-test-fabrication(NonNullable<typeof bad>): baselined when the gate widened to value casts; burn-down item 906.
       expect((bad as NonNullable<typeof bad>).lhr.categories["accessibility"]?.score).toBe(1);
 
       // The clean twin: same engine, same browser, zero failed audits with a non-zero audited count — the
       // control that proves the run above measured something.
       await session.page.goto(pathToFileURL(clean).href);
-      // @orb-waive no-test-fabrication(NonNullable<typeof target>): baselined when the gate widened to value casts; burn-down item 906.
       const good = await snapshot(target as NonNullable<typeof target>, { config, flags });
       expect(good).toBeDefined();
       const goodRead = readAudits((good as NonNullable<typeof good>).lhr);

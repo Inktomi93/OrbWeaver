@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly default?: { readonly use?: { readonly ctCacheDir?: string } } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly default?: { readonly use?: { readonly launchOptions?: { readonly args?: readonly string[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE LYING-TOOL PIN for two `pnpm test:ct` runners in ONE worktree (#1581).
 //
 // THE DEFECT, measured 2026-09-04: the ct arm cleared and rebuilt ONE shared dir (`playwright/.cache`) per

@@ -1,8 +1,3 @@
-// @orb-waive-file no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ code?: string; signal?: string | null; stdout?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ status?: number | null }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ stderr?: string }): baselined when the gate widened to value casts; burn-down item 906.
-
 // THE VITEST SEAM of the ONE load policy (NOT a test file — no `.test` suffix, so test-layout ignores it,
 // the `_support.ts` precedent). The POLICY itself moved DOWN to `@orb/tooling/floor/host/load-budget` on
 // 2026-09-02 (#1232): the box reading, the factor, the

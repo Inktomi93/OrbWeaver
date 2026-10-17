@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(keyof typeof EXPECTED_TYPE_EXPORTS): baselined when the gate widened to value casts; burn-down item 906.
-
 // Type-heavy Snap evidence modules expose their cross-file shapes only from contract/. File-local helper
 // types stay private: exporting one "just in case" makes Knip's public API inventory lie and forces every
 // cold agent to decide whether an unused name is contractual.

@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(readonly { label: string }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ total: number; hits: { file: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ total: number; shown: number; hits: Hit[]; meta: { matches: number; status: string } }): baselined when the gate widened to value casts; burn-down item 906.
-
 // Command-level lens and formatting proofs over tiny projects. These call the production VERBS table,
 // ledger, emitter, TypeScript checker, and module resolver; only repository bootstrap/process behavior
 // remains in cli.repo.int.test.ts.
@@ -149,7 +145,6 @@ describe("ast command output over bounded projects", () => {
   test("a narrated single-result verb emits exactly one parseable JSON value", () => {
     const project = projectOf({ "packages/client/src/probe.ts": "export const present = 1;" });
     const run = runVerb(project, { verb: "dead", arg: "missing", argv: ["--json"], corpus: CORPUS_TYPED });
-    // @orb-waive no-test-fabrication({ label: string; total: number; hits: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
     const parsed = JSON.parse(run.stdout) as { label: string; total: number; hits: unknown[] };
     expect(parsed).toMatchObject({ label: "dead missing", total: 0, hits: [] });
     expect(run.stderr).toContain("dead missing: no declaration found");

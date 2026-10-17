@@ -13,14 +13,12 @@ vi.mock("node:fs", async (importOriginal) => {
         const code = fault.kind === "readdir" ? "EACCES" : "ENOTDIR";
         throw Object.assign(new Error(`planted ${code} source failure`), { code });
       }
-      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       return (real.readdirSync as (...args: unknown[]) => unknown)(path, options);
     },
     statSync: (path: Parameters<typeof real.statSync>[0], options?: Parameters<typeof real.statSync>[1]) => {
       if (String(path) === "/planted-unreadable" && fault.kind === "stat") {
         throw Object.assign(new Error("planted EIO source failure"), { code: "EIO" });
       }
-      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       return (real.statSync as (...args: unknown[]) => unknown)(path, options);
     },
   };

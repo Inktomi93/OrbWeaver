@@ -32,7 +32,6 @@ test("package dependency links load under sandbox read grants and workspace impo
   await writeFile(join(sandboxWorkspace, "index.mjs"), 'export default "instrumented";');
   await symlink(store, join(packageModules, "dependency"), "junction");
   await symlink(workspace, join(scopedModules, "contracts"), "junction");
-  // @orb-waive no-test-fabrication(SandboxLinker): baselined when the gate widened to value casts; burn-down item 906.
   const linker = Object.create(mod.Sandbox.prototype) as SandboxLinker;
   linker.workingDirectory = sandbox;
   await linker.linkNodeModulesEntries(root, join(root, "node_modules"), join(sandbox, "node_modules"));
@@ -68,7 +67,6 @@ test("the copied pnpm store retains relative links and relocates absolute juncti
   await writeFile(join(target, "index.mjs"), 'export default "transitive";');
   await symlink(relative(parent, target), join(parent, "relative"), "junction");
   await symlink(target, join(parent, "absolute"), "junction");
-  // @orb-waive no-test-fabrication(SandboxLinker): baselined when the gate widened to value casts; burn-down item 906.
   const linker = Object.create(mod.Sandbox.prototype) as SandboxLinker;
   linker.workingDirectory = sandbox;
   await linker.linkNodeModulesEntries(root, join(root, "node_modules"), join(sandbox, "node_modules"));

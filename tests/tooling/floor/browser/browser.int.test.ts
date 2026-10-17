@@ -1,12 +1,3 @@
-// @orb-waive-file no-test-fabrication(Array<{ deadCss: Array<{ token: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Array<{ mapResult: Array<{ name: string; selector: string; source: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Array<{ mapResult: Array<{ role: string; name: string; actionability: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Array<{ mapResult: Array<{ role: string; name: string; source: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Array<{ mapResult: Array<{ selector: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ checkpoints: Array<{ name: string; screenshot: string | null }> }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ totalMs: number; intervalMs: number; ticks: Array<{ shot: string | null; evals: unknown[] }> }): baselined when the gate widened to value casts; burn-down item 906.
-
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -386,7 +377,6 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
 
   expect(active.status, active.stdout + active.stderr).toBe(0);
   expect(active.stdout).toContain("assertion-fails=0");
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const activeCapture = (manifest(activeName)["captures"] as Record<string, unknown>[])[0];
   expect(activeCapture?.["mapResult"]).toEqual([
     expect.objectContaining({ role: "main", actionability: "locator-only" }),
@@ -409,7 +399,6 @@ test("snap excludes React Activity-style hidden DOM unless the operator opts in"
   ]);
 
   expect(hidden.status, hidden.stdout + hidden.stderr).toBe(0);
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const hiddenCapture = (manifest(hiddenName)["captures"] as Record<string, unknown>[])[0];
   expect(hiddenCapture?.["mapResult"]).toEqual([
     expect.objectContaining({ role: "main", actionability: "locator-only" }),
@@ -434,7 +423,6 @@ test("snap maps the browser-computed name, excluding aria-hidden avatar initials
   const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  // @orb-waive no-test-fabrication(Array<{ mapResult: Array<{ name: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Della" }));
 });
@@ -445,7 +433,6 @@ test("snap concatenates a multi-text-node accessible name with no separator, mat
   const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  // @orb-waive no-test-fabrication(Array<{ mapResult: Array<{ name: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
   expect(capture?.mapResult).toContainEqual(expect.objectContaining({ name: "Couldn't load corpus." }));
 });
@@ -456,7 +443,6 @@ test("--include-hidden computes a real name for a control nested inside an aria-
   const result = runSnap(["--file", page, "--no-shot", "--map", "--include-hidden", "--json", "--no-failure-evidence", "--out", name]);
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  // @orb-waive no-test-fabrication(Array<{ mapResult: Array<{ name: string }> }>): baselined when the gate widened to value casts; burn-down item 906.
   const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string }> }>)[0];
   // Old code's unbounded `closest()` from the text node's parent found the div's aria-hidden ABOVE the
   // button and blanked its name to "" for every descendant, not just the div itself.
@@ -676,7 +662,6 @@ test("snap records warnings, fails strict warnings, and always fails console err
 
   expect(advisory.status, advisory.stdout + advisory.stderr).toBe(0);
   expect(advisory.stdout).toContain("console-warnings=1");
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((manifest(warningName)["console"] as unknown[]).length).toBe(1);
 
   const strict = runSnap(["--file", warningPage, "--no-shot", "--eval", 'console.warn("slow render")', "--strict-console", "--out", warningName]);
@@ -705,9 +690,7 @@ test("checkpoint mode retains boot diagnostics but judges only the interaction w
   expect(bootOnly.stdout).toContain("console-warnings=0");
   expect(bootOnly.stdout).toContain("boot-console-warnings=1");
   const bootReport = manifest(name);
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((bootReport["console"] as unknown[]).length).toBe(1);
-  // @orb-waive no-test-fabrication({ console: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((bootReport["evidence"] as { console: unknown[] }).console.length).toBe(0);
 
   const interaction = runSnap([
@@ -728,9 +711,7 @@ test("checkpoint mode retains boot diagnostics but judges only the interaction w
   expect(interaction.stdout).toContain("console-warnings=1");
   expect(interaction.stdout).toContain("boot-console-warnings=1");
   const interactionReport = manifest(name);
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((interactionReport["console"] as unknown[]).length).toBe(2);
-  // @orb-waive no-test-fabrication({ console: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((interactionReport["evidence"] as { console: unknown[] }).console.length).toBe(1);
 });
 
@@ -766,7 +747,6 @@ test("scenario checkpoints share one browser context and emit one aggregate mani
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain("checkpoints=2");
   const report = manifest(name);
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((report["captures"] as unknown[]).length).toBe(2);
   const checkpoints = (report["scenario"] as { checkpoints: Array<{ name: string; screenshot: string | null }> }).checkpoints;
   expect(checkpoints.map((checkpoint) => checkpoint.name)).toEqual(["first", "second"]);
