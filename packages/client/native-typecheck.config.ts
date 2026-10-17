@@ -11,6 +11,7 @@ const REQUEST = `${EVENT}:request`;
 const MODULE = "/@orb/native-typecheck";
 const DEBOUNCE_MS = 150;
 const SOURCE = /\.[cm]?tsx?$/u;
+const ROUTER_DECLARATION_OUTPUT = "packages/server/dist/router-types/";
 const ROOT_INPUT = /^(?:tsconfig.*\.json|.*\.d\.ts|package\.json)$/u;
 
 interface CheckState {
@@ -146,7 +147,11 @@ export function nativeTypecheck(root: string): Plugin {
       };
       const changed = (_event: string, file: string): void => {
         const path = relative(root, file).replaceAll("\\", "/");
-        if (path.startsWith("packages/") && (SOURCE.test(path) || /\/(?:tsconfig.*|package)\.json$/u.test(path))) {
+        if (
+          !path.startsWith(ROUTER_DECLARATION_OUTPUT) &&
+          path.startsWith("packages/") &&
+          (SOURCE.test(path) || /\/(?:tsconfig.*|package)\.json$/u.test(path))
+        ) {
           invalidate();
         }
       };
