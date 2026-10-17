@@ -86,7 +86,6 @@ export type GateResourceRequest =
    *  file must not be able to read a second by widening its argument. */
   | { readonly kind: "exact-file"; readonly id: ExactResourceId }
   | { readonly kind: "vendor-css-surface" }
-  | { readonly kind: "token-contract" }
   | TokenGeneratedTypeRequest
   | { readonly kind: "authored-path" }
   | { readonly kind: "authored-text" };
@@ -97,7 +96,7 @@ export function isGateResourceUnpopulatedKind(kind: GateResourceRequest["kind"])
 
 /** Generated type inputs are demanded only by selected producer-output source subjects. */
 export function isGeneratedTokenTypeRequest(request: GateResourceRequest): request is TokenGeneratedTypeRequest {
-  return request.kind === "token-contract" && "mode" in request;
+  return request.kind === "token-contract";
 }
 
 export function isUnpopulatedResourceRequest(request: GateResourceRequest): boolean {

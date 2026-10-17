@@ -86,6 +86,7 @@ export type {
 export type { NativeNodeShard, ScopedTestCollection, ScopedTestRunner } from "./contract/scoped-test.ts";
 export { SCOPED_TEST_RUNNERS } from "./contract/scoped-test.ts";
 export type { CtView, Selection, SelectionRequest } from "./contract/selection.ts";
+export { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "./contract/selection.ts";
 export type { ScopedArgv, StageCommand, StageDef, StageGroup, StageMode, StageResult, Tier, TranscriptAudit, VerifyReport } from "./contract/stage.ts";
 export type { MembershipOutcome, MembershipReport, MembershipRow } from "./contract/tests-type-membership.ts";
 export { MEMBERSHIP_OUTCOMES } from "./contract/tests-type-membership.ts";
@@ -148,6 +149,7 @@ export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-so
 export { planTypecheckPrograms } from "./lib/program-routing.ts";
 export { projectCtx, repoRel } from "./lib/project-context.ts";
 export { manualStages, REGISTRY, stagesForTier } from "./lib/registry.ts";
+export { resolveMeasurementBoundary } from "./lib/repo-paths.ts";
 export { canonicalResourceDeclarations, resolvePolicyResourcePaths, resolveResourceDeclarations, resourceRequestIdentity } from "./lib/resource-declaration.ts";
 export { REVIEWED_GRANTS, reviewedGrantsFor } from "./lib/reviewed-grants.ts";
 export type { Parsed } from "./lib/run-argv.ts";

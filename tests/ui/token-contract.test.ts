@@ -1,24 +1,26 @@
-// The token VAULT contract: official DTCG 2025.10 schemas first, Orb semantic checks second. These
-// fixtures exercise the instrument in both directions; the real corpus assertion pins the shipped
-// exact target surface and the deliberately bounded Hearth/Light/Mocha Resolver composition.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// The production token contract validates the shipped vault and its removal history before generation.
+import { cpSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { TokenContractTexts } from "@orb/ui/token-contract";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { describe } from "vitest";
+import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
 import {
+  assertTokenContract,
   FORMAT_SCHEMA_SHA256,
   REQUIRED_SEED_VALUE_SET_PATHS,
   RESOLVER_SCHEMA_SHA256,
   readTokenContractTexts,
+  readTokenRemovalBaseline,
   validateTokenContractTexts,
-} from "@orb/ui/token-contract";
-import { describe } from "vitest";
-import { gate } from "../../tooling/src/verify/gates/tokens-contract.ts";
-import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
+} from "../../packages/ui/token-contract.ts";
+import { resolveMeasurementBoundary } from "../../tooling/src/verify/index.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
 const REPO_ROOT = join(import.meta.dirname, "../..");
+const BASE_REF = resolveMeasurementBoundary(REPO_ROOT, inheritedProcessEnv())?.base ?? "origin/main";
 const BASELINE_TARGETS = new Set(
   readFileSync(join(import.meta.dirname, "../../packages/ui/src/tokens/index.ts"), "utf8")
     .matchAll(/cssVar: "(--[a-z0-9-]+)"/gu)
@@ -138,8 +140,10 @@ function mutate(
   file: "base" | "light" | "mocha" | "resolver" | "removed",
   change: (value: Record<string, unknown>) => void,
 ): TokenContractTexts {
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-  const value = JSON.parse(texts[file]) as Record<string, unknown>;
+  const value: unknown = JSON.parse(texts[file]);
+  if (!isPlainObject(value)) {
+    throw new Error("token fixture root is not an object");
+  }
   change(value);
   return { ...texts, [file]: JSON.stringify(value) };
 }
@@ -155,14 +159,13 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
 });
 
 test("the real vault is conformant and preserves the exact generated target surface", () => {
-  const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT));
+  const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT, REPO_ROOT), REPO_ROOT, BASE_REF);
+  expect(readTokenRemovalBaseline(REPO_ROOT, BASE_REF).status).toBe("ready");
   const countTokens = (value: unknown): number => {
-    if (typeof value !== "object" || value === null) {
+    if (!isPlainObject(value)) {
       return 0;
     }
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-    const record = value as Record<string, unknown>;
-    return "$value" in record ? 1 : Object.values(record).reduce<number>((total, child) => total + countTokens(child), 0);
+    return "$value" in value ? 1 : Object.values(value).reduce<number>((total, child) => total + countTokens(child), 0);
   };
   const texts = readTokenContractTexts(UI_ROOT);
   const constituents = {
@@ -189,8 +192,7 @@ describe("official schema controls", () => {
 
   test("unknown type, invalid unit, and wrong color component count are refused", () => {
     const unknown = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (base["number"] as Record<string, unknown>)["$type"] = "string";
+      descend(base, "number")["$type"] = "string";
     });
     expect(codes(unknown)).toContain("token.type.unknown");
 
@@ -207,15 +209,6 @@ describe("official schema controls", () => {
 });
 
 describe("Orb semantic controls", () => {
-  // CONVERTED 2026-09-13 (#2182 — `26f167a43d`'s own subject line; this comment cited #2183, the SIBLING
-  // pair's issue, until #2294/#2314): `tokens-contract` is a final `defineGate` policy, so its rows run through
-  // the POLICY runner rather than the legacy `verifyGateProofs`, and the real-worktree removal ratchet is no
-  // longer a `ctx.root` conditional — it is the `token-contract` resource's `removalBaseline`, read by the
-  // provider and pinned in tests/tooling/verify/gates/token-contract-family.suite.test.ts.
-  test("the canonical policy proof stays green without weakening the real-worktree removal ratchet", () => {
-    expect(verifyPolicyProofs([gate])).toEqual([]);
-  });
-
   test("comma-packed font members, alias cycles, and terminal type mismatches are refused", () => {
     const font = mutate(validFixture(), "base", (base) => {
       descend(descend(base, "font"), "sans")["$value"] = ["Geist, system-ui"];
@@ -223,8 +216,7 @@ describe("Orb semantic controls", () => {
     expect(codes(font)).toContain("fontFamily.member");
 
     const cycle = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      const group = base["color"] as Record<string, unknown>;
+      const group = descend(base, "color");
       group["a"] = { $value: "{color.b}" };
       group["b"] = { $value: "{color.a}" };
     });
@@ -257,8 +249,7 @@ describe("Orb semantic controls", () => {
 
   test("closed extensions, duplicate outputs, missing var operands, and stale removed rows are refused", () => {
     const extension = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (base["$extensions"] as Record<string, unknown>)["orb.unknown"] = {};
+      descend(base, "$extensions")["orb.unknown"] = {};
     });
     expect(codes(extension)).toContain("orb.extension.unknown");
 
@@ -278,76 +269,53 @@ describe("Orb semantic controls", () => {
       ledger["removed"] = [{ path: "color.background", reason: "plant" }];
     });
     expect(codes(removed)).toContain("removed.stale");
+    expect(codes({ ...validFixture(), removed: '{"$schema":"./schemas/removed.schema.json","removed":[],"removedTargets":[]}' })).toContain("removed.schema");
   });
 
   test("every runtime CSS output declares whether Tailwind or :root owns its placement", () => {
     const missing = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        const { placement: _, ...withoutPlacement } = runtime;
-        css["--shadow-runtime"] = withoutPlacement;
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      const { placement: _, ...withoutPlacement } = runtime;
+      css["--shadow-runtime"] = withoutPlacement;
     });
     expect(codes(missing)).toContain("orb.cssValues");
 
     const invalid = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        runtime["placement"] = "utility";
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      runtime["placement"] = "utility";
     });
     expect(codes(invalid)).toContain("orb.cssValues");
 
     const root = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        runtime["placement"] = "root";
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      runtime["placement"] = "root";
     });
     expect(validateTokenContractTexts(root).diagnostics).toEqual([]);
   });
 
   test("runtime CSS may derive a concrete output only from a portable DTCG alias", () => {
     const portable = mutate(validFixture(), "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        runtime["value"] = "{dimension.gap}";
-        runtime["placement"] = "root";
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      runtime["value"] = "{dimension.gap}";
+      runtime["placement"] = "root";
     });
     expect(validateTokenContractTexts(portable).diagnostics).toEqual([]);
 
     const missing = mutate(portable, "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        runtime["value"] = "{dimension.missing}";
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      runtime["value"] = "{dimension.missing}";
     });
     expect(codes(missing)).toContain("orb.cssValues.alias.missing");
 
     const inputOnly = mutate(portable, "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const css = (base["$extensions"] as Record<string, unknown>)["orb.cssValues"] as Record<string, Record<string, unknown>>;
-      const runtime = css["--shadow-runtime"];
-      if (runtime !== undefined) {
-        runtime["value"] = "{dimension.runtime-blur}";
-      }
+      const css = descend(descend(base, "$extensions"), "orb.cssValues");
+      const runtime = descend(css, "--shadow-runtime");
+      runtime["value"] = "{dimension.runtime-blur}";
     });
     expect(codes(inputOnly)).toContain("orb.cssValues.alias.nonportable");
   });
@@ -355,17 +323,16 @@ describe("Orb semantic controls", () => {
   test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const deleted = mutate(current, "base", (base) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (base["motion"] as Record<string, unknown>)["ambient"] = undefined;
+      descend(base, "motion")["ambient"] = undefined;
     });
-    const result = validateTokenContractTexts(deleted, REPO_ROOT);
+    const result = validateTokenContractTexts(deleted, REPO_ROOT, BASE_REF);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.unrecorded");
     expect(result.diagnostics.map((item) => item.message)).toContain("portable token motion.ambient was removed without a ledger row");
   });
 
   test("the Git merge-base ratchet refuses a same-count runtime CSS target substitution", () => {
     const current = readTokenContractTexts(UI_ROOT);
-    const original = validateTokenContractTexts(current, REPO_ROOT);
+    const original = validateTokenContractTexts(current, REPO_ROOT, BASE_REF);
     const swapped = mutate(current, "base", (base) => {
       const cssValues = descend(descend(base, "$extensions"), "orb.cssValues");
       const portrait = cssValues["--aspect-portrait"];
@@ -375,7 +342,7 @@ describe("Orb semantic controls", () => {
       cssValues["--aspect-portrait"] = undefined;
       cssValues["--aspect-portrait-renamed"] = portrait;
     });
-    const result = validateTokenContractTexts(swapped, REPO_ROOT);
+    const result = validateTokenContractTexts(swapped, REPO_ROOT, BASE_REF);
     expect(original.diagnostics).toEqual([]);
     expect(result.cssTargets.size).toBe(original.cssTargets.size);
     expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
@@ -404,8 +371,7 @@ describe("bounded Resolver controls", () => {
     const current = readTokenContractTexts(UI_ROOT);
     const original = validateTokenContractTexts(current);
     const swapped = mutate(current, "light", (light) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      const colors = light["color"] as Record<string, unknown>;
+      const colors = descend(light, "color");
       const background = colors["background"];
       if (background === undefined) {
         throw new Error("fixture lost Light color.background");
@@ -421,23 +387,19 @@ describe("bounded Resolver controls", () => {
 
   test("missing sets, mispaired seed metadata, extra modifiers, and reversed source order are refused", () => {
     const missing = mutate(validFixture(), "resolver", (resolver) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (resolver["sets"] as Record<string, unknown>)["mocha"] = undefined;
+      descend(resolver, "sets")["mocha"] = undefined;
     });
     expect(codes(missing)).toContain("resolver.sets");
 
     const mispaired = mutate(validFixture(), "resolver", (resolver) => {
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const light = (resolver["sets"] as Record<string, Record<string, unknown>>)["light"];
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-      const extensions = light?.["$extensions"] as Record<string, Record<string, unknown>>;
-      (extensions["orb.theme"] ?? {})["id"] = "hearth";
+      const light = descend(descend(resolver, "sets"), "light");
+      const extensions = descend(light, "$extensions");
+      descend(extensions, "orb.theme")["id"] = "hearth";
     });
     expect(codes(mispaired)).toContain("resolver.theme");
 
     const modifier = mutate(validFixture(), "resolver", (resolver) => {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      (resolver["modifiers"] as Record<string, unknown>)["density"] = {
+      descend(resolver, "modifiers")["density"] = {
         default: "comfortable",
         contexts: { comfortable: [], compact: [] },
       };
@@ -445,9 +407,116 @@ describe("bounded Resolver controls", () => {
     expect(codes(modifier)).toContain("resolver.modifiers");
 
     const order = mutate(validFixture(), "resolver", (resolver) => {
-      // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
-      (resolver["resolutionOrder"] as unknown[]).reverse();
+      const refs = resolver["resolutionOrder"];
+      if (!Array.isArray(refs)) {
+        throw new Error("fixture lost Resolver resolutionOrder");
+      }
+      refs.reverse();
     });
     expect(codes(order)).toContain("resolver.order");
   });
+});
+
+test("every token bundle member is required, nonempty and strict UTF-8", ({ importStagingDir }) => {
+  const root = join(importStagingDir, "repository");
+  const ui = join(root, "packages/ui");
+  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+  expect(() => assertTokenContract(ui, root)).not.toThrow();
+  const members = [
+    "tokens.json",
+    "themes/light.json",
+    "themes/mocha.json",
+    "resolver.json",
+    "removed.json",
+    "schemas/format-2025.10.schema.json",
+    "schemas/resolver-2025.10.schema.json",
+  ];
+  for (const member of members) {
+    const path = join(ui, "src/tokens", member);
+    const intact = readFileSync(path);
+    rmSync(path);
+    expect(() => readTokenContractTexts(ui, root), member).toThrow();
+    writeFileSync(path, "");
+    expect(() => readTokenContractTexts(ui, root), member).toThrow(/empty/);
+    writeFileSync(path, Buffer.from([0x7b, 0xff, 0x7d]));
+    expect(() => readTokenContractTexts(ui, root), member).toThrow(/encoding utf-8/);
+    writeFileSync(path, "{not json");
+    expect(() => assertTokenContract(ui, root), member).toThrow(/json.parse/);
+    writeFileSync(path, intact);
+  }
+  expect(() => assertTokenContract(ui, root)).not.toThrow();
+});
+
+test("token acquisition rejects file and authored ancestor links but admits a repository prefix alias", ({ importStagingDir }) => {
+  const root = join(importStagingDir, "repository");
+  const ui = join(root, "packages/ui");
+  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+  expect(() => assertTokenContract(ui, root)).not.toThrow();
+  const member = join(ui, "src/tokens/resolver.json");
+  renameSync(member, `${member}.source`);
+  symlinkSync(`${member}.source`, member);
+  expect(() => readTokenContractTexts(ui, root)).toThrow(/regular file|symbolic link/);
+  rmSync(member);
+  renameSync(`${member}.source`, member);
+  for (const directory of [join(ui, "src/tokens/themes"), join(ui, "src"), ui, dirname(ui)]) {
+    renameSync(directory, `${directory}.source`);
+    symlinkSync(`${directory}.source`, directory, "dir");
+    expect(() => readTokenContractTexts(ui, root), directory).toThrow(/symbolic link/);
+    rmSync(directory);
+    renameSync(`${directory}.source`, directory);
+  }
+  const alias = join(importStagingDir, "admitted-alias");
+  symlinkSync(root, alias, "dir");
+  expect(() => readTokenContractTexts(join(alias, "packages/ui"), alias)).not.toThrow();
+  expect(lstatSync(join(ui, "src/tokens/tokens.json")).isFile()).toBe(true);
+});
+
+test("native Git history distinguishes a real removal from recorded removal and unavailable history", ({ importStagingDir }) => {
+  const root = join(importStagingDir, "repository");
+  const ui = join(root, "packages/ui");
+  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+  const texts = readTokenContractTexts(ui, root);
+  expect(readTokenRemovalBaseline(root).status).toBe("empty");
+  execFixtureGit(root, ["init", "--quiet"]);
+  expect(readTokenRemovalBaseline(root).status).toBe("empty");
+  configureFixtureGitIdentity(root);
+  execFixtureGit(root, ["add", "packages/ui/src/tokens"]);
+  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture token baseline"]);
+  expect(readTokenRemovalBaseline(root).status).toBe("empty");
+  const baseRef = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
+  expect(readTokenRemovalBaseline(root, baseRef).status).toBe("ready");
+  const dropped = mutate(texts, "base", (base) => {
+    descend(base, "motion")["ambient"] = undefined;
+  });
+  const result = validateTokenContractTexts(dropped, root, baseRef);
+  expect(result.diagnostics.map(({ code }) => code)).toEqual(["removed.unrecorded", "removed.target.unrecorded"]);
+  const recorded = mutate(dropped, "removed", (ledger) => {
+    const rows = ledger["removed"];
+    const targets = ledger["removedTargets"];
+    if (!(Array.isArray(rows) && Array.isArray(targets))) {
+      throw new Error("fixture lost its removal ledger");
+    }
+    rows.push({ path: "motion.ambient", reason: "fixture removal" });
+    targets.push({ target: "--motion-ambient", reason: "fixture removal" });
+  });
+  expect(validateTokenContractTexts(recorded, root, baseRef).diagnostics).toEqual([]);
+  expect(validateTokenContractTexts(texts, { status: "unavailable", reason: "history unavailable" }).diagnostics).toMatchObject([{ code: "removed.baseline" }]);
+  expect(validateTokenContractTexts(texts, { status: "empty", reason: "no history" }).diagnostics).toEqual([]);
+  execFixtureGit(root, ["rm", "--quiet", "packages/ui/src/tokens/tokens.json"]);
+  execFixtureGit(root, ["commit", "--quiet", "-m", "fixture missing baseline vault"]);
+  const missingVault = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
+  expect(readTokenRemovalBaseline(root, missingVault).status).toBe("unavailable");
+  expect(validateTokenContractTexts(texts, root, missingVault).diagnostics).toMatchObject([{ code: "removed.baseline" }]);
+});
+
+test("an explicit acquisition root excludes sibling UI trees without changing standalone admission", ({ importStagingDir }) => {
+  const root = join(importStagingDir, "repository");
+  const ui = join(importStagingDir, "repository-outside/packages/ui");
+  mkdirSync(root);
+  cpSync(join(UI_ROOT, "src/tokens"), join(ui, "src/tokens"), { recursive: true });
+  expect(() => readTokenContractTexts(ui)).not.toThrow();
+  const standaloneAlias = join(importStagingDir, "standalone-alias");
+  symlinkSync(ui, standaloneAlias, "dir");
+  expect(() => readTokenContractTexts(standaloneAlias)).not.toThrow();
+  expect(() => readTokenContractTexts(ui, root)).toThrow(/admitted root/);
 });

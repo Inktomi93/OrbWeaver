@@ -2,7 +2,7 @@
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceFact } from "../contract/resource.ts";
-import type { TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
+import type { TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
 import type { GateResourceRequest } from "../contract/resource-declaration.ts";
 import { isGateResourceUnpopulatedKind } from "../contract/resource-declaration.ts";
 import type { ExactFile, ExactResourceId } from "../contract/resource-exact.ts";
@@ -111,11 +111,6 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
       return fact;
     });
   };
-  function tokenContract(): ResourceFact<TokenContractResource>;
-  function tokenContract(request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource>;
-  function tokenContract(request?: TokenGeneratedTypeRequest): ResourceFact<TokenContractResource> | ResourceFact<TokenGeneratedTypeResource> {
-    return request === undefined ? accept({ kind: "token-contract" }, () => host.tokenContract()) : acceptDemand(request, () => host.tokenContract(request));
-  }
   const bound: ResourceHost = {
     authoredTree: (id) => accept({ kind: "authored-tree", id }, () => host.authoredTree(id)),
     authoredCss: () => accept({ kind: "authored-css" }, () => host.authoredCss()),
@@ -144,7 +139,7 @@ export function bindPolicyResources({ host, context, declarations, onConsumed }:
     ledger: (id) => accept({ kind: "ledger", id }, () => host.ledger(id)),
     exactFiles: fencedExactFiles,
     vendorCssSurface: () => accept({ kind: "vendor-css-surface" }, () => host.vendorCssSurface()),
-    tokenContract,
+    tokenContract: (request: TokenGeneratedTypeRequest): ResourceFact<TokenGeneratedTypeResource> => acceptDemand(request, () => host.tokenContract(request)),
     authoredPaths: (selectors) => acceptDemand({ kind: "authored-path" }, () => host.authoredPaths(selectors)),
     authoredText: fencedText,
   };

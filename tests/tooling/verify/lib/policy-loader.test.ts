@@ -639,7 +639,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
     { kind: "exact-file", id: "ct-boot" },
     { kind: "documents" },
     { kind: "vendor-css-surface" },
-    { kind: "token-contract" },
+    { kind: "token-contract", mode: "generated-types" },
   ] as const) {
     expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
   }
