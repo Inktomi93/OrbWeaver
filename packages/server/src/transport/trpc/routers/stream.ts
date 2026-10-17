@@ -22,52 +22,57 @@
 //
 // CROSS-TENANT SWEEP: all three are PROBED (a stranger attaching a foreign chatId / a foreign socketId).
 
+import type { StreamFrame } from "@orb/contracts/stream";
 import { streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
+import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { getLog } from "#foundation/observability";
 import { roomSourceFor } from "../stream/room-sources.ts";
 import { runSocket } from "../stream/socket.ts";
+import type { SubscriptionErrorFrame } from "../subscriptions.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const streamRouter = t.router({
   // The ONE socket. `withSubscriptionErrors` wraps it for a genuine SOCKET-level fault; a single room's
   // fault never gets here — it is a `roomFailed` control frame and the socket survives (§5.2).
-  connect: authedProcedure.input(streamConnectInputSchema).subscription(({ ctx, input, signal }) => {
-    // Adopt EAGERLY, in the RESOLVER: a generator's body does not run until the first pull, which is far too
-    // late to refuse a connection. A foreign socketId therefore rejects the subscription with the leak-free
-    // NOT_FOUND (and the 9th socket with TOO_MANY_REQUESTS) instead of becoming a frame to interpret.
-    // The cell is stamped with the session THIS connection authenticated with (W7a) — `null` under the
-    // sessionless admission arms. That stamp is what a logout evicts by, per SESSION (F4): the frozen
-    // Principal below cannot say which device this is, and it deliberately never will (D135).
-    const cell = ctx.sockets.adopt(ctx.auth.userId, input.socketId, ctx.sessionId);
-    const sig = signal ?? new AbortController().signal;
-    // Presence + the host-return drain, in the RESOLVER for the same reason as the adopt: they must happen
-    // when the connection is ACCEPTED, not on the consumer's first pull. That is also exactly where the
-    // deleted `notifications.notifications` handler ran them, so the ref-count edge is unchanged in timing —
-    // only in which stream it counts (§5.6). Released on `sig` abort, so a reconnect re-counts.
-    const wasOnline = ctx.presence.read(ctx.auth.userId).online;
-    ctx.presence.connect(ctx.auth.userId, sig);
-    // Host-return drain (chat Part III §5): a genuinely-offline host reconnecting reclaims the AI turns that
-    // DEFERRED onto their box while it was dark. Only on the offline→online edge (not a within-grace
-    // reconnect, not a second device/tab). Fire-and-forget — real generation must not block the connect, and
-    // an empty queue is a cheap no-op.
-    if (!wasOnline) {
-      void ctx.services.chat
-        .drainDeferredTurns({ hostUserId: ctx.auth.userId })
-        .catch((err: unknown) => getLog().error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
-    }
-    return withSubscriptionErrors(
-      runSocket({
-        registry: ctx.sockets,
-        cell,
-        principal: ctx.auth,
-        services: ctx.services,
-        liveBuses: ctx.liveBuses,
-        multiHumanCapable: ctx.multiHumanCapable,
-        signal: sig,
-      }),
-    );
-  }),
+  connect: authedProcedure
+    .input(streamConnectInputSchema)
+    .subscription(({ ctx, input, signal }): AsyncGenerator<TRPCCore.TrackedEnvelope<StreamFrame> | TRPCCore.TrackedEnvelope<SubscriptionErrorFrame>> => {
+      // Adopt EAGERLY, in the RESOLVER: a generator's body does not run until the first pull, which is far too
+      // late to refuse a connection. A foreign socketId therefore rejects the subscription with the leak-free
+      // NOT_FOUND (and the 9th socket with TOO_MANY_REQUESTS) instead of becoming a frame to interpret.
+      // The cell is stamped with the session THIS connection authenticated with (W7a) — `null` under the
+      // sessionless admission arms. That stamp is what a logout evicts by, per SESSION (F4): the frozen
+      // Principal below cannot say which device this is, and it deliberately never will (D135).
+      const cell = ctx.sockets.adopt(ctx.auth.userId, input.socketId, ctx.sessionId);
+      const sig = signal ?? new AbortController().signal;
+      // Presence + the host-return drain, in the RESOLVER for the same reason as the adopt: they must happen
+      // when the connection is ACCEPTED, not on the consumer's first pull. That is also exactly where the
+      // deleted `notifications.notifications` handler ran them, so the ref-count edge is unchanged in timing —
+      // only in which stream it counts (§5.6). Released on `sig` abort, so a reconnect re-counts.
+      const wasOnline = ctx.presence.read(ctx.auth.userId).online;
+      ctx.presence.connect(ctx.auth.userId, sig);
+      // Host-return drain (chat Part III §5): a genuinely-offline host reconnecting reclaims the AI turns that
+      // DEFERRED onto their box while it was dark. Only on the offline→online edge (not a within-grace
+      // reconnect, not a second device/tab). Fire-and-forget — real generation must not block the connect, and
+      // an empty queue is a cheap no-op.
+      if (!wasOnline) {
+        void ctx.services.chat
+          .drainDeferredTurns({ hostUserId: ctx.auth.userId })
+          .catch((err: unknown) => getLog().error({ err, userId: ctx.auth.userId }, "host-return: deferred-turn drain failed"));
+      }
+      return withSubscriptionErrors(
+        runSocket({
+          registry: ctx.sockets,
+          cell,
+          principal: ctx.auth,
+          services: ctx.services,
+          liveBuses: ctx.liveBuses,
+          multiHumanCapable: ctx.multiHumanCapable,
+          signal: sig,
+        }),
+      );
+    }),
 
   // Authorize FIRST (the room's own gate, at the same moment relative to the live attach it runs today),
   // then record the room. A refusing room throws before anything is recorded.

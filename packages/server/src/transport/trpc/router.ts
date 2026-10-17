@@ -3,6 +3,7 @@
 // hence the one sanctioned no-inline-types exception below.
 
 import { bugReportDiagnosticsSchema, clientErrorReportSchema } from "@orb/contracts/diagnostics";
+import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
 import { isOwner } from "#domain/admin";
 import { readBugReportDiagnostics, recordClientError } from "#foundation/observability";
@@ -94,4 +95,4 @@ export const appRouter = t.router({
 export type AppRouter = typeof appRouter;
 
 /** Invokes a procedure through the full middleware ladder without HTTP. */
-export const createCaller = t.createCallerFactory(appRouter);
+export const createCaller: TRPCCore.RouterCaller<TRPCCore.inferRouterRootTypes<AppRouter>, AppRouter["_def"]["record"]> = t.createCallerFactory(appRouter);
