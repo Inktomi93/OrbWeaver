@@ -19,10 +19,7 @@ import { gate as densityTier } from "../../../../../tooling/src/verify/gates/den
 import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/gates/density-tier-slot-map.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as macroResolutionHome } from "../../../../../tooling/src/verify/gates/macro-resolution-home.ts";
-import { gate as noHoverDisplaySwap } from "../../../../../tooling/src/verify/gates/no-hover-display-swap.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
-import { gate as noRawSpacingInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-spacing-in-features.ts";
-import { gate as noRawTypographyInFeatures } from "../../../../../tooling/src/verify/gates/no-raw-typography-in-features.ts";
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
@@ -96,24 +93,9 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "processMacros",
   },
   {
-    policy: noHoverDisplaySwap,
-    overlays: [featureClass("hover-swap", "group-hover/row:hidden")],
-    messageIncludes: "hover-keyed DISPLAY utility",
-  },
-  {
     policy: noOffTokenInlineStyle,
     overlays: [add(`${FEATURE}/liveness-inline-style.tsx`, 'export const G = <div style={{ borderRadius: "8px" }} />;\n')],
     messageIncludes: "off-token raw-literal inline style",
-  },
-  {
-    policy: noRawSpacingInFeatures,
-    overlays: [featureClass("spacing", "p-4")],
-    messageIncludes: "raw spacing utility",
-  },
-  {
-    policy: noRawTypographyInFeatures,
-    overlays: [featureClass("typography", "text-sm")],
-    messageIncludes: "raw font-size utility",
   },
   {
     policy: noTailwindDarkVariant,

@@ -1,36 +1,5 @@
-// The SHARED TABLE for the `raw-spacing-tier` family (owner ruling 2026-09-12, #2096 / §12.3): the
-// sanctioned homes both halves judge, and the ONE place a row is added or retired.
-//
-// WHY IT IS HERE AND NOT IN A GATE MODULE. `no-raw-spacing-in-features` reads this table to SKIP a report
-// (a cited home may spell the raw utility), and `spacing-tier-home-health` reads the SAME table to prove
-// every row still resolves to a real path — a two-sided ratchet only works while both halves read one
-// table. The health sibling used to reach it by importing the occurrence gate module directly, which the
-// owner banned on 2026-09-12: **a gate module NEVER imports another gate module; a shared predicate moves
-// to `lib/<family>.ts`.** `lib/contract-derives-not-respells.ts` is the worked precedent. A gate module is
-// a POLICY — one descriptor, one verdict — and a second policy importing it takes a dependency on somebody
-// else's enforcement surface, so a change made for one arm silently re-aims the other.
-//
-// UNLIKE `lib/tenancy-scope.ts`'s registry, this table moved WITHOUT a naming-convention cost: its keys are
-// PATH PREFIXES, not SQL identifiers, so `useNamingConvention` has nothing to rename and no suppression or
-// key rewrite was needed to bring it here.
-//
-// THE TABLE IS A CLAIM, NOT A PARKING SPACE. Each row says WHY the home may spell the raw utility and what
-// ENDS it; `spacing-tier-home-health` reds any row whose path no longer resolves, so a row cannot outlive
-// the directory it names.
-//
-// THE TABLE IS SCAN-SCOPE DATA, NOT AN EXEMPTION LEDGER (#2176 Phase F, #2320). It was typed
-// `contract/gate.ts#ExemptionTable` and named `SANCTIONED_HOMES` until the Phase F cutover, which made
-// `policy-legacy-imports` ARM D red both consumers: a final policy must not RECEIVE a gate exemption
-// table. The repair is the classification `gate-modernization` ARM B already states — *"if the
-// collection is a scan-SCOPE decision rather than an exemption, rename it out of the exemption
-// vocabulary"* — so the rows are now `contract/tier-home.ts#TierImplementationHomes` and the constant
-// says what it is. MEASURED before renaming (cp-probe 2026-09-14: this table and its twin emptied, all
-// four consumers re-run through `pnpm check:structure --check`, restored, `git status --short` empty):
-// every consumer stayed at ZERO findings. The rows forgive NOTHING today, so they could not have become
-// reviewed grants either — a reviewed grant must be consumed exactly once and a zero-consumption row is
-// an immediate `stale-reviewed-grant` alarm. Their liveness is by PATH
-// (`unresolvedSanctionedHomeKeys`); `lib/sanctioned-home.ts`'s header records why occupancy (mode A) is
-// deliberately not swept.
+// Native occurrence scope and retained hard missing-home health share this implementation-home table.
+// Each tier keeps its own reasons; zero current occurrences do not revoke an implementation permission.
 import type { TierImplementationHomes } from "../contract/tier-home.ts";
 
 export const TIER_IMPLEMENTATION_HOMES: TierImplementationHomes = {

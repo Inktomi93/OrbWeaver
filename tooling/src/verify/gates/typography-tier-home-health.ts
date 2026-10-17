@@ -1,37 +1,5 @@
-// Policy: typography-tier-home-health — the RENAME TRIPWIRE for `no-raw-typography-in-features`'s tier
-// permission (tooling/src/verify/gates/GATE-AUTHORING.md §4.4a mode B): a sanctioned home whose row resolves to zero files on the
-// tree either moved or died, and an exclusion carried in a `population` predicate would follow it into the
-// void silently. This policy shares the exact `TIER_IMPLEMENTATION_HOMES` table with its sibling and runs over the
-// ENTIRE population (never a narrowed subset), because "does this row resolve to a file" is a whole-tree
-// question the occurrence policy's per-file dispatch cannot answer.
-//
-// FAMILY `raw-typography-tier` — a two-member SPLIT family with TWO shared `lib/` modules, and they are
-// different kinds of thing: the shared READER is `lib/sanctioned-home.ts` (`unresolvedSanctionedHomeKeys`
-// here, `sanctionedHome` in the occurrence twin), and the shared TABLE is
-// `lib/raw-typography-tier.ts#TIER_IMPLEMENTATION_HOMES`. Until 2026-09-12 that table was imported FROM THE SIBLING
-// GATE MODULE — the shape the owner banned that day (#2096 / §12.3: a gate module never imports another
-// gate module; a shared predicate moves to `lib/<family>.ts`), with `lib/contract-derives-not-respells.ts`
-// as the worked precedent.
-//
-// POPULATION PORT: INHERITED, not ported — this half has no legacy population of its own. It declares
-// `["@client", "@ui"]` because the occurrence twin does, and the two must be the same set or the tripwire
-// would police a table over files the occurrence policy never reads. The legacy predicate behind it is that
-// twin's `SCOPE_REGEX = /\/packages\/(?:client|ui)\/src\//`, byte-identical to the two roots, recorded once
-// in `no-raw-typography-in-features.ts`.
-// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `a2a93cac72`, the commit that split
-// the tripwire out — `git show a2a93cac72^:<this file>` refuses with "exists on disk, but not in
-// a2a93cac72^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The twin cites
-// `a2a93cac72^` (spelled `1b999db38d…`) for the legacy module both halves came from.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-typography-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the
-// conversion `a2a93cac72`; this module did not exist there, so it is measured against the module it was carved from,
-// `no-raw-typography-in-features` (blob read from git with no working-tree plant: a `GateDescriptor`, no
-// `defineGate`). Over the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩
-// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
-// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
-// both.
+// Native ESLint owns raw typography occurrences; this hard singleton retains the missing-home claim.
+// The entire admitted population and real token anchor preserve scoped deferral and fixture behavior.
 import { defineGate } from "../contract/policy.ts";
 import { TIER_IMPLEMENTATION_HOMES } from "../lib/raw-typography-tier.ts";
 import { unresolvedSanctionedHomeKeys } from "../lib/sanctioned-home.ts";
@@ -53,7 +21,7 @@ export const gate = defineGate({
   facts: [],
   resources: [],
   message:
-    "a SANCTIONED-HOME row for the raw-typography tier permission resolves to no file on the tree — the typography-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-typography-in-features.ts.",
+    "a SANCTIONED-HOME row for the raw-typography tier permission resolves to no file on the tree — the typography-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in lib/raw-typography-tier.ts.",
   create: (ctx) => ({
     evaluate: () => {
       if (!ctx.files.some((sourceFile) => ctx.relativePath(sourceFile) === ANCHOR)) {
@@ -62,7 +30,7 @@ export const gate = defineGate({
       for (const key of unresolvedSanctionedHomeKeys(ctx.files, ctx.relativePath, TIER_IMPLEMENTATION_HOMES)) {
         ctx.report.file(ANCHOR, {
           line: 1,
-          message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the typography-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in no-raw-typography-in-features.ts`,
+          message: `stale SANCTIONED-HOME row — "${key}" resolves to no file on the tree, so the typography-token implementation tier it exempts either moved or died and its new path is judged by nobody: re-point the row at the real home or delete it, in lib/raw-typography-tier.ts`,
         });
       }
     },
