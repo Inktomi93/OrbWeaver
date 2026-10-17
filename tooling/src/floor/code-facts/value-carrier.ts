@@ -2583,6 +2583,40 @@ function nonCallableData(node: Node): boolean {
   return !callableValue(node) && (runtimeUndefinedValue(node) || readStaticAuthoredValue(node).kind === "resolved");
 }
 
+function projectedObjectInvocation(use: Node, source: ReturnedValueSource, proof: CallableUseProof): boolean {
+  const program = proof.program;
+  const access = use.getParent();
+  const member = access === undefined ? undefined : staticMemberAccess(access);
+  const call = access?.getParent();
+  if (
+    program === undefined ||
+    access === undefined ||
+    member?.receiver !== use ||
+    !N.isCallExpression(call) ||
+    call.getExpression() !== access ||
+    isReferenceWriteTarget(use) ||
+    !ownDataProperty(source, member.name, program)
+  ) {
+    return false;
+  }
+  const projected = callableSuppliedLeaves(access, [], program, { bindings: source.bindings, active: new Set() });
+  return (
+    projected.kind === "resolved" &&
+    projected.value.length > 0 &&
+    projected.value.every((actual) => {
+      const property = actual.value.getParent();
+      return (
+        N.isArrowFunction(actual.value) &&
+        N.isPropertyAssignment(property) &&
+        property.getInitializer() === actual.value &&
+        property.getParent() === source.value &&
+        matchingAllocationBindings(source.value, source, actual)
+      );
+    }) &&
+    callableProjectedUse(access, projected, { ...proof, bindings: source.bindings, completeInvocations: true })
+  );
+}
+
 function projectedObjectClosed(source: ReturnedValueSource, proof: CallableUseProof): boolean {
   let allocation = source.value;
   for (
@@ -2609,7 +2643,7 @@ function projectedObjectClosed(source: ReturnedValueSource, proof: CallableUsePr
   const endpoints = new Set(source.selectedDescriptors?.map((descriptor) => descriptor.value));
   const missing = unprovenReferenceUse(name, (use, binding) => {
     const admitted = readCallReturnReference(use, binding, program);
-    return admitted.kind === "unresolved" ? refuseCallableUse(proof, admitted) : endpoints.has(use);
+    return admitted.kind === "unresolved" ? refuseCallableUse(proof, admitted) : endpoints.has(use) || projectedObjectInvocation(use, source, proof);
   });
   return missing === undefined && proof.state.refusal === undefined;
 }

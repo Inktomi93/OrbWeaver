@@ -1,10 +1,11 @@
 // @subject tooling/src/floor/code-facts/value-carrier.ts
 // @subject tooling/src/floor/code-facts/call-supplied.ts
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { observeCallReturns, readObservedCallableConsumers, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
+import { observeCallReturns, readCallBindings, readObservedCallableConsumers, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass, inspectInheritedReadEffects } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallReturnProgram, InheritedReadPremise } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import { readAuthoredCallableSources, readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
+import { nativeReferenceNodes } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { ArrowFunction, CallExpression, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 
@@ -604,6 +605,156 @@ test("a nested optional sibling retains its composed input field and null fallba
     endReferencePass();
   }
 });
+
+interface DelegateReaderFixture extends ProjectedFixture {
+  readonly method: CallExpression;
+  readonly extra: CallExpression | undefined;
+  readonly delegate: import("ts-morph").VariableDeclaration;
+}
+
+function delegateReaderFixture(extraReceiver: boolean, input: ProjectedFixtureInput = {}): DelegateReaderFixture {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile(
+    "/repo/delegate-reader.ts",
+    `${input.prefix ?? ""}function createStats(){return {settleRetainedChatRebase:()=>1};}
+      async function completeHandoffResumption(ctx,resume){await ctx.rpg?.handoffRekeyActors(resume.chatId,resume.actorRekeys);}
+      function use(ctx){completeHandoffResumption(ctx,{chatId:"chat",actorRekeys:["actor"]});ctx.settleRetainedChatRebase();}
+      function buildChatService(input){const stats=createStats();const context={...{left:0},...{right:0},settleRetainedChatRebase:stats.settleRetainedChatRebase,rpg:input.rpg??null};use(context);}
+      function createResolveChatUserMacroDefs(read){return (chatId)=>read(chatId);}
+      function composeServices(){
+        const actualOps={handoffRekeyActors:(chatId,cardCopies)=>{},resolveUserMacros:(chatId)=>[]};
+        const rpgOps=()=>actualOps;
+        ${input.allocation ?? "const"} rpgOpsDelegate={handoffRekeyActors:(chatId,cardCopies)=>rpgOps().handoffRekeyActors(chatId,cardCopies),${input.fields ?? "resolveUserMacros:(chatId)=>rpgOps().resolveUserMacros(chatId)"}};
+        buildChatService({rpg:rpgOpsDelegate});
+        ${input.after ?? ""}
+        ${extraReceiver ? 'const macros=createResolveChatUserMacroDefs((chatId)=>rpgOpsDelegate.resolveUserMacros(chatId));macros("chat");' : ""}
+      }
+      composeServices();`,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const selected = calls.find((call) => call.getExpression().getText() === "ctx.settleRetainedChatRebase");
+  const method = calls.find((call) => call.getExpression().getText() === "ctx.rpg?.handoffRekeyActors");
+  const extra = calls.find((call) => call.getExpression().getText() === "rpgOpsDelegate.resolveUserMacros");
+  const delegate = source.getDescendantsOfKind(SyntaxKind.VariableDeclaration).find((declaration) => declaration.getName() === "rpgOpsDelegate");
+  if (selected === undefined || method === undefined || delegate === undefined) {
+    throw new Error("the actual composed delegate allocation or invocation is missing");
+  }
+  const expected = source.getFunctionOrThrow("createStats").getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  return { project, source, calls, selected, method, extra, delegate, expected };
+}
+
+for (const extraReceiver of [false, true]) {
+  test(`a composed delegate preserves its extra authored receiver invocation: ${extraReceiver}`, () => {
+    const { project, source, calls, selected, method, extra, delegate, expected } = delegateReaderFixture(extraReceiver);
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual delegate native capture is missing");
+      }
+      expect(program.program).toBe(project.getProgram().compilerObject);
+      expect(program.program.getSourceFile(source.getFilePath())).toBe(source.compilerNode);
+      expect(program.byCall.has(selected.compilerNode)).toBe(true);
+      expect(program.byCall.has(method.compilerNode)).toBe(true);
+      expect(extra !== undefined).toBe(extraReceiver);
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(result.kind, result.kind === "unresolved" ? `${result.detail} at ${result.node.getText()}` : "resolved").toBe("resolved");
+      expect(result.kind === "resolved" ? result.value.map((leaf) => leaf.value) : []).toEqual([expected]);
+      const reference = extra?.getExpression().asKindOrThrow(SyntaxKind.PropertyAccessExpression).getExpression();
+      expect(nativeReferenceNodes(delegate.getNameNode().asKindOrThrow(SyntaxKind.Identifier)).filter((node) => node === reference)).toHaveLength(
+        extraReceiver ? 1 : 0,
+      );
+      if (extra === undefined) {
+        return;
+      }
+      const owner = delegate
+        .getInitializerOrThrow()
+        .asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
+        .getPropertyOrThrow("resolveUserMacros")
+        .asKindOrThrow(SyntaxKind.PropertyAssignment)
+        .getInitializerOrThrow()
+        .asKindOrThrow(SyntaxKind.ArrowFunction);
+      const witness = program.byCall.get(extra.compilerNode);
+      expect(witness?.targets.kind === "resolved" ? witness.targets.value : []).toEqual([owner]);
+      const settled = program.suppliedCallableUses?.(extra);
+      expect(settled?.kind).toBe("resolved");
+      expect(program.callers.get(owner.compilerNode)?.map((caller) => caller.call)).toEqual([extra]);
+      const formal = owner.getParameters()[0];
+      if (formal === undefined) {
+        throw new Error("the actual delegate reader formal is missing");
+      }
+      expect(readCallBindings(extra, owner, new Map()).get(formal)).toBe(extra.getArguments()[0]);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+const DELEGATE_READER_REFUSALS = [
+  { name: "mutable allocation", allocation: "let" },
+  { name: "receiver replacement", after: "rpgOpsDelegate={handoffRekeyActors:()=>{},resolveUserMacros:()=>[]};" },
+  { name: "called member replacement", after: "rpgOpsDelegate.resolveUserMacros=()=>[];" },
+  { name: "sibling member replacement", after: "rpgOpsDelegate.handoffRekeyActors=()=>{};" },
+  { name: "called member getter", fields: "get resolveUserMacros(){return ()=>[];}" },
+  { name: "prototype replacement", fields: "__proto__:{},resolveUserMacros:()=>[]" },
+  { name: "called member mutates receiver", fields: "resolveUserMacros:()=>{rpgOpsDelegate.handoffRekeyActors=()=>{};return []; }" },
+  {
+    name: "called member escapes receiver",
+    prefix: "declare function escape(value:object):void;",
+    fields: "resolveUserMacros:()=>{escape(rpgOpsDelegate);return []; }",
+  },
+  { name: "opaque receiver escape", prefix: "declare function escape(value:object):void;", after: "escape(rpgOpsDelegate);" },
+  { name: "opaque member escape", prefix: "declare function escape(value:object):void;", after: "escape(rpgOpsDelegate.resolveUserMacros);" },
+  { name: "receiver-dependent function", fields: "resolveUserMacros:function(){this.handoffRekeyActors();return []; }" },
+  { name: "foreign callable", prefix: "declare const foreign:()=>object;", fields: "resolveUserMacros:foreign" },
+] as const;
+
+for (const input of DELEGATE_READER_REFUSALS) {
+  test(`a composed delegate reader refuses ${input.name}`, () => {
+    const { source, calls, selected } = delegateReaderFixture(true, input);
+    beginReferencePass();
+    try {
+      const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual delegate refusal capture is missing");
+      }
+      const result = readAuthoredCallableSources(selected.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+      expect(result.kind).toBe("unresolved");
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const invalidation of ["call", "references", "foreign", "stale"] as const) {
+  test(`a composed delegate reader refuses ${invalidation} native inputs before writes`, () => {
+    const { project, source, calls, selected, extra } = delegateReaderFixture(true);
+    const omitted = new Set(["read", "macros", "createResolveChatUserMacroDefs", "composeServices"]);
+    const observed = observeCallReturns(
+      calls.filter((call) => invalidation !== "call" || (call !== extra && !omitted.has(call.getExpression().getText()))),
+      invalidation === "references" ? undefined : source.getDescendants(),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    if (program === undefined || extra === undefined) {
+      throw new Error("the actual delegate reader capture or invocation is missing");
+    }
+    const nativeExtra = extra.compilerNode;
+    expect(program.byCall.has(nativeExtra)).toBe(invalidation !== "call");
+    const before = program.byCall;
+    const input = invalidation === "foreign" ? delegateReaderFixture(true).selected : selected;
+    if (invalidation === "stale") {
+      project.compilerOptions.set({ strict: true });
+    }
+    const result = readAuthoredCallableSources(input.getExpression(), (call) => program.byCall.has(call.compilerNode), observed);
+    expect(result.kind).toBe("unresolved");
+    expect(program.byCall).toBe(before);
+    expect(program.byCall.has(nativeExtra)).toBe(invalidation !== "call");
+    expect(program.inheritedReadTrialActive?.()).toBe(false);
+  });
+}
 
 const NULLISH_VALUES = [
   { name: "present object", setup: "const lhs={run:()=>1};", chosen: "lhs" },
