@@ -275,10 +275,8 @@ export interface CollectionContribution {
    *  C-4 exists to forbid. Export stays the row's own kebab arm (owner-rendered, per-member).
    *
    *  OPTIONAL, unlike `create`: a library you cannot ADD to is not a library, but a library with no portable
-   *  single-entity file genuinely has nothing to import — `lifecycle-portability.ts`'s `LIFECYCLE_DOORS`
-   *  table is the register of which family is which, and its `{ ruled }` cells carry the reason. (It used to
-   *  say "regex scripts travel inside the card they belong to" as the example; that exemption ENDED with the
-   *  owner's REGX2 ruling, and regex now declares a real door pair.)
+   *  single-entity file genuinely has nothing to import. Production `LIFECYCLE_DOORS` in
+   *  `packages/server/src/entry/compose/portability.ts` records each family's doors and explicit no-door reasons.
    *  `label` is the trigger's accessible name AND its tooltip; `accept` is the file-picker filter; `useRun`
    *  is a HOOK returning the runner for the same reason `create.useRun` is. */
   readonly importFile?: { readonly label: string; readonly accept: string; readonly useRun: () => (file: File) => void };
