@@ -21,6 +21,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **UI token-authoring API** | `packages/ui/token-contract.ts` (Node) | UI token build and verification |
 | **client-only view** | client | client |
 | **component or sealed UI primitive API** | the owning component, hook, factory or renderer | primitive callers and tests |
+| **server factory API** (a factory's deps, options, handle and result shapes in entry, transport, infra or foundation) | the file that declares the factory | the factory's callers in its tier |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
 **The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.
@@ -33,7 +34,7 @@ Component-owned prop and render APIs may stay beside their component. Derive nat
 
 D42 and D54 place domain-agnostic component, DOM and string-math primitives in UI; [UI-Primitives section 13.9](UI-Primitives-and-Reuse.md#139-homing--the-parked-list) owns that boundary. Their options, handles and supporting shapes stay with the actual primitive API. Establish ownership from its production signature and dependency graph, not a package path or shape name. Unrelated pure engines stay in kit. Generated vocabulary and Node build APIs require their own owner; browser component evidence does not qualify them.
 
-Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
+A server factory shape is owned by its production signature: it is a parameter, return type or member of a function declared in the same file (D324). A plain-data shape with a wire-vocabulary name is wire data, not a factory shape, and takes the wire home. Inline application data shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
 
 **The enforcers:**
 
@@ -42,7 +43,7 @@ Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport
 | ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and foundation observability; generated declarations and domain test mirrors retain custom ownership |
 | `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in its existing populations, excluding qualified native direct aliases; local export origins and generated token ownership remain custom |
 | `no-inline-domain-interface` | server-domain interface origins outside contract homes, excluding qualified native direct declarations; local export lists and unadmitted generated declarations remain custom |
-| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and observability direct declarations |
+| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and observability direct declarations; the server factory API row is not yet excluded (D324) |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |

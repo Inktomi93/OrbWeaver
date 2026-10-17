@@ -309,6 +309,8 @@ gate requires a fresh calibration run, because `break` is bound to the measured 
 
 A test proves what ships. Helpers, stories and fixtures must follow a product change without edits.
 
+This section governs tests of the product, including the shared builders under `tests/support`. Tests under `tests/tooling` prove the tools and follow `.claude/rules/tooling.md` (D325); the value-cast judgement of `no-test-fabrication` does not reach them, while the fabrication double-cast and production-clone judgements do.
+
 - **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect. `test-production-clone` flags a test-tree function whose body has the shape of an exported production function.
 - **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast. `test-hand-shape` flags a shape in an e2e or support module whose fields copy an exported production shape, or kept most of its field names after drifting; a shared name alone is not a finding. `no-test-fabrication` flags a cast the checker cannot prove.
 - **Import constants.** Labels, ids, defaults, limits, tokens, timings and contrast floors come from their production home. If a CT cannot import a `.tsx` value, move the value to a zero-import `.ts` module.
