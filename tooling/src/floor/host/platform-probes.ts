@@ -94,7 +94,7 @@ function excludeInaccessibleProcess(path: string, read: (path: string) => string
   const pid = /^\/proc\/(?<pid>\d+)\//u.exec(path)?.groups?.["pid"];
   if (owner !== undefined && pid !== undefined) {
     const candidate = processCompletion(Number(pid), { readFile: read });
-    if (candidate.kind !== "unknown" && (candidate.kind === "gone" || BigInt(candidate.identity) < BigInt(owner.identity))) {
+    if (candidate.kind !== "unknown" && (candidate.kind === "gone" || candidate.kind === "zombie" || BigInt(candidate.identity) < BigInt(owner.identity))) {
       return true;
     }
   }

@@ -81,3 +81,51 @@ test.skipIf(process.platform !== "linux")("completion inventory refuses hidden p
   ).toEqual([]);
   expect(() => completionProcesses({ platform: "linux", readDir, readFile: () => null })).toThrow("completion metadata unavailable");
 });
+
+test.skipIf(process.platform !== "linux")("completion inventory accepts unreadable zombie metadata only after a positive terminal state", () => {
+  const userId = process.getuid?.();
+  const stat = (phase: string, birth: string): string => `42 (native) ${phase} ${Array.from({ length: 18 }, () => "0").join(" ")} ${birth} 0`;
+  const owner = { pid: process.pid, identity: "20" };
+  let state = "S";
+  let identity = "30";
+  let metadataFailure: string | null = "EACCES";
+  let statFailure: string | null = null;
+  const readFile = (path: string): string | null => {
+    if (path === `/proc/${process.pid}/stat`) {
+      return stat("S", owner.identity);
+    }
+    if (path.endsWith("/stat")) {
+      if (statFailure !== null) {
+        throw Object.assign(new Error("unavailable native state"), { code: statFailure });
+      }
+      return stat(state, identity);
+    }
+    if (path.endsWith("/status")) {
+      return `Uid:\t${userId}\t${userId}\t${userId}\t${userId}\nPPid:\t1\n`;
+    }
+    if (path.endsWith("/environ")) {
+      if (metadataFailure !== null) {
+        throw Object.assign(new Error("unavailable native environment"), { code: metadataFailure });
+      }
+      return null;
+    }
+    return "";
+  };
+  const read = (): ReturnType<typeof completionProcesses> => completionProcesses({ platform: "linux", owner, readDir: () => ["42"], readFile });
+  for (metadataFailure of ["EACCES", "EPERM", "EIO", null]) {
+    state = "S";
+    identity = "30";
+    expect(read).toThrow("completion metadata unavailable: /proc/42/environ");
+    identity = "31";
+    expect(read).toThrow("completion metadata unavailable: /proc/42/environ");
+    for (state of ["Z", "X"]) {
+      expect(read()).toEqual([{ pid: 42, ppid: 1, cmdline: "", environ: null, cpuMs: 0 }]);
+    }
+    for (statFailure of ["EACCES", "EPERM", "EIO"]) {
+      expect(read).toThrow("completion metadata unavailable: /proc/42/environ");
+    }
+    statFailure = "ENOENT";
+    expect(read()).toEqual([{ pid: 42, ppid: 1, cmdline: "", environ: null, cpuMs: null }]);
+    statFailure = null;
+  }
+});
