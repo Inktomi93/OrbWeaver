@@ -38,6 +38,15 @@ const controllerResult = z.object({
 });
 
 const expected = {
+  "batch-replay": {
+    current: [true, true, true],
+    compatibleLaunches: 1,
+    independent: [true, false, true],
+    independentLaunches: 1,
+    context: [false, true],
+    retarget: [false],
+    drift: [false],
+  },
   "helper-reuse": { error: null, newGeneration: true, newHelperAdmitted: true, workerStarts: 1, pinnedUnchanged: true },
   "cached-codec": { error: expect.stringMatching(/controller implementation is stale/u), workerStarts: 0, latestUnchanged: true, pinnedUnchanged: true },
   "helper-publication": {

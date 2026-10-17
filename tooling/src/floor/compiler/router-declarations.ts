@@ -2,10 +2,12 @@
 // Internal aliases must resolve inside the emitted tree; external contracts retain their canonical homes.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
+import { inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
 import { routerDeclarationInputs } from "./router-declaration-inputs.ts";
 import { publishRouterDeclarations } from "./router-declaration-publication.ts";
-import type { RouterDeclarationPreparation } from "./router-declarations-contract.ts";
+import type { ObservedRouterDeclarationPreparation, RouterDeclarationPreparation } from "./router-declarations-contract.ts";
 
 type DeclarationImportSite = ts.ImportDeclaration | ts.ExportDeclaration | ts.ImportTypeNode;
 
@@ -103,14 +105,48 @@ function diagnosticsText(diagnostics: readonly ts.Diagnostic[], root: string): s
   return ts.formatDiagnostics(diagnostics, { getCurrentDirectory: () => root, getCanonicalFileName: (path) => path, getNewLine: () => "\n" });
 }
 
-/** Emit a fresh native family and atomically select it without invalidating historical readers. */
-export function prepareRouterDeclarations(root: string): RouterDeclarationPreparation {
+/** Emit a native family with subject-only currency; this overload never grants executing-producer currentness. */
+export function prepareRouterDeclarations(root: string): RouterDeclarationPreparation;
+/** Capture the real loaded producer and controller roots before emission and retain their full currentness fence. */
+export function prepareRouterDeclarations(root: string, executingRoots: readonly string[]): Promise<ObservedRouterDeclarationPreparation>;
+export function prepareRouterDeclarations(
+  root: string,
+  executingRoots?: readonly string[],
+): RouterDeclarationPreparation | Promise<ObservedRouterDeclarationPreparation> {
+  return executingRoots === undefined ? emitRouterDeclarations(root, undefined) : prepareObservedRouterDeclarations(root, executingRoots);
+}
+
+async function prepareObservedRouterDeclarations(root: string, executingRoots: readonly string[]): Promise<ObservedRouterDeclarationPreparation> {
+  const { assertInventoryRuntimeSealed, captureInventoryRuntime } = await import("./semantic-inventory-runtime.ts");
+  const { inventoryRuntimeCurrent } = await import("./semantic-inventory-runtime-current.ts");
+  const compiler = await import("typescript/package.json", { with: { type: "json" } });
+  if (compiler.default.version !== ts.version) {
+    throw new Error("Router declaration compiler metadata differs from its executing version.");
+  }
+  const lock = fileURLToPath(new URL("../../../../pnpm-lock.yaml", import.meta.url));
+  const implementation = captureInventoryRuntime([import.meta.url, ...executingRoots], [{ path: lock, version: inputVersion(lock, "file") }]);
+  const assertExecutionCurrent = (): void => {
+    assertInventoryRuntimeSealed(implementation);
+    if (!inventoryRuntimeCurrent(implementation)) {
+      throw new Error("Router declaration executing implementation changed; no current verdict is available.");
+    }
+  };
+  assertExecutionCurrent();
+  const prepared = emitRouterDeclarations(root, assertExecutionCurrent);
+  return { ...prepared, assertCurrent: prepared.assertSubjectCurrent };
+}
+
+function emitRouterDeclarations(root: string, assertExecutionCurrent: (() => void) | undefined): RouterDeclarationPreparation {
   const serverRoot = join(root, "packages/server");
   const output = join(serverRoot, "dist/router-types");
   const generations = join(output, "generations");
   mkdirSync(generations, { recursive: true });
   const temporary = mkdtempSync(join(generations, ".pending-"));
   const observation = routerDeclarationInputs();
+  const assertCurrent = (): void => {
+    observation.assertCurrent();
+    assertExecutionCurrent?.();
+  };
   try {
     const configPath = join(serverRoot, "tsconfig.json");
     const parsed = ts.getParsedCommandLineOfConfigFile(configPath, undefined, {
@@ -183,15 +219,16 @@ export function prepareRouterDeclarations(root: string): RouterDeclarationPrepar
     if (emitted.emitSkipped || emitted.diagnostics.length > 0 || declarations === 0) {
       throw new Error(`Router declaration generation failed (${String(declarations)} declarations).\n${diagnosticsText(emitted.diagnostics, root)}`);
     }
-    observation.assertCurrent();
-    return publishRouterDeclarations({
+    assertCurrent();
+    const prepared = publishRouterDeclarations({
       output,
       staging: temporary,
       ambientPaths,
       declarations,
       inputs: [...observation.inputs.values()],
-      assertInputsCurrent: observation.assertCurrent,
+      assertInputsCurrent: assertCurrent,
     });
+    return prepared;
   } finally {
     rmSync(temporary, { recursive: true, force: true });
   }

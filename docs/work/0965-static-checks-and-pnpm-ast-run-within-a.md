@@ -35,7 +35,7 @@ Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. 
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-The floor-owned router emitter, immutable declaration families and atomic forwarding entry are integrated. Consumed-byte and concurrent-publication controls qualify the subject boundary; the named main build passes. Executing-producer bindings, startup lifetimes, warm reuse and consumer adoption remain open. Generated-door evidence does not qualify client worlds. Evidence: `reports/review/965-router-artifact-integration.md`.
+Immutable router families and atomic forwarding publication qualify the subject boundary. Reviewed cold producer binding captures actual execution and retains it through publication and later validation. Matching artifact and cold-entry controls pass; the named root build passes. Filtered server-script qualification, startup lifetimes, warm reuse and consumer adoption remain open. Generated output does not qualify client worlds. Evidence: `reports/review/965-router-producer-binding.md` and `reports/review/965-router-producer-binding-independent-review.md`.
 
 The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 

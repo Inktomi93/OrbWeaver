@@ -54,7 +54,7 @@
     "#src/*": "./src/*"
   },
   "scripts": {
-    "build:router-types": "node ../../tooling/src/router-types/cli.ts",
+    "build:router-types": "node --import ../../tooling/src/floor/compiler/semantic-inventory-runtime.ts ../../tooling/src/router-types/cli.ts",
     "check:media": "node src/entry/check-media.ts",
     "postinstall": "pnpm check:media"
   },

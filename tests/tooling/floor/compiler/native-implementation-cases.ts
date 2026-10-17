@@ -1,6 +1,6 @@
 // Return native execution observations; the ordinary suite asserts them without claiming its own Vite execution was observed.
 import childProcess from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -24,6 +24,7 @@ export const NATIVE_IMPLEMENTATION_CASES = [
   "environment-preload",
   "native-conditions",
   "native-attributes",
+  "batch-replay",
   "replay-no-hook",
   "replay-partial-result",
   "replay-duplicate-result",
@@ -108,6 +109,51 @@ function instrumentNativeAttributes(implementation: string): void {
   );
 }
 
+async function batchReplayCase(implementation: string, databasePath: string, generation: number, starts: string[]): Promise<object> {
+  const url = (file: string): string => pathToFileURL(join(implementation, "tooling/src/floor", file)).href;
+  const { inventoryRuntimesCurrent } = (await import(
+    url("compiler/semantic-inventory-runtime-current.ts")
+  )) as typeof import("../../../../tooling/src/floor/compiler/semantic-inventory-runtime-current.ts");
+  const { openInventoryDatabase, readInventoryGeneration } = (await import(
+    url("code-facts/semantic-inventory-database.ts")
+  )) as typeof import("../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts");
+  const { readInventoryRuntime } = (await import(
+    url("code-facts/semantic-inventory-runtime-query.ts")
+  )) as typeof import("../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts");
+  using db = openInventoryDatabase(databasePath);
+  const partition = readInventoryGeneration(db, generation)[0];
+  if (partition === undefined) {
+    throw new Error("batch replay partition missing");
+  }
+  const controller = readInventoryRuntime(db, partition.id, "controller");
+  const worker = readInventoryRuntime(db, partition.id, "worker");
+  const corrupted = structuredClone(controller);
+  const missing = corrupted.resolutions.find((request) => request.specifier === "./batch-missing.ts");
+  if (missing?.outcome.kind !== "failed") {
+    throw new Error("actual failed native lookup missing from batch");
+  }
+  missing.outcome.code += "_corrupted";
+  starts.length = 0;
+  const current = inventoryRuntimesCurrent([controller, worker, controller]);
+  const compatibleLaunches = starts.length;
+  starts.length = 0;
+  const independent = inventoryRuntimesCurrent([controller, corrupted, worker]);
+  const independentLaunches = starts.length;
+  const foreign = { ...controller, nodeOptions: controller.nodeOptions + " --conditions=foreign-fixture" };
+  const context = inventoryRuntimesCurrent([foreign, worker]);
+  const appeared = join(implementation, "tooling/src/floor/code-facts/batch-missing.ts");
+  writeFileSync(appeared, "export const appeared=1;\n");
+  const retarget = inventoryRuntimesCurrent([controller]);
+  unlinkSync(appeared);
+  const helper = worker.sources.find((source) => source.path.endsWith("/code-facts/capture-map.ts"));
+  if (helper === undefined) {
+    throw new Error("actual batch dependency missing");
+  }
+  writeFileSync(helper.path, readFileSync(helper.path, "utf8") + "\n");
+  const drift = inventoryRuntimesCurrent([worker]);
+  return { mode: "batch-replay", current, compatibleLaunches, independent, independentLaunches, context, retarget, drift };
+}
+
 async function run(mode: string, implementation: string, root: string): Promise<object> {
   const sourcePath = (path: string): string => join(implementation, "tooling/src/floor", path);
   const moduleURL = (path: string): string => pathToFileURL(sourcePath(path)).href;
@@ -115,6 +161,14 @@ async function run(mode: string, implementation: string, root: string): Promise<
   const original = readFileSync(helper, "utf8");
   const armed = join(implementation, "replay-armed");
   switch (mode) {
+    case "batch-replay": {
+      const factory = sourcePath("code-facts/semantic-inventory.ts");
+      writeFileSync(
+        factory,
+        "try{await import('./batch-missing.ts');}catch(error){if(error.code!=='ERR_MODULE_NOT_FOUND')throw error;}\n" + readFileSync(factory, "utf8"),
+      );
+      break;
+    }
     case "native-attributes":
       instrumentNativeAttributes(implementation);
       break;
@@ -136,11 +190,16 @@ async function run(mode: string, implementation: string, root: string): Promise<
   let injections = 0;
   const workerStatuses: (number | null)[] = [];
   const workerStarts: string[] = [];
+  const replayStarts: string[] = [];
   const failed = join(implementation, "failed-worker.mjs");
   writeFileSync(failed, "process.stderr.write('injected native worker exit');process.exitCode=7;\n");
   const spawn = childProcess.spawnSync;
   Object.defineProperty(childProcess, "spawnSync", {
     value: (...args: Parameters<typeof spawn>): ReturnType<typeof spawn> => {
+      const replay = args[1]?.find((value) => value.endsWith("semantic-inventory-runtime-replay.ts"));
+      if (replay !== undefined) {
+        replayStarts.push(replay);
+      }
       const worker = args[1]?.find((value) => value.endsWith("semantic-inventory-worker.ts"));
       if (worker !== undefined) {
         workerStarts.push(worker);
@@ -207,6 +266,9 @@ async function run(mode: string, implementation: string, root: string): Promise<
   const databasePath = join(root, ".cache/semantic-inventory.sqlite");
   workerStarts.length = 0;
   const baseline = { mode, initialTextUnchanged: initialText === text };
+  if (mode === "batch-replay") {
+    return batchReplayCase(implementation, databasePath, previousGeneration, replayStarts);
+  }
   if (mode === "native-attributes") {
     using current = createSemanticInventory(options);
     using database = openInventoryDatabase(databasePath);

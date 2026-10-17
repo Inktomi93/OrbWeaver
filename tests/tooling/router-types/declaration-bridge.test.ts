@@ -2,7 +2,6 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { prepareRouterDeclarations } from "@orb/tooling/floor/compiler/router-declarations";
-import { buildRouterDeclarations } from "@orb/tooling/router-types";
 import ts from "typescript";
 
 const SERVER_SOURCE = "packages/server/src";
@@ -64,18 +63,18 @@ test("native emission follows private aliases without reopening implementation, 
   expect(existsSync(join(third.generation, DECLARATIONS, "payload.d.ts"))).toBe(false);
 
   writeFileSync(join(root, SERVER_SOURCE, "alternate.ts"), "export interface Payload { readonly version: Missing; }");
-  expect(() => buildRouterDeclarations(root)).toThrow("Cannot find name 'Missing'");
+  expect(() => prepareRouterDeclarations(root)).toThrow("Cannot find name 'Missing'");
   expect(existsSync(entry)).toBe(true);
   expect(existsSync(join(third.generation, DECLARATIONS, "alternate.d.ts"))).toBe(true);
 
   writeFileSync(join(root, SERVER_SOURCE, "alternate.ts"), CONTRACT);
   writeFileSync(join(root, SERVER_SOURCE, "router.ts"), `${readFileSync(join(root, SERVER_SOURCE, "router.ts"), "utf8")}\nconst unused = 1;`);
-  expect(buildRouterDeclarations(root)).toBe(3);
+  expect(prepareRouterDeclarations(root).declarations).toBe(3);
   writeFileSync(
     join(root, "packages/server/tsconfig.json"),
     JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, noUnusedLocals: true }, files: ["src/index.ts"] }),
   );
-  expect(() => buildRouterDeclarations(root)).toThrow("'unused' is declared but its value is never read");
+  expect(() => prepareRouterDeclarations(root)).toThrow("'unused' is declared but its value is never read");
   expect(existsSync(entry)).toBe(true);
 });
 

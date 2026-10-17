@@ -24,3 +24,8 @@ export interface RouterDeclarationPreparation {
   readonly inputs: readonly InventoryInput[];
   readonly assertSubjectCurrent: () => void;
 }
+
+/** One observed producer lifetime, including its selected native subject epoch and forwarding entry. */
+export interface ObservedRouterDeclarationPreparation extends RouterDeclarationPreparation {
+  readonly assertCurrent: () => void;
+}

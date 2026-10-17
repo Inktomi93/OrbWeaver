@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 # Orbweaver — Spine: Testing
@@ -36,6 +36,7 @@ Compiler world follows the contract being checked. Component props, element iden
 Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declarations but no DOM runtime; code that needs a rendered browser belongs in CT. Test-only helpers live in a world directory of the test kit (§2) according to their dependency needs, and that world's program proves it. Browser stories and component tests retain the DOM compiler world.
 
 - `pnpm test:node` runs product Vitest projects. `pnpm test` composes product Node tests and the full CT run. Type-only projects use `pnpm test:types`; each world has a `types-<world>` group and a `types-legacy-<world>` group for the legacy folder (§2).
+- `pnpm e2e:corpus:matrix` runs corpus smoke across authentication modes, chat styles and viewport projects. The runner clones canonical fixtures; Playwright configuration owns the matrix.
 - `pnpm test:tooling` enters weekly checker proof. Automatic product tiers cannot select exhaustive or affected tooling recertification; named focused tests remain available.
 - Application types, world purity, architecture and test membership remain required regardless of the checker implementation directory. Verification ownership is `UNIFIED-VERIFICATION-DESIGN.md` §3.2.
 - `pnpm typecheck [--config <repo-relative-tsconfig>]...` is the one native compiler door. With no configs it discovers every runnable program through the shared compiler reader; scoped verification forwards every affected program as repeated configs through the single `types:native` stage. Type assertions and ownership reconciliation remain separate stages.
