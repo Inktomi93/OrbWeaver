@@ -213,7 +213,7 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
-Native portability controls judge production schema and mounted doors; metadata lives with composition. Native literal rules own client test IDs and scroll positioning. Story and token readers remain; the inactive settings proxy is removed.
+Native portability controls judge production schema and mounted doors. Native lint owns client literal IDs, scroll positioning and source error-suppression refusal. Browser imports validate before effects. Story and token readers remain; the inactive settings proxy is removed.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-client-lexical-1041
+lane: codex/native-assets-1041
 plan: test-foundation
 ---
 

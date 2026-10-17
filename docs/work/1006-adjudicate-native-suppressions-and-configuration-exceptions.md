@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-17
 priority: P2
 area: tooling
-lane: codex/source-type-suppression-1006
 plan: test-foundation
 ---
 
@@ -48,4 +47,4 @@ Reviewed standalone Node-child and Base UI item-model exceptions preserve native
 
 Hook exceptions preserve value-keyed effects and retained factory identity. The bracket effect depends only on selection. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
 
-Source error-suppression retirement is assigned: validate browser imports and retain test negatives. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-boundary.md`.
+Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review passes; combined metadata remains open. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
