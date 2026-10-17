@@ -7,7 +7,6 @@ import { Node, SourceFile } from "ts-morph";
 import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as content } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
-import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as scrubberReferences } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -20,7 +19,7 @@ const NODE_SOURCE = "packages/server/src/domain/chat/verbs/native-export.ts";
 const BROWSER_SOURCE = "packages/client/src/features/chat/native-export.tsx";
 const CONTENT_HOME = "packages/contracts/src/chat/bus.ts";
 const SCRUBBER_HOME = "packages/kit/src/content/index.ts";
-const POLICIES = [content, scrubber];
+const POLICIES = [content];
 const LOADED_POLICIES = [...POLICIES, scrubberReferences];
 
 function fixture(root: string, repoRoot: string): void {
@@ -92,9 +91,9 @@ test(
     const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const exits = [await runStructure(scratch, [`--check=${scrubber.id}`, `--file=${SCRUBBER_HOME}`])];
-      exits.push(await runScopedCli(scratch, ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${CONTENT_HOME},${SCRUBBER_HOME}`]));
-      expect(exits).toEqual([0, 1]);
+      const structure = await runStructure(scratch, [`--check=${content.id}`]);
+      const scoped = await runScopedCli(scratch, ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${CONTENT_HOME},${SCRUBBER_HOME}`]);
+      expect({ structure, scoped }).toEqual({ structure: 1, scoped: 1 });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -108,13 +107,9 @@ test(
       expect(result.toolErrors).toEqual([]);
       expect(
         result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, line, column, token }) => ({ file, line, column, token })) })),
-      ).toEqual([
-        { id: content.id, findings: [{ file: NODE_SOURCE, line: 1, column: 14, token: "ChatContentPart" }] },
-        { id: scrubber.id, findings: [] },
-      ]);
+      ).toEqual([{ id: content.id, findings: [{ file: NODE_SOURCE, line: 1, column: 14, token: "ChatContentPart" }] }]);
       expect(result.policies.map(({ receipts }) => receipts)).toMatchObject([
         [{ kind: "population", source: "ChatContentPart declaration home", members: 1, unresolved: 0 }],
-        [{ kind: "population", source: "kit content home", members: 1, unresolved: 0 }],
       ]);
     } finally {
       getContext.mockRestore();
@@ -123,6 +118,6 @@ test(
   scaledBudget(60_000),
 );
 
-test("both complete export-home policy proof populations retain their catch, pass and grant witnesses", () => {
+test("the retained export-home policy proofs preserve their catch, pass and grant witnesses", () => {
   expect(verifyPolicyProofs(POLICIES)).toEqual([]);
 });
