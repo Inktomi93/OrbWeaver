@@ -363,15 +363,15 @@ async function runProfiles(root: string, admitted: readonly EslintFileAdmission[
     throw new Error(`hard ESLint profile requested type information for ${typed.path}`);
   }
   const hard = hardAdmissions.filter(({ hasEnabledRules }) => hasEnabledRules);
-  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, `${cachePrefix}hard-`, HARD_CHILD_FLAGS);
+  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, `${cachePrefix}hard-`, true);
   if (hardVerdict === EXIT.toolError) {
     return EXIT.toolError;
   }
-  return Math.max(hardVerdict, runPartitions(root, admitted, cachePrefix));
+  return Math.max(hardVerdict, runPartitions(root, admitted, cachePrefix, false));
 }
 
 /** One sequential ESLint child per compiler owner. The worst verdict wins; a tool error stops the run. */
-function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string, extraFlags: readonly string[] = []): number {
+function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string, hard: boolean): number {
   const filenames = admitted.map(({ path }) => path);
   const typedPaths = new Set(admitted.filter(({ requiresTypeInformation }) => requiresTypeInformation).map(({ path }) => path));
   const programs = typedPaths.size === 0 ? [] : readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root));
@@ -388,7 +388,13 @@ function runPartitions(root: string, admitted: readonly EslintFileAdmission[], c
     let childVerdict: number;
     try {
       const argumentsFile = join(argumentsDir, "arguments.json");
-      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...extraFlags, "--cache-location", ownerCacheFile, ...paths]));
+      const suppressionsFile = join(argumentsDir, "suppressions.json");
+      if (hard) {
+        // Ordinary migration debt must never grant permission to the HARD profile.
+        writeFileSync(suppressionsFile, "{}");
+      }
+      const profileFlags = hard ? [...HARD_CHILD_FLAGS, "--suppressions-location", suppressionsFile] : [];
+      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, "--cache-location", ownerCacheFile, ...paths]));
       const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], { cwd: root, stdio: "inherit" });
       childVerdict = eslintScheme(result.status);
     } finally {
