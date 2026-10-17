@@ -4,6 +4,15 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-orb-no-floorless-control-in-wrap",
+    policyId: "suppressions",
+    subject: "orb/no-floorless-control-in-wrap",
+    operation: "source",
+    why: "RULING — the RPG condition chip supplies CHIP_TOUCH_FLOOR_AT_COARSE around its remove target, and the pack icon picker supplies PICKER_GAP_AT_COARSE for its touch-target pitch. These actual coarse geometry remedies are outside the same-file literal-row heuristic; only their adjacent native lines receive the reviewed exception.",
+    endsWhen:
+      "the chip or picker no longer needs its floorless control, the measured coarse geometry remedy changes, or the final source directive disappears.",
+  },
+  {
     id: "suppressions:source-orb-ui-size-via-variant",
     policyId: "suppressions",
     subject: "orb/ui-size-via-variant",

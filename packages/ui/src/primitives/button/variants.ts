@@ -1,3 +1,4 @@
+import type { ClassValue } from "tailwind-variants";
 import {
   ACCENT_HOVER,
   CHIP_BOX,
@@ -10,6 +11,7 @@ import {
   TOUCH_TARGET_PSEUDO,
   tv,
 } from "#lib";
+import type { BUTTON_SIZE_OVERFLOW } from "./size-hit-area.ts";
 
 // Sizes ride the control-height tokens (CONTROL_SIZE, shared with Toggle) so the ≥44px touch floor
 // holds by construction; button adds `icon`, `media`, `wrap`, `inline` and the four-step `glyph-*` ramp on
@@ -170,7 +172,7 @@ export const buttonVariants = tv({
       // because a scope toggle and a tag button sit in the SAME rail and two boxes there is the defect,
       // not the feature. Pair it with `shape="pill"` + `intent="outline"`.
       chip: CHIP_BOX,
-    },
+    } satisfies Record<keyof typeof BUTTON_SIZE_OVERFLOW, ClassValue>,
     // THE RADIUS AXIS (added 2026-08-16, program #102). It used to live in `base` as a bare
     // `rounded-control`, which made a pill button UNSPELLABLE from a call site: `rounded-control` is a
     // custom `--radius-*` token, so tailwind-merge cannot classify it and `cn("rounded-control",

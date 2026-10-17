@@ -1,6 +1,8 @@
 /** Native lexical rule and helper changes rejudge the actual frontend syntax population. */
 export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
   "eslint.config.js",
+  "packages/ui/src/primitives/button/size-hit-area.ts",
+  "packages/ui/package.json",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
@@ -9,7 +11,12 @@ export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
   "tooling/src/verify/ops/eslint.ts",
 ] as const;
 
-export const CLIENT_LEXICAL_NATIVE_RULES = ["orb/testid-typed-only", "orb/scroll-container-positioned", "orb/ui-size-via-variant"] as const;
+export const CLIENT_LEXICAL_NATIVE_RULES = [
+  "orb/no-floorless-control-in-wrap",
+  "orb/testid-typed-only",
+  "orb/scroll-container-positioned",
+  "orb/ui-size-via-variant",
+] as const;
 
 /** Deleted helpers remain inputs; containing-directory requests retain the same dependency. */
 export function affectsClientLexicalNativeLint(path: string): boolean {
