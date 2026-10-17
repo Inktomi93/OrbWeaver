@@ -42,6 +42,7 @@ import {
   runDebtWalk,
   runEslint,
   runGateContract,
+  runGitTextSafety,
   runInstrumentAffected,
   runKnipNegativeLiveness,
   runLedgersFresh,
@@ -145,6 +146,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runEslint(root);
     case "eslint-scoped":
       return await runScopedEslint(root, rest);
+    case "git-text-safety":
+      return await runGitTextSafety(root, rest);
     case "stylelint":
       return await runStylelint(root, rest);
     case "instrument-affected":

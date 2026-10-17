@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { runGit } from "@orb/tooling/floor/git/git";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { ResourceLoad, ResourceSubprocessReceipt, TrackedFileModeOverlay, TrackedResourceIndex } from "../contract/resource.ts";
+import type { ResourceLoad, ResourceSubprocessReceipt, TrackedResourceIndex } from "../contract/resource.ts";
 import { normalizePathSet } from "../lib/policy-validation.ts";
 import { candidateIndexGitEnvironment } from "./resource-index.ts";
 
@@ -42,35 +42,7 @@ function parseTrackedEntries(stdout: string): readonly TrackedEntry[] {
     });
 }
 
-function executablePathsFor(
-  entries: readonly TrackedEntry[],
-  repoPaths: readonly string[],
-  modeOverlays: readonly TrackedFileModeOverlay[],
-): readonly string[] {
-  const executable = new Set(entries.filter(({ mode }) => mode === "100755").map(({ path }) => path));
-  const overlaid = new Set<string>();
-  for (const [index, overlay] of modeOverlays.entries()) {
-    const [path] = normalizePathSet([overlay.path], `tracked mode overlay[${String(index)}] path`);
-    if (path === undefined || !repoPaths.includes(path)) {
-      throw new Error(`tracked mode overlay path is not in the candidate index: ${path ?? overlay.path}`);
-    }
-    if (overlaid.has(path)) {
-      throw new Error(`tracked mode overlay path is declared more than once: ${path}`);
-    }
-    if (typeof overlay.executable !== "boolean") {
-      throw new Error(`tracked mode overlay executable must be boolean: ${path}`);
-    }
-    overlaid.add(path);
-    if (overlay.executable) {
-      executable.add(path);
-    } else {
-      executable.delete(path);
-    }
-  }
-  return normalizePathSet([...executable], "tracked executable resource path");
-}
-
-export function loadTrackedFiles(root: string, modeOverlays: readonly TrackedFileModeOverlay[] = []): ResourceLoad<TrackedResourceIndex> {
+export function loadTrackedFiles(root: string): ResourceLoad<TrackedResourceIndex> {
   const result = runGit(resolve(root), ["ls-files", "--stage", "-z", "--full-name"], {
     // Membership and staged bytes must describe the same candidate transaction. The shared environment
     // selector preserves a hook's GIT_INDEX_FILE only at the real invocation root.
@@ -93,15 +65,6 @@ export function loadTrackedFiles(root: string, modeOverlays: readonly TrackedFil
     };
   }
   if (result.stdout.length === 0) {
-    if (modeOverlays.length > 0) {
-      return {
-        status: "unresolved",
-        paths: [],
-        members: 0,
-        subprocess,
-        reason: `tracked mode overlay path is not in the candidate index: ${modeOverlays[0]?.path ?? "(missing path)"}`,
-      };
-    }
     return { status: "empty", paths: [], members: 0, subprocess, reason: "git index contains no tracked files" };
   }
   if (!result.stdout.endsWith("\0")) {
@@ -113,7 +76,10 @@ export function loadTrackedFiles(root: string, modeOverlays: readonly TrackedFil
       entries.map(({ path }) => path),
       "tracked resource path",
     );
-    const executablePaths = executablePathsFor(entries, repoPaths, modeOverlays);
+    const executablePaths = normalizePathSet(
+      entries.filter(({ mode }) => mode === "100755").map(({ path }) => path),
+      "tracked executable resource path",
+    );
     return {
       status: "ready",
       paths: repoPaths,

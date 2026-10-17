@@ -7,7 +7,7 @@ import type { Project, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ConfigSnapshot, ConfigSnapshotRunner } from "../contract/config-snapshot.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
-import type { ResourceFact, ResourceLoad, ResourceReceipt, TrackedFileModeOverlay } from "../contract/resource.ts";
+import type { ResourceFact, ResourceLoad, ResourceReceipt } from "../contract/resource.ts";
 import type { TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "../contract/resource-artifact.ts";
 import type { PackageResourceId, StaticConfigResourceId } from "../contract/resource-config.ts";
 import type { LedgerFacts, LedgerId } from "../contract/resource-document.ts";
@@ -53,9 +53,6 @@ function freezeValue<T>(value: T): T {
 /** Create once at the invocation root; release the returned object to release every cached resource. */
 export function createResourceHost(options: ResourceHostOptions): ResourceInvocation {
   const root = resolve(options.root);
-  const trackedFileModeOverlays: readonly TrackedFileModeOverlay[] = Object.freeze(
-    (options.trackedFileModeOverlays ?? []).map((entry) => freezeValue({ path: entry.path, executable: entry.executable })),
-  );
   const installedTextOverlays = new Map<string, InstalledPackageTextOverlay>();
   for (const entry of options.installedPackageTextOverlays ?? []) {
     const snapshot = freezeValue({ request: { ...entry.request }, source: entry.source });
@@ -70,7 +67,6 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     root,
     ...(options.overlay === undefined ? {} : { overlay: { ...options.overlay } }),
     ...(installedTextOverlays.size === 0 ? {} : { installedPackageTextOverlays: Object.freeze([...installedTextOverlays.values()]) }),
-    ...(trackedFileModeOverlays.length === 0 ? {} : { trackedFileModeOverlays }),
   };
   const reader = createResourceReader(invocationOptions);
   const receipts = new Map<string, ResourceReceipt>();
@@ -221,7 +217,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       loadNativeConfig(reader, invocationOptions, id),
     ) as ResourceHost["nativeConfig"],
     gitPathHistory: keyed("git-path-history", (id: GitPathHistoryResourceId) => loadGitPathHistoryResource(root, id, options.gitHistoryFixtureFoundation)),
-    trackedFiles: cached("tracked-files", () => loadTrackedFiles(root, trackedFileModeOverlays)),
+    trackedFiles: cached("tracked-files", () => loadTrackedFiles(root)),
     candidateIndexDelta: demanded("candidate-index-delta", (paths) => loadCandidateIndexDelta(root, paths)),
     json: keyed<JsonResourceId, JsonResourceFacts>("json", (id) => loadJsonResource(reader, id)),
     installedPackage: (request: InstalledPackageRequest) => installed(request),

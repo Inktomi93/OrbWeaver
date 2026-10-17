@@ -26,9 +26,6 @@ export interface ResourceTreeEntry {
   readonly kind: "file" | "directory";
   readonly bytes: number;
   readonly lines: number;
-  readonly nulBytes: number;
-  /** One-based raw-byte line for every NUL occurrence. Repeated lines preserve occurrence cardinality. */
-  readonly nulLines: readonly number[];
   readonly origin: "disk" | "overlay";
 }
 
@@ -54,10 +51,4 @@ export interface TrackedResourceIndex {
   readonly repoPaths: readonly string[];
   /** Paths whose candidate-index mode is `100755`; Git metadata is authoritative across platforms. */
   readonly executablePaths: readonly string[];
-}
-
-/** Invocation-only evidence control over one existing tracked path's candidate-index executable bit. */
-export interface TrackedFileModeOverlay {
-  readonly path: string;
-  readonly executable: boolean;
 }

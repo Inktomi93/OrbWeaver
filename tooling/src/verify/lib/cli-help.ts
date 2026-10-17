@@ -54,6 +54,8 @@ export const VERB_HELP: Readonly<Record<VerifyVerb, string>> = {
   eslint:
     "usage: node tooling/src/verify/cli.ts eslint\n  Runs whole-repository ESLint in sequential native compiler-owner processes. It takes NO paths: a SCOPED run is `pnpm lint:eslint-scoped <files>`, one native compiler-owner process per owner.",
   "eslint-scoped": ESLINT_SCOPED_USAGE,
+  "git-text-safety":
+    "usage: node tooling/src/verify/cli.ts git-text-safety [--application | subject paths…]\n  Checks raw authored text bytes and candidate-index test modes; requested paths narrow findings, not required inputs.",
   stylelint:
     "usage: node tooling/src/verify/cli.ts stylelint [product CSS paths…]\n  Runs native stylesheet policies without loading a TypeScript program; no paths selects the complete client/UI CSS population.",
   "showcase-release":

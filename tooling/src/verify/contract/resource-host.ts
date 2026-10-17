@@ -4,15 +4,7 @@ import type { SourceFile } from "ts-morph";
 import type { FixtureGitHistoryFoundation } from "../../floor/git/git-fixture.ts";
 import type { ConfigSnapshotByRunner, ConfigSnapshotRunner } from "./config-snapshot.ts";
 import type { OrdinaryWaiverCarriers } from "./ordinary-waiver-source.ts";
-import type {
-  ResourceFact,
-  ResourceLoad,
-  ResourceReaderOptions,
-  ResourceReceipt,
-  ResourceTreeEntry,
-  TrackedFileModeOverlay,
-  TrackedResourceIndex,
-} from "./resource.ts";
+import type { ResourceFact, ResourceLoad, ResourceReaderOptions, ResourceReceipt, ResourceTreeEntry, TrackedResourceIndex } from "./resource.ts";
 import type { TokenContractResource, TokenGeneratedTypeRequest, TokenGeneratedTypeResource } from "./resource-artifact.ts";
 import type { PackageMetadata, PackageResourceId, StaticConfigFacts, StaticConfigResourceId } from "./resource-config.ts";
 import type { CssFacts, CssInventoryRequest } from "./resource-css.ts";
@@ -65,14 +57,13 @@ export interface ResourceHost {
 }
 
 /** Invocation composition only. The parser seam permits the fixture runner's shared workspace; installed
- *  text and tracked-mode overlays permit exact liveness controls without widening authored membership. */
+ *  text overlays permit exact liveness controls without widening authored membership. */
 export interface ResourceHostOptions extends ResourceReaderOptions {
   readonly tokenTypeGeneration?: ResourceLoad<TokenGeneratedTypeResource>;
   /** Branded isolated-proof composition only; production always uses the pinned founding identity. */
   readonly gitHistoryFixtureFoundation?: FixtureGitHistoryFoundation;
   readonly parseSource?: (path: string, text: string) => SourceFile;
   readonly installedPackageTextOverlays?: readonly InstalledPackageTextOverlay[];
-  readonly trackedFileModeOverlays?: readonly TrackedFileModeOverlay[];
 }
 
 export interface ResourceInvocation {

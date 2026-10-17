@@ -179,6 +179,7 @@ export {
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
+export { runGitTextSafety } from "./ops/git-text-safety.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
 export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export {

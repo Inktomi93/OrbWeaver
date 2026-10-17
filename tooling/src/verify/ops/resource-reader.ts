@@ -6,12 +6,10 @@ import { join, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ResourceFileSnapshot, ResourceLoad, ResourceReader, ResourceReaderOptions, ResourceTreeEntry } from "../contract/resource.ts";
+import { NON_AUTHORED_DIRECTORIES } from "../contract/resource-tree.ts";
 import { assertRepoPathIdentity } from "../lib/policy-validation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:structure");
-
-// Installed and generated trees are separate resource families, never authored-tree members.
-const NON_AUTHORED_DIRECTORIES = new Set(["node_modules", ".git", "dist", ".cache"]);
 
 function childPath(directory: string, name: string): string {
   return directory === "" ? name : `${directory}/${name}`;
@@ -199,13 +197,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       throw new Error(content.reason);
     }
     let newlines = 0;
-    let nulBytes = 0;
-    const nulLines: number[] = [];
     for (const byte of content.value) {
-      if (byte === 0) {
-        nulBytes += 1;
-        nulLines.push(newlines + 1);
-      }
       newlines += Number(byte === 10);
     }
     return Object.freeze({
@@ -213,14 +205,12 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       kind: "file",
       bytes: content.value.length,
       lines: newlines + 1,
-      nulBytes,
-      nulLines: Object.freeze(nulLines),
       origin: overlay.has(path) ? "overlay" : "disk",
     });
   };
   const addDirectory = (entries: Map<string, ResourceTreeEntry>, directory: string, origin: ResourceTreeEntry["origin"]): void => {
     if (!entries.has(directory)) {
-      entries.set(directory, Object.freeze({ path: directory, kind: "directory", bytes: 0, lines: 0, nulBytes: 0, nulLines: Object.freeze([]), origin }));
+      entries.set(directory, Object.freeze({ path: directory, kind: "directory", bytes: 0, lines: 0, origin }));
     }
   };
   const walk = (entries: Map<string, ResourceTreeEntry>, directory: string): void => {

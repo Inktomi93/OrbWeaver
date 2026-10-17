@@ -12,7 +12,7 @@ test("a testkit citation cannot borrow a basename from another world", () => {
   expect(
     shorthandExists(
       new Map<string, "file">([["tests/support/browser/fixtures.ts", "file"]]),
-      [{ path: "tests/support/browser/fixtures.ts", kind: "file", bytes: 0, lines: 1, nulBytes: 0, nulLines: [], origin: "overlay" }],
+      [{ path: "tests/support/browser/fixtures.ts", kind: "file", bytes: 0, lines: 1, origin: "overlay" }],
       "@orb/testkit/node/fixtures",
     ),
   ).toBe(false);

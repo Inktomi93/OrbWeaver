@@ -3,7 +3,6 @@
 // which loads each isolated structure corpus once and runs every arm against it (docs/work/0043).
 
 import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as testExecutableMode } from "../../../../../tooling/src/verify/gates/test-executable-mode.ts";
 import { gate as toolingOsNeutral } from "../../../../../tooling/src/verify/gates/tooling-os-neutral.ts";
 import { gate as warningWorkitemLiveness } from "../../../../../tooling/src/verify/gates/warning-workitem-liveness.ts";
 
@@ -17,19 +16,6 @@ export const TOOLING_ARMS: readonly RealCorpusLivenessArm[] = [
     // report exactly that probe, at its literal.
     overlays: [{ kind: "add", path: "tooling/src/floor/host/os-neutral-liveness-probe.ts", source: 'export const scratch = "/tmp/orb-liveness";\n' }],
     messageIncludes: "a hardcoded `/tmp` path",
-  },
-  {
-    policy: testExecutableMode,
-    // The real candidate index says this tracked test is ordinary. Preserve that identity and overlay only
-    // mode 100755; source bytes or a shebang would not exercise the tracked-files reader's mode evidence.
-    overlays: [
-      {
-        kind: "tracked-mode",
-        path: "tests/tooling/verify/gates/tooling-os-neutral.test.ts",
-        executable: true,
-      },
-    ],
-    messageIncludes: "an executable Git mode on a test file",
   },
   {
     policy: warningWorkitemLiveness,

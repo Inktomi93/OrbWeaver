@@ -11,8 +11,6 @@ const entry = (path: string, kind: ResourceTreeEntry["kind"] = "file"): Resource
   kind,
   bytes: 1,
   lines: 1,
-  nulBytes: 0,
-  nulLines: [],
   origin: "overlay",
 });
 
