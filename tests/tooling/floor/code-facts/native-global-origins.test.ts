@@ -6,7 +6,6 @@ import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { resolveGlobalMemberOrigin } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 import type { GlobalMemberOrigin, ReferenceFact } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryNativeQuery, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { DEFAULT_INVENTORY_FAMILIES } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
@@ -18,12 +17,11 @@ import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semant
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 const SOURCE = "tests/server/globals.test.ts";
 // eslint-disable-next-line orb/test-ambient-source-string -- This global-origin fixture is parsed into compiler worlds, never executed; remove with these origin controls.
@@ -89,7 +87,7 @@ test(
       globalOriginQueries: callees.map(query),
       globalBindingQueries: identifiers.map(query),
     };
-    using inventory = createSemanticInventory(options);
+    using inventory = nativeInventoryFixture(options);
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("global-origins");
     expect(callees.map((node) => snapshot(inventory.globalOrigin(node, descriptor.id)))).toEqual(
       callees.map((node) => snapshot(resolveGlobalMemberOrigin(node))),
@@ -157,25 +155,25 @@ test(
     }
     const query = (node: MorphNode): InventoryNativeQuery => ({ program: descriptor.id, node: span(node) });
     const options = { root: scratch, programs: [descriptor], families: ["global-origins"] as const, globalOriginQueries: [query(callee)] };
-    using before = createSemanticInventory({ ...options, globalBindingQueries: [query(first)] });
+    using before = nativeInventoryFixture({ ...options, globalBindingQueries: [query(first)] });
     expect(() => before.globalBinding(second, descriptor.id)).toThrow("binding span is unavailable");
-    using expanded = createSemanticInventory({ ...options, globalBindingQueries: [query(first), query(second)] });
-    using reused = createSemanticInventory({ ...options, globalBindingQueries: [query(second), query(first)] });
+    using expanded = nativeInventoryFixture({ ...options, globalBindingQueries: [query(first), query(second)] });
+    using reused = nativeInventoryFixture({ ...options, globalBindingQueries: [query(second), query(first)] });
     expect(expanded.generation).toBeGreaterThan(before.generation);
     expect(reused.generation).toBe(expanded.generation);
-    using complete = createSemanticInventory({ root: scratch, programs: [descriptor], families: ["bindings"] });
+    using complete = nativeInventoryFixture({ root: scratch, programs: [descriptor], families: ["bindings"] });
     expect(complete.generation).toBeGreaterThan(expanded.generation);
     expect(complete.symbols(first).lexical).toHaveLength(1);
-    using mixed = createSemanticInventory({ ...options, families: ["bindings", "global-origins"], globalBindingQueries: [query(first)] });
+    using mixed = nativeInventoryFixture({ ...options, families: ["bindings", "global-origins"], globalBindingQueries: [query(first)] });
     expect(mixed.symbols(second)).toEqual(complete.symbols(second));
     expect(mixed.globalBinding(first, descriptor.id)).toHaveLength(1);
     expect(() => before.symbols(first)).toThrow("family unavailable: bindings");
-    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, SOURCE), text: TEXT.replace("D=Date", "D=Math") }],
-      deleted: [],
-    });
-    using overlay = createSemanticInventory({ ...options, globalBindingQueries: [query(first)], fileSystem, overlay: { addedPaths: [], deletedPaths: [] } });
+    using overlay = nativeInventoryFixture(
+      { ...options, globalBindingQueries: [query(first)] },
+      {
+        projection: { root: scratch, files: [{ path: join(scratch, SOURCE), text: TEXT.replace("D=Date", "D=Math") }], deleted: [] },
+      },
+    );
     const overlaySource = overlay.sourceCorpus().getSourceFile(SOURCE);
     const overlayCallee = overlaySource?.getDescendantsOfKind(SyntaxKind.CallExpression)[0]?.getExpression();
     if (overlayCallee === undefined) {
@@ -184,17 +182,17 @@ test(
     expect(overlay.globalOrigin(overlayCallee, descriptor.id)).toMatchObject({ kind: "unresolved" });
     expect(before.globalOrigin(callee, descriptor.id)).toMatchObject({ kind: "resolved", value: { globalName: "Date" } });
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        globalBindingQueries: identifiers?.map(query) ?? [],
-        buildPartition: () => {
-          throw new Error("failed global worker");
+      nativeInventoryFixture(
+        {
+          ...options,
+          globalBindingQueries: identifiers?.map(query) ?? [],
         },
-      }),
-    ).toThrow("failed global worker");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     expect(latestInventoryGeneration(db)).toBe(mixed.generation);
-    expect(() => createSemanticInventory({ ...options })).toThrow("require closed demand");
+    expect(() => nativeInventoryFixture({ ...options })).toThrow("require closed demand");
     before[Symbol.dispose]();
     expect(() => before.globalBinding(first, descriptor.id)).toThrow("disposed");
   },
@@ -219,7 +217,7 @@ test(
       globalOriginQueries: [{ program: descriptor.id, node: span(callee) }],
       globalBindingQueries: [{ program: descriptor.id, node: span(binding) }],
     };
-    using before = createSemanticInventory(options);
+    using before = nativeInventoryFixture(options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const partition = readInventoryGeneration(db, before.generation)[0];
     if (partition === undefined) {
@@ -275,24 +273,23 @@ test(
     } finally {
       db.exec("ROLLBACK");
     }
-    for (const [table, message] of [
-      ["inventory_global_origin", "incomplete global-origin/binding coverage"],
-      ["inventory_global_binding", "incomplete global-origin/binding coverage"],
-      ["inventory_fact", "binding record is unavailable"],
+    for (const [fault, message] of [
+      ["global-origin-coverage", "incomplete global-origin/binding coverage"],
+      ["global-binding-coverage", "incomplete global-origin/binding coverage"],
+      ["global-binding-record", "binding record is unavailable"],
     ] as const) {
-      const databasePath = join(scratch, `${table}.sqlite`);
+      const databasePath = join(scratch, `${fault}.sqlite`);
+      const faults: string[] = [];
       expect(() =>
-        createSemanticInventory({
-          ...options,
-          databasePath,
-          buildPartition: (request) => {
-            runInventoryPartitionWorker(request);
-            using staging = openInventoryDatabase(request.destination);
-            staging.exec("PRAGMA foreign_keys=OFF");
-            staging.exec(`DELETE FROM ${table}`);
+        nativeInventoryFixture(
+          {
+            ...options,
+            databasePath,
           },
-        }),
+          { fault, faults },
+        ),
       ).toThrow(message);
+      expect(faults).toEqual([fault]);
       using failed = openInventoryDatabase(databasePath);
       expect(latestInventoryGeneration(failed)).toBe(0);
     }

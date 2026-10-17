@@ -1,6 +1,6 @@
 // @subject tooling/src/floor/compiler/invocation-evidence-extract.ts
 // @subject tooling/src/floor/code-facts/invocation-evidence-replay.ts
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path, { dirname, join } from "node:path";
 import { DatabaseSync, StatementSync } from "node:sqlite";
@@ -8,7 +8,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   DEFAULT_INVENTORY_FAMILIES,
@@ -31,12 +30,12 @@ import { visitInventoryRecords } from "../../../../tooling/src/floor/code-facts/
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { captureInvocationEvidence, encodeInvocationEvidence } from "../../../../tooling/src/floor/compiler/invocation-evidence-extract.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace, nativeCompilerSourceFiles } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import type { NativeInventoryCoverage, NativeInventoryLifetime } from "../compiler/native-inventory-fixture.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 const SOURCE = "tests/server/invocation.test.ts";
 const TEXT = `import {mintTypeId} from '../../packages/kit/src/ids/index.ts';
@@ -204,7 +203,7 @@ test(
     expect(specifier.getKind()).not.toBe(identifier.getKind());
     const plan: InventoryInvocationPlan = { mode: "value", facets: ["module"], arguments: [] };
     const nodes = [specifier, identifier, source];
-    using inventory = createSemanticInventory({
+    using inventory = nativeInventoryFixture({
       root: scratch,
       programs: [descriptor],
       families: ["invocation-evidence", "global-origins", "computed-names"],
@@ -238,7 +237,7 @@ test(
       computedNameQueries: [],
       invocationQueries: calls.map((node) => ({ program: descriptor.id, query: { ...PLAN, node: span(node) } })),
     };
-    using inventory = createSemanticInventory(options);
+    using inventory = nativeInventoryFixture(options);
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("invocation-evidence");
     for (const call of calls) {
       expect(snapshot(call, inventory.invocationEvidence(call, descriptor.id, PLAN))).toEqual(snapshot(call, captureInvocationEvidence(call, PLAN)));
@@ -331,7 +330,7 @@ test(
     if (call === undefined) {
       throw new Error("dependency invocation is missing");
     }
-    using complete = createSemanticInventory({ root: scratch, programs: [descriptor], families: ["bindings"] });
+    using complete = nativeInventoryFixture({ root: scratch, programs: [descriptor], families: ["bindings"] });
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const completePartition = readInventoryGeneration(db, complete.generation)[0];
     if (completePartition === undefined) {
@@ -347,7 +346,7 @@ test(
       computedNameQueries: [],
       invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
     };
-    using mixed = createSemanticInventory(options);
+    using mixed = nativeInventoryFixture(options);
     const partition = readInventoryGeneration(db, mixed.generation)[0];
     if (partition === undefined) {
       throw new Error("mixed partition is missing");
@@ -404,10 +403,10 @@ test(
       globalBindingQueries: [],
       computedNameQueries: [],
     };
-    using before = createSemanticInventory({ ...options, invocationQueries: [{ program: descriptor.id, query: { ...small, node: span(call) } }] });
+    using before = nativeInventoryFixture({ ...options, invocationQueries: [{ program: descriptor.id, query: { ...small, node: span(call) } }] });
     expect(() => before.invocationEvidence(call, descriptor.id, PLAN)).toThrow("query is unavailable");
-    using expanded = createSemanticInventory({ ...options, invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }] });
-    using reused = createSemanticInventory({
+    using expanded = nativeInventoryFixture({ ...options, invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }] });
+    using reused = nativeInventoryFixture({
       ...options,
       invocationQueries: [
         { program: descriptor.id, query: { ...PLAN, facets: [...PLAN.facets].reverse(), arguments: [...PLAN.arguments].reverse(), node: span(call) } },
@@ -436,52 +435,47 @@ test(
         db.exec("ROLLBACK");
       }
     }
-    for (const [table, message] of [
-      ["inventory_invocation_atom", "fact graph is incomplete"],
-      ["inventory_invocation_source", "source ownership is incomplete"],
-      ["inventory_global_binding", "binding-source coverage is incomplete"],
+    for (const [fault, message] of [
+      ["invocation-atoms", "fact graph is incomplete"],
+      ["invocation-sources", "source ownership is incomplete"],
+      ["invocation-bindings", "binding-source coverage is incomplete"],
     ] as const) {
-      const databasePath = join(scratch, `${table}.sqlite`);
+      const databasePath = join(scratch, `${fault}.sqlite`);
+      const faults: string[] = [];
       expect(() =>
-        createSemanticInventory({
-          ...options,
-          databasePath,
-          invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
-          buildPartition: (request) => {
-            runInventoryPartitionWorker(request);
-            using stage = openInventoryDatabase(request.destination);
-            stage.exec("PRAGMA foreign_keys=OFF");
-            stage.exec(`DELETE FROM ${table}`);
+        nativeInventoryFixture(
+          {
+            ...options,
+            databasePath,
+            invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
           },
-        }),
+          { fault, faults },
+        ),
       ).toThrow(message);
+      expect(faults).toEqual([fault]);
       using failed = openInventoryDatabase(databasePath);
       expect(latestInventoryGeneration(failed)).toBe(0);
     }
     const failedWorkerPath = join(scratch, "failed-worker.sqlite");
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        databasePath: failedWorkerPath,
-        invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
-        buildPartition: () => {
-          throw new Error("failed invocation worker");
+      nativeInventoryFixture(
+        {
+          ...options,
+          databasePath: failedWorkerPath,
+          invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
         },
-      }),
-    ).toThrow("failed invocation worker");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     using failedWorker = openInventoryDatabase(failedWorkerPath);
     expect(latestInventoryGeneration(failedWorker)).toBe(0);
-    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }],
-      deleted: [],
-    });
-    using overlay = createSemanticInventory({
-      ...options,
-      fileSystem,
-      overlay: { addedPaths: ["vendor/bound.ts"], deletedPaths: [] },
-      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
-    });
+    using overlay = nativeInventoryFixture(
+      {
+        ...options,
+        invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+      },
+      { projection: { root: scratch, files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }], deleted: [] } },
+    );
     expect(() => overlay.invocationEvidence(call, descriptor.id, PLAN)).toThrow("replay source/epoch is stale");
     const overlayCall = overlay
       .sourceCorpus()
@@ -597,35 +591,10 @@ test(
     const { descriptor, source, calls } = controls(scratch);
     const selected = calls.filter((call) => ["bound()", "rebound()", "written()"].includes(call.getText()));
     expect(selected).toHaveLength(3);
-    let enumerations = 0;
-    let declarationPreparations = 0;
-    let closureLookups = 0;
-    const closureKeys = new Set<string>();
-    const get = StatementSync.prototype.get;
-    const membership = vi.spyOn(StatementSync.prototype, "get").mockImplementation(function (this: StatementSync, ...args) {
-      if (this.sourceSQL.includes("kind='available' AND value=?")) {
-        closureLookups++;
-        closureKeys.add(JSON.stringify(args));
-      }
-      return get.apply(this, args);
-    });
-    const prepare = DatabaseSync.prototype.prepare;
-    const preparations = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
-      if (args[0].includes("d.kind='bindings'") && args[0].includes("d.role=?")) {
-        declarationPreparations++;
-      }
-      return prepare.apply(this, args);
-    });
-    const iterate = StatementSync.prototype.iterate;
-    const observation = vi.spyOn(StatementSync.prototype, "iterate").mockImplementation(function (this: StatementSync, ...args) {
-      if (this.sourceSQL.includes("b.lexicalCount,b.originCount FROM inventory_global_binding")) {
-        enumerations++;
-      }
-      return iterate.apply(this, args);
-    });
-    let inventory: ReturnType<typeof createSemanticInventory>;
-    try {
-      inventory = createSemanticInventory({
+    const coverage: NativeInventoryCoverage[] = [];
+    let inventory: ReturnType<typeof nativeInventoryFixture>;
+    inventory = nativeInventoryFixture(
+      {
         root: scratch,
         programs: [descriptor],
         families: ["invocation-evidence", "global-origins", "computed-names"],
@@ -633,11 +602,12 @@ test(
         globalBindingQueries: [],
         computedNameQueries: [],
         invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
-      });
-    } finally {
-      observation.mockRestore();
-      preparations.mockRestore();
-      membership.mockRestore();
+      },
+      { coverage },
+    );
+    const measured = coverage[0];
+    if (measured === undefined) {
+      throw new Error("native staging validation observation missing");
     }
     using retained = inventory;
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
@@ -648,10 +618,10 @@ test(
     const facts = selected.flatMap((call) => [...readInventoryInvocationEvidence(db, partition.id, { ...PLAN, node: span(call) })]);
     const uniqueSources = new Set(facts.flatMap((fact) => fact.sources.map((captured) => captured.file)));
     expect(facts.reduce((count, fact) => count + fact.sources.length, 0)).toBeGreaterThan(uniqueSources.size);
-    expect(enumerations).toBe(uniqueSources.size);
-    expect(declarationPreparations).toBe(uniqueSources.size);
-    expect(closureKeys.size).toBeGreaterThan(0);
-    expect(closureLookups).toBe(closureKeys.size);
+    expect(measured.enumerations).toBe(uniqueSources.size);
+    expect(measured.declarationPreparations).toBe(uniqueSources.size);
+    expect(measured.closureKeys).toBeGreaterThan(0);
+    expect(measured.closureLookups).toBe(measured.closureKeys);
     const queries = selected.map((call) => ({ ...PLAN, node: span(call) }));
     expect(hasInventoryInvocationCoverage(db, partition.id, queries)).toBe(true);
     expect(db.isTransaction).toBe(false);
@@ -726,7 +696,7 @@ test(
     if (call === undefined) {
       throw new Error("physical projection invocation is missing");
     }
-    using inventory = createSemanticInventory({
+    using inventory = nativeInventoryFixture({
       root: scratch,
       programs: [descriptor],
       families: ["invocation-evidence", "global-origins", "computed-names"],
@@ -838,7 +808,7 @@ test(
 );
 
 test(
-  "owned inventory lease pins its private connection before any consumer fact read",
+  "the historical verdict lease pins its private connection before any consumer fact read",
   ({ scratch, repoRoot }) => {
     setup(scratch, repoRoot);
     const { descriptor, calls } = controls(scratch);
@@ -862,9 +832,9 @@ test(
       }
       return prepare.apply(this, args);
     });
-    let inventory: ReturnType<typeof createSemanticInventory>;
+    let inventory: ReturnType<typeof nativeInventoryFixture>;
     try {
-      inventory = createSemanticInventory(options);
+      inventory = nativeInventoryFixture(options);
     } finally {
       observation.mockRestore();
     }
@@ -890,7 +860,7 @@ test(
     for (const call of selected) {
       expect(() => borrowed.invocationEvidence(call, descriptor.id, PLAN)).toThrow("declarations are incomplete");
     }
-    expect(() => createSemanticInventory(options)).toThrow("declarations are incomplete");
+    expect(() => nativeInventoryFixture(options)).toThrow("declarations are incomplete");
     db.prepare("UPDATE inventory_global_binding SET lexicalCount=lexicalCount-1 WHERE partition=?").run(partition.id);
     for (const call of selected) {
       expect(borrowed.invocationEvidence(call, descriptor.id, PLAN).invocation?.kind).toBe("resolved");
@@ -909,7 +879,7 @@ test(
     const { descriptor, calls } = controls(scratch);
     const selected = calls.filter((call) => ["bound()", "rebound()", "written()"].includes(call.getText()));
     expect(selected).toHaveLength(3);
-    using built = createSemanticInventory({
+    using built = nativeInventoryFixture({
       root: scratch,
       programs: [descriptor],
       families: ["invocation-evidence", "global-origins", "computed-names"],
@@ -979,8 +949,8 @@ test(
       computedNameQueries: [],
       invocationQueries: selected.map((call) => ({ program: descriptor.id, query: { ...PLAN, node: span(call) } })),
     };
-    using first = createSemanticInventory(options);
-    using second = createSemanticInventory(options);
+    using first = nativeInventoryFixture(options);
+    using second = nativeInventoryFixture(options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const partitions = readInventoryGeneration(db, first.generation);
     const partition = partitions[0];
@@ -1048,7 +1018,7 @@ test(
     if (call === undefined) {
       throw new Error("borrowed freshness call is missing");
     }
-    using owned = createSemanticInventory({
+    using owned = nativeInventoryFixture({
       root: scratch,
       programs: [descriptor],
       families: ["invocation-evidence", "global-origins", "computed-names"],
@@ -1122,35 +1092,13 @@ test(
       computedNameQueries: [],
       invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
     };
-    using main = createSemanticInventory(options);
-    const captured: DatabaseSync[] = [];
-    const prepare = DatabaseSync.prototype.prepare;
-    const observation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
-      if (this.location()?.endsWith("/overlay.sqlite") === true && !captured.includes(this)) {
-        captured.push(this);
-      }
-      return prepare.apply(this, args);
+    using main = nativeInventoryFixture(options);
+    const lifetime: NativeInventoryLifetime[] = [];
+    using overlay = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }], deleted: [] },
+      lifetime,
     });
-    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }],
-      deleted: [],
-    });
-    let acquired: ReturnType<typeof createSemanticInventory>;
-    try {
-      acquired = createSemanticInventory({ ...options, fileSystem, overlay: { addedPaths: ["vendor/bound.ts"], deletedPaths: [] } });
-    } finally {
-      observation.mockRestore();
-    }
-    using overlay = acquired;
-    const connection = captured.find((candidate) => candidate.isOpen);
-    const overlayPath = connection?.location();
-    if (connection === undefined || overlayPath === undefined || overlayPath === null) {
-      throw new Error("overlay private connection missing");
-    }
-    expect(connection.isTransaction).toBe(true);
-    expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
-    expect(existsSync(overlayPath)).toBe(true);
+    expect(lifetime).toEqual([{ transaction: true, queryOnly: 1, existed: true, closed: true, removed: true }]);
     const source = overlay.sourceCorpus().getSourceFile(SOURCE);
     const overlayCall = source?.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getText() === "bound()");
     if (overlayCall === undefined) {
@@ -1163,8 +1111,6 @@ test(
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     expect(latestInventoryGeneration(db)).toBe(main.generation);
     overlay[Symbol.dispose]();
-    expect(connection.isOpen).toBe(false);
-    expect(existsSync(overlayPath)).toBe(false);
     expect(() => overlay.invocationEvidence(overlayCall, descriptor.id, PLAN)).toThrow("disposed");
   },
   scaledBudget(30_000),

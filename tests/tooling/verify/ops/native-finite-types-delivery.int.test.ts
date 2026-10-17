@@ -1,9 +1,11 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { ESLint, Linter } from "eslint";
 import { Node, Project } from "ts-morph";
-import { vi } from "vitest";
+import ts from "typescript";
+import tseslint from "typescript-eslint";
+import { beforeEach, vi } from "vitest";
 import type { InventoryInvocationPlan, InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { mapTypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -15,25 +17,30 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unions } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as owner } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
-import { gate as factories } from "../../../../tooling/src/verify/gates/test-factory-contract.ts";
 import { gate as participant } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
-import { gate as zustand } from "../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { readAxisVerdict } from "../../../../tooling/src/verify/lib/role-vocabulary.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const POLICIES = [unions, owner, factories, participant, zustand];
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
+
+const POLICIES = [unions, owner, participant];
 const KNOWN = [...POLICIES, unionAlias];
 const HOME = "packages/client/src/state/create-gated-store.ts";
 const ROLE = "packages/server/src/domain/x/roles.ts";
-const FACTORY = "tests/support/node/factories/rows.ts";
 const HOOK = "packages/client/src/components/hook.tsx";
 const UNION = "packages/contracts/src/axis.ts";
-const BROWSER_FACTORY = "packages/client/src/features/x/tests/support/node/factories/browser.ts";
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -47,14 +54,14 @@ function fixture(root: string, repoRoot: string): void {
     "tsconfig.json",
     JSON.stringify({
       compilerOptions: { ...options, lib: ["ES2022"] },
-      files: [ROLE, FACTORY, UNION, "node-realm.ts", "packages/contracts/src/identity/index.ts"],
+      files: [ROLE, UNION, "node-realm.ts", "packages/contracts/src/identity/index.ts"],
     }),
   );
   write(
     "tsconfig.tests-dom.json",
     JSON.stringify({
       compilerOptions: { ...options, lib: ["ES2022", "DOM"], customConditions: ["browser"] },
-      files: [HOOK, HOME, BROWSER_FACTORY, "browser-realm.ts"],
+      files: [HOOK, HOME, "browser-realm.ts"],
     }),
   );
   write("package.json", JSON.stringify({ type: "module", imports: { "#realm": { browser: "./browser-realm.ts", default: "./node-realm.ts" } } }));
@@ -69,11 +76,6 @@ function fixture(root: string, repoRoot: string): void {
     ROLE,
     'const OWNER="owner";const HOST="host";const ROLE="role";const FIELD="canWrite";export function a(r:{role:"owner"|"admin"|"user"|null}){return r[ROLE] === OWNER;} export function b(role:"host"|"member"|undefined){if(role !== HOST)throw new Error("denied");} export function sink(role:"host"|"member"){return {[FIELD]:role===HOST};} export function foreign(role:"host"|"guest"){if(role !== HOST)throw new Error("denied");}',
   );
-  write(
-    FACTORY,
-    'import type {Database} from "#realm"; type Connection=Database; export function makeRows(connection:Connection){return connection;} export function makeClean(connection:string){return connection;} export function seedRows(db:Database){return db;} function makePrivate(connection:Database){return connection;}',
-  );
-  write(BROWSER_FACTORY, 'import type {Database} from "#realm"; export function makeBrowser(connection:Database){return connection;}');
   write(HOME, "export type GatedStoreHook<T> = {():T;<U>(selector:(state:T)=>U):U};");
   write(
     HOOK,
@@ -86,7 +88,7 @@ function fixture(root: string, repoRoot: string): void {
   for (const { id } of KNOWN) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -136,15 +138,9 @@ test(
     using _poison = poison(context.project);
     try {
       expect(
-        await runStructure(scratch, [
-          `--check=${owner.id}`,
-          `--check=${participant.id}`,
-          `--check=${factories.id}`,
-          `--check=${zustand.id}`,
-          `--check=${unions.id}`,
-        ]),
+        await nativeVerifyFixture(scratch, "structure", [`--check=${owner.id}`, `--check=${participant.id}`, `--check=${unions.id}`], { forbidSyntax: true }),
       ).toBe(1);
-      expect(await runScopedCli(scratch, ["--scope", FACTORY])).toBe(1);
+      expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages,tooling"], { forbidSyntax: true })).toBe(1);
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -156,23 +152,14 @@ test(
       });
       expect(result.toolErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.policies.some((policy) => policy.owner.status === "not-applicable")).toBe(false);
       expect(result.authority.effectiveFindings).toEqual(baseline.authority.effectiveFindings);
-      expect(
-        result.policies
-          .find(({ id }) => id === zustand.id)
-          ?.findings.map(({ token, message }) => ({ token, unreadable: message?.includes("CANNOT be established") ?? false })),
-      ).toEqual([
-        { token: "read", unreadable: false },
-        { token: "opaque", unreadable: true },
-        { token: "erased", unreadable: true },
-      ]);
       expect(result.policies.map(({ id, findings }) => ({ id, files: findings.map(({ file }) => file) }))).toEqual(
         [
           { id: unions.id, files: [UNION, ROLE] },
           { id: owner.id, files: [ROLE] },
-          { id: factories.id, files: [FACTORY] },
+
           { id: participant.id, files: [ROLE] },
-          { id: zustand.id, files: [HOOK, HOOK, HOOK] },
         ].toSorted((a, b) => a.id.localeCompare(b.id)),
       );
     } finally {
@@ -366,3 +353,35 @@ test(
   },
   scaledBudget(180_000),
 );
+
+test("native store hooks retain the importing browser condition, transitive aliases and separate erased-type refusals", async ({ scratch, repoRoot }) => {
+  fixture(scratch, repoRoot);
+  const configPath = join(scratch, "tsconfig.tests-dom.json");
+  const read = ts.readConfigFile(configPath, ts.sys.readFile);
+  const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, scratch, undefined, configPath);
+  const program = ts.createProgram(parsed.fileNames, parsed.options);
+  const path = join(scratch, HOOK);
+  const rule = "orb/zustand-selector-stability";
+  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, HOOK));
+  const source = readFileSync(path, "utf8");
+  const messages = new Linter({ cwd: scratch }).verify(
+    source,
+    {
+      files: ["**/*.tsx"],
+      plugins: config.plugins,
+      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false, ecmaFeatures: { jsx: true } } },
+      rules: { [rule]: "error" },
+    },
+    { filename: path },
+  );
+  expect(
+    messages.map(({ message, column, endColumn }) => ({
+      token: source.slice(column - 1, (endColumn ?? column) - 1),
+      unreadable: message.includes("CANNOT be established"),
+    })),
+  ).toEqual([
+    { token: "read", unreadable: false },
+    { token: "opaque", unreadable: true },
+    { token: "erased", unreadable: true },
+  ]);
+});

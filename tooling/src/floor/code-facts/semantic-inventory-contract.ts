@@ -34,6 +34,8 @@ import type { SchemaIdentityModel } from "./schema-identity-contract.ts";
 import type { SchemaFact } from "./schema-model-contract.ts";
 import type { SchemaDataProjection, SchemaProjectedModel } from "./schema-projection-contract.ts";
 import { schemaProjectionInventorySchema } from "./schema-projection-inventory-contract.ts";
+import type { InventoryRuntime } from "./semantic-inventory-runtime-contract.ts";
+import { inventoryImplementationSchema } from "./semantic-inventory-runtime-contract.ts";
 import type { NativeCallMemberOrigin } from "./type-member-origin-contract.ts";
 import type { NativeTypeObservations } from "./type-observations-contract.ts";
 import { assertTypeObservationCoverage } from "./type-observations-coverage.ts";
@@ -44,7 +46,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 20;
+export const INVENTORY_FORMAT = 21;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -672,6 +674,7 @@ export const partitionSchema = z.object({
   roots: z.array(z.string()),
   nativeRoots: z.array(z.string()),
   inputs: z.array(inputSchema),
+  implementation: inventoryImplementationSchema.optional(),
   sources: z.array(
     z.object({ file: z.string(), path: z.string(), text: z.string(), authored: z.boolean(), consumerClass: z.enum(INVENTORY_CONSUMER_CLASSES) }),
   ),
@@ -703,6 +706,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
   casts: true,
   brands: true,
   inputs: true,
+  implementation: true,
   sources: true,
   exports: true,
   modules: true,
@@ -741,6 +745,9 @@ export const INVENTORY_RECORD_TABLES = [
   "family",
   "list",
   "input",
+  "runtimeHeader",
+  "runtimeSource",
+  "runtimeResolution",
   "source",
   "text",
   "span",
@@ -824,6 +831,10 @@ export interface InventoryBuildRequest {
   readonly overlay?: InventoryOverlay;
 }
 
+export interface InventoryWorkerRequest extends InventoryBuildRequest {
+  readonly controllerImplementation: InventoryRuntime;
+}
+
 export interface SemanticInventoryOptions {
   readonly idBrandQueries?: readonly InventoryNativeQuery[];
   readonly referenceDemand?: InventoryReferenceDemand<InventoryNativeReferenceQuery>;
@@ -901,6 +912,7 @@ export interface InventoryReadLease extends Disposable {
 }
 
 export interface InventoryReaderStorage {
+  readonly assertImplementation?: () => void;
   readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly shapeCohort?: boolean;
   readonly shapeOwners?: ReadonlyMap<SourceFile, string>;

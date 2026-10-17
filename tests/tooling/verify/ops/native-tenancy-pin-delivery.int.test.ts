@@ -5,7 +5,7 @@ import { ENTRY, nativeOwnerReadFixture as fixture, HELPER } from "@orb/testkit/n
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { readPredicateArgument } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-contract.ts";
 import { readAnchorOf } from "../../../../tooling/src/floor/code-facts/drizzle-query.ts";
@@ -16,13 +16,11 @@ import {
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
-import {
-  hasInventoryInvocationCoverage,
-  readInventoryInputs,
-  readInventoryInvocationEvidence,
-} from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { inputVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
+import { hasInventoryInvocationCoverage, readInventoryInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
+import { readInventoryRuntime } from "../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
@@ -37,6 +35,16 @@ import { predicateHolds } from "../../../../tooling/src/verify/lib/tenancy-join.
 import { isPlainValue } from "../../../../tooling/src/verify/lib/tenancy-pin.ts";
 import { schemaTableIndex } from "../../../../tooling/src/verify/lib/tenancy-scope.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 function capturedOwnerRead(root: string): {
   readonly result: ReturnType<typeof runPolicyPass>;
@@ -762,10 +770,10 @@ test(
     ).toThrow("native SQL predicate term");
     expect(basis.program).toBe("packages/db/tsconfig.json");
     expect(partition.families).not.toContain("bindings");
-    const inputs = [...readInventoryInputs(db, partition.id)];
+    const sources = [...readInventoryRuntime(db, partition.id, "controller").sources, ...readInventoryRuntime(db, partition.id, "worker").sources];
     for (const implementation of ["drizzle-predicate-argument.ts", "drizzle-statement.ts", "drizzle-query.ts"]) {
       expect(
-        inputs.some((input) => input.path.endsWith("/code-facts/" + implementation)),
+        sources.some((input) => input.path.endsWith("/code-facts/" + implementation) && input.version === inputVersion(input.path, "file")),
         implementation,
       ).toBe(true);
     }

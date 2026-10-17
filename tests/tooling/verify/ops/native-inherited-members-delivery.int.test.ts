@@ -1,11 +1,10 @@
 // Native inherited denominators retain importing-world meaning through public verifier entrypoints.
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as verbs } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
@@ -14,9 +13,18 @@ import { gate as axes } from "../../../../tooling/src/verify/gates/message-kind-
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES = [verbs, knobs, axes];
 const SERVICE = "packages/server/src/domain/hub/contract/service.ts";
@@ -77,7 +85,10 @@ function fixture(root: string, repoRoot: string): void {
   }
   write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of POLICIES) {
-    write(`tooling/src/verify/gates/${id}.ts`, `export{gate}from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`);
+    write(
+      `tooling/src/verify/gates/${id}.ts`,
+      `export{gate}from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
+    );
   }
   execFixtureGit(root, ["init", "-q"]);
 }
@@ -195,11 +206,13 @@ test(
     const contextSpy = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const structure = await runStructure(
+      const structure = await nativeVerifyFixture(
         scratch,
+        "structure",
         POLICIES.map(({ id }) => `--check=${id}`),
+        { forbidSyntax: true },
       );
-      const scoped = await runScopedCli(scratch, ["--scope", "packages,tests"]);
+      const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages,tests"], { forbidSyntax: true });
       const result = run();
       expect({ structure, scoped, errors: result.toolErrors, factErrors: result.factErrors, withheld: result.authority.withheldPolicyIds }).toEqual({
         structure: 1,

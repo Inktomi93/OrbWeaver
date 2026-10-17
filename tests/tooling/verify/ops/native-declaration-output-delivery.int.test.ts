@@ -1,12 +1,10 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project } from "ts-morph";
 import { vi } from "vitest";
 import { readDeclarationOutput } from "../../../../tooling/src/floor/code-facts/declaration-output.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import { DEFAULT_INVENTORY_FAMILIES } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   beginInventoryWrite,
@@ -18,16 +16,14 @@ import {
 import { readInventoryDeclarationOutputs, readInventoryReferences } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate } from "../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { nativeTypeFactOptions, nativeTypeFactSession, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { nativeTypeFactSession } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativePolicyFixture, nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const NODE = "tests/support/node/opaque.fixtures.ts";
 const BROWSER = "tests/support/browser/opaque.fixtures.ts";
@@ -47,7 +43,7 @@ function fixture(root: string, repoRoot: string): void {
   write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: [`src/verify/gates/${POLICY}.ts`] }));
   write(
     `tooling/src/verify/gates/${POLICY}.ts`,
-    `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${POLICY}.ts`)).href)};`,
+    `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${POLICY}.ts`, import.meta.url).href)};`,
   );
   write(PLATFORM, "export type NativeOutput = ReturnType<typeof setTimeout> extends number ? unknown : string;");
   for (const path of [NODE, BROWSER]) {
@@ -78,8 +74,8 @@ test(
     ).toEqual([false, true]);
     const exits: number[] = [];
     for (const path of [NODE, BROWSER]) {
-      exits.push(await runStructure(scratch, [`--check=${POLICY}`, `--file=${path}`]));
-      exits.push(await runScopedCli(scratch, ["--scope", path]));
+      exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${POLICY}`, `--file=${path}`]));
+      exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", path]));
     }
     expect(exits).toEqual([0, 0, 1, 1]);
   },
@@ -101,65 +97,40 @@ test("missing native services and failed workers withhold output judgments throu
   } finally {
     missing.mockRestore();
   }
-  const workers = await import("../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts");
-  const failed = vi.spyOn(workers, "runInventoryPartitionWorker").mockImplementation(() => {
-    throw new Error("native declaration output worker failed");
-  });
-  try {
-    expect(await runStructure(scratch, [`--check=${POLICY}`, `--file=${NODE}`])).toBe(2);
-    expect(await runScopedCli(scratch, ["--scope", NODE])).toBe(2);
-    expect(failed).toHaveBeenCalledTimes(2);
-  } finally {
-    failed.mockRestore();
-  }
+  const workers: string[] = [];
+  expect(await nativeVerifyFixture(scratch, "structure", [`--check=${POLICY}`, `--file=${NODE}`], { failWorker: true, workers })).toBe(2);
+  expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", NODE], { failWorker: true, workers })).toBe(2);
+  expect(workers).toEqual(["tsconfig.json", "tsconfig.json"]);
 });
 
 test("closed mixed-world demand never reads the syntax checker or starts a reference pass and releases workers before publication", {
   timeout: scaledBudget(60_000),
-}, async ({ scratch, repoRoot }) => {
+}, ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
-  const contexts = projectCtx(scratch);
-  const workers = await import("../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts");
-  const worker = vi.spyOn(workers, "runInventoryPartitionWorker");
-  const checker = vi.spyOn(contexts.project, "getTypeChecker").mockImplementation(() => {
-    throw new Error("syntax checker fallback");
+  const observed = nativePolicyFixture("outputs-shared", scratch);
+  expect(JSON.parse(observed.text)).toMatchObject({
+    checkerReads: 0,
+    passes: [
+      { errors: [], policies: [["success", 1]], effective: [[BROWSER, "NativeOutput"]] },
+      { errors: [], policies: [["success", 1]], effective: [[BROWSER, "NativeOutput"]] },
+    ],
   });
-  try {
-    for (let pass = 0; pass < 2; pass++) {
-      const result = runPolicyPass({
-        root: scratch,
-        project: contexts.project,
-        ...nativeTypeFactOptions(contexts),
-        knownPolicies: [gate],
-        policies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.policies[0]?.owner.status).toBe("success");
-      expect(result.authority.effectiveFindings.map(({ file, token }) => [file, token])).toEqual([[BROWSER, "NativeOutput"]]);
-    }
-    expect(checker).not.toHaveBeenCalled();
-    expect(worker.mock.calls.map(([request]) => [request.descriptor.id, request.families])).toEqual([
-      ["tsconfig.tests-dom.json", ["declaration-outputs"]],
-      ["tsconfig.json", ["declaration-outputs"]],
-    ]);
-    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-    const partitions = readInventoryGeneration(db, latestInventoryGeneration(db));
-    expect(partitions.map(({ program }) => program)).toEqual(["tsconfig.json", "tsconfig.tests-dom.json"]);
-    for (const partition of partitions) {
-      const request = worker.mock.calls.find(([candidate]) => candidate.descriptor.id === partition.program)?.[0];
-      expect(partition.compilerOptionsJson).toBe(JSON.stringify(request?.descriptor.commandLine.options));
-      expect(partition.roots).toEqual(request?.descriptor.files.map((path) => join(scratch, path)));
-      expect(partition.nativeRoots).toEqual(partition.roots);
-      expect(partition.workerPid).toBeDefined();
-      expect(partition.workerPid).not.toBe(process.pid);
-      expect(() => process.kill(partition.workerPid ?? process.pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
-      expect(() => [...readInventoryReferences(db, partition.id)]).toThrow("family unavailable: references");
-    }
-  } finally {
-    worker.mockRestore();
-    checker.mockRestore();
+  expect(observed.requests.map((request) => [request.descriptor.id, request.families])).toEqual([
+    ["tsconfig.tests-dom.json", ["declaration-outputs"]],
+    ["tsconfig.json", ["declaration-outputs"]],
+  ]);
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  const partitions = readInventoryGeneration(db, latestInventoryGeneration(db));
+  expect(partitions.map(({ program }) => program)).toEqual(["tsconfig.json", "tsconfig.tests-dom.json"]);
+  for (const partition of partitions) {
+    const request = observed.requests.find((candidate) => candidate.descriptor.id === partition.program);
+    expect(partition.compilerOptionsJson).toBe(JSON.stringify(request?.descriptor.commandLine.options));
+    expect(partition.roots).toEqual(request?.descriptor.files.map((path) => join(scratch, path)));
+    expect(partition.nativeRoots).toEqual(partition.roots);
+    expect(partition.workerPid).toBeDefined();
+    expect(partition.workerPid).not.toBe(process.pid);
+    expect(() => process.kill(partition.workerPid ?? process.pid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
+    expect(() => [...readInventoryReferences(db, partition.id)]).toThrow("family unavailable: references");
   }
 });
 
@@ -255,7 +226,7 @@ test("native output rows refuse absent families, spans, wrong worlds, stale sour
 }) => {
   fixture(scratch, repoRoot);
   const programs = readCompilerPrograms(scratch).filter(({ id }) => id === "tsconfig.json" || id === "tsconfig.tests-dom.json");
-  using inventory = createSemanticInventory({ root: scratch, programs, families: ["declaration-outputs"] });
+  using inventory = nativeInventoryFixture({ root: scratch, programs, families: ["declaration-outputs"] });
   const source = inventory.sourceCorpus().getSourceFile(NODE);
   if (source === undefined) {
     throw new Error("captured native output source is missing");
@@ -265,7 +236,7 @@ test("native output rows refuse absent families, spans, wrong worlds, stale sour
   expect(() => inventory.declarationOutput(declaration, "foreign")).toThrow("partition is unavailable");
   expect(() => inventory.declarationOutput(declaration, "tsconfig.tests-dom.json")).toThrow("source/epoch");
   expect(() => inventory.declarationOutput(declaration.getNameNodeOrThrow(), "tsconfig.json")).toThrow("output span is unavailable");
-  using brands = createSemanticInventory({ root: scratch, programs, families: ["id-brands"] });
+  using brands = nativeInventoryFixture({ root: scratch, programs, families: ["id-brands"] });
   expect(() => brands.declarationOutput(declaration, "tsconfig.json")).toThrow("family unavailable: declaration-outputs");
   const acquire = vi.fn((): never => {
     throw new Error("unexpected acquisition");
@@ -292,7 +263,7 @@ test("output generations pin both worlds, isolate transaction bytes and refuse a
   fixture(scratch, repoRoot);
   const programs = readCompilerPrograms(scratch).filter(({ id }) => id === "tsconfig.json" || id === "tsconfig.tests-dom.json");
   const options = { root: scratch, programs, families: ["declaration-outputs"] as const };
-  const values = (inventory: ReturnType<typeof createSemanticInventory>): readonly (boolean | null)[] =>
+  const values = (inventory: ReturnType<typeof nativeInventoryFixture>): readonly (boolean | null)[] =>
     (
       [
         [NODE, "tsconfig.json"],
@@ -305,38 +276,25 @@ test("output generations pin both worlds, isolate transaction bytes and refuse a
       }
       return inventory.declarationOutput(declaration, program);
     });
-  using previous = createSemanticInventory(options);
+  using previous = nativeInventoryFixture(options);
   expect(values(previous)).toEqual([false, true]);
   using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const nextText = "export type NativeOutput=ReturnType<typeof setTimeout> extends number ? string : unknown;";
-  const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-    root: scratch,
-    files: [{ path: join(scratch, PLATFORM), text: nextText }],
-    deleted: [],
-  });
-  using overlay = createSemanticInventory({ ...options, fileSystem, overlay: { addedPaths: [], deletedPaths: [] } });
+  using overlay = nativeInventoryFixture(options, { projection: { root: scratch, files: [{ path: join(scratch, PLATFORM), text: nextText }], deleted: [] } });
   expect(values(overlay)).toEqual([true, false]);
   expect(values(previous)).toEqual([false, true]);
   expect(latestInventoryGeneration(db)).toBe(previous.generation);
   overlay[Symbol.dispose]();
   expect(() => values(overlay)).toThrow("disposed");
   writeFileSync(join(scratch, PLATFORM), nextText);
-  let completed = 0;
-  expect(() =>
-    createSemanticInventory({
-      ...options,
-      buildPartition: (request) => {
-        runInventoryPartitionWorker(request);
-        expect(latestInventoryGeneration(db)).toBe(previous.generation);
-        expect(values(previous)).toEqual([false, true]);
-        if (++completed === 1) {
-          writeFileSync(join(scratch, PLATFORM), `${nextText}\nexport const changedDuringExtraction=1;`);
-        }
-      },
-    }),
-  ).toThrow("inputs changed during extraction");
+  const faults: string[] = [];
+  const published: number[] = [];
+  expect(() => nativeInventoryFixture(options, { fault: "declaration-output-race", faults, published })).toThrow("inputs changed during extraction");
+  expect(faults).toEqual(["declaration-output-race"]);
+  expect(published.length).toBeGreaterThan(0);
+  expect(new Set(published)).toEqual(new Set([previous.generation]));
   expect(latestInventoryGeneration(db)).toBe(previous.generation);
-  using current = createSemanticInventory(options);
+  using current = nativeInventoryFixture(options);
   expect(current.generation).toBeGreaterThan(previous.generation);
   expect(values(current)).toEqual([true, false]);
   expect(values(previous)).toEqual([false, true]);

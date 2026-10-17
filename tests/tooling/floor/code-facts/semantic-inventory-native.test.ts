@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
   buildLiveness,
@@ -13,10 +14,8 @@ import {
   ownExports,
   testOnlyClassOf,
 } from "@orb/tooling/ast";
-import { runCodemod } from "@orb/tooling/codemod";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
 import { beginReferencePass, endReferencePass, isDocumentationLinkReference, resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
@@ -29,6 +28,9 @@ import { vi } from "vitest";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 import { readInventoryInputs, readInventoryModules, readInventorySourceMetadata } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { declarationBindingKeys, samePhysicalNode } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 function fixtureValue<T>(value: T | undefined): T {
   if (value === undefined) {
@@ -142,7 +144,7 @@ function source(inventory: SemanticInventory, path: string): NonNullable<ReturnT
 test("stored native collectors preserve aliases, namespace bindings, lazy members, references and consumer classes", ({ scratch }) => {
   initialize(scratch);
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   expect(verdicts(stored.sourceCorpus())).toEqual(verdicts(native.sourceCorpus()));
   const base = source(stored, "packages/kit/src/base.ts");
   const alive = base.getVariableDeclarationOrThrow("alive");
@@ -178,7 +180,7 @@ export function consumer(): void { called(); }
 `,
   );
   const workspace = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const corpus = mode === "native" ? workspace.sourceCorpus() : stored.sourceCorpus();
   const file = fixtureValue(corpus.getSourceFile("packages/kit/src/usage.ts"));
   let queries = 0;
@@ -269,7 +271,7 @@ export function shadows(shadowOnly: () => void): void { shadowOnly(); }
 `,
   );
   const workspace = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const summarize = (corpus: SourceCorpus): object => {
     const live = buildLiveness(corpus);
     return {
@@ -311,8 +313,9 @@ test("binding analyses reject foreign sources and release through their existing
   }
   expect(() => usage.parents()).toThrow("disposed");
   expect(workspace.bindingUsage(nativeFile)).not.toBe(usage);
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const file = source(stored, "packages/kit/src/base.ts");
+  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const storedUsage = stored.bindingUsage(file);
   expect(storedUsage.parents().size).toBeGreaterThan(0);
   expect(sourceBindingUsage(file)).toBe(storedUsage);
@@ -342,7 +345,8 @@ export function consumer(): void { called(); }
   );
   write(scratch, "packages/kit/src/documented-barrel.ts", "export { unused as renamedUnused } from './documented';\n");
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
+  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const corpus = stored.sourceCorpus();
   const file = source(stored, "packages/kit/src/documented.ts");
   const live = buildLiveness(corpus);
@@ -378,13 +382,10 @@ export function consumer(): void { called(); }
 
 test("physical self-name identity refuses foreign, modified and closed captured snapshots", ({ scratch }) => {
   initialize(scratch);
-  using stored = createSemanticInventory({ root: scratch });
-  using foreign = createSemanticInventory({
-    root: scratch,
-    buildPartition: () => {
-      throw new Error("unchanged snapshot rebuilt a Program");
-    },
-  });
+  using stored = nativeInventoryFixture({ root: scratch });
+  const workers: string[] = [];
+  using foreign = nativeInventoryFixture({ root: scratch }, { workers });
+  expect(workers).toEqual([]);
   const file = source(stored, "packages/kit/src/base.ts");
   const local = file.getVariableDeclarationOrThrow("unused").getNameNode();
   const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
@@ -419,7 +420,8 @@ test.for(["comparison", "live-origin", "empty-origin", "dead-evidence"] as const
       "packages/kit/src/shifted.ts",
       "export function unused(): void {} export function consumer(): void { unused(); } export function isolated(): void {}\n",
     );
-    using stored = createSemanticInventory({ root: scratch });
+    using stored = nativeInventoryFixture({ root: scratch });
+    // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
     const corpus = stored.sourceCorpus();
     const file = source(stored, "packages/kit/src/shifted.ts");
     const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
@@ -455,7 +457,7 @@ test("partitions retain native options, closure, failed resolution and importing
         .map((diagnostic) => diagnostic.getMessageText()),
     }),
   ).toBe(join(scratch, "node_modules/fixture-platform/browser.ts"));
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const browserImport = fixtureValue(
     source(stored, "packages/client/src/browser.ts")
       .getImportDeclarations()
@@ -502,13 +504,13 @@ test("partitions retain native options, closure, failed resolution and importing
 test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", { tags: ["slow"] }, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
-  using previous = createSemanticInventory({ root: scratch });
+  using previous = nativeInventoryFixture({ root: scratch });
   const old = source(previous, "packages/kit/src/base.ts").getFullText();
   write(scratch, "packages/kit/src/base.ts", old.replace("export const unused=4;", "export const replacement=4;"));
   write(scratch, "packages/client/src/absent.ts", "export const absent=7;\n");
   write(scratch, "node_modules/fixture-platform/browser.ts", "export const platform='changed';\n");
   rmSync(join(scratch, "tests/consumer.ts"));
-  using current = createSemanticInventory({ root: scratch });
+  using current = nativeInventoryFixture({ root: scratch });
   expect(current.generation).toBeGreaterThan(previous.generation);
   expect(source(previous, "packages/kit/src/base.ts").getFullText()).toBe(old);
   expect([...ownExports(source(current, "packages/kit/src/base.ts"))].map((entry) => entry.name)).not.toContain("unused");
@@ -521,37 +523,26 @@ test("changes, additions, removals, package resolution and failed lookups invali
   const missing = fixtureValue(source(current, "packages/client/src/missing.ts").getImportDeclarations()[0]);
   expect(current.moduleTarget(missing)?.getFilePath()).toBe(join(scratch, "packages/client/src/absent.ts"));
   expect(source(current, "node_modules/fixture-platform/browser.ts").getFullText()).toContain("changed");
-  using unchanged = createSemanticInventory({
-    root: scratch,
-    buildPartition: () => {
-      throw new Error("unchanged generation loaded a Program");
-    },
-  });
+  const workers: string[] = [];
+  using unchanged = nativeInventoryFixture({ root: scratch }, { workers });
+  expect(workers).toEqual([]);
   expect(unchanged.generation).toBe(current.generation);
 });
 
-test("same-input competing writers recheck under the lock and build each native partition once", async ({ scratch }) => {
+test("same-input competing writers recheck under the lock and build each native partition once", { timeout: scaledBudget(120_000) }, async ({ scratch }) => {
   initialize(scratch);
   const log = join(scratch, ".cache/builds.jsonl");
-  const store = import.meta.resolve("@orb/tooling/floor/code-facts/semantic-inventory");
-  const worker = import.meta.resolve("@orb/tooling/floor/compiler/semantic-inventory-worker-run");
-  const script = `import {appendFileSync,mkdirSync} from 'node:fs';
-    import {dirname} from 'node:path';
-    import {createSemanticInventory} from ${JSON.stringify(store)};
-    import {runInventoryPartitionWorker} from ${JSON.stringify(worker)};
-    mkdirSync(dirname(${JSON.stringify(log)}),{recursive:true});
-    using inventory=createSemanticInventory({root:${JSON.stringify(scratch)},buildPartition(request){
-      appendFileSync(${JSON.stringify(log)},JSON.stringify(request.descriptor.id)+'\\n');
-      runInventoryPartitionWorker(request);
-    }});
-    console.log(JSON.stringify({generation:inventory.generation,programs:inventory.programs}));`;
+  const entry = fileURLToPath(new URL("../compiler/native-inventory-command-cases.ts", import.meta.url));
+  const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+  const leftPath = join(scratch, ".cache/left.json");
+  const rightPath = join(scratch, ".cache/right.json");
   const [left, right] = await Promise.all([
-    spawnNiced(process.execPath, ["--input-type=module", "-e", script], { cwd: scratch }),
-    spawnNiced(process.execPath, ["--input-type=module", "-e", script], { cwd: scratch }),
+    spawnNiced(process.execPath, ["--import", bootstrap, entry, "writer", scratch, leftPath, log], { cwd: scratch }),
+    spawnNiced(process.execPath, ["--import", bootstrap, entry, "writer", scratch, rightPath, log], { cwd: scratch }),
   ]);
   expect(left.code, left.stderr).toBe(0);
   expect(right.code, right.stderr).toBe(0);
-  expect(JSON.parse(left.stdout)).toEqual(JSON.parse(right.stdout));
+  expect(JSON.parse(readFileSync(leftPath, "utf8"))).toEqual(JSON.parse(readFileSync(rightPath, "utf8")));
   const builds = readFileSync(log, "utf8")
     .trim()
     .split("\n")
@@ -559,75 +550,36 @@ test("same-input competing writers recheck under the lock and build each native 
   expect(builds.toSorted()).toEqual(["packages/client/tsconfig.json", "packages/kit/tsconfig.json", "tsconfig.tools.json"]);
 });
 
-test("actual codemod transaction inventories preserve aliases, native package paths and overlay-only lookup roots on refusal", { tags: ["slow"] }, async ({
+test("actual codemod transaction inventories preserve aliases, native package paths and overlay-only lookup roots on refusal", { tags: ["slow"] }, ({
   scratch,
 }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
-  using committed = createSemanticInventory({ root: scratch });
   const basePath = join(scratch, "packages/kit/src/base.ts");
   const original = readFileSync(basePath, "utf8");
-  let captured: SemanticInventory | undefined;
-  await expect(
-    runCodemod(
-      "inventory transaction",
-      (context) => {
-        const added = join(scratch, "packages/client/src/absent.ts");
-        const deleted = join(scratch, "tests/consumer.ts");
-        context.plan({
-          description: "Change transaction bytes and membership",
-          touchedFiles: [basePath, added, deleted],
-          transform: (ctx) => {
-            ctx.project.getSourceFileOrThrow(basePath).replaceWithText(original.replace("alive=1", "alive=101"));
-            ctx.project.createSourceFile(added, "export const absent=7;\n");
-            ctx.project.getSourceFileOrThrow(deleted).delete();
-          },
-        });
-        const workspace = context.semantic();
-        {
-          using inventory = workspace.inventory();
-          captured = inventory;
-          const missing = fixtureValue(source(inventory, "packages/client/src/missing.ts").getImportDeclarations()[0]);
-          expect(inventory.moduleTarget(missing)?.getFilePath()).toBe(added);
-          const browser = source(inventory, "packages/client/src/browser.ts");
-          const aliased = fixtureValue(browser.getImportDeclarations()[0]);
-          expect(
-            inventory
-              .exports(fixtureValue(inventory.moduleTarget(aliased)), aliased)
-              .get("renamed")?.[0]
-              ?.getSourceFile()
-              .getFilePath(),
-          ).toBe(basePath);
-          const platform = fixtureValue(browser.getImportDeclarations().find((imp) => imp.getModuleSpecifierValue() === "fixture-platform"));
-          expect(inventory.moduleTarget(platform)?.getFilePath()).toBe(join(scratch, "node_modules/fixture-platform/browser.ts"));
-          expect(source(inventory, "packages/kit/src/base.ts").getFullText()).toContain("alive=101");
-          expect(
-            inventory
-              .sourceCorpus()
-              .getSourceFiles()
-              .map((file) => file.getFilePath()),
-          ).not.toContain(deleted);
-        }
-        using fresh = workspace.inventory();
-        expect(source(fresh, "packages/kit/src/base.ts").getFullText()).toContain("alive=101");
-        throw new Error("refuse transaction after extraction");
-      },
+  const entry = fileURLToPath(new URL("../compiler/native-inventory-command-cases.ts", import.meta.url));
+  const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+  const result = join(scratch, ".cache/codemod-result.json");
+  const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "codemod-refusal", scratch, result], { cwd: scratch });
+  expect(completed.status, completed.stderr).toBe(0);
+  expect(JSON.parse(readFileSync(result, "utf8"))).toMatchObject({
+    refusal: expect.stringContaining("refuse transaction after extraction"),
+    disposed: expect.stringContaining("disposed"),
+    observations: [
       {
-        argv: [],
-        repoRoot: scratch,
-        setup: {
-          tsConfigFilePath: join(scratch, "packages/kit/tsconfig.json"),
-          replaceGlobs: [`${scratch}/packages/*/src/*.ts`, `${scratch}/scripts/*.ts`, `${scratch}/tests/*.ts`],
-        },
-        skipDiagnosticsCheck: true,
+        lookup: join(scratch, "packages/client/src/absent.ts"),
+        alias: basePath,
+        platform: join(scratch, "node_modules/fixture-platform/browser.ts"),
+        text: expect.stringContaining("alive=101"),
+        absentDeleted: true,
       },
-    ),
-  ).rejects.toThrow("refuse transaction after extraction");
-  expect(() => captured?.sourceCorpus().getSourceFiles()).toThrow("disposed");
+      { text: expect.stringContaining("alive=101") },
+    ],
+    physicalUnchanged: true,
+    latestUnchanged: true,
+    pinnedUnchanged: true,
+  });
   expect(readFileSync(basePath, "utf8")).toBe(original);
-  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(database)).toBe(committed.generation);
-  expect(source(committed, "packages/kit/src/base.ts").getFullText()).toBe(original);
 });
 
 test("stored declaration selection preserves native local/export admission without invoking a syntax-carrier checker", ({ scratch }) => {
@@ -653,7 +605,7 @@ export default function NamedDefault(): void {}
   write(scratch, "packages/kit/src/declarations-barrel.ts", 'export { direct as viaBarrel, publicAlias } from "./declarations";');
   write(scratch, "packages/kit/src/default-alias.ts", "function publishedDefault(): void {} export default publishedDefault;");
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const names = [
     "direct",
     "directValue",
@@ -721,7 +673,8 @@ test("stored dead evidence refuses unindexed dependency barrel origins instead o
   ).toEqual([join(scratch, "packages/client/src/browser.ts"), join(scratch, "packages/client/src/browser.ts")]);
   expect(deadEvidenceFor(nativeCorpus, nativeOrigin, "native", buildLiveness(nativeCorpus))).toMatchObject({ verdict: "ALIVE" });
 
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
+  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const corpus = stored.sourceCorpus();
   const live = buildLiveness(corpus);
   const origins = declarationsNamed(corpus.getSourceFiles(), "native");
@@ -782,7 +735,7 @@ for (const carrier of ["references", "exports"] as const) {
       }
     };
     const expected = carrier === "references" ? capture(semanticReferenceNodes(ambient.getInterfaceOrThrow("Map").getNameNode())) : nativeExports();
-    using stored = createSemanticInventory({ root: scratch });
+    using stored = nativeInventoryFixture({ root: scratch });
     const close = vi.spyOn(DatabaseSync.prototype, "close");
     const program = vi.spyOn(Project.prototype, "getProgram").mockImplementation(() => {
       throw new Error("stored syntax hydrated a native Program");

@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import type { InventoryInvocationPlan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { assertInvocationEvidence, typeObservationWireSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
@@ -26,6 +26,16 @@ import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const NODE_ENTRY = "tests/ui/native-browser.test-d.ts";
 const CT_ENTRY = "tests/client/features/probe/probe.ct.tsx";

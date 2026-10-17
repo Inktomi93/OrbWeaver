@@ -10,17 +10,20 @@
 // two-sided markers, depcruise edges failure) · EXIT.toolError a broken run (zero-scan scope, a failed
 // subprocess) · EXIT.misuse an UNKNOWN VERB (the typo'd-verb-silently-clean class — it used to print
 // usage and exit 0). Bare `pnpm ast` stays the usage door (exit 0).
+import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
-import { CodemodError } from "../codemod/index.ts";
-import { print } from "../floor/artifacts/artifacts.ts";
-import { EXIT } from "../floor/cli/exit-contract.ts";
-import { warn } from "../floor/cli/log.ts";
-import { runTool, UsageError } from "../floor/cli/run-tool.ts";
-import { SemanticInventoryError } from "../floor/code-facts/semantic-inventory-contract.ts";
-import { semanticInventoryOf } from "../floor/code-facts/semantic-inventory-reader.ts";
-import { bindShapeInventory } from "../floor/code-facts/shape-inventory-scope.ts";
 import type { Flags } from "./contract/types.ts";
-import {
+
+const { CodemodError } = await import("../codemod/index.ts");
+const { print } = await import("../floor/artifacts/artifacts.ts");
+const { EXIT } = await import("../floor/cli/exit-contract.ts");
+const { warn } = await import("../floor/cli/log.ts");
+const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+const { SemanticInventoryError } = await import("../floor/code-facts/semantic-inventory-contract.ts");
+const { semanticInventoryOf } = await import("../floor/code-facts/semantic-inventory-reader.ts");
+const { bindShapeInventory } = await import("../floor/code-facts/shape-inventory-scope.ts");
+
+const {
   ANTIPATTERNS_VERB,
   ARGLESS_VERBS,
   AstToolError,
@@ -43,9 +46,9 @@ import {
   USAGE,
   VERBS,
   WIDE_SYNTACTIC_VERBS,
-} from "./index.ts";
-import { REPO_ROOT } from "./lib/root.ts";
-import { prepareRespellInventory } from "./ops/respell.ts";
+} = await import("./index.ts");
+const { REPO_ROOT } = await import("./lib/root.ts");
+const { prepareRespellInventory } = await import("./ops/respell.ts");
 
 /** Which corpus label a run's epilogue carries — the three arms `loadProject` can produce. */
 function corpusOf(typed: boolean, wide: boolean, verb: string): string {

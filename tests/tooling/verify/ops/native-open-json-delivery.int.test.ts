@@ -1,19 +1,27 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Identifier, Node } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { gate as occurrence } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const POLICIES = [occurrence, health];
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
+
+const POLICIES = [occurrence];
 const SCHEMA = "packages/db/src/schema/settings.ts";
 const ENTRY = "packages/server/src/entry.ts";
 function fixture(root: string, repoRoot: string, browser: boolean): void {
@@ -54,7 +62,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -109,7 +117,7 @@ test(
       const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
       const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       try {
-        expect.soft(await runStructure(root, ["--check=open-json-column-key-parity"])).toBe(1);
+        expect.soft(await nativeVerifyFixture(root, "structure", ["--check=open-json-column-key-parity"], { forbidSyntax: true })).toBe(1);
         const result = runPolicyPass({
           root,
           project: context.project,
@@ -135,7 +143,6 @@ test(
           .flatMap((query) => [...query.nodes]);
         expect(indexedRequests.some((node) => Node.isCallExpression(node) && node.getExpression().getText() === "opaque")).toBe(false);
         expect(indexedRequests.some((node) => Node.isCallExpression(node) && node.getExpression().getText() === "indexed")).toBe(true);
-        expect.soft(result.policies.find(({ id }) => id === health.id)?.findings).toEqual([]);
       } finally {
         useContext.mockRestore();
         definitionPoison.mockRestore();

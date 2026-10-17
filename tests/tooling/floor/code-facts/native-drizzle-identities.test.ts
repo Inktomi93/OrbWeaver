@@ -1,13 +1,13 @@
 // @subject tooling/src/floor/compiler/drizzle-inventory-extract.ts
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import type { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { assertSchemaColumnRoster, SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventoryBuildRequest, InventorySpan, SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { drizzleQueryKey, drizzleSchemas } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
@@ -15,16 +15,18 @@ import {
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
-import { inputsCurrent, inventoryAuthoredFiles } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
-import { readInventoryDrizzleCall, readInventoryInputs } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { inputVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
+import { readInventoryDrizzleCall } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
+import { readInventoryRuntime } from "../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
+import { copyNativeInventoryImplementation } from "../compiler/native-inventory-tree.ts";
 
 const DB = "packages/db/tsconfig.json";
 const SERVER = "packages/server/tsconfig.json";
@@ -140,13 +142,7 @@ test(
       ],
     };
     const requests: InventoryBuildRequest[] = [];
-    using original = createSemanticInventory({
-      ...options,
-      buildPartition: (build) => {
-        requests.push(build);
-        runInventoryPartitionWorker(build);
-      },
-    });
+    using original = nativeInventoryFixture(options, { requests });
     const column = original.drizzleEvidence(selected, SERVER, "column");
     expect(column).toMatchObject({
       mode: "column",
@@ -181,12 +177,9 @@ test(
     expect(request?.descriptor.files).toEqual([ENTRY]);
     expect(() => original.drizzleEvidence(selected, SERVER, "instance")).toThrow("not a call");
     expect(() => original.drizzleEvidence(selected, "foreign", "column")).toThrow("partition is unavailable");
-    using same = createSemanticInventory({
-      ...options,
-      buildPartition: () => {
-        throw new Error("complete column demand rebuilt");
-      },
-    });
+    const warmWorkers: string[] = [];
+    using same = nativeInventoryFixture(options, { workers: warmWorkers });
+    expect(warmWorkers).toEqual([]);
     expect(same.generation).toBe(original.generation);
     expect(same.drizzleEvidence(selected, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "resolved" } });
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
@@ -262,14 +255,7 @@ test(
     const fixture = setup(scratch, repoRoot);
     const workers: string[] = [];
     const requests: InventoryBuildRequest[] = [];
-    using inventory = createSemanticInventory({
-      ...fixture.options,
-      buildPartition: (request) => {
-        workers.push(request.descriptor.id);
-        requests.push(request);
-        runInventoryPartitionWorker(request);
-      },
-    });
+    using inventory = nativeInventoryFixture(fixture.options, { workers, requests });
     expect(workers).toEqual([DB, SERVER]);
     const consumerRequest = requests.find(({ descriptor }) => descriptor.id === SERVER);
     expect(consumerRequest?.descriptor.files).toEqual([ENTRY]);
@@ -287,12 +273,9 @@ test(
     expect(() => inventory.drizzleEvidence(fixture.direct, SERVER, "instance")).toThrow("no captured fact graph");
     expect(() => inventory.drizzleEvidence(fixture.direct, "foreign", "called-member")).toThrow("partition is unavailable");
     expect(() => inventory.schemaIdentity(fixture.sources.slice(0, 1), DB)).toThrow("source demand is incomplete");
-    using same = createSemanticInventory({
-      ...fixture.options,
-      buildPartition: () => {
-        throw new Error("unchanged native Drizzle demand rebuilt");
-      },
-    });
+    const warmWorkers: string[] = [];
+    using same = nativeInventoryFixture(fixture.options, { workers: warmWorkers });
+    expect(warmWorkers).toEqual([]);
     expect(same.generation).toBe(inventory.generation);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const partitions = readInventoryGeneration(db, inventory.generation);
@@ -300,14 +283,14 @@ test(
     expect(consumer?.available).not.toContain(join(scratch, UNRELATED));
     expect(consumer?.nativeRoots).toEqual([join(scratch, ENTRY)]);
     expect(() =>
-      createSemanticInventory({
-        ...fixture.options,
-        drizzleQueries: [...(fixture.options.drizzleQueries ?? []), { program: SERVER, query: { node: span(fixture.direct), mode: "instance" } }],
-        buildPartition: () => {
-          throw new Error("failed native Drizzle worker");
+      nativeInventoryFixture(
+        {
+          ...fixture.options,
+          drizzleQueries: [...(fixture.options.drizzleQueries ?? []), { program: SERVER, query: { node: span(fixture.direct), mode: "instance" } }],
         },
-      }),
-    ).toThrow("failed native Drizzle worker");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     expect(latestInventoryGeneration(db)).toBe(inventory.generation);
     expect(inventory.drizzleEvidence(fixture.direct, SERVER, "called-member")).toMatchObject({ mode: "called-member", table: { kind: "resolved" } });
     inventory[Symbol.dispose]();
@@ -320,7 +303,7 @@ test(
   "native Drizzle graph, source and catalog-link corruption refuses on the reader's real connection",
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
-    using original = createSemanticInventory(fixture.options);
+    using original = nativeInventoryFixture(fixture.options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const partitions = readInventoryGeneration(db, original.generation);
     const consumer = partitions.find(({ program }) => program === SERVER);
@@ -390,35 +373,18 @@ test(
   "partial consumer graphs and a catalog-only input race cannot publish over a pinned native generation",
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
-    using previous = createSemanticInventory(fixture.options);
+    using previous = nativeInventoryFixture(fixture.options);
     using observer = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     for (const cut of ["graph", "catalog-input"] as const) {
       try {
         expect(() =>
-          createSemanticInventory({
-            ...fixture.options,
-            drizzleQueries: [...(fixture.options.drizzleQueries ?? []), { program: SERVER, query: { node: span(fixture.direct), mode: "instance" } }],
-            buildPartition: (request) => {
-              runInventoryPartitionWorker(request);
-              if (request.descriptor.id !== SERVER) {
-                throw new Error("unchanged native catalog unexpectedly rebuilt");
-              }
-              if (cut === "catalog-input") {
-                writeFileSync(join(scratch, UNRELATED), UNRELATED_TEXT.replace("'unrelated'", "'different'"));
-                return;
-              }
-              using staging = openInventoryDatabase(request.destination);
-              const partition = readInventoryGeneration(staging, latestInventoryGeneration(staging))[0];
-              if (partition === undefined) {
-                throw new Error("native consumer staging partition is missing");
-              }
-              staging
-                .prepare(
-                  "DELETE FROM inventory_drizzle_atom WHERE partition=? AND owner=(SELECT MAX(ordinal) FROM inventory_drizzle_evidence WHERE partition=?) AND ordinal=(SELECT MAX(ordinal) FROM inventory_drizzle_atom WHERE partition=? AND owner=(SELECT MAX(ordinal) FROM inventory_drizzle_evidence WHERE partition=?))",
-                )
-                .run(partition.id, partition.id, partition.id, partition.id);
+          nativeInventoryFixture(
+            {
+              ...fixture.options,
+              drizzleQueries: [...(fixture.options.drizzleQueries ?? []), { program: SERVER, query: { node: span(fixture.direct), mode: "instance" } }],
             },
-          }),
+            { fault: cut === "graph" ? "drizzle-consumer-tail" : "drizzle-catalog-input" },
+          ),
         ).toThrow(cut === "graph" ? "fact graph is incomplete" : "catalog inputs changed before consumer acceptance");
       } finally {
         writeFileSync(join(scratch, UNRELATED), UNRELATED_TEXT);
@@ -435,10 +401,10 @@ test(
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
     const base = { ...fixture.options, programs: (fixture.options.programs ?? []).filter(({ id }) => id === DB), drizzleQueries: [] };
-    using missing = createSemanticInventory({ ...base, schemaQuery: { program: DB, sources: [] } });
+    using missing = nativeInventoryFixture({ ...base, schemaQuery: { program: DB, sources: [] } });
     expect(missing.schemaIdentity([], DB)).toMatchObject({ status: "missing", receipt: { paths: [], members: 0 } });
     const source = fixture.direct.getProject().getSourceFileOrThrow(join(scratch, "packages/db/src/index.ts"));
-    using empty = createSemanticInventory({ ...base, schemaQuery: { program: DB, sources: [span(source)] } });
+    using empty = nativeInventoryFixture({ ...base, schemaQuery: { program: DB, sources: [span(source)] } });
     expect(empty.schemaIdentity([source], DB)).toMatchObject({ status: "empty", receipt: { paths: ["packages/db/src/index.ts"], members: 0 } });
   },
   scaledBudget(60_000),
@@ -455,14 +421,7 @@ test(
     const name = source.getVariableDeclarationOrThrow("assets").getNameNode();
     const pair = { left: span(name), right: span(name), leftField: null, rightField: null, projection: "mutual" as const, lenient: false };
     const requests: InventoryBuildRequest[] = [];
-    using inventory = createSemanticInventory({
-      ...fixture.options,
-      shapePlan: { sources: [source], prepare: () => [pair] },
-      buildPartition: (request) => {
-        requests.push(request);
-        runInventoryPartitionWorker(request);
-      },
-    });
+    using inventory = nativeInventoryFixture(fixture.options, { shapeQueries: [pair], shapeSources: [source.getFilePath()], requests });
     expect(inventory.shapePair(pair).find(({ program }) => program === DB)?.result).toEqual({ kind: "answer", values: [true] });
     expect(requests.filter((request) => request.descriptor.id === DB && (request.shapeQueries?.length ?? 0) > 0)).toHaveLength(1);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
@@ -485,7 +444,7 @@ test(
   "catalog-only overlay changes rebuild the consumer atomically while old native readers remain pinned",
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
-    using old = createSemanticInventory(fixture.options);
+    using old = nativeInventoryFixture(fixture.options);
     const original = old.schemaIdentity(fixture.sources, DB);
     const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
       root: scratch,
@@ -494,12 +453,13 @@ test(
     });
     const overlaySyntax = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
     const overlaySources = [ASSETS, UNRELATED].map((path) => overlaySyntax.createSourceFile(join(scratch, path), fileSystem.readFileSync(join(scratch, path))));
-    using overlay = createSemanticInventory({
-      ...fixture.options,
-      schemaQuery: { program: DB, sources: overlaySources.map(span) },
-      overlay: { addedPaths: [], deletedPaths: [] },
-      fileSystem,
-    });
+    using overlay = nativeInventoryFixture(
+      {
+        ...fixture.options,
+        schemaQuery: { program: DB, sources: overlaySources.map(span) },
+      },
+      { projection: { root: scratch, files: [{ path: join(scratch, UNRELATED), text: fileSystem.readFileSync(join(scratch, UNRELATED)) }], deleted: [] } },
+    );
     expect(overlay.schemaIdentity(overlaySources, DB)).toMatchObject({ status: "unresolved", receipt: { tables: 0, paths: [ASSETS, UNRELATED] } });
     expect(() => overlay.drizzleEvidence(fixture.direct, SERVER, "called-member")).toThrow("schema identity replay source/epoch is stale");
     const overlayEntry = overlay.sourceCorpus().getSourceFile(join(scratch, ENTRY));
@@ -511,13 +471,7 @@ test(
     expect(readFileSync(join(scratch, UNRELATED), "utf8")).toBe(UNRELATED_TEXT);
     writeFileSync(join(scratch, UNRELATED), UNRELATED_TEXT.replace("'unrelated'", "'different'"));
     const workers: string[] = [];
-    using next = createSemanticInventory({
-      ...fixture.options,
-      buildPartition: (request) => {
-        workers.push(request.descriptor.id);
-        runInventoryPartitionWorker(request);
-      },
-    });
+    using next = nativeInventoryFixture(fixture.options, { workers });
     expect(workers).toEqual([DB, SERVER]);
     expect(next.generation).toBeGreaterThan(old.generation);
     const nextSources = [ASSETS, UNRELATED].map((path) => {
@@ -555,34 +509,32 @@ test(
   "native Drizzle session keeps exact modes, complete roster and owner coverage sealed",
   ({ scratch, repoRoot }) => {
     setup(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    const source = context.project.getSourceFileOrThrow(join(scratch, ENTRY));
-    const call = source.getVariableDeclarationOrThrow("direct").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
-    const sources = [ASSETS, UNRELATED].map((path) => context.project.getSourceFileOrThrow(join(scratch, path)));
-    using facts = context.nativeTypeFacts?.();
-    if (facts === undefined) {
-      throw new Error("native Drizzle session is missing");
-    }
-    facts.request("schema", { kind: "schema-identities", nodes: sources });
-    facts.request("writer", { kind: "drizzle-identities", nodes: [call], mode: "called-member" });
-    expect(() => facts.drizzleEvidence("writer", [call], "called-member")).toThrow("must be sealed");
-    facts.seal(new Set(["schema", "writer"]));
-    expect(facts.drizzleEvidence("writer", [call], "called-member").get(call)).toMatchObject({ mode: "called-member", table: { kind: "resolved" } });
-    expect(() => facts.drizzleEvidence("writer", [call], "instance")).toThrow("not registered by this owner");
-    expect(() => facts.drizzleEvidence("other", [call], "called-member")).toThrow("not registered by this owner");
-    expect(() => facts.schemaIdentity("schema", sources.slice(0, 1))).toThrow("roster is incomplete");
-    expect(() => facts.request("writer", { kind: "drizzle-identities", nodes: [call], mode: "instance" })).toThrow("registration is sealed");
-    facts[Symbol.dispose]();
-    expect(() => facts.drizzleEvidence("writer", [call], "called-member")).toThrow("disposed");
+    const implementation = copyNativeInventoryImplementation(join(scratch, ".cache"), repoRoot);
+    const entry = fileURLToPath(new URL("../compiler/native-inventory-adapter-cases.ts", import.meta.url));
+    const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
+    const result = join(scratch, "drizzle-session.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "drizzle-session", implementation, scratch, result]);
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(result, "utf8"))).toMatchObject({
+      mode: "drizzle-session",
+      beforeSeal: expect.stringContaining("must be sealed"),
+      calledMember: true,
+      resolvedTable: true,
+      wrongMode: expect.stringContaining("not registered by this owner"),
+      wrongOwner: expect.stringContaining("not registered by this owner"),
+      incompleteRoster: expect.stringContaining("roster is incomplete"),
+      registration: expect.stringContaining("registration is sealed"),
+      disposed: expect.stringContaining("disposed"),
+    });
   },
   scaledBudget(60_000),
 );
 
 test(
-  "Drizzle-only implementation inputs refuse changed canonical schema and invocation helpers",
+  "Drizzle-only implementation receipts retain actual canonical schema and invocation helpers",
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
-    using inventory = createSemanticInventory(fixture.options);
+    using inventory = nativeInventoryFixture(fixture.options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const dependencies = [
       "projection-reference-codec.ts",
@@ -593,18 +545,13 @@ test(
       "value-carrier-native.ts",
       "call-returns.ts",
     ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
-    const authored = inventoryAuthoredFiles(scratch);
-    const fileSystem = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
     const partitions = readInventoryGeneration(db, inventory.generation);
     expect(partitions.map(({ program }) => program)).toEqual([DB, SERVER]);
     for (const partition of partitions) {
-      const inputs = [...readInventoryInputs(db, partition.id)];
-      expect.soft(dependencies.filter((path) => inputs.some((input) => input.kind === "file" && input.path === path))).toEqual(dependencies);
-      expect(inputsCurrent(inputs, { authored })).toBe(true);
-      for (const path of dependencies) {
-        const changed = inventoryFileSystem(fileSystem, { root: scratch, files: [{ path, text: readFileSync(path, "utf8") + "\n" }], deleted: [] });
-        expect.soft(inputsCurrent(inputs, { authored, fileSystem: changed }), path).toBe(false);
-      }
+      const runtime = readInventoryRuntime(db, partition.id, "worker");
+      expect
+        .soft(dependencies.filter((path) => runtime.sources.some((source) => source.path === path && source.version === inputVersion(path, "file"))))
+        .toEqual(dependencies);
     }
   },
   scaledBudget(60_000),
@@ -614,7 +561,7 @@ test(
   "full schema data shares the atomic identity/consumer cohort without widening defaults",
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
-    using identity = createSemanticInventory(fixture.options);
+    using identity = nativeInventoryFixture(fixture.options);
     expect(() => identity.schemaData(fixture.sources, DB)).toThrow("schema-data");
     const options = {
       ...fixture.options,
@@ -622,13 +569,7 @@ test(
       schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
     };
     const requests: InventoryBuildRequest[] = [];
-    using full = createSemanticInventory({
-      ...options,
-      buildPartition: (request) => {
-        requests.push(request);
-        runInventoryPartitionWorker(request);
-      },
-    });
+    using full = nativeInventoryFixture(options, { requests });
     expect(requests.map(({ descriptor }) => descriptor.id)).toEqual([DB, SERVER]);
     expect(requests[0]?.schemaDataSources).toEqual(fixture.sources.map(span));
     expect(requests[1]?.schemaDataSources).toBeUndefined();
@@ -647,23 +588,20 @@ test(
     expect(full.drizzleEvidence(fixture.bound, SERVER, "instance")).toMatchObject({ mode: "instance", table: { references: [{ kind: "table" }] } });
     expect(() => full.schemaData(fixture.sources.slice(0, 1), DB)).toThrow("source demand is incomplete");
     expect(() => full.schemaData(fixture.sources, SERVER)).toThrow("native typed source/epoch");
-    using reuse = createSemanticInventory({
-      ...options,
-      buildPartition: () => {
-        throw new Error("complete full schema demand rebuilt");
-      },
-    });
+    const warmWorkers: string[] = [];
+    using reuse = nativeInventoryFixture(options, { workers: warmWorkers });
+    expect(warmWorkers).toEqual([]);
     expect(reuse.generation).toBe(full.generation);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span) },
-        buildPartition: () => {
-          throw new Error("changed full schema demand worker");
+      nativeInventoryFixture(
+        {
+          ...options,
+          schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span) },
         },
-      }),
-    ).toThrow("changed full schema demand worker");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     expect(latestInventoryGeneration(db)).toBe(full.generation);
     expect(identity.schemaIdentity(fixture.sources, DB)).toMatchObject({ status: "ready" });
     full[Symbol.dispose]();
@@ -677,7 +615,7 @@ test(
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
     const options = dataOptions(fixture);
-    using inventory = createSemanticInventory(options);
+    using inventory = nativeInventoryFixture(options);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const partitions = readInventoryGeneration(db, inventory.generation);
     const catalog = partitions[0];
@@ -728,7 +666,7 @@ test(
       }
     }
     expect(reader.schemaData(fixture.sources, DB)).toMatchObject({ status: "ready" });
-    const inputs = [...readInventoryInputs(db, catalog.id)];
+    const runtime = readInventoryRuntime(db, catalog.id, "worker");
     const helpers = [
       "schema-projection.ts",
       "schema-projection-contract.ts",
@@ -739,18 +677,11 @@ test(
       "type-member-origin.ts",
     ].map((name) => fileURLToPath(new URL(`../../../../tooling/src/floor/code-facts/${name}`, import.meta.url)));
     helpers.push(fileURLToPath(new URL("../../../../tooling/src/floor/compiler/schema-projection-encode.ts", import.meta.url)));
-    const authored = inventoryAuthoredFiles(scratch);
     for (const path of helpers) {
       expect(
-        inputs.some((input) => input.kind === "file" && input.path === path),
+        runtime.sources.some((source) => source.path === path && source.version === inputVersion(path, "file")),
         path,
       ).toBe(true);
-      const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-        root: scratch,
-        files: [{ path, text: readFileSync(path, "utf8") + "\n" }],
-        deleted: [],
-      });
-      expect(inputsCurrent(inputs, { authored, fileSystem }), path).toBe(false);
     }
   },
   scaledBudget(60_000),
@@ -761,12 +692,12 @@ test(
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
     const options = dataOptions(fixture);
-    using missing = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: [] } });
+    using missing = nativeInventoryFixture({ ...options, schemaDataQuery: { program: DB, sources: [] } });
     expect(missing.schemaData([], DB)).toMatchObject({ status: "missing", receipt: { members: 0 } });
     const index = fixture.direct.getProject().getSourceFileOrThrow(join(scratch, "packages/db/src/index.ts"));
-    using empty = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: [span(index)] } });
+    using empty = nativeInventoryFixture({ ...options, schemaDataQuery: { program: DB, sources: [span(index)] } });
     expect(empty.schemaData([index], DB)).toMatchObject({ status: "empty", receipt: { members: 0 } });
-    using old = createSemanticInventory({ ...options, schemaDataQuery: { program: DB, sources: fixture.sources.map(span) } });
+    using old = nativeInventoryFixture({ ...options, schemaDataQuery: { program: DB, sources: fixture.sources.map(span) } });
     const before = old.schemaData(fixture.sources, DB);
     const text = UNRELATED_TEXT.replace(".on(table.assetId)", "");
     const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
@@ -776,12 +707,13 @@ test(
     });
     const project = new Project({ useInMemoryFileSystem: true, skipLoadingLibFiles: true });
     const sources = [ASSETS, UNRELATED].map((path) => project.createSourceFile(join(scratch, path), fileSystem.readFileSync(join(scratch, path))));
-    using overlay = createSemanticInventory({
-      ...options,
-      schemaDataQuery: { program: DB, sources: sources.map(span) },
-      overlay: { addedPaths: [], deletedPaths: [] },
-      fileSystem,
-    });
+    using overlay = nativeInventoryFixture(
+      {
+        ...options,
+        schemaDataQuery: { program: DB, sources: sources.map(span) },
+      },
+      { projection: { root: scratch, files: [{ path: join(scratch, UNRELATED), text: fileSystem.readFileSync(join(scratch, UNRELATED)) }], deleted: [] } },
+    );
     expect(overlay.schemaData(sources, DB)).toMatchObject({ status: "unresolved" });
     expect(() => overlay.schemaData(fixture.sources, DB)).toThrow("native typed source/epoch");
     expect(old.schemaData(fixture.sources, DB)).toEqual(before);
@@ -811,19 +743,13 @@ test(
   ({ scratch, repoRoot }) => {
     const fixture = setup(scratch, repoRoot);
     const options = dataOptions(fixture);
-    using ordinary = createSemanticInventory(options);
+    using ordinary = nativeInventoryFixture(options);
     const before = ordinary.schemaData(fixture.sources, DB);
     expect(() => ordinary.schemaData(fixture.sources, DB, { typeVocabulary: true })).toThrow("vocabulary was not captured");
     const projection = { typeVocabulary: true } as const;
     const projected = { ...options, schemaDataQuery: { program: DB, sources: fixture.sources.map(span), projection } };
     const requests: InventoryBuildRequest[] = [];
-    using full = createSemanticInventory({
-      ...projected,
-      buildPartition: (request) => {
-        requests.push(request);
-        runInventoryPartitionWorker(request);
-      },
-    });
+    using full = nativeInventoryFixture(projected, { requests });
     expect(requests.map((request) => request.schemaDataProjection)).toEqual([projection]);
     expect(full.schemaData(fixture.sources, DB)).toEqual(before);
     const selected = full.schemaData(fixture.sources, DB, projection);
@@ -834,39 +760,28 @@ test(
       properties: ["label"],
       arms: [{ properties: ["label"], stringIndex: false }],
     });
-    using reused = createSemanticInventory({
-      ...projected,
-      buildPartition: () => {
-        throw new Error("native schema projection demand rebuilt");
-      },
-    });
+    const warmWorkers: string[] = [];
+    using reused = nativeInventoryFixture(projected, { workers: warmWorkers });
+    expect(warmWorkers).toEqual([]);
     expect(reused.generation).toBe(full.generation);
     using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     expect(() =>
-      createSemanticInventory({
-        ...options,
-        buildPartition: () => {
-          throw new Error("default projection cannot reuse enriched demand");
+      nativeInventoryFixture(
+        {
+          ...options,
         },
-      }),
-    ).toThrow("default projection cannot reuse enriched demand");
+        { failWorker: true },
+      ),
+    ).toThrow("injected native worker exit");
     expect(latestInventoryGeneration(db)).toBe(full.generation);
     expect(() =>
-      createSemanticInventory({
-        ...projected,
-        schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span), projection },
-        buildPartition: (request) => {
-          runInventoryPartitionWorker(request);
-          using staging = openInventoryDatabase(request.destination);
-          const partition = readInventoryGeneration(staging, latestInventoryGeneration(staging))[0];
-          if (partition === undefined) {
-            throw new Error("staging full catalog missing");
-          }
-          staging
-            .prepare("DELETE FROM inventory_drizzle_atom WHERE partition=? AND ordinal=(SELECT MAX(ordinal) FROM inventory_drizzle_atom WHERE partition=?)")
-            .run(partition.id, partition.id);
+      nativeInventoryFixture(
+        {
+          ...projected,
+          schemaDataQuery: { program: DB, sources: fixture.sources.slice(0, 1).map(span), projection },
         },
-      }),
+        { fault: "schema-graph-tail" },
+      ),
     ).toThrow("fact graph is incomplete");
     expect(latestInventoryGeneration(db)).toBe(full.generation);
     expect(ordinary.schemaData(fixture.sources, DB)).toEqual(before);
