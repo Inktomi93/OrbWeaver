@@ -4,6 +4,8 @@
 // (persistence/asset-refs.ts — the one list of asset-bearing columns, coverage proven by a schema-
 // introspection test) so a new asset-bearing FK cannot silently become GC-eligible.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetsContext } from "./context.ts";
 import type { AssetsService } from "./contract/service.ts";
 import { createAddToGallery } from "./verbs/add-to-gallery.ts";
@@ -25,7 +27,8 @@ import { createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs.ts
 import { createResolveVariant } from "./verbs/resolve-variant.ts";
 import { createStore } from "./verbs/store.ts";
 
-export function createAssetsService(ctx: AssetsContext): AssetsService {
+export function createAssetsService(input: DbAssemblyInput<AssetsContext>): AssetsService {
+  const ctx: AssetsContext = { ...input, db: databaseForOwner(input.db) };
   const getMetadata = createGetMetadata(ctx);
   return {
     store: createStore(ctx),

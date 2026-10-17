@@ -7,7 +7,7 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { AutomationService } from "#domain/automation";
@@ -23,7 +23,7 @@ import { minter } from "./minter.ts";
 
 interface RosterPresetComposeInput {
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly emitUserEvent: EmitUserEvent;

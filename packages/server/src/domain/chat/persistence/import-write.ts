@@ -24,13 +24,14 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
+import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
-import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
+import type { BulkImportChats, ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import { importedObservationRows } from "../substrate/import-observations.ts";
 import { carriesAssetBackground, guardedChatId } from "./background-write.ts";
@@ -807,7 +808,12 @@ async function importOneChat(args: {
 
 /** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
  *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
-export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
+export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChats {
+  const ctx: ChatImportContext = {
+    ...assembly,
+    db: databaseForOwner(assembly.db),
+    bumpStatsCanonVersion: (batch, db, ownerId) => assembly.bumpStatsCanonVersion(batchHandle(batch), databaseHandle(db), ownerId),
+  };
   return async ({ ownerId, characterId, chats: input }): Promise<BulkImportChatsResult> => {
     const { db } = ctx;
     await assertImportPreconditions(db, ownerId, characterId, input);

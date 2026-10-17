@@ -105,6 +105,12 @@ import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
+import {
+  ENTRY_DRIVER_GLOBS,
+  ENTRY_PROCESS_PROPERTIES,
+  ENTRY_WIRING_GLOBS,
+  QUERY_FREE_BOOT_GLOBS,
+} from "./tooling/src/verify/contract/compose-query-capability.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
@@ -422,6 +428,25 @@ const NO_ARRAY_LITERAL_QUERYKEY = {
 };
 const AUTHORED_SYNTAX = [NO_DECORATORS];
 const SHIPPED_SYNTAX = [...AUTHORED_SYNTAX, NO_DEFAULT_PROPS];
+const ENTRY_LOADER_SYNTAX = [
+  {
+    selector: "ImportExpression:not([source.type='Literal'][source.value=type(string)])",
+    message: "Entry wiring uses resolved literal imports; dynamic host loading cannot bypass the native query frontier.",
+  },
+  {
+    selector: "TSImportEqualsDeclaration",
+    message: "Entry wiring uses ESM imports checked by the native query frontier, not CommonJS loader aliases.",
+  },
+  {
+    selector:
+      "ImportDeclaration[source.value=/^(node:)?process$/] > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier[local.name!='process'], ImportSpecifier)",
+    message: "Entry wiring keeps process as the checked direct binding, not a renamed, namespace or named host capability.",
+  },
+  {
+    selector: `Identifier[name='process']:not(ImportDefaultSpecifier > Identifier.local):not(MemberExpression[computed=false][property.name=/^(${ENTRY_PROCESS_PROPERTIES.join("|")})$/] > Identifier.object)`,
+    message: "Entry wiring may read its direct process status/stream fields, but cannot capture or compute a host process capability.",
+  },
+];
 const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
 /** Source globs of a population root, derived from the gate runtime's own root table so the two cannot drift. */
 const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
@@ -1833,6 +1858,21 @@ const STANDARD_CONFIG = tseslint.config(
   ...syntaxBlocks(FORM_SYNTAX_SRC, []),
   ...syntaxBlocks(AUTHORED_SRC, AUTHORED_SYNTAX),
   ...syntaxBlocks(rootSources("@server"), SHIPPED_SYNTAX),
+  ...syntaxBlocks(ENTRY_WIRING_GLOBS, [...SHIPPED_SYNTAX, ...ENTRY_LOADER_SYNTAX], ENTRY_DRIVER_GLOBS),
+  ...syntaxBlocks(QUERY_FREE_BOOT_GLOBS, [...SHIPPED_SYNTAX, ...ENTRY_LOADER_SYNTAX]),
+  ...[{ files: ENTRY_WIRING_GLOBS, ignores: ENTRY_DRIVER_GLOBS }, { files: QUERY_FREE_BOOT_GLOBS }].map((scope) => ({
+    ...scope,
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        ...["require", "module", "global", "globalThis"].map((name) => ({
+          name,
+          message: "Entry wiring cannot capture an ambient host loader or global object.",
+        })),
+      ],
+      "no-new-func": "error",
+    },
+  })),
   ...syntaxBlocks([UI_SRC], [...SHIPPED_SYNTAX, ...BROWSER_SYNTAX]),
   ...syntaxBlocks([CLIENT_SRC], [...CLIENT_SYNTAX, ...BROWSER_SYNTAX]),
   ...RESTRICTION_BLOCKS,

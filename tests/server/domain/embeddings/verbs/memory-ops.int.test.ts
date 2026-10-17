@@ -1,5 +1,6 @@
 // A mixed-owner batch consults the production present-host query for every row before admitting any vector write.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { StoreSegmentParams } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
@@ -23,7 +24,7 @@ test("a later foreign-owner segment refuses the entire flood; a departed host re
   }
   const storeSegments = vi.fn(async () => []);
   const ops = createMemoryEmbeddingOps({
-    resolveChatHostUserId: (id) => loadPresentHostUserId(db, id),
+    resolveChatHostUserId: (id) => loadPresentHostUserId(databaseHandle(db), id),
     embeddings: { resolveGeneration: async () => null, store: vi.fn(), storeSegments, pruneMemoryBlocks: vi.fn() },
   });
   const base: StoreSegmentParams = {

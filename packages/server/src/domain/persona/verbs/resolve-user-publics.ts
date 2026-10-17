@@ -2,6 +2,8 @@
 // user owns it, else the account handle, with the profile avatar as the last fallback. Principal-less and
 // compose-built (the `resolvePersonasForParticipants` precedent); chat consumes it as an injected op.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "#domain/chat";
@@ -9,7 +11,8 @@ import type { PersonaContext } from "../context.ts";
 import type { UserPublicsDeps } from "../contract/ops.ts";
 import { loadOwnedPersonaPublic } from "../persistence/queries.ts";
 
-export function createResolveUserPublics(ctx: Pick<PersonaContext, "db">, deps: UserPublicsDeps): ChatContext["resolveUserPublics"] {
+export function createResolveUserPublics(input: DbAssemblyInput<Pick<PersonaContext, "db">>, deps: UserPublicsDeps): ChatContext["resolveUserPublics"] {
+  const ctx: Pick<PersonaContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async (userId, personaId) => {
     const handle = await deps.loadUserHandle(userId);
     const persona = personaId === null ? undefined : await loadOwnedPersonaPublic(ctx.db, userId, personaId);

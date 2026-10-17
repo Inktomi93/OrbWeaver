@@ -38,6 +38,7 @@ import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "../context.ts";
@@ -240,8 +241,8 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
           }),
         ),
       ),
-      ...(gameBirth?.statements ?? []),
-      creationEvent.statement,
+      ...(gameBirth?.statements ?? []).map(statementForOwner),
+      statementForOwner(creationEvent.statement),
     ];
     // NO STATS HERE (R0 §4.7): the chat-created counters, the per-character first-chat bumps and the seeded
     // greetings' contributions all fire at CLAIM (`verbs/claim-chat.ts`), replayed over exactly this canon.

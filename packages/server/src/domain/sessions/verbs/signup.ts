@@ -3,6 +3,7 @@
 // A `local` signup carries no external identity, so it follows the `createUser` rules (a `user`-role human
 // with a password hash), not `decideProvision`.
 
+import { awaitableStatementToken } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import { createIdSource } from "@orb/kit/ids";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -12,7 +13,7 @@ export function createSignup(ctx: SessionsContext): Pick<SessionsService, "signu
   return {
     signupUserStatement: ({ handle, passwordHash, at, admission }): ReturnType<SessionsService["signupUserStatement"]> => {
       const userId = (ctx.idSource ?? createIdSource()).unprefixed<UserId>();
-      return { userId, statement: insertSignupUserStatement(ctx.db, { id: userId, handle, passwordHash, at }, admission) };
+      return { userId, statement: awaitableStatementToken(insertSignupUserStatement(ctx.db, { id: userId, handle, passwordHash, at }, admission)) };
     },
     signupHandleTaken: (handle): Promise<boolean> => selectHandleKeyTaken(ctx.db, handle),
   };

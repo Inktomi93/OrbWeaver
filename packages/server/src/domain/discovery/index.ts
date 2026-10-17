@@ -24,7 +24,6 @@
 // with neither is the exact lie that was deleted.
 
 export { THEME_LEVELS } from "@orb/contracts/discovery";
-export type { DiscoveryContext } from "./context.ts";
 export { CardNotDistillableError, DistillFailedError } from "./contract/errors.ts";
 export type {
   ArchetypesOptions,
@@ -89,7 +88,7 @@ export type {
   UnusedCharacter,
   VisualArchetype,
 } from "./contract/results.ts";
-export type { DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
+export type { DiscoveryAssemblyContext as DiscoveryContext, DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,

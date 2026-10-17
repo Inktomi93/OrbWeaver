@@ -17,6 +17,8 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
 
@@ -40,11 +42,12 @@ const NO_BACKGROUND: ThemeBackground = canonicalBackgroundSource({
  * Idempotent by its own predicate: a rewritten row no longer matches. Returns the rows rewritten.
  */
 export async function migrateSeededCardBackgrounds(
-  db: Db,
+  handle: DatabaseHandle,
   ownerId: UserId,
   resolve: (slug: string) => Promise<ThemeBackground | null>,
   at: number,
 ): Promise<number> {
+  const db = databaseForOwner(handle);
   const kind = sql<string | null>`json_extract(${characters.backgroundOverride}, '$.kind')`;
   const slug = sql<string | null>`json_extract(${characters.backgroundOverride}, '$.seededId')`;
   const rows = await db

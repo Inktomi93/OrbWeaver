@@ -45,10 +45,8 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
-import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { BindingActor, InferenceDeps, InferenceRuntime, RoleClientsWithSignal } from "@orb/inference";
 import { availableClaudeExecutable, createInferenceRuntime } from "@orb/inference";
@@ -124,7 +122,7 @@ import {
 } from "#domain/settings";
 import type { CertificateController, RelayController } from "#domain/share";
 import { createEnableShareSeating, createShareService } from "#domain/share";
-import { applyStatsDelta as appendStatsDelta, bumpStatsCanonVersion } from "#domain/stats";
+import { createStatsBatchWiring } from "#domain/stats";
 import type { TagContext } from "#domain/tag";
 import { createImportedCardTag, createReadAttachedEntity, createTagService } from "#domain/tag";
 import type { ToolUseService } from "#domain/tool-use";
@@ -138,10 +136,10 @@ import { allowedHostsInput, authModeSource, env, hostEnvAllowlist, installKind, 
 import type { AuditEntry } from "#foundation/observability";
 import {
   addSpanEvent,
+  createAuditWiring,
   getLog,
   isWireCaptureEnabled,
   isWireReplyCaptureEnabled,
-  logAudit,
   recordWireCapture,
   securityEvent,
   span,
@@ -165,8 +163,11 @@ import type { ServiceJobs } from "#src/transport/jobs/contract/service-jobs.ts";
 import type { LiveBuses, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "#transport/trpc";
 import { createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";
-import type { ExamplePluginSeeder, UserContentSeeder } from "../boot/index.ts";
-import { createExamplePluginSeeder, createLocalLightUserSeed, createUserContentSeeder } from "../boot/index.ts";
+import type { ExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
+import { createExamplePluginSeeder } from "../boot/seed-example-plugins.ts";
+import { createLocalLightUserSeed } from "../boot/seed-local-light.ts";
+import type { UserContentSeeder } from "../boot/seed-user-content.ts";
+import { createUserContentSeeder } from "../boot/seed-user-content.ts";
 import { createRateLimitGate } from "../rate-limit-gate.ts";
 import { buildAdmin } from "./admin.ts";
 import { buildAssetsCharacter } from "./assets-character.ts";
@@ -226,7 +227,7 @@ export interface ServicesDeps {
   readonly randomInt?: RpgContext["randomInt"] | undefined;
   readonly idSource?: IdSource;
   readonly newOpaqueId?: () => string;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The boot-time owner id. `undefined` in OIDC mode when no owner row exists yet (the first
    *  owner-policy OIDC login will create it). When absent, role-client binding is deferred and every
@@ -483,9 +484,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const presence = createPresenceRegistry(now);
   const sockets = createSocketRegistry(now);
 
-  const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at, idSource);
+  const audit = createAuditWiring(db, idSource).log;
   const newUserId = (): UserId => idSource.unprefixed<UserId>();
-  const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch, opDb, delta) => appendStatsDelta(batch, opDb, delta, idSource);
+  const { applyStatsDelta, bumpStatsCanonVersion } = createStatsBatchWiring(idSource);
   // biome-ignore lint/nursery/useDisposables: resources adopts this owner through the moved graph stack; local using would close it before the graph starts.
   const eventBus = resources.use(createDomainEventBus(background.supervise, newOpaqueId));
 

@@ -9,6 +9,7 @@ import type { RpgRuleset } from "@orb/contracts/rpg";
 import { RPG_RULESET_DEFAULT, RPG_RULESET_PROFILE, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { rpgGames } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
+import { statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { ChatRpgGameBirthPlan } from "../chat/index.ts";
 import type { RpgContext } from "./contract/service.ts";
@@ -26,19 +27,21 @@ export function planLiteGameBirth(ctx: RpgContext, args: { readonly chatId: Chat
   return {
     gameId,
     statements: [
-      batchStmt(
-        ctx.db.insert(rpgGames).values({
-          id: gameId,
-          chatId: args.chatId,
-          mode: "lite",
-          status: "active",
-          sessionNumber: 1,
-          gmUserId: null,
-          gmPresetId: null,
-          config,
-          createdAt: now,
-          updatedAt: now,
-        }),
+      statementToken(
+        batchStmt(
+          ctx.db.insert(rpgGames).values({
+            id: gameId,
+            chatId: args.chatId,
+            mode: "lite",
+            status: "active",
+            sessionNumber: 1,
+            gmUserId: null,
+            gmPresetId: null,
+            config,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        ),
       ),
     ],
   };
@@ -49,7 +52,7 @@ export function planLiteGameBirth(ctx: RpgContext, args: { readonly chatId: Chat
  *  default). Validates/normalizes the born config through the contract schema (defaults fill). */
 export async function mintLiteGame(ctx: RpgContext, args: { readonly chatId: ChatId; readonly ruleset?: RpgRuleset | undefined }): Promise<RpgGameId> {
   const plan = planLiteGameBirth(ctx, args);
-  await ctx.db.batch(batchMany([...plan.statements]));
+  await ctx.db.batch(batchMany(plan.statements.map(statementForOwner)));
 
   // NO born snapshot (orchestrator ruling): the read layer synthesizes the default state; the first
   // state round writes the first row. The opaque pointer is the client's sync takeover gate; born engaged.

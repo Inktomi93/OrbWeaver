@@ -3,7 +3,7 @@
 // `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
 import type { UserRole, UserRoleState } from "@orb/contracts/identity";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 
@@ -188,7 +188,7 @@ export interface PendingSignupPlan {
   readonly enabled: boolean;
   /** The id_token the callback verified, for the session the confirm mints; null when there was none. */
   readonly oidcIdToken: string | null;
-  readonly statements: (admission: SQL) => { readonly take: BatchStmt; readonly account: AwaitableBatchStmt<{ id: UserId }[]> };
+  readonly statements: (admission: SQL) => { readonly take: StatementToken; readonly account: AwaitableStatementToken<{ id: UserId }[]> };
 }
 
 export interface UserPrincipalFields {

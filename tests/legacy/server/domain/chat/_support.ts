@@ -28,6 +28,8 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { Resolved } from "@orb/inference";
 import type {
   AssetId,
@@ -472,14 +474,14 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   const notStubbed = (): never => {
     throw new Error("ChatContext op not stubbed in this test");
   };
-  const personaOwned = createPersonaOwned(db);
+  const personaOwned = createPersonaOwned(databaseHandle(db));
   const { resolveMemoryEmbedSpace, embeddingsPruneBlocks } = createMemoryEmbeddingOps({
-    embeddings: createEmbeddingsService(makeStoreHarness(db).ctx),
-    resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
+    embeddings: createEmbeddingsService({ ...makeStoreHarness(db).ctx, db: databaseHandle(db) }),
+    resolveChatHostUserId: (chatId) => loadPresentHostUserId(databaseHandle(db), chatId),
   });
   const memoryVectorOps = { resolveMemoryEmbedSpace, embeddingsPruneBlocks };
   const base: ChatContext = {
-    resolveCorpusSourceState: createSourceState({ db }),
+    resolveCorpusSourceState: createSourceState({ db: databaseHandle(db) }),
     db,
     now: () => FROZEN_AT_MS,
     // D121-E: the four-scope regex dereference. Empty by default — a suite that wants host-tier regex
@@ -504,7 +506,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // D259 — a local deployment that mints signup invites; a suite overrides it to prove the refusing modes.
     signupInvites: { mode: "local", mintable: true },
     audit: () => Promise.resolve(),
-    auditStatement: (entry, at) => buildAuditStatement(db, entry, at),
+    auditStatement: (entry, at) => statementToken(buildAuditStatement(db, entry, at)),
     // PD user-bus lane: no-op default (the terminal path + LIST-level ops fan `chatsChanged` to members; a
     // test that asserts the fan overrides `emitChatChanged` with a recorder — see the fan emit-site tests).
     emitChatChanged: () => Promise.resolve(),
@@ -570,8 +572,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
     },
-    resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
-    resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
+    resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(databaseHandle(db)),
+    resolveRetainedChatRebase: createResolveRetainedChatRebase(databaseHandle(db)),
     settleRetainedChatRebase: (batch, opDb, scope) => {
       // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
@@ -595,8 +597,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // transition still lands; a test that asserts events overrides with a recorder that does the same.
     emitNotification: async (_event, coStatements) => {
       if (coStatements !== undefined && coStatements.length > 0) {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-        await db.batch(batchMany(coStatements as BatchStmt[]));
+        await db.batch(batchMany(coStatements.map(statementForOwner)));
       }
     },
     // Default = everyone ONLINE (loadRoom presence-gates the persona set every turn). This keeps the
@@ -613,10 +614,10 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // The S2 teaching registry, wired EXACTLY as the composition root wires it: chat's own contributors
     // (the rpg-gather projection + B7's attribution/react-attach rows, which read this same test db). A
     // suite that registers a foreign contribution overrides this with
-    // `[...createChatTeachingContributions({ db }), <its own>]`.
+    // `[...createChatTeachingContributions({ db: databaseHandle(db) }), <its own>]`.
     // U6 §5.15 — no plugin host in a chat-domain test (byte-identical no-op).
     pluginMacros: null,
-    teaching: createChatTeachingContributions({ db }),
+    teaching: createChatTeachingContributions({ db: databaseHandle(db) }),
     // B7 — the verb-time reaction defaults (the shipped posture: plane ON, react tool OFF). A toggle test
     // that wants a different host default overrides this op, the `resolveForeignInputs` pattern.
     readReactionDefaults: () => Promise.resolve({ charactersCanReact: false, reactionsEnabled: true }),

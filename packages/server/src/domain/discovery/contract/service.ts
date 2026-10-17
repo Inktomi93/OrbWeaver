@@ -11,6 +11,7 @@ import type { UserSettings } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { EveryOwnerRun, WorkloadEstimateScope, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { SideGenSampling } from "@orb/inference";
 import type {
   CharacterId,
@@ -156,6 +157,8 @@ export interface ViewsDeps {
   readonly duplicateChats: (userId: UserId, opts?: { relation?: DuplicateRelation }) => Promise<DuplicateChatPair[]>;
   readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
 }
+
+export type DiscoveryAssemblyContext = DbAssemblyInput<DiscoveryContext>;
 
 /** Deps for the standalone `computeCooccurrence` pass. */
 export interface ComputeCooccurrenceDeps {

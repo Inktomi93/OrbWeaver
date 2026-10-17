@@ -7,7 +7,7 @@
 import type { Principal, RelayStatus } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -190,7 +190,7 @@ export interface AppDeps {
   readonly authConfig?: Pick<AuthConfig, "mode" | "defaultHandle">;
   readonly multiHumanCapable?: ReturnType<typeof createMultiHumanCapability>;
   readonly now: () => number;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly seam: AuthSeam;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;

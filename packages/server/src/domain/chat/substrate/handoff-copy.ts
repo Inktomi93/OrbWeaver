@@ -21,6 +21,7 @@
 
 import type { HandoffOffer, HandoffOfferContents } from "@orb/contracts/chat";
 import { NO_HANDOFF_OFFER_CONTENTS } from "@orb/contracts/chat";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
@@ -82,7 +83,7 @@ async function executeHandoffCopy(
   // still be running the departing host's find/replace. Gating them on `seats.length` would leave exactly the
   // hole this arm exists to close. Same shape as the books' room half otherwise: mints land now, the
   // `chat_regex_scripts` move comes back UNEXECUTED for the swap batch.
-  const regexRepoint = await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId });
+  const regexRepoint = (await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId })).map(statementForOwner);
   // THE SEAT GATE IS THE CARD MINT'S, NOT THE WHOLE COPY'S — #1763. `copyHandoffBooks` does two halves: the
   // seated cards' lore (derived from `cardCopies`) and the ROOM's own `chat_books`, which hangs off the room
   // and owes the seats nothing. Returning early on `seats.length === 0` took the room half down with the card
@@ -104,7 +105,7 @@ async function executeHandoffCopy(
           characterIds: seats.map((s) => s.characterId),
         });
   const copyOf = new Map(cardCopies.map((c) => [c.sourceCharacterId, c]));
-  const bookRepoint = await ctx.copyHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, cardCopies });
+  const bookRepoint = (await ctx.copyHandoffBooks({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId, cardCopies })).map(statementForOwner);
   return {
     // A seat whose card did not copy (deleted between nominate and accept) is absent here and falls through
     // to the D64 drop — the honest degrade, never a blank-name seat.

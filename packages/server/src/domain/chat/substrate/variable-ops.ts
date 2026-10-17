@@ -34,6 +34,8 @@
 // without a second read (a second read is its own window).
 
 import type { StandaloneVariableDelta, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { ChatContext } from "../context.ts";
@@ -74,11 +76,12 @@ const MAX_CAS_ATTEMPTS = 8;
  * written nothing. See the header for why the log-level CAS above does not cover this.
  */
 export async function applyStandaloneVariableOps(
-  ctx: ChatContext,
+  input: DbAssemblyInput<Pick<ChatContext, "db">>,
   chatId: ChatId,
   ops: readonly VarOp[],
   expect: readonly VariablePrecondition[] = [],
 ): Promise<VariableWriteResult> {
+  const ctx = { db: databaseForOwner(input.db) };
   if (ops.length === 0) {
     return { outcome: "applied" };
   }

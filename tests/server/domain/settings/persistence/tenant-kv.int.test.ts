@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import { settings } from "@orb/db";
@@ -8,7 +9,7 @@ import { eq } from "drizzle-orm";
 test("tenant KV preserves stored keys, opaque values and overwrite timestamps", async ({ db, clock }) => {
   const key = `${CATALOG_SETTINGS_PREFIX}openrouter`;
   await db.insert(settings).values({ key, value: "persisted snapshot", updatedAt: 1 });
-  const kv = createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => clock.now());
+  const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   expect(await kv.read(key)).toBe("persisted snapshot");
   expect(await kv.read(`${CATALOG_SETTINGS_PREFIX}absent`)).toBeUndefined();
   await kv.write(key, "updated snapshot");
@@ -20,7 +21,7 @@ test("tenant KV preserves stored keys, opaque values and overwrite timestamps", 
 
 test("tenant KV refuses foreign reads, writes and prefix deletion without touching rows", async ({ db, clock, services }) => {
   await services.settings.setGlobalSetting("application:marker", { kept: true });
-  const kv = createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => clock.now());
+  const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   await kv.write(`${CATALOG_SETTINGS_PREFIX}kept`, "owned snapshot");
   for (const key of ["application:marker", "", "app", "catalog", "Catalog:other", "catalogue:other"]) {
     await expect(kv.read(key)).rejects.toMatchObject({ code: "settings_tenant_namespace" });
@@ -32,7 +33,7 @@ test("tenant KV refuses foreign reads, writes and prefix deletion without touchi
 });
 
 test("prefix deletion treats URL underscores, percent signs and case as literal bytes", async ({ db, clock }) => {
-  const kv = createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => clock.now());
+  const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   const prefix = `${CATALOG_SETTINGS_PREFIX}endpoint:http://Box_1/v%2F#`;
   const keys = [
     prefix + "list",
@@ -52,7 +53,7 @@ test("prefix deletion treats URL underscores, percent signs and case as literal 
 });
 
 test("prefix deletion counts Unicode characters consistently for exact keys and descendants", async ({ db, clock }) => {
-  const kv = createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => clock.now());
+  const kv = createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => clock.now());
   for (const part of ["ascii", "😀"]) {
     const prefix = `${CATALOG_SETTINGS_PREFIX}${part}:`;
     const matching = [prefix, prefix + "one", prefix + "two"];

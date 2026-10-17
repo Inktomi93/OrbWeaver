@@ -63,7 +63,6 @@ export {
   snippetResultSchema,
 } from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
-export type { PluginContext } from "./context.ts";
 export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./contract/distributed-seed.ts";
 export {
   CapabilityNotGrantedError,
@@ -137,6 +136,7 @@ export {
 export type {
   CreateInstanceInput,
   CreateInstanceOutcome,
+  PluginAssemblyContext as PluginContext,
   PluginBudgets,
   PluginDistributionDeps,
   PluginHostPort,

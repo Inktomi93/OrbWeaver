@@ -5,7 +5,7 @@
 // closes over the ctx and returns its slice.
 
 import { createRpgContext } from "./context.ts";
-import type { RpgContextDeps, RpgService } from "./contract/service.ts";
+import type { RpgAssemblyContext, RpgService } from "./contract/service.ts";
 import { createCreateCheckpoint, createListCheckpoints, createRestoreCheckpoint } from "./verbs/checkpoint/index.ts";
 import { createDismissActor } from "./verbs/dismiss-actor.ts";
 import { createEditSnapshot } from "./verbs/edit-snapshot.ts";
@@ -25,7 +25,7 @@ import {
 } from "./verbs/read/index.ts";
 import { createRollDice } from "./verbs/roll-dice.ts";
 
-export function createRpgService(deps: RpgContextDeps): RpgService {
+export function createRpgService(deps: RpgAssemblyContext): RpgService {
   const ctx = createRpgContext(deps);
   return {
     ...createCreateGame(ctx),

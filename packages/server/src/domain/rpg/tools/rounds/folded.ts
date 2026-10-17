@@ -4,7 +4,8 @@
 import { resolveProseText } from "@orb/contracts/prose";
 import { buildToolRoundWireTools, cacheStableExtractionRefs, recordToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
 import { logger } from "#foundation/observability";
-import type { RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { RpgRoundsAssemblyDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { buildActorRefIndex, extractionToStateDelta, reachableActorRefs } from "../apply.ts";
 import { createExtractionMints } from "../mints.ts";
@@ -41,7 +42,8 @@ import { logExtractionOutcome, logToolCallLosses } from "./round-log.ts";
  *  scene-derived enums, which the depth-0 state block already enumerates in prose and the R5 ghost guard already
  *  backstops at apply. The DEDICATED round below keeps the full live bundle — it is the enforcing vehicle, and
  *  its own prefix is per-turn volatile regardless (its system block re-renders the same refs). */
-export function buildFoldedTurnBuilder(deps: RpgRoundsDeps): RpgContext["buildFoldedTurn"] {
+export function buildFoldedTurnBuilder(input: RpgRoundsAssemblyDeps): RpgContext["buildFoldedTurn"] {
+  const deps = createRpgRoundsContext(input);
   return async ({ chatId, baseState, reconcile, prose }) => {
     const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     const tools = buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config, prose);
@@ -58,7 +60,8 @@ export function buildFoldedTurnBuilder(deps: RpgRoundsDeps): RpgContext["buildFo
 /** Build the `foldTurnToolCalls` op (R1 — the flush's half). ZERO model calls: the character turn already paid
  *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
  *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
-export function buildFoldTurnToolCalls(deps: RpgRoundsDeps): RpgContext["foldTurnToolCalls"] {
+export function buildFoldTurnToolCalls(input: RpgRoundsAssemblyDeps): RpgContext["foldTurnToolCalls"] {
+  const deps = createRpgRoundsContext(input);
   return async ({ chatId, turnId, baseState, trackerDefs, turnConnection, toolCalls }) => {
     const conn = turnConnection.connection;
     // R-OBS: what the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise

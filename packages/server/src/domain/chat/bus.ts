@@ -64,8 +64,9 @@
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import { databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatEventId, ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "./context.ts";
@@ -89,7 +90,7 @@ interface ChatEmitted {
 type EmitChatEvent = (event: DurableChatBusEvent) => Promise<ChatEmitted | null>;
 
 /** `false` means another caller already consumed the claim: converged success, with nothing to publish. */
-type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: BatchStmt) => Promise<ChatEmitted | false | null>;
+type EmitChatEventAfterClaim = (event: DurableChatBusEvent, claimStatement: StatementToken) => Promise<ChatEmitted | false | null>;
 
 interface ChatRingEntry {
   readonly seq: number;
@@ -103,7 +104,7 @@ interface ChatBus {
   /** Prepare the first event for a room-creation batch, then publish the already-committed row without a
    * second append. `chatCreated` is the only event whose sequence is known before its room exists. */
   readonly prepareCreation: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
-    readonly statement: BatchStmt;
+    readonly statement: StatementToken;
     readonly publishCommitted: () => ChatEmitted;
   };
   /** Entries strictly after `afterSeq` (absent ⇒ the whole retained window), oldest-first. */
@@ -268,7 +269,8 @@ async function reportTerminalDrop(db: Db, drop: TerminalDrop): Promise<number | 
 }
 
 /** Build the per-process chat bus (ONE instance, wired at the composition root). */
-export function createChatBus(deps: ChatBusDeps): ChatBus {
+export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
+  const deps: ChatBusDeps = { ...input, db: databaseForOwner(input.db) };
   const rings = new Map<ChatId, ChatRingEntry[]>();
   // The §3.6 producer stamper (see the file header) — ONE per bus, so a slot's scrub state spans its whole
   // token stream regardless of who is (or is not) subscribed at any moment.
@@ -287,13 +289,15 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
   const prepareCreation: ChatBus["prepareCreation"] = (raw) => {
     const event = stamper.stamp(raw);
     return {
-      statement: insertChatEventStatement(deps.db, {
-        id: deps.newEventId(),
-        chatId: event.chatId,
-        seq: 1,
-        event,
-        createdAt: deps.now(),
-      }),
+      statement: statementToken(
+        insertChatEventStatement(deps.db, {
+          id: deps.newEventId(),
+          chatId: event.chatId,
+          seq: 1,
+          event,
+          createdAt: deps.now(),
+        }),
+      ),
       publishCommitted: (): ChatEmitted => publishCommitted(1, event),
     };
   };
@@ -334,7 +338,7 @@ export function createChatBus(deps: ChatBusDeps): ChatBus {
         event,
         createdAt: deps.now(),
       });
-      const results = await deps.db.batch(batchMany([claimStatement, append]));
+      const results = await deps.db.batch(batchMany([statementForOwner(claimStatement), append]));
       const rows = results[1] as { seq: number }[];
       const seq = rows.at(0)?.seq;
       if (seq === undefined) {

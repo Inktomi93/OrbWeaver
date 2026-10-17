@@ -35,6 +35,8 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
@@ -71,7 +73,8 @@ async function findPrimaryBookId(db: Db, characterId: CharacterId): Promise<Worl
  * row {@link createBulkImportLorebook} would replace, off the same `findPrimaryBookId` seam, so the oracle
  * and the write it guards cannot drift apart.
  */
-export function createHasPrimaryBook(ctx: Pick<WorldInfoImportContext, "db">): HasPrimaryBook {
+export function createHasPrimaryBook(input: DbAssemblyInput<Pick<WorldInfoImportContext, "db">>): HasPrimaryBook {
+  const ctx: Pick<WorldInfoImportContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId }): Promise<boolean> => {
     const rows = await ctx.db
       .select({ worldBookId: characterBooks.worldBookId })
@@ -181,7 +184,8 @@ async function listOwnedBookNames(db: Db, ownerId: UserId, except?: WorldBookId)
 
 /** @throws {@link DomainNotFoundError} when the target character isn't the caller's. */
 // @orb-waive owner-scoped-writes(worldBooks): `existingBookId` is not caller input — it is the PRIMARY book attached to a character this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the character's owner does not own — then this re-import would edit a stranger's book in place.
-export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImportLorebook {
+export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportContext>): BulkImportLorebook {
+  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
     await assertOwnedCharacter(db, ownerId, characterId);
@@ -292,7 +296,8 @@ async function resolveLinkNames(
  * seat first in the profile-import ordering). onConflictDoNothing keeps a re-import idempotent (PK
  * `(characterId, worldBookId)`).
  */
-export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): AttachOwnedBooksByName {
+export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImportContext>): AttachOwnedBooksByName {
+  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, names, role, landed }) => {
     const { db } = ctx;
     if (names.length === 0) {
@@ -327,7 +332,8 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
 // character attach, additively: equal content reuses the owned row (under the name it carries), different
 // content lands under the next free name, and no owned row is ever edited.
 
-export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
+export function createImportStandaloneLorebook(input: DbAssemblyInput<WorldInfoImportContext>): ImportStandaloneLorebook {
+  const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
     const at = ctx.now();

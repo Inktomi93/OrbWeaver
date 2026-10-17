@@ -1,5 +1,7 @@
 // Stored media authorization precedes byte reads and deferred quality conversion.
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
@@ -10,7 +12,8 @@ import { isPresentParticipant } from "../persistence/participants-read.ts";
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";
 
-export function createResolveMediaRef(deps: ResolveMediaRefDeps): ResolveMediaRef {
+export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps>): ResolveMediaRef {
+  const deps: ResolveMediaRefDeps = { ...input, db: databaseForOwner(input.db) };
   return (params) =>
     resolveImageRefToUrl(
       { ...deps.assets, ...deps.mediaProcessing },

@@ -4,6 +4,8 @@
 // `ownerId === userId`) and exactly ONE cross-feature op: the chat-role capability read `resolveEffective`
 // projects the generation funnel against.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetContext } from "./context.ts";
 import type { PresetService } from "./contract/service.ts";
 import { createCreate } from "./verbs/create.ts";
@@ -17,7 +19,8 @@ import { createResetToDefault } from "./verbs/reset-to-default.ts";
 import { createResolveEffective } from "./verbs/resolve-effective.ts";
 import { createUpdate } from "./verbs/update.ts";
 
-export function createPresetService(ctx: PresetContext): PresetService {
+export function createPresetService(input: DbAssemblyInput<PresetContext>): PresetService {
+  const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return {
     ...createCreate(ctx),
     ...createList(ctx),
@@ -29,6 +32,6 @@ export function createPresetService(ctx: PresetContext): PresetService {
     ...createListUsage(ctx),
     // The single-preset import DOOR over the bundle's own import verb (factory injection — the verb-isolation
     // wiring point), so both doors run one implementation.
-    ...createImportFile({ importPreset: createImport(ctx) }),
+    ...createImportFile({ importPreset: createImport(input) }),
   };
 }

@@ -9,6 +9,7 @@ import type { InvitePreview } from "@orb/contracts/chat";
 import type { JoinerPersona } from "@orb/contracts/persona";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
 import { isConstraintViolation } from "@orb/db/query";
+import { awaitableStatementForOwner, statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
@@ -82,10 +83,10 @@ export function createSignupInvite(
       settled = await redeemSignupAtomic(ctx.db, {
         leading,
         account,
-        persona: persona.statement,
+        persona: awaitableStatementForOwner(persona.statement),
         personaId: persona.personaId,
-        pointers,
-        audit,
+        pointers: awaitableStatementForOwner(pointers),
+        audit: statementForOwner(audit),
         inviteId: invite.id,
         tokenHash,
         userId,
@@ -137,7 +138,7 @@ export function createSignupInvite(
       persona: args.persona,
       build: (admission) => {
         const account = deps.signupUserStatement({ handle: args.handle, passwordHash: args.passwordHash, at, admission });
-        return { leading: [], account: account.statement, userId: account.userId };
+        return { leading: [], account: awaitableStatementForOwner(account.statement), userId: account.userId };
       },
       refusedWhileAdmitting: "handle-taken",
     });
@@ -157,7 +158,7 @@ export function createSignupInvite(
       persona: args.persona,
       build: (admission) => {
         const { take, account } = args.statements(admission);
-        return { leading: [take], account, userId: args.userId };
+        return { leading: [statementForOwner(take)], account: awaitableStatementForOwner(account), userId: args.userId };
       },
       refusedWhileAdmitting: "identity",
     });

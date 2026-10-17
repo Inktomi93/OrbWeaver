@@ -2,14 +2,16 @@
 
 import type { SettingsKvPort, SettingsTenantPrefix } from "@orb/contracts/settings";
 import { SETTINGS_TENANT_PREFIXES } from "@orb/contracts/settings";
-import type { Db } from "@orb/db";
 import { settings } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { JsonValue } from "@orb/kit/json";
 import { eq, sql } from "drizzle-orm";
 import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 
-export function createSettingsKvPort(db: Db, prefix: SettingsTenantPrefix, now: () => number): SettingsKvPort {
+export function createSettingsKvPort(handle: DatabaseHandle, prefix: SettingsTenantPrefix, now: () => number): SettingsKvPort {
+  const db = databaseForOwner(handle);
   if (!SETTINGS_TENANT_PREFIXES.includes(prefix)) {
     throw new DomainOperationError(SETTINGS_OP_CODES.tenantNamespace, "settings tenant prefix is not registered");
   }

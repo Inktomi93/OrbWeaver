@@ -24,6 +24,8 @@ import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
@@ -259,7 +261,8 @@ export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promis
 }
 
 /** Resolve the retrieval predicate at the read boundary; room membership remains inside the SQL scan. */
-export async function resolveActiveDocumentScope(db: Db, scope: DocumentScope): Promise<SQL> {
+export async function resolveActiveDocumentScope(input: DatabaseHandle, scope: DocumentScope): Promise<SQL> {
+  const db = databaseForOwner(input);
   if ("ownerId" in scope) {
     return eq(documents.ownerId, scope.ownerId);
   }
@@ -279,7 +282,8 @@ export async function resolveActiveDocumentScope(db: Db, scope: DocumentScope): 
  *  exclusions. An empty union returns []. This is the retrieval-correct set `search.documents` scans;
  *  the panel read uses {@link resolveChatDocumentSources} + {@link resolveChatHiddenDocumentIds} to also SHOW
  *  hidden documents to the host. */
-export async function resolveActiveDocumentIds(db: Db, scope: DocumentScope): Promise<DocumentId[]> {
+export async function resolveActiveDocumentIds(input: DatabaseHandle, scope: DocumentScope): Promise<DocumentId[]> {
+  const db = databaseForOwner(input);
   if ("ownerId" in scope) {
     const rows = await db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, scope.ownerId));
     return rows.map((row) => row.id);

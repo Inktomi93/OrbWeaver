@@ -2,6 +2,8 @@
 // THE RUNTIME + the cross-domain ownership reads). ZERO logic: it only calls the verb factories and assembles
 // the `ConnectionService`.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ConnectionContext } from "./context.ts";
 import type { ConnectionService } from "./contract/service.ts";
 import { createOwnerWriteQueue } from "./substrate/owner-queue.ts";
@@ -20,7 +22,8 @@ import {
   createTokenizeWords,
 } from "./verbs/resolve.ts";
 
-export function createConnectionService(ctx: ConnectionContext): ConnectionService {
+export function createConnectionService(input: DbAssemblyInput<ConnectionContext>): ConnectionService {
+  const ctx: ConnectionContext = { ...input, db: databaseForOwner(input.db) };
   // Row and binding writes share one per-owner queue: either kind can move the owner's embed space.
   const ownerWrites = createOwnerWriteQueue();
   return {

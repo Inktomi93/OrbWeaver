@@ -4,6 +4,8 @@
 // the context's sub-deps to the standalone `compute*`/read function (the same functions the `transport/jobs`
 // runners call directly — the compute* passes stay standalone-exportable).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { DiscoveryContext } from "./context.ts";
 import type { ThemeLevel } from "./contract/params.ts";
@@ -33,7 +35,8 @@ import { createSimilarityGraph } from "./verbs/similarity-graph.ts";
 import { createSwipes } from "./verbs/swipes.ts";
 import { createViews } from "./verbs/views.ts";
 
-export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService {
+export function createDiscoveryService(input: DbAssemblyInput<DiscoveryContext>): DiscoveryService {
+  const ctx: DiscoveryContext = { ...input, db: databaseForOwner(input.db) };
   const dupDeps = {
     now: ctx.now,
     newDuplicateCharacterPairId: ctx.newDuplicateCharacterPairId,

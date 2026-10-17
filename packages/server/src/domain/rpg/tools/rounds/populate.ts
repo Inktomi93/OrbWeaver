@@ -12,7 +12,8 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { RpgCardCorpus } from "#domain/chat";
 import { logger } from "#foundation/observability";
-import type { ExtractCtx, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { ExtractCtx, RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { hasStructuredWriter } from "#src/domain/rpg/substrate/readonly-axis.ts";
@@ -116,7 +117,8 @@ function populateRefs(targetRef: string): ExtractionRefs {
 /** Build the host `populateFromCharacter` model call. Resolves the room connection AS THE HOST + gates on the
  *  structured writer (either failing ⇒ an empty no-op delta), runs ONE constrained round over the card +
  *  opening, and folds the two state planes through the SAME `extractionToStateDelta` path a turn round uses. */
-export function buildRunPopulateExtraction(deps: RpgRoundsDeps): RpgContext["runPopulateExtraction"] {
+export function buildRunPopulateExtraction(input: RpgRoundsAssemblyDeps): RpgContext["runPopulateExtraction"] {
+  const deps = createRpgRoundsContext(input);
   return async ({ chatId, hostUserId, targetRef, baseState, corpus }) => {
     const resolved = await resolveHostRoundConnection(deps, chatId, hostUserId);
     if (!resolved.ok) {

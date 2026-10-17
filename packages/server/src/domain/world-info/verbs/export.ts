@@ -3,12 +3,15 @@
 // Foreign/absent book returns null (leak-free — "not yours" and "doesn't exist" are one answer).
 
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { slugifyHandle } from "@orb/kit/slug";
 import { buildWorldBookFile } from "#primitives/serde/world-info";
 import type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "../contract/export.ts";
 import { listBookEntries, loadOwnedBook } from "../persistence/queries.ts";
 
-export function createExport(ctx: WorldInfoExportContext): ExportWorldBook {
+export function createExport(input: DbAssemblyInput<WorldInfoExportContext>): ExportWorldBook {
+  const ctx: WorldInfoExportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bookId }): Promise<ExportedWorldBook | null> => {
     const book = await loadOwnedBook(ctx.db, ownerId, bookId);
     if (book === undefined) {

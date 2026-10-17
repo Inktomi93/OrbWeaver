@@ -11,8 +11,7 @@ import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
 import type { UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatRequest, ChatResult, RoleClientsWithSignal } from "@orb/inference";
 import type { ChatId, Handle, IdSource, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -58,7 +57,7 @@ import {
   createChatService,
   createChatTeachingContributions,
   createEmitChatChanged,
-  createGenerationObservationSession,
+  createGenerationObservationSink,
   createGetMembership,
   createGetPendingUserText,
   createPostNarratorMessage,
@@ -98,18 +97,11 @@ import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
 import { createTokenHasher, selectHandleById } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
-import {
-  applyCharacterStatsDelta as appendCharacterStatsDelta,
-  applyStatsDelta as appendStatsDelta,
-  bumpStatsCanonVersion,
-  createResolveRetainedChatAccountingScope,
-  createResolveRetainedChatRebase,
-  settleRetainedChatRebase,
-} from "#domain/stats";
+import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
-import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
+import { createAuditWiring, recordMemoryLog } from "#foundation/observability";
 import { systemTimers, waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
@@ -148,7 +140,7 @@ export interface ChatComposeInput {
   readonly mediaProcessing: Pick<ImageRefAssets, "frameCount" | "prepareVideo">;
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   /** The one chat bus's durable-first emit, built at the composition root and injected so chat doesn't
    *  construct a second bus. The same wrapper backs persona's active-persona write. */
@@ -318,6 +310,8 @@ export interface ChatComposeResult extends AsyncDisposable {
  */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
+  const stats = createStatsBatchWiring(input.idSource);
+  const auditStatements = createAuditWiring(db, input.idSource);
   const timers = input.timers ?? systemTimers;
   const lifetime = new AsyncDisposableStack();
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
@@ -343,12 +337,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     roleClientsFor: input.roleClientsFor,
     resolveHostPrincipal: realHostPrincipal,
     resolveUtilityPresetParams: input.resolveUtilityPresetParams,
-    beginObservation: (parent) =>
-      createGenerationObservationSession(
-        { db, now, applyStatsDelta: (batch, opDb, delta) => appendStatsDelta(batch, opDb, delta, input.idSource) },
-        parent,
-        chatCtx,
-      ).onObservedResult,
+    beginObservation: (parent) => createGenerationObservationSink({ db, now, applyStatsDelta: stats.applyStatsDelta }, parent, chatCtx),
     newChatTurnId,
   });
   const personaOwned = createPersonaOwned(db);
@@ -416,7 +405,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     hashToken: createTokenHasher(input.sessionSecret),
     signupInvites: { mode: input.authMode, mintable: SIGNUP_INVITES_MINTABLE[input.authMode] },
     audit: input.audit,
-    auditStatement: (entry, at) => buildAuditStatement(db, entry, at, input.idSource),
+    auditStatement: auditStatements.statement,
     // Fans chatsChanged to every present human member's channel; the engine passes a bare chatId
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createEmitChatChanged({ db }, input.publishChatChanged),
@@ -444,8 +433,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // never calls any of them.
     copyHandoffCards: createCopyHandoffCards({
       db: input.db,
-      bumpStatsCanonVersion,
-      applyStatsDelta: (batch, opDb, delta) => appendStatsDelta(batch, opDb, delta, input.idSource),
+      bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
+      applyStatsDelta: stats.applyStatsDelta,
       now: input.now,
       newCharacterId: minter(ID_PREFIX.character, input.idSource),
       // The picture RE-OWN, avatar AND carried background (#1426): `assets` is per-owner with an
@@ -492,21 +481,12 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     filterOwnedAssetIds: assetOps.filterOwnedAssetIds,
     materializeBackground: input.materializeBackground,
     storeInlineReplyImage: input.storeInlineReplyImage,
-    // The chat op type erases the batch to `unknown`; this wrapper restores the concrete type.
-    applyStatsDelta: (batch, opDb, delta) => {
-      appendStatsDelta(batch as BatchStmt[], opDb, delta, input.idSource);
-    },
+    applyStatsDelta: stats.applyStatsDelta,
     resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(db),
-    applyCharacterStatsDelta: (batch, opDb, delta) => {
-      appendCharacterStatsDelta(batch as BatchStmt[], opDb, delta, input.idSource);
-    },
+    applyCharacterStatsDelta: stats.applyCharacterStatsDelta,
     resolveRetainedChatRebase: createResolveRetainedChatRebase(db),
-    settleRetainedChatRebase: (batch, opDb, scope) => {
-      settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
-    },
-    bumpStatsCanonVersion: (batch, opDb, ownerId) => {
-      bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId);
-    },
+    settleRetainedChatRebase: stats.settleRetainedChatRebase,
+    bumpStatsCanonVersion: stats.bumpStatsCanonVersion,
     summarize: inferenceOps.summarize,
     resolveSpeakerReranker: inferenceOps.resolveSpeakerReranker,
     resolveSpeakerArbiter: inferenceOps.resolveSpeakerArbiter,
@@ -583,7 +563,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     signup: {
       ...input.signup,
       // The `changes()`-guarded audit insert: it lands only when the seat before it landed (D259).
-      auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at, input.idSource),
+      auditStatementAfterWrite: auditStatements.statementAfterWrite,
     },
   };
 
@@ -603,7 +583,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     service: chatBundle.service,
     emitBusEvent: emitChatEvent,
     rpgChatOps: {
-      beginGenerationObservation: (parent) => createGenerationObservationSession(chatCtx, parent, chatCtx).onObservedResult,
+      beginGenerationObservation: (parent) => createGenerationObservationSink(chatCtx, parent, chatCtx),
       getMembership: createGetMembership(chatCtx),
       postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat }),
       getPendingUserText: createGetPendingUserText(chatCtx),

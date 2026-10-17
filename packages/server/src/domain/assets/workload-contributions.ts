@@ -12,6 +12,8 @@
 import type { FsckReport } from "@orb/contracts/assets";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import { isAborted } from "#primitives/abort";
@@ -51,7 +53,8 @@ async function gatherStagedCards(
   return byOwner;
 }
 
-export function createAssetsWorkloadContributions(deps: AssetsWorkloadDeps): AssetsContributions {
+export function createAssetsWorkloadContributions(input: DbAssemblyInput<AssetsWorkloadDeps>): AssetsContributions {
+  const deps: AssetsWorkloadDeps = { ...input, db: databaseForOwner(input.db) };
   return [
     {
       kind: "assets-backfill",

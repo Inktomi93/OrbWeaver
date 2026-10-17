@@ -12,7 +12,7 @@
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { readSeedBackground, SEED_BACKGROUND_PLATES } from "@orb/default-content";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
@@ -45,7 +45,7 @@ import {
   createReadDefaultPresetId,
   createSeedBackgroundRewriter,
 } from "#domain/settings";
-import { bumpStatsCanonVersion } from "#domain/stats";
+import { createStatsBatchWiring } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import { createSeedCardTag } from "#domain/tag";
 import type { BulkImportLorebook, HasPrimaryBook } from "#domain/world-info";
@@ -68,7 +68,7 @@ export interface AssetsCharacterComposeDeps {
 
   readonly fetchImpl?: MaterializeBackgroundDeps["fetchImpl"];
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly cas: Cas;
   readonly variants: VariantCache;
@@ -167,7 +167,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   const character = createCharacterService({
     db,
-    bumpStatsCanonVersion,
+    bumpStatsCanonVersion: createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion,
     now,
     newCharacterId: minter(ID_PREFIX.character, deps.idSource),
     newSnapshotId: minter(ID_PREFIX.characterSnapshot, deps.idSource),

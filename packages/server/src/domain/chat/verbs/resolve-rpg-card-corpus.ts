@@ -13,9 +13,10 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { CharacterId } from "@orb/kit/ids";
-import type { ChatContext } from "../context.ts";
+import { createChatContext } from "../context.ts";
 import type { ResolveRpgCardCorpus } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
+import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
@@ -50,7 +51,8 @@ function renderCard(card: CharacterCard): string {
   return blocks.join("\n\n");
 }
 
-export function createResolveRpgCardCorpus(ctx: ChatContext): ResolveRpgCardCorpus {
+export function createResolveRpgCardCorpus(input: ChatAssemblyContext): ResolveRpgCardCorpus {
+  const ctx = createChatContext(input);
   return async (chatId, characterId) => {
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19).
     const participants = await loadParticipants(ctx.db, chatId);

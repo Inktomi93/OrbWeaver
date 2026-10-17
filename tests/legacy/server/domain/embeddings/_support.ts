@@ -18,6 +18,7 @@ import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, documents, userConnections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -299,7 +300,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
-    loadChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId),
+    loadChatHostUserId: (chatId) => loadPresentHostUserId(databaseHandle(db), chatId),
     // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
     onTargetGenerationMoved: () => undefined,
     onTargetPromoted: () => undefined,

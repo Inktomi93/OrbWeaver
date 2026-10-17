@@ -1,4 +1,5 @@
 // The production turn binder composes with the production consent/pin read over a real database.
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { createTurnPersonaResolver } from "@orb/server/domain/chat";
 import { createResolvePersonasForParticipants } from "@orb/server/domain/persona";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
@@ -11,7 +12,7 @@ test("a trigger with no seat persona cannot borrow the room's anchor identity", 
   const member = await seedUser(db);
   const anchor = await seedPersona(db, { ownerId: host.id, name: "Anchor" });
   const room = await seedChat(db, { anchorPersonaId: anchor.id });
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db }));
+  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
 
   const result = await resolve({
     chatId: room.id,
@@ -39,7 +40,7 @@ test("a held departed-owner pin remains the card identity but cannot authorize a
   const pin = await seedPersona(db, { ownerId: departed.id, name: "Held pin" });
   const foreign = await seedPersona(db, { ownerId: stranger.id, name: "Private stranger" });
   const room = await seedChat(db, { anchorPersonaId: pin.id });
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db }));
+  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
 
   const result = await resolve({
     chatId: room.id,
@@ -64,7 +65,7 @@ test("canon follows the anchor owner's current seat while impersonation follows 
   const current = await seedPersona(db, { ownerId: host.id, name: "Host current" });
   const memberPersona = await seedPersona(db, { ownerId: member.id, name: "Member current" });
   const room = await seedChat(db, { anchorPersonaId: anchor.id });
-  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db }));
+  const resolve = createTurnPersonaResolver(createResolvePersonasForParticipants({ db: databaseHandle(db) }));
   const args = {
     chatId: room.id,
     runAsUserId: host.id,

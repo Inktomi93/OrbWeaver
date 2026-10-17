@@ -1,5 +1,7 @@
 // Settings owns library/latch writes and orders every table owner's legacy rewrite at one injected instant.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { BackgroundSeedSettings, SeedBackgroundRewriteDeps } from "../contract/background-seed-ops.ts";
 import type { SeedSettingsSource } from "../contract/seed-policy.ts";
 import type { DefaultBackgroundSeederDeps } from "../contract/seeder.ts";
@@ -21,7 +23,8 @@ export function createBackgroundSeedSettings(settings: SeedSettingsSource): Back
   };
 }
 
-export function createSeedBackgroundRewriter(deps: SeedBackgroundRewriteDeps): DefaultBackgroundSeederDeps["rewriteSeededReferences"] {
+export function createSeedBackgroundRewriter(input: DbAssemblyInput<SeedBackgroundRewriteDeps>): DefaultBackgroundSeederDeps["rewriteSeededReferences"] {
+  const deps: SeedBackgroundRewriteDeps = { ...input, db: databaseForOwner(input.db) };
   return async (userId, resolve): Promise<number> => {
     const at = deps.now();
     const picks = await migrateSeededBackgroundPicks(deps.db, userId, resolve, at);

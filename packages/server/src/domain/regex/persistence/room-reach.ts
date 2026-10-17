@@ -1,6 +1,8 @@
 // Only room-level attachments are member-visible; plural capture retains each script's rooms for confirmation.
 import type { Db } from "@orb/db";
 import { chatRegexScripts } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { RegexRoomReach } from "../contract/room-reach.ts";
@@ -26,7 +28,8 @@ async function resolveRegexScriptsRooms(db: Db, scriptIds: readonly RegexScriptI
 }
 
 /** Read the regex-owned room junction rather than host, preset or character library tiers. */
-export function createRegexRoomReach(db: Db): RegexRoomReach {
+export function createRegexRoomReach(handle: DatabaseHandle): RegexRoomReach {
+  const db = databaseForOwner(handle);
   return {
     script: (scriptId) => resolveRegexScriptRooms(db, scriptId),
     scripts: (scriptIds) => resolveRegexScriptsRooms(db, scriptIds),

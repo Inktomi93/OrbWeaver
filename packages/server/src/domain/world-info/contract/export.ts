@@ -7,6 +7,7 @@
 // `contract/` (types-in-contract / no-context-returntype); explicit interfaces, never a `ReturnType<>`.
 
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserId, WorldBookId } from "@orb/kit/ids";
 
 /** The DI bundle `createExport` closes over (assembled at the entry composition root). Read-only: the
@@ -14,6 +15,8 @@ import type { UserId, WorldBookId } from "@orb/kit/ids";
 export interface WorldInfoExportContext {
   readonly db: Db;
 }
+
+export type WorldInfoExportAssemblyContext = DbAssemblyInput<WorldInfoExportContext>;
 
 /** One portable world-info file: its `filename` (relative — the registry descriptor prefixes the bundle
  *  `dir`) and the serialized `bytes` (the UTF-8 `worlds/*.json` from `buildWorldBookFile`). */

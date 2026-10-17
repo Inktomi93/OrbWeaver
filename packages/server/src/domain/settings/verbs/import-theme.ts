@@ -3,6 +3,7 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
@@ -10,7 +11,7 @@ import { portableParseError } from "#primitives/serde/lib";
 import type { CanonicalTheme } from "#primitives/serde/theme";
 import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#primitives/serde/theme";
 import type { ImportedThemeLanding, ImportTheme, SettingsImportOutcome } from "../contract/portability.ts";
-import type { SettingsContext } from "../contract/service.ts";
+import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { insertThemes, listOwnedThemes } from "../persistence/theme-queries.ts";
 
 const THEME_IMPORT_BACKUP = "theme.importBackup";
@@ -54,7 +55,8 @@ function landTheme({ ctx, ownerId, theme, library, at }: LandingArgs): { readonl
 
 /** Parse theme bytes and land them in the owner's theme library. `fallbackName` names a raw ST theme that
  *  carries no `name` of its own (the picked file's stem). */
-export function createImportTheme(ctx: SettingsContext): ImportTheme {
+export function createImportTheme(input: SettingsAssemblyContext): ImportTheme {
+  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, bytes: Uint8Array, fallbackName?: string): Promise<SettingsImportOutcome> => {
     const parsed = parseThemeFile(bytes, fallbackName ?? UNNAMED_THEME);
     if (!parsed.ok) {

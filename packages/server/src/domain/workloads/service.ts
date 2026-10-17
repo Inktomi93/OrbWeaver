@@ -3,6 +3,8 @@
 // scheduler also drives `list`/`start` through this. The ENGINE entry points (runWorkload/reaper/bus) are
 // NOT verbs — they're separate front-door exports the worker driver calls; this service is the verb surface.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createWorkloadServiceContext } from "./context.ts";
 import type { WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
 import { emitWorkloadEvent } from "./engine/progress-bus.ts";
@@ -18,7 +20,8 @@ import { createSetScheduleEnabled } from "./verbs/set-schedule-enabled.ts";
 import { createStart } from "./verbs/start.ts";
 import { createUpdateSchedule } from "./verbs/update-schedule.ts";
 
-export function createWorkloadService(deps: WorkloadServiceDeps): WorkloadService {
+export function createWorkloadService(input: DbAssemblyInput<WorkloadServiceDeps>): WorkloadService {
+  const deps: WorkloadServiceDeps = { ...input, db: databaseForOwner(input.db) };
   const ctx = createWorkloadServiceContext({ ...deps, emitEvent: deps.emitEvent ?? emitWorkloadEvent });
   return {
     ...createStart(ctx),

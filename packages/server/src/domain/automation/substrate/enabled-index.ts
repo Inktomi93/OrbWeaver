@@ -13,13 +13,15 @@
 // canon decides), and the watcher front door rebuilds on the next event. All of it is PROCESS-LOCAL — the
 // `ASSUMES(single-replica)` annotation covers the latch exactly as it covers the sets.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { EnabledRuleIndex } from "../contract/ops.ts";
 import { hasEnabledDomainRules, loadEnabledChatIds } from "../persistence/rules.ts";
 
 /** Build the pre-check index over `db`. Call `reload()` once at boot before the watcher subscribes. */
-export function createEnabledRuleIndex(db: Db): EnabledRuleIndex {
+export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex {
+  const db = databaseForOwner(handle);
   // ASSUMES(single-replica): a per-process snapshot, eventually-consistent within one reload of a mutation.
   let enabledChats = new Set<ChatId>();
   let domainRules = false;

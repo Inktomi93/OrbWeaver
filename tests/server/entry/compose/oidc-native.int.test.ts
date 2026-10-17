@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
@@ -479,7 +480,7 @@ test("configured native issuer execution preserves offset shared-byte views and 
     },
   });
   await using oidc = await createConfiguredOidc({
-    db: root.db,
+    db: databaseHandle(root.db),
     now: root.clock.now,
     built: root.app,
     settings: SETTINGS,

@@ -3,12 +3,15 @@
 // roster's host seat), so chat owns the answer and regex consumes it as an injected op. A hostless room (an
 // archived orphan whose host left) answers a null host: nobody's scripts can be broadcast.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RegexContext } from "#domain/regex";
 import type { ChatContext } from "../context.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { loadPresentHostUserId } from "../persistence/reactions.ts";
 
-export function createResolveRoomDisplayPolicy(ctx: Pick<ChatContext, "db">): RegexContext["resolveRoomDisplayPolicy"] {
+export function createResolveRoomDisplayPolicy(input: DbAssemblyInput<Pick<ChatContext, "db">>): RegexContext["resolveRoomDisplayPolicy"] {
+  const ctx = { db: databaseForOwner(input.db) };
   return async (chatId) => {
     // The row read parses metadata through the fault-isolated seam, so a corrupt sibling sub-blob never takes
     // the toggle down with it; a gone chat reads off.

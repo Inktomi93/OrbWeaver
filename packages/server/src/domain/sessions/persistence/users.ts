@@ -2,6 +2,8 @@ import type { UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { AwaitableBatchStmt } from "@orb/db/query";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
@@ -44,7 +46,8 @@ const PROVISION_COLS = {
 } as const;
 
 /** Trusted boot convenience seeding covers every account, including disabled and nonhuman accounts. */
-export function createListSeedAccountIds(db: Db): () => Promise<readonly UserId[]> {
+export function createListSeedAccountIds(input: DatabaseHandle): () => Promise<readonly UserId[]> {
+  const db = databaseForOwner(input);
   return async () => (await db.select({ id: users.id }).from(users)).map((row) => row.id);
 }
 
@@ -108,13 +111,15 @@ export async function selectForProvisionById(db: Db, id: UserId): Promise<Provis
 
 /** A user's account handle, or null for a gone id — the display fallback the persona domain's user-publics
  *  op reads through an injected op (sessions owns the `users` read). */
-export async function selectHandleById(db: Db, id: UserId): Promise<Handle | null> {
+export async function selectHandleById(input: DatabaseHandle, id: UserId): Promise<Handle | null> {
+  const db = databaseForOwner(input);
   const rows = await db.select({ handle: users.handle }).from(users).where(eq(users.id, id)).limit(1);
   return rows.at(0)?.handle ?? null;
 }
 
 /** The account handles of `ids` in one read; a gone id is absent. Empty input asks nothing. */
-export async function selectHandlesByIds(db: Db, ids: readonly UserId[]): Promise<{ readonly id: UserId; readonly handle: Handle }[]> {
+export async function selectHandlesByIds(input: DatabaseHandle, ids: readonly UserId[]): Promise<{ readonly id: UserId; readonly handle: Handle }[]> {
+  const db = databaseForOwner(input);
   return ids.length === 0
     ? []
     : await db

@@ -1,12 +1,12 @@
 // Assemble owner reach queries and chat's room-plane policies; all handed-out rules live in their domains.
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { createEmitRoomEntityChanged, createRoomEntityRefresh, createRoomSeatReach } from "#domain/chat";
 import { createDatabankRoomReach } from "#domain/databank";
 import { createRegexRoomReach } from "#domain/regex";
 import { createWorldInfoRoomReach } from "#domain/world-info";
 
-function buildRoomRefresh(db: Db, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): ReturnType<typeof createRoomEntityRefresh> {
+function buildRoomRefresh(db: DatabaseHandle, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): ReturnType<typeof createRoomEntityRefresh> {
   const seats = createRoomSeatReach(db);
   const regex = createRegexRoomReach(db);
   return createRoomEntityRefresh({
@@ -24,14 +24,14 @@ function buildRoomRefresh(db: Db, emitRoomEvent: (event: LiveOnlyChatBusEvent) =
 }
 
 export function createRoomEntityFan(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["fanEntityEvent"] {
   return buildRoomRefresh(db, emitRoomEvent).fanEntityEvent;
 }
 
 export function createDeleteReachCapture(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["deleteReachCapture"] {
   return buildRoomRefresh(db, emitRoomEvent).deleteReachCapture;
@@ -46,28 +46,28 @@ export function createEmitRoomDatabankChanged(emitRoomEvent: (event: LiveOnlyCha
 }
 
 export function createFanRegexScriptRooms(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["fanRegexScriptRooms"] {
   return buildRoomRefresh(db, emitRoomEvent).fanRegexScriptRooms;
 }
 
 export function createFanDatabankDocumentRooms(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankDocumentRooms"] {
   return buildRoomRefresh(db, emitRoomEvent).fanDatabankDocumentRooms;
 }
 
 export function createFanDatabankCharacterRooms(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankCharacterRooms"] {
   return buildRoomRefresh(db, emitRoomEvent).fanDatabankCharacterRooms;
 }
 
 export function createFanDatabankMemberRooms(
-  db: Db,
+  db: DatabaseHandle,
   emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
 ): ReturnType<typeof createRoomEntityRefresh>["fanDatabankMemberRooms"] {
   return buildRoomRefresh(db, emitRoomEvent).fanDatabankMemberRooms;

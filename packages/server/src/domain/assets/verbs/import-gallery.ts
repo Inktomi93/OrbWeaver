@@ -4,6 +4,8 @@
 // curation row cannot reference another user's asset) and dedups on `(assetId, subjectCharacterId)`.
 // Never throws for a bad file — returns `{ok:false, error}` so one malformed entry cannot abort a bundle.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
@@ -37,7 +39,8 @@ async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalG
   return result.created;
 }
 
-export function createImportGallery(ctx: AssetsContext): (ownerId: UserId, file: GalleryPortableFile) => Promise<GalleryImportOutcome> {
+export function createImportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId, file: GalleryPortableFile) => Promise<GalleryImportOutcome> {
+  const ctx: AssetsContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, file: GalleryPortableFile): Promise<GalleryImportOutcome> => {
     const parsed = parseGallery(file.bytes);
     if (!parsed.ok) {

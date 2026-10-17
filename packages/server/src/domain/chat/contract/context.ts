@@ -33,6 +33,7 @@ import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBloc
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { StatementToken } from "@orb/db/wiring";
 import type { BindingActor, Resolved, RoleClientsWithSignal, SideGenSampling, SummarizeResult, WireTool } from "@orb/inference";
 import type {
   AssetId,
@@ -136,13 +137,17 @@ type CopyHandoffBooksOp = (args: {
   readonly toOwnerId: UserId;
   readonly chatId: ChatId;
   readonly cardCopies: readonly HandoffCardCopy[];
-}) => Promise<readonly BatchStmt[]>;
+}) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff REGEX copy (regex's `CopyHandoffRegexScripts`, declared structurally). Copies the
  *  departing host's CHAT-TIER scripts into the nominee's library and returns the UNEXECUTED
  *  `chat_regex_scripts` re-point. Takes no `cardCopies`: a room's script attachment is room state that stands
  *  on its own, so unlike the lore arm it is not derived from what the seats did. */
-type CopyHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonly toOwnerId: UserId; readonly chatId: ChatId }) => Promise<readonly BatchStmt[]>;
+type CopyHandoffRegexScriptsOp = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+}) => Promise<readonly StatementToken[]>;
 
 /** The host-handoff LORE copy's DISCLOSURE twin (world-info's `CountHandoffBooks`, declared structurally) —
  *  how many DISTINCT books the copy above would mint for `toOwnerId`, resolved by the same owner-filtered
@@ -162,7 +167,7 @@ type CountHandoffRegexScriptsOp = (args: { readonly fromOwnerId: UserId; readonl
 
 /** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
  *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
-type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
+type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly StatementToken[]>;
 
 /** Resolves a human participant's display fields. */
 type ResolveUserPublicsOp = (
@@ -332,7 +337,7 @@ export interface QuietGenerateDeps {
  *  the marker and snapshot back together. */
 type PostNarratorMessageOptions =
   | { readonly initiator: TurnInitiator; readonly automationDepth: number }
-  | { readonly rpgRestoreStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => BatchStmt };
+  | { readonly rpgRestoreStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => StatementToken };
 
 export type PostNarratorMessage = (
   chatId: ChatId,
@@ -428,7 +433,7 @@ export type GetPendingUserText = (chatId: ChatId) => Promise<string | null>;
 
 /** Delivers an invite/kick/handoff to a non-member the per-chat bus can't reach. Durable-first; `coStatements`
  *  carries the producer's membership-transition statements, committed in the same batch as the notification row. */
-type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly unknown[]) => Promise<void>;
+type NotificationsEmitOp = (event: NotificationEvent, coStatements?: readonly StatementToken[]) => Promise<void>;
 
 /** The exact handle→userId lookup for targeted invites; unknown/disabled collapses to null. Chat never
  *  reads `users` itself. */
@@ -607,7 +612,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  nominee's copies, so the transferred seated characters' durable identity data stops depending on a library the old
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
-  readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly BatchStmt[]>;
+  readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly StatementToken[]>;
   /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): WOULD an accepted `copyGmPreset` offer copy this
    *  room's GM voice into `nomineeUserId`'s library? `true` only when the room is a game, its `gmPresetId` is
    *  set, and the nominee cannot already read it — i.e. exactly the gate `handoffHealStatements` applies at
@@ -627,7 +632,7 @@ export interface ChatRpgOps extends RpgTurnOps {
 /** RPG's unexecuted contribution to a chat-owned atomic birth batch. */
 export interface ChatRpgGameBirthPlan {
   readonly gameId: RpgGameId;
-  readonly statements: readonly BatchStmt[];
+  readonly statements: readonly StatementToken[];
 }
 
 export type HandoffCardCopy = HandoffCardPair;
@@ -945,7 +950,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly signupInvites: SignupInviteCapability;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
-  readonly auditStatement: (entry: AuditEntry, at: number) => BatchStmt;
+  readonly auditStatement: (entry: AuditEntry, at: number) => StatementToken;
   /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
    *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
   readonly testRegexKey: TestRegexKeyOp;
@@ -1099,11 +1104,11 @@ export interface ChatServiceDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   /** The same durable-first emit with its append verdict preserved. Roster handoff alone supplies a claim:
    * its marker owns one append, a losing retry converges, and an append failure rolls the claim back. */
-  readonly emitChecked: (event: DurableChatBusEvent, claimStatement?: BatchStmt) => Promise<boolean>;
+  readonly emitChecked: (event: DurableChatBusEvent, claimStatement?: StatementToken) => Promise<boolean>;
   /** Prepare the new room's first durable event for the creation batch, then fan that already-committed row
    * without a second append. Restricted to chatCreated because only birth proves seq=1 by construction. */
   readonly prepareCreationEvent: (event: Extract<DurableChatBusEvent, { readonly type: "chatCreated" }>) => {
-    readonly statement: BatchStmt;
+    readonly statement: StatementToken;
     readonly publishCommitted: () => void;
   };
   /** The LIVE-ONLY fan — no `chat_events` append, no seq, nothing to replay. The ONLY door `chatDeleted`

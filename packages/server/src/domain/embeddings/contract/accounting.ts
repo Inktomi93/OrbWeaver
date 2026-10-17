@@ -4,6 +4,7 @@
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingCallId, EmbeddingInvocationId } from "@orb/kit/ids";
 
 export interface EmbeddingAccountingContext {
@@ -13,3 +14,7 @@ export interface EmbeddingAccountingContext {
   readonly newInvocationId: () => EmbeddingInvocationId;
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
 }
+
+export type EmbeddingAccountingAssemblyContext = Omit<DbAssemblyInput<EmbeddingAccountingContext>, "applyStatsDelta"> & {
+  readonly applyStatsDelta: ApplyStatsDelta<BatchHandle, DatabaseHandle>;
+};

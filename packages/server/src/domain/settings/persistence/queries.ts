@@ -16,6 +16,8 @@ import type { UserSettings } from "@orb/contracts/settings";
 import { appSettingsConfig, DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -242,7 +244,8 @@ export async function readGlobalSetting(db: Db, key: string): Promise<GlobalSett
 }
 
 /** Operator inspection preserves stored JSON without normalizing app overrides or tenant values. */
-export async function readGlobalSettings(db: Db): Promise<GlobalSettingView[]> {
+export async function readGlobalSettings(handle: DatabaseHandle): Promise<GlobalSettingView[]> {
+  const db = databaseForOwner(handle);
   return await db.select({ key: settings.key, value: settings.value, updatedAt: settings.updatedAt }).from(settings).orderBy(settings.key);
 }
 

@@ -16,6 +16,8 @@
 // act on. The refusal is complete: it is decided BEFORE any CAS write, so it leaves nothing behind.
 
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext, PortableAssetIdentity } from "../contract/portability.ts";
 import { assetIdForHash, loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
@@ -29,7 +31,8 @@ interface ImportTarget {
   readonly identity: PortableAssetIdentity;
 }
 
-export function createImportAsset(ctx: AssetsPortabilityContext): PortableEntity["importFile"] {
+export function createImportAsset(input: DbAssemblyInput<AssetsPortabilityContext>): PortableEntity["importFile"] {
+  const ctx: AssetsPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, file: PortableFile): Promise<PortableImportOutcome> => {
     const identity = parsePortableAssetFilename(file.filename);
     if (identity === undefined) {

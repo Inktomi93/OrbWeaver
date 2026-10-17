@@ -26,7 +26,7 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 
 D321 records the owner rulings. The audit crosswalk is `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances.
 
-Before retirement, preserve KEEP dependencies on bus rosters, schema/catalog identity, CSS source data and floorless-control inputs. Preserve D1/D40 request/turn construction and D118 subscription placement. Native prose successors retain D132 slot invariants. A typed reservation-key table alone does not prove unique mount use.
+D321 owns retained-reader dependencies, authority boundaries and reservation semantics.
 
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
@@ -45,3 +45,5 @@ Native lexical class and skin restrictions replace custom owners; shared z-index
 Resolved role data uses private capture/decoder and canonical wire boundaries. Principal builders delegate to production. Security review passes; existing role gates remain. Legacy/probe adoption is unqualified. Evidence: `reports/review/1041-native-role-authority-ordinary.md`.
 
 Production registries supply config anchors and safe navigation with owned jump cancellation. Native types and route-map lint replace exact claims; semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts need real-door replacement.
+
+Inert DB, statement and batch wiring preserves original operands. Native import/loader boundaries replace query detection; per-call analysis remains. Security review passes. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.

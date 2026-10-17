@@ -40,7 +40,7 @@ import type {
   RpgTurnToolCallsView,
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
@@ -366,7 +366,7 @@ type RpgPromoteToCharacterResult = { readonly ok: true; readonly characterId: Ch
 export type RpgPostNarratorMessage = (
   chatId: ChatId,
   content: string,
-  buildSnapshotStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => BatchStmt,
+  buildSnapshotStatement: (ids: { readonly messageId: MessageId; readonly variantId: MessageVariantId }) => StatementToken,
 ) => Promise<{ readonly messageId: MessageId; readonly variantId: MessageVariantId }>;
 
 /** The preset-ownership gate (fork-clones-the-game §3.2). Is `presetId` SAFE for `userId` to carry as their
@@ -832,6 +832,7 @@ interface FlushDropInfo {
 /** What the composition root supplies to build the ctx — a pass-through of `RpgContext`'s members (the builder
  *  does no derivation; every field is injected at compose, W1c). */
 export type RpgContextDeps = RpgContext;
+export type RpgAssemblyContext = DbAssemblyInput<RpgContextDeps>;
 
 /** The resolved authority context a gated verb works from: the game row + the caller's present role (derived
  *  from `PARTICIPANT_ROLES`, never re-spelled — §5.5). */

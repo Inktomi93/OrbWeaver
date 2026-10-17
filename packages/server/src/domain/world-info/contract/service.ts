@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { ChatBookView, LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type { ExportedWorldBook } from "./export.ts";
@@ -79,6 +80,8 @@ export interface WorldInfoContext {
    *  `emit({world-info.updated})` resolves the intact junctions correctly. */
   readonly captureRoomReachForDelete: (bookId: WorldBookId) => Promise<() => void>;
 }
+
+export type WorldInfoAssemblyContext = DbAssemblyInput<WorldInfoContext>;
 
 export interface WorldInfoService {
   readonly countBooks: (params: ListBooksParams) => Promise<number>;

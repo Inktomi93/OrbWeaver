@@ -1,5 +1,7 @@
 // The settings section writer remains the owner of validation and persistence; persona owns fallback choice.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PersonaDeleteSeedsDeps } from "../contract/delete-seeds.ts";
@@ -8,7 +10,8 @@ import { loadNewestPersonaId } from "../persistence/newest-persona.ts";
 import { nextSeedsAfterPersonaDelete } from "../substrate/deleted-seeds.ts";
 
 /** Repoint only seed pointers that named the persona the owner just deleted. */
-export function createRepointSeedsAfterPersonaDelete(deps: PersonaDeleteSeedsDeps): PersonaContext["repointSeedsAfterPersonaDelete"] {
+export function createRepointSeedsAfterPersonaDelete(assembly: DbAssemblyInput<PersonaDeleteSeedsDeps>): PersonaContext["repointSeedsAfterPersonaDelete"] {
+  const deps: PersonaDeleteSeedsDeps = { ...assembly, db: databaseForOwner(assembly.db) };
   return async (principal, deletedId) => {
     const ownerId = principal.userId;
     const seeds = (await deps.loadUserSettings(ownerId)).seeds;

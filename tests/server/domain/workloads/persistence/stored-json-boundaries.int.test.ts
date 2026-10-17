@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/workloads/verbs/get.ts
 // @subject packages/server/src/domain/workloads/verbs/cancel.ts
 // @subject packages/server/src/domain/workloads/verbs/retry.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { WorkloadRef } from "@orb/contracts/workloads";
@@ -144,7 +145,7 @@ for (const field of ["progress", "params", "result"] as const) {
         .where(eq(workloads.id, poisoned.id));
     }
     const next = createNextRunnableWorkload({
-      db: harness.db,
+      db: databaseHandle(harness.db),
       contributions: harness.app.workloadContributions,
       emitEvent: harness.app.workloadEvents.emitWorkloadEvent,
     });

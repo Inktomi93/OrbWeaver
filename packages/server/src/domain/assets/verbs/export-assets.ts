@@ -6,13 +6,16 @@
 // no abort signal (isomorphic contract).
 
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { AssetsPortabilityContext } from "../contract/portability.ts";
 import { selectOwnedReferencedAssetIds } from "../persistence/asset-refs.ts";
 import { loadOwnedAssetForExport, selectInlineReferencedContents } from "../persistence/portable-refs.ts";
 import { buildPortableAssetFilename, extractInlineAssetIds } from "../substrate/portable-asset-file.ts";
 
-export function createExportAssets(ctx: AssetsPortabilityContext): PortableEntity["exportAll"] {
+export function createExportAssets(input: DbAssemblyInput<AssetsPortabilityContext>): PortableEntity["exportAll"] {
+  const ctx: AssetsPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async function* exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const ids = await selectOwnedReferencedAssetIds(ctx.db, ownerId);
     for (const content of await selectInlineReferencedContents(ctx.db, ownerId)) {

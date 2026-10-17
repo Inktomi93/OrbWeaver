@@ -8,6 +8,7 @@
 
 import type { CharacterEconomics, CharacterModelEconomics, LatencyScope } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
 import type { ReconcileStatsResult } from "./results.ts";
@@ -78,7 +79,7 @@ export interface StatsService {
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (`reconcile-stats`). */
 export interface StatsWorkloadDeps {
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly idSource?: IdSource | undefined;
 }

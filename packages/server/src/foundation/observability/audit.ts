@@ -10,10 +10,15 @@ import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchStmt } from "@orb/db/query";
-import type { IdSource, UserId } from "@orb/kit/ids";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
+import type { IdSource } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import type { AuditEntry, AuditWiring } from "./contract/audit-wiring.ts";
 import { getLog } from "./logger.ts";
+
+export type { AuditEntry } from "./contract/audit-wiring.ts";
 
 let auditFailureCount = 0;
 let firstFailureAt: number | null = null;
@@ -26,17 +31,6 @@ export interface AuditFailureSnapshot {
   count: number;
   firstFailureAt: number | null;
   lastFailureAt: number | null;
-}
-
-// @orb-waive no-inline-package-interface(AuditEntry): baselined when the gate landed; burn-down item 952.
-/** One audit event. `actorUserId` is null for system-initiated events (GC, cron, no real user).
- *  `entityId`/`entityType` are a soft-ref (no FK), both nullable for a global action. */
-export interface AuditEntry {
-  actorUserId: UserId | null;
-  action: string;
-  entityType?: string | null;
-  entityId?: string | null;
-  metadata?: Record<string, unknown>;
 }
 
 export function getAuditFailureSnapshot(): AuditFailureSnapshot {
@@ -128,4 +122,14 @@ export async function logAudit(db: Db, entry: AuditEntry, createdAt: number, idS
 /** Bind the guarded unexecuted audit insert; the privileged caller owns its adjacent batch position. */
 export function createAuditStatementAfterWrite(db: Db, idSource: IdSource = createIdSource()): (entry: AuditEntry, at: number) => BatchStmt {
   return (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at, idSource);
+}
+
+/** Bind audit operations without handing composition an executable co-statement. */
+export function createAuditWiring(handle: DatabaseHandle, idSource: IdSource = createIdSource()): AuditWiring {
+  const db = databaseForOwner(handle);
+  return {
+    log: (entry, at) => logAudit(db, entry, at, idSource),
+    statement: (entry, at) => statementToken(buildAuditStatement(db, entry, at, idSource)),
+    statementAfterWrite: (entry, at) => statementToken(buildAuditStatementIfPrecedingWrote(db, entry, at, idSource)),
+  };
 }

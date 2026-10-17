@@ -2,11 +2,10 @@
 // automation, rpg) receive an injected `generatePicture` op at the composition root, never a
 // sideways runtime import of this domain's internals.
 
-export type { ImageryContext } from "./context.ts";
 export { GenerationFailedError, ImageEditUnsupportedError, ImageryNotConfiguredError, PromptExtractionFailedError } from "./contract/errors.ts";
 export type { CaptionImageDeps, ImageProviderDeps, ImageProviderOps, ImageryInstructionDeps, ImageryInstructionOps } from "./contract/generation-ops.ts";
 export type { EditImageParams, EditImageSource, ExtractPromptParams, GeneratePictureParams, ReadProvenanceParams, ReusePolicy } from "./contract/params.ts";
-export type { ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
+export type { ImageryPortabilityAssemblyContext as ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 export type {
   ExtractedPrompt,
   GeneratedPicture,
@@ -18,6 +17,7 @@ export type {
   GeneratedImage,
   ImageGenerateRequest,
   ImageGenerateResult,
+  ImageryAssemblyInput as ImageryContext,
   ImageryService,
   ResolvedGenerateImage,
 } from "./contract/service.ts";

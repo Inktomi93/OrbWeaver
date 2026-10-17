@@ -5,6 +5,7 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageInfo, ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
@@ -121,3 +122,6 @@ export interface AssetsWorkloadDeps {
   readonly cas: Cas;
   readonly assets: Pick<AssetsService, "backfillAvatars" | "collectGarbage" | "fsck">;
 }
+
+export type AssetsAssemblyContext = DbAssemblyInput<AssetsContext>;
+export type AssetsWorkloadAssemblyDeps = DbAssemblyInput<AssetsWorkloadDeps>;

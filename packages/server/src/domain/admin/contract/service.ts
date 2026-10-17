@@ -6,8 +6,10 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
-import type { AuditEntry } from "#foundation/observability";
+import type { SessionsService } from "#domain/sessions";
+import type { AuditEntry, AuditWiring } from "#foundation/observability";
 import type {
   CreateUserParams,
   EmbedCharacterCardParams,
@@ -73,6 +75,10 @@ interface SessionAdminPort {
    *  by that key, so no admin mint may hold it. Canonical home domain/sessions (`isReservedSignupHandle`). */
   readonly isReservedHandle: (handle: Handle) => boolean;
 }
+
+type SessionStatementWiring = Pick<SessionsService, "revokeAllForUserStatement" | "linkExternalIdStatement" | "localUserInsertStatement">;
+
+export type AdminSessionWiring = Omit<SessionAdminPort, keyof SessionStatementWiring> & SessionStatementWiring;
 
 /** The inline-embed slice admin needs — composed at the root from `character` and `embeddings`. Resolves
  *  `false` when the caller doesn't own the character, it's gone, or it has no embeddable text. */
@@ -149,6 +155,11 @@ export interface AdminContext {
   readonly embed: EmbedProducerPort;
   readonly serverRestart: ServerRestartPort;
 }
+
+export type AdminAssemblyContext = Omit<DbAssemblyInput<AdminContext>, "sessions" | "auditStatementAfterWrite"> & {
+  readonly sessions: AdminSessionWiring;
+  readonly auditStatementAfterWrite: AuditWiring["statementAfterWrite"];
+};
 
 /** The user-administration + gating surface. All verbs are global-role gated in their own body: requireAdmin
  *  (owner ∪ admin) except `setRole`, which is owner-only. */

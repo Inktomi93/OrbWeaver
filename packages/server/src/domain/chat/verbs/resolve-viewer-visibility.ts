@@ -19,6 +19,8 @@
 // resolver's inputs widen (e.g. role-aware "authority implies visibility"), this op passes the whole loaded
 // membership row through, so it inherits the change instead of drifting from it.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../context.ts";
 import type { ResolveViewerVisibility } from "../contract/context.ts";
 import { loadPresentVisibilityRow } from "../persistence/participants-read.ts";
@@ -29,7 +31,8 @@ import { viewerReadsHidden } from "../substrate/member-visibility.ts";
  *  narrowing precedent), so the composition root can build this op without the full chat DI bundle. */
 type VisibilityCtx = Pick<ChatContext, "db">;
 
-export function createResolveViewerVisibility(ctx: VisibilityCtx): ResolveViewerVisibility {
+export function createResolveViewerVisibility(input: DbAssemblyInput<VisibilityCtx>): ResolveViewerVisibility {
+  const ctx: VisibilityCtx = { ...input, db: databaseForOwner(input.db) };
   return async (chatId, userId) => {
     const membership = await loadPresentVisibilityRow(ctx.db, chatId, userId);
     // `null` (not a present member / no such chat) is the ONE leak-free answer AND the fail-closed sentinel:

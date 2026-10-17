@@ -6,11 +6,14 @@
 //
 // The consent rule + why the gate rides IN the params: `contract/ops.ts`. A read: no audit, no writes.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PersonaContext } from "../context.ts";
 import type { ResolvePersonasForParticipants } from "../contract/ops.ts";
 import { loadPersonasForOwners, loadPinnedPersonaView } from "../persistence/queries.ts";
 
-export function createResolvePersonasForParticipants(ctx: Pick<PersonaContext, "db">): ResolvePersonasForParticipants {
+export function createResolvePersonasForParticipants(assembly: DbAssemblyInput<Pick<PersonaContext, "db">>): ResolvePersonasForParticipants {
+  const ctx: Pick<PersonaContext, "db"> = { ...assembly, db: databaseForOwner(assembly.db) };
   return async ({ chatId, personaIds, allowedOwnerIds }) => {
     // Dedup both sides: the room hands us its anchor + every present human's active persona (the same id
     // can appear twice when two pointers agree), and the same human can hold only one seat but the caller

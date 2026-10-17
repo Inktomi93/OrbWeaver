@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/guard.ts
 // @subject packages/server/src/domain/chat/persistence/participants-read.ts
 // @subject packages/server/src/transport/trpc/role-output.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { chatParticipants, chats } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
@@ -41,7 +42,7 @@ test("real membership, roster and wire owners keep role data separate from globa
   expect(() => can(member, "host", { kind: "chat", membership: { role: captured } })).toThrow(DomainForbiddenError);
   await expect(root.services.chat.setToolRecurseLimit({ principal: member, chatId, limit: 2 })).rejects.toMatchObject({ code: "not_host" });
   await expect(root.services.chat.setToolRecurseLimit({ principal: outsider, chatId, limit: 2 })).rejects.toThrow(DomainNotFoundError);
-  const visibility = createResolveViewerVisibility({ db: root.db });
+  const visibility = createResolveViewerVisibility({ db: databaseHandle(root.db) });
   expect(await visibility(chatId, member.userId)).toMatchObject({ readsHidden: false, historyFloorSeq: 0 });
   expect(await visibility(chatId, host.userId)).toMatchObject({ readsHidden: true, historyFloorSeq: 0 });
   expect(await visibility(chatId, outsider.userId)).toBeNull();

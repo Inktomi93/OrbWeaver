@@ -1,8 +1,8 @@
 import type { AdminSessionPolicyDeps } from "../contract/ops.ts";
-import type { AdminContext } from "../contract/service.ts";
+import type { AdminSessionWiring } from "../contract/service.ts";
 
 /** Admin kicks are per-user, including single-device revokes, so session-less SSO sockets also end. */
-export function createAdminSessionPort(deps: AdminSessionPolicyDeps): AdminContext["sessions"] {
+export function createAdminSessionPort(deps: AdminSessionPolicyDeps): AdminSessionWiring {
   return {
     listForUser: async (userId) => (await deps.listForUser(userId)).map((view) => ({ ...view, userId })),
     revoke: async (sessionId): Promise<void> => {

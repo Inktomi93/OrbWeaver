@@ -1,8 +1,7 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
-export type { CharacterContext } from "./context.ts";
-export type { CharacterAvatarLink, CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link.ts";
+export type { CharacterAvatarLink, CharacterAvatarLinkAssemblyContext as CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link.ts";
 export {
   AssetNotFoundError,
   CHARACTER_HANDLE_CONFLICT,
@@ -10,7 +9,12 @@ export {
   CharacterOperationError,
 } from "./contract/errors.ts";
 export type { GreetingCompletionDeps, GreetingTemplateDeps } from "./contract/greeting-ops.ts";
-export type { CharacterHandoffCopyContext, CopyAssetToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
+export type {
+  CharacterHandoffCopyAssemblyContext as CharacterHandoffCopyContext,
+  CopyAssetToOwner,
+  CopyHandoffCards,
+  HandoffCardCopy,
+} from "./contract/handoff-copy.ts";
 export { handoffProvenance } from "./contract/handoff-copy.ts";
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type {
@@ -63,6 +67,7 @@ export type {
 } from "./contract/results.ts";
 export type {
   AttachCardTagOp,
+  CharacterAssemblyInput as CharacterContext,
   CharacterService,
   DetachCardTagOp,
   ReapAssetsOp,

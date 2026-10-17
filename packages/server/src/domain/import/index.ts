@@ -63,7 +63,7 @@ export { collectBundlesFromDir } from "./loader/collect.ts";
 export { importStagedArchive, runBundleImport } from "./loader/import-bundle.ts";
 export { importCardBatch } from "./loader/import-card-batch.ts";
 export { runProfileDirectory } from "./loader/profile-directory.ts";
-export { createImportWorkloadDrivers } from "./loader/workload-drivers.ts";
+export { createImportWorkloadDrivers, createRefreshImportPlannerStats } from "./loader/workload-drivers.ts";
 export { createImportService } from "./service.ts";
 export { buildImportContext } from "./substrate/build-context.ts";
 export { bundleImportMemoryChatIds, bundleImportNotes } from "./substrate/bundle-report.ts";

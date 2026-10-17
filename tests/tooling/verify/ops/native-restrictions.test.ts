@@ -49,6 +49,69 @@ test("settings table admission rejects named, aliased, namespace and reexport re
   expect(await findings("packages/server/src/domain/import/verbs/probe.ts", 'import { settings } from "@orb/db";', ["no-restricted-imports"])).toHaveLength(1);
 });
 
+test("entry query wiring refuses dynamic host loaders and process/global capture through native syntax", async () => {
+  const rules = ["no-restricted-syntax", "no-restricted-globals", "no-new-func"];
+  const denied = [
+    'const path = "@orb/db"; import(path);',
+    'const part = "db"; import(`@orb/${part}`);',
+    'import loader = require("node:module");',
+    'process.getBuiltinModule("module");',
+    'process["getBuiltinModule"]("module");',
+    'const key = "getBuiltinModule"; process[key]("module");',
+    'const captured = process; captured.getBuiltinModule("module");',
+    'const { getBuiltinModule: load } = process; load("module");',
+    'Reflect.get(process, "getBuiltinModule")("module");',
+    'import p from "node:process"; const key = "getBuiltinModule"; p[key]("module");',
+    'import * as p from "node:process"; p.getBuiltinModule("module");',
+    'import { getBuiltinModule as load } from "node:process"; load("module");',
+    'const loader = require; loader("@orb/db");',
+    'const root = globalThis; root.process.getBuiltinModule("module");',
+    'Reflect.get(global, "process").getBuiltinModule("module");',
+    'new Function("return 1")();',
+  ];
+  for (const path of [
+    "packages/server/src/entry/compose/services.ts",
+    "packages/server/src/entry/http/app.ts",
+    "packages/server/src/entry/boot/seed-local-light.ts",
+  ]) {
+    for (const source of denied) {
+      const messages = await findings(path, source, rules);
+      expect(messages, `${path}: ${source}`).not.toEqual([]);
+      expect(
+        messages.some((message) => message.includes("Entry wiring") || message === "The Function constructor is eval."),
+        source,
+      ).toBe(true);
+    }
+  }
+});
+
+test("entry loader restrictions preserve literal wiring, unrelated select methods and physical boot ownership", async () => {
+  const rules = ["no-restricted-syntax", "no-restricted-globals", "no-new-func"];
+  const path = "packages/server/src/entry/compose/services.ts";
+  for (const source of [
+    'import type { DatabaseHandle } from "@orb/db/wiring"; import("#domain/stats");',
+    'import process from "node:process"; const target = `${process.platform}-${process.arch}`;',
+    "const unrelated = { select() { return 1; } }; unrelated.select();",
+    'const description = "process.getBuiltinModule; globalThis; import(path)";',
+  ]) {
+    expect(await findings(path, source, rules), source).toEqual([]);
+  }
+  expect(
+    await findings(
+      "packages/server/src/entry/check-media.ts",
+      'import process from "node:process"; process.stdout.write("ready"); process.stderr.write("refused"); process.exitCode = 1;',
+      rules,
+    ),
+  ).toEqual([]);
+  expect(
+    await findings(
+      "packages/server/src/entry/boot/migrate.ts",
+      'import { createRequire } from "node:module"; const require = createRequire(import.meta.url); require.resolve("@orb/db");',
+      rules,
+    ),
+  ).toEqual([]);
+});
+
 test("layout and HTML attributes cover intrinsic, custom and member tags without judging spreads or object keys", async () => {
   for (const path of ["packages/client/src/features/probe.tsx", "packages/ui/src/probe.tsx"]) {
     expect(await findings(path, '<Cards.Card compact inDrawer isSheet density="compact" dangerouslySetInnerHTML={{ __html: text }} />')).toHaveLength(5);

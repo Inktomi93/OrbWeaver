@@ -6,7 +6,8 @@ import { buildToolRoundWireTools, constrainExtractionSchema, rpgExtractionSchema
 import type { Resolved } from "@orb/inference";
 import { carriesForcedToolRound, generationOf } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { PromptInputs, RpgRoundsAssemblyDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
 import { deriveTrackersReadOnly, hasStructuredWriter, primaryStateRound, structuredVehicleUnavailable } from "#src/domain/rpg/substrate/readonly-axis.ts";
@@ -25,7 +26,8 @@ import { structuredRound, structuredShapes } from "./structured.ts";
  *  error — incoherent (api,source) or the agent-sdk model-heal fail-loud), is readonly AND fold-guarded by
  *  construction (never assume a write path; a READ degrades to read-only trackers, never a 500).
  *  This mirrors the flush's F2 gate so the pill and the actual round-eligibility agree. */
-export function buildResolveStateDelivery(deps: RpgRoundsDeps): RpgContext["resolveStateDelivery"] {
+export function buildResolveStateDelivery(input: RpgRoundsAssemblyDeps): RpgContext["resolveStateDelivery"] {
+  const deps = createRpgRoundsContext(input);
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
   const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false, structuredUnavailable: false };
   return async (chatId, funderUserId) => {
@@ -74,7 +76,8 @@ export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInpu
  *  and the room's own prompt, against that connection's window. The story slice and the latest beat vary per turn and
  *  are left out, so an overflow here is one every turn pays. The window is never raised behind the host's back
  *  (owner ruling); the verdict names the connection whose setting fixes it. */
-export function buildResolveStateRoundFit(deps: RpgRoundsDeps): RpgContext["resolveStateRoundFit"] {
+export function buildResolveStateRoundFit(input: RpgRoundsAssemblyDeps): RpgContext["resolveStateRoundFit"] {
+  const deps = createRpgRoundsContext(input);
   return async (chatId, funderUserId, baseState) => {
     const conn = await resolveFunderChat(deps, funderUserId);
     if (conn === null) {

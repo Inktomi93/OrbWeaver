@@ -7,6 +7,8 @@
 // (a book via `worldBooks.ownerId`, an entry via its book, an attachment target via its own owner column);
 // the chat scope is MEMBERSHIP-scoped (D18) through the injected guards (contract/service.ts header).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorldInfoContext } from "./context.ts";
 import type { WorldInfoService } from "./contract/service.ts";
 import { createImportStandaloneLorebook } from "./persistence/import-write.ts";
@@ -50,12 +52,13 @@ import {
 import { createExport } from "./verbs/export.ts";
 import { createImport } from "./verbs/import.ts";
 
-export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService {
+export function createWorldInfoService(input: DbAssemblyInput<WorldInfoContext>): WorldInfoService {
+  const ctx: WorldInfoContext = { ...input, db: databaseForOwner(input.db) };
   // The two single-book DOORS are thin arms over the SAME two verbs the bundle descriptor composes (the
   // ratified thin-arm law): one producer, one parser, so a book shared one-at-a-time and a book inside a
   // backup zip can never diverge. Both factories are pure over this same DI bundle.
-  const exportBook = createExport(ctx);
-  const importBook = createImport({ importStandalone: createImportStandaloneLorebook(ctx) });
+  const exportBook = createExport(input);
+  const importBook = createImport({ importStandalone: createImportStandaloneLorebook(input) });
   return {
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
     importFile: ({ principal, fileText, filename }) =>

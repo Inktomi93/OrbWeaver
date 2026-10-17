@@ -3,12 +3,13 @@
 // under the per-user write serializer; `created` is always false (merge into the always-present singleton).
 
 import type { UserSettings } from "@orb/contracts/settings";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import { portableParseError } from "#primitives/serde/lib";
 import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES, USER_SETTINGS_SCHEMA_KIND } from "#primitives/serde/user-settings";
 import type { SettingsImportOutcome } from "../contract/portability.ts";
-import type { SettingsContext } from "../contract/service.ts";
+import type { SettingsAssemblyContext, SettingsContext } from "../contract/service.ts";
 import { readUserSettings, writeUserConfig } from "../persistence/queries.ts";
 import { deepMergePlain } from "../substrate/merge.ts";
 
@@ -16,7 +17,8 @@ const SETTINGS_IMPORT_BACKUP = "settings.importBackup";
 const SETTINGS_ENTITY = "settings";
 
 /** Parse user-settings-backup bytes and per-namespace-merge them into the owner's settings (idempotent). */
-export function createImportUserSettings(ctx: SettingsContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
+export function createImportUserSettings(input: SettingsAssemblyContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
+  const ctx: SettingsContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId, bytes: Uint8Array): Promise<SettingsImportOutcome> => {
     const parsed = parseUserSettingsBackup(bytes);
     if (!parsed.ok) {

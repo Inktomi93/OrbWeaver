@@ -4,6 +4,8 @@
 // wired here (the retrieval ranking has one home; `find-characters` never re-implements or sideways-imports
 // it). The memory/discover/image/lexical verbs join here as they land (see `contract/service.ts` ledger).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { SearchContext } from "./context.ts";
 import type { SearchService } from "./contract/service.ts";
 import { createCorpus } from "./verbs/corpus.ts";
@@ -22,7 +24,8 @@ import { createSimilarCharacters } from "./verbs/similar-characters.ts";
 import { createSourceState } from "./verbs/source-state.ts";
 import { createSpaceStatus } from "./verbs/space-status.ts";
 
-export function createSearchService(ctx: SearchContext): SearchService {
+export function createSearchService(input: DbAssemblyInput<SearchContext>): SearchService {
+  const ctx: SearchContext = { ...input, db: databaseForOwner(input.db) };
   const knn = createKnn(ctx);
   const findCharacters = createFindCharacters(ctx, knn);
   const digests = createDigests(ctx);
@@ -33,7 +36,7 @@ export function createSearchService(ctx: SearchContext): SearchService {
   const discover = createDiscover(ctx);
   const documents = createDocuments(ctx);
   return {
-    resolveCorpusSourceState: createSourceState(ctx),
+    resolveCorpusSourceState: createSourceState(input),
     knn,
     findCharacters,
     digests,

@@ -7,7 +7,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
@@ -43,7 +43,7 @@ export interface DatabankComposeDeps {
 
   readonly fetchWebDocument?: typeof fetchWebDocument;
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly assetsStore: DatabankContext["assetsStore"];

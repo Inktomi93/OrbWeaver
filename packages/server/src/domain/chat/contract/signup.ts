@@ -1,7 +1,7 @@
 import type { InvitePreview, SignupMinterCheckOp } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { JoinerPersona } from "@orb/contracts/persona";
-import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
+import type { AwaitableStatementToken, StatementToken } from "@orb/db/wiring";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { AuditEntry } from "#foundation/observability";
@@ -24,14 +24,14 @@ export interface SignupInviteCapability {
  *  `admission` holds and no handle matches case-insensitively, and it never absorbs a unique conflict. */
 export type SignupUserStatementOp = (args: { readonly handle: Handle; readonly passwordHash: string; readonly at: number; readonly admission: SQL }) => {
   readonly userId: UserId;
-  readonly statement: AwaitableBatchStmt<{ id: UserId }[]>;
+  readonly statement: AwaitableStatementToken<{ id: UserId }[]>;
 };
 
 /** The persona-owned insert of the joiner's persona, which the seat after it names. It inserts only where the
  *  statement before it changed a row. */
 type SignupPersonaStatementOp = (args: { readonly ownerId: UserId; readonly persona: JoinerPersona; readonly at: number }) => {
   readonly personaId: PersonaId;
-  readonly statement: AwaitableBatchStmt<{ id: PersonaId }[]>;
+  readonly statement: AwaitableStatementToken<{ id: PersonaId }[]>;
 };
 
 /** The settings-owned first settings row of the new account, aiming its current and default persona at the one the
@@ -41,7 +41,7 @@ export type SignupPersonaPointersStatementOp = (args: {
   readonly ownerId: UserId;
   readonly personaId: PersonaId;
   readonly at: number;
-}) => AwaitableBatchStmt<{ userId: UserId }[]>;
+}) => AwaitableStatementToken<{ userId: UserId }[]>;
 
 /** The foreign halves of the signup ops, wired at the composition root. */
 export interface SignupInviteDeps {
@@ -50,12 +50,12 @@ export interface SignupInviteDeps {
   readonly signupPersonaPointersStatement: SignupPersonaPointersStatementOp;
   readonly minterMayMintSignup: SignupMinterCheckOp;
   /** The `changes()`-guarded audit insert (`buildAuditStatementIfPrecedingWrote`). */
-  readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => BatchStmt;
+  readonly auditStatementAfterWrite: (entry: AuditEntry, at: number) => StatementToken;
 }
 
 /** D259 — the sessions half of an OIDC pending join: its first two batch statements around chat's opaque
  *  `admission`. `take` deletes the live pending row; `account` inserts only where `take` deleted one. */
-export type PendingSignupStatements = (admission: SQL) => { readonly take: BatchStmt; readonly account: AwaitableBatchStmt<{ id: UserId }[]> };
+export type PendingSignupStatements = (admission: SQL) => { readonly take: StatementToken; readonly account: AwaitableStatementToken<{ id: UserId }[]> };
 
 /** Why a signup redeem created nothing. `invite` covers a missing, spent, expired, revoked, re-moded or
  *  orphaned invite alike, so the answer is no oracle over which. `handle-taken` is a handle or subject

@@ -1,4 +1,5 @@
-import type { BatchStmt } from "@orb/db/query";
+import type { StatementToken } from "@orb/db/wiring";
+import { statementToken } from "@orb/db/wiring-owner";
 import type { ExternalId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { Sealed } from "#infra/crypto";
@@ -110,7 +111,8 @@ export function createRevoke(
   // The UNEXECUTED kick-all (#1691). No log line here on purpose: nothing has been revoked yet — the count
   // only exists once the CALLER's batch commits, and its forensic record is the audit row that commits with
   // it. The executed `revokeAllForUser` above keeps the breadcrumb for the explicit admin kick verb.
-  const revokeAllForUserStatement = (userId: UserId, revokedAt: number): BatchStmt => revokeAllForUserStatementQuery(ctx.db, userId, revokedAt);
+  const revokeAllForUserStatement = (userId: UserId, revokedAt: number): StatementToken =>
+    statementToken(revokeAllForUserStatementQuery(ctx.db, userId, revokedAt));
 
   return { revokeByToken, revoke, revokeAllForUser, revokeAllForUserStatement, revokeByExternalId };
 }

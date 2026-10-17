@@ -3,8 +3,9 @@
 // read side, whose every reload also publishes the private-endpoint allowlist to the egress guard.
 
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
-import type { SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
+import type { SettingsAssemblyContext, SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
 import { createEffectiveConfigCache } from "./effective-config/cache.ts";
 
 export function createSettingsContext(deps: SettingsServiceDeps): SettingsContext {
@@ -35,7 +36,7 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
   }
 
   return {
-    db: deps.db,
+    db: databaseForOwner(deps.db),
     now: deps.now,
     audit: deps.audit,
     requireAdmin: deps.requireAdmin,
@@ -55,4 +56,9 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
       return resolved;
     },
   };
+}
+
+/** Keep the shared serializer and config bindings without returning a query capability to entry. */
+export function createSettingsAssemblyContext(deps: SettingsServiceDeps): SettingsAssemblyContext {
+  return { ...createSettingsContext(deps), db: deps.db };
 }

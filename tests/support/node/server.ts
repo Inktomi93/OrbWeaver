@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Db } from "@orb/db";
 import { closeDb } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -226,7 +227,7 @@ async function prepareHarnessOwner(
 async function configuredOidcFor(
   options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
   app: ServicesResult,
-  { db, authConfig, clock, timers, rootDir }: Omit<HarnessConstruction, "idSource">,
+  { db, authConfig, clock, timers, rootDir }: Omit<HarnessConstruction, "idSource" | "db"> & Pick<ServicesDeps, "db">,
 ): Promise<(Awaited<ReturnType<typeof createConfiguredOidc>> & { readonly ownerClaimFile: string }) | undefined> {
   if (authConfig.mode !== "oidc") {
     return;
@@ -324,9 +325,10 @@ export async function createServerHarness(
   const { bind, relayDir, secretsDir } = shareInputs;
   const sharing = await createShareGraph(shareInputs);
   shareLifetime = sharing;
+  const wiringDb = databaseHandle(db);
   const app = await createServices({
     authConfig,
-    db,
+    db: wiringDb,
     now: clock.now,
     timers,
     idSource,
@@ -351,14 +353,14 @@ export async function createServerHarness(
   appLifetime = app;
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
-  const configuredOidc = await configuredOidcFor(options, app, inputs);
+  const configuredOidc = await configuredOidcFor(options, app, { ...inputs, db: wiringDb });
   oidcLifetime = configuredOidc;
   let closing = false;
   const httpApp = assembleHttp({
     built: app,
     ...httpOverridesOf(options),
     authConfig,
-    db,
+    db: wiringDb,
     importStagingDir,
     now: clock.now,
     casDir,

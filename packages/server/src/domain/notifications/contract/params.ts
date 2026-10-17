@@ -4,6 +4,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
+import type { StatementToken } from "@orb/db/wiring";
 import type { NotificationId } from "@orb/kit/ids";
 
 interface NotificationActorParams {
@@ -14,7 +15,7 @@ interface NotificationActorParams {
  *  insert (record owns the commit; the producer must not pre-execute them). Absent → plain insert. */
 export interface RecordParams {
   readonly event: NotificationEvent;
-  readonly coStatements?: readonly unknown[] | undefined;
+  readonly coStatements?: readonly StatementToken[] | undefined;
   /** SINGLETON DELIVERY (#1041): make this row the recipient's ONLY active row of its type — every active
    *  row of `event.type` is dismissed in the SAME batch as the insert. For a STANDING ASK whose text is a
    *  count ("N plugins are waiting"), a second row is not a second event, it is the same event said twice

@@ -55,11 +55,13 @@ import {
 import type { ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
 import { parseSpeakerSpans, segmentSnippet } from "@orb/kit/speaker-label";
 import type { ChatContext } from "../context.ts";
+import { createChatContext } from "../context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { ListReactionsParams, ReactAsCharacterParams, StoredSegmentAnchor, ToggleReactionParams } from "../contract/params.ts";
 import type { ReactAsCharacterOp } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
+import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { requireParticipant } from "../guard.ts";
 import {
   deleteReaction,
@@ -295,7 +297,8 @@ export function createReactions(ctx: ChatContext, deps: ReactionsDeps): Pick<Cha
  *  partial unique and comes back `alreadyReacted`. The unknown-`toSpeaker` arm DEGRADES to whole-message
  *  (narrated) rather than refusing: the model's intent to react is clear, its spelling of a name may not
  *  be, and a dropped reaction helps nobody. */
-export function createReactAsCharacter(ctx: ChatContext, deps: ReactionsDeps): ReactAsCharacterOp {
+export function createReactAsCharacter(input: ChatAssemblyContext, deps: ReactionsDeps): ReactAsCharacterOp {
+  const ctx = createChatContext(input);
   return async ({ principal, chatId, characterName, emoji, toSpeaker }: ReactAsCharacterParams) => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const token = reactionEmojiSchema.parse(emoji);

@@ -4,11 +4,14 @@
 // `message_assets` row links into a room where both the caller and the owner are present. The owner it returns is
 // `assets.ownerId`, the CAS partition holding the bytes. The arms run in that order and stop at the first answer.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetsContext } from "#domain/assets";
 import type { ChatContext } from "../context.ts";
 import { loadRosteredCharacterAvatarOwner, loadSeatedPersonaAvatarOwner, loadSharedAttachmentOwner } from "../persistence/co-participant-assets.ts";
 
-export function createLoadCoParticipantOwner(ctx: Pick<ChatContext, "db">): NonNullable<AssetsContext["loadCoParticipantOwner"]> {
+export function createLoadCoParticipantOwner(input: DbAssemblyInput<Pick<ChatContext, "db">>): NonNullable<AssetsContext["loadCoParticipantOwner"]> {
+  const ctx = { db: databaseForOwner(input.db) };
   return async (callerId, hash) =>
     (await loadRosteredCharacterAvatarOwner(ctx.db, callerId, hash)) ??
     (await loadSeatedPersonaAvatarOwner(ctx.db, callerId, hash)) ??

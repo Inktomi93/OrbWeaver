@@ -19,6 +19,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AutomationFireId, AutomationRuleId, AutomationSuggestionId } from "@orb/kit/ids";
 import type { SerialLanes } from "@orb/kit/serial-lanes";
 import type { superviseDetached } from "#foundation/observability";
@@ -121,6 +122,9 @@ export interface AutomationContext {
 
 /** Service inputs exclude the two owner-built runtime operations. */
 export type AutomationServiceDeps = Omit<AutomationContext, "runArm" | "serialLanes">;
+
+export type AutomationAssemblyContext = DbAssemblyInput<AutomationContext>;
+export type AutomationAssemblyDeps = DbAssemblyInput<AutomationServiceDeps>;
 
 /** The automation surface. The global-variable slice is owner-scoped on `principal.userId`; the
  *  rule-lifecycle slice gates host authority over the chat's membership. */

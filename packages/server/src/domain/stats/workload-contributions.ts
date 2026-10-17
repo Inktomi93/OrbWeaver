@@ -7,6 +7,7 @@
 
 import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { StatsWorkloadDeps } from "./contract/service.ts";
 import { reconcileStats } from "./persistence/rebuild-from-canon.ts";
@@ -14,6 +15,7 @@ import { reconcileStats } from "./persistence/rebuild-from-canon.ts";
 /** `reconcile-stats` — rebuild the rollups from canon. `ownerId` scopes to ONE owner (SINGULAR: rebuild
  *  MY rollups); `null` sweeps every owner (BULK). */
 export function createStatsWorkloadContributions(deps: StatsWorkloadDeps): readonly [WorkloadContribution<"reconcile-stats">] {
+  const db = databaseForOwner(deps.db);
   return [
     {
       kind: "reconcile-stats",
@@ -23,7 +25,7 @@ export function createStatsWorkloadContributions(deps: StatsWorkloadDeps): reado
       resume: "idempotent-restart",
       run: async (ctx, _params, report, signal): Promise<ReconcileStatsWorkloadResult> => {
         report({ message: "reconciling stats from canon" });
-        const result = await reconcileStats(deps.db, {
+        const result = await reconcileStats(db, {
           now: deps.now,
           idSource: deps.idSource,
           signal,

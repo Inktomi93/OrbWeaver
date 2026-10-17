@@ -20,13 +20,15 @@
 // SAME batch as the role swap (the `handoffHealStatements` co-statement seam).
 
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 /** db only — a re-key writes no vectors, mints no ids and needs no clock. */
 export interface EmbeddingsHandoffRestampContext {
   readonly db: Db;
 }
+
+export type EmbeddingsHandoffRestampAssemblyContext = DbAssemblyInput<EmbeddingsHandoffRestampContext>;
 
 /** One source→copy card pairing (the structural shape of character's `HandoffCardCopy` — embeddings declares
  *  its own copy rather than importing a sibling domain's type). */
@@ -40,4 +42,4 @@ export interface HandoffRestampPair {
  *  is never touched, and the chat's authority was proven by the caller. Collision-free by construction — the
  *  copy ids are freshly minted, so no `(chatId, scopedCharacterId, tier, blockIdx, model)` unique and no
  *  `(digestId, characterId)` PK can already hold the destination. */
-export type HandoffRestampStatements = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffRestampPair[] }) => Promise<readonly BatchStmt[]>;
+export type HandoffRestampStatements = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffRestampPair[] }) => Promise<readonly StatementToken[]>;

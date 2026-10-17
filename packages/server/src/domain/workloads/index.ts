@@ -19,7 +19,7 @@ export type {
   CreateScheduleParams,
   DeleteScheduleParams,
   ListSchedulesParams,
-  ScheduleTickDeps,
+  ScheduleTickAssemblyDeps as ScheduleTickDeps,
   SetScheduleEnabledParams,
   UpdateScheduleParams,
   WorkloadScheduleRow,
@@ -27,15 +27,14 @@ export type {
 } from "./contract/schedule.ts";
 export type {
   BootReclaimReport,
-  ReapWorkloadsArgs,
+  ReapWorkloadsAssemblyArgs as ReapWorkloadsArgs,
   WorkloadReapReason,
-  WorkloadRunnerDeps,
+  WorkloadRunnerAssemblyDeps as WorkloadRunnerDeps,
   WorkloadService,
-  WorkloadServiceDeps,
+  WorkloadServiceAssemblyDeps as WorkloadServiceDeps,
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";
-export { createNextRunnableWorkload, nextRunnableWorkload } from "./engine/next-runnable.ts";
 export {
   createWorkloadProgressBus,
   emitWorkloadEvent,
@@ -43,9 +42,13 @@ export {
   subscribeWorkloadWake,
   workloadStreamEmitter,
 } from "./engine/progress-bus.ts";
-export { reapOrphanedWorkloads } from "./engine/reaper.ts";
-export { runWorkload } from "./engine/runner.ts";
-export { tickWorkloadSchedules } from "./engine/schedule-tick.ts";
-export { loadWorkload } from "./persistence/queries.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";
+export {
+  createNextRunnableWorkload,
+  loadWorkload,
+  nextRunnableWorkload,
+  reapOrphanedWorkloads,
+  runWorkload,
+  tickWorkloadSchedules,
+} from "./substrate/wiring.ts";

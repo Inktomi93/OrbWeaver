@@ -4,6 +4,8 @@
 // under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
 import type { PresetContext } from "../context.ts";
@@ -24,7 +26,8 @@ function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false
   }
 }
 
-export function createImport(ctx: PresetContext): ImportPreset {
+export function createImport(input: DbAssemblyInput<PresetContext>): ImportPreset {
+  const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bytes }): Promise<PresetImportOutcome> => {
     const decoded = readJson(bytes);
     if (!decoded.ok) {

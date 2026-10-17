@@ -14,8 +14,10 @@
 import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
+import { createChatContext } from "../context.ts";
 import type { ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
 import type { ParticipantRow } from "../contract/participant-row.ts";
+import type { ChatAssemblyContext } from "../contract/wiring.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
@@ -48,7 +50,8 @@ async function resolveSeat(ctx: ChatContext, row: ParticipantRow, hostUserId: Us
   return null;
 }
 
-export function createResolveRpgParticipants(ctx: ChatContext): ResolveRpgParticipants {
+export function createResolveRpgParticipants(input: ChatAssemblyContext): ResolveRpgParticipants {
+  const ctx = createChatContext(input);
   return async (chatId) => {
     const participants = await loadParticipants(ctx.db, chatId);
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19). A hostless

@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/notifications/verbs/record.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 import { chatParticipants, notifications, users } from "@orb/db";
+import { statementToken } from "@orb/db/wiring-owner";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
@@ -37,7 +38,7 @@ describe("record — coStatements ride the SAME batch (tx-atomicity)", () => {
       .update(users)
       .set({ handle: castId("alice2") })
       .where(eq(users.id, actors.alice.userId));
-    const view = await svc.record({ event: actors.aliceInvite, coStatements: [transition] });
+    const view = await svc.record({ event: actors.aliceInvite, coStatements: [statementToken(transition)] });
 
     expect(view.type).toBe("invite");
     expect(view.seq).toBe(actors.aliceRaised.seq + 1);
@@ -63,7 +64,7 @@ describe("record — coStatements ride the SAME batch (tx-atomicity)", () => {
       .set({ handle: castId("alice3") })
       .where(eq(users.id, actors.alice.userId));
 
-    await expect(svc.record({ event: actors.aliceInvite, coStatements: [good, bad] })).rejects.toThrow();
+    await expect(svc.record({ event: actors.aliceInvite, coStatements: [statementToken(good), statementToken(bad)] })).rejects.toThrow();
     const [row] = await harness.db.select().from(users).where(eq(users.id, actors.alice.userId));
     expect(row?.handle).toBe(actors.alice.handle);
     expect((await svc.list({ principal: actors.alice })).items).toHaveLength(0);

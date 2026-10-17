@@ -3,18 +3,22 @@
 // `ImageEmbedResult`) live in `@orb/contracts/providers`; the `RoleClients` bundle in
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
-// The entry root wires these; transport/tests reference them directly.
-export type { EmbeddingsContext } from "./context.ts";
-export type { EmbeddingAccountingContext } from "./contract/accounting.ts";
+export type { EmbeddingAccountingAssemblyContext as EmbeddingAccountingContext } from "./contract/accounting.ts";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
 export type { EmbedMoveRefusal, GenerationReceipt } from "./contract/generation.ts";
-export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp.ts";
+export type {
+  EmbeddingsHandoffRestampAssemblyContext as EmbeddingsHandoffRestampContext,
+  HandoffRestampPair,
+  HandoffRestampStatements,
+} from "./contract/handoff-restamp.ts";
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";
 export { VECTOR_TABLES } from "./contract/params.ts";
 export type { VacuousMemoryReceipt } from "./contract/reindex.ts";
+// The entry root wires these; transport/tests reference them directly.
 export type {
   EmbeddingConnectionSnapshot,
+  EmbeddingsAssemblyContext as EmbeddingsContext,
   EmbeddingsIndexer,
   EmbeddingsIndexerContext,
   EmbeddingsService,

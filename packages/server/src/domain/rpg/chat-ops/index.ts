@@ -14,9 +14,11 @@
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
+import { statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
 import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "#domain/chat";
-import type { RpgContext } from "../contract/service.ts";
+import { createRpgContext } from "../context.ts";
+import type { RpgAssemblyContext } from "../contract/service.ts";
 import { planLiteGameBirth } from "../game-mint.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots.ts";
@@ -27,7 +29,8 @@ import { handoffHealStatements, handoffRekeyActors, handoffWouldCopyGmPreset } f
 
 /** Build the `ChatRpgOps` runtime over the rpg ctx (docs/plans/rpg/design.md). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
-export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
+export function createRpgChatOps(input: RpgAssemblyContext): ChatRpgOps {
+  const ctx = createRpgContext(input);
   // #40 — the disengage chokepoint: a game whose front-door toggle is OFF behaves as NO GAME in every
   // chat-op (gather/flush/preset/reasoning/commit) — the turn assembly is byte-identical to a non-game
   // chat while the rows stay preserved for re-enable.
@@ -154,7 +157,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // transition. Reads the game row directly (a DISENGAGED game still carries the knob); `[]` for a non-game
     // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the
     // pre-offer heal.
-    handoffHealStatements: (args): ReturnType<ChatRpgOps["handoffHealStatements"]> => handoffHealStatements(ctx, args),
+    handoffHealStatements: async (args): ReturnType<ChatRpgOps["handoffHealStatements"]> => (await handoffHealStatements(ctx, args)).map(statementToken),
     // HOST HANDOFF, the NOMINATE-side disclosure (#1762): the same knob/ownership gate the heal applies,
     // asked before the nominee has consented — so the inbox row can say whether the room's GM voice comes
     // with it. Reads only; `false` for a non-game chat.

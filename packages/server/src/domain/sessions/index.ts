@@ -4,7 +4,8 @@
 export type { Principal, ResolvedIdentity } from "@orb/contracts/identity";
 export type { SessionView } from "@orb/contracts/session";
 // The OIDC callback resolves these admission decisions; its port types them from here, never re-spelled.
-export type { ProvisionIdentityOptions, SeedOwnerParams } from "./contract/params.ts";
+export type { SeedOwnerParams } from "./contract/boot.ts";
+export type { ProvisionIdentityOptions } from "./contract/params.ts";
 // The `loadUserById` row-fields shape — the auth seam's row→`Principal` mapper takes it directly, so the
 // mapper and the two resolvers built on it (host bridge · request fallback) never re-spell the read.
 // `RevokedSessionsSummary` rides out for the same reason: entry's back-channel-logout route consumes the

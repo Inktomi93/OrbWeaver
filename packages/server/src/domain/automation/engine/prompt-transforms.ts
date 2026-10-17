@@ -14,6 +14,8 @@
 import type { AutomationCelEnv } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
 import { countChatMessages } from "../persistence/canon-reads.ts";
@@ -147,7 +149,8 @@ function ruleTransforms(deps: PromptTransformIndexDeps, rule: RuleRow): PromptTr
  *  with canon: register/replace every enabled transform rule's transforms, and unregister any id this index
  *  previously registered that is no longer desired (a disabled/deleted/edited-away rule). Idempotent — a
  *  re-register replaces by id (a rule edit). Call `reload()` once at boot after chat's registry exists. */
-export function createPromptTransformIndex(deps: PromptTransformIndexDeps): PromptTransformIndex {
+export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransformIndexDeps>): PromptTransformIndex {
+  const deps: PromptTransformIndexDeps = { ...input, db: databaseForOwner(input.db) };
   // ASSUMES(single-replica): the id set is a per-process snapshot, eventually-consistent within one reload.
   let registeredIds = new Set<string>();
   // #1431 — the STALE latch, the enabled index's twin (that file's header carries the two-door argument).

@@ -25,6 +25,8 @@ import {
   imageEmbeddings,
   themeClusters,
 } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
@@ -296,7 +298,8 @@ export async function distinctImageHubOwners(db: Db, _run: EveryOwnerRun): Promi
  * failure that matters is the other direction — an owner NOT told is frozen at `staleTime: Infinity` until
  * gcTime evicts, which is the defect this member exists to close.
  */
-export async function distinctCorpusOwners(db: Db, run: EveryOwnerRun): Promise<UserId[]> {
+export async function distinctCorpusOwners(handle: DatabaseHandle, run: EveryOwnerRun): Promise<UserId[]> {
+  const db = databaseForOwner(handle);
   const perKind = await Promise.all([
     distinctCharacterHubOwners(db, run),
     distinctDigestHubOwners(db, run),

@@ -1,6 +1,8 @@
 // The plugin owns guest result/refusal policy; canon writes still pass through their owning injected ops.
 
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -11,7 +13,8 @@ import { createShowcaseVersionReader } from "../substrate/showcase-version.ts";
 
 /** Bind typed effects without changing the installer, origin or fetched-asset link ordering. */
 
-export function createPluginRuntimeOps(deps: PluginRuntimeDeps): PluginRuntimeOps {
+export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>): PluginRuntimeOps {
+  const deps: PluginRuntimeDeps = { ...input, db: databaseForOwner(input.db) };
   const { db, now, imagery, assets, resolveOwnerPrincipal } = deps;
   return {
     ingestDatabank: async ({ installerUserId, name, text }): ReturnType<PluginRuntimeOps["ingestDatabank"]> => {

@@ -2,12 +2,15 @@
 // chat-internal `loadParticipantViews` once, then calls the verb/engine factories and assembles the typed
 // `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
-import type { ChatContext, ChatServiceDeps } from "./context.ts";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import type { ChatServiceDeps } from "./context.ts";
+import { createChatContext } from "./context.ts";
 import type { ClaimChatOp } from "./contract/context.ts";
 import type { VisibleExtractQuiet, VisibleExtractQuietDeps } from "./contract/imagery-access.ts";
 import type { RequestTurnOp } from "./contract/results.ts";
 import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
+import type { ChatAssemblyContext } from "./contract/wiring.ts";
 import { createTurnEngine } from "./engine/engine.ts";
 import { buildTurnMemory } from "./memory/generate/turn.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
@@ -32,7 +35,7 @@ import { createStartChat } from "./verbs/start-chat.ts";
 import { createRequestTurn, createTurn } from "./verbs/turn.ts";
 import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
 
-export function createVisibleExtractQuiet(deps: VisibleExtractQuietDeps): VisibleExtractQuiet {
+export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQuietDeps>): VisibleExtractQuiet {
   return createVisibleExtractQuietGate({
     resolveViewerVisibility: deps.resolveViewerVisibility,
     extractQuiet: createExtractQuiet({
@@ -52,9 +55,10 @@ export function createVisibleExtractQuiet(deps: VisibleExtractQuietDeps): Visibl
  *  claim chokepoint, shared with the rpg-facing ops. The return shape is
  *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
 export function createChatService(
-  ctx: ChatContext,
+  input: ChatAssemblyContext,
   deps: ChatServiceDeps,
 ): { readonly service: ChatService; readonly requestTurn: RequestTurnOp; readonly signupInvites: SignupInviteOps; readonly claimChat: ClaimChatOp } {
+  const ctx = createChatContext(input);
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
   const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });

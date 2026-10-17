@@ -98,7 +98,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `client-package-no-side-effects` | — | hard/error | none | the client package declares… |
 | `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
 | `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
-| `compose-wiring-only` | — | ordinary/error | @server\* | an entry/compose module runs a… |
+| `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
 | `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
 | `content-part-seam` | — | reviewed-grant/error | @product | ChatContentPart is named outside the… |
 | `context-definition-shape` | — | ordinary/error | @client | a CONTEXT-definition shape violates… |

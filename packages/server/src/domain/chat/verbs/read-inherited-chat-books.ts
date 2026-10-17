@@ -4,6 +4,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatBookView } from "@orb/contracts/world-info";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import { requireParticipant } from "../guard.ts";
@@ -13,7 +15,8 @@ import { loadInheritedWorldBooks } from "../substrate/assembly-access.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 
-export function createReadInheritedChatBooks(ctx: Pick<ChatContext, "db" | "can" | "getCard" | "resolveUserEnabled">) {
+export function createReadInheritedChatBooks(input: DbAssemblyInput<Pick<ChatContext, "db" | "can" | "getCard" | "resolveUserEnabled">>) {
+  const ctx = { ...input, db: databaseForOwner(input.db) };
   return async (principal: Principal, chatId: ChatId): Promise<ChatBookView[]> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     if (!viewerReadsHidden(membership)) {

@@ -23,6 +23,8 @@ import {
 } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { resolveSegmentAnchor, segmentSnippet } from "@orb/kit/speaker-label";
@@ -238,6 +240,6 @@ const reactToolAttach: TeachingContribution = {
 /** Chat's own teaching contributions, in registration order (the collector sorts by `order`). `db` feeds
  *  ONLY the attribution read — chat's own contribution reading chat's own tables through a closed-over
  *  dep, the `createAutomationTeachingContributions({db})` shape. */
-export function createChatTeachingContributions(deps: { readonly db: Db }): ChatTeachingRegistry {
-  return [rpgGatherProjection, offerChoicesTeach, createReactionAttribution(deps.db), reactToolAttach];
+export function createChatTeachingContributions(deps: { readonly db: DatabaseHandle }): ChatTeachingRegistry {
+  return [rpgGatherProjection, offerChoicesTeach, createReactionAttribution(databaseForOwner(deps.db)), reactToolAttach];
 }

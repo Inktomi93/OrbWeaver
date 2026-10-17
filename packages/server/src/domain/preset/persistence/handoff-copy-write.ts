@@ -18,10 +18,11 @@
 import { PROMPT_CONFIG_SCHEMA_VERSION, promptConfigConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { requireIntactStoredConfig } from "#primitives/stored-config";
-import type { CopyPresetToUser, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
+import type { CopyPresetToUser, PresetHandoffCopyAssemblyContext, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
 import { findOwnedForkOf, insertConvergedPresetForkIfAbsent } from "./queries.ts";
 
 const LIMIT_ONE = 1;
@@ -36,7 +37,8 @@ async function loadOwnedPreset(db: Db, ownerId: UserId, presetId: PresetId): Pro
   return rows.at(0);
 }
 
-export function createCopyPresetToUser(ctx: PresetHandoffCopyContext): CopyPresetToUser {
+export function createCopyPresetToUser(input: PresetHandoffCopyAssemblyContext): CopyPresetToUser {
+  const ctx: PresetHandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ fromOwnerId, toUserId, presetId }): Promise<PresetId | null> => {
     const { db } = ctx;
     const source = await loadOwnedPreset(db, fromOwnerId, presetId);

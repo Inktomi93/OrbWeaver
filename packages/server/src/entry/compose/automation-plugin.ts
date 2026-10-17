@@ -3,7 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import type { IdSource, PluginId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -89,7 +89,7 @@ export interface AutomationPluginComposeDeps {
   readonly random?: (() => number) | undefined;
   readonly newOpaqueId?: (() => string) | undefined;
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly connection: Pick<ConnectionService, "registerPluginProviders" | "dropPluginProviders">;
   readonly chatCompose: ChatComposeResult;

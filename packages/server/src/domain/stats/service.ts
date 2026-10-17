@@ -5,7 +5,8 @@
 // rebuild (persistence/rebuild-from-canon.ts) is reached BOTH ways: the `reconcile` verb (caller-scoped, awaited)
 // and the `reconcile-stats` workload (the all-owners bulk sweep). `applyStatsDelta` is not a verb here.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import { createStatsContext } from "./context.ts";
 import type { StatsService } from "./contract/service.ts";
@@ -23,8 +24,8 @@ import { createReconcile } from "./verbs/reconcile.ts";
 import { createTimeseries } from "./verbs/timeseries.ts";
 import { createWrapped } from "./verbs/wrapped.ts";
 
-export function createStatsService(db: Db, now: () => number, idSource?: IdSource): StatsService {
-  const ctx = createStatsContext(db, now, idSource);
+export function createStatsService(db: DatabaseHandle, now: () => number, idSource?: IdSource): StatsService {
+  const ctx = createStatsContext(databaseForOwner(db), now, idSource);
   // Built HERE, not in the DI bundle: the single-flight registry is process state only `reconcile` reads,
   // and one instance per service is what makes "this user already has a rebuild running" answerable.
   const reconcileInFlight = createReconcileInFlight();

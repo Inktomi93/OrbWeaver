@@ -18,6 +18,7 @@
 // guard rather than a preceding read, so there is no window between "no fork yet" and the write.
 
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { PresetId, UserId } from "@orb/kit/ids";
 
 /** db + clock + the id minter. Purpose-built (NOT the full `PresetContext`): the copy writes one row, emits
@@ -27,6 +28,8 @@ export interface PresetHandoffCopyContext {
   readonly now: () => number;
   readonly newPresetId: () => PresetId;
 }
+
+export type PresetHandoffCopyAssemblyContext = DbAssemblyInput<PresetHandoffCopyContext>;
 
 /** Copy one preset from `fromOwnerId`'s library into `toUserId`'s, verbatim. Returns the copy's id, or `null`
  *  when the source does not resolve under `fromOwnerId` (foreign, deleted, or the shared system default —

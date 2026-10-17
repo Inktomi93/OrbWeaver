@@ -19,7 +19,7 @@
 // back UNEXECUTED for the caller's batch (the `handoffHealStatements` co-statement seam).
 
 import type { Db } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 
 /** db + clock + the two id minters. Purpose-built (NOT the full `WorldInfoContext`): a lore copy writes rows
@@ -30,6 +30,8 @@ export interface WorldInfoHandoffCopyContext {
   readonly newBookId: () => WorldBookId;
   readonly newEntryId: () => WorldEntryId;
 }
+
+export type WorldInfoHandoffCopyAssemblyContext = DbAssemblyInput<WorldInfoHandoffCopyContext>;
 
 /** One source→copy card pairing the caller already minted — the structural shape of character's
  *  `HandoffCardCopy` (the foreign-op-shape precedent: world-info declares its own copy rather than importing
@@ -58,7 +60,7 @@ export type CopyHandoffBooks = (args: {
   readonly toOwnerId: UserId;
   readonly chatId: ChatId;
   readonly cardCopies: readonly HandoffCardPair[];
-}) => Promise<readonly BatchStmt[]>;
+}) => Promise<readonly StatementToken[]>;
 
 /** How many DISTINCT books {@link CopyHandoffBooks} would mint for `toOwnerId` — the NOMINATE-side
  *  disclosure the `handoff-nominated` notification carries (#1762), answered before anyone has consented to

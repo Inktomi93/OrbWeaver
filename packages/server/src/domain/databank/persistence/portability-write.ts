@@ -10,6 +10,8 @@
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterHandle, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -31,7 +33,8 @@ import { findByImportHash, loadOwnedDocument } from "./queries.ts";
 const LIMIT_ONE = 1;
 
 /** The owner's whole document set, id-only (no canon read — the stream pulls one body at a time). */
-export function createListOwnedDocumentIds(ctx: Pick<DatabankPortabilityContext, "db">): ListOwnedDocumentIds {
+export function createListOwnedDocumentIds(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ListOwnedDocumentIds {
+  const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId }): Promise<readonly DocumentId[]> => {
     const rows = await ctx.db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
     return rows.map((r) => r.id);
@@ -49,7 +52,8 @@ async function attachedHandles(ctx: Pick<DatabankPortabilityContext, "db">, owne
   return rows.map((r) => r.handle);
 }
 
-export function createExportDocument(ctx: Pick<DatabankPortabilityContext, "db">): ExportDocument {
+export function createExportDocument(input: DbAssemblyInput<Pick<DatabankPortabilityContext, "db">>): ExportDocument {
+  const ctx: Pick<DatabankPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, documentId }): Promise<ExportedDocumentFile | null> => {
     const row = await loadOwnedDocument(ctx.db, ownerId, documentId);
     if (row === undefined) {
@@ -132,7 +136,8 @@ async function attachmentStatements(
   return stmts;
 }
 
-export function createImportDocument(ctx: DatabankPortabilityContext): ImportDocument {
+export function createImportDocument(input: DbAssemblyInput<DatabankPortabilityContext>): ImportDocument {
+  const ctx: DatabankPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bytes }): Promise<DatabankImportOutcome> => {
     const parsed = parseDocumentFile(bytes);
     if (!parsed.ok) {

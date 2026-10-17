@@ -9,6 +9,8 @@
 // global — "may this caller publish to the deployment" — and whose gate therefore arrives in a SEPARATE
 // `PluginDistributionDeps` parameter rather than in the context every verb shares.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
@@ -55,7 +57,12 @@ import { createUpgradeFromUrl } from "./verbs/upgrade-from-url.ts";
  *  exactly one. Required rather than optional, so every composition root — production and test — is forced to
  *  state how the admin gate and the recipient list resolve there; an optional bundle would let a caller build
  *  a service whose admin verbs silently do not exist. */
-export function createPluginService(ctx: PluginContext, distribution: PluginDistributionDeps, providers: PluginProviderLifecycle): OwnedPluginService {
+export function createPluginService(
+  input: DbAssemblyInput<PluginContext>,
+  distribution: PluginDistributionDeps,
+  providers: PluginProviderLifecycle,
+): OwnedPluginService {
+  const ctx: PluginContext = { ...input, db: databaseForOwner(input.db) };
   // The ONE resident-instance registry (ASSUMES single-replica — the automation enabled-index precedent). Built
   // here so activate/deactivate + getLog share the same live map.
   const registry: PluginRegistry = new Map();

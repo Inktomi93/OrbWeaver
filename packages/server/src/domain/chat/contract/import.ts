@@ -12,6 +12,7 @@ import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/
 import type { BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type {
   AssetId,
   CharacterId,
@@ -54,6 +55,10 @@ export interface ChatImportContext {
    *  verb is itself find-or-mint idempotent, so a retry is free); a chat with none never calls it. */
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
 }
+
+export type ChatImportAssemblyContext = Omit<DbAssemblyInput<ChatImportContext>, "bumpStatsCanonVersion"> & {
+  readonly bumpStatsCanonVersion: BumpStatsCanonVersion<BatchHandle, DatabaseHandle>;
+};
 
 /** The chat-owned bulk-import op (`createBulkImportChats`) the entry root wires into `import`'s
  *  `ImportContext.profile.bulkImportChats`. Throws `DomainNotFoundError` when the target character isn't the

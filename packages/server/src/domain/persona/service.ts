@@ -3,6 +3,8 @@
 // `PersonaContext` is assembled at the entry root (db + injected clock/id + db-bound `logAudit`) and passed
 // in; persona injects NO guard (every surface is ownership-scoped, not admin/owner-gated).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PersonaContext } from "./context.ts";
 import type { PersonaService } from "./contract/service.ts";
 import { createConnect, createDisconnect, createListConnected, createListConnectedCharacters } from "./verbs/connection/index.ts";
@@ -18,7 +20,8 @@ import { createReviewImport } from "./verbs/review-import.ts";
 import { createSetActive } from "./verbs/set-active.ts";
 import { createUpdate } from "./verbs/update.ts";
 
-export function createPersonaService(ctx: PersonaContext): PersonaService {
+export function createPersonaService(input: DbAssemblyInput<PersonaContext>): PersonaService {
+  const ctx: PersonaContext = { ...input, db: databaseForOwner(input.db) };
   return {
     create: createCreate(ctx),
     list: createList(ctx),

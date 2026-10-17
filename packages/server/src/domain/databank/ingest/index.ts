@@ -26,6 +26,8 @@
 
 import type { IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import { documents } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { chunkText } from "@orb/kit/chunk";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -176,7 +178,8 @@ function announceIngest(ctx: DatabankContext, touchedOwners: ReadonlySet<UserId>
   }
 }
 
-export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
+export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): DatabankIngest {
+  const ctx: DatabankContext = { ...input, db: databaseForOwner(input.db) };
   const runDocument = async ({ documentId, mode, signal, acc, touchedOwners }: RunDocumentArgs): Promise<void> => {
     if (isAborted(signal)) {
       return;

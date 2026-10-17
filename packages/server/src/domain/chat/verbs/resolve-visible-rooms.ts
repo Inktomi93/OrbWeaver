@@ -15,6 +15,8 @@
 // the chats list's `summaryParticipantNames` rule: drop the caller's own seat, unless that would empty the row.
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { LoadUserHandlesOp } from "../contract/context.ts";
@@ -54,7 +56,8 @@ async function roomParticipantNames(
   return namesByRoom;
 }
 
-export function createResolveVisibleRooms(ctx: Pick<ChatContext, "db">, loadUserHandles: LoadUserHandlesOp): ResolveVisibleRoomsOp {
+export function createResolveVisibleRooms(input: DbAssemblyInput<Pick<ChatContext, "db">>, loadUserHandles: LoadUserHandlesOp): ResolveVisibleRoomsOp {
+  const ctx = { db: databaseForOwner(input.db) };
   return async (principal, chatIds) => {
     const rooms = await loadSeatedRooms(ctx.db, principal.userId, chatIds);
     if (rooms.length === 0) {

@@ -8,7 +8,7 @@
 // into the tick deps). ONE feature, zero cross-feature composition. The db, the clock, `start`, and the timer
 // are ALL injected at entry/ — the driver constructs nothing.
 
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { MS_PER_MINUTE } from "@orb/kit/time";
 import type { ScheduleTickDeps } from "#domain/workloads";
 import { tickWorkloadSchedules } from "#domain/workloads";
@@ -30,7 +30,7 @@ type ScheduleOp = (fn: () => void, ms: number) => () => void;
  *  injected at entry/. */
 export interface WorkloadScheduleSchedulerDeps {
   readonly track?: BackgroundWork["track"];
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly start: ScheduleTickDeps["start"];
   readonly scheduleInterval: ScheduleOp;

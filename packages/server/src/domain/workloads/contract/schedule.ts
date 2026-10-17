@@ -6,6 +6,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode, WorkloadRef, WorkloadScheduleRef } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params.ts";
 
@@ -69,3 +70,5 @@ export type SchedulePatch = Partial<Pick<WorkloadScheduleRow, "kind" | "mode" | 
 
 /** Scalar ownership is authorized before private stored schedule params are decoded. */
 export type AuthorizeScheduleRead = (ownerId: WorkloadScheduleRow["ownerId"]) => boolean;
+
+export type ScheduleTickAssemblyDeps = DbAssemblyInput<ScheduleTickDeps>;

@@ -3,12 +3,15 @@
 // per preset via buildPresetFile. import.ts is the round-trip twin (parsePresetFile).
 
 import { buildPresetFile, parsePromptConfig } from "@orb/contracts/preset";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { slugifyHandle } from "@orb/kit/slug";
 import type { PresetContext } from "../context.ts";
 import type { ExportPresets, PresetExportFile } from "../contract/portability.ts";
 import { listOwned } from "../persistence/queries.ts";
 
-export function createExport(ctx: PresetContext): ExportPresets {
+export function createExport(input: DbAssemblyInput<PresetContext>): ExportPresets {
+  const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId }): Promise<PresetExportFile[]> => {
     const rows = await listOwned(ctx.db, ownerId);
     return rows.map((row): PresetExportFile => {

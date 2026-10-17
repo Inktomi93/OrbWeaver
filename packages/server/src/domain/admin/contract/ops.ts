@@ -10,11 +10,11 @@ export interface AdminSessionPolicyDeps {
   readonly listForUser: SessionsService["listForUser"];
   readonly revoke: SessionsService["revoke"];
   readonly revokeAllForUser: SessionsService["revokeAllForUser"];
-  readonly revokeAllForUserStatement: AdminContext["sessions"]["revokeAllForUserStatement"];
+  readonly revokeAllForUserStatement: SessionsService["revokeAllForUserStatement"];
   readonly evictUserSockets: AdminContext["sessions"]["evictUserSockets"];
-  readonly linkExternalIdStatement: AdminContext["sessions"]["linkExternalIdStatement"];
+  readonly linkExternalIdStatement: SessionsService["linkExternalIdStatement"];
   readonly settleUnclaimedLink: AdminContext["sessions"]["settleUnclaimedLink"];
-  readonly localUserInsertStatement: AdminContext["sessions"]["localUserInsertStatement"];
+  readonly localUserInsertStatement: SessionsService["localUserInsertStatement"];
   readonly isReservedHandle: AdminContext["sessions"]["isReservedHandle"];
 }
 

@@ -19,6 +19,8 @@ import type { Db } from "@orb/db";
 import { chatRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import type { DatabaseHandle, DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { SplitScript } from "../contract/dedup.ts";
@@ -108,8 +110,9 @@ async function resolveHandoffScriptCopyPlan(db: Db, fromOwnerId: UserId, toOwner
   return { attachments, mints };
 }
 
-export function createCopyHandoffRegexScripts(ctx: RegexHandoffCopyContext): CopyHandoffRegexScripts {
-  return async ({ fromOwnerId, toOwnerId, chatId }): Promise<readonly BatchStmt[]> => {
+export function createCopyHandoffRegexScripts(input: DbAssemblyInput<RegexHandoffCopyContext>): CopyHandoffRegexScripts {
+  const ctx: RegexHandoffCopyContext = { ...input, db: databaseForOwner(input.db) };
+  return async ({ fromOwnerId, toOwnerId, chatId }): Promise<readonly StatementToken[]> => {
     const { db } = ctx;
     const plan = await resolveHandoffScriptCopyPlan(db, fromOwnerId, toOwnerId, chatId);
     if (plan.attachments.length === 0) {
@@ -139,7 +142,7 @@ export function createCopyHandoffRegexScripts(ctx: RegexHandoffCopyContext): Cop
     if (mints.length > 0) {
       await db.batch(batchMany(mints));
     }
-    return repoint;
+    return repoint.map(statementToken);
   };
 }
 
@@ -150,6 +153,7 @@ export function createCopyHandoffRegexScripts(ctx: RegexHandoffCopyContext): Cop
  *  It counts MINTS, not attachments: a script the nominee already owns content-identically is re-used rather
  *  than duplicated, so it is not something they receive — and the copy's own header rules that the matched
  *  row's `enabled` governs afterwards, i.e. nothing about their library changes for it. */
-export function createCountHandoffRegexScripts(db: Db): CountHandoffRegexScripts {
+export function createCountHandoffRegexScripts(handle: DatabaseHandle): CountHandoffRegexScripts {
+  const db = databaseForOwner(handle);
   return async ({ fromOwnerId, toOwnerId, chatId }): Promise<number> => (await resolveHandoffScriptCopyPlan(db, fromOwnerId, toOwnerId, chatId)).mints.length;
 }

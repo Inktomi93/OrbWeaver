@@ -19,8 +19,10 @@ export type {
   StatsFreshness,
   WrappedSummary,
 } from "./contract/views.ts";
-export { reconcileOwnersMissingTimeline, reconcileStats } from "./persistence/rebuild-from-canon.ts";
+export type { StatsBatchWiring } from "./contract/wiring.ts";
+export { reconcileOwnersMissingTimeline } from "./persistence/rebuild-from-canon.ts";
 export { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, settleRetainedChatRebase } from "./persistence/retained-chat-accounting.ts";
 export { createStatsService } from "./service.ts";
 export { createStatsWorkloadContributions } from "./workload-contributions.ts";
 export { applyCharacterStatsDelta, applyStatsDelta, bumpStatsCanonVersion } from "./write/apply-delta.ts";
+export { createStatsBatchWiring, reconcileStats } from "./write/wiring.ts";

@@ -11,6 +11,8 @@ import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
 import { characterRegexScripts, characters, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -39,7 +41,8 @@ import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from 
  * IS the plan's `attachIds` order (index = junction `position`), so a character's execution order is the
  * card's own script order.
  */
-export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCardScripts {
+export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityContext>): ImportCardScripts {
+  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, scripts, carried }): Promise<ImportCardScriptsResult> => {
     // BOTH SIDES GATED (#1414 seam 4) — the same rule `verbs/attachments` has always applied to a hand
     // attach, applied to the bulk one. The SCRIPT side is the owner-scoped read below: a carried id naming a
@@ -79,7 +82,8 @@ export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCar
  * channel, so `carriedIds` is always empty and every candidate content-dedups against the owner's library.
  * Junction `position` is the plan's attach order — the preset's execution order is the file's script order.
  */
-export function createImportPresetScripts(ctx: RegexPortabilityContext): ImportPresetScripts {
+export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilityContext>): ImportPresetScripts {
+  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, presetId, scripts }): Promise<ImportCardScriptsResult> => {
     // The TARGET gate, as in the card lift above (#1414 seam 4). `ensurePresetOwned` also makes the SYSTEM
     // preset (nullable ownerId) un-attachable, which is correct — it is read-only by construction.
@@ -108,7 +112,8 @@ export function createImportPresetScripts(ctx: RegexPortabilityContext): ImportP
  * `global_regex_scripts` attachment (the PK-is-the-script junction, so attach order carries no position).
  * Re-running the same profile import re-asserts the attachments and mints nothing (the shared dedup rule).
  */
-export function createImportGlobalScripts(ctx: RegexPortabilityContext): ImportGlobalScripts {
+export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilityContext>): ImportGlobalScripts {
+  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, scripts }): Promise<ImportCardScriptsResult> => {
     const existing = await listOwnedScripts(ctx.db, ownerId);
     const plan = planCardLift({ existing: existing.map(toRow), carriedIds: [], scripts, mintId: ctx.newScriptId });
@@ -134,7 +139,8 @@ export function createImportGlobalScripts(ctx: RegexPortabilityContext): ImportG
  *  `characterId` itself was unconstrained, so the read answered "which of MY scripts hang off THAT card" for
  *  any card id. The `characters` join makes the card the caller's own; a foreign/absent id returns `[]`,
  *  which is the same answer an owned card with no attachments gives (no existence oracle). */
-export function createExportCardScripts(ctx: Pick<RegexPortabilityContext, "db">): ExportCardScripts {
+export function createExportCardScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportCardScripts {
+  const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId }) => {
     const rows = await ctx.db
       .select({ script: regexScripts })
@@ -173,7 +179,8 @@ async function ownedGlobalIds(ctx: Pick<RegexPortabilityContext, "db">, ownerId:
 /** The backup-bundle EXPORT half — one `regex/<slug>-<id>.json` per owned script. The GLOBAL attachment
  *  rides in the file (it is a property of the script); the other three scopes point at rows the bundle can't
  *  guarantee and are therefore not carried. */
-export function createExportRegexScripts(ctx: Pick<RegexPortabilityContext, "db">): ExportRegexScripts {
+export function createExportRegexScripts(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportRegexScripts {
+  const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId }): Promise<readonly ExportedRegexScriptFile[]> => {
     const records = await listOwnedScripts(ctx.db, ownerId);
     const globalIds = await ownedGlobalIds(ctx, ownerId);
@@ -187,7 +194,8 @@ export function createExportRegexScripts(ctx: Pick<RegexPortabilityContext, "db"
 /** The SINGLE-ENTITY export door (REGX2 · D121-D `kebab=Export`) — the same projection, one row. Owner-gated
  *  by `loadOwnedScript`; a foreign/absent id answers `null` (leak-free: "not yours" and "doesn't exist" are
  *  one answer, the `exportBook` posture). */
-export function createExportRegexScript(ctx: Pick<RegexPortabilityContext, "db">): ExportRegexScript {
+export function createExportRegexScript(input: DbAssemblyInput<Pick<RegexPortabilityContext, "db">>): ExportRegexScript {
+  const ctx: Pick<RegexPortabilityContext, "db"> = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, scriptId }): Promise<ExportedRegexScriptFile | null> => {
     const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
     if (record === undefined) {
@@ -202,7 +210,8 @@ export function createExportRegexScript(ctx: Pick<RegexPortabilityContext, "db">
 /** The backup-bundle IMPORT half — one file, dedup-gated by the shared rule. Re-importing the same bundle
  *  twice writes nothing the second time; a file whose script is already in the library only (re)asserts its
  *  GLOBAL attachment. */
-export function createImportRegexScript(ctx: RegexPortabilityContext): ImportRegexScript {
+export function createImportRegexScript(input: DbAssemblyInput<RegexPortabilityContext>): ImportRegexScript {
+  const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bytes }): Promise<{ readonly created: boolean }> => {
     const parsed = parseRegexScriptFile(bytes);
     if (!parsed.ok) {

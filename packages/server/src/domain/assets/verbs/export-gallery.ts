@@ -2,6 +2,8 @@
 // never sideways-imports character domain) since character ids don't survive a fresh box; missing/deleted
 // subject degrades to null handle. assetId carried as-is (stable, no remap).
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#primitives/serde/gallery";
 import { buildGallery } from "#primitives/serde/gallery";
@@ -11,7 +13,8 @@ import { listGalleryItemsForExport } from "../persistence/queries.ts";
 
 const GALLERY_FILENAME = "gallery.json";
 
-export function createExportGallery(ctx: AssetsContext): (ownerId: UserId) => Promise<GalleryPortableFile> {
+export function createExportGallery(input: DbAssemblyInput<AssetsContext>): (ownerId: UserId) => Promise<GalleryPortableFile> {
+  const ctx: AssetsContext = { ...input, db: databaseForOwner(input.db) };
   return async (ownerId: UserId): Promise<GalleryPortableFile> => {
     const rows = await listGalleryItemsForExport(ctx.db, ownerId);
 

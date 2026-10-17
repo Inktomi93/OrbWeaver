@@ -1,6 +1,8 @@
 // Automation owns one ordering engine and arm dispatcher shared by watcher, manual and confirmed entries.
 // Cross-feature operations remain injected; per-call rules stay with their owners.
 
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { AutomationContext, AutomationService, AutomationServiceDeps } from "./contract/service.ts";
 import { createArmExecutors } from "./engine/arm-executors.ts";
@@ -30,7 +32,8 @@ import { createSetRuleSuggestOnRefusal } from "./verbs/set-rule-suggest-on-refus
 import { createTestRule } from "./verbs/test-rule.ts";
 import { createUpdateRule } from "./verbs/update-rule.ts";
 
-export function createAutomationService(deps: AutomationServiceDeps): AutomationService {
+export function createAutomationService(input: DbAssemblyInput<AutomationServiceDeps>): AutomationService {
+  const deps: AutomationServiceDeps = { ...input, db: databaseForOwner(input.db) };
   const serialLanes = createSerialLanes();
   const ctx: AutomationContext = {
     ...deps,

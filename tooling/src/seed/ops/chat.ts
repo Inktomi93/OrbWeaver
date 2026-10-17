@@ -20,6 +20,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
@@ -105,11 +106,12 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   // the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
+  const wiringDb = databaseHandle(db);
   const bootSessions = createSessionsService({
-    db,
+    db: wiringDb,
     now,
     sessionSecret,
-    seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
+    seedUserConnections: createLocalLightUserSeed({ db: wiringDb, now, onEmbedSpaceBound: (boundOwner) => ownersBoundBeforeCompose.push(boundOwner) }),
   });
   const ownerIds = await seedOwner({ db, sessions: bootSessions, ownerHandles: handles, now });
   const ownerId = ownerIds[0];
@@ -119,7 +121,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   const owner = await createHostPrincipalResolver(bootSessions)(ownerId);
 
   const built = await createServices({
-    db,
+    db: wiringDb,
     now,
     ownerId,
     secretBoxKey: null,

@@ -52,7 +52,7 @@ Contract derivation, stored-value recovery, wire-boundary admission, runtime fun
 
 ### Foundation boundaries
 
-The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. Complete compose-policy qualification passes without waivers. HTTP, auth and rate-policy owners remain at their sanctioned entry homes. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
+The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. Native query wiring is qualified; current per-call corpus qualification remains open. HTTP, auth and rate-policy owners remain at their sanctioned entry homes. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts remain work. Canonical row builders and output suppliers meet their declared contracts. Wire-output boundary accounting and allocated native supplier qualification are established. The committed corpus serves each test layer. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
@@ -120,7 +120,7 @@ A structure gate holds only a claim the type system and dependency-cruiser canno
 
 ### The engine: what merges where
 
-Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it through `tooling/src/floor/code-facts/` and `tooling/src/verify/lib/`. The two answer the same questions and drift, so a lane finds with `pnpm ast` what a gate misses. Each row below becomes one reader in the floor, called by the `pnpm ast` verb, the gates and the codemods.
+Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it through `tooling/src/floor/code-facts/` and `tooling/src/verify/lib/`. Each row becomes one floor reader shared by `pnpm ast`, gates and codemods.
 
 | One home | Readers it replaces | Item |
 | - | - | - |
@@ -214,7 +214,7 @@ Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-s
 
 Required producers cannot disappear with their audit row. Replace bus definitions, schema/catalog data, static-class and floorless-control inputs before removing an upstream producer used by KEEP consumers. Preserve meaningful unavailable-data and lifecycle refusal. Retire redundant certification, not the remaining consumer's failure behavior.
 
-Move law tables into their production owners and type total registries against canonical unions. CI V8 coverage replaces contract-verb-presence and executes every domain verb implementation. Native database constraints enforce stored freeze-provenance normalization; complete canon body writers and production-root defect controls preserve freshness. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Migration preserves coherent bytes and refuses invalid stored rows atomically. Make the compose query capability import-restricted before retiring its query detector; retain per-call analysis.
+Move law tables into their production owners and type total registries against canonical unions. CI V8 coverage replaces contract-verb-presence and executes every domain verb implementation. Native database constraints enforce stored freeze-provenance normalization; complete canon body writers and production-root defect controls preserve freshness. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Migration preserves coherent bytes and refuses invalid stored rows atomically. Inert DB, statement and batch wiring preserves native operands and atomicity. Native import/loader rules own the query boundary; custom per-call analysis remains. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
 
 Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Item 1006 owns that disposition. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
 

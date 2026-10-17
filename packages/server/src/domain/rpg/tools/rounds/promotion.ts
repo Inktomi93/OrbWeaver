@@ -6,7 +6,8 @@ import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterImportProvenance } from "#domain/character";
 import { sha256Hex } from "#primitives/content-hash";
-import type { RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
+import { createRpgRoundsContext } from "#src/domain/rpg/context.ts";
+import type { RpgRoundsAssemblyDeps, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import type { RpgContext } from "#src/domain/rpg/contract/service.ts";
 
 /** How many handle candidates the promotion mint probes before refusing (`vesna`, `vesna-2`, … `vesna-25`).
@@ -93,7 +94,8 @@ async function resolveOrCreatePromotionCard(
   }
 }
 
-export function buildPromoteToCharacter(deps: RpgRoundsDeps): RpgContext["promoteToCharacter"] {
+export function buildPromoteToCharacter(assembly: RpgRoundsAssemblyDeps): RpgContext["promoteToCharacter"] {
+  const deps = createRpgRoundsContext(assembly);
   return async (input) => {
     const { chatId, hostUserId, sourceActorKey, participants, name } = input;
     const provenance = rpgPromotionProvenance(chatId, sourceActorKey);

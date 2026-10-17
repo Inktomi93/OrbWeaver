@@ -5,6 +5,7 @@
 // orphan the state because the hand row carries no variant FK. Host-gated, game-scoped (a foreign game's
 // checkpoint id → leak-free NOT-FOUND).
 
+import { statementToken } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RestoreCheckpointParams } from "#src/domain/rpg/contract/params.ts";
 import type { RpgContext, RpgService } from "#src/domain/rpg/contract/service.ts";
@@ -32,7 +33,7 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
       const restoredId = ctx.ids.snapshot();
       // The narrator/state batch stays inside the same owner as hand edits; neither writer resolves past it.
       await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE, ({ messageId }) =>
-        buildRestoredSnapshotStatement(ctx.db, base, { id: restoredId, gameId: game.id, now: ctx.now() }, messageId),
+        statementToken(buildRestoredSnapshotStatement(ctx.db, base, { id: restoredId, gameId: game.id, now: ctx.now() }, messageId)),
       );
       return restoredId;
     });

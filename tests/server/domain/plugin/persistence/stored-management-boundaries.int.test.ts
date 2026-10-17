@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/plugin/persistence/plugins.ts
 // @subject packages/server/src/domain/plugin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/plugin/verbs/set-grant.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { pluginGrantTasks, pluginViewSchema } from "@orb/contracts/plugin";
 import { plugins } from "@orb/db";
@@ -108,7 +109,7 @@ test("valid stored management data still allows the explicit disabled grant act 
 
 test("the actual credential grant-task projection validates its owned stored manifest before deriving authority", async ({ harness }) => {
   const { caller, view } = await installed(harness);
-  const tasksOf = createPluginGrantTasksOf(harness.db);
+  const tasksOf = createPluginGrantTasksOf(databaseHandle(harness.db));
   expect(await tasksOf(view.id, caller.userId)).toEqual(pluginGrantTasks(view.declaredCapabilities));
   const rows = await harness.db.select({ manifest: plugins.manifest }).from(plugins).where(eq(plugins.id, view.id));
   const manifest = rows[0]?.manifest;
@@ -129,5 +130,5 @@ test("a foreign malformed grant-task manifest is never privately parsed", async 
     .update(plugins)
     .set({ manifest: sql`${"{"}` })
     .where(eq(plugins.id, view.id));
-  expect(await createPluginGrantTasksOf(harness.db)(view.id, other.userId)).toBeNull();
+  expect(await createPluginGrantTasksOf(databaseHandle(harness.db))(view.id, other.userId)).toBeNull();
 });

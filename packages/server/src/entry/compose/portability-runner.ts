@@ -1,8 +1,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import type { Db } from "@orb/db";
-import { optimizeDb } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import type { IdSource, PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
@@ -17,18 +16,19 @@ import {
   createEnqueueImportIndex,
   createImportLibraryEmitter,
   createImportWorkloadDrivers,
+  createRefreshImportPlannerStats,
   createSettleImportMemory,
   DEFAULT_IMPORT_STAGING_DIR,
 } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
-import { findOwnedPersonaByName } from "#domain/persona";
+import { createFindOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createImportPresets } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportGlobalScripts, ImportPresetScripts, ImportRegexScript } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
 import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
-import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
+import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort, WorldInfoExportContext } from "#domain/world-info";
@@ -47,7 +47,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly publishChatChanged: LiveBuses["user"]["publishChatChanged"];
 
   readonly idSource?: IdSource;
-  readonly db: Db;
+  readonly db: DatabaseHandle;
   readonly now: () => number;
   readonly tagCtx: TagContext;
   readonly settingsCtx: SettingsContext;
@@ -108,6 +108,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
   const reconcileImportStats: ImportWorkloadDeps["reconcileImportStats"] = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now, idSource: deps.idSource });
   };
+  const findPersonaByName = createFindOwnedPersonaByName(db);
   /** The ST profile importer's cross-domain slice — the ONE spelling, shared by both consumers. */
   const profileImport = {
     character: deps.character,
@@ -123,15 +124,13 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     reconcileImportStats,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
-    findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> =>
-      findOwnedPersonaByName(db, ownerId, name),
+    findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> => findPersonaByName(ownerId, name),
     attachChatTagByName: deps.attachChatTag,
     importRpgGame: deps.importRpgGame,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
   };
 
   const portability = buildPortabilityRegistry({
-    db,
     now,
     tagCtx: deps.tagCtx,
     settingsCtx: deps.settingsCtx,
@@ -155,7 +154,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     stagingRoot,
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
     listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
+    compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, createStatsBatchWiring(deps.idSource).bumpStatsCanonVersion),
     ...createImportWorkloadDrivers({
       now,
       quiet: deps.quiet,
@@ -187,7 +186,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       settleMemory: settleImportMemory,
     }),
     reconcileImportStats,
-    refreshPlannerStats: () => optimizeDb(db),
+    refreshPlannerStats: createRefreshImportPlannerStats(db),
     emitLibraryChanged: createImportLibraryEmitter({
       charactersChanged: ({ ownerId }) => deps.emitUserEvent(ownerId, { type: "charactersChanged" }),
       chatsChanged: ({ ownerId }) => deps.publishChatChanged(ownerId, undefined),

@@ -16,6 +16,8 @@
 import type { EveryOwnerEstimate, EveryOwnerRun } from "@orb/contracts/workloads";
 import type { ReadOnlyDb } from "@orb/db";
 import { characterSnapshots, characters } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, count, eq, exists, sql } from "drizzle-orm";
@@ -33,7 +35,8 @@ import { cardOf, loadOwnedCharacterRow } from "./queries.ts";
 
 /** Build the owned-card read op — `loadOwnedCharacterRow` (owner IN the WHERE) + the one-homed `cardOf`
  *  projection. Absent and foreign collapse to `undefined` (the consumer's leak-free not-found). */
-export function createLoadOwnedCard(ctx: CharacterRefineryOpsContext): LoadOwnedCardOp {
+export function createLoadOwnedCard(input: DbAssemblyInput<CharacterRefineryOpsContext>): LoadOwnedCardOp {
+  const ctx: CharacterRefineryOpsContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId }) => {
     const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
     return row === undefined ? undefined : cardOf(row);
@@ -63,7 +66,8 @@ async function listEveryOwnerScoreTargets(
 }
 
 /** The whole candidate COUNT remains separate from the FILL read, so already-scored cards stay scanned. */
-export function createListRefineryScoreTargets(ctx: CharacterRefineryOpsContext): ListRefineryScoreTargetsOp {
+export function createListRefineryScoreTargets(input: DbAssemblyInput<CharacterRefineryOpsContext>): ListRefineryScoreTargetsOp {
+  const ctx: CharacterRefineryOpsContext = { ...input, db: databaseForOwner(input.db) };
   return (scope) =>
     scope.ownerId === null
       ? listEveryOwnerScoreTargets(ctx.db, scope.everyOwnerRun, scope.unscoredOnly)
@@ -78,7 +82,8 @@ async function countEveryOwnerScoreTargets(ctx: RefineryScoreCountContext, _esti
 }
 
 /** Fold the refinery's pure readiness rule inside the read boundary; estimate callers receive only a count. */
-export function createCountRefineryScoreTargets(ctx: RefineryScoreCountContext): CountRefineryScoreTargetsOp {
+export function createCountRefineryScoreTargets(input: DbAssemblyInput<RefineryScoreCountContext>): CountRefineryScoreTargetsOp {
+  const ctx: RefineryScoreCountContext = { ...input, db: databaseForOwner(input.db) };
   return async (scope) => {
     if (scope.ownerId === null) {
       return await countEveryOwnerScoreTargets(ctx, scope.everyOwnerEstimate, scope.unscoredOnly);
@@ -116,7 +121,8 @@ function healedRefineryObject(): SQL {
  *  the SQL twin of the read seam's field-level heal), and the owner predicate rides IN THE WHERE
  *  (injected-op-caller-gate). A zero-row update stays the silent no-op the op's contract promises: foreign
  *  or absent needs no pre-SELECT to detect, because there is nothing to report either way. */
-export function createStampRefinerySignals(ctx: CharacterRefineryOpsContext): StampRefinerySignalsOp {
+export function createStampRefinerySignals(input: DbAssemblyInput<CharacterRefineryOpsContext>): StampRefinerySignalsOp {
+  const ctx: CharacterRefineryOpsContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, patch }) => {
     // `json(?)` on the analysis arm so the payload lands as a JSON OBJECT rather than as a quoted string
     // (a bound TEXT parameter is a JSON string to `json_set`); the score arm binds a bare number.
@@ -137,7 +143,8 @@ export function createStampRefinerySignals(ctx: CharacterRefineryOpsContext): St
  *  `character_snapshots` carries no `ownerId` column of its own, so ownership can only be re-asserted
  *  through the join. A foreign owner's retraction deletes nothing (a silent no-op, same as a
  *  zero-row/already-gone delete). */
-export function createDeleteSnapshot(ctx: CharacterRefineryOpsContext): DeleteSnapshotOp {
+export function createDeleteSnapshot(input: DbAssemblyInput<CharacterRefineryOpsContext>): DeleteSnapshotOp {
+  const ctx: CharacterRefineryOpsContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, snapshotId, characterId }) => {
     const owns = exists(
       ctx.db

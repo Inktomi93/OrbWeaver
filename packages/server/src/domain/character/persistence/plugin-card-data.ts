@@ -26,8 +26,9 @@
 //      wall (`primitives/serde/card`), unchanged by this write — the value lands in the residual bag verbatim.
 
 import { pluginCardStateKey } from "@orb/contracts/plugin";
-import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { and, eq, sql } from "drizzle-orm";
 import type { PluginCardDataTarget } from "../contract/params.ts";
 import type { PluginCardDataRead } from "../contract/results.ts";
@@ -48,7 +49,8 @@ function cardStatePath(slug: string): string {
  *  card; reporting that as `null` (rather than parsing raw text into a crash, or handing back a scalar the
  *  `Record | null` contract forbids) is the safe, contract-honest answer. `t === "object"` guarantees `value` is
  *  the object's JSON text, so the `JSON.parse` cannot throw. */
-export async function readPluginCardData(db: Db, target: PluginCardDataTarget): Promise<PluginCardDataRead> {
+export async function readPluginCardData(handle: DatabaseHandle, target: PluginCardDataTarget): Promise<PluginCardDataRead> {
+  const db = databaseForOwner(handle);
   const path = cardStatePath(target.slug);
   const rows = await db
     .select({
@@ -75,7 +77,8 @@ export async function readPluginCardData(db: Db, target: PluginCardDataTarget): 
  *  plugin keys stay byte-identical, even under concurrency). Returns `true` when a row was written (owned/found),
  *  `false` when no such owned character exists (the caller raises the leak-free NOT_FOUND). Does NOT bump
  *  `contentHash`/`updatedAt` and emits nothing — this is metadata, not card content (D148 clause d). */
-export async function writePluginCardData(db: Db, target: PluginCardDataTarget, data: Record<string, unknown>): Promise<boolean> {
+export async function writePluginCardData(handle: DatabaseHandle, target: PluginCardDataTarget, data: Record<string, unknown>): Promise<boolean> {
+  const db = databaseForOwner(handle);
   const updated = await db
     .update(characters)
     .set({ extensions: sql`json_set(coalesce(${characters.extensions}, '{}'), ${cardStatePath(target.slug)}, json(${JSON.stringify(data)}))` })
