@@ -1,12 +1,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { SyntaxKind } from "ts-morph";
 import { readAuthoredRepositoryInventory } from "../compiler/authored-repository.ts";
 import { readCompilerPrograms } from "../compiler/compiler-programs.ts";
 import { assertSemanticAnalysisProgram, isSemanticAnalysisProgram, isTypeWorldSource, predictedProgram } from "../compiler/project-worlds.ts";
 import { assertInventoryRuntimeSealed, captureInventoryRuntime, inventoryRuntimeRevision } from "../compiler/semantic-inventory-runtime.ts";
-import { inventoryRuntimeCurrent } from "../compiler/semantic-inventory-runtime-current.ts";
+import { inventoryRuntimeCurrent, inventoryRuntimesCurrent } from "../compiler/semantic-inventory-runtime-current.ts";
 import { runInventoryPartitionWorker } from "../compiler/semantic-inventory-worker-run.ts";
 import type { InventorySchemaDependency } from "./drizzle-inventory-contract.ts";
 import { SCHEMA_DATA_CATALOG_KEY, SCHEMA_IDENTITY_CATALOG_KEY, schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
@@ -269,7 +270,7 @@ function buildPartition(
     using staging = openInventoryDatabase(request.destination);
     const extracted = readInventoryGeneration(staging, latestInventoryGeneration(staging));
     const candidate = workerPartition(extracted, request);
-    if (!partitionImplementationCurrent(staging, candidate)) {
+    if (!partitionImplementationsCurrent(staging, [candidate])) {
       throw new Error("native inventory worker implementation changed before publication");
     }
     if ((request.shapeQueries?.length ?? 0) > 0) {
@@ -301,23 +302,47 @@ function buildPartition(
   return partition;
 }
 
-function partitionImplementationCurrent(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition): boolean {
-  if (db.prepare("SELECT 1 FROM inventory_runtime_header WHERE partition=?").get(partition.id) === undefined) {
-    return false;
-  }
-  const worker = readInventoryRuntime(db, partition.id, "worker");
-  const controller = readInventoryRuntime(db, partition.id, "controller");
+function partitionImplementationsCurrent(
+  db: ReturnType<typeof openInventoryDatabase>,
+  partitions: readonly StoredInventoryPartition[],
+  additional: readonly InventoryRuntime[] = [],
+): boolean {
   const controllerRoots = [new URL("../compiler/semantic-inventory-worker-run.ts", import.meta.url).href, import.meta.url];
+  const currentController = captureInventoryRuntime(controllerRoots);
   const bootstrap = new URL("../compiler/semantic-inventory-runtime.ts", import.meta.url).href;
-  return (
-    worker.roots.length === 1 &&
-    worker.roots[0] === new URL("../compiler/semantic-inventory-worker.ts", import.meta.url).href &&
-    worker.bootstrap === bootstrap &&
-    controller.bootstrap === bootstrap &&
-    JSON.stringify(controller) === JSON.stringify(captureInventoryRuntime(controllerRoots)) &&
-    inventoryRuntimeCurrent(controller) &&
-    inventoryRuntimeCurrent(worker)
-  );
+  const runtimes: InventoryRuntime[] = [];
+  for (const partition of partitions) {
+    if (db.prepare("SELECT 1 FROM inventory_runtime_header WHERE partition=?").get(partition.id) === undefined) {
+      return false;
+    }
+    const worker = readInventoryRuntime(db, partition.id, "worker");
+    const controller = readInventoryRuntime(db, partition.id, "controller");
+    if (
+      !(
+        worker.roots.length === 1 &&
+        worker.roots[0] === new URL("../compiler/semantic-inventory-worker.ts", import.meta.url).href &&
+        worker.bootstrap === bootstrap &&
+        controller.bootstrap === bootstrap &&
+        JSON.stringify(controller) === JSON.stringify(currentController)
+      )
+    ) {
+      return false;
+    }
+    runtimes.push(controller, worker);
+  }
+  return inventoryRuntimesCurrent([...runtimes, ...additional]).every((current) => current);
+}
+
+function uniquePartitions(partitions: readonly StoredInventoryPartition[]): StoredInventoryPartition[] {
+  const unique = new Map<string, StoredInventoryPartition>();
+  for (const partition of partitions) {
+    const previous = unique.get(partition.id);
+    if (previous !== undefined && !isDeepStrictEqual(previous, partition)) {
+      throw new Error("native inventory partition identity has conflicting metadata");
+    }
+    unique.set(partition.id, partition);
+  }
+  return [...unique.values()];
 }
 
 function demandPartitions(
@@ -341,7 +366,7 @@ function demandPartitions(
       existing !== undefined &&
       existing.descriptorVersion === descriptorVersion(descriptor) &&
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      partitionImplementationCurrent(db, existing) &&
+      partitionImplementationsCurrent(db, [existing]) &&
       coversNativeDemand(db, existing, nativeDemand)
     ) {
       partitions.push(existing);
@@ -378,16 +403,11 @@ function assertSnapshotCurrent(
 ): void {
   const { db, options, overlay } = context;
   const currentAuthored = inventoryAuthoredFiles(options.root, overlay);
+  const unique = uniquePartitions(partitions);
   if (
     authoredVersion(options.root) !== authored ||
-    partitions.some(
-      (partition) =>
-        !(
-          inputsCurrent(readInventoryInputs(db, partition.id), { authored: currentAuthored, fileSystem: options.fileSystem }) &&
-          partitionImplementationCurrent(db, partition)
-        ),
-    ) ||
-    !inventoryRuntimeCurrent(captureInventoryRuntime([import.meta.url]))
+    unique.some((partition) => !inputsCurrent(readInventoryInputs(db, partition.id), { authored: currentAuthored, fileSystem: options.fileSystem })) ||
+    !partitionImplementationsCurrent(db, unique, [captureInventoryRuntime([import.meta.url])])
   ) {
     throw new Error("native semantic inventory inputs changed during extraction; no current verdict");
   }
@@ -450,7 +470,7 @@ function demandShapePartitions(
       existing !== undefined &&
       existing.descriptorVersion === descriptorVersion(descriptor) &&
       inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      partitionImplementationCurrent(db, existing) &&
+      partitionImplementationsCurrent(db, [existing]) &&
       families.every((family) => existing.families.includes(family)) &&
       pairRequests.every((query) => covered.has(shapePairKey(query))) &&
       coversNativeDemand(db, existing, nativeDemand)

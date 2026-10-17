@@ -12,7 +12,7 @@ if (requestPath === undefined) {
 const request = JSON.parse(readFileSync(requestPath, "utf8")) as InventoryWorkerRequest;
 const { openInventoryDatabase, publishInventoryGeneration } = await import("../code-facts/semantic-inventory-database.ts");
 const { extractInventoryPartition } = await import("./semantic-inventory-extract.ts");
-const { inventoryRuntimeCurrent } = await import("./semantic-inventory-runtime-current.ts");
+const { inventoryRuntimesCurrent } = await import("./semantic-inventory-runtime-current.ts");
 const { inputVersion } = await import("../code-facts/semantic-inventory-inputs.ts");
 const { inventoryRuntimeSchema } = await import("../code-facts/semantic-inventory-runtime-contract.ts");
 const controller = inventoryRuntimeSchema.parse(request.controllerImplementation);
@@ -23,19 +23,23 @@ const pins = [
   createRequire(import.meta.resolve("ts-morph")).resolve("@ts-morph/common"),
   fileURLToPath(new URL("../../../../pnpm-lock.yaml", import.meta.url)),
 ].map((path) => ({ path, version: inputVersion(path, "file") }));
-if (!(inventoryRuntimeCurrent(controller) && inventoryRuntimeCurrent(captureInventoryRuntime([import.meta.url], pins)))) {
+if (!workerImplementationCurrent(captureInventoryRuntime([import.meta.url], pins))) {
   throw new Error("native inventory worker executing implementation is stale");
+}
+function workerImplementationCurrent(worker: ReturnType<typeof captureInventoryRuntime>): boolean {
+  const [controllerCurrent, workerCurrent] = inventoryRuntimesCurrent([controller, worker]);
+  return controllerCurrent === true && workerCurrent === true;
 }
 const partition = extractInventoryPartition(request);
 const implementation = captureInventoryRuntime([import.meta.url], pins);
-if (!(inventoryRuntimeCurrent(controller) && inventoryRuntimeCurrent(implementation))) {
+if (!workerImplementationCurrent(implementation)) {
   throw new Error("native inventory worker executing implementation is stale");
 }
 using database = openInventoryDatabase(request.destination);
 database.exec("BEGIN IMMEDIATE");
 publishInventoryGeneration(database, [{ ...partition, implementation: { controller, worker: implementation } }]);
 assertInventoryRuntimeSealed(implementation);
-if (!(inventoryRuntimeCurrent(controller) && inventoryRuntimeCurrent(implementation))) {
+if (!workerImplementationCurrent(implementation)) {
   throw new Error("native inventory worker implementation changed during staging");
 }
 database.exec("COMMIT");
