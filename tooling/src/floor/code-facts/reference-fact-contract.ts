@@ -311,6 +311,8 @@ export interface NativeResourceRegistration {
 
 /** One authored returned-value leaf, with the exact supplied arguments that bind its parameters. */
 export interface ReturnedValueSource {
+  /** Conditional frame dependencies remain local and must be revalidated before bindings are reused. */
+  readonly privateSupplies?: readonly PrivateValueSupply[];
   /** Winning own-data value hops retain the bindings at selection, before formal refinement. */
   readonly selectedDescriptors?: readonly { readonly value: Node; readonly bindings: ReadonlyMap<Node, Node> }[];
   readonly nativeIteration?: NativeValueIteration;
@@ -323,12 +325,27 @@ export interface ReturnedValueSource {
 }
 
 /** Supplied provenance stays in the native evaluation; it is not part of persisted returned leaves. */
-export interface CapturedValueSupply {
+export interface ObservedValueSupply {
+  readonly kind: "observed";
   readonly observation: CallReturnObservation;
   readonly parameter: import("ts-morph").ParameterDeclaration;
   readonly argument: Node | undefined;
   readonly value: Node;
 }
+
+/** A conditional supplied frame never publishes a caller or outlives its exact effect trial. */
+export interface PrivateValueSupply extends Omit<ObservedValueSupply, "kind"> {
+  readonly kind: "private";
+  readonly owner: Node;
+  readonly program: CallReturnProgram;
+  readonly nativeProgram: ts.Program;
+  readonly premise: InheritedReadPremise;
+  readonly bindings: ReadonlyMap<Node, Node>;
+  readonly bindingPairs: readonly (readonly [Node, Node])[];
+  readonly nodes: readonly { readonly node: Node; readonly native: ts.Node }[];
+}
+
+export type CapturedValueSupply = ObservedValueSupply | PrivateValueSupply;
 
 export interface SuppliedValueSource extends ReturnedValueSource {
   readonly supply?: CapturedValueSupply;
@@ -357,6 +374,7 @@ export interface ReturnedValueActivation {
 
 /** Shared traversal state; the native concern receives the same captured world, bindings and cycle set. */
 export interface ReturnedValueContext {
+  readonly privateSupplies?: readonly PrivateValueSupply[];
   readonly inheritedReadPremise?: InheritedReadPremise;
   readonly invocation?: ReturnedValueInvocation;
   readonly valueActivations?: readonly ReturnedValueActivation[];

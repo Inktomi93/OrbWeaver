@@ -10,6 +10,7 @@ import {
   readSuppliedParameter,
   runtimeUndefinedValue,
 } from "./call-supplied.ts";
+import { suppliedValueContextRefusal } from "./call-supplied-private.ts";
 import {
   inspectBindingReassignment,
   inspectInheritedReadEffects,
@@ -581,6 +582,10 @@ function namespaceAliasContinuation(reference: Node, inputs: NativeNamespaceAlia
   if (program.inheritedReadTrialActive?.() === true && context?.inheritedReadPremise === undefined) {
     return valueRefusal(reference, "unsupported", "the namespace alias cannot borrow a trial without its real continuation");
   }
+  const privateInvalid = context === undefined ? undefined : suppliedValueContextRefusal(reference, context, readCallReturnProgram);
+  if (privateInvalid !== undefined) {
+    return privateInvalid;
+  }
   const value: ReturnedValueContext = context ?? {
     program,
     bindings: new Map(),
@@ -671,7 +676,7 @@ function defaultBindingSiblingRead(
       bindings: field.bindings,
       active: context.active,
       activeValues: context.active,
-      continuation: context,
+      continuation: suppliedValueContext(use, [access.name], field, { context }),
     });
     if (values.kind === "unresolved") {
       return values;
@@ -680,13 +685,22 @@ function defaultBindingSiblingRead(
       return valueRefusal(member, "missing", "a binding sibling read has no actual value alternatives");
     }
     for (const value of values.value) {
-      const closed = defaultBindingSiblingValue(value, context, optionalMember);
+      const closed = defaultBindingSiblingValue(value, suppliedValueContext(member, [], value, { context }), optionalMember);
       if (closed.kind === "unresolved") {
         return closed;
       }
     }
   }
   return { kind: "resolved", value: true, trace: { declarations: [], origin: use } };
+}
+
+function optionalBindingAbsent(source: ReturnedValueSource, context: ReturnedValueContext, optionalMember: boolean): InheritedReadEvidence | undefined {
+  if (!optionalMember || source.path.length !== 1 || context.program === undefined) {
+    return;
+  }
+  const key = source.path[0];
+  const own = key === undefined ? undefined : ownDataPresence(source, key, context.program, { continuation: context });
+  return own !== undefined && own.every((present) => !present) ? nativeInheritedEffects(source.value, { ...context, bindings: source.bindings }) : undefined;
 }
 
 function defaultBindingSiblingValue(source: ReturnedValueSource, context: ReturnedValueContext, optionalMember: boolean): InheritedReadEvidence {
@@ -699,6 +713,10 @@ function defaultBindingSiblingValue(source: ReturnedValueSource, context: Return
     return own !== undefined
       ? nativeInheritedEffects(source.value, { ...context, bindings: source.bindings })
       : valueRefusal(source.value, "unsupported", "a binding sibling has no closed ordinary absent descriptor");
+  }
+  const projectedAbsent = optionalBindingAbsent(source, context, optionalMember);
+  if (projectedAbsent !== undefined) {
+    return projectedAbsent;
   }
   const scalar = readStaticAuthoredValue(source.value);
   const undefinedValue =
@@ -814,7 +832,7 @@ function defaultBindingAlternative(
   path: readonly string[],
   context: ReturnedValueContext,
 ): ReferenceFact<readonly ReturnedValueSource[]> {
-  const next = { ...context, bindings: source.bindings };
+  const next = suppliedValueContext(source.value, path, source, { context });
   if (!source.present) {
     if (source.path.length !== 1 || !ordinaryCallableRecord(source.value, undefined, context.program)) {
       return valueRefusal(source.value, "unsupported", "a defaulted binding has no closed ordinary absent property");
@@ -1020,7 +1038,7 @@ function returnedNullishValue(
     value,
     left.value.map((source) =>
       source.present && source.path.length === 0 && source.value.getKind() === SyntaxKind.NullKeyword
-        ? returnedValue(value.getRight(), path, { ...operand, bindings: source.bindings })
+        ? returnedValue(value.getRight(), path, suppliedValueContext(source.value, path, source, { context: operand }))
         : defaultBindingAlternative(value.getRight(), source, path, operand),
     ),
   );
@@ -1054,7 +1072,17 @@ function suppliedValueContext(
   inputs: { readonly context: ReturnedValueContext; readonly supplied?: true },
 ): ReturnedValueContext {
   const { context } = inputs;
-  const next = { ...context, bindings: source.bindings };
+  const next = {
+    ...context,
+    bindings: source.bindings,
+    ...((source.privateSupplies?.length ?? 0) > 0 || source.supply?.kind === "private"
+      ? {
+          privateSupplies: [
+            ...new Set([...(context.privateSupplies ?? []), ...(source.privateSupplies ?? []), ...(source.supply?.kind === "private" ? [source.supply] : [])]),
+          ],
+        }
+      : {}),
+  };
   if (source.supply === undefined) {
     return next;
   }
@@ -1110,6 +1138,22 @@ function differentValueAllocation(node: Node, previous: ReturnedValueActivation,
 
 function valueActivationCurrent(activation: ReturnedValueActivation): boolean {
   const { program, invocation } = activation;
+  if (
+    invocation.kind === "supplied" &&
+    invocation.supply.kind === "private" &&
+    suppliedValueContextRefusal(
+      invocation.supply.parameter,
+      {
+        program,
+        inheritedReadPremise: invocation.supply.premise,
+        privateSupplies: [invocation.supply],
+        bindings: invocation.supply.bindings,
+      },
+      readCallReturnProgram,
+    ) !== undefined
+  ) {
+    return false;
+  }
   const observation = valueInvocationObservation(invocation);
   if (
     program.program !== activation.nativeProgram ||
@@ -1184,6 +1228,23 @@ function activeValueRefusal(
 }
 
 function returnedValue(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
+  const privateInvalid = suppliedValueContextRefusal(node, context, readCallReturnProgram);
+  if (privateInvalid !== undefined) {
+    return privateInvalid;
+  }
+  const result = returnedValueWithin(node, path, context);
+  return result.kind === "unresolved" || context.privateSupplies === undefined
+    ? result
+    : {
+        ...result,
+        value: result.value.map((source) => ({
+          ...source,
+          privateSupplies: [...new Set([...(context.privateSupplies ?? []), ...(source.privateSupplies ?? [])])],
+        })),
+      };
+}
+
+function returnedValueWithin(node: Node, path: readonly string[], context: ReturnedValueContext): ReferenceFact<readonly ReturnedValueSource[]> {
   const value = unwrapTarget(node);
   const activation = captureValueActivation(value, path, context, false);
   const refused = context.active.has(value.compilerNode) ? activeValueRefusal(value, activation, context, false) : undefined;
@@ -1263,7 +1324,7 @@ function returnedComputedValue(
             member,
             keys.flatMap((key) =>
               key.kind === "resolved" && typeof key.value === "string" && selected.includes(key.value)
-                ? [returnedValue(source.value, [key.value, ...path], { ...context, bindings: source.bindings })]
+                ? [returnedValue(source.value, [key.value, ...path], suppliedValueContext(source.value, [key.value, ...path], source, { context }))]
                 : [],
             ),
           ));
@@ -1420,6 +1481,10 @@ function callableSuppliedLeaves(
     nativeValueTransfers: false,
     nativeIterations: new Map(),
   };
+  const privateInvalid = suppliedValueContextRefusal(node, continuation, readCallReturnProgram);
+  if (privateInvalid !== undefined) {
+    return privateInvalid;
+  }
   const activation = captureValueActivation(node, path, continuation, true);
   const refused = active.has(node.compilerNode) ? activeValueRefusal(node, activation, continuation, true) : undefined;
   if (refused !== undefined) {
@@ -1443,7 +1508,12 @@ function callableSuppliedLeaves(
     if (!(source.present && declaration !== undefined)) {
       return callableNonFormalLeaf(source, program);
     }
-    const supplied = readSuppliedParameter(declaration.getNameNode(), source.bindings, program, { ...entered, bindings: source.bindings });
+    const supplied = readSuppliedParameter(
+      declaration.getNameNode(),
+      source.bindings,
+      program,
+      suppliedValueContext(source.value, source.path, source, { context: entered }),
+    );
     if (supplied.kind === "unresolved") {
       return supplied;
     }
@@ -1461,7 +1531,10 @@ function callableSuppliedLeaves(
           ? callableSuppliedLeaves(actual.value, [...actual.path, ...source.path], program, {
               bindings: actual.bindings,
               active: next,
-              continuation: suppliedValueContext(source.value, source.path, actual, { context: entered, supplied: true }),
+              continuation: suppliedValueContext(source.value, source.path, actual, {
+                context: suppliedValueContext(source.value, source.path, source, { context: entered }),
+                supplied: true,
+              }),
               ...(inputs.activeValues === undefined ? {} : { activeValues: inputs.activeValues }),
               ...(inputs.uses === undefined ? {} : { uses: inputs.uses }),
             })

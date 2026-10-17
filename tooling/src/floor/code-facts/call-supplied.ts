@@ -1,6 +1,13 @@
 // Supplied formals and complete callable consumers reuse the captured native call/return graph.
 import type { CallExpression, Identifier, Node as MorphNode, ts } from "ts-morph";
 import { Node } from "ts-morph";
+import {
+  privateSuppliedCall,
+  privateSuppliedConsumers,
+  privateSuppliedEscape,
+  privateValueSupply,
+  suppliedValueContextRefusal,
+} from "./call-supplied-private.ts";
 import { capturedSourcesCurrent, RefinementMap } from "./capture-map.ts";
 import { isDocumentationLinkReference, readModuleAliasBinding, resolveStableExpression } from "./reference-fact.ts";
 import { lexicalReferenceSymbol, unwrapTarget } from "./reference-fact-alias.ts";
@@ -11,6 +18,7 @@ import type {
   NativeNamespaceAliasInputs,
   ReferenceFact,
   ReferenceUnresolvedReason,
+  ReferenceUseAdmission,
   ReturnedValueContext,
   SuppliedValueSource,
   UnresolvedReferenceFact,
@@ -113,9 +121,9 @@ function capturedModuleAlias(
   use: MorphNode,
   binding: Identifier,
   owner: MorphNode,
-  inputs: NativeNamespaceAliasInputs,
+  inputs: NativeNamespaceAliasInputs & { readonly privateCalls?: Map<ts.CallExpression, CallReturnObservation> | undefined },
 ): Identifier | UnresolvedReferenceFact | undefined {
-  const { program } = inputs;
+  const { program, privateCalls } = inputs;
   const admitted = readCallReturnReference(use, binding, program);
   if (admitted.kind === "unresolved") {
     return admitted;
@@ -129,7 +137,7 @@ function capturedModuleAlias(
     return captured ?? direct;
   }
   // Acquisition belongs to the proven captured namespace, not ordinary closed caller coverage.
-  const consumers = captureNamespaceConsumers(captured, owner, program);
+  const consumers = privateCalls === undefined ? captureNamespaceConsumers(captured, owner, program) : undefined;
   const current = readCallReturnProgram(use, { programs: [program] });
   const premise = inputs.context?.inheritedReadPremise?.require(use, program);
   return (
@@ -141,7 +149,43 @@ function capturedModuleAlias(
   );
 }
 
-function callableReferenceRefusal(name: Identifier, owner: MorphNode, inputs: NativeNamespaceAliasInputs): UnresolvedReferenceFact | undefined {
+function callableReferenceAdmission(
+  use: MorphNode,
+  binding: Identifier,
+  owner: MorphNode,
+  inputs: NativeNamespaceAliasInputs & { readonly privateCalls?: Map<ts.CallExpression, CallReturnObservation> | undefined },
+): Exclude<ReferenceUseAdmission, false> | UnresolvedReferenceFact | undefined {
+  const alias = capturedModuleAlias(use, binding, owner, inputs);
+  if (alias !== undefined) {
+    return alias;
+  }
+  if (inputs.privateCalls === undefined) {
+    return;
+  }
+  const call = privateSuppliedCall(use, binding, { owner, program: inputs.program, admit: readCallReturnReference });
+  if (call === undefined || call.kind === "unresolved") {
+    return call;
+  }
+  inputs.privateCalls.set(call.value.call.compilerNode, call.value);
+  return true;
+}
+
+function observedCallableUse(use: MorphNode, owner: MorphNode, program: CallReturnProgram): MorphNode | undefined {
+  for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
+    const expression = ancestor.compilerNode;
+    if (program.callers.get(owner.compilerNode)?.some((caller) => caller.call.getExpression().compilerNode === expression) === true) {
+      return ancestor;
+    }
+  }
+  return undefined;
+}
+
+function callableReferenceRefusal(
+  name: Identifier,
+  owner: MorphNode,
+  inputs: NativeNamespaceAliasInputs,
+  privateCalls?: Map<ts.CallExpression, CallReturnObservation>,
+): UnresolvedReferenceFact | undefined {
   const { program } = inputs;
   const admittedUses: MorphNode[] = [];
   let refusal: UnresolvedReferenceFact | undefined;
@@ -149,20 +193,22 @@ function callableReferenceRefusal(name: Identifier, owner: MorphNode, inputs: Na
     if (use === name || isDocumentationLinkReference(use)) {
       return true;
     }
-    const alias = capturedModuleAlias(use, binding, owner, inputs);
-    if (alias !== undefined) {
-      if ("kind" in alias) {
-        refusal = alias;
+    const admitted = callableReferenceAdmission(use, binding, owner, { ...inputs, privateCalls });
+    if (admitted !== undefined) {
+      if (admitted !== true && "kind" in admitted) {
+        refusal = admitted;
         return false;
       }
-      return alias;
+      return admitted;
     }
-    for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
-      const expression = ancestor.compilerNode;
-      if (program.callers.get(owner.compilerNode)?.some((caller) => caller.call.getExpression().compilerNode === expression) === true) {
-        admittedUses.push(ancestor);
-        return true;
-      }
+    const observed = observedCallableUse(use, owner, program);
+    if (observed !== undefined) {
+      admittedUses.push(observed);
+      return true;
+    }
+    // Container aliases in the shared walk are not evidence of this exact callable identity.
+    if (privateCalls !== undefined && privateSuppliedEscape(use)) {
+      refusal = unresolved("unsupported", use, "a private callable consumer has an unproved container or member projection");
     }
     return false;
   });
@@ -225,6 +271,10 @@ export function readSuppliedParameter(
   program: CallReturnProgram | undefined,
   context?: ReturnedValueContext,
 ): ReferenceFact<readonly SuppliedValueSource[]> {
+  const privateInvalid = context === undefined ? undefined : suppliedValueContextRefusal(node, context, readCallReturnProgram, program);
+  if (privateInvalid !== undefined) {
+    return privateInvalid;
+  }
   const epoch = suppliedEpochRefusal(node, program);
   if (epoch !== undefined) {
     return epoch;
@@ -248,7 +298,18 @@ export function readSuppliedParameter(
   ) {
     return unresolved("missing", node, "the formal has no complete supplied native caller context", [parameter]);
   }
-  const callers = readObservedCallableConsumers(owner, program, context);
+  const callers =
+    context?.inheritedReadPremise !== undefined
+      ? privateSuppliedConsumers(
+          owner,
+          { name: callableName(owner), program, context },
+          {
+            admit: readCallReturnProgram,
+            observed: readObservedCallableConsumers,
+            references: callableReferenceRefusal,
+          },
+        )
+      : readObservedCallableConsumers(owner, program, context);
   if (callers.kind === "unresolved") {
     return callers;
   }
@@ -260,21 +321,31 @@ export function readSuppliedParameter(
   }
   return {
     kind: "resolved",
-    value: alternatives.flatMap(({ caller, argument }) =>
-      argument.kind === "resolved"
-        ? [
-            {
-              value: argument.value ?? node,
-              path: [],
-              present: argument.value !== undefined,
-              bindings: readCallBindings(caller.call, owner, bindings),
-              ...(argument.value === undefined
-                ? {}
-                : { supply: { observation: caller, parameter, argument: caller.call.getArguments()[index], value: argument.value } }),
-            },
-          ]
-        : [],
-    ),
+    value: alternatives.flatMap(({ caller, argument }) => {
+      if (argument.kind === "unresolved") {
+        return [];
+      }
+      const actualBindings = readCallBindings(caller.call, owner, bindings);
+      const ordinary = {
+        kind: "observed" as const,
+        observation: caller,
+        parameter,
+        argument: caller.call.getArguments()[index],
+        value: argument.value ?? node,
+      };
+      const privateSupply = privateValueSupply(ordinary, { owner, program, context, bindings: actualBindings });
+      const supply = privateSupply ?? (argument.value === undefined ? undefined : ordinary);
+      return [
+        {
+          value: ordinary.value,
+          path: [],
+          present: argument.value !== undefined,
+          bindings: actualBindings,
+          ...(privateSupply === undefined ? {} : { privateSupplies: [...(context?.privateSupplies ?? []), privateSupply] }),
+          ...(supply === undefined ? {} : { supply }),
+        },
+      ];
+    }),
     trace: { declarations: [parameter, owner], origin: node },
   };
 }
