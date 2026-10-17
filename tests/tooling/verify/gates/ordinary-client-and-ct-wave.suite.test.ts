@@ -170,13 +170,12 @@ test("a waiver at the first controlled field's TAG NAME binds the form-factory-f
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("a waiver at `useResolved` binds the context-definition-shape finding", () => {
+test("a waiver at the type argument binds the context projection publication finding", () => {
   const waived = passOf(contextDefinitionShape, {
     "packages/client/src/features/x/lib/x-section.tsx":
-      "// @orb-waive context-definition-shape(useResolved): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
-      'const badgeMint = { kind: "tabs", useResolved: () => null };\nexport const x = badgeMint;\n',
+      "// @orb-waive context-definition-shape(any): bounded publication permission control; ends when the fixture is removed.\n" +
+      "defineContextTabs<any>({tabs:[tab]});\n",
   });
-
   expect(waived.authority.effectiveFindings).toEqual([]);
   expect(waived.authority.waivedFindings).toHaveLength(1);
   expect(waived.authority.authorityAlarms).toEqual([]);

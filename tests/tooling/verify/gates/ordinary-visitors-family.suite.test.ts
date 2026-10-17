@@ -12,7 +12,6 @@ import { gate as noInlineDomainInterface } from "../../../../tooling/src/verify/
 import { gate as noInlinePackageInterface } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
-import { gate as noMutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
@@ -34,7 +33,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlinePackageInterface,
   noInlineTypes,
   noInlineWireInterface,
-  noMutatingRegisterApi,
   noRawEgress,
   noUntypedSoftRef,
   persistenceBoundary,

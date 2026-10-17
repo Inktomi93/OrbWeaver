@@ -21,7 +21,6 @@ import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/ve
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
-import { gate as noMutatingRegisterApi } from "../../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noParallelSectionMap } from "../../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
@@ -96,9 +95,14 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: contextDefinitionShape,
-    // A hand-rolled tabs renderer outside the mint.
-    overlays: [add(`${CHAT_LIB}/liveness-context-section.tsx`, 'export const badgeMint = { kind: "tabs", useResolved: () => null };\n')],
-    messageIncludes: "useResolved",
+    // A loose projection bypasses the canonical published context state.
+    overlays: [
+      add(
+        `${CHAT_LIB}/liveness-context-section.tsx`,
+        'import { defineContextTabs } from "#lib";\nexport const context = defineContextTabs<any>({ tabs: [tab] });\n',
+      ),
+    ],
+    messageIncludes: "O5 strict",
   },
   {
     policy: homeTileRegistryCompleteness,
@@ -157,11 +161,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "inline `invalidateQueries` call outside the central seam",
-  },
-  {
-    policy: noMutatingRegisterApi,
-    overlays: [add("packages/client/src/lib/liveness-register.ts", "export const registry = {\n  register(id: string): void {\n    void id;\n  },\n};\n")],
-    messageIncludes: "mutating `register()`-named",
   },
   {
     policy: noParallelSectionMap,

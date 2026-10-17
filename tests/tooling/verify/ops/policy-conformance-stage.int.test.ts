@@ -1,34 +1,13 @@
-// The WHOLE-CORPUS CONFORMANCE STAGE (#1941; docs/law/gate-runtime-standardization.md §6.6) at the door
-// it is driven through — `cli.ts policy-conformance` over planted roots — so the exit classes and the failure lines
-// are proven where a reader meets them. Three arms, each the other's control: a REAL final policy re-exported into
-// a planted corpus proves clean (0); a planted policy whose founding row cannot bite proves exit 2 naming policy,
-// arm, row index and why; a policy-less corpus proves the bare-zero refusal (2, never a clean 0).
-//
-// THE NON-SUBJECT MODULE IS UNREGISTERED, NOT LEGACY (#2497). Both arms used to plant a valid legacy
-// `GateDescriptor` as the "counted, never proven" module. `9ccb9b9122` deleted the legacy runtime and
-// `lib/loader.ts` now REFUSES a legacy-shaped `gate` export by name, so that fixture stopped being a
-// non-subject and became a loader throw: the CLI died before printing and both arms read as exit 2 with an
-// empty stdout. The loader's refusal itself is pinned where it lives, in `tests/tooling/verify/lib/loader.test.ts`.
-//
-// The re-export shim imports the REAL module by absolute file URL, so the descriptor the stage runs is the
-// production-branded object (the loader's identity law refuses a copy) and the shim's basename is the policy id
-// (the filename law).
-//
-// EVERY PROOF-ROW COUNT HERE IS DERIVED, NEVER A LITERAL (#1969, refuted-and-repaired 2026-09-12). The first
-// repair of this row replaced a hard-coded corpus denominator with ANOTHER hard-coded number and then bumped
-// it 8→9 and 10→11 when a shimmed policy grew a row — which is the exact rot #1969 exists to forbid ("THE
-// FLOOR IS A PROPERTY, NOT A NUMBER", `conformance.int.test.ts`). A count that must be edited when somebody
-// else's correct work lands is the defect whatever its value, so the real policies' rows are read off the
-// policies themselves and the planted policy's rows are authored ONCE, as data, and interpolated into its
-// source. Arm 2's grant counts were already derived this way and are the shape the rest now follows.
+// The public conformance stage runs bounded planted policies and distinguishes failures, refusals and zero rosters.
+// Its ordinary premise is owned here; a production policy retirement cannot silently change that premise.
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as mutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as toolingRootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { policyGrantIdentityRowCount } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { ORDINARY_MUST_FLAG, ORDINARY_MUST_PASS, ORDINARY_POLICY, ordinaryPolicyModule } from "./_ordinary-policy-fixture.ts";
 
 const GATES = "tooling/src/verify/gates";
 const CLI_TIMEOUT_MS = scaledBudget(120_000);
@@ -86,15 +65,15 @@ export const gate = defineGate({
 
 test("a corpus whose policies all prove is CLEAN, and the summary names the counts", { timeout: CLI_TIMEOUT_MS }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await plantedTree({
-    [`${GATES}/no-mutating-register-api.ts`]: realPolicyShim(repoRoot, "no-mutating-register-api"),
+    [`${GATES}/${ORDINARY_POLICY}.ts`]: ordinaryPolicyModule(repoRoot),
     [`${GATES}/planted-unregistered.ts`]: UNREGISTERED_MODULE,
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(0);
-  // The real policy's OWN row count is the denominator; the unregistered module is counted, never proven. The
+  // The planted policy's OWN row count is the denominator; the unregistered module is counted, never proven. The
   // grant table is NOT part of this planted world, so only rows naming loaded policies are judged — none here.
   expect(res.stdout).toContain(
-    `policy-conformance: 1 policies · ${String(proofRows(mutatingRegisterApi))} proof rows · 0 refusal rows · ${String(identityRows(mutatingRegisterApi))} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
+    `policy-conformance: 1 policies · ${String(ORDINARY_MUST_FLAG.length + ORDINARY_MUST_PASS.length)} proof rows · 0 refusal rows · ${String(0)} identity-proof rows · 0 failure(s) · 0 grant rows (rows naming loaded policies) · 0 invalid`,
   );
   expect(res.stdout).toContain("(corpus: 2 module(s), 1 unregistered)");
 });
@@ -141,13 +120,13 @@ test("a policy whose own proof fails is a TOOL ERROR naming policy, arm, row ind
   runCli,
 }) => {
   const root = await plantedTree({
-    [`${GATES}/no-mutating-register-api.ts`]: realPolicyShim(repoRoot, "no-mutating-register-api"),
+    [`${GATES}/${ORDINARY_POLICY}.ts`]: ordinaryPolicyModule(repoRoot),
     [`${GATES}/planted-broken.ts`]: brokenPolicy(repoRoot),
   });
   const res = await runCli("verify", ["policy-conformance"], { cwd: root, timeoutMs: CLI_TIMEOUT_MS });
   await expect(res).toExitWith(2);
   expect(res.stdout).toContain(
-    `2 policies · ${String(proofRows(mutatingRegisterApi) + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(identityRows(mutatingRegisterApi))} identity-proof rows · 1 failure(s)`,
+    `2 policies · ${String(ORDINARY_MUST_FLAG.length + ORDINARY_MUST_PASS.length + BROKEN_PROOF_ROWS)} proof rows · 0 refusal rows · ${String(0)} identity-proof rows · 1 failure(s)`,
   );
   expect(res.stdout).toContain(`✗ planted-broken · mustFlag[0] · ${BROKEN_WHY}`);
   expect(res.stdout).toContain("expected at least one effective finding but got 0");

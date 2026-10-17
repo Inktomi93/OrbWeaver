@@ -24,6 +24,7 @@ import { POPULATION_ROOTS } from "../contract/population.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { affectsBaseUiLint, surfaceManifestFrom } from "../lib/baseui-manifest.ts";
+import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RULES } from "../lib/context-definition-shape.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
@@ -185,17 +186,22 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (paths.length === 0) {
     throw new UsageError(`eslint-scoped needs at least one path\n${ESLINT_SCOPED_USAGE}`);
   }
-  const metadata = paths.some(affectsBaseUiLint);
-  const coversUi = paths.some(
-    (path) =>
-      path === "." || POPULATION_ROOTS["@ui"].every((prefix) => `${path.replace(/\/$/u, "")}/` === prefix || prefix.startsWith(`${path.replace(/\/$/u, "")}/`)),
-  );
-  const supplemental = metadata && !coversUi ? await recheckBaseUiMetadata(root) : EXIT.clean;
+  const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
+  const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
+  let supplemental: number = baseUi ? await recheckBaseUiMetadata(root) : EXIT.clean;
+  if (supplemental === EXIT.toolError) {
+    return EXIT.toolError;
+  }
+  if (context) {
+    supplemental = Math.max(supplemental, await recheckContextMetadata(root));
+  }
   if (supplemental === EXIT.toolError) {
     return EXIT.toolError;
   }
   const sources = paths.filter(
-    (path) => !BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) || (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
+    (path) =>
+      !(BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) || CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path)) ||
+      (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
   );
   if (sources.length === 0) {
     return supplemental;
@@ -208,6 +214,12 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
 }
 
+function coversNativeRoots(paths: readonly string[], roots: readonly string[]): boolean {
+  return paths.some(
+    (path) => path === "." || roots.every((prefix) => `${path.replace(/\/$/u, "")}/` === prefix || prefix.startsWith(`${path.replace(/\/$/u, "")}/`)),
+  );
+}
+
 // Metadata changes rejudge seal syntax without creating any typed ordinary owner program.
 async function recheckBaseUiMetadata(root: string): Promise<number> {
   for (const path of BASE_UI_NATIVE_INPUT_PATHS) {
@@ -217,32 +229,56 @@ async function recheckBaseUiMetadata(root: string): Promise<number> {
   if (!manifest.ok) {
     throw new Error(`Native Base UI policies cannot read the surface manifest: ${manifest.reason}`);
   }
-  const { ESLint } = await import("eslint");
   const patterns = POPULATION_ROOTS["@ui"].map((prefix) => `${prefix}**/*.{ts,tsx}`);
   let verdict: number = EXIT.clean;
   for (const hard of [true, false]) {
     const rules = new Set<string>(hard ? [BASE_UI_HANDLER_RULE] : [BASE_UI_DATA_RULE, BASE_UI_STATE_RULE]);
-    const eslint = new ESLint({
-      cwd: root,
-      overrideConfigFile: resolve(root, hard ? HARD_CONFIG_REL : CONFIG_REL),
-      allowInlineConfig: !hard,
-      ruleFilter: ({ ruleId }): boolean => rules.has(ruleId),
-      overrideConfig: [{ languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } }],
-    });
-    const results = await eslint.lintFiles(patterns);
-    if (results.length === 0) {
-      throw new Error("Native Base UI metadata recheck admitted zero UI sources; no verdict is available");
-    }
-    const formatter = await eslint.loadFormatter("stylish");
-    process.stdout.write(`[eslint] base-ui-native ${hard ? "hard" : "ordinary"}: ${String(results.length)} file(s)\n${await formatter.format(results)}`);
-    if (results.some((result) => result.fatalErrorCount > 0)) {
-      return EXIT.toolError;
-    }
-    if (results.some((result) => result.errorCount > 0 || result.warningCount > 0)) {
-      verdict = EXIT.violations;
+    verdict = Math.max(verdict, await nativeSyntaxPass(root, patterns, { hard, rules, label: "base-ui-native" }));
+    if (verdict === EXIT.toolError) {
+      return verdict;
     }
   }
   return verdict;
+}
+
+function recheckContextMetadata(root: string): Promise<number> {
+  for (const path of CONTEXT_NATIVE_INPUT_PATHS) {
+    readFileSync(resolve(root, path));
+  }
+  return nativeSyntaxPass(
+    root,
+    POPULATION_ROOTS["@client"].map((prefix) => `${prefix}**/*.{ts,tsx}`),
+    {
+      hard: false,
+      rules: new Set<string>(CONTEXT_NATIVE_RULES),
+      label: "context-native",
+    },
+  );
+}
+
+async function nativeSyntaxPass(
+  root: string,
+  patterns: string[],
+  { hard, rules, label }: { readonly hard: boolean; readonly rules: ReadonlySet<string>; readonly label: string },
+): Promise<number> {
+  const { ESLint } = await import("eslint");
+  const eslint = new ESLint({
+    cwd: root,
+    overrideConfigFile: resolve(root, hard ? HARD_CONFIG_REL : CONFIG_REL),
+    allowInlineConfig: !hard,
+    ruleFilter: ({ ruleId }): boolean => rules.has(ruleId),
+    overrideConfig: [{ languageOptions: { parserOptions: { project: false, projectService: false, programs: null } } }],
+  });
+  const results = await eslint.lintFiles(patterns);
+  if (results.length === 0) {
+    throw new Error(`Native ${label} metadata recheck admitted zero sources; no verdict is available`);
+  }
+  const formatter = await eslint.loadFormatter("stylish");
+  process.stdout.write(`[eslint] ${label} ${hard ? "hard" : "ordinary"}: ${String(results.length)} file(s)\n${await formatter.format(results)}`);
+  if (results.some((result) => result.fatalErrorCount > 0)) {
+    return EXIT.toolError;
+  }
+  return results.some((result) => result.errorCount > 0 || result.warningCount > 0) ? EXIT.violations : EXIT.clean;
 }
 
 async function runProfiles(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): Promise<number> {
