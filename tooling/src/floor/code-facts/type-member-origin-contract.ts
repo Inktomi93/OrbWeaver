@@ -1,5 +1,6 @@
 // Native declaration identities shared by tooling readers; no containment judgments.
 import type {
+  ClassDeclaration,
   ExpressionWithTypeArguments,
   InterfaceDeclaration,
   Symbol as MorphSymbol,
@@ -71,12 +72,30 @@ export interface NativeSubstitutedTypeSlot {
   readonly formal: Type;
   readonly actual: Type;
   readonly declarations: readonly Node[];
+  readonly projection?: readonly string[];
+}
+
+/** Parser-owned raw observations; the adapter validates identities and constructs its own wrappers. */
+export interface NativeParserTypeContext {
+  readonly kind: "parser";
+  readonly program: ts.Program;
+  readonly source: ts.SourceFile;
+  readonly checker: ts.TypeChecker;
+}
+
+/** An explicitly parser-bound observed type; the adapter verifies it against its authored node. */
+export interface NativeTypeIdentityGraphInput {
+  readonly node: ts.Node;
+  readonly rootType: ts.Type;
+  readonly parser: NativeParserTypeContext;
 }
 
 /** Captured template and actual native types; locations determine the checker’s instantiated symbols. */
 export interface NativeSubstitutedTypeInput {
+  readonly witnessLocation: Node;
+  readonly parser?: NativeParserTypeContext;
   readonly parameter: TypeParameterDeclaration;
-  readonly templateLocation: TypeAliasDeclaration | InterfaceDeclaration;
+  readonly templateLocation: TypeAliasDeclaration | InterfaceDeclaration | ClassDeclaration;
   readonly actualLocation: TypeReferenceNode | ExpressionWithTypeArguments;
   readonly program: ts.Program;
   readonly source: ts.SourceFile;

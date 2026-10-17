@@ -6,26 +6,9 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
-import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
-
-interface VariantKey {
-  readonly kind: VariantKind;
-  readonly width: number;
-  /** The lossy-encoder quality the variant was encoded at (item 6). FOLDED INTO THE CACHE FILENAME so an
-   *  admin change to AppSettings.imageVariantQuality yields a DIFFERENT key → a fresh encode, never a
-   *  stale-quality variant served forever. A missing/legacy entry (pre-quality filename) simply misses → recompute. */
-  readonly quality: number;
-}
-
-// @orb-waive no-inline-package-interface(VariantCache): baselined when the gate landed; burn-down item 952.
-export interface VariantCache {
-  read: (ownerId: UserId, hash: string, variant: VariantKey) => Promise<Uint8Array | undefined>;
-  put: (ownerId: UserId, hash: string, variant: VariantKey, bytes: Uint8Array) => Promise<void>;
-  /** GC/reap hook, paired with `cas.remove(owner, hash)`. */
-  removeAll: (ownerId: UserId, hash: string) => Promise<void>;
-}
+import type { VariantCache, VariantKey } from "./contract.ts";
 
 const SHARD_A_END = 2;
 const SHARD_B_END = 4;

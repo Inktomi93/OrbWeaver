@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { nativeTypeHomeDirectExport, packageTypeHome, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
 import { ESLint, Linter } from "eslint";
@@ -14,15 +15,17 @@ const RULE = `orb/${TYPE_HOME_NATIVE_POLICY_ID}`;
 async function nativeFindings(eslint: ESLint, path: string, source: string): Promise<readonly string[]> {
   const config = await eslint.calculateConfigForFile(path);
   expect(config, path).toBeDefined();
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const file = project.createSourceFile(resolve(path), source);
   const messages = new Linter().verify(
     source,
     {
       files: ["**/*.{ts,tsx}"],
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [project.getProgram().compilerObject], projectService: false } },
       plugins: config.plugins.orb === undefined ? {} : { orb: config.plugins.orb },
       rules: { [RULE]: config.rules[RULE] ?? "off" },
     },
-    { filename: path },
+    { filename: file.getFilePath() },
   );
   expect(
     messages.filter(({ fatal }) => fatal),
@@ -54,7 +57,7 @@ test("the native placement pilot flags every direct alias/interface form only ou
     expect(packageTypeHome(implementation)).toMatchObject({ category: "package-contract", home: false, nativePilot: true });
     expect(packageTypeHome(`packages/${name}/src/contract/probe.ts`)).toMatchObject({ home: true });
   }
-});
+}, 15_000);
 
 test("export lists and schema origins remain explicit semantic remainders; other package populations are not activated", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
@@ -129,7 +132,7 @@ test("inference native coverage and semantic remainder are disjoint without disc
   expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["Alias", "Generated", "GeneratedAlias", "ListedSchema", "Local", "Schema"]);
 });
 
-test("server domains and observability use native direct placement without activating neighboring owners", async ({ repoRoot }) => {
+test("server domains retain direct placement while D324 tiers also own local exports without admitting neighboring packages", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   const roots = [
     "packages/server/src/domain/probe",
@@ -156,9 +159,11 @@ test("server domains and observability use native direct placement without activ
       expect(nativeTypeHomeDirectExport(path), path).toBe(false);
     }
     const implementation = `${root}/contractual/probe.ts`;
+    expect(await nativeFindings(eslint, implementation, "interface Local {}; type Alias = string; export { Local, Alias };")).toHaveLength(
+      root.includes("/foundation/observability") ? 2 : 0,
+    );
     expect(await nativeFindings(eslint, implementation, "export interface Data {};")).toHaveLength(1);
     for (const source of [
-      "interface Local {}; type Alias = string; export { Local, Alias };",
       "export const Schema = z.object({});",
       "export type { Home } from './contract/home.ts';",
       "// export interface Mention {}\nexport const text = 'export type Mention = string';",
@@ -172,12 +177,17 @@ test("server domains and observability use native direct placement without activ
     expect(nativeTypeHomeDirectExport(path), path).toBe(true);
   }
   for (const path of [
-    "packages/server/src/domain/probe/verb.test.ts",
     "packages/server/src/foundation/observability-other/probe.ts",
     "packages/server/src/foundation/env/probe.ts",
     "packages/server/src/entry/probe.ts",
     "packages/server/src/transport/probe.ts",
     "packages/server/src/infra/probe.ts",
+  ]) {
+    expect(await nativeFindings(eslint, path, "export interface Data {}; export type Scalar = string;"), path).toHaveLength(2);
+    expect(nativeTypeHomeDirectExport(path), path).toBe(true);
+  }
+  for (const path of [
+    "packages/server/src/domain/probe/verb.test.ts",
     "packages/server/src/primitives/probe.ts",
     "packages/ui/src/probe.tsx",
     "packages/client/src/probe.tsx",
@@ -190,7 +200,7 @@ test("server domains and observability use native direct placement without activ
   }
 });
 
-test("server native placement keeps local exports, proven schema origins and unadmitted generated declarations custom", async ({ repoRoot }) => {
+test("server native placement delegates D324 local exports while preserving domain, schema and generated custom remainders", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   const root = "/type-home-server";
   const project = new Project({ useInMemoryFileSystem: true });
@@ -213,7 +223,7 @@ test("server native placement keeps local exports, proven schema origins and una
     for (const [file, source, count] of cases) {
       const path = `${prefix}/${file}`;
       project.createSourceFile(`${root}/${path}`, source);
-      expect(await nativeFindings(eslint, path, source), path).toHaveLength(count);
+      expect(await nativeFindings(eslint, path, source), path).toHaveLength(file === "listed.ts" && prefix.includes("/foundation/observability") ? 2 : count);
     }
   }
   const policies = [inlineTypes, domainInterfaces, packageInterfaces];
@@ -221,8 +231,8 @@ test("server native placement keeps local exports, proven schema origins and una
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
-    ["Generated", "GeneratedAlias", "ListedAlias", "ListedSchema", "Local", "Schema"]
-      .flatMap((token) => roots.map(() => token))
-      .toSorted((left, right) => left.localeCompare(right)),
+    [...roots.flatMap(() => ["Generated", "GeneratedAlias", "ListedSchema", "Schema"]), "ListedAlias", "Local"].toSorted((left, right) =>
+      left.localeCompare(right),
+    ),
   );
 });

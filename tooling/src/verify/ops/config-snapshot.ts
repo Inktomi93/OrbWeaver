@@ -1,9 +1,10 @@
 // Native config observation for synchronous structural gates. The private worker process is the async
 // boundary; the public verify CLI delegates here too. Each runner loads through its public API, then emits data only.
-import { resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
+import { ts } from "ts-morph";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import type {
@@ -235,9 +236,11 @@ export async function readEslintFileAdmissions(root: string, config: string, pat
     const effective = await eslint.calculateConfigForFile(resolve(root, path));
     if (effective !== undefined) {
       const options = effective.languageOptions?.parserOptions;
+      const requiresTypeInformation = Boolean(options?.project) || Boolean(options?.projectService) || Boolean(options?.programs);
       admitted.push({
         path,
-        requiresTypeInformation: Boolean(options?.project) || Boolean(options?.projectService) || Boolean(options?.programs),
+        ...(requiresTypeInformation ? { compilerConfigs: configuredCompilerInputs(root, path, options) } : {}),
+        requiresTypeInformation,
         hasEnabledRules: Object.values(effective.rules ?? {}).some((setting) => {
           const severity = Array.isArray(setting) ? setting[0] : setting;
           return severity === "error" || severity === "warn" || severity === 1 || severity === 2;
@@ -246,6 +249,31 @@ export async function readEslintFileAdmissions(root: string, config: string, pat
     }
   }
   return admitted;
+}
+
+function configuredCompilerInputs(root: string, path: string, options: Readonly<Record<string, unknown>> | undefined): readonly string[] | null {
+  if (options?.["programs"]) {
+    return null;
+  }
+  const base = typeof options?.["tsconfigRootDir"] === "string" ? options["tsconfigRootDir"] : root;
+  const service = options?.["projectService"];
+  const project = options?.["project"];
+  if (service === true || (!service && project === true)) {
+    const config = ts.findConfigFile(dirname(resolve(root, path)), ts.sys.fileExists);
+    return config === undefined ? null : [relative(root, config).replaceAll("\\", "/")];
+  }
+  if (service) {
+    return null;
+  }
+  let projects: readonly string[] = [];
+  if (typeof project === "string") {
+    projects = [project];
+  } else if (isStringArray(project)) {
+    projects = project;
+  }
+  return projects.length === 0 || projects.some((value) => /[*?{}[\]!]/u.test(value))
+    ? null
+    : projects.map((value) => relative(root, resolve(base, value)).replaceAll("\\", "/"));
 }
 
 /** Preserve input order while asking ESLint's native configuration whether each path is selected. */

@@ -8,7 +8,7 @@
 import { constants as fsConstants } from "node:fs";
 import { open, readdir, rm } from "node:fs/promises";
 import { relative, sep } from "node:path";
-import type { StagedArchive, StagedEntry } from "./zip.ts";
+import type { StagedArchive, StagedEntry } from "./contract.ts";
 
 /** Refuse a staged leaf replaced by a symlink, closing the handle on every read outcome. */
 export async function readStorageFileNoFollow(path: string): Promise<Uint8Array> {

@@ -22,7 +22,7 @@ import { declarationBindingKeys, inventoryDeclarationKey, inventoryExports } fro
 import { agreeingCount, createShapeFieldAgreement, indexByField, sharedFieldCounts } from "./shape-copy.ts";
 import type { ShapeCopyComparison, ShapeCopySource } from "./shape-copy-contract.ts";
 import { exportedShapeDeclarations } from "./shape-declaration.ts";
-import { directDerivationTargetKeys, readNativeGenericArgumentContribution } from "./shape-derivation.ts";
+import { directDerivationTargetKeys, nativeGenericReferenceContributes } from "./shape-derivation.ts";
 import { readShapeFields } from "./shape-facts.ts";
 import { ownDataFieldNames } from "./shape-fields.ts";
 import { packageTypeHome } from "./type-home.ts";
@@ -121,27 +121,7 @@ interface ComponentTypeGraph {
 }
 
 function supportedGenericReference(identifier: Identifier, view: ComponentTypeHomeView): boolean {
-  const ancestors = identifier.getAncestors();
-  if (ancestors.some(Node.isTypeParameterDeclaration)) {
-    return false;
-  }
-  for (const reference of ancestors.filter((node) => Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node))) {
-    const argument = reference.getTypeArguments().find((type) => ancestors.includes(type));
-    if (argument === undefined) {
-      continue;
-    }
-    const contribution = readNativeGenericArgumentContribution({
-      reference,
-      argument,
-      binding: identifier,
-      program: view.nativeProgram,
-      source: view.nativeSource,
-    });
-    if (contribution.kind !== "resolved" || !contribution.value.contributes) {
-      return false;
-    }
-  }
-  return true;
+  return nativeGenericReferenceContributes(identifier, { program: view.nativeProgram, source: view.nativeSource });
 }
 
 function componentTypeGraph(input: ComponentTypeHomeInput): ComponentTypeGraph {

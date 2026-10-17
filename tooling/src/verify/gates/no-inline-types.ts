@@ -1,6 +1,6 @@
 // Policy: no-inline-types (Spine-TypeScript-and-Patterns.md §7.4) — a shape has ONE home, decided by who
-// needs it. Shared reporting subtracts qualified native direct declarations while retaining local alias
-// exports and proven zod object/enum/discriminatedUnion schema origins outside the sanctioned homes.
+// needs it. Shared reporting subtracts qualified native declaration populations while retaining other
+// local alias exports and proven zod object/enum/discriminatedUnion schema origins.
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`

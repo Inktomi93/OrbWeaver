@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { compilerConfigRoster } from "../../floor/compiler/compiler-programs.ts";
@@ -42,7 +43,17 @@ import {
   TEST_TOOLING_IMPORT_NATIVE_FAMILIES,
   TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS,
 } from "../lib/test-tooling-imports-native.ts";
-import { affectsTypedNativeLint, TYPED_NATIVE_POLICIES } from "../lib/typed-native-inputs.ts";
+import {
+  affectsTypedNativeLint,
+  affectsTypedNativePolicy,
+  TYPED_NATIVE_COMPILER_CONTEXT_ENV,
+  TYPED_NATIVE_POLICIES,
+  typedNativeCompilerConfigs,
+  typedNativeDependencyInputs,
+  typedNativeDependencySignal,
+  typedNativeMetadataSelection,
+  validateTypedCompilerInputs,
+} from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -168,14 +179,14 @@ function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): 
   ];
 }
 
-function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Promise<number> {
+async function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Promise<number> {
   const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
   const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const map = paths.some(affectsClientMapNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const frontendRoots = [...POPULATION_ROOTS["@client"], ...POPULATION_ROOTS["@ui"]];
   const lexical = paths.some(affectsClientLexicalNativeLint) && !coversNativeRoots(paths, frontendRoots);
   const families = [
-    ...typedNativeMetadata(root, paths),
+    ...(await typedNativeMetadata(root, paths)),
     ...(baseUi ? baseUiMetadata(root) : []),
     ...(context ? [contextMetadata(root)] : []),
     ...(map ? [clientMapMetadata(root)] : []),
@@ -186,26 +197,33 @@ function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Pr
   return recheckNativeFamilies(root, families);
 }
 
-function typedNativeMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
+async function typedNativeMetadata(root: string, paths: readonly string[]): Promise<NativeMetadataFamily[]> {
   if (!paths.some(affectsTypedNativeLint) || paths.includes(".")) {
     return [];
   }
-  const configs = compilerConfigRoster(paths);
-  if (configs.length > 0) {
-    for (const config of compilerConfigRoster(readPolicyRepositoryInventory(root).paths)) {
-      readFileSync(resolve(root, config));
+  const configs = validateTypedCompilerInputs(root, paths);
+  const authored = readPolicyRepositoryInventory(root).paths;
+  const families: NativeMetadataFamily[] = [];
+  let declarationAdmissions: readonly EslintFileAdmission[] | undefined;
+  for (const entry of TYPED_NATIVE_POLICIES) {
+    const direct = configs || paths.some((path) => affectsTypedNativePolicy(entry, path));
+    if (!(direct || typedNativeDependencySignal(entry, paths, authored, root))) {
+      continue;
     }
+    const family = { hard: false, requiresTypeInformation: true, patterns: ["."], rules: [`orb/${entry.id}`], label: `typed-native:${entry.id}` };
+    let compilerConfigs: readonly string[] | undefined;
+    if (entry.declarationPackage !== undefined) {
+      declarationAdmissions ??= await admittedPopulation(root, ["."]);
+      const active = await readTypedEslintAdmissions(root, CONFIG_REL, declarationAdmissions, [family]);
+      if (active.length === 0) {
+        continue;
+      }
+      compilerConfigs = typedNativeCompilerConfigs(active);
+    }
+    const data = typedNativeDependencyInputs(entry, authored, root, compilerConfigs);
+    families.push(...typedNativeMetadataSelection(family, entry, { paths, direct }, data));
   }
-  return TYPED_NATIVE_POLICIES.filter(
-    (entry) => configs.length > 0 || paths.some((path) => entry.inputs.some((input) => input === path || input.startsWith(`${path.replace(/\/$/u, "")}/`))),
-  ).map((entry) => ({
-    hard: false,
-    requiresTypeInformation: true,
-    inputs: entry.inputs,
-    patterns: ["."],
-    rules: [`orb/${entry.id}`],
-    label: `typed-native:${entry.id}`,
-  }));
+  return families;
 }
 
 async function recheckTypedNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
@@ -370,6 +388,13 @@ async function runProfiles(root: string, admitted: readonly EslintFileAdmission[
   return Math.max(hardVerdict, runPartitions(root, admitted, cachePrefix, false));
 }
 
+function nativeCompilerChildEnv(root: string, admitted: readonly EslintFileAdmission[], hard: boolean): NodeJS.ProcessEnv {
+  const configs = hard ? undefined : typedNativeCompilerConfigs(admitted.filter((entry) => entry.requiresTypeInformation));
+  return inheritedProcessEnv({
+    [TYPED_NATIVE_COMPILER_CONTEXT_ENV]: JSON.stringify({ root, configs: configs === undefined || configs.length === 0 ? null : configs }),
+  });
+}
+
 /** One sequential ESLint child per compiler owner. The worst verdict wins; a tool error stops the run. */
 function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string, hard: boolean): number {
   const filenames = admitted.map(({ path }) => path);
@@ -395,7 +420,15 @@ function runPartitions(root: string, admitted: readonly EslintFileAdmission[], c
       }
       const profileFlags = hard ? [...HARD_CHILD_FLAGS, "--suppressions-location", suppressionsFile] : [];
       writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, "--cache-location", ownerCacheFile, ...paths]));
-      const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], { cwd: root, stdio: "inherit" });
+      const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], {
+        cwd: root,
+        stdio: "inherit",
+        env: nativeCompilerChildEnv(
+          root,
+          admitted.filter((entry) => paths.includes(entry.path)),
+          hard,
+        ),
+      });
       childVerdict = eslintScheme(result.status);
     } finally {
       rmSync(argumentsDir, { recursive: true, force: true });

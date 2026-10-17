@@ -21,7 +21,7 @@
 import { DATABANK_EXTRACT_MAX_DECOMPRESSED_BYTES } from "@orb/contracts/uploads";
 import { decodeXmlText } from "@orb/kit/strings";
 import { strFromU8, unzipSync } from "fflate";
-import type { RawExtraction } from "../loader.ts";
+import type { RawExtraction } from "../contract.ts";
 import { loadHtml } from "./html.ts";
 
 const CONTAINER_PATH = "META-INF/container.xml";

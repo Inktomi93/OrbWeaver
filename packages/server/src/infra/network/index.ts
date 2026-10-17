@@ -9,6 +9,7 @@
 export type { EgressResolver, ScopedEgress, ScopedEgressOptions } from "./contract/egress.ts";
 export type { NativeHttpBindings } from "./contract/http-server.ts";
 export type { PhysicalPeerRead } from "./contract/ingress.ts";
+export type { PluginGitSource } from "./contract/plugin-git.ts";
 export type { OwnedResponseBody } from "./contract/response-body.ts";
 export type { TlsTerminator, TlsTerminatorOptions } from "./contract/tls-terminator.ts";
 export {
@@ -56,7 +57,7 @@ export {
   isPublicUnicast,
   matchesCidr,
 } from "./ip-ranges.ts";
-export type { PluginGitSource, PluginGitSourceDeps } from "./plugin-git.ts";
+export type { PluginGitSourceDeps } from "./plugin-git.ts";
 export { createNetworkPluginGitSource, createPluginGitSource, guardedGitHttp, materializePluginGitEntries, pluginGitSource } from "./plugin-git.ts";
 export { createOwnedResponseBody } from "./response-body.ts";
 export { startTlsTerminator } from "./tls-terminator.ts";

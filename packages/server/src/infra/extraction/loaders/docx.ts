@@ -19,7 +19,7 @@
 import { decodeXmlText } from "@orb/kit/strings";
 import type { UnzipFileInfo } from "fflate";
 import { strFromU8, unzipSync } from "fflate";
-import type { RawExtraction } from "../loader.ts";
+import type { RawExtraction } from "../contract.ts";
 
 const DOCUMENT_PART = "word/document.xml";
 // A single OOXML part over 64 MiB is a bomb, not a document — refuse from the zip header before allocating.

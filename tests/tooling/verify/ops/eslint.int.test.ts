@@ -134,9 +134,9 @@ test("native file admission preserves enabled parser programs and explicit disab
       await readEslintFileAdmissions(root, "eslint.config.js", ["plain.ts", "project.ts", "service.ts", "program.ts", "disabled.ts", "ignored.ts"]),
     ).toEqual([
       { path: "plain.ts", requiresTypeInformation: false, hasEnabledRules: false },
-      { path: "project.ts", requiresTypeInformation: true, hasEnabledRules: false },
-      { path: "service.ts", requiresTypeInformation: true, hasEnabledRules: false },
-      { path: "program.ts", requiresTypeInformation: true, hasEnabledRules: false },
+      { path: "project.ts", requiresTypeInformation: true, hasEnabledRules: false, compilerConfigs: ["tsconfig.json"] },
+      { path: "service.ts", requiresTypeInformation: true, hasEnabledRules: false, compilerConfigs: null },
+      { path: "program.ts", requiresTypeInformation: true, hasEnabledRules: false, compilerConfigs: null },
       { path: "disabled.ts", requiresTypeInformation: false, hasEnabledRules: false },
     ]);
   } finally {

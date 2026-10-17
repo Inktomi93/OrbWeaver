@@ -10,7 +10,7 @@
 
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import type { RawExtraction } from "../loader.ts";
+import type { RawExtraction } from "../contract.ts";
 
 // DERIVED from the public surface, not reached in through `pdfjs-dist/types/src/display/api` (a private
 // subpath the package's own exports map does not publish — legal under `bundler`, a hard resolution error

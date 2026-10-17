@@ -22,6 +22,7 @@ import type { GitHttpRequest, GitHttpResponse, HttpClient, TreeEntry } from "iso
 import { clone, listServerRefs, readBlob, readTree, resolveRef } from "isomorphic-git";
 import { packPreparedPluginDir } from "../plugin-source/pack-plugin-dir.ts";
 import type { ScopedEgress } from "./contract/egress.ts";
+import type { PluginGitSource } from "./contract/plugin-git.ts";
 import { ANY_HOST, safeFetch } from "./egress.ts";
 
 const GIT_HTTP_MAX_BYTES = 5_000_000;
@@ -99,12 +100,6 @@ async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["
 }
 
 export const guardedGitHttp: HttpClient = { request: requestGitHttp };
-
-// @orb-waive no-inline-package-interface(PluginGitSource): baselined when the gate landed; burn-down item 952.
-export interface PluginGitSource {
-  readonly clone: (url: string) => Promise<{ readonly bundle: Uint8Array; readonly commit: string }>;
-  readonly head: (url: string) => Promise<string>;
-}
 
 // @orb-waive no-inline-package-interface(PluginGitSourceDeps): baselined when the gate landed; burn-down item 952.
 export interface PluginGitSourceDeps {
