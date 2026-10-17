@@ -57,6 +57,11 @@ test("helper-only edit rejudges UI scroll literals", async ({ plantedTree, repoR
   expect(await runScopedEslint(root, [HELPER])).toBe(1);
 });
 
+test("helper-only edit rejudges derived store outputs", async ({ plantedTree, repoRoot }) => {
+  const root = await nativeRoot(plantedTree, repoRoot, "export const x=useXStore(s=>({a:s.a}));");
+  expect(await runScopedEslint(root, [HELPER])).toBe(1);
+});
+
 test("helper-only edit with legal frontend syntax is clean", async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, 'export const A=<div data-testid={testId("key")}/>;', 'export const A="relative overflow-y-auto";');
   expect(await runScopedEslint(root, [HELPER])).toBe(0);

@@ -14,6 +14,7 @@ export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
 ] as const;
 
 export const CLIENT_LEXICAL_NATIVE_RULES = [
+  "orb/zustand-selector-derived",
   "orb/no-raw-spacing-in-features",
   "orb/no-raw-typography-in-features",
   "orb/no-hover-display-swap",

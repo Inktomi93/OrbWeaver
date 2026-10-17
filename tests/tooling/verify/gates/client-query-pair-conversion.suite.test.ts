@@ -1,23 +1,4 @@
-// Conformance entry for the CLIENT QUERY/STORE PAIR of #1584: two legacy `GateDescriptor` modules
-// (`zustand-selector-derived`, `windowed-infinite-query`) converted into THREE final policies. They are
-// grouped by CONVERSION WAVE and nothing else — §7 item 4 of docs/law/gate-runtime-standardization.md is
-// explicit that a theme is not a family. Two families are represented:
-//
-//   zustand-selector-derived   — a declared SINGLETON. Its subject is the callee's TEXT; its converted
-//                                sibling `zustand-selector-stability` resolves the callee's TYPE. Neither
-//                                subject reader subsumes the other and they share no `lib/` computation.
-//   windowed-infinite-query    — windowed-infinite-query + windowed-infinite-query-health, split at
-//                                conversion because the blindness tripwire is `hard` + `entire-population`
-//                                while the occurrence arms are `ordinary` + `selected-files`.
-//
-// WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER. Every declared
-// `mustFlag`/`mustPass` row already executes on the static bar (`structure:policy-conformance`). What a row
-// structurally CANNOT assert — and what therefore lives here — is the §4.2 triple (`effectiveFindings []`,
-// `waivedFindings 1`, `authorityAlarms []`), the §4.5 refusal pin for the `-health` policy's derived
-// population, and the §4.6 fixture-level differential against the frozen legacy descriptors.
-//
-// §4.3 (reviewed grants) does not apply: all three declare `facts: []` / `resources: []` and none is
-// `authority: "reviewed-grant"`.
+// Windowed-query occurrence and hard blindness checks retain their proof, authority and refusal cases.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
@@ -25,7 +6,6 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as windowedInfiniteQuery } from "../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
 import { gate as windowedInfiniteQueryHealth } from "../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
-import { gate as zustandSelectorDerived } from "../../../../tooling/src/verify/gates/zustand-selector-derived.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -34,7 +14,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const ROOT = "/client-query-pair-conversion";
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
 
-const WAVE: readonly GatePolicy[] = [windowedInfiniteQuery, windowedInfiniteQueryHealth, zustandSelectorDerived];
+const POLICIES: readonly GatePolicy[] = [windowedInfiniteQuery, windowedInfiniteQueryHealth];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { jsx: 4 } });
@@ -49,9 +29,9 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
 }
 
 test(
-  "the wave's three policies keep their founding, near-miss, fence and identity fixtures",
+  "the windowed-query policies keep their founding, near-miss, fence and identity fixtures",
   () => {
-    expect(verifyPolicyProofs(WAVE)).toEqual([]);
+    expect(verifyPolicyProofs(POLICIES)).toEqual([]);
   },
   CONFORMANCE_TIMEOUT_MS,
 );
@@ -75,7 +55,7 @@ test(
     const shared = new Project({ useInMemoryFileSystem: true, compilerOptions: { jsx: 4 } });
     const dangling: string[] = [];
     let sequence = 0;
-    for (const policy of WAVE) {
+    for (const policy of POLICIES) {
       for (const { proof } of policyProofRows(policy)) {
         sequence += 1;
         const root = `${ROOT}-proof-${sequence}`;
@@ -95,19 +75,6 @@ test(
 // §4.2 ORDINARY MARKER IDENTITY — one POSITIVE arm per ordinary policy, all three assertions. Two of the
 // three are invisible to the module's own `mustPass` twin, which is why they live here.
 // ---------------------------------------------------------------------------------------------------
-test("a waiver at the STORE HOOK NAME binds the zustand-selector-derived finding", () => {
-  const waived = passOf(zustandSelectorDerived, {
-    "packages/client/src/state/waived.ts":
-      "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\n" +
-      "// @orb-waive zustand-selector-derived(useXStore): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
-      "export const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
-  });
-
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 test("a waiver at `maxPages` binds the windowed-infinite-query finding — and ONE marker is enough because the arms were merged", () => {
   // The legacy descriptor reported this cap TWICE (one finding per arm) on the same carrier with tokens no
   // authored text matches. Under the central grammar both would derive `maxPages`, every marker would be
@@ -129,18 +96,15 @@ test("a waiver at `maxPages` binds the windowed-infinite-query finding — and O
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-// The DISCRIMINATION control, run ONCE for the wave (§4.2). A marker naming a position the policy does not
-// report must suppress NOTHING and must ALARM — otherwise both arms above are green for the wrong reason.
-test("THE DISCRIMINATION CONTROL: a waiver naming a dead position suppresses nothing and alarms", () => {
-  const mismatched = passOf(zustandSelectorDerived, {
-    "packages/client/src/state/waived.ts":
-      "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\n" +
-      "// @orb-waive zustand-selector-derived(useYStore): names a position this carrier does not bind.\n" +
-      "export const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
+// A dead waiver position must alarm rather than make the positive authority case pass vacuously.
+test("a windowed-query waiver naming a dead position suppresses nothing and alarms", () => {
+  const mismatched = passOf(windowedInfiniteQuery, {
+    "packages/client/src/features/chat/hooks/waived.ts":
+      "// @orb-waive windowed-infinite-query(unusedCap): names a position this carrier does not bind.\n" +
+      "export const q = (trpc) => trpc.chat.list.infiniteQueryOptions({}, { maxPages: 5 });\n",
   });
-
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: "zustand-selector-derived" }]);
+  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: "windowed-infinite-query" }]);
 });
 
 // ---------------------------------------------------------------------------------------------------

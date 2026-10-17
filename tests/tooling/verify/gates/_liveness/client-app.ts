@@ -35,7 +35,6 @@ import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verif
 import { gate as sessionChannelBoundaryHealth } from "../../../../../tooling/src/verify/gates/session-channel-boundary-health.ts";
 import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gates/stale-draft-commit.ts";
 import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
-import { gate as zustandSelectorDerived } from "../../../../../tooling/src/verify/gates/zustand-selector-derived.ts";
 
 const CHAT_LIB = "packages/client/src/features/chat/lib";
 const CHAT_COMPONENTS = "packages/client/src/features/chat/components";
@@ -284,15 +283,5 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "ARMS: no-rewind.",
-  },
-  {
-    policy: zustandSelectorDerived,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-selector.ts",
-        "declare const useXStore: (sel: (s: { a: number; b: number }) => unknown) => unknown;\nexport const v = useXStore((s) => ({ a: s.a, b: s.b }));\n",
-      ),
-    ],
-    messageIncludes: "DERIVATION: object literal.",
   },
 ];
