@@ -6,7 +6,7 @@ import { createAdminCardEmbed } from "@orb/server/domain/admin";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
@@ -25,7 +25,7 @@ test("foreign and textless cards never reach funding or storage; an owned card p
     .mockImplementation(async (input) => ({ outcome: "written", contentHash: "observed-content", model: input.model }));
   let model = testModelId("embed-first");
   const roleClientsFor = vi.fn<Parameters<typeof createAdminCardEmbed>[0]["roleClientsFor"]>(async () => ({
-    resolved: async () => makeResolved({ task: "embed", ownerId: owner.id, model, capability: KIND_DEFS.embedding.floor }),
+    resolved: async () => makeResolvedView({ task: "embed", model, capability: KIND_DEFS.embedding.floor }),
   }));
   const embed = createAdminCardEmbed({ getCard: services.character.getCard, loadCardText: services.character.loadCardText, store, roleClientsFor });
   const foreign = await embed.embedCharacterCard(await principal(harness, stranger.id), card.id);

@@ -1,9 +1,9 @@
 // The inference funnel's own capability and cache-plan answer for one built-in route, for a CT that stubs the
 // connection editor's reads, composed from the inference package's public entry.
 import type { CachePolicyContext, GenerationCapability } from "@orb/contracts/inference";
-import { effectivePromptCache, modelIdSchema } from "@orb/contracts/inference";
+import { builtinProvider, effectivePromptCache, foldFeatures, modelIdSchema } from "@orb/contracts/inference";
 import { cachePolicyContextOf, curatedRows, detectModelFamily, resolveCachePolicy, responseReplaySupportedFor, synthesizeCapability } from "@orb/inference";
-import { makeResolved } from "./factories/resolved-connection.ts";
+import { makeResolvedView } from "./factories/resolved-connection.ts";
 
 type CuratedQuery = Parameters<typeof curatedRows>[0];
 
@@ -22,7 +22,11 @@ interface CacheOracle {
 /** The curated generation capability for `model` on `provider`, and the cache plan the funnel resolves from it.
  *  `replay` turns on the OpenRouter response-replay transport header. */
 export function connectionCacheOracle(provider: OracleProvider, model: string, replay: boolean): CacheOracle {
-  const resolved = makeResolved({ providerId: provider.id, model: modelIdSchema.parse(model) });
+  const row = builtinProvider(provider.id);
+  if (row === undefined) {
+    throw new Error(`Caching UI fixture requires a built-in provider: ${provider.id}`);
+  }
+  const resolved = makeResolvedView({ providerId: row.id, wire: row.wire, api: row.apis[0] ?? null, model: modelIdSchema.parse(model) });
   const capability = synthesizeCapability("generation", detectModelFamily(model), {
     curated: curatedRows({ model, providerId: resolved.providerId, wire: provider.wire, api: provider.apis[0] }),
   }).capability;
@@ -31,6 +35,10 @@ export function connectionCacheOracle(provider: OracleProvider, model: string, r
   }
   const connection = {
     ...resolved,
+    provider: row,
+    features: foldFeatures(row.features, undefined),
+    factsModel: resolved.model,
+    extras: null,
     capability,
     promptCache: effectivePromptCache(null, capability.generation.turns?.promptCacheDefaultEnabled, capability.generation.turns?.fixedCacheTtl),
     transport: replay ? { headers: { "X-OpenRouter-Cache": "true" } } : null,

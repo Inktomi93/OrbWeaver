@@ -11,13 +11,14 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect } from "@orb/testkit/node/fixtures.ts";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
 import type { BoundToolExecution, ChatToolOps, ChatToolSet, RunChatTurnOp } from "#server/domain/chat/contract/context.ts";
 import type { DeliveredCue, HistoryMacroNames, TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import type { runTurnPipeline } from "#server/domain/chat/engine/pipeline.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 
 export { BEFORE_HISTORY_DEPTH } from "#server/domain/chat/assembly/injections.ts";
 export type { ChatToolOps, RunChatTurnOp } from "#server/domain/chat/contract/context.ts";

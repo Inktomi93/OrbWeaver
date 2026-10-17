@@ -29,7 +29,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { makeCapability, makeGenerationCapability, makeResolved, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -42,6 +42,7 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import { pngBytesWithDims } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 

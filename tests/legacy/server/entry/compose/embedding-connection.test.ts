@@ -12,13 +12,17 @@ import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { describe } from "vitest";
+import { makeResolvedSecret } from "../../../inference/_support.ts";
 
 const GONE_ROW = castId<UserConnectionId>("user_connection_gone");
 const SECOND_ROW = castId<UserConnectionId>("user_connection_second");
 const STRANGER_ROW = castId<UserConnectionId>("user_connection_stranger");
 
 function resolverOver(roleClients: ReturnType<typeof makeFakeRoleClients>): ReturnType<typeof createResolveEmbeddingConnection> {
-  return createResolveEmbeddingConnection(makeEmbeddingRuntime(roleClients), (userId) => Promise.resolve(principal(userId)));
+  return createResolveEmbeddingConnection(
+    makeEmbeddingRuntime(roleClients, () => Promise.resolve(makeResolvedSecret())),
+    (userId) => Promise.resolve(principal(userId)),
+  );
 }
 
 describe("createResolveEmbeddingConnection", () => {
@@ -42,6 +46,7 @@ describe("createResolveEmbeddingConnection", () => {
     const resolve = createResolveEmbeddingConnection(
       makeEmbeddingRuntime(
         roleClients,
+        () => Promise.resolve(makeResolvedSecret()),
         (funder) => (funder === stranger ? STRANGER_ROW : TEST_CONNECTION_ID),
         (funder) => (funder === stranger ? [] : [{ id: SECOND_ROW, task: "embed" }]),
       ),

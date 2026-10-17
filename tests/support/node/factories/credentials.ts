@@ -41,3 +41,25 @@ export async function seedUserCredential(
   }
   return { view, row, audit };
 }
+
+/** Resolve through the caller-owned public credential service, preserving ownership and AAD refusal. */
+export async function makeResolvedSecret(
+  resolve: CredentialsService["resolve"],
+  params: Parameters<CredentialsService["resolve"]>[0],
+): ReturnType<CredentialsService["resolve"]> {
+  return await resolve(params);
+}
+
+/** Persist and resolve an API key through its real owner; never manufacture execution evidence. */
+export async function makeApiKeySecret(
+  db: Db,
+  credentials: Pick<CredentialsService, "add" | "resolve">,
+  params: Omit<Parameters<CredentialsService["add"]>[0], "metadata">,
+): ReturnType<CredentialsService["resolve"]> {
+  const captured = await seedUserCredential(db, credentials.add, { ...params, metadata: { auth: "apiKey" } });
+  return await makeResolvedSecret(credentials.resolve, {
+    ownerId: params.principal.userId,
+    credentialId: captured.row.id,
+    providerId: captured.row.provider,
+  });
+}

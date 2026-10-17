@@ -29,7 +29,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { viewerReadsHidden } from "#server/domain/chat/index.ts";
@@ -45,6 +45,7 @@ import type {
 } from "#server/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 export { expect, test } from "@orb/testkit/node/fixtures.ts";

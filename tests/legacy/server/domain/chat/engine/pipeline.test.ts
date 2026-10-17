@@ -10,11 +10,12 @@ import { castId } from "@orb/kit/ids";
 import type { ImageRefAssets } from "@orb/server/domain/chat";
 import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "#server/domain/chat/assembly/history-budget.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
+import { makeResolved } from "../../../../inference/_support.ts";
 import type { RunChatTurnOp, TurnRequest, TurnStreamChunk } from "./_pipeline-support.ts";
 import {
   BEFORE_HISTORY_DEPTH,

@@ -1,9 +1,11 @@
 // @subject tests/support/node/factories/connection-view.ts
 import type { UserId } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { expectTypeOf } from "vitest";
 import { createSeededIds } from "../../iso/ids.ts";
 import { expect, test } from "../fixtures.ts";
 import { makeConnectionRow } from "./connection-view.ts";
+import type { makeResolved } from "./resolved-connection.ts";
 import { makeResolvedCacheView, makeResolvedView } from "./resolved-connection.ts";
 
 test("saved connection defaults use the native prefixless owner mint without inventing a stored credential", () => {
@@ -20,6 +22,7 @@ test("saved connection defaults use the native prefixless owner mint without inv
 });
 
 test("public resolved snapshots mint legal connection identities independently of private legacy fixture constants", () => {
+  expectTypeOf<Parameters<typeof makeResolved<"embed">>[0]>().toExtend<{ readonly task: "embed" }>();
   const connectionId = typeIdSchema(ID_PREFIX.userConnection).parse(createSeededIds().next(ID_PREFIX.userConnection));
   expect(makeResolvedView({ connectionId }).connectionId).toBe(connectionId);
   const view = makeResolvedView();

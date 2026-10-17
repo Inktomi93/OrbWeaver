@@ -34,14 +34,13 @@ import { createSettingsKvPort } from "@orb/server/domain/settings";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolvedSecret } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "#server/domain/connection/index.ts";
 import { createConnectionPorts, createConnectionService } from "#server/domain/connection/index.ts";
 import type { EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
 import { createRecordUsage } from "#server/domain/embeddings/index.ts";
 import { countOwnedVectors } from "#server/domain/embeddings/persistence/owned-vector-counts.ts";
 import { applyStatsDelta } from "#server/domain/stats/index.ts";
-import { fakeModelCache } from "../../../inference/_support.ts";
+import { fakeModelCache, makeResolvedSecret } from "../../../inference/_support.ts";
 
 /** A recorded `audit` op call — every connection mutation owes a durable row. */
 interface AuditCall {

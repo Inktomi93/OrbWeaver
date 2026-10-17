@@ -11,10 +11,10 @@ import type { ChatRequest, ChatToolDefinition, ChatToolExecution, ChatTurnInput,
 import { ProviderError, toChatRequest } from "@orb/inference";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
+import { makeResolved } from "../_support.ts";
 
 const CHAT_ID = castId<ChatId>("chat_projection");
 

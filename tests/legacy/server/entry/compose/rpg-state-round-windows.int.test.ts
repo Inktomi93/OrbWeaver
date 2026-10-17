@@ -16,13 +16,14 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
-import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 // @orb-waive-file no-test-fabrication({ droppedFields?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ event?: string; code?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ properties: { changes: { items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
 import { stateRoundNeededTokens } from "#server/domain/rpg/substrate/state-round-fit.ts";
+import { makeResolved } from "../../../inference/_support.ts";
 import { seedCharacter, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import type { buildRpg } from "./_rpg-support.ts";
 import {

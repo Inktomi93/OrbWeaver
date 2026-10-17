@@ -19,6 +19,8 @@ import type { AgentSdkQuery } from "@orb/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { MakeResolvedOverrides } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeResolved as makeProducedResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import { createTokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import type { ConnectionTransport, Resolved } from "#inference/contract/resolved.ts";
@@ -46,6 +48,28 @@ function fakeSecret(kind: ResolvedSecretKind, secret: string | null, credentialI
  *  so a fake-fetch turn still needs a credential the transport can spell into its auth header. */
 export function fakeApiKeySecret(secret: string): ResolvedSecret {
   return fakeSecret("apiKey", secret);
+}
+
+/** Legacy fixture authority is quarantined here; maintained builders require the actual producer. */
+export function makeResolvedSecret(
+  kind: ResolvedSecretKind = "none",
+  secret: string | null = null,
+  credentialId: UserCredentialId | null = null,
+): ResolvedSecret {
+  return fakeSecret(kind, secret, credentialId);
+}
+
+/** Preserve the existing legacy hosted-wire fixture without minting production authority. */
+export function makeApiKeySecret(
+  secret = "sk-test",
+  credentialId: UserCredentialId | null = castId<UserCredentialId>("user_credential_test0001"),
+): ResolvedSecret {
+  return makeResolvedSecret("apiKey", secret, credentialId);
+}
+
+/** Preserve synchronous legacy fixture callers while sharing the canonical pure field builder. */
+export function makeResolved<T extends Task = "chat">(overrides: MakeResolvedOverrides<T> & { readonly credential?: ResolvedSecret } = {}): Resolved<T> {
+  return makeProducedResolved({ credential: makeResolvedSecret(), ...overrides, task: (overrides.task ?? "chat") as T });
 }
 
 function silentLog(): InferenceLog & { readonly lines: { level: string; message: string; fields: Record<string, unknown> }[] } {
