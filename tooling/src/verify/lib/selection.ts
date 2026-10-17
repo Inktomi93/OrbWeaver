@@ -19,7 +19,7 @@ import { classifyExplicitPaths, existsRel, gitChangedPathClassification, gitLsFi
 // joined the same day (#473), which is why the tests arm is a bare `tests` rather than a per-dir
 // alternation — the alternation is exactly what went stale twice. Both halves are pinned against each
 // other in tests/tooling/verify/ops/run.int.test.ts ("a tooling file IS in the eslint surface").
-const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts)|tests|tooling\/src)\/.*\.tsx?$/u;
+const ESLINT_RE = /^(?:packages\/(?:ui|client|server|kit|db|contracts|inference)|tests|tooling\/src)\/.*\.tsx?$/u;
 const DEPCRUISE_SOURCE_RE = /\.(?:ts|tsx|js|jsx|mts|cts)$/u;
 
 function isDepcruisePath(path: string): boolean {

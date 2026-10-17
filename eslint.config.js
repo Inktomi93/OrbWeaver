@@ -2071,7 +2071,7 @@ const FILE_SIZE_BLOCKS = [
 ];
 
 // Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
-export default [
+const ORDINARY_CONFIG = [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
@@ -2096,6 +2096,39 @@ export default [
     },
     linterOptions: { reportUnusedDisableDirectives: "off" },
   })),
+];
+
+export default ORDINARY_CONFIG;
+
+// HARD syntax runs separately so its no-inline-config policy cannot invalidate ordinary native exceptions.
+export const hardConfig = [
+  ...ORDINARY_CONFIG.filter(
+    (block) => block.rules === undefined || block.files === undefined || Object.keys(block).some((key) => !["files", "ignores", "name", "rules"].includes(key)),
+  ).map((block) => ({
+    ...block,
+    ...(block.rules === undefined ? {} : { rules: {} }),
+    ...(block.languageOptions === undefined
+      ? {}
+      : {
+          languageOptions: {
+            ...block.languageOptions,
+            parserOptions: { ...block.languageOptions.parserOptions, project: false, projectService: false, programs: null },
+          },
+        }),
+  })),
+  {
+    files: rootSources("@server", "@inference"),
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
+          message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
+        },
+      ],
+    },
+  },
+  { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
 ];
 
 // ── MAINTAINED RULE PACKS: the plugins that replace custom gates ───────────────────────────────────────

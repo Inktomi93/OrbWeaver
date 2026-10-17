@@ -7,6 +7,7 @@
 // spawn?" — and each may answer `skip-empty` (nothing in scope) or `whole-only` (this stage cannot be
 // narrowed honestly). That vocabulary is `../contract/stage.ts`'s `ScopedArgv`.
 import { applicationTestExclusions, isLegacyTestPath, LEGACY_SCOPED_FLAG, legacyTestExclusions } from "@orb/tooling/floor/testing/test-population";
+import { CSS_SOURCE_ROOTS } from "../contract/css-family.ts";
 import type { Selection } from "../contract/selection.ts";
 import type { ScopedArgv } from "../contract/stage.ts";
 import { existsRel } from "./repo-paths.ts";
@@ -63,4 +64,16 @@ export function eslintScopedArgv(files: readonly string[]): ScopedArgv {
     return "skip-empty";
   }
   return ["node", "tooling/src/verify/cli.ts", "eslint-scoped", ...files];
+}
+
+/** Policy/token changes and removed homes need complete CSS admission; the small native population stays whole. */
+export function stylelintScopedArgv(selection: Selection): ScopedArgv {
+  const owed = selection.paths.some(
+    (path) =>
+      path === "." ||
+      CSS_SOURCE_ROOTS.some((prefix) => (path.endsWith(".css") ? path.startsWith(prefix) : prefix.startsWith(path))) ||
+      /^(?:stylelint\.config\.js|package\.json|pnpm-(?:lock|workspace)\.yaml|packages\/ui\/src\/tokens\/tokens\.json)$/u.test(path) ||
+      /^(?:packages\/kit\/src\/|tooling\/src\/(?:verify\/|floor\/))/u.test(path),
+  );
+  return owed ? ["node", "tooling/src/verify/cli.ts", "stylelint"] : "skip-empty";
 }

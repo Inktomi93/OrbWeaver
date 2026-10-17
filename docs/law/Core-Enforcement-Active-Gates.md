@@ -10,7 +10,7 @@ updated: 2026-10-17
 generator and regenerate. Everything else on this page is authored here too, so a change to the prose
 is a change to the generator's source, never a diff against the committed file.
 
-> Maintained tools own the claims they can express: Biome, ESLint, the compiler and dependency-cruiser.
+> Maintained tools own the claims they can express: Biome, ESLint, Stylelint, the compiler and dependency-cruiser.
 > Structural gates retain unmatched semantic judgments and consume shared code facts.
 > A gate proposed but not yet buildable is a `docs/work` decision item; a gate
 > proposal turned down stays as a rejected ADR (for example `docs/adr/0220-rejected-neo-and-report-only-gates.md`).
@@ -44,6 +44,11 @@ Installed maintained rules own typed, React, accessibility, query, schema and br
 within their proven coverage. Native restrictions own covered import, API and syntax rules.
 `eslint.config.js` owns rule selection and scope. Confirm installed behavior and effective configuration
 before adding a structural gate or carrying an exception into native configuration.
+The fixed HARD profile runs first with native inline configuration disabled and separate caches.
+
+Stylesheet motion, color and integer/rest declarations run through Stylelint (`stylelint.config.js`).
+Native source exceptions name their rule; stale exceptions and HARD disables fail.
+Complete CSS-variable enforcement and integer/rest semantic checks remain structural.
 
 ## Layer 3 — Structural gates (`tooling/src/verify/`, ts-morph + fs)
 
@@ -58,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(312 registered gates)
+(307 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -178,7 +183,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `message-kind-policy-coverage` | — | ordinary/error | @contracts,@server,@client | a MESSAGE_KIND_POLICY axis has NO… |
 | `modal-body-not-placeholder` | registry-definitions | ordinary/error | @client | a ModalDefinition is unreadable or… |
 | `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
-| `motion-token-purity` | — | ordinary/error | none | raw motion value in CSS… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
 | `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
@@ -217,7 +221,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-parallel-section-map` | registry-definitions | ordinary/error | @client | a hardcoded map (object literal / {… |
 | `no-raw-clock` | ambient-determinism | reviewed-grant/error | @product\* | raw Date.now() / new Date() —… |
-| `no-raw-color-in-css` | — | ordinary/error | none | raw color literal in CSS… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
@@ -225,7 +228,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-random` | ambient-determinism | reviewed-grant/error | @product,@tooling\* | ambient Math.random() — determinism:… |
 | `no-raw-spacing-in-features` | raw-spacing-tier | ordinary/error | @client,@ui | raw spacing utility in a class string… |
 | `no-raw-typography-in-features` | raw-typography-tier | ordinary/error | @client,@ui | raw font-size utility in a class… |
-| `no-rejected-cors-proxy` | — | hard/error | @server,@inference | corsproxy.io spelled in server source… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
 | `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
@@ -260,8 +262,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `policy-refusal-coverage` | policy-soundness | hard/error | @tooling,@tests\* | a FINAL policy declares facts or… |
 | `policy-soundness` | — | hard/error | @tooling\* | a final policy module carries… |
 | `policy-waiver-identity` | policy-soundness | hard/error | @tooling,@tests\* | an ORDINARY policy has no positive… |
-| `public-route-body-cap` | — | ordinary/error | @server\* | a mutating non-tRPC public route… |
-| `public-route-body-cap-health` | public-route-body-cap | hard/error | @server\* | public-route-body-cap-health measured… |
 | `query-boundary-reservation` | — | ordinary/error | @client | a QueryBoundary whose fallback is a… |
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |

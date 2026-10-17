@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/projected-object-reader-1002
+lane: codex/deferred-invocation-demand-1002
 plan: test-foundation
 ---
 

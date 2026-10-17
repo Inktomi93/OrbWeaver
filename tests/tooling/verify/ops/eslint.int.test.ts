@@ -107,7 +107,7 @@ test("native untyped declarations need no exclusive compiler owner while typed d
   repoRoot,
 }) => {
   expect(await readEslintFileAdmissions(repoRoot, "eslint.config.js", ["aggregator-assets.d.ts"])).toEqual([
-    { path: "aggregator-assets.d.ts", requiresTypeInformation: false },
+    { path: "aggregator-assets.d.ts", requiresTypeInformation: false, hasEnabledRules: true },
   ]);
   const programs = [
     program("tsconfig.json", ["aggregator-assets.d.ts", "typed.d.ts"]),
@@ -138,11 +138,11 @@ test("native file admission preserves enabled parser programs and explicit disab
     expect(
       await readEslintFileAdmissions(root, "eslint.config.js", ["plain.ts", "project.ts", "service.ts", "program.ts", "disabled.ts", "ignored.ts"]),
     ).toEqual([
-      { path: "plain.ts", requiresTypeInformation: false },
-      { path: "project.ts", requiresTypeInformation: true },
-      { path: "service.ts", requiresTypeInformation: true },
-      { path: "program.ts", requiresTypeInformation: true },
-      { path: "disabled.ts", requiresTypeInformation: false },
+      { path: "plain.ts", requiresTypeInformation: false, hasEnabledRules: false },
+      { path: "project.ts", requiresTypeInformation: true, hasEnabledRules: false },
+      { path: "service.ts", requiresTypeInformation: true, hasEnabledRules: false },
+      { path: "program.ts", requiresTypeInformation: true, hasEnabledRules: false },
+      { path: "disabled.ts", requiresTypeInformation: false, hasEnabledRules: false },
     ]);
   } finally {
     rmSync(root, { recursive: true, force: true });

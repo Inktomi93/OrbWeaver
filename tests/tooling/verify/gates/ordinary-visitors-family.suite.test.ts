@@ -15,7 +15,6 @@ import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-i
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noMutatingRegisterApi } from "../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
-import { gate as noRejectedCorsProxy } from "../../../../tooling/src/verify/gates/no-rejected-cors-proxy.ts";
 import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
@@ -39,7 +38,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlineWireInterface,
   noMutatingRegisterApi,
   noRawEgress,
-  noRejectedCorsProxy,
   noUntypedSoftRef,
   persistenceBoundary,
   pluginDumpGuard,

@@ -25,7 +25,7 @@ refuseDirectInvocation(import.meta.url, REGEN_COMMAND);
 
 /** Bumped by hand only when the STATIC prose below changes; the table itself carries no separate date —
  *  `ledgers:fresh` holds the whole file byte-for-byte against a fresh derivation regardless. */
-const UPDATED = "2026-10-16";
+const UPDATED = "2026-10-17";
 
 const HEADER = `---
 kind: law
@@ -39,7 +39,7 @@ updated: ${UPDATED}
 generator and regenerate. Everything else on this page is authored here too, so a change to the prose
 is a change to the generator's source, never a diff against the committed file.
 
-> Maintained tools own the claims they can express: Biome, ESLint, the compiler and dependency-cruiser.
+> Maintained tools own the claims they can express: Biome, ESLint, Stylelint, the compiler and dependency-cruiser.
 > Structural gates retain unmatched semantic judgments and consume shared code facts.
 > A gate proposed but not yet buildable is a \`docs/work\` decision item; a gate
 > proposal turned down stays as a rejected ADR (for example \`docs/adr/0220-rejected-neo-and-report-only-gates.md\`).
@@ -73,6 +73,11 @@ Installed maintained rules own typed, React, accessibility, query, schema and br
 within their proven coverage. Native restrictions own covered import, API and syntax rules.
 \`eslint.config.js\` owns rule selection and scope. Confirm installed behavior and effective configuration
 before adding a structural gate or carrying an exception into native configuration.
+The fixed HARD profile runs first with native inline configuration disabled and separate caches.
+
+Stylesheet motion, color and integer/rest declarations run through Stylelint (\`stylelint.config.js\`).
+Native source exceptions name their rule; stale exceptions and HARD disables fail.
+Complete CSS-variable enforcement and integer/rest semantic checks remain structural.
 
 ## Layer 3 — Structural gates (\`tooling/src/verify/\`, ts-morph + fs)
 

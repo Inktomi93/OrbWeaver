@@ -8,7 +8,7 @@ import type { StageDef, Tier } from "../contract/stage.ts";
 import { biomeStageAudit } from "./biome-verdict.ts";
 import { asViolations, eslintScheme, ownScheme } from "./exit-classifiers.ts";
 import { mutationGateStageAudit } from "./mutation-gate-verdict.ts";
-import { eslintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
+import { eslintScopedArgv, stylelintScopedArgv, tscScopedArgv } from "./registry-argv.ts";
 import { MANUAL_ONLY_STAGES } from "./registry-manual.ts";
 import { TEST_LANE_STAGES } from "./registry-test-lanes.ts";
 import { applyPathTriggers } from "./registry-triggers.ts";
@@ -65,6 +65,15 @@ const GATING_STAGES: readonly StageDef[] = [
     argv: ["pnpm", "lint:eslint"],
     classify: eslintScheme,
     scopedArgv: (sel) => eslintScopedArgv(sel.eslintPaths),
+  },
+  {
+    name: "lint:stylelint",
+    applicationArgv: ["pnpm", "lint:css"],
+    group: "lint",
+    tiers: ["changed", ...STATIC],
+    argv: ["pnpm", "lint:css"],
+    classify: ownScheme,
+    scopedArgv: stylelintScopedArgv,
   },
   {
     name: "lint:hook-syntax",

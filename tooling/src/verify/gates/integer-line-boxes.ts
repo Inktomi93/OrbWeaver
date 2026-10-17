@@ -1,74 +1,9 @@
-// Gate: integer-line-boxes (docs/law/integer-line-boxes.md) — every line box resolves to INTEGER px at
-// the 16px root; a fractional box walks baselines off the device-pixel grid under promoted layers.
-// ARM T: `leading.*` AND `spacing.*` tokens are snapped integer dimensions at the 16px root, including a
-// spacing token's `orb.pointerFine` override · ARM P: every class-borne text step pairs an
-// in-vocabulary leading (Tailwind's unitless core leading scale is banned) · ARM C: stylesheet line-heights
-// resolve only through the leading vocabulary · ARM B: the blindness floors. Comment posture: ARM P is
-// AST-side via the static-class walker (comment-safe); ARM C reads parsed CSS declarations, and the parser
-// blanks comment spans before parsing, so a commented-out rule is never judged.
-//
-// ARM T's SPACING HALF (#1711, #1640). Since #1640 the whole `spacing.*` family rides the same snapped
-// belt the leadings do, and nothing made a FUTURE fractional-at-root-16 spacing token unshippable:
-// `round(up)` on a fractional author silently GROWS the box at the default scale, which is the one thing
-// the belt promises not to do. The `orb.pointerFine` override is judged too — it is a second authored value
-// on the same belt, and an unjudged one is an un-gridded step at exactly the pointer class the override
-// exists for. BORN GREEN, and the counts are a DATED SNAPSHOT of a machine's answer, not a law: on
-// 2026-09-19 the vault held 26 `spacing.*` tokens, all snapped and all integer at the 16px root, of which
-// 7 carry an `orb.pointerFine` arm, also all integer. (#1711's body said 27+8; re-derive with
-// `python3 -c` over `packages/ui/src/tokens/tokens.json` rather than trusting either number — the SET is
-// policed here, the count is not.) `tests/legacy/ui/tokens/index.test.ts` keeps its claim as the weaker twin.
-//
-// DECLARED LIMITS: the generated theme.css is the ONE emitter of the leading scale and is freshness-enforced
-// by tests/legacy/ui/tokens, so it is carved out of ARM C rather than re-judged here (the `no-raw-color-in-css`
-// precedent — an authoritative home is a population carve-out, never a waiver); box = font-size via
-// leading-none is legal when the step is integer; the chat reading surface rides a waiver, below.
-//
-// FAMILY: `static-class-expression`, after the shared reader
-// `lib/static-class-expression.ts#walkStaticClassExpressions`, with `rest-transform-grid` as the second
-// member. ARM P — the pairing law, and the arm that has to see a class string composed through a `tv()`
-// slot or a `cn()` call — could not be written without it.
-//
-// POPULATION PORT (legacy `c24d4d7057`), three halves:
-//   · the AST half was `scanRoot: (path) => path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/")`
-//     plus the same predicate re-applied to `ctx.files`; `{ in: ["@client", "@ui"] }` is exactly those two
-//     roots, so the double filter collapses into the declaration. BYTE-IDENTICAL.
-//   · the CSS half walked `packages/ui/src` + `packages/client/src` for `*.css` MINUS the generated
-//     theme.css; `authored-css` is exactly those two trees (`ops/resource-tree.ts:84-107`) and the theme
-//     carve-out is kept in the policy. BYTE-IDENTICAL.
-//   · the token vault was a private `existsSync` + `JSON.parse` of `packages/ui/src/tokens/tokens.json`;
-//     it is now the declared `json:tokens` resource, whose path is that exact file
-//     (`contract/resource-json.ts`). BYTE-IDENTICAL SUBJECT, different refusal — see below.
-//
-// EXEMPTION-MECHANISM MOVE (guide §6.4's EXEMPTION-MECHANISM MOVE classification). The legacy `CSS_LINE_HEIGHT_EXEMPTIONS` table held ONE
-// row, `packages/client/src/styles/globals.css::var(--reading-line-height)`, plus a hand-rolled two-sided
-// STALE arm that reported at the gate's own source file. Both are retired: the site carries an
-// `@orb-waive integer-line-boxes(--reading-line-height)` marker, and the central engine's dead-position
-// alarm IS the stale arm — louder than the finding it replaces, and it can no longer report at a path
-// outside the policy's own population. Census: 1 legacy row → 1 marker → 1 live consumed waiver, verified
-// on the real tree (1 raw / 1 waived / 0 effective / 0 alarms).
-//
-// RETIRED BY THE RUNTIME, not dropped (guide §6.4): the legacy blindness reasons "tokens.json missing" and
-// "zero stylesheets read", and the `readTypeScale` branch that returned `undefined` and silenced the whole
-// gate on a mini-project. A missing, empty or unparseable declared resource now makes
-// `resolveResourceDeclarations` (`lib/resource-declaration.ts:182`) THROW during the POPULATION phase, the
-// owner is withheld and the run reports a TOOL ERROR — "this run is not a verdict" — instead of a finding
-// or a silent clean. Those refusals are pinned in the family test through `runPolicyPass`, because guide
-// §4.5b says no proof row can express them. This module owns no not-ready branch: it reads both declared
-// resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `integer-line-boxes` descriptor at (pruned from public history), the parent of the conversion
-// `04eaef9f44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c24d4d7057`
-// cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
-// resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
-// `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.
-// legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`
-// (virtual) admitted by both; outside `packages/contracts/src/assets/__cbbhr_out_index.ts` (virtual) rejected by
-// both.
+// Token arithmetic and semantic text/leading pairing; native Stylelint owns stylesheet line heights.
+// The shared static-class fact retains composed/aliased candidates and fail-closed unresolved classes.
+// Whole-population root and pairing floors remain independent of the CSS lint stage.
 import type { Node } from "ts-morph";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
-import type { CssDeclarationFact, CssFacts } from "../contract/resource-css.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 import type { StaticClassSegment } from "../lib/static-class-expression.ts";
@@ -81,15 +16,10 @@ const MESSAGE =
 const FIX =
   "Pair every text-<step> with a leading-<step> from packages/ui/src/tokens/tokens.json (never Tailwind's " +
   "unitless core scale), author leading AND spacing tokens as snapped integer-px rem dimensions — including " +
-  "a spacing token's orb.pointerFine override, which rides the same belt — and let stylesheets " +
-  "set line-height only through var(--leading-*). A deliberate stylesheet line-height is waived with " +
-  "`/* @orb-waive integer-line-boxes(<position>): <reason> */` on the line above, where <position> is the " +
-  "reported token: the custom-property NAME for a `var(--x)` value (`--reading-line-height`, never the " +
-  "`var(…)` call — a position containing a paren is unwaivable by the marker grammar) and the literal " +
-  "itself otherwise (`1.4`).";
+  "a spacing token's orb.pointerFine override, which rides the same belt. A deliberate class exception " +
+  "requires `@orb-waive integer-line-boxes(<reported utility>): <reason>` above its source carrier.";
 
 const TOKENS_JSON_REL = "packages/ui/src/tokens/tokens.json";
-const GENERATED_THEME_CSS = "packages/ui/src/styles/theme.css";
 /** Real-tree anchor for ARM B: a whole-tree blindness claim is meaningless over a proof fixture, which
  *  holds only the files its row materializes. A live `@ui` module inside this policy's own population, so
  *  it is also a LEGAL finding anchor — the legacy descriptor reported ARM B at the gate's own source file,
@@ -385,33 +315,10 @@ function sourceToken(segments: readonly StaticClassSegment[], valueOffset: numbe
 
 const LEADING_UTILITY_PREFIX = "leading-";
 const TEXT_UTILITY_PREFIX = "text-";
-const LEADING_VAR_RE = /^var\(--leading-([a-z-]+)\)$/u;
-const TIER_LEADING_VAR_RE = /^var\(--orb-tier-[a-z-]+-leading\)$/u;
-const LEADING_DEF_RE = /^--leading-[a-z-]+$/u;
-const TIER_LEADING_DEF_RE = /^--orb-tier-[a-z-]+-leading$/u;
-/** A value that is exactly ONE `var(--name)` reference — its waiver POSITION is the NAME, never the call:
- *  the marker grammar's position group is `[^()\r\n]+`, so a reported `var(--reading-line-height)` would be
- *  a finding with no door at all. */
-const SINGLE_VAR_RE = /^var\(\s*(--[a-z0-9-]+)\s*\)$/u;
-
-/** 1-based line/column of an absolute offset in a stylesheet. */
+/** 1-based line/column of an absolute offset in authored resource text. */
 function positionOf(text: string, offset: number): { readonly line: number; readonly column: number } {
   const before = text.slice(0, offset);
   return { line: before.split(/\r?\n/u).length, column: offset - before.lastIndexOf("\n") };
-}
-
-/** WHERE a declaration's value finding anchors, and with WHAT token — the two are one decision, because an
- *  ordinary finding's token must slice the source at its reported column. A `var(--x)` value anchors on the
- *  NAME inside the call; anything else anchors on the first character of the value. */
-function valueFinding(text: string, declaration: CssDeclarationFact): { readonly line: number; readonly column: number; readonly token: string } {
-  const name = SINGLE_VAR_RE.exec(declaration.value)?.[1];
-  const token = name ?? declaration.value;
-  const colon = text.indexOf(":", declaration.offset);
-  const at = text.indexOf(token, colon === -1 ? declaration.offset : colon);
-  if (at === -1) {
-    throw new Error(`CSS declaration value has no exact authored position: ${declaration.value}`);
-  }
-  return { ...positionOf(text, at), token };
 }
 
 /** WHERE an ARM T finding anchors: on the offending leading token's KEY inside the vault's `leading` group.
@@ -427,54 +334,6 @@ function tokenKeyPosition(text: string, group: TokenGroup, name: string): { read
     throw new Error(`token vault has no authored position for ${group}.${name}`);
   }
   return { ...positionOf(text, key + 1), token: name };
-}
-
-interface CssScan {
-  readonly ctx: GatePolicyContext;
-  readonly text: string;
-  readonly scale: TypeScale;
-}
-
-/** ARM C. One declaration of one authored stylesheet: a `line-height` must resolve through the leading
- *  vocabulary (directly, or through the tiers.css alias indirection); a hand-authored `--leading-*`
- *  definition shadows the generated scale and is never legal; a `--orb-tier-*-leading` alias must point at
- *  an in-vocabulary leading. */
-function judgeCssDeclaration(scan: CssScan, declaration: CssDeclarationFact): void {
-  const report = (): void => scan.ctx.report.file(declaration.file, valueFinding(scan.text, declaration));
-  if (LEADING_DEF_RE.test(declaration.property)) {
-    scan.ctx.report.file(declaration.file, { ...positionOf(scan.text, declaration.offset), token: declaration.property });
-    return;
-  }
-  if (TIER_LEADING_DEF_RE.test(declaration.property)) {
-    const aliased = LEADING_VAR_RE.exec(declaration.value)?.[1];
-    if (aliased === undefined || !scan.scale.leadingPx.has(aliased)) {
-      report();
-    }
-    return;
-  }
-  if (declaration.property !== "line-height") {
-    return;
-  }
-  const leadingName = LEADING_VAR_RE.exec(declaration.value)?.[1];
-  const inVocabulary = leadingName !== undefined && scan.scale.leadingPx.has(leadingName);
-  if (!(inVocabulary || TIER_LEADING_VAR_RE.test(declaration.value))) {
-    report();
-  }
-}
-
-/** ARM C over the whole authored corpus, MINUS the generated theme — the ONE emitter of the leading scale,
- *  freshness-enforced by tests/legacy/ui/tokens, and an authoritative home is a population carve-out rather than a
- *  waiver (the `no-raw-color-in-css` precedent). */
-function judgeStylesheets(ctx: GatePolicyContext, inventory: CssFacts, scale: TypeScale): void {
-  const declarationsByFile = Map.groupBy(inventory.declarations, (declaration) => declaration.file);
-  for (const file of inventory.files) {
-    if (file.path === GENERATED_THEME_CSS) {
-      continue;
-    }
-    for (const declaration of declarationsByFile.get(file.path) ?? []) {
-      judgeCssDeclaration({ ctx, text: file.text, scale }, declaration);
-    }
-  }
 }
 
 interface PairingCensus {
@@ -543,9 +402,7 @@ interface BlindnessInputs {
   readonly census: PairingCensus;
 }
 
-/** ARM B. Anchored on a file inside this policy's own population, and only when that file is actually
- *  loaded. The legacy "tokens.json missing" and "zero stylesheets read" reasons are gone: both are now
- *  population-phase REFUSALS of a declared resource, which outrank a finding. */
+/** ARM B is meaningful only with its real-tree anchor; token acquisition refuses separately. */
 function reportBlindness(ctx: GatePolicyContext, inputs: BlindnessInputs): void {
   const blind: string[] = [];
   if (inputs.roots === 0) {
@@ -565,17 +422,12 @@ function reportBlindness(ctx: GatePolicyContext, inputs: BlindnessInputs): void 
   }
 }
 
-/** Every proof row spreads this. `authored-css` is assembled from the `client-source` AND `ui-source` trees
- *  (`ops/resource-tree.ts:84-107`), so a row leaving either tree empty comes back a `[population]` TOOL
- *  ERROR rather than a finding and proves nothing about its arm; `json:tokens` refuses the same way when
- *  the vault is absent. Neither member carries a text step, a leading or a line-height, so neither can mask
- *  or manufacture a row's verdict. */
+// The token fixtures supply the actual JSON/text resources; class rows add their own carrier.
 const SNAPPED_SCALE = JSON.stringify({
   text: { label: { $type: "dimension", $value: { value: 0.8125, unit: "rem" } } },
   leading: { label: { $type: "dimension", $value: { value: 1, unit: "rem" }, $extensions: { "orb.output": { kind: "snapped" } } } },
 });
 const CORPUS = {
-  "packages/client/src/styles/keep.css": ".keep {\n  color: var(--color-foreground);\n}\n",
   "packages/ui/src/keep.tsx": "export const Keep = () => null;\n",
   [TOKENS_JSON_REL]: SNAPPED_SCALE,
 } as const;
@@ -593,13 +445,12 @@ export const gate = defineGate({
   analysis: "resource",
   execution: "entire-population",
   facts: [staticClassFact],
-  resources: [{ kind: "authored-css" }, { kind: "json", id: "tokens" }, { kind: "authored-text" }],
+  resources: [{ kind: "json", id: "tokens" }, { kind: "authored-text" }],
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => ({
     evaluate: () => {
       const scale = readTypeScale(readyResourceValue(ctx.resources.json("tokens")).value);
-      const inventory = readyResourceValue(ctx.resources.cssInventory("authored"));
       const vaultText = readyResourceValue(ctx.resources.authoredText([TOKENS_JSON_REL])).files.find(({ path }) => path === TOKENS_JSON_REL);
       if (vaultText === undefined) {
         throw new Error(`token vault text was not served for ${TOKENS_JSON_REL}`);
@@ -618,7 +469,6 @@ export const gate = defineGate({
       for (const unresolved of walked.classUnresolved) {
         ctx.report.node(unresolved.node, { message: `${MESSAGE} (class expression unresolved: ${unresolved.reason})` });
       }
-      judgeStylesheets(ctx, inventory, scale);
       if (ctx.files.some((source) => ctx.relativePath(source) === REAL_TREE_ANCHOR)) {
         reportBlindness(ctx, { roots: walked.roots, census });
       }
@@ -754,33 +604,6 @@ export const gate = defineGate({
       expect: { count: 1, token: "text-label" },
       why: "ARM P: tv slot strings are class carriers — the pairing law must reach composed variants, not only JSX. This is the row the FAMILY rests on: nothing but `walkStaticClassExpressions` sees a class string that never appears in a className attribute",
     },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/ui/src/styles/extra.css": ".x {\n  line-height: 1.4;\n}\n",
-      },
-      expect: { count: 1, line: 2, token: "1.4" },
-      why: "ARM C: a literal stylesheet line-height bypasses the vocabulary — the exact shape the six-CSS-homes law exists to fence",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/ui/src/styles/extra.css": ":root {\n  --leading-custom: 1.2;\n}\n",
-      },
-      expect: { count: 1, line: 2, token: "--leading-custom" },
-      why: "ARM C: a hand-defined --leading-* shadows the generated scale — theme.css is the one emitter",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/ui/src/styles/extra.css": "[data-surface-tier] .b {\n  --orb-tier-row-title-leading: var(--leading-nope);\n}\n",
-      },
-      expect: { count: 1, line: 2, token: "--leading-nope" },
-      why: "ARM C's ALIAS arm: the tiers.css indirection is only as good as what it points at, so an alias naming a leading outside the vocabulary is the same defect one hop out. The token is the NAME, not the `var(…)` call, because a position containing a paren has no waiver door",
-    },
   ],
   mustPass: [
     {
@@ -848,43 +671,9 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         ...CORPUS,
-        "packages/ui/src/styles/extra.css":
-          ".a {\n  line-height: var(--leading-label);\n}\n[data-surface-tier] .b {\n  --orb-tier-row-title-leading: var(--leading-label);\n  line-height: var(--orb-tier-row-title-leading);\n}\n",
-      },
-      why: "the vocabulary forms: a direct leading var and the tiers.css alias indirection are the two sanctioned spellings",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
         "packages/ui/src/x.tsx": 'export const G = <div className="p-4 leading-label" />;\n',
       },
       why: "a leading-only string (a variant arm raising the box over a base slot) carries no text step and passes",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/ui/src/styles/theme.css": ":root {\n  --leading-label: round(1rem, 1px);\n  line-height: 1.5;\n}\n",
-      },
-      why: "NARROWING ROW for the generated-theme carve-out, which is the ONE authoritative emitter of the leading scale: the same two declarations REDden twice in any other stylesheet (`mustFlag`'s literal and `--leading-*` rows are exactly them). Cut the carve-out and this row goes red — that is what makes the carve-out a measured fence rather than a courtesy",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/ui/src/styles/commented.css": "/* .old {\n  line-height: 1.4;\n} */\n.x {\n  line-height: var(--leading-label);\n}\n",
-      },
-      why: "COMMENT POSTURE (issue #117): a commented-out literal line-height is prose. The parser blanks comment spans before parsing, so the declaration never enters the inventory at all",
-    },
-    {
-      mode: "resource",
-      files: {
-        ...CORPUS,
-        "packages/client/src/styles/waived.css":
-          ".reading {\n  /* @orb-waive integer-line-boxes(--reading-line-height): the chat reading surface is the user-owned CONTINUOUS multiplier. */\n  line-height: var(--reading-line-height);\n}\n",
-      },
-      why: "§4.2 IDENTITY, on the exact site whose legacy CSS_LINE_HEIGHT_EXEMPTIONS row this marker replaced (`packages/client/src/styles/globals.css:712`): the correct ordinary waiver at the reported position suppresses the one finding its `mustFlag` twin produces. The position is the NAME because the value is a single `var(…)` call and a paren cannot appear in a marker position",
     },
   ],
 });

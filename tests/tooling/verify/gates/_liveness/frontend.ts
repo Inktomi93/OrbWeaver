@@ -97,8 +97,7 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: integerLineBoxes,
-    overlays: [{ kind: "resource", path: CLIENT_GLOBALS, append: "\n.liveness-probe {\n  line-height: 1.37;\n}\n" }],
-    // The policy passes no message of its own, so the verdict is its declared one, at the planted sheet.
+    overlays: [featureClass("unpaired-leading", "text-label")],
     messageIncludes: "A line box off the integer-px grid",
   },
   {

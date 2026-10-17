@@ -28,7 +28,6 @@
     "owner-scoped-upserts": ["bracket"],
     "owner-scoped-writes": ["bracket"],
     "platform-spellings": ["bracket"],
-    "public-route-body-cap": ["bracket"],
     "route-trpc-lifo-order": ["bracket"],
     "serde-core-seal": ["namespace"],
     "stale-draft-commit": ["bracket"],

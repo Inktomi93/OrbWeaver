@@ -55,6 +55,7 @@ import {
   runShowcaseRelease,
   runStructure,
   runStructureDelta,
+  runStylelint,
   runTestsExecutionMembership,
   runTestsTypeMembership,
   runTypecheck,
@@ -144,6 +145,8 @@ async function dispatch(verb: string, root: string, rest: readonly string[]): Pr
       return await runEslint(root);
     case "eslint-scoped":
       return await runScopedEslint(root, rest);
+    case "stylelint":
+      return await runStylelint(root, rest);
     case "instrument-affected":
       return await runInstrumentAffected(root, rest);
     case "showcase-release":

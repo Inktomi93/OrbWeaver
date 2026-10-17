@@ -46,26 +46,36 @@ export interface ImportBundleDeps {
  *  always a fresh regular file, so nothing our own writers put under the staging root can be a symlink for
  *  the import contribution's containment belt to meet. */
 async function stageCapped(body: ReadableStream<Uint8Array>, path: string, maxBytes: number): Promise<boolean> {
-  // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the sibling staging writers carry the same exemption).
-  const handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW);
-  const reader = body.getReader();
+  await using incomplete = new AsyncDisposableStack();
+  let complete = false;
+  let withinCap = false;
   let total = 0;
-  try {
+  {
+    // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (the sibling staging writers carry the same exemption).
+    await using handle = await open(path, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW);
+    // Cleanup is registered only after this request creates its file, never for a refused existing path.
+    incomplete.defer(async (): Promise<void> => {
+      if (!complete) {
+        await rm(path, { force: true });
+      }
+    });
+    const reader = body.getReader();
     for (;;) {
       const { done, value } = await reader.read();
       if (done) {
-        return true;
+        withinCap = true;
+        break;
       }
       total += value.byteLength;
       if (total > maxBytes) {
         await reader.cancel();
-        return false;
+        break;
       }
       await handle.write(value);
     }
-  } finally {
-    await handle.close();
   }
+  complete = withinCap;
+  return withinCap;
 }
 
 /** Register `POST /api/import/bundle` on `app`. Auth-first, CSRF-guarded, DoS-capped; stages the upload +
@@ -96,7 +106,6 @@ export function registerImportBundle(app: Hono<PrincipalEnv>, deps: ImportBundle
     const stagedPath = join(stagingRoot, token);
     const staged = await stageCapped(body, stagedPath, IMPORT_MAX_TOTAL_BYTES);
     if (!staged) {
-      await rm(stagedPath, { force: true });
       return c.json({ error: "bundle exceeds the maximum upload size" }, PAYLOAD_TOO_LARGE);
     }
 

@@ -16,7 +16,7 @@ Tests prove production behavior without copied rules. Shared readers reduce chec
 
 ### Order of work
 
-This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own current assignments, blockers and verification evidence; temporary handoffs do not establish completion.
+This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own assignments, blockers and evidence.
 
 Read the [side-plan priority note](../inference-flow/design.md#reading-priority) before using inference-flow to choose work or report program status.
 
@@ -32,7 +32,7 @@ The exclusion is integrated and independently reviewed. Ordinary eligibility con
 
 Reduce structural cost before more micro-optimization: remove legacy deep analysis, eliminate unnecessary typed claims, and isolate accidental server closures through the AppRouter type bridge. Declaration bridges require fresh generated output and qualified transitive closure; do not replace them with copied shapes. Compiler baselines guide cost diagnosis but do not establish equivalent analysis work.
 
-The completed [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) owns source classification, not successor qualification. Do not resume an unadjudicated native-gate migration merely because its implementation is partly written.
+The [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) classifies source, not qualified successors. Re-derive partly written migrations before continuing.
 
 Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the measured prototype is slower, larger and semantically unqualified. Batching removes transport overhead, not deep lookup or proof work. Focus on existing reference and callable traversal costs, shared facts and native gate replacement. Preserve the external experiment without changing pins. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
@@ -52,7 +52,7 @@ Contract derivation, stored-value recovery, wire-boundary admission, runtime fun
 
 ### Foundation boundaries
 
-The legacy folder, maintained lint migration, explicit package exports, native integer migration and domain-owned compose rules are implemented. Native query wiring is qualified; current per-call corpus qualification remains open. HTTP, auth and rate-policy owners remain at their sanctioned entry homes. This does not establish complete foundations or a green application verdict. The [main findings item](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Exact legacy filename admission is monotonic; strict reach excludes legacy evidence. Remaining probes keep their harness dependencies and case lists.
+Legacy isolation, native lint, explicit exports, native integers and domain-owned compose rules are implemented. Query wiring qualifies; per-call corpus qualification remains open. Sanctioned HTTP, auth and rate-policy entry homes remain. This is not complete foundation or application qualification. [Main findings](../../work/0977-main-reds-and-loose-ends-from-the-test.md) owns remaining reds. Legacy filename admission stays monotonic; strict reach excludes legacy evidence. Probes retain their cases and harness dependencies.
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts remain work. Canonical row builders and output suppliers meet their declared contracts. Wire-output boundary accounting and allocated native supplier qualification are established. The committed corpus serves each test layer. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
@@ -206,7 +206,7 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native lint owns lexical class, skin, banned utilities, z-index spellings and lexical determinism. Hover/dark semantics and z-home presence remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Independent review passes; combined main and PNPM dependency qualification remain open. Evidence: `reports/review/1041-native-wave-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
@@ -261,7 +261,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
 
-Run affected checks concurrently within measured host limits. Reserve whole-tree runs for main-owned qualification.
+Run affected checks within measured host limits. Main owns whole-tree qualification.
 
 Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
 

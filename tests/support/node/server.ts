@@ -82,7 +82,7 @@ export interface ServerTestHarness extends AsyncDisposable {
   /** Internal row-derived tRPC calls, not request authentication; HTTP owns cookie/session admission proof. */
   readonly internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
   readonly actor: (overrides?: Partial<UserRow>) => ReturnType<typeof seedUser>;
-  readonly http: Pick<ReturnType<typeof createHttpApp>, "request">;
+  readonly http: Pick<OwnedHttpRequests, "request" | "routes">;
   readonly listen: () => Promise<Readonly<AddressInfo>>;
   readonly importStagingDir: string;
   readonly modelCacheDir: string;
