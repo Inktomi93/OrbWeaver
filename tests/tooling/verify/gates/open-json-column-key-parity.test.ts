@@ -7,7 +7,6 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CoordinatedGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -248,9 +247,9 @@ test("mutable destructured bindings replaced by payloads do not retain schema pr
 });
 
 test(
-  "every occurrence and health catch, pass and refusal row holds through the production dispatcher",
+  "every occurrence catch, pass and refusal row holds through the production dispatcher",
   () => {
-    expect(verifyPolicyProofs([gate, health])).toEqual([]);
+    expect(verifyPolicyProofs([gate])).toEqual([]);
   },
   scaledBudget(120_000),
 );

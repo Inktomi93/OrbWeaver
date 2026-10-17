@@ -108,12 +108,26 @@ import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
+import { createWrappedNode } from "ts-morph";
+import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
+import { ID_BRAND_HOME, nativeCanonicalIdBrand } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
+import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
+import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
+import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
+import {
+  declaredByPackage,
+  resolveTypeIdentityChain,
+  resolveTypeIdentityOrigin,
+  resolveTypeMemberOrigin,
+} from "./tooling/src/floor/code-facts/type-member-origin.ts";
+import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
+import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -126,10 +140,14 @@ import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract
 import { DEFINITION_SLOTS } from "./tooling/src/verify/contract/registry-definition-home.ts";
 import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
+import { possibleAmbientCall, readAmbientInvocation } from "./tooling/src/verify/lib/ambient-determinism.ts";
 import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
 import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "./tooling/src/verify/lib/client-lexical-native.ts";
 import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
+import { createKitIdCallMatcher } from "./tooling/src/verify/lib/id-brand.ts";
+import { classifyOriginRefusal, referenceNamesExport } from "./tooling/src/verify/lib/origin-verdict.ts";
+import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "./tooling/src/verify/lib/project-home-origin.ts";
 import { TIER_IMPLEMENTATION_HOMES as SPACING_HOMES } from "./tooling/src/verify/lib/raw-spacing-tier.ts";
 import { TIER_IMPLEMENTATION_HOMES as TYPOGRAPHY_HOMES } from "./tooling/src/verify/lib/raw-typography-tier.ts";
 import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
@@ -139,6 +157,7 @@ import {
   SOURCE_TYPE_SUPPRESSION_RULE,
 } from "./tooling/src/verify/lib/source-type-suppression-native.ts";
 import { readTailwindClassTokens } from "./tooling/src/verify/lib/tailwind-class-token.ts";
+import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "./tooling/src/verify/lib/test-runner-door.ts";
 import {
   CONFIG_ANCHOR_FORMATTER,
   CONFIG_ANCHOR_OWNER,
@@ -149,6 +168,8 @@ import {
   TOOLING_IMPORT_GLOBS,
   TOOLING_ROOT_CONFIG_IMPORT_RULE,
 } from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
+import { TYPED_NATIVE_POLICIES, typedNativeInputPaths } from "./tooling/src/verify/lib/typed-native-inputs.ts";
+import { waivableCoordinate } from "./tooling/src/verify/lib/waivable-coordinate.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -197,9 +218,8 @@ const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
 ).map(({ suffix }) => suffix);
 const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
 // Native compiler owners still choose the parser world; authored membership admits each populated mirror automatically.
-const AUTHORED_TEST_PATHS = readAuthoredRepositoryInventory(ROOT).paths.filter(
-  (path) => path.startsWith("tests/") && (path.endsWith(".ts") || path.endsWith(".tsx")),
-);
+const AUTHORED_NATIVE_INPUT_PATHS = readAuthoredRepositoryInventory(ROOT).paths;
+const AUTHORED_TEST_PATHS = AUTHORED_NATIVE_INPUT_PATHS.filter((path) => path.startsWith("tests/") && (path.endsWith(".ts") || path.endsWith(".tsx")));
 const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`, `tests/${pkg}`].filter((home) => AUTHORED_TEST_PATHS.some((path) => path.startsWith(`${home}/`)));
 const homeGlobs = (pkg, glob) => testHomes(pkg).map((home) => `${home}/${glob}`);
 const UI_CT = testHomes("ui").flatMap((home) => componentTestGlobs(home));
@@ -2508,9 +2528,1076 @@ const TEST_TOOLING_IMPORT_NATIVE_SETTINGS = {
     .digest("hex"),
 };
 
+// These rules consume only the parser's owning native Program; no secondary compiler world is built.
+function nativeDeclarationContext(context) {
+  const services = context.sourceCode.parserServices;
+  if (
+    services.program === undefined ||
+    services.program === null ||
+    services.esTreeNodeToTSNodeMap === undefined ||
+    services.tsNodeToESTreeNodeMap === undefined
+  ) {
+    throw new Error("Native declaration contracts require the parser's owning TypeScript Program and node maps");
+  }
+  return { ...services, checker: services.program.getTypeChecker() };
+}
+
+function nativeAliasFlag(symbol) {
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
+  return (symbol.flags & ts.SymbolFlags.Alias) !== 0;
+}
+
+function nativeFunctionExported(node, checker) {
+  if (node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+    return true;
+  }
+  if (node.name === undefined) {
+    return false;
+  }
+  const symbol = checker.getSymbolAtLocation(node.name);
+  const module = checker.getSymbolAtLocation(node.getSourceFile());
+  return (
+    symbol !== undefined &&
+    module !== undefined &&
+    checker.getExportsOfModule(module).some((exported) => exported === symbol || (nativeAliasFlag(exported) && checker.getAliasedSymbol(exported) === symbol))
+  );
+}
+
+const testFactoryContractRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const check = (node) => {
+      const declaration = native.esTreeNodeToTSNodeMap.get(node);
+      if (!ts.isFunctionDeclaration(declaration) || declaration.name === undefined || !nativeFunctionExported(declaration, native.checker)) {
+        return;
+      }
+      const name = declaration.name.text;
+      const parameters = declaration.parameters;
+      const typeFlags =
+        // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript formatting options compose a compiler-owned bitfield.
+        ts.TypeFormatFlags.UseTypeOfFunction |
+        ts.TypeFormatFlags.NoTruncation |
+        ts.TypeFormatFlags.UseFullyQualifiedType |
+        ts.TypeFormatFlags.WriteTypeArgumentsOfSignature;
+      const pure =
+        name.startsWith("make") &&
+        parameters.some(
+          (parameter) =>
+            parameter.name.getText() === "db" ||
+            native.checker.typeToString(native.checker.getTypeAtLocation(parameter), parameter, typeFlags).includes("Database"),
+        );
+      const persisted = name.startsWith("seed") && !parameters.some((parameter) => parameter.name.getText() === "db");
+      if (pure || persisted) {
+        context.report({
+          node: native.tsNodeToESTreeNodeMap.get(declaration.name),
+          message: pure
+            ? "a `make*` PURE builder accepts a db — a pure builder must stay db-free; persistence belongs to a `seed*` builder (docs/law/Spine-Testing.md §4)."
+            : "a `seed*` PERSISTED builder has no `db` parameter — a persisted builder must take one; a db-free builder belongs under the `make*` prefix (docs/law/Spine-Testing.md §4).",
+        });
+      }
+    };
+    return { FunctionDeclaration: check, TSDeclareFunction: check };
+  },
+};
+
+function nativeFixtureSubject(declaration, checker) {
+  if (ts.isFunctionDeclaration(declaration)) {
+    return nativeFunctionExported(declaration, checker) ? { output: declaration, annotation: declaration.type } : null;
+  }
+  if (!ts.isVariableDeclaration(declaration)) {
+    throw new Error("Native fixture output selected another declaration kind");
+  }
+  const statement = declaration.parent.parent;
+  if (!(ts.isVariableStatement(statement) && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword))) {
+    return null;
+  }
+  const initializer = declaration.initializer;
+  const output = initializer !== undefined && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) ? initializer : declaration;
+  return { output, annotation: output.type };
+}
+
+const opaqueTestFixtureRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const check = (node) => {
+      const declaration = native.esTreeNodeToTSNodeMap.get(node);
+      const subject = nativeFixtureSubject(declaration, native.checker);
+      if (subject === null) {
+        return;
+      }
+      const { output, annotation } = subject;
+      const signature = ts.isFunctionLike(output) ? native.checker.getSignatureFromDeclaration(output) : undefined;
+      const type = signature === undefined ? native.checker.getTypeAtLocation(output) : native.checker.getReturnTypeOfSignature(signature);
+      if (type.flags !== ts.TypeFlags.Unknown) {
+        return;
+      }
+      const anchor = annotation ?? declaration.name;
+      const token = anchor === undefined ? undefined : waivableCoordinate(anchor.getText());
+      if (token !== undefined) {
+        const start = anchor.getStart();
+        context.report({
+          loc: { start: context.sourceCode.getLocFromIndex(start), end: context.sourceCode.getLocFromIndex(start + token.length) },
+          message: "An exported fixture output is unknown; return its real contract instead of erasing the consumer's field obligations.",
+        });
+      }
+    };
+    return { FunctionDeclaration: check, TSDeclareFunction: check, VariableDeclarator: check };
+  },
+};
+
+const contextReturnTypeRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const check = (node) => {
+      if (node.name !== "ReturnType") {
+        return;
+      }
+      const declaration = native.esTreeNodeToTSNodeMap.get(node);
+      const symbol = native.checker.getSymbolAtLocation(declaration);
+      const declarations = symbol?.declarations ?? [];
+      if (declarations.length > 0) {
+        if (
+          declarations.some(
+            (item) =>
+              native.program.isSourceFileDefaultLibrary(item.getSourceFile()) ||
+              item.getSourceFile().fileName.replaceAll("\\", "/").includes("/node_modules/@types/"),
+          ) &&
+          declarations.every((item) => {
+            const source = item.getSourceFile();
+            let current = item.parent;
+            while (current !== undefined && !ts.isModuleDeclaration(current)) {
+              current = current.parent;
+            }
+            return (
+              source.isDeclarationFile &&
+              (!source.statements.some((statement) => ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) ||
+                (current !== undefined && current.name.getText().replaceAll(/["']/gu, "") === "global"))
+            );
+          })
+        ) {
+          context.report({ node, message: "The DI bundle type must be an explicit, hand-written interface, never reflected off a builder with ReturnType." });
+        }
+        return;
+      }
+      context.report({
+        node,
+        message: "Whether this ReturnType is TypeScript's reflected utility or a local type CANNOT be established: the checker binds it to no declaration.",
+      });
+    };
+    return { Identifier: check };
+  },
+};
+
+function nativeWrappedNode(node, native) {
+  return createWrappedNode(node, { typeChecker: native.checker, sourceFile: node.getSourceFile() });
+}
+
+function ambientDeterminismRule(clock) {
+  const memberName = clock ? "now" : "random";
+  const globalName = clock ? "Date" : "Math";
+  const message = clock
+    ? "Read time from the injected clock (@orb/kit/time), not Date.now() or zero-argument new Date()."
+    : "Draw entropy from an injected seeded PRNG, not Math.random().";
+  const candidate = (node, wrapped) => {
+    if (node.type === "NewExpression") {
+      return clock && node.arguments.length === 0 && referenceNamesExport(wrapped.getExpression(), "Date");
+    }
+    if (!possibleAmbientCall(wrapped, memberName)) {
+      return false;
+    }
+    if (ts.isIdentifier(wrapped.getExpression().compilerNode)) {
+      return true;
+    }
+    const member = readMemberReference(wrapped.getExpression());
+    return member.kind === "resolved" && member.value.name === memberName;
+  };
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const native = nativeDeclarationContext(context);
+      let found;
+      const inspect = (node) => {
+        const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+        if (!candidate(node, wrapped)) {
+          return;
+        }
+        const verdict = readAmbientInvocation(wrapped, [
+          { globalName, memberPath: node.type === "NewExpression" ? [] : [memberName], token: `${globalName}.${memberName}` },
+        ]);
+        if (verdict.kind === "other" || found !== undefined) {
+          return;
+        }
+        found = { node, unreadable: verdict.kind === "unreadable" };
+      };
+      return {
+        CallExpression: inspect,
+        NewExpression: inspect,
+        "Program:exit"() {
+          if (found !== undefined) {
+            context.report({
+              node: found.node,
+              message: found.unreadable ? "Whether this call reads the ambient clock or generator CANNOT be established; its callee is unreadable." : message,
+            });
+          }
+        },
+      };
+    },
+  };
+}
+
+const MINT_MODULE_GENERATORS = new Map([
+  ["node:crypto", new Set(["randomUUID"])],
+  ["crypto", new Set(["randomUUID"])],
+  ["nanoid", new Set(["nanoid"])],
+  ["uuid", new Set(["v4"])],
+  ["@paralleldrive/cuid2", new Set(["createId"])],
+]);
+
+const mintViaCastRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const castId = createKitIdCallMatcher("castId");
+    const generator = (origin) => {
+      if (origin.kind === "unresolved") {
+        return false;
+      }
+      const target = origin.value.target;
+      if (target.kind === "global") {
+        return target.globalName === "crypto" && target.memberPath.join(".") === "randomUUID";
+      }
+      const module = target.canonical.kind === "external-door" ? target.canonical.moduleSpecifier : target.moduleSpecifier;
+      return target.memberPath.length === 0 && MINT_MODULE_GENERATORS.get(module)?.has(target.exportedName) === true;
+    };
+    const mintedArgument = (argument) => {
+      const direct = resolveCallableOrigin(argument);
+      let minted = generator(direct);
+      let receiver = argument;
+      while (!minted) {
+        const callee = receiver.getExpression();
+        if (!ts.isPropertyAccessExpression(callee.compilerNode)) {
+          break;
+        }
+        const next = callee.getExpression();
+        if (!ts.isCallExpression(next.compilerNode)) {
+          break;
+        }
+        receiver = next;
+        minted = generator(resolveCallableOrigin(receiver));
+      }
+      return { minted, unreadable: !minted && direct.kind === "unresolved" && classifyOriginRefusal(direct.reason, argument.getExpression()) === "unreadable" };
+    };
+    return {
+      CallExpression: (node) => {
+        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+        const seam = castId(call);
+        if (seam === "other") {
+          return;
+        }
+        let unreadable = seam === "unreadable";
+        let minted = false;
+        const argument = call.getArguments()[0];
+        if (!unreadable && argument !== undefined && ts.isCallExpression(argument.compilerNode)) {
+          ({ minted, unreadable } = mintedArgument(argument));
+        }
+        if (minted || unreadable) {
+          context.report({
+            node: native.tsNodeToESTreeNodeMap.get(call.getExpression().compilerNode),
+            message: minted
+              ? "castId wraps a fresh-id generator; use mintTypeId or the canonical prefixless newId mint."
+              : "Whether this cast seam launders a fresh-id generator CANNOT be established; its seam or argument is unreadable.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const zustandSelectorStabilityRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const metadata = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "zustand-selector-stability");
+    const home = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${metadata.home}`));
+    const module = home === undefined ? undefined : native.checker.getSymbolAtLocation(home);
+    const configFile = native.program.getCompilerOptions().configFilePath;
+    const clientOwner = typeof configFile === "string" && configFile.replaceAll("\\", "/").endsWith("/packages/client/tsconfig.json");
+    if (
+      (home !== undefined || clientOwner) &&
+      (module === undefined || !native.checker.getExportsOfModule(module).some((symbol) => symbol.getName() === metadata.exportedName))
+    ) {
+      throw new Error("GatedStoreHook home/export is unavailable; store-hook identity cannot be established");
+    }
+    const storeIdentity = (identity) =>
+      (identity.name === metadata.exportedName &&
+        identity.declarations.length > 0 &&
+        identity.declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${metadata.home}`))) ||
+      (identity.name === "UseBoundStore" && declaredByPackage(identity.declarations, "zustand"));
+    const literalSelector = (argument) => {
+      if (argument === undefined || !ts.isArrowFunction(argument.compilerNode) || argument.getParameters().length !== 1) {
+        return false;
+      }
+      let body = argument.getBody();
+      while (
+        ts.isParenthesizedExpression(body.compilerNode) ||
+        ts.isAsExpression(body.compilerNode) ||
+        ts.isSatisfiesExpression(body.compilerNode) ||
+        ts.isNonNullExpression(body.compilerNode)
+      ) {
+        body = body.getExpression();
+      }
+      return ts.isObjectLiteralExpression(body.compilerNode) || ts.isArrayLiteralExpression(body.compilerNode);
+    };
+    return {
+      CallExpression: (node) => {
+        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+        const argument = call.getArguments()[0];
+        if (!literalSelector(argument)) {
+          return;
+        }
+        const callee = call.getExpression();
+        const type = callee.getType();
+        const unreadable = type.isAny() || type.isUnknown();
+        const chain = unreadable ? undefined : resolveTypeIdentityChain(callee);
+        const store = chain?.kind === "resolved" && chain.value.some(storeIdentity);
+        if (store || unreadable) {
+          context.report({
+            node: native.tsNodeToESTreeNodeMap.get(callee.compilerNode),
+            message: unreadable
+              ? "Whether this fresh-literal selector belongs to a store hook CANNOT be established; its callee type is erased."
+              : "A zustand selector returns a fresh object or array; select a stored reference, a stable default, or useShallow.",
+          });
+        }
+      },
+    };
+  },
+};
+
+function nativeReviewedReport(context) {
+  const groups = new Map();
+  return {
+    add(operation, node, verdict) {
+      const group = groups.get(operation) ?? [];
+      group.push({ node, verdict });
+      groups.set(operation, group);
+    },
+    flush(message, unreadable) {
+      for (const [operation, group] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
+        const anchor = group.find((candidate) => candidate.verdict !== "unreadable") ?? group[0];
+        context.report({
+          node: anchor.node,
+          message: `${anchor.verdict === "unreadable" ? unreadable : message} Operation: ${operation}; line(s): ${[...new Set(group.map((candidate) => candidate.node.loc.start.line))].join(", ")}.`,
+        });
+      }
+    },
+  };
+}
+
+const AMBIENT_GLOBAL_RECEIVERS = new Set(["globalThis", "self", "window"]);
+const TIME_FORMATTERS = new Set(["DateTimeFormat", "RelativeTimeFormat"]);
+const TIME_LOCALE_MEMBERS = new Set(["toLocaleDateString", "toLocaleString", "toLocaleTimeString"]);
+
+function nativeIntlFormatterOrigin(wrapped, name) {
+  const origin = resolveGlobalMemberOrigin(wrapped);
+  if (origin.kind === "resolved") {
+    return origin.value.globalName === "Intl" && origin.value.memberPath.length === 1 ? "home" : "other";
+  }
+  if (readsAmbientGlobalPath(wrapped, AMBIENT_GLOBAL_RECEIVERS, ["Intl", name])) {
+    return "home";
+  }
+  return classifyOriginRefusal(origin.reason, wrapped);
+}
+
+const rawIntlTimeRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const report = nativeReviewedReport(context);
+    const check = (node, formatter) => {
+      const value = native.esTreeNodeToTSNodeMap.get(node);
+      const name = nativeCalledMemberName(value);
+      if (!(formatter ? TIME_FORMATTERS : TIME_LOCALE_MEMBERS).has(name)) {
+        return;
+      }
+      const wrapped = nativeWrappedNode(value, native);
+      const verdict = formatter ? nativeIntlFormatterOrigin(wrapped, name) : classifyPackageMemberOrigin(wrapped, ["typescript"]);
+      if (verdict !== "other") {
+        const member = readMemberReference(wrapped);
+        report.add(formatter ? "intl-formatter" : "tolocale", native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode), verdict);
+      }
+    };
+    return {
+      MemberExpression: (node) => {
+        check(node, true);
+      },
+      CallExpression: (node) => {
+        check(node.callee, false);
+      },
+      "Program:exit"() {
+        report.flush(
+          "Render time through the memoized @orb/kit/time seam, not raw Intl or toLocale formatting.",
+          "Whether this expression is the ECMAScript time API CANNOT be established; its binding cannot be placed.",
+        );
+      },
+    };
+  },
+};
+
+const listRowAdoptionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const surfaceNames = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
+    const rowNames = new Set(["ListRow", "LibraryRow"]);
+    const renderNames = new Set(["renderItem", "renderRow"]);
+    const callbacks = [];
+    const returns = [];
+    let surface = false;
+    const unwrap = (value) => (ts.isParenthesizedExpression(value) ? value.expression : value);
+    const returnedRoot = (callback) => {
+      const returned = ts.isArrowFunction(callback)
+        ? callback.body
+        : returns.find(
+            (statement) =>
+              statement.getSourceFile() === callback.getSourceFile() &&
+              statement.getStart() >= callback.getStart() &&
+              statement.end <= callback.end &&
+              statement.expression !== undefined,
+          )?.expression;
+      if (returned === undefined) {
+        return;
+      }
+      const root = unwrap(returned);
+      if (ts.isJsxElement(root)) {
+        return root.openingElement;
+      }
+      return ts.isJsxSelfClosingElement(root) ? root : undefined;
+    };
+    const interactive = (opening) =>
+      opening.attributes.properties.some((property) => ts.isJsxAttribute(property) && ["onClick", "role", "href"].includes(property.name.getText()));
+    return {
+      ImportSpecifier: (node) => {
+        const imported = native.esTreeNodeToTSNodeMap.get(node);
+        surface ||= surfaceNames.has((imported.propertyName ?? imported.name).text);
+      },
+      ReturnStatement: (node) => {
+        returns.push(native.esTreeNodeToTSNodeMap.get(node));
+      },
+      CallExpression: (node) => {
+        const call = native.esTreeNodeToTSNodeMap.get(node);
+        if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "map" && call.arguments[0] !== undefined) {
+          callbacks.push(call.arguments[0]);
+        }
+      },
+      JSXAttribute: (node) => {
+        const attribute = native.esTreeNodeToTSNodeMap.get(node);
+        if (!renderNames.has(attribute.name.getText()) || attribute.initializer === undefined || !ts.isJsxExpression(attribute.initializer)) {
+          return;
+        }
+        let expression = attribute.initializer.expression;
+        if (expression === undefined) {
+          return;
+        }
+        if (ts.isIdentifier(expression)) {
+          const origin = resolveStableExpression(nativeWrappedNode(expression, native));
+          if (origin.kind !== "resolved" || origin.value.getSourceFile().compilerNode !== expression.getSourceFile()) {
+            return;
+          }
+          expression = unwrap(origin.value.compilerNode);
+        }
+        if (ts.isArrowFunction(expression)) {
+          callbacks.push(expression);
+        }
+      },
+      "Program:exit"() {
+        if (!surface) {
+          return;
+        }
+        for (const callback of callbacks) {
+          const opening = returnedRoot(callback);
+          if (opening === undefined || rowNames.has(opening.tagName.getText())) {
+            continue;
+          }
+          if (interactive(opening)) {
+            context.report({
+              node: native.tsNodeToESTreeNodeMap.get(opening.tagName),
+              message: "Root an interactive LIST-region row render in ListRow or LibraryRow.",
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
+const testFixtureImportsRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const tooling = context.filename.replaceAll("\\", "/").includes("/tests/tooling/");
+    const invalidDoor = (door, imported) =>
+      door.kind === "runner" ||
+      (door.kind === "unresolved" && imported) ||
+      (door.kind === "project" && tooling && !registersSnapshotSerializer(door.sourceFile));
+    const check = (node) => {
+      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+      const imported = ts.isImportSpecifier(wrapped.compilerNode);
+      const member = imported ? undefined : readMemberReference(wrapped);
+      const memberName = member?.kind === "resolved" ? member.value.name : undefined;
+      const name = imported ? wrapped.getName() : memberName;
+      if (!FIXTURE_NAMES.has(name)) {
+        return;
+      }
+      const door = readFixtureDoor(wrapped);
+      if (invalidDoor(door, imported)) {
+        context.report({
+          node: imported ? node.imported : native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode),
+          message: "Enter test/it/expect through the composed fixture door; tooling tests require the door that installs the RESULT snapshot serializer.",
+        });
+      }
+    };
+    return { ImportSpecifier: check, MemberExpression: check };
+  },
+};
+
+const zodModernSpellingsRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const zodCall = (node, name) => isFactoryCallFromPackage(node, name, "zod");
+    const boolEnum = (call, members) => {
+      const texts = members.filter((member) => ts.isStringLiteral(member.compilerNode)).map((member) => member.getLiteralText());
+      return (
+        zodCall(call, "enum") &&
+        members.length === 2 &&
+        texts.length === 2 &&
+        texts[0] !== texts[1] &&
+        texts.every((text) => text === "true" || text === "false")
+      );
+    };
+    const arraySpelling = (call, name, members) => {
+      if (name === "union") {
+        return zodCall(call, "union") && members.length >= 2 && members.every((member) => zodCall(member, "literal"));
+      }
+      return name === "enum" && boolEnum(call, members);
+    };
+    return {
+      CallExpression: (node) => {
+        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+        const candidate = zodCandidateCall(call);
+        if (candidate === undefined) {
+          return;
+        }
+        const args = call.getArguments();
+        const first = args[0];
+        let invalid = false;
+        if (candidate.name === "strict" && args.length === 0) {
+          const member = readMemberReference(call.getExpression());
+          invalid = member.kind === "resolved" && zodCall(member.value.receiver, "object");
+        } else if (args.length === 1 && first !== undefined && ts.isArrayLiteralExpression(first.compilerNode)) {
+          invalid = arraySpelling(call, candidate.name, first.getElements());
+        }
+        if (invalid) {
+          context.report({
+            node: native.tsNodeToESTreeNodeMap.get(candidate.nameNode.compilerNode),
+            message: "Use the modern zod spelling: strictObject, multi-value literal, or the pinned envBool codec; preserve the existing accepted vocabulary.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const manualAutosaveFlushRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const bodies = new Map();
+    const arrayOps = new Set(["pushFieldValue", "removeFieldValue", "insertFieldValue", "moveFieldValues"]);
+    const ownerBody = (call) => {
+      let body = call.parent;
+      while (
+        !(ts.isSourceFile(body) || ts.isFunctionDeclaration(body) || ts.isFunctionExpression(body) || ts.isArrowFunction(body) || ts.isMethodDeclaration(body))
+      ) {
+        body = body.parent;
+      }
+      return body;
+    };
+    const formOrigin = (wrapped) => {
+      const origin = resolveTypeMemberOrigin(wrapped);
+      if (origin.kind === "resolved") {
+        return declaredByPackage(origin.value.declarations, "@tanstack/form-core") ? "form" : "other";
+      }
+      return classifyOriginRefusal(origin.reason, wrapped);
+    };
+    return {
+      CallExpression: (node) => {
+        const call = native.esTreeNodeToTSNodeMap.get(node);
+        const wrapped = nativeWrappedNode(call.expression, native);
+        const member = readMemberReference(wrapped);
+        if (member.kind !== "resolved" || !(arrayOps.has(member.value.name) || member.value.name === "handleSubmit")) {
+          return;
+        }
+        const verdict = formOrigin(wrapped);
+        if (verdict === "other") {
+          return;
+        }
+        const body = ownerBody(call);
+        const state = bodies.get(body) ?? {};
+        const slot = member.value.name === "handleSubmit" ? "submit" : "array";
+        state[slot] ??= { node: native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode), proven: verdict === "form" };
+        bodies.set(body, state);
+      },
+      "Program:exit"() {
+        for (const { array, submit } of bodies.values()) {
+          if (array !== undefined && submit !== undefined) {
+            context.report({
+              node: array.node,
+              message:
+                array.proven && submit.proven
+                  ? "A structural form array edit and handleSubmit share one body; the autosave driver's store subscription already persists the edit."
+                  : "Whether both calls belong to the form API CANNOT be established; a manual structural-edit flush cannot be admitted.",
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
+const chatTrpcSurfaceRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const proxyChain = (wrapped) => {
+      const segments = [];
+      let root = wrapped;
+      let readable = true;
+      while (ts.isPropertyAccessExpression(root.compilerNode) || ts.isElementAccessExpression(root.compilerNode)) {
+        const read = readMemberReference(root);
+        if (read.kind !== "resolved") {
+          readable = false;
+          break;
+        }
+        segments.unshift(read.value.name);
+        root = read.value.receiver;
+      }
+      return { segments, readable, identity: resolveTypeIdentityOrigin(root) };
+    };
+    const check = (node) => {
+      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
+      const member = readMemberReference(wrapped);
+      if (member.kind !== "resolved" || member.value.name !== "mutationOptions") {
+        return;
+      }
+      const origin = resolveTypeMemberOrigin(wrapped);
+      if (origin.kind === "resolved" && !declaredByPackage(origin.value.declarations, "@trpc/tanstack-react-query")) {
+        return;
+      }
+      if (origin.kind === "unresolved" && classifyOriginRefusal(origin.reason, wrapped) === "other") {
+        return;
+      }
+      const { segments, readable, identity } = proxyChain(wrapped);
+      const proven =
+        origin.kind === "resolved" &&
+        readable &&
+        identity.kind === "resolved" &&
+        identity.value.name === "TRPCOptionsProxy" &&
+        declaredByPackage(identity.value.declarations, "@trpc/tanstack-react-query");
+      if (proven && segments[0] !== "chat") {
+        return;
+      }
+      context.report({
+        node: native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode),
+        message: proven
+          ? "Chat mutation dispatch belongs in features/chat/hooks; surfaces compose the verb hook."
+          : "Whether this mutationOptions chain names the chat router CANNOT be established; its proxy root is unreadable.",
+      });
+    };
+    return { MemberExpression: check };
+  },
+};
+
+const multiplexedMutationErrorRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const metadata = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "no-multiplexed-mutation-error");
+    const home = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${metadata.home}`));
+    const module = home === undefined ? undefined : native.checker.getSymbolAtLocation(home);
+    if (module === undefined || !native.checker.getExportsOfModule(module).some((symbol) => symbol.getName() === metadata.exportedName)) {
+      throw new Error("EntityMutationResult home/export is unavailable; mutation error identity cannot be established");
+    }
+    const operand = (value) => {
+      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(value), native);
+      const member = readMemberReference(wrapped);
+      if (member.kind === "unresolved" || member.value.name !== "error") {
+        return { verdict: "other" };
+      }
+      const origin = resolveTypeMemberOrigin(wrapped);
+      if (origin.kind === "unresolved") {
+        return { verdict: classifyOriginRefusal(origin.reason, wrapped), member: member.value };
+      }
+      const declarations = origin.value.declarations;
+      const owned = declarations.length > 0 && declarations.every((declaration) => declaration.getSourceFile().compilerNode === home);
+      const vendor =
+        declarations.length > 0 &&
+        declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes("/node_modules/@tanstack/query-core/"));
+      return { verdict: owned || vendor ? "mutation" : "other", member: member.value };
+    };
+    const check = (node) => {
+      if (node.operator !== "??" && node.operator !== "||") {
+        return;
+      }
+      const left = operand(node.left);
+      const right = operand(node.right);
+      if (left.verdict === "other" || right.verdict === "other") {
+        return;
+      }
+      context.report({
+        node: native.tsNodeToESTreeNodeMap.get(left.member.nameNode.compilerNode),
+        message:
+          left.verdict === "unreadable" || right.verdict === "unreadable"
+            ? "Whether both errors are sticky mutation slots CANNOT be established: an operand's receiver is unreadable."
+            : "Do not multiplex sticky mutation errors; render each mutation's own error slot.",
+      });
+    };
+    return { LogicalExpression: check };
+  },
+};
+
+// The existing authored-value primitive receives this parser's checker, never a second semantic owner.
+function nativeAuthoredScalar(node, native) {
+  return readStaticAuthoredScalar(nativeWrappedNode(node, native));
+}
+
+const INTERACTIVE_WIDGET_ROLES = new Set([
+  "button",
+  "link",
+  "checkbox",
+  "radio",
+  "switch",
+  "slider",
+  "spinbutton",
+  "tab",
+  "option",
+  "menuitem",
+  "menuitemcheckbox",
+  "menuitemradio",
+  "combobox",
+  "textbox",
+  "searchbox",
+  "listbox",
+  "menu",
+  "menubar",
+  "radiogroup",
+  "tablist",
+  "tree",
+  "treeitem",
+  "grid",
+  "gridcell",
+  "scrollbar",
+]);
+
+const interactiveFeatureRoleRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const check = (node) => {
+      if (node.name.type !== "JSXIdentifier" || node.name.name !== "role") {
+        return;
+      }
+      const attribute = native.esTreeNodeToTSNodeMap.get(node);
+      const containsWidget = nativeSubtreeSome(attribute, (value) => {
+        if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value) || ts.isIdentifier(value))) {
+          return false;
+        }
+        let owner = value.parent;
+        while (owner !== undefined && !ts.isJsxAttribute(owner)) {
+          owner = owner.parent;
+        }
+        if (owner !== attribute) {
+          return false;
+        }
+        const fact = nativeAuthoredScalar(value, native);
+        return fact.kind === "resolved" && typeof fact.value === "string" && INTERACTIVE_WIDGET_ROLES.has(fact.value);
+      });
+      if (containsWidget) {
+        context.report({ node: node.name, message: "Interactive ARIA roles in features must come from an @orb/ui widget, not a hand-rolled layout element." });
+      }
+    };
+    return { JSXAttribute: check };
+  },
+};
+
+function nativeUnwrapExpression(raw) {
+  let node = raw;
+  while (ts.isParenthesizedExpression(node) || ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)) {
+    node = node.expression;
+  }
+  return node;
+}
+
+function nativeSubtreeSome(node, predicate) {
+  return predicate(node) || ts.forEachChild(node, (child) => nativeSubtreeSome(child, predicate) || undefined) === true;
+}
+
+function nativeOwningCallable(node) {
+  let callable = node.parent;
+  while (callable !== undefined) {
+    if (ts.isFunctionDeclaration(callable) || ts.isArrowFunction(callable) || ts.isFunctionExpression(callable) || ts.isMethodDeclaration(callable)) {
+      return callable;
+    }
+    callable = callable.parent;
+  }
+}
+
+function nativePortalExpression(attribute) {
+  const initializer = attribute?.initializer;
+  return initializer !== undefined && ts.isJsxExpression(initializer) && initializer.expression !== undefined
+    ? nativeUnwrapExpression(initializer.expression)
+    : undefined;
+}
+
+const baseUiPortalContainerRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const tags = new Set(
+      baseUiBindings(context.sourceCode.ast)
+        .filter((binding) => !binding.typeOnly)
+        .map((binding) => `${binding.local}.Portal`),
+    );
+    const declarations = (node) => native.checker.getSymbolAtLocation(node)?.declarations ?? [];
+    const check = (node) => {
+      if (!tags.has(context.sourceCode.getText(node.name))) {
+        return;
+      }
+      const portal = native.esTreeNodeToTSNodeMap.get(node);
+      const callable = nativeOwningCallable(portal);
+      const parameters = callable?.parameters ?? [];
+      const present = parameters.some((parameter) => native.checker.getTypeAtLocation(parameter).getProperty("container") !== undefined);
+      if (!present) {
+        context.report({
+          node: node.name,
+          message: "The owning callable accepts no `container` prop at all; the caller cannot place this sealed Base UI portal.",
+        });
+        return;
+      }
+      const attribute = portal.attributes.properties.find((property) => ts.isJsxAttribute(property) && property.name.getText() === "container");
+      const expression = nativePortalExpression(attribute);
+      const parameterRead = (value) => ts.isIdentifier(value) && declarations(value).some((declaration) => parameters.includes(declaration));
+      const bindingFromParameter = (binding) => {
+        let ancestor = binding.parent;
+        while (ancestor !== undefined && !ts.isParameter(ancestor)) {
+          ancestor = ancestor.parent;
+        }
+        if (ancestor !== undefined) {
+          return parameters.includes(ancestor);
+        }
+        ancestor = binding.parent;
+        while (ancestor !== undefined && !ts.isVariableDeclaration(ancestor)) {
+          ancestor = ancestor.parent;
+        }
+        return ancestor?.initializer !== undefined && parameterRead(nativeUnwrapExpression(ancestor.initializer));
+      };
+      const forbidden =
+        expression === undefined ||
+        (ts.isIdentifier(expression) && expression.text === "undefined") ||
+        expression.kind === ts.SyntaxKind.NullKeyword ||
+        nativeSubtreeSome(
+          expression,
+          (value) => ts.isPropertyAccessExpression(value) && value.name.text === "body" && value.expression.getText() === "document",
+        );
+      const consumes =
+        !forbidden &&
+        nativeSubtreeSome(
+          expression,
+          (value) =>
+            (ts.isPropertyAccessExpression(value) && value.name.text === "container" && parameterRead(nativeUnwrapExpression(value.expression))) ||
+            (ts.isIdentifier(value) &&
+              value.text === "container" &&
+              declarations(value).some((declaration) => ts.isBindingElement(declaration) && bindingFromParameter(declaration))),
+        );
+      if (!consumes) {
+        context.report({
+          node: attribute === undefined ? node.name : native.tsNodeToESTreeNodeMap.get(attribute.name),
+          message: "The container prop exists but this Base UI Portal target does not consume it; the caller seam is a dead wire.",
+        });
+      }
+    };
+    return { JSXOpeningElement: check };
+  },
+};
+
+function nativeCalledMemberName(callee) {
+  if (ts.isPropertyAccessExpression(callee)) {
+    return callee.name.text;
+  }
+  if (
+    ts.isElementAccessExpression(callee) &&
+    (ts.isStringLiteral(callee.argumentExpression) || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))
+  ) {
+    return callee.argumentExpression.text;
+  }
+}
+
+function nativePackageCallRule(methods, grouped) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const native = nativeDeclarationContext(context);
+      const groups = new Map();
+      const propertyDeclarations = (receiver, name) =>
+        native.checker.getNonNullableType(native.checker.getTypeAtLocation(receiver)).getProperty(name)?.declarations ?? [];
+      const isHome = (declarations) =>
+        declarations.length > 0 &&
+        declarations.every((declaration) => declaration.getSourceFile().fileName.replaceAll("\\", "/").includes("/node_modules/@tanstack/query-core/"));
+      const verdictFor = (receiver, name) => {
+        const direct = propertyDeclarations(receiver, name);
+        const uncast = propertyDeclarations(nativeUncastReceiver(receiver, native.checker), name);
+        if (isHome(direct) || isHome(uncast)) {
+          return "home";
+        }
+        return direct.length > 0 ? "other" : "unreadable";
+      };
+      const report = (candidate, sites = [candidate]) => {
+        const text = context.sourceCode.getText(candidate.node);
+        const start = candidate.node.range[0] + Math.max(text.lastIndexOf(candidate.name), 0);
+        context.report({
+          loc: { start: context.sourceCode.getLocFromIndex(start), end: context.sourceCode.getLocFromIndex(start + candidate.name.length) },
+          message:
+            candidate.verdict === "unreadable"
+              ? `Whether ${candidate.name} is TanStack Query's client member CANNOT be established: the checker cannot place this receiver.`
+              : `Imperative ${candidate.name} belongs in the central data seam, not inline at the caller. Line(s): ${sites.map((site) => site.node.loc.start.line).join(", ")}.`,
+        });
+      };
+      const check = (node) => {
+        const callee = native.esTreeNodeToTSNodeMap.get(node.callee);
+        const name = nativeCalledMemberName(callee);
+        if (name === undefined || !methods.includes(name)) {
+          return;
+        }
+        const verdict = verdictFor(callee.expression, name);
+        if (verdict === "other") {
+          return;
+        }
+        const candidate = { node: node.callee, name, verdict };
+        if (!grouped) {
+          report(candidate);
+        } else {
+          const sites = groups.get(name) ?? [];
+          sites.push(candidate);
+          groups.set(name, sites);
+        }
+      };
+      return {
+        CallExpression: check,
+        "Program:exit"() {
+          for (const [, sites] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
+            report(sites.find((site) => site.verdict === "home") ?? sites[0], sites);
+          }
+        },
+      };
+    },
+  };
+}
+
+function nativeBareString(type) {
+  if (ts.isParenthesizedTypeNode(type)) {
+    return nativeBareString(type.type);
+  }
+  const arms = ts.isUnionTypeNode(type) ? type.types : [type];
+  const kinds = arms.map((raw) => {
+    let arm = raw;
+    while (ts.isParenthesizedTypeNode(arm)) {
+      arm = arm.type;
+    }
+    if (arm.kind === ts.SyntaxKind.StringKeyword) {
+      return "string";
+    }
+    return arm.kind === ts.SyntaxKind.UndefinedKeyword || (ts.isLiteralTypeNode(arm) && arm.literal.kind === ts.SyntaxKind.NullKeyword) ? "nullable" : null;
+  });
+  return kinds.includes("string") && kinds.every((kind) => kind !== null);
+}
+
+const brandNamePositionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    const ids = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`));
+    if (ids === undefined) {
+      throw new Error("Native canonical brand vocabulary is absent from the owning Program");
+    }
+    const brands = new Map();
+    for (const declaration of ids.statements) {
+      if (!ts.isTypeAliasDeclaration(declaration)) {
+        continue;
+      }
+      const brand = nativeCanonicalIdBrand(native.checker.getTypeAtLocation(declaration.type), declaration.type, native.checker);
+      if (brand !== null) {
+        const typeName = declaration.name.text;
+        const name = typeName.charAt(0).toLowerCase() + typeName.slice(1);
+        if (brands.has(name)) {
+          throw new Error(`Duplicate canonical id-brand position ${name}`);
+        }
+        brands.set(name, { typeName, brand });
+      }
+    }
+    const check = (node) => {
+      const mapped = native.esTreeNodeToTSNodeMap.get(node);
+      const declaration = ts.isIdentifier(mapped) && ts.isParameter(mapped.parent) && mapped.parent.name === mapped ? mapped.parent : mapped;
+      if (
+        !((ts.isParameter(declaration) || ts.isPropertySignature(declaration) || ts.isPropertyDeclaration(declaration)) && ts.isIdentifier(declaration.name)) ||
+        declaration.type === undefined ||
+        !nativeBareString(declaration.type)
+      ) {
+        return;
+      }
+      const name = declaration.name.text;
+      const expected = brands.get(name);
+      if (expected !== undefined) {
+        context.report({
+          node: native.tsNodeToESTreeNodeMap.get(declaration.name),
+          message: `${name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`,
+        });
+      }
+    };
+    return { Identifier: check, TSPropertySignature: check, PropertyDefinition: check };
+  },
+};
+
+const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES;
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
+    "client-cache-surgery-only-in-data": nativePackageCallRule(
+      ["invalidateQueries", "setQueryData", "cancelQueries", "getQueryData", "removeQueries", "resetQueries"],
+      true,
+    ),
+    "no-inline-optimistic-in-surface": nativePackageCallRule(["cancelQueries", "setQueryData"], false),
+    "baseui-portal-container-seam": baseUiPortalContainerRule,
+    "no-interactive-role-in-features": interactiveFeatureRoleRule,
+    "no-multiplexed-mutation-error": multiplexedMutationErrorRule,
+    "no-raw-clock": ambientDeterminismRule(true),
+    "no-raw-random": ambientDeterminismRule(false),
+    "no-manual-autosave-flush": manualAutosaveFlushRule,
+    "no-chat-trpc-in-surface": chatTrpcSurfaceRule,
+    "no-mint-via-cast": mintViaCastRule,
+    "zustand-selector-stability": zustandSelectorStabilityRule,
+    "test-fixture-imports": testFixtureImportsRule,
+    "zod-modern-spellings": zodModernSpellingsRule,
+    "no-raw-intl-time": rawIntlTimeRule,
+    "list-row-adoption": listRowAdoptionRule,
+    "brand-in-name-position": brandNamePositionRule,
+    "test-factory-contract": testFactoryContractRule,
+    "no-opaque-test-fixture": opaqueTestFixtureRule,
+    "no-context-returntype": contextReturnTypeRule,
     "no-raw-z-index": rawZIndexRule,
     "no-raw-spacing-in-features": rawTierClassRule(
       /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u,
@@ -2536,7 +3623,7 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
   },
 };
-const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
+const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS].map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
   const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
   return {
     files: scope,
@@ -2547,6 +3634,22 @@ const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnde
       ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
       : {}),
     ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
+    ...(TYPED_NATIVE_POLICIES.some((entry) => entry.id === id)
+      ? {
+          settings: {
+            [`orb/typed-native-inputs/${id}`]: createHash("sha256")
+              .update(
+                JSON.stringify(
+                  typedNativeInputPaths(
+                    TYPED_NATIVE_POLICIES.find((entry) => entry.id === id),
+                    AUTHORED_NATIVE_INPUT_PATHS,
+                  ).map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
+                ),
+              )
+              .digest("hex"),
+          },
+        }
+      : {}),
     ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
     ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
@@ -3255,6 +4358,7 @@ const ORDINARY_CONFIG = [
       ...CLIENT_CONTEXT_RESTRICTIONS,
       ...CLIENT_MAP_RESTRICTIONS,
       ...CLIENT_LEXICAL_RESTRICTIONS,
+      ...DECLARATION_NATIVE_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
@@ -3268,6 +4372,24 @@ const ORDINARY_CONFIG = [
     },
     linterOptions: { reportUnusedDisableDirectives: "off" },
   })),
+  // Generated subjects keep the same owning compiler routes; only unrelated lint rules remain excluded.
+  ...DECLARATION_NATIVE_RESTRICTIONS.flatMap(({ scope, notUnder = [], notNamed = [] }) => [
+    {
+      files: scope.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated])),
+      ignores: [...notUnder, ...notNamed, "tests/**"],
+      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: true, tsconfigRootDir: ROOT, ecmaFeatures: { jsx: true } } },
+      linterOptions: { reportUnusedDisableDirectives: "error" },
+    },
+    {
+      files: scope.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated, "tests/**"])),
+      ignores: [...notUnder, ...notNamed, "tests/legacy/**"],
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: { project: TEST_TREE_PROJECTS, projectService: false, tsconfigRootDir: ROOT, ecmaFeatures: { jsx: true } },
+      },
+      linterOptions: { reportUnusedDisableDirectives: "error" },
+    },
+  ]),
 ];
 
 export default ORDINARY_CONFIG;

@@ -34,8 +34,8 @@
 // `mustFlag[4]`'s `messageIncludes` is the only row that can tell it apart from the ordinary verdict — both
 // arms emit exactly ONE finding, so a bare `{ count: 1 }` would pass whether the arm fires or is dead.
 //
-// FAMILY `zod-modern-spellings`: the package identity is `lib/zod-origin.ts` — `declaredByZod` here and
-// `isZodCall` in the sibling name one `ZOD_PACKAGE` (#0038).
+// Canonical zod ownership is shared with the native spelling rule through lib/zod-origin.ts.
+// This retained issues policy has its own singleton family.
 //
 // BOTH ARMS NOW ASK A SHARED READER (#2097, closed here with #2194's second half): the member arm through
 // `resolveTypeMemberOrigin` and the destructure arm through `resolveTypePropertyOrigin` — the binding-pattern
@@ -139,7 +139,7 @@ function classifyIssuesRead(node: MorphNode): IssuesVerdict | null {
 
 export const gate = defineGate({
   id: "zod-error-issues-home",
-  family: "zod-modern-spellings",
+  family: "zod-error-issues-home",
   authority: "reviewed-grant",
   severity: "error",
   // `packages/**` only, exactly as legacy scanned. The sanctioned join sites are SCANNED, never scoped out:

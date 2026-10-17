@@ -117,8 +117,7 @@ export interface RunManifest {
   readonly corpusFiles: number;
   /** Policies the loader accepted. */
   readonly registered: number;
-  /** Corpus files that registered NOTHING. Recorded, never tolerated quietly: `gate-modernization`'s
-   *  UNREGISTERED arm reds them, and this count is how a reader sees the gap at all. */
+  /** Corpus files that registered nothing; loader admission rejects unregistered modules. */
   readonly unregistered: readonly string[];
   /** The set the dispatcher was supposed to run. A policy has no dormant state, so since #2176 Phase F
    *  (2026-09-14) this equals `registered` by construction — it stays a separate field because it is what

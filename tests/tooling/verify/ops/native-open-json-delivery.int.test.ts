@@ -7,13 +7,12 @@ import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { gate as occurrence } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const POLICIES = [occurrence, health];
+const POLICIES = [occurrence];
 const SCHEMA = "packages/db/src/schema/settings.ts";
 const ENTRY = "packages/server/src/entry.ts";
 function fixture(root: string, repoRoot: string, browser: boolean): void {
@@ -135,7 +134,6 @@ test(
           .flatMap((query) => [...query.nodes]);
         expect(indexedRequests.some((node) => Node.isCallExpression(node) && node.getExpression().getText() === "opaque")).toBe(false);
         expect(indexedRequests.some((node) => Node.isCallExpression(node) && node.getExpression().getText() === "indexed")).toBe(true);
-        expect.soft(result.policies.find(({ id }) => id === health.id)?.findings).toEqual([]);
       } finally {
         useContext.mockRestore();
         definitionPoison.mockRestore();

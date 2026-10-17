@@ -2,6 +2,7 @@
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
 import type { Node as MorphNode, Symbol as MorphSymbol, Type } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import ts from "typescript";
 import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
 import type { TypeObservationReader } from "./type-observations-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
@@ -16,30 +17,72 @@ function unwrapReceiverExpression(raw: MorphNode): MorphNode {
 
 export const MAX_RECEIVER_HOPS = 4;
 
+interface ReceiverOperations<T> {
+  readonly unwrap: (node: T) => T;
+  readonly isIdentifier: (node: T) => boolean;
+  readonly initializers: (node: T) => readonly T[];
+  readonly observe?: (node: T) => void;
+}
+
+function uncastReceiverCore<T>(node: T, operations: ReceiverOperations<T>): T {
+  let current = operations.unwrap(node);
+  operations.observe?.(current);
+  for (let hop = 0; hop < MAX_RECEIVER_HOPS && operations.isIdentifier(current); hop += 1) {
+    const initializer = operations.initializers(current)[0];
+    if (initializer === undefined) {
+      break;
+    }
+    current = operations.unwrap(initializer);
+    operations.observe?.(current);
+  }
+  return current;
+}
+
 /** Follow only raw lexical const initializers, retaining call terminals after unwrapping. */
 export function uncastReceiver(
   node: MorphNode,
   declarations: (identifier: MorphNode) => readonly MorphNode[] = (identifier) => identifier.getSymbol()?.getDeclarations() ?? [],
   observe?: (value: MorphNode) => void,
 ): MorphNode {
-  let current = unwrapReceiverExpression(node);
-  observe?.(current);
-  for (let hop = 0; hop < MAX_RECEIVER_HOPS && Node.isIdentifier(current); hop += 1) {
-    let initializer: MorphNode | null = null;
-    for (const declaration of declarations(current)) {
-      const value = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
-      const isConst = Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const;
-      if (initializer === null && isConst && value !== undefined) {
-        initializer = value;
+  return uncastReceiverCore(node, {
+    unwrap: unwrapReceiverExpression,
+    isIdentifier: Node.isIdentifier,
+    initializers: (identifier) =>
+      declarations(identifier).flatMap((declaration) => {
+        const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
+        return initializer !== undefined &&
+          Node.isVariableDeclaration(declaration) &&
+          declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const
+          ? [initializer]
+          : [];
+      }),
+    ...(observe === undefined ? {} : { observe }),
+  });
+}
+
+/** ESLint's existing owning Program uses the same four-hop lexical algorithm as captured morph consumers. */
+export function nativeUncastReceiver(node: ts.Node, checker: ts.TypeChecker): ts.Node {
+  return uncastReceiverCore(node, {
+    unwrap: (raw) => {
+      let current = raw;
+      while (ts.isParenthesizedExpression(current) || ts.isAsExpression(current) || ts.isSatisfiesExpression(current) || ts.isNonNullExpression(current)) {
+        current = current.expression;
       }
-    }
-    if (initializer === null) {
-      break;
-    }
-    current = unwrapReceiverExpression(initializer);
-    observe?.(current);
-  }
-  return current;
+      return current;
+    },
+    isIdentifier: ts.isIdentifier,
+    initializers: (identifier) =>
+      (checker.getSymbolAtLocation(identifier)?.declarations ?? []).flatMap((declaration) =>
+        ts.isVariableDeclaration(declaration) &&
+        ts.isVariableDeclarationList(declaration.parent) &&
+        ts.isVariableStatement(declaration.parent.parent) &&
+        // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript NodeFlags is a compiler-owned declaration bitfield.
+        (declaration.parent.flags & ts.NodeFlags.Const) !== 0 &&
+        declaration.initializer !== undefined
+          ? [declaration.initializer]
+          : [],
+      ),
+  });
 }
 
 export function resolved<T>(value: T, origin: MorphNode, declarations: readonly MorphNode[]): ReferenceFact<T> {

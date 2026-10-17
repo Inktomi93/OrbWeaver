@@ -63,7 +63,7 @@ const CHUNKS = {
 } as const;
 export const ALL_ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 const AFFECTED_POLICY_IDS = decodeInstrumentAffectedPolicyIds(processEnvValue(INSTRUMENT_AFFECTED_POLICIES_ENV));
-const CLOSEOUT_POLICY_IDS = ["css-var-defined-health", "open-json-column-key-parity-health"] as const;
+const CLOSEOUT_POLICY_IDS = ["css-var-defined-health"] as const;
 const DEPENDENCY_CONTROL_IDS = [queryBoundaryReservationHealth.id, queryBoundaryReservation.id] as const;
 const RESOURCE_CONTROL_IDS = FRONTEND_ARMS.filter((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"))
   .slice(0, 1)
@@ -168,17 +168,6 @@ export function registerLivenessPartition(partitionIndex: number): void {
         }
         return overlay;
       });
-    }
-    if (policyId === "open-json-column-key-parity-health") {
-      return mapOverlays(arm, (overlay) =>
-        overlay.kind === "neutralise"
-          ? {
-              ...overlay,
-              source:
-                'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const liveness = sqliteTable("liveness", { payload: text("payload", { mode: "json" }) });\n',
-            }
-          : overlay,
-      );
     }
     throw new Error(`no healthy closeout overlay is declared for ${policyId}`);
   }

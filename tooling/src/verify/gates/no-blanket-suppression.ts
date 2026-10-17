@@ -202,7 +202,8 @@ function blanketsOf(sites: readonly SuppressionSite[], bounds: StatementBounds |
       state.out.push({ line: site.line, token: site.token, kind: "unclosed" });
     }
   }
-  return state.out.sort((a, b) => a.line - b.line);
+  const physical = new Map(state.out.map((blanket) => [`${blanket.line} ${blanket.token} ${blanket.kind}`, blanket]));
+  return [...physical.values()].sort((a, b) => a.line - b.line);
 }
 
 // ── readers ───────────────────────────────────────────────────────────────────────────────────────────
@@ -234,9 +235,11 @@ function judgeText(text: string, lineComments: boolean): readonly Blanket[] {
   const sites: SuppressionSite[] = [];
   let blanked = text;
   for (const span of [...spans].sort((a, b) => b.pos - a.pos)) {
-    const directive = readDirectiveComment(span.text);
-    if (directive !== null) {
-      sites.unshift({ line: lineAt(text, span.pos), token: directive.token, rule: directive.rule, block: !span.text.startsWith("//") });
+    const directives = readDirectiveComment(span.text);
+    if (directives !== null) {
+      sites.unshift(
+        ...directives.map((directive) => ({ line: lineAt(text, span.pos), token: directive.token, rule: directive.rule, block: !span.text.startsWith("//") })),
+      );
     }
     blanked = blankSpan(blanked, span.pos, span.end);
   }
@@ -419,6 +422,13 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
+    resourceProof({
+      files:
+        "export const before=0;\n/* eslint-disable first, second -- reason, not-a-rule */\nexport const middle=1;\n/* eslint-enable first */\nexport const after=2;\n",
+      at: "packages/kit/src/partial-enable.ts",
+      expect: { count: 1, token: "eslint-disable", line: 2, messageIncludes: "never closed" },
+      why: "Enabling the first rule leaves the second rule's range open; a comma list cannot hide an unclosed scope.",
+    }),
     {
       mode: "resource" as const,
       files: {
@@ -554,6 +564,12 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      files:
+        "export const before=0;\n/* eslint-disable first, second -- reason, not-a-rule */\nexport const middle=1;\n/* eslint-enable first, second -- reason, not-a-rule */\nexport const after=2;\n",
+      at: "packages/kit/src/closed-list.ts",
+      why: "Both native comma-list rules close around only the middle statement; commas in the explanation name no rule.",
+    },
     {
       files:
         "// biome-ignore-start lint/suspicious/noBitwiseOperators: the codec\nexport const a = 1 | 2;\n" +

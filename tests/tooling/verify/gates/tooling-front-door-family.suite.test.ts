@@ -6,13 +6,12 @@ import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as argvFrontDoor } from "../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
-import { gate as argvHealth } from "../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tooling-front-door-family";
-const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
+const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor];
 const ALL: readonly GatePolicy[] = ARGV_FAMILY;
 const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
@@ -97,7 +96,7 @@ test("every argv grant row in the central table names a subject that exists on t
 });
 
 // ─── §4.5 DEFERRAL ──────────────────────────────────────────────────────────────────────────────────────
-test("a narrowed request judges the selected-files policies on the requested rows only, and DEFERS the whole-tree health policy", () => {
+test("a narrowed request judges only its requested argv rows", () => {
   const files = {
     [ANCHOR]: ANCHOR_SOURCE,
     "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
@@ -110,7 +109,4 @@ test("a narrowed request judges the selected-files policies on the requested row
     expect(narrowed.authority.effectiveFindings, policy.id).toEqual([]);
     expect(narrowed.authority.authorityAlarms, policy.id).toEqual([]);
   }
-  const health = passOf([argvHealth], files, { requestedPaths: ["tooling/src/floor/cli/log.ts"] });
-  expect(health.toolErrors).toEqual([]);
-  expect(health.policies.find(({ id }) => id === argvHealth.id)?.owner).toMatchObject({ status: "not-applicable", population: "complete" });
 });

@@ -17,18 +17,8 @@
 //                            span exactly as a non-rethrowing catch does. The same absorber attached
 //                            OUTSIDE the opener call is the CORRECT shape and is never seen here.
 //
-// FAMILY `detached-work-traced`, reader `lib/detached-work.ts` — `deriveRootSpanOpeners` (shared with the
-// `-health` sibling) plus the three per-node verdicts `untracedDispatchSite` / `swallowingCatchSite` /
-// `blindedRejectionSite`. The reader is handed nodes the ONE shared walk delivered, exactly as
-// `lib/caught-failure.ts` is handed `CatchClause`/`CallExpression`: no walk, no cache, no private parser
-// survives in this module.
-//
-// THE SPLIT, AND WHY IT IS AN AUTHORITY SPLIT RATHER THAN A TASTE ONE. The legacy descriptor carried four
-// arms under one name. A4 (ZERO derived openers ⇒ RED) is a blindness tripwire that must never be waivable,
-// and A1/A2 are occurrences a deliberate teardown may waive with a reason and an end condition. §12.1
-// allows ONE authority per descriptor, so A4 moved to `detached-work-traced-health` under the identical
-// family string. A3 — the private `@swallowed-ok` marker's own stale/malformed reporting — is RETIRED
-// rather than moved; see the marker census below.
+// The shared detached-work reader derives opener identity and occurrence verdicts. Missing or empty
+// opener vocabulary refuses before ordinary findings or waiver reconciliation.
 //
 // POPULATION PORT: legacy `scanRoot: (p) => p.includes("packages/server/src/")` → `"@server"`, which
 // resolves to exactly `packages/server/src/`. Byte-identical. Server source only, deliberately: the
@@ -188,11 +178,12 @@ export const gate = defineGate({
         { kinds: [SyntaxKind.CallExpression], visit: (node): void => void calls.push(node) },
       ],
       evaluate: (): void => {
+        if (tracing.length === 0) {
+          throw new Error(`detached-work-traced cannot render a verdict: its derivation source ${TRACING_MODULE} is not in the effective population`);
+        }
         const openers = deriveRootSpanOpeners(tracing, tracing[0] === undefined ? undefined : native.at(tracing[0]));
         if (openers.size === 0) {
-          // The vocabulary is empty, which is the `-health` sibling's finding and speaks for the whole run;
-          // per-file findings derived from an empty vocabulary would be noise on top of it.
-          return;
+          throw new Error(`detached-work-traced derived ZERO root-span openers from ${TRACING_MODULE}; the occurrence vocabulary is unavailable`);
         }
         for (const statement of statements) {
           reportSite(ctx, untracedDispatchSite(statement, openers, native.at(statement.getSourceFile())));

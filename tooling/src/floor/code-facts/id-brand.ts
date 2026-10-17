@@ -1,6 +1,7 @@
 // Canonical kit phantom-brand data derived from native declarations.
-import type { Node as MorphNode, SourceFile, Symbol as TsSymbol, Type, TypeChecker } from "ts-morph";
+import type { Node as MorphNode, SourceFile, Type, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import ts from "typescript";
 
 export const ID_BRAND_HOME = "packages/kit/src/ids/index.ts";
 
@@ -31,31 +32,43 @@ export function deriveCanonicalTypeIdPrefixes(files: readonly SourceFile[], rela
   return prefixes;
 }
 
-/** Canonical declaration provenance, never a type-name or structural lookalike. */
-function canonicalBrandProperty(type: Type): TsSymbol | undefined {
+/** One canonical declaration predicate, shared by native and standalone morph symbol readers. */
+function nativeCanonicalBrandProperty(type: ts.Type): ts.Symbol | undefined {
   return type
     .getProperties()
-    .find((candidate) =>
-      candidate
-        .getDeclarations()
-        .some(
+    .find(
+      (candidate) =>
+        candidate.declarations?.some(
           (declaration) =>
-            Node.isPropertySignature(declaration) &&
-            declaration.getNameNode().getText() === "[brand]" &&
-            declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`),
-        ),
+            ts.isPropertySignature(declaration) &&
+            declaration.name.getText() === "[brand]" &&
+            declaration.getSourceFile().fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`),
+        ) === true,
     );
 }
 
-/** Literal brand through the caller-owned checker; preserve the existing unrelated/error-type null answer. */
-export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeChecker): string | null {
-  const property = canonicalBrandProperty(type);
-  return property === undefined ? null : checker.getTypeOfSymbolAtLocation(property, node).getText(node);
+/** Literal brand through the caller's native checker, never a structural lookalike. */
+export function nativeCanonicalIdBrand(type: ts.Type, node: ts.Node, checker: ts.TypeChecker): string | null {
+  const property = nativeCanonicalBrandProperty(type);
+  const flags =
+    // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript formatting options compose a compiler-owned bitfield.
+    ts.TypeFormatFlags.UseTypeOfFunction |
+    ts.TypeFormatFlags.NoTruncation |
+    ts.TypeFormatFlags.UseFullyQualifiedType |
+    ts.TypeFormatFlags.WriteTypeArgumentsOfSignature;
+  return property === undefined ? null : checker.typeToString(checker.getTypeOfSymbolAtLocation(property, node), node, flags);
 }
 
-/** Standalone native wrappers retain their owning checker on the symbol, without acquiring a Project. */
+/** Morph consumers delegate to the same compiler primitive as ESLint's native Program. */
+export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeChecker): string | null {
+  return nativeCanonicalIdBrand(type.compilerType, node.compilerNode, checker.compilerObject);
+}
+
+/** Standalone wrappers retain the node's existing owning checker; no Project is acquired. */
 export function nativeIdBrand(node: MorphNode): string | null {
-  const property = canonicalBrandProperty(node.getType());
+  const type = node.getType();
+  const canonical = nativeCanonicalBrandProperty(type.compilerType);
+  const property = type.getProperties().find((candidate) => candidate.compilerSymbol === canonical);
   return property === undefined ? null : property.getTypeAtLocation(node).getText(node);
 }
 

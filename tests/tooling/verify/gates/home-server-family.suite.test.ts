@@ -25,8 +25,6 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/server-vendors.ts";
 import { gate as contentPartSeam } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as noDirectUsersRead } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
-import { gate as noRawClock } from "../../../../tooling/src/verify/gates/no-raw-clock.ts";
-import { gate as noRawRandom } from "../../../../tooling/src/verify/gates/no-raw-random.ts";
 import { gate as ownerRoleSplit } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as scrubberFactoryHome } from "../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as scrubberHome } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
@@ -43,8 +41,6 @@ const ROOT = "/home-server-family";
 const FAMILY: readonly GatePolicy[] = [
   contentPartSeam,
   noDirectUsersRead,
-  noRawClock,
-  noRawRandom,
   ownerRoleSplit,
   scrubberFactoryHome,
   scrubberHome,
@@ -118,20 +114,6 @@ const GRANT_CASES: readonly GrantCase[] = [
     },
     subject: "packages/server/src/domain/billing/x.ts",
     operation: "users-table-reference",
-  },
-  {
-    policy: noRawClock,
-    // eslint-disable-next-line orb/test-ambient-source-string -- This origin-reader fixture is parsed, not executed. Remove when the corresponding origin control is removed.
-    files: { "packages/server/src/domain/feature/logic.ts": "export function doThing(): number {\n  return Date.now();\n}\n" },
-    subject: "packages/server/src/domain/feature/logic.ts",
-    operation: "ambient-clock-read",
-  },
-  {
-    policy: noRawRandom,
-    // eslint-disable-next-line orb/test-ambient-source-string -- This origin-reader fixture is parsed, not executed. Remove when the corresponding origin control is removed.
-    files: { "packages/server/src/domain/feature/logic.ts": "export function rollDice(): number {\n  return Math.random();\n}\n" },
-    subject: "packages/server/src/domain/feature/logic.ts",
-    operation: "ambient-entropy-draw",
   },
   {
     policy: ownerRoleSplit,

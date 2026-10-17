@@ -1,18 +1,9 @@
-// The shapes `lib/ambient-determinism.ts` reads and answers with (#1988). The reader is shared by
-// `no-raw-clock` and `no-raw-random`, so BOTH its input tuple and its verdict cross the lib↔policy
-// boundary: each policy AUTHORS an `AmbientSource[]` and dispatches on the verdict's `kind`. A shape two
-// policies write and one reader returns has one home, and `lib/` is not a type home
-// (Spine-TypeScript-and-Patterns.md §7.4, Core-Tooling-Law.md §2.5).
 import type { Node } from "ts-morph";
 import type { GlobalMemberOrigin, ReferenceFact, ReferenceUnresolvedReason } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { OriginReferenceServices } from "./origin-verdict.ts";
 
 export interface AmbientReferenceServices extends OriginReferenceServices {
   readonly globalOrigin: (node: Node) => ReferenceFact<GlobalMemberOrigin>;
-}
-export interface AmbientReferencePass {
-  readonly register: (callee: Node) => void;
-  readonly read: () => AmbientReferenceServices;
 }
 
 /** One ambient source: the global's own name plus the property path below it (`Date` + `["now"]`). */

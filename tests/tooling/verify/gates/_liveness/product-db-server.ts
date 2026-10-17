@@ -17,13 +17,10 @@ import { gate as dCitationIntegrity } from "../../../../../tooling/src/verify/ga
 import { gate as dbEnumFromTuple } from "../../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
 import { gate as dbStructure } from "../../../../../tooling/src/verify/gates/db-structure.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
-import { gate as detachedWorkTracedHealth } from "../../../../../tooling/src/verify/gates/detached-work-traced-health.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
 import { gate as fkColumnsIndexed } from "../../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as fkOndeleteStated } from "../../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as noLooseIdCast } from "../../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
-import { gate as noMintViaCast } from "../../../../../tooling/src/verify/gates/no-mint-via-cast.ts";
-import { gate as noRawClock } from "../../../../../tooling/src/verify/gates/no-raw-clock.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noUntypedSoftRef } from "../../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
@@ -39,16 +36,12 @@ import { gate as tableExplicitPrimaryKey } from "../../../../../tooling/src/veri
 import { gate as tableScopingClass } from "../../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
-import { gate as zodModernSpellings } from "../../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 
 const SCHEMA = "packages/db/src/schema";
 const DOMAIN = "packages/server/src/domain/character";
 const CONTRACTS = "packages/contracts/src";
 const SQLITE = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n';
-/** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
- *  source (the noRawClock fixture below) does. */
-const CLOCK_CALL = ["Date", ".now()"].join("");
 // Assembled so the dangling decision number never appears whole in this file.
 const DANGLING_DECISION = ["D", "999999"].join("");
 
@@ -91,18 +84,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: dbStructure,
     overlays: [add(`${SCHEMA}/liveness-orphan.ts`, "export const livenessOrphan = 1;\n")],
     messageIncludes: "not re-exported",
-  },
-  {
-    policy: detachedWorkTracedHealth,
-    // The tracing home keeps a span helper but no root-span opener.
-    overlays: [
-      {
-        kind: "neutralise",
-        path: "packages/server/src/foundation/observability/tracing.ts",
-        source: "export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> {\n  return t.startActiveSpan(id, {}, fn);\n}\n",
-      },
-    ],
-    messageIncludes: "derived ZERO root-span openers",
   },
   {
     policy: detachedWorkTraced,
@@ -148,21 +129,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noLooseIdCast,
     overlays: [add("packages/server/src/liveness-cast.ts", "export const livenessCast = value as never;\n")],
     messageIncludes: "bypasses branded-id type safety",
-  },
-  {
-    policy: noMintViaCast,
-    overlays: [
-      add(
-        "packages/server/src/liveness-mint.ts",
-        'import { randomUUID } from "node:crypto";\nimport { castId } from "@orb/kit/ids";\nexport const livenessMinted = castId(randomUUID());\n',
-      ),
-    ],
-    messageIncludes: "castId wraps a fresh-id generator",
-  },
-  {
-    policy: noRawClock,
-    overlays: [add(`${DOMAIN}/liveness-clock.ts`, `export function livenessNow(): number {\n  return ${CLOCK_CALL};\n}\n`)],
-    messageIncludes: `${DOMAIN}/liveness-clock.ts`,
   },
   {
     policy: noRawEgress,
@@ -290,11 +256,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "hand-flattened zod `issues`",
-  },
-  {
-    policy: zodModernSpellings,
-    overlays: [add(`${CONTRACTS}/liveness-strict.ts`, 'import { z } from "zod";\nexport const livenessStrict = z.object({}).strict();\n')],
-    messageIncludes: "superseded zod spelling",
   },
   {
     policy: zodOutputTwinParity,

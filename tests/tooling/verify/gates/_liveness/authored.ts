@@ -13,16 +13,12 @@ import { gate as chatStreamWritesInBusOnly } from "../../../../../tooling/src/ve
 import { gate as gateIgnoreInventory } from "../../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
-import { gate as noChatTrpcInSurface } from "../../../../../tooling/src/verify/gates/no-chat-trpc-in-surface.ts";
-import { gate as noContextReturntype } from "../../../../../tooling/src/verify/gates/no-context-returntype.ts";
-import { gate as noInlineOptimisticInSurface } from "../../../../../tooling/src/verify/gates/no-inline-optimistic-in-surface.ts";
+
 import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
-import { gate as testFixtureImports } from "../../../../../tooling/src/verify/gates/test-fixture-imports.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
-import { gate as zustandSelectorStability } from "../../../../../tooling/src/verify/gates/zustand-selector-stability.ts";
 
 const CHAT = "packages/client/src/features/chat";
 const CHARACTER_PERSISTENCE = "packages/server/src/domain/character/persistence";
@@ -67,36 +63,7 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     ],
     messageIncludes: BLANKET_SUPPRESSION,
   },
-  {
-    policy: noChatTrpcInSurface,
-    overlays: [
-      add(
-        `${CHAT}/surfaces/liveness-verb-surface.tsx`,
-        'import { useTRPC } from "#data";\nexport function LivenessVerbSurface(): unknown {\n  const trpc = useTRPC();\n  return trpc.chat.generate.mutationOptions();\n}\n',
-      ),
-    ],
-    messageIncludes: "outside the sanctioned verb-hook home",
-  },
-  {
-    policy: noContextReturntype,
-    overlays: [
-      add(
-        "packages/server/src/domain/character/substrate/liveness/context.ts",
-        "declare function makeLivenessCtx(): { db: number };\nexport type LivenessCtx = ReturnType<typeof makeLivenessCtx>;\n",
-      ),
-    ],
-    messageIncludes: "`ReturnType<>` in context.ts",
-  },
-  {
-    policy: noInlineOptimisticInSurface,
-    overlays: [
-      add(
-        "packages/client/src/features/character/surfaces/liveness-optimistic-surface.tsx",
-        'import { useQueryClient } from "@tanstack/react-query";\nexport function LivenessOptimisticSurface(): void {\n  const queryClient = useQueryClient();\n  queryClient.setQueryData(livenessKey, 1);\n}\n',
-      ),
-    ],
-    messageIncludes: "belongs in `features/<x>/hooks/`",
-  },
+
   {
     policy: noInlineUnionAlias,
     overlays: [add("packages/contracts/src/liveness-mode.ts", "export type LivenessMode = 'a' | 'b' | 'c';\n")],
@@ -125,23 +92,8 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "in-memory state (caches, registries) belongs in a named subsystem",
   },
   {
-    policy: testFixtureImports,
-    overlays: [add("tests/server/liveness-fixture.test.ts", 'import { expect, test } from "vitest";\nexport const livenessBindings = [test, expect];\n')],
-    messageIncludes: "bypasses the composed fixture",
-  },
-  {
     policy: testMockDoctrine,
     overlays: [add("tests/tooling/liveness-mock.test.ts", 'import { vi } from "vitest";\nvi.mock("../../packages/server/src/primitives/regex/index.ts");\n')],
     messageIncludes: "vi.mock on an internal module",
-  },
-  {
-    policy: zustandSelectorStability,
-    overlays: [
-      add(
-        "packages/client/src/components/liveness-selector.tsx",
-        'import { createGatedStore } from "#state";\nconst useLivenessStore = createGatedStore("liveness", { user: "a" });\nexport const LivenessSelector = (): unknown => useLivenessStore((s) => ({ a: s.user }));\n',
-      ),
-    ],
-    messageIncludes: "fresh object/array literal",
   },
 ];

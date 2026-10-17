@@ -354,7 +354,7 @@ function finishDefinitionFact(context: BusReadContext, state: DefinitionState): 
  *  consumer already throws its own `bus definition fact is incomplete: …` before filing a receipt
  *  (`bus-definition-belts`, `bus-belt-total`, `bus-consumer-belt`, and `bus-producer-coverage`'s roster
  *  join), so a receipt-level refusal could only PREEMPT the policy message a proof row asserts — which is
- *  exactly how the roster-disagreement pin in `tests/tooling/verify/gates/bus-fact-health.test.ts` started
+ *  exactly how the roster-disagreement pin in `tests/tooling/verify/gates/bus-producer-coverage.test.ts` started
  *  reading a `bus-definitions` receipt refusal instead of the disagreement it exists to catch. */
 const PROVIDER_RECEIPT_SOURCE = "bus-definition-sources";
 

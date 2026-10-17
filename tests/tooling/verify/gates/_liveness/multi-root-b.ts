@@ -24,10 +24,8 @@ import { gate as noInlinePackageInterface } from "../../../../../tooling/src/ver
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noManualMemo } from "../../../../../tooling/src/verify/gates/no-manual-memo.ts";
 import { gate as noManualTokenEstimate } from "../../../../../tooling/src/verify/gates/no-manual-token-estimate.ts";
-import { gate as noRawRandom } from "../../../../../tooling/src/verify/gates/no-raw-random.ts";
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
-import { gate as openJsonColumnKeyParityHealth } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity-health.ts";
 import { gate as packageDeepImport } from "../../../../../tooling/src/verify/gates/package-deep-import.ts";
 import { gate as packageLayout } from "../../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as packageSubpathCrossing } from "../../../../../tooling/src/verify/gates/package-subpath-crossing.ts";
@@ -38,7 +36,7 @@ import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/v
 import { gate as scrubberFactoryHome } from "../../../../../tooling/src/verify/gates/scrubber-factory-home.ts";
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 import { gate as structuredPlanOneHome } from "../../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
-import { gate as testFactoryContract } from "../../../../../tooling/src/verify/gates/test-factory-contract.ts";
+
 import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
 import { gate as testidLiveness } from "../../../../../tooling/src/verify/gates/testid-liveness.ts";
@@ -54,9 +52,6 @@ const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
 const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
 const STANDING_CONTRAST_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
-/** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
- *  source (the noRawRandom fixture below) does. */
-const RANDOM_CALL = ["Math", ".random()"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -109,11 +104,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "hand-rolled `.length / 4` token estimate",
   },
   {
-    policy: noRawRandom,
-    overlays: [add(`${DOMAIN}/liveness-dice.ts`, `export function livenessDice(): number {\n  return ${RANDOM_CALL};\n}\n`)],
-    messageIncludes: `${DOMAIN}/liveness-dice.ts`,
-  },
-  {
     policy: nullableColumnInequality,
     // `characters.avatarAssetId` is nullable on the real schema.
     overlays: [
@@ -134,18 +124,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Subject: auditLogs.metadata",
-  },
-  {
-    policy: openJsonColumnKeyParityHealth,
-    overlays: [
-      { kind: "remove", path: "packages/db/src/schema/" },
-      {
-        kind: "neutralise",
-        path: "packages/db/src/schema/index.ts",
-        source: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const liveness = sqliteTable("liveness", { id: text("id") });\n',
-      },
-    ],
-    messageIncludes: "DERIVED NOTHING",
   },
   {
     policy: packageLayout,
@@ -195,11 +173,7 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [add(`${DOMAIN}/liveness-structured.ts`, 'export const livenessRequest = { tools: [], toolChoice: { mode: "required" } };\n')],
     messageIncludes: "a structured-output or tool-call spelling outside the structured planner",
   },
-  {
-    policy: testFactoryContract,
-    overlays: [add("tests/support/node/factories/liveness-user.ts", "export function makeLivenessUser(db: unknown) {\n  return db;\n}\n")],
-    messageIncludes: "PURE builder accepts a db",
-  },
+
   {
     policy: testPresenceClient,
     // The standing contrast CT leaves both views; the absence is reported at the room it covers.

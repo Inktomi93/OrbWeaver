@@ -16,10 +16,8 @@ import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verif
 import { gate as memberCardClamped } from "../../../../../tooling/src/verify/gates/member-card-clamped.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
-import { gate as noRawIntlTime } from "../../../../../tooling/src/verify/gates/no-raw-intl-time.ts";
 import { gate as playwrightLaneOutsideFastCheck } from "../../../../../tooling/src/verify/gates/playwright-lane-outside-fast-check.ts";
 import { gate as toolingArgvFrontDoor } from "../../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
-import { gate as toolingArgvFrontDoorHealth } from "../../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
 import { gate as toolingArtifactPathHome } from "../../../../../tooling/src/verify/gates/tooling-artifact-path-home.ts";
 import { gate as toolingArtifactRunSlot } from "../../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as toolingBrowserDoor } from "../../../../../tooling/src/verify/gates/tooling-browser-door.ts";
@@ -28,30 +26,7 @@ import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verif
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as toolingSlotTemplate } from "../../../../../tooling/src/verify/gates/tooling-slot-template.ts";
 
-const CLIENT = "packages/client/src/features/chat/components";
 const LAW_DOC = "docs/law/Spine-Testing.md";
-
-/** Every tool `cli.ts` on the tree. `tooling-argv-front-door-health` is blind only when NONE reads argv, so the
- *  control is all of them; a tool added without joining this list leaves one reader and the arm goes red. */
-const TOOL_CLIS = [
-  "agent-sync",
-  "ast",
-  "bug-reports",
-  "cache-check",
-  "codemod",
-  "dev",
-  "doc",
-  "mutation-arid",
-  "mutation-probe",
-  "plugin-author-showcase",
-  "render-trace",
-  "review-mirror",
-  "seed",
-  "snap",
-  "stack",
-  "verify",
-  "wire-tap",
-] as const;
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -106,11 +81,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "raw string",
   },
   {
-    policy: noRawIntlTime,
-    overlays: [add(`${CLIENT}/liveness-intl.tsx`, "export function LivenessStamp(): unknown {\n  return new Intl.DateTimeFormat('en-US');\n}\n")],
-    messageIncludes: "Intl",
-  },
-  {
     policy: playwrightLaneOutsideFastCheck,
     // The runner table assigns the component family to vitest — the lane a browser suffix must never ride.
     overlays: [
@@ -122,14 +92,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       },
     ],
     messageIncludes: "component",
-  },
-  {
-    policy: toolingArgvFrontDoorHealth,
-    overlays: [
-      { kind: "neutralise", path: `tooling/src/${TOOL_CLIS[0]}/cli.ts`, source: "export {};\n" },
-      ...TOOL_CLIS.slice(1).map((tool): RealCorpusOverlay => ({ kind: "neutralise", path: `tooling/src/${tool}/cli.ts`, source: "export {};\n" })),
-    ],
-    messageIncludes: "blind gate",
   },
   {
     policy: toolingArgvFrontDoor,

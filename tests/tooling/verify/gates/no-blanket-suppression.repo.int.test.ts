@@ -86,6 +86,22 @@ const JS_BLANKET = "export const a = 1;\n/* eslint-disable */\nexport const b = 
 const JSON_BLANKET = '// biome-ignore-all lint: json blanket\n{ "a": 1 }\n';
 
 describe("no-blanket-suppression — arm B, the tracked non-TS corpus (planted controls both directions)", () => {
+  test("native comma-list ranges pair every rule in script and tracked text without duplicate physical blanket findings", ({ scratch }) => {
+    const partial =
+      "export const before=0;\n/* eslint-disable first, second -- explanation, not-a-rule */\nexport const middle=1;\n/* eslint-enable first */\nexport const after=2;\n";
+    const closed = partial.replace("/* eslint-enable first */", "/* eslint-enable first, second -- explanation, not-a-rule */");
+    plantRepo(scratch, {
+      "config/partial.js": partial,
+      "styles/partial.css": partial,
+      "config/closed.js": closed,
+      "styles/closed.css": closed,
+      "config/unclosed.js": "/* eslint-disable first, second */\nexport const value=1;",
+    });
+    const run = runGate(scratch);
+    expect(run.toolErrors).toEqual([]);
+    expect(at(run)).toEqual(["config/partial.js:2 eslint-disable", "config/unclosed.js:1 eslint-disable", "styles/partial.css:2 eslint-disable"]);
+  });
+
   test("a CSS, a JS and a JSON blanket are each RED at their own line, naming the directive", ({ scratch }) => {
     plantRepo(scratch, { "styles/a.css": CSS_BLANKET, "config/b.js": JS_BLANKET, "data/c.json": JSON_BLANKET });
     const run = runGate(scratch);
