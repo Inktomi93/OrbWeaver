@@ -10,7 +10,7 @@ updated: 2026-10-17
 
 Run the real product through one harness. Share one code-facts engine across codemods, `pnpm ast` and verify gates. Tests and gates hold no second product or code reader.
 
-The aim is three things at once. Honest: a test proves what production does, never what a copy of it does. Small: tests stop outweighing the product, and the per-step cost of checks stops dominating agent time. Strict: a gate judges every rebuilt file at full strength with no waivers, and the type system carries as much of the proof as it can.
+Tests prove production behavior without copied rules. Shared readers reduce check cost. Rebuilt files receive full enforcement, with the type system carrying each expressible invariant.
 
 ## Shape
 
@@ -48,7 +48,7 @@ Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the meas
 
 Discovery every-owner authority is integrated. Remaining owner-read adjudication and type homes (981) are production work. Schedule owner-specific batches without waiting for legacy suite polish. A required seam or correctness defect blocks its dependent harness work.
 
-Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Server-root and builders/corpus foundation acceptance is established. Replacement-matrix and native-fact qualification remain open. A completed prerequisite does not close its parent program. Complete required production fixes before dependent corpus qualification.
+Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Server-root and builders/corpus foundation acceptance is established. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
 
 ### Foundation boundaries
 
@@ -174,7 +174,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. The current target refuses forwarding `ctx.can` into `assertHost`, before namespace acquisition. Ordinary acquisition controls pass; target qualification remains open. Evidence: `reports/review/1002-callable-consumer-demand-ordinary.md`. Complete store qualification remains open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. Projected callable handoff and selected-slot storage pass bounded controls and security review. Actual helper capture and private-premise revocation remain mandatory. Current-target qualification remains open. Evidence: `reports/review/1002-projected-callable-handoff-ordinary.md`. Complete store qualification remains open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -206,7 +206,7 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native lint owns lexical class, skin, escape names, test-source strings and dotted waits; z-index and semantic readers remain. Hover, banned utilities and dark claims stay unqualified. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities and lexical determinism. Hover, dark, z-index and semantic readers remain. Evidence: `reports/review/1041-native-determinism-ordinary.md` and `reports/review/1041-native-class-tokens-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
@@ -218,7 +218,7 @@ Required producers cannot disappear with their audit row. Replace bus definition
 
 Move law tables into their production owners and type total registries against canonical unions. CI V8 coverage replaces contract-verb-presence and executes every domain verb implementation. Native database constraints enforce stored freeze-provenance normalization; complete canon body writers and production-root defect controls preserve freshness. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Migration preserves coherent bytes and refuses invalid stored rows atomically. Inert DB, statement and batch wiring preserves native operands and atomicity. Native import/loader rules own the query boundary; custom per-call analysis remains. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
 
-Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Item 1006 owns that disposition. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
+Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Reviewed exceptions preserve actual transferred lifetimes, derived replacements and native compatibility boundaries. Item 1006 owns broader disposition. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
 
 Preserve D1/D40 request and turn construction boundaries and D118 subscription placement, not only runtime procedure names. Native prose restrictions and real delivery tests preserve D132's slot invariant. A typed reservation-key object does not prove unique mount use; qualify the actual successor before dropping that claim.
 
@@ -261,7 +261,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
 
-Run affected typechecks, scoped tests and focused check or structure selections concurrently within measured host limits. Reserve whole-tree runs for the main-owned qualification boundary.
+Run affected checks concurrently within measured host limits. Reserve whole-tree runs for main-owned qualification.
 
 Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
 

@@ -1745,7 +1745,7 @@ function callableClosedUses(name: Identifier, proof: CallableUseProof): boolean 
   return complete;
 }
 
-function matchingAllocationBindings(literal: ObjectLiteralExpression, left: ReturnedValueSource, right: ReturnedValueSource): boolean {
+function matchingAllocationBindings(literal: Node, left: ReturnedValueSource, right: ReturnedValueSource): boolean {
   const scopes = new Set(literal.getAncestors().map((node) => node.compilerNode));
   return [...left.bindings.keys(), ...right.bindings.keys()].every(
     (parameter) =>
@@ -1906,21 +1906,45 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
 
 function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof): boolean {
   const containers = carryingLiterals(use);
-  if (containers.length === 0 || containers.some(({ literal, key }) => key === undefined || !ordinaryCallableRecord(literal, undefined, proof.program))) {
+  const program = proof.program;
+  const outer = containers.at(-1)?.literal;
+  if (program === undefined || outer === undefined || containers.some(({ key }) => key === undefined)) {
     return false;
+  }
+  // Reconstruct the selected own-data path, not a purity grant for every slot in the carrier.
+  for (const { literal, key } of containers) {
+    if (key === undefined || !ownDataProperty({ value: literal, path: [], present: true, bindings: proof.bindings }, key, program)) {
+      return false;
+    }
   }
   const site = valueSite(use);
   const path = [...containers].reverse().flatMap(({ key }) => (key === undefined ? [] : [key]));
+  const stored = callableSuppliedLeaves(outer, path, program, { bindings: proof.bindings, active: new Set() });
+  if (stored.kind === "unresolved") {
+    return refuseCallableUse(proof, stored);
+  }
+  if (
+    stored.value.length === 0 ||
+    stored.value.some(
+      (source) =>
+        !source.present ||
+        source.path.length > 0 ||
+        source.value.compilerNode !== origin.value.compilerNode ||
+        !matchingAllocationBindings(origin.value, source, origin),
+    )
+  ) {
+    return false;
+  }
   const next = { ...proof, path, selectedValue: true as const, active: new Set([site.compilerNode]) };
   const parent = site.getParent();
-  if (N.isReturnStatement(parent) && parent.getExpression() === site && proof.program !== undefined) {
+  if (N.isReturnStatement(parent) && parent.getExpression() === site) {
     const selected = path.at(-1);
     return (
       selected !== undefined &&
       returnedCallableOwnerUses(parent, {
         owner: origin.value,
         sources: { kind: "resolved", value: [origin], trace: { declarations: [], origin: use } },
-        program: proof.program,
+        program,
         admits: proof.admits,
         path: path.slice(0, -1),
         selected,
@@ -2497,6 +2521,30 @@ function unprovenCallableReceiverBody(node: Node): boolean {
   );
 }
 
+function nonCallableData(node: Node): boolean {
+  return !callableValue(node) && (runtimeUndefinedValue(node) || readStaticAuthoredValue(node).kind === "resolved");
+}
+
+function callableProjectedTransfer(parent: Node, sources: ResolvedReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean | undefined {
+  if (proof.program === undefined || sources.value.every((source) => nonCallableData(source.value))) {
+    return;
+  }
+  const handed = callableArgumentHandoff(parent, proof);
+  if (handed !== undefined) {
+    return handed;
+  }
+  if (
+    sources.value.every((source) => callableValue(source.value)) &&
+    carryingLiterals(parent).length > 0 &&
+    sources.value.every((source) =>
+      proof.origins.some((origin) => source.value.compilerNode === origin.value.compilerNode && matchingAllocationBindings(origin.value, source, origin)),
+    )
+  ) {
+    return sources.value.every((source) => selectedCallableStorageUse(parent, source, { ...proof, bindings: source.bindings }));
+  }
+  return undefined;
+}
+
 function callableProjectedUse(parent: Node, original: ReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean {
   if (original.kind === "unresolved") {
     return refuseCallableUse(proof, original);
@@ -2508,7 +2556,14 @@ function callableProjectedUse(parent: Node, original: ReferenceFact<readonly Ret
   if (projected.value.some((source) => !source.present || source.path.length > 0)) {
     return refuseCallableUse(proof, valueRefusal(parent, "missing", "a containing member has an unresolved actual origin"));
   }
-  if (projected.value.every((source) => !callableValue(source.value))) {
+  if (proof.program !== undefined && projected.value.some((source) => unprovenCallableReceiverBody(source.value))) {
+    return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked authored member has no complete authored receiver body"));
+  }
+  const transferred = callableProjectedTransfer(parent, projected, proof);
+  if (transferred !== undefined) {
+    return transferred;
+  }
+  if (projected.value.every((source) => nonCallableData(source.value))) {
     const invocation = parent.getParent();
     return (
       proof.program === undefined ||
@@ -2516,9 +2571,6 @@ function callableProjectedUse(parent: Node, original: ReferenceFact<readonly Ret
       invocation.getExpression() !== parent ||
       refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked containing member has no proven authored receiver body"))
     );
-  }
-  if (proof.program !== undefined && projected.value.some((source) => unprovenCallableReceiverBody(source.value))) {
-    return refuseCallableUse(proof, valueRefusal(parent, "unsupported", "an invoked authored member has no complete authored receiver body"));
   }
   const call = parent.getParent();
   const permitted =

@@ -41,3 +41,5 @@ File-size migration rejudges existing test monolith grants as shrinking native b
 Remaining Zod issue permissions serve structured paths, model correction or recorded loss data. RPG and versioned-config reasons match their actual consumers. Evidence: `.claude/worktrees/codex-drizzle-native-953/reports/review/1041-zod-issues-adjudication.md`. No runtime or permission change is required.
 
 Native parser-fixture permissions apply only to source-string restrictions. Runtime clock and entropy judgments remain active. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
+
+Reviewed native exceptions retain actual transferred or borrowed lifetimes, atomic derived-plane replacements, producer compatibility and platform-only physical assertions. Stale comments are removed. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Broader disposition remains open.

@@ -26,11 +26,9 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 
 D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
 
-D321 owns retained dependencies, authority boundaries and reservation semantics.
-
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
-Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Turn identity and typed role gates remain active pending qualified successors.
+Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Canonical Principal-origin and typed role checks retain their unmatched claims.
 
 Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
@@ -40,7 +38,7 @@ Native database constraints enforce freeze-provenance row normalization. Complet
 
 Device-local names and persistence options use native types. Private and legacy imports stay restricted. Evidence: `reports/review/1041-persisted-factory-ordinary.md`.
 
-Native lint owns lexical class, skin and lexical determinism; semantic readers remain. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities and lexical determinism. Hover and dark semantic claims retain their custom owners. Evidence: `reports/review/1041-native-determinism-ordinary.md` and `reports/review/1041-native-class-tokens-ordinary.md`.
 
 Native lint owns the lowercase engine-name restriction. Canonical Principal-origin and role checks remain: public Caller DTOs expose raw roles. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption stays open.
 

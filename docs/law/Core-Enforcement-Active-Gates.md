@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 # Orbweaver — Enforcement Registry: Active Gates
@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(315 registered gates)
+(314 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -180,7 +180,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
 | `motion-token-purity` | — | ordinary/error | none | raw motion value in CSS… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
-| `no-banned-tw-utility` | tailwind-class-token | reviewed-grant/error | @client,@ui | a Tailwind utility the house has… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
 | `no-chat-trpc-in-surface` | — | ordinary/error | @authored\* | trpc.chat.\<verb>.mutationOptions… |
 | `no-context-returntype` | — | ordinary/error | @authored\* | ReturnType<> in context.ts — the DI… |
