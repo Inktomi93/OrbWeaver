@@ -260,7 +260,7 @@ export function renderedTagNames(sf: SourceFile): Map<string, number> {
 }
 
 /** Base UI parts RENDERED anywhere in `@orb/ui`, keyed `Component` → part names → the files that render
- *  them. This is the fact `baseui-anatomy-completeness` judges the manifest's `exposed` claims against.
+ *  them. The native UI surface contract judges the manifest's `exposed` claims against this fact.
  *  Namespaced components match `<local.Part>`; a flat component (`Button`) matches a bare `<local>` and is
  *  recorded under its own name as its single part. */
 export function renderedPartsByComponent(files: readonly SourceFile[], surface: InstalledSurface | SurfaceManifest): Map<string, Map<string, RenderSite[]>> {

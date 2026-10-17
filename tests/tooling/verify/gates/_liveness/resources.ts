@@ -14,7 +14,6 @@
 // suppression directive) is assembled from parts.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as baseuiSurfaceManifest } from "../../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
 import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
@@ -60,12 +59,6 @@ function replace(path: string, search: string, replacement: string): RealCorpusO
 }
 
 export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: baseuiSurfaceManifest,
-    // The ledger loses its `Meter` component, which the installed package still ships.
-    overlays: [replace("tooling/src/verify/gates/baseui-surface.manifest.json", '"Meter": {', '"LivenessMeter": {')],
-    messageIncludes: "absent from the manifest",
-  },
   {
     policy: commentedCode,
     overlays: [{ kind: "add", path: "packages/ui/src/liveness-commented.ts", source: "// const dead = compute();\nexport const livenessCommented = 1;\n" }],

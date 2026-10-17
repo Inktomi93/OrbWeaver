@@ -10,7 +10,6 @@
 // add path and name is this arm's own, because the add arms share one overlaid pass.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as baseuiAnatomyCompleteness } from "../../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
 import { gate as baseuiPortalContainerSeam } from "../../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
 import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
@@ -49,13 +48,6 @@ function neutralise(path: string, source: string): RealCorpusOverlay {
 }
 
 export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: baseuiAnatomyCompleteness,
-    // The real manifest rules every Select part `exposed`; with the Select seal gone, none is rendered.
-    overlays: [{ kind: "remove", path: `${UI}/select/` }],
-    messageIncludes: "no @orb/ui seal renders it",
-  },
-
   {
     policy: baseuiPortalContainerSeam,
     overlays: [

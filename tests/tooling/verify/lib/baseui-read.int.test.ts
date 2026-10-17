@@ -3,7 +3,7 @@
 
 // The Base UI surface READER's own proof — the half `gate-conformance` structurally cannot reach.
 //
-// Conformance proves that `baseui-surface-manifest` REPORTS a blind part. It cannot prove that the
+// The native UI surface contract rejects a blind part. It cannot prove that the
 // GENERATOR refuses to write a manifest it has gone blind on, because the generator is a script, not a
 // gate. That refusal is the load-bearing half: a manifest written from a reader that learned nothing hands
 // every downstream `baseui-*` gate a confident false green, and nothing downstream can tell.

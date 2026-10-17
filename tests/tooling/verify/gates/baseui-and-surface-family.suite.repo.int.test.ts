@@ -1,39 +1,12 @@
-// The `baseui-read` and `surface-composition` FAMILIES — the #1584 conversion receipt for
-// `baseui-portal-container-seam`, `surface-a11y-focus`,
-// `surface-in-a-container` and its `-health` split sibling. Two families in one file on purpose: they share
-// the real-tree drive below, and a family test is routinely filed under a wave rather than a member (grep the
-// POLICY ID across this directory, never the filename).
-//
-// WHAT LIVES HERE AND WHY, since a conversion no longer owes a family test for its DECLARED rows (the
-// conformance stage runs every `mustFlag`/`mustPass` on the static tier). These are the things a proof row
-// structurally cannot express:
-//
-//   §4.2  the POSITIVE IDENTITY ARM for each ORDINARY policy — all four assertions a `mustPass` row does not
-//         separately make (`effectiveFindings []`, `waivedFindings 1`, `authorityAlarms []`), plus the
-//         DISCRIMINATION control: the same fixture with the marker's position flipped must ALARM, or "my arm
-//         is green" is not "my arm discriminates".
-//   §4.5  the REFUSALS. `baseui-anatomy-completeness` declares `json:baseui-manifest`; a missing or
-//         unparseable one is a population-phase TOOL ERROR with the owner WITHHELD — never a finding and
-//         never a clean zero — and `toolFailure` runs before a proof row's arm verdict, so no row can carry
-//         the row (guide §6.3). These pins are also the SUCCESSOR PROOF for the legacy
-//         `if (manifest === undefined) return;` fail-open the conversion deleted, and for the blindness
-//         tripwire `surface-a11y-focus` retired into the empty-population refusal.
-//   §4.6  the MARKER TRANSLATION, on the REAL FILES read off disk. An in-place translation is a claim about
-//         the ENGINE, and only a real-site run tests it — a fixture cannot, because the thing under test is
-//         whether the marker a human moved binds to the node the policy actually reports. This is the pin
-//         that caught #2032 for another lane, and it is the reason the two `@surface-focus-elsewhere`
-//         translations in this commit are not taken on trust.
-//   §4.6  the CONVERSION DIFFERENTIAL, stated as what it FOUND rather than merely run.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+// Retained portal/surface policy authority controls and the shared installed-surface reader.
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as anatomyCompleteness } from "../../../../tooling/src/verify/gates/baseui-anatomy-completeness.ts";
 import { gate as portalContainerSeam } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
-import { gate as surfaceManifest } from "../../../../tooling/src/verify/gates/baseui-surface-manifest.ts";
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as surfaceInAContainerHealth } from "../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
@@ -43,15 +16,8 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
-const POLICIES = [anatomyCompleteness, portalContainerSeam, surfaceManifest, surfaceA11yFocus, surfaceInAContainer, surfaceInAContainerHealth] as const;
+const POLICIES = [portalContainerSeam, surfaceA11yFocus, surfaceInAContainer, surfaceInAContainerHealth] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
-
-const MANIFEST_REL = "tooling/src/verify/gates/baseui-surface.manifest.json";
-/** The cheapest ledger that resolves the `json:baseui-manifest` declaration and names one stateful part. */
-const MANIFEST_JSON =
-  '{ "version": "9.9.9", "components": { "Popover": { "module": "@base-ui/react/popover", "namespaced": true, "parts": {' +
-  '"Popup": { "kind": "part", "symbol": "PopoverPopup", "from": "./popup/PopoverPopup.js", "props": [], "handlers": {}, "state": ["open", "side"], "inherits": ["BaseUIComponentProps"], "disposition": "exposed", "why": "" }' +
-  "} } } }\n";
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
@@ -95,7 +61,6 @@ interface IdentityCase {
   readonly extra?: Readonly<Record<string, string>>;
 }
 
-const SEAL_PATH = "packages/ui/src/primitives/popover/probe-popover.tsx";
 const DIALOG_PATH = "packages/ui/src/primitives/dialog/probe-dialog.tsx";
 
 const IDENTITY_CASES: readonly IdentityCase[] = [
@@ -161,21 +126,7 @@ describe("§4.2 identity arms — the reported position IS the waiver position, 
 
 // ── §4.5 REFUSALS ───────────────────────────────────────────────────────────────────────────────────
 
-/** The shape every refusal shares, read as one object so a refusal that drifted on ONE axis — a finding
- *  leaking through, an owner completing — fails with the whole picture in the diff. */
-function refusalShape(result: PolicyPassResult): Record<string, unknown> {
-  return {
-    phases: result.toolErrors.map((error) => error.phase),
-    messages: result.toolErrors.map((error) => error.message),
-    ownerStatuses: result.policies.map((owner) => owner.owner.status),
-    findings: result.authority.effectiveFindings.length,
-  };
-}
-
-const SEAL_SOURCE =
-  'import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport function Seal({ side }: { side: string }) {\n  const [open] = useState(false);\n  return <BasePopover.Popup className={open ? "a" : "b"} />;\n}\n';
-
-describe("§4.5 — a broken ledger is a REFUSAL, never a finding and never a clean zero", () => {
+describe("§4.5 — an empty source population refuses instead of passing", () => {
   test("an EMPTY population refuses — this IS the retired `surface-a11y-focus` blindness tripwire", ({ scratch }) => {
     // Legacy carried a hand-rolled arm (`featuresSeen && surfacesSeen === 0` reporting at a DIRECTORY path)
     // against `surfaces/` being renamed out from under a directory-name-keyed scan. Under this contract the
@@ -188,163 +139,8 @@ describe("§4.5 — a broken ledger is a REFUSAL, never a finding and never a cl
   });
 });
 
-describe("§4.5 — the baseui-read ledger consumers all refuse, and the phase depends on the KIND", () => {
-  // THE MECHANISM THIS BLOCK EXISTS TO PIN, measured by the conversion differential after a header claimed
-  // otherwise: `resolveResourceDeclarations` acquires and withholds only POPULATED kinds. `json` is one, so
-  // a broken ledger withholds at the POPULATION phase, before `create`. `installed-package` is UNPOPULATED
-  // (`contract/resource-declaration.ts#GATE_RESOURCE_UNPOPULATED_KINDS`), so it is FILTERED OUT of that
-  // resolution entirely and an uninstalled package cannot withhold anybody — it surfaces only when
-  // `evaluate` opens the door and `readyResourceValue` throws. Both are tool errors and neither is a
-  // finding, so the outcome is identical; the PHASE is not, and a policy author who believes the population
-  // phase guards an unpopulated kind has one guard fewer than they think.
-  for (const policy of [anatomyCompleteness, surfaceManifest]) {
-    test(`${policy.id}: a MISSING ledger withholds the owner — the legacy silent \`return\` is dead`, ({ scratch }) => {
-      const result = pass(policy, scratch, { [SEAL_PATH]: SEAL_SOURCE });
-
-      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-      expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest");
-      expect(result.authority.withheldPolicyIds).toContain(policy.id);
-    });
-
-    test(`${policy.id}: an UNPARSEABLE ledger withholds too — missing and malformed stay separate facts`, ({ scratch }) => {
-      const result = pass(policy, scratch, { [MANIFEST_REL]: "{ not json\n", [SEAL_PATH]: SEAL_SOURCE });
-
-      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-      expect(result.authority.withheldPolicyIds).toContain(policy.id);
-    });
-
-    test(`${policy.id}: an EMPTY ledger withholds too — the THIRD json status, and it is not "missing"`, ({ scratch }) => {
-      // `docs/law/resource-policy-contract.md` §3.6 asks one pin per declared resource per REACHABLE non-ready
-      // status, and `empty` is a distinct `json` fact by that document's own §2 table: the reader answers
-      // `missing` for an absent path and `empty` for a zero-byte one (`ops/resource-reader.ts#read`
-      // returns `unavailable("empty", …)` on `value.length === 0`, BEFORE the parser is reached, so this
-      // can never collapse into the unparseable pin above). A truncated write on the generated ledger is
-      // the real-world shape, and until 2026-09-13 nothing pinned it (#2297).
-      const result = pass(policy, scratch, { [MANIFEST_REL]: "", [SEAL_PATH]: SEAL_SOURCE });
-
-      expect(refusalShape(result)).toMatchObject({ phases: ["population"], ownerStatuses: ["incomplete"], findings: 0 });
-      expect(result.toolErrors[0]?.message).toContain("json:baseui-manifest is empty");
-      expect(result.authority.withheldPolicyIds).toContain(policy.id);
-    });
-  }
-
-  test("baseui-surface-manifest: an UNINSTALLED package is an [evaluate] tool error, NOT a finding", ({ scratch }) => {
-    // The successor proof for the legacy `NO_PACKAGE` finding and its hand-rolled real-tree anchor. The
-    // scratch root has no `node_modules`, so node's resolver cannot find `@base-ui/react` from
-    // `packages/ui/package.json`; the legacy descriptor answered that with a report, this answers it with
-    // "this run is not a verdict".
-    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: MANIFEST_JSON });
-
-    expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.toolErrors.map((error) => error.phase)).toEqual(["evaluate"]);
-    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:ast");
-    expect(result.toolErrors[0]?.message).toContain("missing");
-  });
-});
-
-// ── §4.5 — the INSTALLED doors, one pin per REACHABLE status, and the one that is unconstructible ────
-//
-// THE CONSTRUCTION LIMIT, MEASURED RATHER THAN ASSUMED, because §3.6's "one pin per declared resource per
-// non-ready status" reads as if `missing` were a per-MODE fact and it is not. `ops/resource-installed.ts`
-// resolves BOTH modes through the SAME `manifestPath(root, id, …)` call and only then branches on
-// `request.mode`, so `missing` is a property of the PACKAGE: there is no tree on which `ast` is missing and
-// `metadata` is ready, or the reverse. Driven on five constructed roots: with the package absent, both
-// doors report `missing` together, and the `ast` door answers first because `evaluate` opens it first
-// (`installedPackage({mode: "ast"})` precedes the metadata read). That single case is the pin directly
-// above. What IS per-mode is `unresolved`, because each mode reads a DIFFERENT thing out of the resolved
-// directory — the manifest's name/version pair for `metadata`, the `.d.ts` inventory for `ast` — so each
-// gets its own pin below and each was reached by a different planted defect.
-describe("§4.5 — the installed-package doors refuse per MODE, and `missing` is not one of them", () => {
-  const pkgRel = "packages/ui/node_modules/@base-ui/react";
-  /** The resolution base `INSTALLED_PACKAGE_DEFINITIONS["base-ui"].from` names. */
-  const uiManifest = { "packages/ui/package.json": '{ "name": "@orb/ui", "version": "0.0.0" }\n' };
-  /** Enough of an installed anatomy for the `ast` door to come back READY. */
-  const installedDeclarations = {
-    [`${pkgRel}/select/index.d.ts`]: 'export * as Select from "./index.parts.js";\n',
-    [`${pkgRel}/select/index.parts.d.ts`]: 'export { SelectRoot as Root } from "./root/SelectRoot.js";\n',
-    [`${pkgRel}/select/root/SelectRoot.d.ts`]: "export interface SelectRootProps {\n  items?: readonly string[] | undefined;\n}\n",
-  };
-  const surfaceManifestJson =
-    '{ "version": "9.9.9", "components": { "Select": { "module": "@base-ui/react/select", "namespaced": true, "parts": {' +
-    '"Root": { "kind": "part", "symbol": "SelectRoot", "from": "./root/SelectRoot.js", "props": ["items"], "state": [], "inherits": [], "disposition": "exposed", "why": "" }' +
-    "} } } }\n";
-
-  /** The installed tree is REAL files, never an overlay: `loadInstalledPackage` goes through node's own
-   *  resolver and `readdirSync`, neither of which the resource overlay reaches (that is the whole point of
-   *  the kind — an installed package is not the authored transaction). */
-  function plantInstalled(root: string, files: Readonly<Record<string, string>>): void {
-    for (const [rel, content] of Object.entries(files)) {
-      mkdirSync(dirname(join(root, rel)), { recursive: true });
-      writeFileSync(join(root, rel), content, "utf8");
-    }
-  }
-
-  test("the COMPLETE run judges and receipts all three declared resources with nothing unresolved", ({ scratch }) => {
-    plantInstalled(scratch, { ...uiManifest, ...installedDeclarations, [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n' });
-    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
-
-    expect(result.toolErrors).toEqual([]);
-    expect(result.policies.map((owner) => owner.owner.status)).toEqual(["success"]);
-    expect(result.authority.effectiveFindings).toEqual([]);
-    expect(
-      result.policies
-        .flatMap((owner) => owner.receipts.filter((receipt) => receipt.kind === "resource"))
-        .map((receipt) => ({ source: receipt.source, unresolved: receipt.unresolved }))
-        .toSorted((left, right) => left.source.localeCompare(right.source)),
-    ).toEqual([
-      { source: "installed-package:base-ui:ast", unresolved: 0 },
-      { source: "installed-package:base-ui:metadata", unresolved: 0 },
-      { source: "json:baseui-manifest", unresolved: 0 },
-    ]);
-  });
-
-  test("metadata UNRESOLVED — a manifest with a name and no version is a broken read, not an absent one", ({ scratch }) => {
-    // Reachable from a real defect: a package whose manifest carries `name` but no string `version`.
-    // `metadataFacts` throws and `loadInstalledPackage` maps that to `unresolved` — deliberately NOT
-    // `missing`, because "run pnpm install" and "the reader is broken" send a reader to two places.
-    plantInstalled(scratch, { ...uiManifest, ...installedDeclarations, [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react" }\n' });
-    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
-
-    expect(refusalShape(result)).toMatchObject({ phases: ["evaluate"], ownerStatuses: ["incomplete"], findings: 0 });
-    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:metadata");
-    expect(result.toolErrors[0]?.message).toContain("came back unresolved");
-    expect(result.authority.withheldPolicyIds).toContain(surfaceManifest.id);
-  });
-
-  test("ast UNRESOLVED — an installed package publishing no declarations is the OTHER per-mode refusal", ({ scratch }) => {
-    // The pair to the row above, and what proves the two doors refuse independently rather than sharing
-    // one verdict: here the manifest is perfect and the `.d.ts` inventory is empty, so `metadata` is READY
-    // and `ast` refuses. `ast` is read first in `evaluate`, so it is also the message that surfaces.
-    plantInstalled(scratch, {
-      ...uiManifest,
-      [`${pkgRel}/package.json`]: '{ "name": "@base-ui/react", "version": "9.9.9" }\n',
-      [`${pkgRel}/index.js`]: "module.exports = {};\n",
-    });
-    const result = pass(surfaceManifest, scratch, { [MANIFEST_REL]: surfaceManifestJson });
-
-    expect(refusalShape(result)).toMatchObject({ phases: ["evaluate"], ownerStatuses: ["incomplete"], findings: 0 });
-    expect(result.toolErrors[0]?.message).toContain("installed-package:base-ui:ast");
-    expect(result.toolErrors[0]?.message).toContain("publishes no declaration files");
-    expect(result.authority.withheldPolicyIds).toContain(surfaceManifest.id);
-  });
-
-  test("`missing` is NOT per-mode — both doors report it together, so one pin covers the status", ({ scratch }) => {
-    // The construction limit, ASSERTED rather than written in prose above: this is the direct read of the
-    // provider that makes "one pin per declared resource per status" satisfiable with a single row for
-    // `missing`, and it reds if a future refactor ever gives the two modes separate resolutions.
-    plantInstalled(scratch, uiManifest);
-
-    expect(loadInstalledPackage(scratch, { id: "base-ui", mode: "ast" }).status).toBe("missing");
-    expect(loadInstalledPackage(scratch, { id: "base-ui", mode: "metadata" }).status).toBe("missing");
-  });
-});
-
 describe("§4.5 — the installed-surface READER's own blindness, which no proof row can reach", () => {
-  // `installedSurfaceFrom` returning `undefined` is `baseui-surface-manifest`'s BLIND arm, and it is
-  // UNFALSIFIABLE from a proof row by construction: `ops/resource-installed.ts` collects declaration paths
-  // by walking DOWN from the directory it just resolved for that package, so every path it returns is under
-  // the package root and a package it cannot resolve comes back `missing` instead. The claim is therefore
-  // pinned one tier down, at the reader, where the input CAN be constructed.
+  // Shared CSS and vendor consumers still depend on this declared-path acquisition.
   test("an anchorless declaration set derives NOTHING rather than an empty surface", () => {
     expect(installedPackageRootOf(["/tmp/nowhere/x.d.ts"])).toBeUndefined();
     expect(installedSurfaceFrom(["/tmp/nowhere/x.d.ts"], "9.9.9")).toBeUndefined();
