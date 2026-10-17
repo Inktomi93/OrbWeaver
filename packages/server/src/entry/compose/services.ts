@@ -146,8 +146,8 @@ import {
 } from "#foundation/observability";
 import { SERVER_INSTANCE_ID } from "#foundation/server-instance";
 import { versionIdentity } from "#foundation/version";
-import type { AuthConfig } from "#infra/auth";
-import { createPasswordHasher } from "#infra/auth";
+import type { AuthConfig, ForwardJwtVerifier } from "#infra/auth";
+import { createForwardJwtVerifier, createJwksReader, createPasswordHasher } from "#infra/auth";
 import type { SecretBox } from "#infra/crypto";
 import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
@@ -314,6 +314,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly workloadEvents: WorkloadProgressBus;
   readonly liveBuses: LiveBuses;
   readonly egress: ScopedEgress;
+  readonly forwardJwtVerifier: ForwardJwtVerifier;
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly multiHumanCapable: ReturnType<typeof createMultiHumanCapability>;
@@ -479,6 +480,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     }),
   );
   egressLifetime = egress;
+  const forwardJwtVerifier = createForwardJwtVerifier(resources.use(createJwksReader(egress.configuredEndpointFetch)).jwksFor);
   const { db, now, authConfig = { mode: env.AUTH_MODE }, idSource = createIdSource(), newOpaqueId = randomUUID, userRuntimeDir = env.USER_RUNTIME_DIR } = deps;
   const authMode = authConfig.mode;
   const presence = createPresenceRegistry(now);
@@ -1456,6 +1458,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     workloadEvents,
     liveBuses,
     egress,
+    forwardJwtVerifier,
     [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
     settleBackground: background.settle,
     supervise: background.supervise,

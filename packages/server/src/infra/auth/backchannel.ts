@@ -17,7 +17,6 @@ import { jwtVerify } from "jose";
 import { z } from "zod";
 import { securityEvent } from "#foundation/observability";
 import type { JwksReader } from "./contract.ts";
-import { jwksFor } from "./jwks.ts";
 
 // The back-channel-logout event URI the `events` claim MUST carry (OIDC BCL §2.4).
 const BACKCHANNEL_EVENT = "http://schemas.openid.net/event/backchannel-logout";
@@ -37,8 +36,7 @@ export interface LogoutTokenSubject {
 // @orb-waive no-inline-package-interface(BackchannelVerifyArgs): baselined when the gate landed; burn-down item 952.
 export interface BackchannelVerifyArgs {
   readonly logoutToken: string;
-  /** The issuer JWKS — a URL (https, fetched + cached by {@link jwksFor}) at runtime, or a JWKS JSON literal
-   *  (the `{…}` shape) in tests. Same dual-nature contract as `jwksFor`. */
+  /** The issuer JWKS — an HTTPS URL or JSON literal admitted by the graph's {@link JwksReader}. */
   readonly jwks: string;
   readonly issuer: string;
   readonly audience: string;
@@ -71,12 +69,12 @@ function subjectFrom(payload: JWTPayload): LogoutTokenSubject | null {
 
 /** The back-channel-logout verifier the entry route injects. Returns the validated subject, or null on ANY
  *  violation (bad signature / issuer / audience / required claims / missing event / present nonce / no subject). */
-export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"] = jwksFor): BackchannelLogoutVerifier {
+export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"]): BackchannelLogoutVerifier {
   return {
     verify: async ({ logoutToken, jwks, issuer, audience }: BackchannelVerifyArgs): Promise<LogoutTokenSubject | null> => {
       const keyset = readKeyset(jwks, []);
       if (keyset === null) {
-        // jwksFor already emitted its own securityEvent for the rejection reason.
+        // The key reader already emitted its own securityEvent for the rejection reason.
         return null;
       }
       let payload: JWTPayload;
