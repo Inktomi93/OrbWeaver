@@ -126,7 +126,7 @@ function recededInkTokenOffset(node: Node, sourceFile: SourceFile): number | und
 
 export const gate = defineGate({
   id: "receded-ink-integrity",
-  family: "tailwind-class-token",
+  family: "receded-ink-integrity",
   authority: "ordinary",
   severity: "error",
   population: ["@client", "@ui"],

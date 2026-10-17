@@ -34,12 +34,17 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as spacingTierHealth } from "../../../../tooling/src/verify/gates/spacing-tier-home-health.ts";
 import { gate as typographyTierHealth } from "../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
+import { policyFamilyNames } from "../../../../tooling/src/verify/lib/policy-module.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tier-home-health";
 const ANCHOR = "packages/ui/src/tokens/index.ts";
 const FAMILY = [spacingTierHealth, typographyTierHealth];
+
+test("retained home-health descriptors register as valid singleton families", () => {
+  expect(policyFamilyNames(FAMILY)).toEqual(FAMILY.map(({ id }) => id).toSorted());
+});
 
 test("both -health tripwires preserve their founding fixtures", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);

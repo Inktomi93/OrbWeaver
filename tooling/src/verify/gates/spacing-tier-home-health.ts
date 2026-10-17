@@ -12,7 +12,7 @@ const ANCHOR = "packages/ui/src/tokens/index.ts";
 
 export const gate = defineGate({
   id: "spacing-tier-home-health",
-  family: "raw-spacing-tier",
+  family: "spacing-tier-home-health",
   authority: "hard",
   severity: "error",
   population: ["@client", "@ui"],
