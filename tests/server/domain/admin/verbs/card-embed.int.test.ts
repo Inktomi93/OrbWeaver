@@ -3,10 +3,11 @@
 import "@orb/testkit/node/composed-real.ts";
 import { KIND_DEFS } from "@orb/contracts/inference";
 import { createAdminCardEmbed } from "@orb/server/domain/admin";
-import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
+import { makeResolvedSecret } from "@orb/testkit/node/factories/credentials.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
-import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
+import { makeResolved, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
@@ -24,8 +25,15 @@ test("foreign and textless cards never reach funding or storage; an owned card p
     .fn<Parameters<typeof createAdminCardEmbed>[0]["store"]>()
     .mockImplementation(async (input) => ({ outcome: "written", contentHash: "observed-content", model: input.model }));
   let model = testModelId("embed-first");
-  const roleClientsFor = vi.fn<Parameters<typeof createAdminCardEmbed>[0]["roleClientsFor"]>(async () => ({
-    resolved: async () => makeResolvedView({ task: "embed", model, capability: KIND_DEFS.embedding.floor }),
+  const roleClientsFor = vi.fn<Parameters<typeof createAdminCardEmbed>[0]["roleClientsFor"]>(async (ownerId) => ({
+    resolved: async () =>
+      makeResolved({
+        task: "embed",
+        ownerId,
+        model,
+        capability: KIND_DEFS.embedding.floor,
+        credential: await makeResolvedSecret(services.credentials.resolve, { ownerId, credentialId: null, providerId: testProviderId(TEST_PROVIDER_ID) }),
+      }),
   }));
   const embed = createAdminCardEmbed({ getCard: services.character.getCard, loadCardText: services.character.loadCardText, store, roleClientsFor });
   const foreign = await embed.embedCharacterCard(await principal(harness, stranger.id), card.id);
