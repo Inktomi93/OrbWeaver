@@ -42,13 +42,6 @@ export interface SafeFetchOptions {
   readonly deadlineMs?: number;
   /** Caller cancellation, composed with the deadline. */
   readonly signal?: AbortSignal;
-  /** Configured-endpoint class ONLY (§0 "configured endpoint" — the user's OWN backend, e.g. the
-   *  credentials `/models` probe against a BYO vLLM). The connection's `baseUrl` is the declared intent,
-   *  legitimately LAN and often plain http/IP-literal. Setting this pins the fetch to its derived host
-   *  yet OPTS OUT of the https-scheme pin, the IP-literal reject, and safeFetch's own private-range
-   *  denial — deferring SSRF to the global egress firewall + operator EGRESS_ALLOWLIST (today's posture,
-   *  preserved). NEVER wire/caller-suppliable — compose binds it only for the models probe. */
-  readonly ownerConfiguredEndpoint?: boolean;
 }
 
 export interface SafeFetchResult {

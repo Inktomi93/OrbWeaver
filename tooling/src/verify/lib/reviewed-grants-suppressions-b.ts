@@ -224,6 +224,14 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the gate and parser fixtures are authored as files rather than as embedded source strings, at which point the interpolation is real code and the rule stops firing.",
   },
   {
+    id: "suppressions:tests-native-node-test-child",
+    policyId: "suppressions",
+    subject: "vitest/no-import-node-test",
+    operation: "tests",
+    why: "TOOL FALSE POSITIVE — a supervised standalone Node child uses the native test runner because Vitest requires worker state that the child does not have. The maintained parent remains Vitest-owned and observes native execution, completion and exit status; this does not permit Node test imports in Vitest workers.",
+    endsWhen: "the standalone native test child disappears, or the installed rule distinguishes native executables from Vitest workers without a directive.",
+  },
+  {
     id: "suppressions:tests-orb-test-ambient-source-string",
     policyId: "suppressions",
     subject: "orb/test-ambient-source-string",

@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-Nested callable and nullish storage retain native origins, allocations and references. Annotated own-arrow calls obtain actual settled targets after private-premise revocation. Controls and security review pass; ordinary integrated execution remains open. Evidence: `reports/review/1002-annotated-callable-origin-ordinary.md`. Original target and cost remain unqualified.
+Nested callable and nullish storage retain native origins, allocations and references. Annotated own-arrow calls obtain actual settled targets after private-premise revocation. Controls, review and ordinary integrated execution pass. Evidence: `reports/review/1002-annotated-callable-origin-ordinary.md`. Original target refuses an actual record copy; cost remains unqualified.
 
 Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 

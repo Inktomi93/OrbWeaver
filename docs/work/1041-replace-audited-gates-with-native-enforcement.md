@@ -26,30 +26,20 @@ Migrated rows have qualified successors and adjudicated exceptions. Security con
 
 D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
 
-SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
+SQL delivery passes review and controls. Remaining native delivery gaps do not block migration. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`.
 
-Graph-owned forward-JWT and edge tests pass controls and security review. Evidence: `reports/review/1041-native-entry-network.md`. Ordinary root controls pass. Raw-origin and asset policies remain.
+Production owns forward-JWT execution and network lifetime. Public URL callers cannot request configured-endpoint authority; configured endpoints retain their separate capability. Production-root body limits preserve intake order and clean incomplete staging. Security review passes; combined network qualification remains open. Evidence: `reports/review/1041-egress-watchdog-independent-review.md` and `reports/review/1041-native-wave-ordinary.md`. Raw-origin and asset policies remain.
 
-Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
+Real composed preview controls enforce world-info regex deadlines, normal matching and invalid-pattern literal fallback. Local source interventions discriminate missing protection. Review passes; ordinary integrated execution remains open. Evidence: `reports/review/1041-native-regex-watchdog-delivery.md`.
 
-Chat binds memory outside narrow engine inputs. Native imports and production-root controls pass security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructors need real-root replacement.
+Chat binds memory outside narrow engine inputs. Native imports and production-root controls preserve authority. Principal-origin and role checks remain because public Callers expose raw roles. Legacy direct constructors need real-root replacement. Evidence: `reports/review/1041-engine-authority-ordinary.md` and `reports/review/1041-native-turn-role-authority-ordinary.md`.
 
-Native database constraints normalize freeze provenance. Canon body writers preserve freshness; migration refuses invalid rows atomically. Security review and ordinary controls pass. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`.
+Database constraints normalize freeze provenance; canon body writers preserve freshness and migration refuses invalid rows atomically. Inert DB wiring preserves native operands. Import/loader boundaries replace query detection; per-call analysis remains. Evidence: `reports/review/1041-freeze-provenance-ordinary.md` and `reports/review/1041-compose-query-capability-ordinary.md`.
 
-Device-local names and persistence options use native types. Private and legacy imports stay restricted. Evidence: `reports/review/1041-persisted-factory-ordinary.md`.
+Native size limits preserve scopes and shrinking debt. Device-local names and required persistence options use native types. Evidence: `reports/review/native-foundation-wave-ordinary.md` and `reports/review/1041-persisted-factory-ordinary.md`.
 
-Native lint owns lexical class, skin, banned utilities, z-index spellings and lexical determinism. Hover/dark and z-home presence remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md`.
+Native lint owns lexical class, skin, utility, z-index and determinism restrictions. Production registries supply anchors and navigation; semantic checks remain. Evidence: `reports/review/1041-native-ui-tier-ordinary.md` and `reports/review/1041-native-client-registries-ordinary.md`.
 
-Native lint restricts engine names. Principal-origin and role checks remain; public Callers expose raw roles. Evidence: `reports/review/1041-native-turn-role-authority-ordinary.md`. Legacy adoption stays open.
+Schema-export membership is removed; parity and issues origin remain. Bounded-list controls prove mounted/public limits; private/uninstantiated obligations retain their gate. Evidence: `reports/review/1041-native-zod-surface-ordinary.md` and `reports/review/1041-bounded-list-limit-ordinary.md`.
 
-Production registries supply anchors and navigation. Native types and route-map lint replace exact claims; semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts need real-door replacement.
-
-Inert DB wiring preserves operands. Native import/loader boundaries replace query detection; per-call analysis remains. Security review passes. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
-
-D322 removes schema-export membership hygiene, not authored parity or issues origin. Native forge errors preserve raw drafts and refusal. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`. Issues permissions retain their structured-data owners.
-
-Native controls prove mounted/public schema limits. Private/uninstantiated obligations retain their gate. Evidence: `reports/review/1041-bounded-list-limit-ordinary.md`.
-
-Mandatory native ESLint enforces CORS syntax without inline suppression. Production HTTP controls classify mounted mutations and enforce intake limits and order. Interrupted bundle staging removes acquired incomplete files. Security review and ordinary main controls pass. Evidence: `reports/review/1041-security-native-wave-independent-review.md`.
-
-Stylelint owns motion, color and integer/rest CSS restrictions. Integer/rest semantic checks and complete CSS-variable enforcement remain. Native exceptions stay at their subjects; HARD disables fail. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-css-enforcement-independent-review.md`.
+Mandatory ESLint enforces CORS without inline suppression. Stylelint owns motion, color and integer/rest CSS. Their semantic checks and complete CSS-variable enforcement remain. Review, ordinary native controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-wave-ordinary.md`.

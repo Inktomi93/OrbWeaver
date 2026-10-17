@@ -31,7 +31,6 @@ import { gate as singleStreamTransport } from "../../../../../tooling/src/verify
 import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { gate as typesInContract } from "../../../../../tooling/src/verify/gates/types-in-contract.ts";
-import { gate as untrustedRegexSafeExec } from "../../../../../tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 import { gate as vectorScopeDerived } from "../../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
 
@@ -230,17 +229,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: typesInContract,
     overlays: [neutralise(`${SERVER}/domain/admin/contract/service.ts`, "export const noInterface = 1;\n")],
     messageIncludes: "must declare the exported",
-  },
-  {
-    policy: untrustedRegexSafeExec,
-    // The canonical world-info seam, composed with a bare `regex.test` instead of the deadline kit.
-    overlays: [
-      neutralise(
-        `${SERVER}/entry/compose/chat.ts`,
-        "export const chat = { testRegexKey: (regex: RegExp, haystack: string): boolean => regex.test(haystack) };\n",
-      ),
-    ],
-    messageIncludes: "createRegexTest",
   },
   {
     policy: vectorScopeDerived,

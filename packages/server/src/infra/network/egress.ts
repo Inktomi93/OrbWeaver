@@ -36,7 +36,7 @@ import { createOwnedResponseBody } from "./response-body.ts";
 //   (2) the deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the second block
 //       further down — inference program F12). Hosts, CIDRs, and OPTIONALLY host:PORT.
 // Without one of them a bare private-range block SSRF-refuses the box's own loopback inference backend,
-// whose server-initiated calls are plain fetch()/ownerConfiguredEndpoint safeFetch → the global dispatcher.
+// whose server-initiated calls use configuredEndpointFetch → the deployment's endpoint admission.
 //   SECURITY INVARIANT — this does NOT weaken SSRF protection on any attacker-influenceable path.
 //   User-influenced URLs go through safeFetch, whose resolveValidatePin enforces an UNCONDITIONAL
 //   private-range denial that NEVER consults either allowlist. The global firewall + allowlists are only
@@ -736,8 +736,7 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
 
 // ── safeFetch: the self-enforcing SSRF guard for any user-influenced outbound URL ──────────────────
 //
-// Per request AND per redirect hop: scheme pin (https-only, unless the owner-configured-endpoint policy
-// permits the operator's own backend scheme) → host allowlist (or the explicit ANY_HOST escape) →
+// Per request AND per redirect hop: scheme pin (https-only) → host allowlist (or the explicit ANY_HOST escape) →
 // resolve→validate→pin (DNS resolve; every address must clear privateEgressRanges(); the validated set
 // is pinned into a single-use per-request dispatcher so the name cannot re-resolve between check and
 // connect). Response-side: manual redirects with cross-origin credential-header + body stripping, a
@@ -949,8 +948,7 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
   };
 }
 
-/** Force-close a per-request pinned dispatcher (spec D — "close the hop's Agent"). No-op for the
- *  owner-configured-endpoint class (no per-request agent; the global dispatcher is shared). */
+/** Force-close an owned dispatcher when the request allocated one. */
 function closeAgentFor(context: EgressContext, agent: Agent | undefined): void {
   if (agent !== undefined) {
     context.agents.delete(agent);
@@ -1122,10 +1120,9 @@ function blockEgress(reason: EgressBlockReason, host: string, detail: string, lo
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */
-function validateUrl(url: URL, options: SafeFetchOptions): void {
-  const ownerConfigured = options.ownerConfiguredEndpoint === true;
+function validateUrl(url: URL, options: SafeFetchOptions, configuredEndpoint = false): void {
   const host = normalizeHost(url.hostname);
-  if (ownerConfigured) {
+  if (configuredEndpoint) {
     if (url.protocol !== "https:" && url.protocol !== "http:") {
       blockEgress("scheme", host, `scheme ${url.protocol} is not allowed`);
     }
@@ -1133,7 +1130,7 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
     blockEgress("scheme", host, `scheme ${url.protocol} is not allowed (https only)`);
   }
   // The user's own configured backend may legitimately be an IP literal (BYO vLLM at 192.168.x.y).
-  if (!ownerConfigured && isIpLiteralHost(url.hostname)) {
+  if (!configuredEndpoint && isIpLiteralHost(url.hostname)) {
     blockEgress("ip-literal", host, "IP-literal hosts are not allowed (a hostname is required)");
   }
   if (options.allowedHosts !== ANY_HOST && !hostAllowed(host, options.allowedHosts)) {
@@ -1151,17 +1148,8 @@ function validateUrl(url: URL, options: SafeFetchOptions): void {
   }
 }
 
-/** Resolve→validate→pin: DNS-resolve the host, reject if ANY address is private/reserved or unreadable, and pin the
- *  validated set into a single-use per-request dispatcher (the name cannot re-resolve between check and
- *  connect — DNS-rebind closed). Returns `undefined` for the owner-configured-endpoint class, which
- *  defers address gating to the global firewall (its LAN endpoint is the declared intent). */
-async function resolveValidatePinFor(context: EgressContext, url: URL, options: SafeFetchOptions): Promise<Agent | undefined> {
-  if (options.ownerConfiguredEndpoint === true) {
-    if (context.global) {
-      return;
-    }
-    return await configuredEndpointPin(context, url);
-  }
+/** Resolve→validate→pin for public URLs is unconditional, independent of deployment endpoint admission. */
+async function resolveValidatePinFor(context: EgressContext, url: URL): Promise<Agent> {
   const host = normalizeHost(url.hostname);
   const addresses = await context.resolver(host);
   if (addresses.length === 0) {
@@ -1253,9 +1241,8 @@ async function fetchHopFor(context: EgressContext, url: URL, init: RequestInit, 
 
 interface HopResult {
   readonly response: Response;
-  /** The TERMINAL hop's pinned agent — the caller closes it after the body is read (undefined for the
-   *  owner-configured-endpoint class). Every INTERMEDIATE hop's agent is closed here as the chain advances. */
-  readonly agent: Agent | undefined;
+  /** The caller closes the terminal hop's agent after its body; intermediate agents close as the chain advances. */
+  readonly agent: Agent;
 }
 
 interface RedirectInput {
@@ -1270,7 +1257,7 @@ async function followRedirectsFor(context: EgressContext, { start, maxRedirects,
   let hopHeaders: Record<string, string> | undefined = options.headers ? { ...options.headers } : undefined;
   for (let hop = 0; ; hop++) {
     validateUrl(current, options);
-    const agent = await resolveValidatePinFor(context, current, options);
+    const agent = await resolveValidatePinFor(context, current);
     const res = await fetchHopFor(context, current, buildHopInit({ options, dispatcher: agent, signal, headers: hopHeaders, hop }), agent);
     const isRedirect = res.status >= REDIRECT_STATUS_MIN && res.status < REDIRECT_STATUS_MAX;
     const loc = isRedirect ? res.headers.get("location") : null;
@@ -1399,7 +1386,7 @@ async function configuredEndpointFetchFor(context: EgressContext, input: Paramet
   }
   const request = new Request(input, init);
   const url = new URL(request.url);
-  validateUrl(url, { allowedHosts: ANY_HOST, ownerConfiguredEndpoint: true });
+  validateUrl(url, { allowedHosts: ANY_HOST }, true);
   const controller = new AbortController();
   const signal = AbortSignal.any([controller.signal, request.signal]);
   const completion = Promise.withResolvers<void>();

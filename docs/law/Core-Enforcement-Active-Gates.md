@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(307 registered gates)
+(306 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -359,7 +359,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ui-size-via-variant` | tailwind-class-token | ordinary/error | @client,@ui | sizes come from variants — a… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
-| `untrusted-regex-safe-exec` | — | hard/error | @server\* | the canonical world-info regex-key… |
 | `vector-scope-derived` | — | ordinary/error | @server | a vector-substrate chokepoint was… |
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
 | `warning-code-coverage` | — | ordinary/error | @server,@contracts,@inference | a warning-code tuple member has NO… |

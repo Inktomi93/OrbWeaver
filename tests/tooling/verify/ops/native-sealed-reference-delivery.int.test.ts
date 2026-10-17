@@ -12,19 +12,17 @@ import { gate as membership } from "../../../../tooling/src/verify/gates/members
 import { gate as users } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as identity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
-import { gate as regex } from "../../../../tooling/src/verify/gates/untrusted-regex-safe-exec.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const POLICIES = [scrubber, users, membership, identity, discovery, empty, regex];
+const POLICIES = [scrubber, users, membership, identity, discovery, empty];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
 const ENGINE = "packages/server/src/domain/chat/engine/subject.ts";
 const DISCOVERY = "packages/server/src/domain/discovery/subject.ts";
 const CLIENT = "packages/client/src/features/subject.tsx";
-const COMPOSE = "packages/server/src/entry/compose/chat.ts";
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -39,7 +37,6 @@ function fixture(root: string, repoRoot: string): void {
     "packages/db/src/query/index.ts": "export function fetchOwned():object{return {};}",
     "packages/contracts/src/identity/index.ts": "export interface Principal {readonly userId:string;}",
     "packages/ui/src/primitives/empty-state/index.tsx": "export declare function EmptyState(props:object):object;",
-    "packages/server/src/primitives/regex/index.ts": "export function createRegexTest():object{return {};}",
     "foreign.ts": "export function createHiddenSpanStreamScrubber():object{return {};}export function EmptyState():object{return {};}",
     [SERVER]:
       "import {createHiddenSpanStreamScrubber} from '#scrubber';\nimport {users} from '#tables';\nimport {fetchOwned} from '#owned';\nexport const value=[createHiddenSpanStreamScrubber(),users,fetchOwned];\n",
@@ -47,7 +44,6 @@ function fixture(root: string, repoRoot: string): void {
     [DISCOVERY]: "import * as schema from '#tables';\nexport const value=schema.ownerStats;\n",
     [CLIENT]:
       "import {EmptyState as Empty} from '#empty';\nimport * as content from '#scrubber';\nexport const value=<Empty/>;\ncontent.createHiddenSpanStreamScrubber();\n",
-    [COMPOSE]: "import {createRegexTest as watchdog} from '#regex';\nexport const value={testRegexKey:watchdog()};\n",
   };
   for (const [path, text] of Object.entries(sources)) {
     write(path, text);
@@ -76,7 +72,6 @@ function fixture(root: string, repoRoot: string): void {
         "#tables": "./packages/db/src/schema/tables.ts",
         "#owned": "./packages/db/src/query/index.ts",
         "#identity": "./packages/contracts/src/identity/index.ts",
-        "#regex": "./packages/server/src/primitives/regex/index.ts",
       },
     }),
   );
@@ -114,7 +109,7 @@ function poisonSyntax(project: Project): Disposable {
 }
 
 test(
-  "native sealed-reference command preserves seven policy judgments in the importing Node/browser worlds",
+  "native sealed-reference command preserves policy judgments in the importing Node/browser worlds",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
@@ -145,7 +140,6 @@ test(
           { id: identity.id, findings: [{ file: ENGINE, token: "Principal" }] },
           { id: discovery.id, findings: [{ file: DISCOVERY, token: "ownerStats" }] },
           { id: empty.id, findings: [{ file: CLIENT, token: "Empty" }] },
-          { id: regex.id, findings: [] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
     } finally {
@@ -160,7 +154,7 @@ test.for(POLICIES)("$id preserves its complete declared sealed-reference subject
 });
 
 test(
-  "native sealed keys keep authored wrapper/alias positions, local refusals, ordinary waivers and hard regex polarity",
+  "native sealed keys keep authored wrapper/alias positions, local refusals and ordinary waivers",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     writeFileSync(
@@ -212,15 +206,9 @@ export const action=<Empty action/>;
 export const spread=<Empty {...{}}/>;
 `,
     );
-    writeFileSync(
-      join(scratch, COMPOSE),
-      `const createRegexTest=()=>({});
-export const value={testRegexKey:createRegexTest()};
-`,
-    );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const selected = [membership, identity, discovery, empty, regex];
+    const selected = [membership, identity, discovery, empty];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -245,7 +233,6 @@ export const value={testRegexKey:createRegexTest()};
       { line: 8, column: 9, token: "STABLE" },
     ]);
     expect(positions(empty.id)).toEqual([{ line: 4, column: 21, token: "Alias" }]);
-    expect(positions(regex.id)).toEqual([{ line: 2, column: 21, token: "testRegexKey" }]);
     expect(result.authority.waivedFindings.map(({ finding }) => [finding.policyId, finding.token])).toEqual([
       [empty.id, "Alias"],
       [identity.id, "KEY"],
@@ -254,7 +241,7 @@ export const value={testRegexKey:createRegexTest()};
       [discovery.id, "KEY"],
     ]);
     expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.effectiveFindings).toHaveLength(4);
+    expect(result.authority.effectiveFindings).toHaveLength(3);
   },
   scaledBudget(60_000),
 );
@@ -330,7 +317,7 @@ test(
   scaledBudget(60_000),
 );
 
-test("sealed-reference owners withhold missing native services and the regex seam still refuses an empty receipt", ({ scratch, repoRoot }) => {
+test("sealed-reference owners withhold missing native services", ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
   const context = projectCtx(scratch);
   const result = runPolicyPass({
@@ -347,19 +334,4 @@ test("sealed-reference owners withhold missing native services and the regex sea
     ),
   );
   expect(result.authority.effectiveFindings).toEqual([]);
-  writeFileSync(join(scratch, COMPOSE), "export const value={other:1};\n");
-  const emptyContext = projectCtx(scratch);
-  const emptyResult = runPolicyPass({
-    root: scratch,
-    project: emptyContext.project,
-    ...nativeTypeFactOptions(emptyContext),
-    knownPolicies: POLICIES,
-    policies: [regex],
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(emptyResult.toolErrors).toMatchObject([
-    { policyId: regex.id, phase: "receipt", message: expect.stringContaining("world-info regex-key composition seam") },
-  ]);
-  expect(emptyResult.authority.effectiveFindings).toEqual([]);
 });
