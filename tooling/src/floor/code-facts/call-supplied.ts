@@ -51,6 +51,63 @@ function suppliedEpochRefusal(node: MorphNode, program: CallReturnProgram | unde
   return admitted?.kind === "unresolved" ? admitted : undefined;
 }
 
+function callableName(owner: MorphNode): MorphNode | undefined {
+  if (Node.isFunctionDeclaration(owner)) {
+    return owner.getNameNode();
+  }
+  const parent = owner.getParent();
+  return Node.isVariableDeclaration(parent) ? parent.getNameNode() : undefined;
+}
+
+function demandNamespaceConsumer(use: MorphNode, binding: Identifier, owner: MorphNode, program: CallReturnProgram): ReferenceFact<true> | undefined {
+  const call = use.getParent();
+  if (!Node.isCallExpression(call) || call.getExpression() !== use) {
+    return;
+  }
+  const published = (): boolean => {
+    const observation = program.byCall.get(call.compilerNode);
+    const targets = observation?.invocationTargets ?? observation?.targets;
+    return (
+      targets?.kind === "resolved" &&
+      targets.value.some((target) => target.compilerNode === owner.compilerNode) &&
+      program.callers.get(owner.compilerNode)?.some((caller) => caller.call.compilerNode === call.compilerNode) === true
+    );
+  };
+  const admitted = readCallReturnReference(use, binding, program);
+  if (admitted.kind === "resolved" && published()) {
+    return { ...admitted, value: true };
+  }
+  const captured = admitted.kind === "unresolved" ? admitted : program.demandValueCall?.(call);
+  if (captured?.kind !== "resolved") {
+    return captured;
+  }
+  const settled = program.suppliedCallableUses?.(call);
+  if (settled?.kind !== "resolved") {
+    return settled;
+  }
+  const current = readCallReturnProgram(owner, { programs: [program] });
+  if (current.kind === "unresolved") {
+    return current;
+  }
+  return published() ? { ...current, value: true } : unresolved("missing", call, "the namespace consumer has no published actual callable target", [owner]);
+}
+
+function captureNamespaceConsumers(name: Identifier, owner: MorphNode, program: CallReturnProgram): UnresolvedReferenceFact | undefined {
+  const ownName = callableName(owner);
+  let refusal: UnresolvedReferenceFact | undefined;
+  const missing = unprovenReferenceUse(name, (use, binding) => {
+    if (use === name || use === ownName || isDocumentationLinkReference(use)) {
+      return true;
+    }
+    const captured = demandNamespaceConsumer(use, binding, owner, program);
+    if (captured?.kind === "unresolved") {
+      refusal = captured;
+    }
+    return captured?.kind === "resolved";
+  });
+  return refusal ?? (missing === undefined ? undefined : unresolved("unsupported", missing, "the namespace alias has an unproven actual consumer", [owner]));
+}
+
 function capturedModuleAlias(
   use: MorphNode,
   binding: Identifier,
@@ -63,16 +120,29 @@ function capturedModuleAlias(
     return admitted;
   }
   const direct = readModuleAliasBinding(use, owner);
-  return direct?.kind === "resolved" ? direct.value : (program.nativeNamespaceAlias?.(use, binding, owner, inputs) ?? direct);
+  if (direct?.kind === "resolved") {
+    return direct.value;
+  }
+  const captured = program.nativeNamespaceAlias?.(use, binding, owner, inputs);
+  if (captured === undefined || "kind" in captured) {
+    return captured ?? direct;
+  }
+  // Acquisition belongs to the proven captured namespace, not ordinary closed caller coverage.
+  const consumers = captureNamespaceConsumers(captured, owner, program);
+  const current = readCallReturnProgram(use, { programs: [program] });
+  const premise = inputs.context?.inheritedReadPremise?.require(use, program);
+  return (
+    consumers ??
+    (current.kind === "unresolved" ? current : undefined) ??
+    (premise?.kind === "unresolved" ? premise : undefined) ??
+    program.escapingReferences.get(owner.compilerNode)?.[0] ??
+    captured
+  );
 }
 
-function callableReferenceRefusal(
-  name: Identifier,
-  owner: MorphNode,
-  callers: readonly CallReturnObservation[],
-  inputs: NativeNamespaceAliasInputs,
-): UnresolvedReferenceFact | undefined {
-  const expressions = new Set<import("ts-morph").ts.Node>(callers.map((caller) => caller.call.getExpression().compilerNode));
+function callableReferenceRefusal(name: Identifier, owner: MorphNode, inputs: NativeNamespaceAliasInputs): UnresolvedReferenceFact | undefined {
+  const { program } = inputs;
+  const admittedUses: MorphNode[] = [];
   let refusal: UnresolvedReferenceFact | undefined;
   const missing = unprovenReferenceUse(name, (use, binding) => {
     if (use === name || isDocumentationLinkReference(use)) {
@@ -87,15 +157,21 @@ function callableReferenceRefusal(
       return alias;
     }
     for (let ancestor: MorphNode | undefined = use; ancestor !== undefined; ancestor = ancestor.getParent()) {
-      if (expressions.has(ancestor.compilerNode)) {
+      const expression = ancestor.compilerNode;
+      if (program.callers.get(owner.compilerNode)?.some((caller) => caller.call.getExpression().compilerNode === expression) === true) {
+        admittedUses.push(ancestor);
         return true;
       }
     }
     return false;
   });
+  const expressions = new Set<import("ts-morph").ts.Node>(program.callers.get(owner.compilerNode)?.map((caller) => caller.call.getExpression().compilerNode));
+  const unpublished = admittedUses.find((use) => !expressions.has(use.compilerNode));
   return (
     refusal ??
-    (missing === undefined ? undefined : unresolved("unsupported", missing, "an actual callable reference has no admitted supplied consumer", [owner]))
+    (missing === undefined && unpublished === undefined
+      ? undefined
+      : unresolved("unsupported", missing ?? unpublished ?? name, "an actual callable reference has no admitted supplied consumer", [owner]))
   );
 }
 
@@ -118,13 +194,7 @@ export function readObservedCallableConsumers(
   if (!program.referencesObserved) {
     return unresolved("missing", owner, "callable reference coverage was not supplied", [owner]);
   }
-  const parent = owner.getParent();
-  let name: MorphNode | undefined;
-  if (Node.isFunctionDeclaration(owner)) {
-    name = owner.getNameNode();
-  } else if (Node.isVariableDeclaration(parent)) {
-    name = parent.getNameNode();
-  }
+  const name = callableName(owner);
   const containing = !Node.isIdentifier(name) ? program.suppliedCallableUses?.(owner) : undefined;
   if (containing?.kind === "unresolved") {
     return containing;
@@ -133,14 +203,18 @@ export function readObservedCallableConsumers(
   if (escaped !== undefined) {
     return escaped;
   }
-  const callers = program.callers.get(owner.compilerNode) ?? [];
-  const reference = Node.isIdentifier(name) ? callableReferenceRefusal(name, owner, callers, { program, context }) : undefined;
+  const reference = Node.isIdentifier(name) ? callableReferenceRefusal(name, owner, { program, context }) : undefined;
   if (reference !== undefined) {
     return reference;
   }
-  return callers.length === 0
-    ? unresolved("missing", owner, "the callable has no observed supplied consumers", [owner])
-    : { kind: "resolved", value: callers, trace: { declarations: [owner], origin: owner } };
+  const current = suppliedEpochRefusal(owner, program) ?? program.escapingReferences.get(owner.compilerNode)?.[0];
+  const callers = program.callers.get(owner.compilerNode) ?? [];
+  return (
+    current ??
+    (callers.length === 0
+      ? unresolved("missing", owner, "the callable has no observed supplied consumers", [owner])
+      : { kind: "resolved", value: callers, trace: { declarations: [owner], origin: owner } })
+  );
 }
 
 /** Actual supplied alternatives of a formal, including omitted optional values; annotation supplies no origin. */
