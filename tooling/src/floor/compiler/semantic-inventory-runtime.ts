@@ -22,13 +22,29 @@ let observing = false;
 let internal = false;
 let revision = 0;
 
-function resolutionValue(value: ResolveFnOutput): InventoryRuntimeResolution["outcome"] {
+function observedAttributes(attributes: ResolveFnOutput["importAttributes"]): InventoryRuntimeResolution["context"]["importAttributes"] {
+  if (attributes === undefined) {
+    return undefined;
+  }
+  return Object.fromEntries(
+    Object.entries(attributes).map(([key, value]): readonly [string, string] => {
+      if (typeof value !== "string") {
+        throw new Error("native implementation import attributes contain an unsupported value");
+      }
+      return [key, value];
+    }),
+  );
+}
+
+/** Preserve the native attributes accepted by the existing wire contract without dropping unsupported values. */
+export function inventoryRuntimeResolutionValue(value: ResolveFnOutput): InventoryRuntimeResolution["outcome"] {
+  const attributes = observedAttributes(value.importAttributes);
   return {
     kind: "resolved",
     value: {
       url: value.url,
       ...(value.format === undefined ? {} : { format: value.format }),
-      ...(value.importAttributes === undefined ? {} : { importAttributes: { ...value.importAttributes } }),
+      ...(attributes === undefined ? {} : { importAttributes: attributes }),
     },
   };
 }
@@ -87,12 +103,13 @@ function observeFormat(url: string, context: LoadHookContext): void {
   // The native resolver sees the executing package cache; a later disk read cannot establish it.
   internal = true;
   try {
-    const basis = { parentURL: url, conditions: [...context.conditions], importAttributes: { ...context.importAttributes } };
+    const attributes = observedAttributes(context.importAttributes);
+    const basis = { parentURL: url, conditions: [...context.conditions], ...(attributes === undefined ? {} : { importAttributes: attributes }) };
     const value = resolve(url, basis);
     if (value.url !== url || value.format === undefined) {
       throw new Error("native implementation format basis is unavailable");
     }
-    record({ kind: "format", mode: "import", specifier: url, context: basis, outcome: resolutionValue(value) });
+    record({ kind: "format", mode: "import", specifier: url, context: basis, outcome: inventoryRuntimeResolutionValue(value) });
   } finally {
     internal = false;
   }
@@ -144,7 +161,7 @@ function observeLoad(url: string, context: LoadHookContext, result: LoadFnOutput
   if ("responseURL" in result && result.responseURL !== undefined && result.responseURL !== url) {
     throw new Error("native implementation load response identity differs from its native URL");
   }
-  if (!url.startsWith("file:") || result.source === null || result.source === undefined || result.format === "addon" || result.format === "wasm") {
+  if (!url.startsWith("file:") || result.source === undefined || result.format === "addon" || result.format === "wasm") {
     throw new Error("native implementation load has no supported physical source");
   }
   const bytes = observedBytes(result.source);
@@ -168,7 +185,8 @@ function observeLoad(url: string, context: LoadHookContext, result: LoadFnOutput
 if (initialCommonJs.length === 0) {
   registerHooks({
     resolve(specifier, context, nextResolve) {
-      if (initializing && context.importAttributes !== undefined) {
+      const attributes = observedAttributes(context.importAttributes);
+      if (initializing && attributes !== undefined) {
         nativeImportResolve = nextResolve;
       }
       if (internal || context.parentURL === undefined) {
@@ -177,7 +195,7 @@ if (initialCommonJs.length === 0) {
       if (Object.keys(context).some((key) => !["parentURL", "conditions", "importAttributes"].includes(key))) {
         fail(context.parentURL, "native implementation resolution metadata is unsupported");
       }
-      const mode = context.importAttributes === undefined ? "require" : "import";
+      const mode: InventoryRuntimeResolution["mode"] = attributes === undefined ? "require" : "import";
       const request = {
         kind: "request" as const,
         mode,
@@ -185,7 +203,7 @@ if (initialCommonJs.length === 0) {
         context: {
           parentURL: context.parentURL,
           conditions: [...context.conditions],
-          ...(context.importAttributes === undefined ? {} : { importAttributes: { ...context.importAttributes } }),
+          ...(attributes === undefined ? {} : { importAttributes: attributes }),
         },
       };
       try {
@@ -194,7 +212,7 @@ if (initialCommonJs.length === 0) {
           fail(context.parentURL, "native implementation resolution outcome is unsupported");
         }
         if (observing) {
-          record({ ...request, outcome: resolutionValue(result) });
+          record({ ...request, outcome: inventoryRuntimeResolutionValue(result) });
           const parents = origins.get(result.url) ?? new Set<string>();
           parents.add(context.parentURL);
           origins.set(result.url, parents);

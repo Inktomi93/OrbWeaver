@@ -23,6 +23,10 @@ export const NATIVE_IMPLEMENTATION_CASES = [
   "dispose",
   "environment-preload",
   "native-conditions",
+  "native-attributes",
+  "replay-no-hook",
+  "replay-partial-result",
+  "replay-duplicate-result",
   "replay-cached",
   "replay-publication",
   "replay-child-different",
@@ -65,18 +69,68 @@ function instrumentReplayFault(mode: string, helper: string, original: string, a
   );
 }
 
+function instrumentReplayCompletion(implementation: string, mode: string): void {
+  const helper = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime-replay.ts");
+  const armed = join(implementation, "replay-armed");
+  const original = readFileSync(helper, "utf8");
+  const trigger = '      if (request.mode === "require") {';
+  const completion = "      if (results.length !== completed + 1) {";
+  if (original.split(trigger).length !== 2 || original.split(completion).length !== 2) {
+    throw new Error("native replay completion fault differs from its maintained trigger");
+  }
+  let body = original.replace("mkdtempSync, readFileSync", "existsSync, mkdtempSync, readFileSync");
+  if (mode === "replay-no-hook") {
+    body = body.replace(trigger, `      if(existsSync(${JSON.stringify(armed)})){}else if(request.mode === "require") {`);
+  } else {
+    const mutation = mode === "replay-partial-result" ? "results.pop();" : "const last=results.at(-1);if(last!==undefined)results.push(last);";
+    body = body.replace(completion, `      if(existsSync(${JSON.stringify(armed)})){${mutation}}\n${completion}`);
+  }
+  writeFileSync(helper, body);
+}
+
+function instrumentNativeAttributes(implementation: string): void {
+  const directory = join(implementation, "tooling/src/floor/code-facts");
+  const factory = join(directory, "semantic-inventory.ts");
+  const signature = "export function createSemanticInventory(rawOptions: SemanticInventoryOptions): SemanticInventory {";
+  const body = readFileSync(factory, "utf8");
+  if (body.split(signature).length !== 2) {
+    throw new Error("native attribute fixture differs from its actual factory entry");
+  }
+  writeFileSync(join(directory, "native-attributes.json"), JSON.stringify({ value: 3 }));
+  writeFileSync(join(directory, "native-attributes.cjs"), "module.exports=2;\n");
+  writeFileSync(
+    factory,
+    "import nativeAttributes from './native-attributes.json' with {type:'json'};import {createRequire as nativeAttributeRequire} from 'node:module';\n" +
+      body.replace(
+        signature,
+        `${signature}\nif(nativeAttributes.value!==3||nativeAttributeRequire(import.meta.url)('./native-attributes.cjs')!==2)throw new Error('native attribute fixture execution');`,
+      ),
+  );
+}
+
 async function run(mode: string, implementation: string, root: string): Promise<object> {
   const sourcePath = (path: string): string => join(implementation, "tooling/src/floor", path);
   const moduleURL = (path: string): string => pathToFileURL(sourcePath(path)).href;
   const helper = sourcePath(implementationHelper(mode));
   const original = readFileSync(helper, "utf8");
-  if (mode === "late-import") {
-    writeFileSync(helper, `${original}\nexport async function inventoryLateFixture(){return import('./inventory-late-fixture.ts');}\n`);
-    writeFileSync(sourcePath("code-facts/inventory-late-fixture.ts"), "export const late=1;\n");
-  }
   const armed = join(implementation, "replay-armed");
-  if (mode === "replay-after-load" || mode === "replay-child-late-helper") {
-    instrumentReplayFault(mode, helper, original, armed);
+  switch (mode) {
+    case "native-attributes":
+      instrumentNativeAttributes(implementation);
+      break;
+    case "replay-no-hook":
+    case "replay-partial-result":
+    case "replay-duplicate-result":
+      instrumentReplayCompletion(implementation, mode);
+      break;
+    case "late-import":
+      writeFileSync(helper, `${original}\nexport async function inventoryLateFixture(){return import('./inventory-late-fixture.ts');}\n`);
+      writeFileSync(sourcePath("code-facts/inventory-late-fixture.ts"), "export const late=1;\n");
+      break;
+    case "replay-after-load":
+    case "replay-child-late-helper":
+      instrumentReplayFault(mode, helper, original, armed);
+      break;
   }
   let intercept = false;
   let injections = 0;
@@ -153,6 +207,30 @@ async function run(mode: string, implementation: string, root: string): Promise<
   const databasePath = join(root, ".cache/semantic-inventory.sqlite");
   workerStarts.length = 0;
   const baseline = { mode, initialTextUnchanged: initialText === text };
+  if (mode === "native-attributes") {
+    using current = createSemanticInventory(options);
+    using database = openInventoryDatabase(databasePath);
+    const partition = readInventoryGeneration(database, current.generation)[0];
+    if (partition === undefined) {
+      throw new Error("native attribute fixture partition missing");
+    }
+    const controller = readInventoryRuntime(database, partition.id, "controller");
+    const json = controller.resolutions.find((entry) => entry.kind === "request" && entry.specifier === "./native-attributes.json");
+    const common = controller.resolutions.find((entry) => entry.kind === "request" && entry.specifier === "./native-attributes.cjs");
+    if (json === undefined || common === undefined) {
+      throw new Error("native attribute fixture did not retain both actual importing contexts");
+    }
+    return {
+      ...baseline,
+      jsonMode: json.mode,
+      jsonAttributes: json.context.importAttributes,
+      requireMode: common.mode,
+      requireAttributesAbsent: !Object.hasOwn(common.context, "importAttributes"),
+      sameGeneration: current.generation === previousGeneration,
+      workerStarts: workerStarts.length,
+      pinnedUnchanged: corpus.getSourceFile(file)?.getFullText() === text,
+    };
+  }
   if (mode === "dispose") {
     previous[Symbol.dispose]();
     const error = refusal(() => {
@@ -160,7 +238,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
     });
     previous[Symbol.dispose]();
     using database = openInventoryDatabase(databasePath);
-    return { ...baseline, error, releasedBusy: database.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()?.busy };
+    return { ...baseline, error, releasedBusy: database.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()?.["busy"] };
   }
   if (mode === "late-import") {
     const loaded = (await import(pathToFileURL(helper).href)) as { readonly inventoryLateFixture: () => Promise<void> };
@@ -249,7 +327,10 @@ async function run(mode: string, implementation: string, root: string): Promise<
     }
     case "replay-child-different":
     case "replay-after-load":
-    case "replay-child-late-helper": {
+    case "replay-child-late-helper":
+    case "replay-no-hook":
+    case "replay-partial-result":
+    case "replay-duplicate-result": {
       writeFileSync(armed, "armed");
       intercept = true;
       error = refusal(acquire);
