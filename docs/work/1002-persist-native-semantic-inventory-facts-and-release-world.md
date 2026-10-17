@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/deferred-invocation-demand-1002
+lane: codex/native-source-currentness-1002
 plan: test-foundation
 ---
 
@@ -40,7 +40,7 @@ Reached-call capture preserves explicit references, native lifetimes and atomic 
 
 Annotated storage and finite copies preserve native origins, allocation, ordered presence and return closure. Combined controls and review pass. Original replay refuses `ctx.backgroundSignal` in `chat/service.ts`; neither selected nor delegate invocation publishes, and the delegate caller is absent. Evidence: `reports/review/1002-original-callable-current-c49-diagnosis.md`.
 
-Exact positive and negative source-admission dependencies replace global refinement invalidation. Full native freshness validation and opaque whole-source semantics remain. Controls, review and ordinary integration pass; cost measurement remains open. Evidence: `reports/review/1002-source-admission-ledger-ordinary.md`.
+Exact admission dependencies preserve native freshness and whole-source opacity without global refinement invalidation. Ordinary controls and review pass. Validation reuse needs SDK-owned wrapper invalidation, not Program identity alone; it is not built. Evidence: `reports/review/1002-native-source-currentness-cost-investigation.md`.
 
 Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 

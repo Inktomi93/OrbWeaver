@@ -21,7 +21,6 @@ import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/ve
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
-import { gate as noParallelSectionMap } from "../../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
@@ -161,12 +160,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "inline `invalidateQueries` call outside the central seam",
-  },
-  {
-    policy: noParallelSectionMap,
-    // Two real SectionIds keyed in a hand-written literal — the parallel map the registry replaces.
-    overlays: [add(`${CHAT_LIB}/liveness-panel-defaults.ts`, "export const M = {\n  chats: { list: 1 },\n  characters: { list: 2 },\n};\n")],
-    messageIncludes: "per-id object literal re-declares",
   },
   {
     policy: persistenceBoundary,

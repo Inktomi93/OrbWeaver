@@ -42,6 +42,8 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 ## Lane shape
 
+Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `list_agents`. Use `send_message` for running lanes and `followup_task` to resume idle or completed lanes. Messaging does not resume a completed lane. Use `interrupt_agent` to stop a running lane.
+
 - Give each lane a substantial batch across related areas that share context, dependencies or acceptance checks.
 - Include implementation, coupled tests and required documentation in the same assignment. Name ownership for each area.
 - Split lanes for independent work or different required expertise, not for each file or small item.

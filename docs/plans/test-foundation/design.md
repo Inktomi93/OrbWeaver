@@ -205,7 +205,7 @@ Native lint owns lexical class, skin, banned utilities, z-index and determinism.
 
 Native Base UI lint owns per-file derivation, mandatory handlers and parallel-state styling. Metadata admission invalidates caches; semantic owners remain. Maintained CTs use captured viewer/settings reads. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`. Bounded ordinary native controls pass; full migration remains open.
 
-Native context/register syntax retains published-state origin and count health. Vocabulary changes rejudge client rules and invalidate caches. Bounded ordinary main controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`.
+Context/register lint keeps publication and count owners; ordinary controls pass. Evidence: `reports/review/1041-native-context-registry-ordinary.md`. Parallel-map native lint uses canonical tuples; review passes, ordinary main checks remain open.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 

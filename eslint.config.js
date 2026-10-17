@@ -78,7 +78,7 @@
 //   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
@@ -108,6 +108,10 @@ import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
 import zod from "eslint-plugin-zod";
 import tseslint from "typescript-eslint";
+import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
+import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
+import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
+import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -117,10 +121,13 @@ import {
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
+import { DEFINITION_SLOTS } from "./tooling/src/verify/contract/registry-definition-home.ts";
 import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
 import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
 import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
+import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
+import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -995,6 +1002,28 @@ const CLIENT_CONTEXT_RESTRICTIONS = [
   },
 ];
 
+const PARALLEL_MAP_VOCABULARIES = [
+  { name: "SectionId", ids: SECTION_IDS, slot: DEFINITION_SLOTS.section },
+  { name: "ModalSlotId", ids: MODAL_SLOT_IDS, slot: DEFINITION_SLOTS.modal },
+  { name: "ConfigGroupId", ids: CONFIG_GROUP_IDS, slot: DEFINITION_SLOTS.group },
+];
+for (const { name, ids } of [...PARALLEL_MAP_VOCABULARIES, { name: "CHROME_ZONES", ids: CHROME_ZONES }]) {
+  if (!Array.isArray(ids) || ids.length === 0 || [...ids].some((id) => typeof id !== "string")) {
+    throw new Error(`Native parallel-map vocabulary ${name} must be a nonempty string array`);
+  }
+}
+const CLIENT_MAP_NATIVE_SETTINGS = {
+  "orb/parallel-map-vocabulary": {
+    ids: PARALLEL_MAP_VOCABULARIES,
+    zones: CHROME_ZONES,
+    chromeSlot: DEFINITION_SLOTS.chrome,
+  },
+  "orb/parallel-map-inputs": createHash("sha256")
+    .update(JSON.stringify(CLIENT_MAP_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
+    .digest("hex"),
+};
+const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
+
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -1110,6 +1139,7 @@ const RESTRICTIONS = [
   ...TURN_IDENTITY_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
+  ...CLIENT_MAP_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -1799,6 +1829,92 @@ const registerApiRule = {
   },
 };
 
+const PARALLEL_MAP_TUPLE_HOMES = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/config-group-ids.ts", "/state/modal-slot-ids.ts"];
+
+function parallelMapDoor(path) {
+  return path.endsWith("/client/src/main.tsx") || path.includes("/client/src/compose/");
+}
+
+function parallelMapHome(path, slot) {
+  return PARALLEL_MAP_TUPLE_HOMES.some((home) => path.endsWith(home)) || parallelMapDoor(path) || isDefinitionHome(path, slot);
+}
+
+function parallelMapField(object, name) {
+  const property = contextProperty(object, name);
+  const value = property?.kind === "init" && !property.method ? contextLiteral(property.value) : undefined;
+  return value === undefined ? undefined : { value, node: property.value };
+}
+
+function parallelMapArrayAnchor(array, ids, sourceCode) {
+  const objects =
+    array.elements.length > 0 &&
+    array.elements.every((element) => element?.type === "ObjectExpression" && ["[", ","].includes(sourceCode.getTokenBefore(element).value));
+  const entries = array.elements.map((element) => (objects ? parallelMapField(element, "id") : { value: contextLiteral(element), node: element }));
+  if (entries.some((entry) => entry === undefined || !ids.includes(entry.value))) {
+    return;
+  }
+  return new Set(entries.map(({ value }) => value)).size >= 2 ? entries[0]?.node : undefined;
+}
+
+const parallelMapRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
+    const report = (node, shape) => context.report({ node, message: `${shape} is a parallel registry map; derive it from the registry instead.` });
+    return {
+      "ObjectExpression:exit"(node) {
+        const properties = node.properties.filter((property) => property.type === "Property" && property.kind === "init" && !property.method);
+        for (const { ids, slot, name } of PARALLEL_MAP_VOCABULARIES) {
+          if (
+            !parallelMapHome(path, slot) &&
+            properties.length >= 2 &&
+            properties.every((property) => !property.computed && property.key.type === "Identifier" && ids.includes(property.key.name))
+          ) {
+            report(properties[0].key, `A per-id ${name} object literal`);
+          }
+        }
+      },
+      "ArrayExpression:exit"(node) {
+        for (const { ids, slot, name } of PARALLEL_MAP_VOCABULARIES) {
+          if (!parallelMapHome(path, slot)) {
+            const anchor = parallelMapArrayAnchor(node, ids, sourceCode);
+            if (anchor !== undefined) {
+              report(anchor, `An array covering multiple ${name}s`);
+            }
+          }
+        }
+        if (parallelMapDoor(path) || path.endsWith("/state/assemble-chrome.ts") || isDefinitionHome(path, DEFINITION_SLOTS.chrome)) {
+          return;
+        }
+        const zones = node.elements.map((element) =>
+          element?.type === "ObjectExpression" && ["[", ","].includes(sourceCode.getTokenBefore(element).value) ? parallelMapField(element, "zone") : undefined,
+        );
+        if (zones.length >= 2 && zones.every((zone) => zone !== undefined && CHROME_ZONES.includes(zone.value))) {
+          report(zones[0].node, "A hand-maintained chrome list");
+        }
+      },
+      "VariableDeclarator:exit"(node) {
+        const statement = node.parent;
+        const parent = statement.parent.type === "ExportNamedDeclaration" ? statement.parent.parent : statement.parent;
+        const annotation = node.id.typeAnnotation;
+        if (parent.type !== "Program" || annotation?.typeAnnotation.type !== "TSTypeReference") {
+          return;
+        }
+        if (sourceCode.getTokenAfter(sourceCode.getFirstToken(annotation)).value === "(") {
+          return;
+        }
+        const text = sourceCode.getText(annotation.typeAnnotation);
+        for (const { slot, name } of PARALLEL_MAP_VOCABULARIES) {
+          if (!parallelMapHome(path, slot) && new RegExp(`\\bRecord<\\s*${name}\\b`, "u").test(text)) {
+            report(node.id, `A module-level Record<${name}, …> value`);
+          }
+        }
+      },
+    };
+  },
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -1808,6 +1924,7 @@ const restrictionPlugin = {
     "baseui-state-data-attributes": baseUiStateRule,
     "context-definition-shape": contextDefinitionRule,
     "no-mutating-register-api": registerApiRule,
+    [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
@@ -1821,6 +1938,7 @@ const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnde
       ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
       : {}),
     ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
+    ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });
@@ -2520,6 +2638,7 @@ const ORDINARY_CONFIG = [
       ...Z_INDEX_RESTRICTIONS,
       ...BASEUI_RESTRICTIONS,
       ...CLIENT_CONTEXT_RESTRICTIONS,
+      ...CLIENT_MAP_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },

@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(302 registered gates)
+(301 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -215,7 +215,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-nul-bytes-in-source` | — | hard/error | none | a raw NUL (0x00) byte in a text… |
 | `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
-| `no-parallel-section-map` | registry-definitions | ordinary/error | @client | a hardcoded map (object literal / {… |
 | `no-raw-clock` | ambient-determinism | reviewed-grant/error | @product\* | raw Date.now() / new Date() —… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
