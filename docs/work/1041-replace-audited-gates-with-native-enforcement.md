@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: main
 plan: test-foundation
 ---
 
@@ -32,4 +31,4 @@ The native enforcement batch and obsolete checker deletions are integrated after
 
 Security review qualifies scrubber and chat-viewer health deletion while preserving retained consumer refusal. Bus-payload health remains. Required raw-origin, asset, public-Caller role, per-call and uninstantiated-list claims remain custom.
 
-HARD bulk-ledger isolation is in progress. Ordinary max-lines debt remains real and unchanged. Root owns coherent types, complete metadata admission, catalog and allowance reconciliation. Complete application, frontend, retained-reader and hosted qualification remain open.
+HARD bulk-ledger isolation is integrated after independent review and scoped native controls. Ordinary max-lines debt remains real and unchanged. Root owns coherent types, complete metadata admission, catalog and allowance reconciliation. Complete application, frontend, retained-reader and hosted qualification remain open.
