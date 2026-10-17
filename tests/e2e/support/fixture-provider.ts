@@ -95,7 +95,7 @@ function writeScriptedTurn(write: (frame: string) => void): void {
   write(doneFrames());
 }
 
-/** A bounded synthetic turn; a wrong outbound user message refuses the response. */
+/** A bounded synthetic turn; its marker must occupy a complete line in the latest outbound user message. */
 export interface FixtureTurn {
   readonly userMessage: string;
   readonly prefix: string;
@@ -122,7 +122,11 @@ interface ChatRequest {
   readonly messages: readonly { readonly role: string; readonly content: string }[];
 }
 
-/** Scripted turns require exact latest-user content; deception input accepts a name-stamped first line. */
+function matchesUserTurn(content: string | undefined, marker: string): boolean {
+  return content?.split("\n").some((line) => line === marker || line.endsWith(`: ${marker}`)) === true;
+}
+
+/** Both physical recipes admit only their latest-user marker, including the product's attribution prefix. */
 export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[], expectedUserMarker?: string): Promise<FixtureProvider> {
   const requests: FixtureRequest[] = [];
   const held = new Map<number, ServerResponse>();
@@ -155,8 +159,7 @@ export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[
       });
       const parsed = JSON.parse(body) as ChatRequest;
       const lastUser = parsed.messages.findLast((message) => message.role === "user");
-      const userLine = lastUser?.content.split("\n")[0];
-      if (expectedUserMarker !== undefined && userLine !== expectedUserMarker && !userLine?.endsWith(`: ${expectedUserMarker}`)) {
+      if (expectedUserMarker !== undefined && !matchesUserTurn(lastUser?.content, expectedUserMarker)) {
         res.writeHead(422, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { message: "fixture-provider: wrong user turn" } }));
         return;
@@ -169,7 +172,7 @@ export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[
         return;
       }
       const turn = turns[index];
-      if (turn === undefined || lastUser?.content !== turn.userMessage) {
+      if (turn === undefined || !matchesUserTurn(lastUser?.content, turn.userMessage)) {
         res.writeHead(422, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { message: "fixture-provider: exhausted script or wrong user turn" } }));
         return;

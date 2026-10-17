@@ -1,5 +1,9 @@
+import { CORPUS_PROJECT_CELLS } from "../../../e2e/support/modes.ts";
+
+export const CORPUS_JOB_NAMES = CORPUS_PROJECT_CELLS.map(({ name }) => `e2e corpus (${name})`);
+
 export const REPOSITORY = "Inktomi93/OrbWeaver";
-export const GENERATION = "Orbweaver qualification product-v4";
+export const GENERATION = "Orbweaver qualification product-v5-corpus";
 export const SHA = "a".repeat(40);
 export const REQUIRED_JOB_NAMES = ["static", "ci-ok", "changes"] as const;
 export const RUNTIME_JOB_NAMES = [
@@ -14,6 +18,7 @@ export const RUNTIME_JOB_NAMES = [
   "ct legacy (4/5)",
   "ct legacy (5/5)",
   "e2e-smoke",
+  ...CORPUS_JOB_NAMES,
 ] as const;
 export const RUNTIME_JOB_GROUPS = [
   { name: "node (1/1)", jobs: ["node (1/1)"] },
@@ -21,6 +26,7 @@ export const RUNTIME_JOB_GROUPS = [
   { name: "ct (1/1)", jobs: ["ct (1/1)"] },
   { name: "ct legacy (${{ matrix.shard }}/5)", jobs: ["ct legacy (1/5)", "ct legacy (2/5)", "ct legacy (3/5)", "ct legacy (4/5)", "ct legacy (5/5)"] },
   { name: "e2e-smoke", jobs: ["e2e-smoke"] },
+  { name: "e2e corpus (${{ matrix.project }})", jobs: CORPUS_JOB_NAMES },
 ] as const;
 export const GROUPED_CONFIG = {
   repository: REPOSITORY,

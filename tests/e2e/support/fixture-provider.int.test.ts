@@ -4,6 +4,26 @@ import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./fixture-provider.t
 
 const TURN = { userMessage: "Synthetic correct turn", prefix: "Synthetic prefix", suffix: " and tail." };
 
+test("a native aborted held response closes the provider socket before fixture retirement", async () => {
+  const fixture = await startFixtureProvider(0, [TURN]);
+  try {
+    const controller = new AbortController();
+    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(TURN.userMessage), signal: controller.signal });
+    const reader = response.body?.getReader();
+    if (reader === undefined) {
+      throw new Error("Held native response has no reader");
+    }
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain(TURN.prefix);
+    controller.abort();
+    await expect(reader.read()).rejects.toThrow();
+    await expect
+      .poll(() => ({ socketClosed: fixture.requests[0]?.socketClosed, responseClosed: fixture.requests[0]?.closed, finished: fixture.requests[0]?.finished }))
+      .toEqual({ socketClosed: true, responseClosed: true, finished: false });
+  } finally {
+    await fixture.close();
+  }
+});
+
 function requestBody(content: string): string {
   return JSON.stringify({
     messages: [
@@ -28,40 +48,48 @@ test("a wrong latest user turn is refused even when the expected marker exists e
   }
 });
 
-test("real readiness probe succeeds, then a correct turn exposes only its prefix until released", async () => {
-  const fixture = await startFixtureProvider(0, [TURN]);
-  try {
-    const probe = await fetch(`${fixture.baseUrl}/models`);
-    expect(probe.ok).toBe(true);
-    expect(await probe.json()).toMatchObject({ data: [{ id: "fixture-model" }] });
-    expect(fixture.requests).toEqual([]);
-    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(TURN.userMessage) });
-    expect(response.ok).toBe(true);
-    const reader = response.body?.getReader();
-    if (reader === undefined) {
-      throw new Error("fixture response has no stream");
-    }
-    const first = await reader.read();
-    expect(new TextDecoder().decode(first.value)).toContain(TURN.prefix);
-    expect(new TextDecoder().decode(first.value)).not.toContain("[DONE]");
-    expect(fixture.requests[0]?.finished).toBe(false);
-    expect(fixture.requests[0]?.closed).toBe(false);
-    fixture.release(0);
-    let tail = "";
-    for (;;) {
-      const part = await reader.read();
-      if (part.done) {
-        break;
+for (const attributed of [false, true]) {
+  test(`real readiness probe succeeds, then a ${attributed ? "name-stamped" : "plain"} turn exposes only its prefix until released`, async () => {
+    const fixture = await startFixtureProvider(0, [TURN]);
+    try {
+      const probe = await fetch(`${fixture.baseUrl}/models`);
+      expect(probe.ok).toBe(true);
+      expect(await probe.json()).toMatchObject({ data: [{ id: "fixture-model" }] });
+      expect(fixture.requests).toEqual([]);
+      const content = attributed
+        ? `[Synthetic opening instruction]\n\nSynthetic Persona: ${TURN.userMessage}\n\nSynthetic retrieved context.`
+        : TURN.userMessage;
+      const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
+      expect(response.ok).toBe(true);
+      const reader = response.body?.getReader();
+      if (reader === undefined) {
+        throw new Error("fixture response has no stream");
       }
-      tail += new TextDecoder().decode(part.value);
+      const first = await reader.read();
+      expect(new TextDecoder().decode(first.value)).toContain(TURN.prefix);
+      expect(new TextDecoder().decode(first.value)).not.toContain("[DONE]");
+      expect(fixture.requests[0]?.finished).toBe(false);
+      expect(fixture.requests[0]?.closed).toBe(false);
+      fixture.release(0);
+      let tail = "";
+      for (;;) {
+        const part = await reader.read();
+        if (part.done) {
+          break;
+        }
+        tail += new TextDecoder().decode(part.value);
+      }
+      expect(tail).toContain(TURN.suffix);
+      expect(tail).toContain("[DONE]");
+      expect(fixture.requests[0]?.finished).toBe(true);
+      const exhausted = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body: requestBody(content) });
+      expect(exhausted.status).toBe(422);
+      expect(await exhausted.text()).toContain("exhausted script");
+    } finally {
+      await fixture.close();
     }
-    expect(tail).toContain(TURN.suffix);
-    expect(tail).toContain("[DONE]");
-    expect(fixture.requests[0]?.finished).toBe(true);
-  } finally {
-    await fixture.close();
-  }
-});
+  });
+}
 
 test("the deception script admits the real name-stamped first line with game notes, but refuses an old-turn marker", async () => {
   const fixture = await startFixtureProvider(0, undefined, TURN.userMessage);

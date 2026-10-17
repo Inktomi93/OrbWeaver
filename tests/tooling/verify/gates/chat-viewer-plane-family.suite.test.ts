@@ -1,15 +1,9 @@
-// THE CHAT TWO-PLANE FAMILY (ledger D161) — the properties a declared proof row cannot express:
-// the §6.2 ordinary identity triple and its dead-position alarm, the §6.4 conversion differential against
-// the frozen legacy descriptor, and the bidirectional population port with its inside/outside controls.
-//
-// The declared rows themselves (13 catches, 8 passes, 13 refusals across the two siblings) run on the
-// static `structure:policy-conformance` stage; the first test here only asserts they are readable, so a
-// row that stops conforming is caught in this file too rather than only in the whole-corpus stage.
+// Chat viewer-plane call waivers cannot license missing matrix or implementation prerequisites.
+// The same consumer retains native reachability and bidirectional population controls (D161).
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as reach } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
 import { CHAT_MATRIX_FILE, CHAT_QUERIES_FILE } from "../../../../tooling/src/verify/lib/chat-plane-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -34,8 +28,8 @@ function after(files: Files): ReturnType<typeof runPolicyPass> {
   return runPolicyPass({
     root: ROOT,
     project: projectFor(files),
-    knownPolicies: [reach, health],
-    policies: [reach, health],
+    knownPolicies: [reach],
+    policies: [reach],
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -58,8 +52,8 @@ const LEAK_READ =
   "}\n" +
   "export const x = createListMessages;\n";
 
-test("every declared row of both siblings conforms", () => {
-  expect(verifyPolicyProofs([reach, health])).toEqual([]);
+test("the retained consumer's occurrence and prerequisite controls conform", () => {
+  expect(verifyPolicyProofs([reach])).toEqual([]);
 });
 
 // ── §6.2 authority proof: the ordinary identity triple, and the dead-position alarm ────────────────────
@@ -103,16 +97,16 @@ test("a waiver naming a position the policy does not report raises the dead-posi
   expect(dead.authority.authorityAlarms[0]?.message).toContain("names a dead position for chat-viewer-plane-canon-reads");
 });
 
-test("the hard health arm has no waiver door at all", () => {
+test("a declared viewer-plane verb without an annotated owner refuses even with an ordinary waiver", () => {
   const uncovered: Files = {
     [CHAT_MATRIX_FILE]:
-      "// @orb-waive chat-viewer-plane-canon-reads-health(CHAT_VERB_AUTHORITY): a hard policy cannot be licensed.\n" +
+      "// @orb-waive chat-viewer-plane-canon-reads(CHAT_VERB_AUTHORITY): a prerequisite cannot be licensed.\n" +
       'export const CHAT_VERB_AUTHORITY = { listMessages: "member" } as const satisfies Record<string, string>;\n',
     [CHAT_QUERIES_FILE]: QUERIES_SRC,
   };
   const result = after(uncovered);
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.filter((finding) => finding.policyId === health.id)).toHaveLength(1);
+  expect(result.toolErrors).toMatchObject([{ policyId: reach.id, phase: "evaluate", message: expect.stringContaining("UNCHECKED") }]);
+  expect(result.authority.withheldPolicyIds).toContain(reach.id);
   expect(result.authority.waivedFindings).toEqual([]);
 });
 
@@ -138,5 +132,3 @@ test("the population port admits the same chat sources both ways, with an inside
   expect(candidates.filter(legacyAdmits).filter((path) => !finalAdmits.has(path))).toEqual([]);
   expect([...finalAdmits].filter((path) => !legacyAdmits(path))).toEqual([]);
 });
-
-// ── §6.4 conversion differential over the same bytes ───────────────────────────────────────────────────

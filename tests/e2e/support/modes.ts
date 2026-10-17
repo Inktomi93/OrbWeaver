@@ -30,6 +30,7 @@
 
 import { join } from "node:path";
 import process from "node:process";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -208,13 +209,21 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 /** Is the single-user project deliberately aimed at the operator's dev stack (`E2E_ALLOW_DEV_TARGET=1`)? Read by `playwright.config.ts` (reuse the running stack instead of booting one) and by `global-setup.ts` (waive the target guard). */
 export const DEV_TARGET_ALLOWED = devTargetAllowed(process.env);
 const corpusDirectory = process.env["E2E_CORPUS_FIXTURE"];
+const localCorpusDirectory = process.env["E2E_CORPUS_LOCAL_FIXTURE"];
+if (localCorpusDirectory !== undefined && corpusDirectory === undefined) {
+  throw new Error("A local corpus clone requires its owning corpus run");
+}
+/** Run-only credentials never enter the portable corpus. */
+export const CORPUS_LOCAL_PASSWORDS = { owner: process.env["E2E_CORPUS_OWNER_PASSWORD"], member: process.env["E2E_CORPUS_MEMBER_PASSWORD"] };
 if (corpusDirectory !== undefined && (DEV_TARGET_ALLOWED || process.env["E2E_LIVE"] === "1")) {
   throw new Error("E2E_CORPUS_FIXTURE cannot target the dev stack or live engines");
 }
 /** A caller-prepared clone selected before Playwright starts its webServers; ordinary modes do not load it. */
 export const SELECTED_CORPUS_FIXTURE = corpusDirectory === undefined ? undefined : loadCorpusFixture(corpusDirectory);
+/** The local-auth stack owns a different writable clone from single-user. */
+export const SELECTED_LOCAL_CORPUS_FIXTURE = localCorpusDirectory === undefined ? undefined : loadCorpusFixture(localCorpusDirectory);
 /** Additive corpus qualification retains ordinary smoke reports and warm-up diagnostics in the same job. */
-export const E2E_REPORT_PREFIX = SELECTED_CORPUS_FIXTURE === undefined ? "reports/e2e" : "reports/e2e-corpus";
+export const E2E_REPORT_PREFIX = SELECTED_CORPUS_FIXTURE === undefined ? "reports/e2e" : (process.env["E2E_CORPUS_REPORT_PREFIX"] ?? "reports/e2e-corpus");
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {
@@ -222,7 +231,7 @@ export const SINGLE_USER: ModeProject = {
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
   // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
-  testMatch: SELECTED_CORPUS_FIXTURE === undefined ? new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u") : /\/smoke\.spec\.ts$/u,
+  testMatch: new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     AUTH_MODE: "single-user",
     SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
@@ -249,7 +258,7 @@ export const SINGLE_USER: ModeProject = {
           DATABASE_URL: "file:./.cache/e2e/single/orb.db",
           ASSETS_DIR: "./.cache/e2e/single/assets",
           STACK_RUN_DIR: `./.cache/e2e/single/${STACK_RUN_SUBDIR}`,
-          OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+          OWNER_HANDLES: SELECTED_CORPUS_FIXTURE?.wire.reads["sessions.me"][0]?.output.handle ?? HARNESS_OWNER_HANDLE,
           PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
           EGRESS_ALLOWLIST: "127.0.0.1",
           ORB_ENV_NO_FILE: "1",
@@ -277,7 +286,7 @@ const LOCAL: ModeProject = {
   name: "local",
   baseUrl: `http://localhost:${LOCAL_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
-  testMatch: new RegExp(`\\.local${E2E_TEST_END_PATTERN}`, "u"),
+  testMatch: SELECTED_CORPUS_FIXTURE === undefined ? new RegExp(`\\.local${E2E_TEST_END_PATTERN}`, "u") : /\/corpus-shared\.local\.spec\.ts$/u,
   webServerEnv: {
     AUTH_MODE: "local",
     SESSION_SECRET,
@@ -302,9 +311,17 @@ const LOCAL: ModeProject = {
     // per-IP login throttle (10/min) 429s partway through a serial run. Raise it for the isolated test stack
     // (the throttle itself is proven in auth-routes' own tests; here it is noise on a single-tenant loopback).
     RATE_LIMIT_LOGIN: "1000",
-    OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    OWNER_HANDLES: SELECTED_LOCAL_CORPUS_FIXTURE?.wire.reads["sessions.me"][0]?.output.handle ?? HARNESS_OWNER_HANDLE,
     PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
     ORB_ENV_NO_FILE: "1",
+    ...(SELECTED_LOCAL_CORPUS_FIXTURE === undefined
+      ? {}
+      : {
+          DATA_DIR: SELECTED_LOCAL_CORPUS_FIXTURE.layout.root,
+          DATABASE_URL: SELECTED_LOCAL_CORPUS_FIXTURE.layout.databaseUrl,
+          ASSETS_DIR: SELECTED_LOCAL_CORPUS_FIXTURE.layout.assets,
+          STACK_RUN_DIR: join(SELECTED_LOCAL_CORPUS_FIXTURE.layout.root, STACK_RUN_SUBDIR),
+        }),
   },
   seedMultiUser: true,
   clientWarmup: "shell",
@@ -362,18 +379,42 @@ const FORWARD_HEADER: ModeProject = {
 // until a mock IdP exists that the real grant can actually talk to.
 
 /** Every mode project the config builds a project + webServer for (oidc excluded — deferred). */
-export const MODE_PROJECTS: readonly ModeProject[] = SELECTED_CORPUS_FIXTURE === undefined ? [SINGLE_USER, LOCAL, FORWARD_HEADER] : [SINGLE_USER];
+export const MODE_PROJECTS: readonly ModeProject[] = SELECTED_CORPUS_FIXTURE === undefined ? [SINGLE_USER, LOCAL, FORWARD_HEADER] : [SINGLE_USER, LOCAL];
+
+/** Native browser projects share a mode stack; corpus cells derive their style from production. */
+export const CORPUS_PROJECT_CELLS = [SINGLE_USER, LOCAL].flatMap((mode) =>
+  ["Desktop Chrome", "Pixel 7"].flatMap((device) =>
+    THEME_CHAT_STYLES.map((chatStyle) => ({
+      name: `corpus-${mode.name === "local" ? "local-" : ""}${device === "Desktop Chrome" ? "desktop" : "phone"}-${chatStyle}`,
+      mode,
+      device,
+      chatStyle,
+    })),
+  ),
+);
+
+export const BROWSER_PROJECTS =
+  SELECTED_CORPUS_FIXTURE === undefined
+    ? MODE_PROJECTS.map((mode) => ({ name: mode.name, mode, device: "Desktop Chrome", chatStyle: undefined }))
+    : CORPUS_PROJECT_CELLS;
 
 const PROJECT_OPTION = "--project";
 const PROJECT_OPTION_PREFIX = `${PROJECT_OPTION}=`;
 
-/** The exact CLI-selected modes, shared by stack boot and seed so an unrelated stamped peer is never seeded. */
-export function selectedModeProjects(argv: readonly string[]): readonly ModeProject[] {
+interface ProjectSelection {
+  readonly patterns: readonly RegExp[] | undefined;
+  readonly forwarded: readonly string[];
+}
+
+/** Match native project syntax and remove exactly those selectors before a cell supplies its own. */
+export function parseProjectSelection(argv: readonly string[]): ProjectSelection {
   const names: string[] = [];
+  const forwarded: string[] = [];
   let specified = false;
   let collecting = false;
-  for (const arg of argv) {
+  for (const [index, arg] of argv.entries()) {
     if (arg === "--") {
+      forwarded.push(...argv.slice(index));
       break;
     }
     if (arg.length > 1 && arg.startsWith("-")) {
@@ -388,11 +429,19 @@ export function selectedModeProjects(argv: readonly string[]): readonly ModeProj
       names.push(arg.slice(PROJECT_OPTION_PREFIX.length));
     } else if (collecting) {
       names.push(arg);
+    } else {
+      forwarded.push(arg);
     }
   }
-  if (!specified) {
-    return MODE_PROJECTS;
-  }
-  const patterns = names.map((name) => new RegExp(`^${name.toLocaleLowerCase().split("*").map(RegExp.escape).join(".*")}$`, "i"));
-  return MODE_PROJECTS.filter((mode) => patterns.some((pattern) => pattern.test(mode.name.toLocaleLowerCase())));
+  return {
+    patterns: specified ? names.map((name) => new RegExp(`^${name.toLocaleLowerCase().split("*").map(RegExp.escape).join(".*")}$`, "i")) : undefined,
+    forwarded,
+  };
+}
+
+/** The exact CLI-selected modes, shared by stack boot and seed so an unrelated stamped peer is never seeded. */
+export function selectedModeProjects(argv: readonly string[]): readonly ModeProject[] {
+  const { patterns } = parseProjectSelection(argv);
+  const selected = BROWSER_PROJECTS.filter((project) => patterns === undefined || patterns.some((pattern) => pattern.test(project.name.toLocaleLowerCase())));
+  return MODE_PROJECTS.filter((mode) => selected.some((project) => project.mode === mode));
 }

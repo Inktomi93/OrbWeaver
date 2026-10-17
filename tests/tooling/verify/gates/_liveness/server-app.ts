@@ -10,7 +10,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
-import { gate as chatViewerPlaneCanonReadsHealth } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads-health.ts";
 import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
@@ -47,12 +46,6 @@ function neutralise(path: string, source = EMPTY): RealCorpusOverlay {
 }
 
 export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: chatViewerPlaneCanonReadsHealth,
-    // The authority matrix every D161 verdict keys off, emptied of its table.
-    overlays: [neutralise(`${SERVER}/domain/chat/substrate/auth/matrix.ts`, "export const NO_MATRIX = 1;\n")],
-    messageIncludes: "could not be read under domain/chat",
-  },
   {
     policy: chatViewerPlaneCanonReads,
     // A member-authority (viewer-plane) verb factory that reaches the floorless canon reader.

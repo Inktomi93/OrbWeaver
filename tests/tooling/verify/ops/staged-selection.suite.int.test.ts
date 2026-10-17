@@ -13,6 +13,7 @@ import { REGISTRY, resolveSelection, runVerify, stagesForTier } from "../../../.
 import { parseRequest } from "../../../../tooling/src/verify/lib/run-argv.ts";
 import { planStage } from "../../../../tooling/src/verify/lib/stage-plan.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { GENERATION, REQUIRED_JOB_NAMES, RUNTIME_JOB_NAMES } from "../lib/_ci-qualification-support.ts";
 
 const FILES = {
   staged: "packages/client/src/staged.ts",
@@ -204,6 +205,9 @@ function plantSyncRepo(repoRoot: string, scratch: string): string {
   mkdirSync(join(scratch, "scripts"), { recursive: true });
   writeFileSync(join(scratch, "scripts/github-sync.sh"), readFileSync(join(repoRoot, "scripts/github-sync.sh")));
   writeFileSync(join(scratch, "scripts/ci-qualification.ts"), readFileSync(join(repoRoot, "scripts/ci-qualification.ts")));
+  mkdirSync(join(scratch, "tests/e2e/support"), { recursive: true });
+  writeFileSync(join(scratch, "tests/e2e/support/modes.ts"), readFileSync(join(repoRoot, "tests/e2e/support/modes.ts")));
+  writeFileSync(join(scratch, "tests/e2e/support/target-guard.ts"), readFileSync(join(repoRoot, "tests/e2e/support/target-guard.ts")));
   mkdirSync(join(scratch, ".github/workflows"), { recursive: true });
   writeFileSync(join(scratch, ".github/workflows/ci.yml"), readFileSync(join(repoRoot, ".github/workflows/ci.yml")));
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
@@ -294,7 +298,7 @@ const GH_RUN_FIXTURE = [
   "const run=(row,index)=>({id:index+1,workflow_id:7,run_attempt:row.attempt??1,head_sha:row.sha,head_branch:row.branch??'main',event:row.event,status:row.status,conclusion:row.conclusion,repository:{full_name:row.repository??'Inktomi93/OrbWeaver'}});",
   "if(url.endsWith('/workflows/ci.yml'))process.stdout.write(JSON.stringify({id:7,path:'.github/workflows/ci.yml'}));",
   "else if(url.includes('/runs?')){const u=new URL('https://example.invalid/'+url);const runs=rows.map(run).filter(row=>row.head_sha===u.searchParams.get('head_sha')&&row.event==='push'&&row.head_branch==='main');process.stdout.write(JSON.stringify({total_count:runs.length,workflow_runs:runs}));}",
-  "else if(url.includes('/jobs?')){const id=Number(url.split('/runs/')[1].split('/')[0]);const row=rows[id-1];const names=['static','changes','ci-ok','media','node (1/3)','node (2/3)','node (3/3)','ct (1/4)','ct (2/4)','ct (3/4)','ct (4/4)','e2e-smoke'];const jobs=names.map((name,index)=>({id:index+1,run_id:id,run_attempt:row.attempt??1,head_sha:row.sha,name,status:'completed',conclusion:row.conclusion==='success'?'success':'failure',steps:[{name:(row.generation??'Orbweaver qualification product-v2')+(name==='ci-ok'?' (runtime)':''),status:'completed',conclusion:row.marker??'success'}]}));process.stdout.write(JSON.stringify({total_count:jobs.length,jobs}));}",
+  `else if(url.includes('/jobs?')){const id=Number(url.split('/runs/')[1].split('/')[0]);const row=rows[id-1];const names=${JSON.stringify([...REQUIRED_JOB_NAMES, ...RUNTIME_JOB_NAMES])};const jobs=names.map((name,index)=>({id:index+1,run_id:id,run_attempt:row.attempt??1,head_sha:row.sha,name,status:'completed',conclusion:row.conclusion==='success'?'success':'failure',steps:[{name:(row.generation??${JSON.stringify(GENERATION)})+(name==='ci-ok'?' (runtime)':''),status:'completed',conclusion:row.marker??'success'}]}));process.stdout.write(JSON.stringify({total_count:jobs.length,jobs}));}`,
   "else {const id=Number(url.split('/runs/')[1]);process.stdout.write(JSON.stringify(run(rows[id-1],id-1)));}",
 ].join("\n");
 

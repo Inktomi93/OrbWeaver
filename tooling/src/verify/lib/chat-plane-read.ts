@@ -1,62 +1,6 @@
-// THE CHAT TWO-PLANE READER (ledger D161) — the canonical vocabulary and the visitor-fed evidence both
-// `chat-viewer-plane-canon-reads` (ordinary reach) and `chat-viewer-plane-canon-reads-health` (hard
-// matrix/reader/coverage health) judge. It is the family's shared declaration: the authority matrix fold,
-// the bulk-reader vocabulary, the reachability index and the clamp discharge live here once, so the two
-// siblings cannot drift into two answers about the same bytes.
-//
-// THE MODEL. The unit of read visibility is the canon row (`messages.seq`). Two planes:
-//  • ROOM plane — turn assembly, the engine, compaction, quiet extraction, arbitration, the firehose. Reads
-//    FULL canon under the host's authority. Unclamped BY TYPE.
-//  • VIEWER plane — any bytes leaving the server toward a specific human. Clamped by that human's own join
-//    floor (`substrate/auth/clamp.ts::resolveHistoryFloorSeq`, stamped once at `guard.ts::requireParticipant`).
-// `persistence/queries.ts` holds BOTH families side by side: the three floor-REQUIRED reads
-// (`loadMessagesPage`/`loadStreamReplay`/`loadMessageSlots` — a caller cannot forget the floor, it's a
-// required param) and the floorless room-plane readers. Nothing separated them but convention, and the
-// convention has already failed once OUTSIDE this domain (automation's `canInstallerSeeFact` re-derived chat
-// visibility as membership-only). The family makes the separation structural INSIDE the domain.
-//
-// THE RULE. Keyed off the LIVE authority matrix (`substrate/auth/matrix.ts::CHAT_VERB_AUTHORITY`), never a
-// hardcoded path list: a verb whose matrix authority is anything OTHER than `host`/`non-chat-scoped` is
-// viewer-plane, and its factory may not reach a BULK canon reader.
-//
-// WHY THE BANNED SET IS THE *BULK* READERS. A reader that returns MANY canon rows' CONTENT for a chatId with
-// no floor param is the leak class: it needs no prior knowledge, so "forgot the floor" hands over the whole
-// pre-join transcript. Single-row-by-id readers (`loadMessageView`, `loadSlotTarget`, `loadContinueSnapshot`)
-// are NOT banned: they require the caller to already NAME the row, and per the ratified id-plane principle a
-// clamped member can only learn a row id through an equally-clamped read. Id/seq-only readers
-// (`loadMessageSeqs`) and the activity plane (`loadVariableDeltas`) carry no transcript bytes.
-//
-// THE ONE STRUCTURAL DISCHARGE. The reader's own result is filtered through `isBelowHistoryFloor` (the ONE
-// per-event verdict). A verb that reads room-plane canon and visibly clamps those rows before egress is
-// correct (`replayChatEvents` is exactly this shape). It survives renames and needs no bookkeeping. The
-// SECOND legacy discharge — a gate-local `verb:reader` ALLOWLIST with its own stale-ratchet arm — did not
-// survive conversion (standing law §5/§8: a gate-local authority artifact receives a central home). Its
-// three rows are now central `@orb-waive chat-viewer-plane-canon-reads(<position>): <reason>` markers at the
-// call sites themselves, and central reconciliation owns the staleness judgment the ratchet arm used to.
-//
-// THE MATRIX IS RESOLVED, NOT READ FLAT (#947): its object literal is read through the shared stable-binding
-// reader (`floor/code-facts/reference-fact.ts`), following object SPREADS of local/imported sibling matrices.
-// `{...BASE_AUTHORITY, listMessages:"member"}` used to yield ONE verb while staying non-empty — so the
-// blindness arm was satisfied, the gate reported a live matrix, and every spread-in viewer-plane verb was
-// simply not judged. Composition shapes the matrix's own law does not sanction (a spread of a call, an
-// unresolvable binding, a cycle) refuse loudly instead. The fold itself is `chat-plane-matrix.ts` (split out
-// at the size cap 2026-09-18); `resolveChatMatrix` below is its family door.
-//
-// AND EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1091, the #1035 rule carried here). The fold read
-// exactly one shape — a `PropertyAssignment` whose value unwraps to a StringLiteral — and let every other
-// member kind fall out of the loop with no throw and no count. Measured: `getChat: MEMBER_AUTHORITY_PROBE`
-// beside `const MEMBER_AUTHORITY_PROBE = "member" as const` took the live census 93 -> 92 with the gate
-// still green. A verb missing from the matrix is a verb nothing classifies, so its factory is judged for
-// nothing — the D161 leak class going invisible in the one direction that is silent. The fold is TOTAL:
-// every member either writes a row or THROWS. A value resolves through `as const`/`satisfies`/parens and
-// through an identifier's binding (local const or named import); a SHORTHAND resolves through the same hop;
-// a COMPUTED key resolves when its expression is a string literal. Everything else — a non-literal value
-// that binds to nothing, a value-binding cycle, a non-literal computed key, a method, an accessor — refuses.
-//
-// WHY THE EVIDENCE IS VISITOR-FED. The dispatcher's kind-indexed walk is the only walk (standing law §2):
-// the index below is built from the delivered node stream and an ancestor hop, never from a project sweep
-// or a per-candidate descendant re-walk. `callsIn` reproduces the legacy `fn.getDescendantsOfKind(Call)`
-// exactly, because a call is registered under EVERY function that encloses it.
+// Viewer-plane canon reachability and canonical floor-filter discharge (D161), following module-local helpers.
+// The dispatcher-fed index supplies matrices and annotated implementations to the existing consumer.
+// Reader vocabulary defines occurrence semantics, not a global declaration census.
 
 import { resolveLexicalValueDeclaration } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
@@ -112,8 +56,6 @@ export interface ChatPlaneIndex {
   readonly localsByFile: Map<SourceFile, Map<string, MorphNode>>;
   /** Every `ChatService["<verb>"]`-annotated implementation in the population. */
   readonly verbImpls: VerbImpl[];
-  /** Every function NAME declared in the population — the reader-rot arm's denominator. */
-  readonly declaredFunctionNames: Set<string>;
 }
 
 export function createChatPlaneIndex(): ChatPlaneIndex {
@@ -122,7 +64,6 @@ export function createChatPlaneIndex(): ChatPlaneIndex {
     callsByFunction: new Map<MorphNode, MorphNode[]>(),
     localsByFile: new Map<SourceFile, Map<string, MorphNode>>(),
     verbImpls: [],
-    declaredFunctionNames: new Set<string>(),
   };
 }
 
@@ -165,7 +106,6 @@ function registerCall(index: ChatPlaneIndex, call: MorphNode): void {
 function registerFunctionDeclaration(index: ChatPlaneIndex, node: MorphNode, sourceFile: SourceFile): void {
   const name = Node.isFunctionDeclaration(node) ? node.getName() : undefined;
   if (name !== undefined) {
-    index.declaredFunctionNames.add(name);
     localsFor(index, sourceFile).set(name, node);
   }
 }
@@ -382,8 +322,8 @@ export interface PlaneJudgment {
   readonly violations: readonly PlaneViolation[];
 }
 
-/** Judge every discovered implementation against the resolved matrix. One traversal of the index; the
- *  reach sibling reports `violations`, the health sibling asks `covered`.
+/** Judge every discovered implementation against the resolved matrix. The consumer requires `covered`
+ *  implementations before reporting `violations`.
  *
  *  KEYED BY THE CALL, NOT BY `<verb>:<reader>` (the conversion's finding-granularity move). The legacy
  *  finding identity was the ALLOWLIST key, so ONE authored call reached by TWO viewer-plane verbs was TWO
@@ -412,9 +352,4 @@ export function judgeChatPlane(index: ChatPlaneIndex, matrix: ChatVerbMatrix): P
   }
   const violations: PlaneViolation[] = [...byCall].map(([call, verbs]) => ({ verbs: [...verbs].toSorted(), reader: calleeName(call) ?? "", call }));
   return { covered, violations };
-}
-
-/** Fail-loud arm: a banned reader that no longer exists means it was RENAMED past the family. */
-export function rottedReaders(index: ChatPlaneIndex): readonly string[] {
-  return [...BULK_CANON_READERS].filter((reader) => !index.declaredFunctionNames.has(reader));
 }

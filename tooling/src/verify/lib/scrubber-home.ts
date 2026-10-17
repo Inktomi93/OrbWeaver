@@ -1,8 +1,6 @@
-// The hidden-span stream scrubber's declaration home — the one subject the `scrubber-home` family's two halves
-// must agree on. `scrubber-home` resolves every reference against this home and `scrubber-factory-home` proves
-// the home still exports the factory; if the two named different directories the completeness half would stop
-// covering the reference half without either one failing. Keyed as the DIRECTORY so an internal split of the
-// content module cannot silently retire the reference arm.
+// The native declaration home used by the hidden-span factory reference boundary.
+// A directory identity permits internal module splits without changing construction authority.
+
 import type { SealedHome } from "./sealed-origin.ts";
 
 export const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";

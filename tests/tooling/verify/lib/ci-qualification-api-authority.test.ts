@@ -27,7 +27,7 @@ import {
 test("failed independent tooling recertification cannot veto completed current product qualification", async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
   const run = { ...goodRun(), conclusion: "failure" };
-  const jobs = [goodJob(), ...goodProductJobs(), { ...goodJob(SHA, 20), name: "weekly-tooling", conclusion: "failure", steps: [] }];
+  const jobs = [goodJob(), ...goodProductJobs(), { ...goodJob(SHA, 1000), name: "weekly-tooling", conclusion: "failure", steps: [] }];
   writeFileSync(
     join(scratch, "ci-api.json"),
     JSON.stringify({
@@ -236,7 +236,7 @@ for (const group of RUNTIME_JOB_GROUPS.filter(({ jobs }) => jobs.length > 1)) {
     const complete = [goodJob(), ...goodProductJobs(SHA, true)];
     const patches = {
       "wrong-label": { name: `${group.name} unexpected` },
-      "wrong-count": { name: group.name.replace(/\/\d/u, "/99") },
+      "wrong-count": { name: group.name.replace(/\/\d|matrix\.project/u, "/99") },
       queued: { status: "queued" },
       running: { status: "in_progress" },
       success: { conclusion: "success" },
@@ -300,10 +300,9 @@ test.for(["missing-member", "duplicate-member", "foreign-member", "empty-group",
   },
 );
 
-test("product authority requires every current-attempt job and distinguishes legitimate inherited skips", { timeout: scaledBudget(30_000) }, async ({
-  scratch,
-  fakeBin,
-}) => {
+test("product authority requires every current-attempt job and distinguishes legitimate inherited skips", {
+  timeout: scaledBudget(2000 * (REQUIRED_JOB_NAMES.length + RUNTIME_JOB_NAMES.length)),
+}, async ({ scratch, fakeBin }) => {
   await fakeBin("gh", API_FIXTURE);
   const config = {
     repository: REPOSITORY,

@@ -151,6 +151,38 @@ test("an upstream read error reaches the consumer but does not invent a cleanup 
   await expect(owned.settled).resolves.toBeUndefined();
 });
 
+test("an upstream body already errored by the owned abort settles cancellation without inventing a cleanup failure", async () => {
+  const abort = new AbortController();
+  const reason = new Error("owned physical abort");
+  const upstream = Promise.withResolvers<ReadableStreamDefaultController<Uint8Array>>();
+  const source = new Response(new ReadableStream<Uint8Array>({ start: upstream.resolve }));
+  const owned = createOwnedResponseBody(source, abort.signal);
+  const settled = owned.settled.then(
+    () => null,
+    (error: unknown) => error,
+  );
+  (await upstream.promise).error(reason);
+  abort.abort(reason);
+  expect(await settled).toBeNull();
+  await expect(owned.response.text()).rejects.toBe(reason);
+  await expect(owned.cancel()).resolves.toBeUndefined();
+});
+
+test("a cancellation hook rejecting with the owned abort reason is still a physical cleanup failure", async () => {
+  const abort = new AbortController();
+  const reason = new Error("owned reason is not proof of cancellation");
+  const source = new Response(new ReadableStream<Uint8Array>({ cancel: () => Promise.reject(reason) }));
+  const owned = createOwnedResponseBody(source, abort.signal);
+  const settled = owned.settled.then(
+    () => null,
+    (error: unknown) => error,
+  );
+  abort.abort(reason);
+  expect(await settled).toBe(reason);
+  await expect(owned.response.text()).rejects.toBe(reason);
+  await expect(owned.cancel()).rejects.toBe(reason);
+});
+
 test("a genuine native fetch clone retains immutable headers and producer metadata", async () => {
   const source = await fetch("data:text/plain,wire%20bytes");
   const owned = createOwnedResponseBody(source, new AbortController().signal);
