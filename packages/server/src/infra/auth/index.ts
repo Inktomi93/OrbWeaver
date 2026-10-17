@@ -80,17 +80,14 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
 // NOTE: `Principal` is NOT re-exported — infra/auth never constructs one (that is `entry/auth/seam.ts`).
 export type { ResolvedIdentity } from "@orb/contracts/identity";
 export { CSRF_HEADER } from "@orb/contracts/identity";
-export {
-  type BackchannelLogoutVerifier,
-  type BackchannelVerifyArgs,
-  createBackchannelLogoutVerifier,
-  type LogoutTokenSubject,
-} from "./backchannel.ts";
+export { createBackchannelLogoutVerifier } from "./backchannel.ts";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
 export { authConfigFromEnv, oidcRedirectAllowlist } from "./config.ts";
 export type {
   AllowedHostsReader,
   AuthConfig,
+  BackchannelLogoutVerifier,
+  BackchannelVerifyArgs,
   ForwardJwtClaims,
   ForwardJwtVerifier,
   ForwardJwtVerifyArgs,
@@ -98,6 +95,7 @@ export type {
   IdentityResolution,
   JwksKeySet,
   JwksReader,
+  LogoutTokenSubject,
   OidcCodeGrant,
   OidcDiscover,
   OidcExchange,
@@ -106,6 +104,7 @@ export type {
   OidcTransactionStore,
   OidcVerifiedTokens,
   OwnerClaimCode,
+  PasswordHasher,
   PublicHttpMintNotice,
   RelayedFallbackNotice,
   RelayHostWriter,
@@ -146,7 +145,6 @@ export {
   createPasswordHasher,
   DUMMY_PASSWORD_HASH,
   MIN_PASSWORD_LENGTH,
-  type PasswordHasher,
 } from "./password.ts";
 export { createRelayedFallbackNotice } from "./relay-notice.ts";
 export {
