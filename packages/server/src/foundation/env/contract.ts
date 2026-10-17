@@ -84,3 +84,13 @@ export interface DiagnosticsPosture {
   readonly retaining: readonly string[];
   readonly exposure: DiagnosticsExposure;
 }
+
+/** The raw env values the resolver reads, passed in so this file never touches `process.env`. */
+export interface AllowedHostsInput {
+  /** `ALLOWED_HOSTS`: a comma list of names; a leading dot admits the name and every subdomain. */
+  readonly allowedHosts: string | undefined;
+  /** `OIDC_REDIRECT_URIS`: the OIDC callback URLs; each one's host is the operator's own name. */
+  readonly oidcRedirectUris: string | undefined;
+  /** The OS host name, or null when a container's random name must not be admitted. */
+  readonly machineHostname: string | null;
+}

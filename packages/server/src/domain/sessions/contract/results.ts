@@ -23,7 +23,7 @@ export interface ValidatedSession {
   /** WHICH session row this cookie is — the identity a per-SESSION action keys on (F4/W7a: logout on the
    *  phone evicts the phone's live sockets and leaves the desktop's alone). It is deliberately NOT part of the
    *  `Principal` the seam mints: D135 keeps the Principal's verdict fields to the ones `users` owns, and a
-   *  session is not a role. The seam surfaces it BESIDE the Principal (`SeamResult.sessionId`). */
+   *  session is not a role. The seam surfaces it BESIDE the Principal (`AuthSeamResolution.sessionId`). */
   sessionId: SessionId;
   userId: UserId;
   role: UserRoleState;

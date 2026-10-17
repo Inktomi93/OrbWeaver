@@ -86,10 +86,9 @@ export interface PerRequestSeamDeps {
   readonly transport: RequestTransport;
 }
 
-// @orb-waive no-inline-package-interface(SeamResult): baselined when the gate landed; burn-down item 952.
 /** The seam output: the immutable `Principal` (or `null` for anonymous/disabled → transport 401) plus the
  *  CSRF-header signal the transport ladder keys on. */
-export interface SeamResult {
+export interface AuthSeamResolution {
   readonly principal: Principal | null;
   /**
    * WHICH cookie session admitted this request — the COOKIE arm only; `null` for the owner fallback, the SSO
@@ -110,7 +109,7 @@ export interface SeamResult {
  *  strictly NARROWER than the app's admin gate: OWNER only. It judges the principal `resolvePrincipal`
  *  ALREADY minted for the request rather than resolving a second time; read its doc before touching it. */
 export interface AuthSeam {
-  readonly resolvePrincipal: (headers: Headers, req: PerRequestSeamDeps) => Promise<SeamResult>;
+  readonly resolvePrincipal: (headers: Headers, req: PerRequestSeamDeps) => Promise<AuthSeamResolution>;
   readonly debugGateAdmits: (principal: Principal | null, headers: Headers) => boolean;
 }
 
@@ -135,7 +134,7 @@ export function readSessionCookie(headers: Headers, transport: RequestTransport)
   return value === null ? null : castId<SessionToken>(value);
 }
 
-/** The cookie arm's product: the Principal PLUS the session row that admitted it (see `SeamResult`). */
+/** The cookie arm's product: the Principal PLUS the session row that admitted it (see `AuthSeamResolution`). */
 interface CookieAdmission {
   readonly principal: Principal;
   readonly sessionId: SessionId;
@@ -356,7 +355,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   // adds the request-path `enabled` gate its two sibling arms already apply.
   const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);
 
-  async function resolvePrincipal(headers: Headers, req: PerRequestSeamDeps): Promise<SeamResult> {
+  async function resolvePrincipal(headers: Headers, req: PerRequestSeamDeps): Promise<AuthSeamResolution> {
     const csrfHeaderPresent = hasCsrfHeader(headers);
 
     if (isCookieMode) {

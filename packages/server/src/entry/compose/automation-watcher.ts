@@ -1,12 +1,14 @@
 // Bind chat-owned fact readers and action ports, then wire the watcher's detachable event sources.
 
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
+import type { DomainEvent } from "@orb/contracts/events";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { PubSub } from "@orb/kit/pubsub";
 import type {
   AutomationImageRequest,
   AutomationImageResult,
@@ -20,7 +22,6 @@ import type {
 import { createChatAutomationReads } from "#domain/chat";
 import type { EmitNotification } from "#domain/notifications";
 import type { LiveBuses } from "#transport/trpc";
-import type { DomainEventBus } from "./event-bus.ts";
 
 /** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
  *  one-directional flow). Each closes over its owning sibling service; `authorUserId` resolves to a Principal
@@ -91,7 +92,7 @@ export function createAutomationWatcherEnv(args: {
   readonly automation: Pick<AutomationService, "handleEvent">;
   readonly supervise: NonNullable<AutomationWatcherEnv["supervise"]>;
   readonly chatEvents: Pick<LiveBuses["chat"], "subscribeAllChatEvents">;
-  readonly eventBus: DomainEventBus;
+  readonly eventBus: PubSub<DomainEvent>;
 }): AutomationWatcherEnv {
   return {
     automation: args.automation,

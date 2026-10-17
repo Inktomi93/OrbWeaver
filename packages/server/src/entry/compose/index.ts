@@ -16,7 +16,6 @@ export {
 } from "./chat.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
 export { createEffectiveConfigWiring } from "./effective-config.ts";
-export type { DomainEventBus } from "./event-bus.ts";
 export { createDomainEventBus } from "./event-bus.ts";
 export { LIFECYCLE_DOORS, NON_PORTABLE_CANON, PORTABLE_CANON_TABLES } from "./portability.ts";
 export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";

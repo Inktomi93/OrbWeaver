@@ -2,7 +2,7 @@
 // topics appear, which lines are security lines, and that a healthy box says nothing alarming.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import type { BootDisclaimerInput } from "@orb/server/entry/boot";
+import type { BootDisclaimerOptions } from "@orb/server/entry/boot";
 import { composeBootDisclaimer } from "@orb/server/entry/boot";
 import { resolveBindPosture, resolveOwnerFallbackPeers } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -10,7 +10,7 @@ import { describe } from "vitest";
 
 const NO_WARNINGS: readonly string[] = [];
 
-function input(over: Partial<BootDisclaimerInput> = {}): BootDisclaimerInput {
+function input(over: Partial<BootDisclaimerOptions> = {}): BootDisclaimerOptions {
   const authMode: AuthMode = over.authMode ?? "single-user";
   return {
     authMode,
@@ -37,8 +37,8 @@ function input(over: Partial<BootDisclaimerInput> = {}): BootDisclaimerInput {
   };
 }
 
-const topics = (i: BootDisclaimerInput): readonly string[] => composeBootDisclaimer(i).map((line) => line.topic);
-const securityLines = (i: BootDisclaimerInput): number => composeBootDisclaimer(i).filter((line) => line.security).length;
+const topics = (i: BootDisclaimerOptions): readonly string[] => composeBootDisclaimer(i).map((line) => line.topic);
+const securityLines = (i: BootDisclaimerOptions): number => composeBootDisclaimer(i).filter((line) => line.security).length;
 
 describe("composeBootDisclaimer", () => {
   test("names the mode, the listener, the credential-less owner, the cookie rule and the secrets, in that order", () => {

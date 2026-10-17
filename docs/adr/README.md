@@ -272,4 +272,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D323 | [Prototype exposure is a per-generation syntactic fact](0323-prototype-exposure-per-native-generation.md) | active |
 | D324 | [Server factory shapes stay beside their factory](0324-server-factory-shapes-stay-beside-their-factory.md) | active |
 | D325 | [Tooling tests follow the tooling posture](0325-tooling-tests-follow-the-tooling-posture.md) | active |
-| D326 | [Foundation env posture APIs have an owned contract](0326-foundation-env-posture-contract.md) | active |
+| D326 | [Foundation env posture APIs have an owned contract](0326-foundation-env-posture-contract.md) | superseded by [0327-foundation-env-policy-contracts.md](0327-foundation-env-policy-contracts.md) |
+| D327 | [Foundation env policy APIs have an owned contract](0327-foundation-env-policy-contracts.md) | active |

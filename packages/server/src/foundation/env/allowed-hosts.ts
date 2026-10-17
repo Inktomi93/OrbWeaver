@@ -13,17 +13,7 @@ import {
   parseAllowedHosts,
   withoutTrailingDot,
 } from "@orb/kit/allowed-hosts";
-
-// @orb-waive no-inline-package-interface(AllowedHostsInput): baselined when the gate landed; burn-down item 952.
-/** The raw env values the resolver reads, passed in so this file never touches `process.env`. */
-export interface AllowedHostsInput {
-  /** `ALLOWED_HOSTS`: a comma list of names; a leading dot admits the name and every subdomain. */
-  readonly allowedHosts: string | undefined;
-  /** `OIDC_REDIRECT_URIS`: the OIDC callback URLs; each one's host is the operator's own name. */
-  readonly oidcRedirectUris: string | undefined;
-  /** The OS host name, or null in a container (see {@link machineHostnameFor}). */
-  readonly machineHostname: string | null;
-}
+import type { AllowedHostsInput } from "./contract.ts";
 
 /** The machine's own name is admitted on bare metal only. A rebinding page controls DNS for its own domain and
  *  cannot make the victim resolve the victim machine's own name (or `<name>.local`) to it; the residual is an mDNS
@@ -88,3 +78,5 @@ export function allowedHostsEntryRefusal(entry: string): string {
     "localhost and IP addresses are always allowed and need no entry."
   );
 }
+
+export type { AllowedHostsInput } from "./contract.ts";

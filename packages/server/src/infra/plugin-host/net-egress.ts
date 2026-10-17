@@ -7,13 +7,7 @@ import type { SafeFetchOptions, ScopedEgress } from "../network/contract/egress.
 import { safeFetch } from "../network/egress.ts";
 import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import { HOST_FN_DEADLINE_MS, PLUGIN_ASSET_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
-
-// @orb-waive no-inline-package-interface(PluginNetResponse): baselined when the gate landed; burn-down item 952.
-/** What a guest's `net.fetch` resolves to: JSON-safe primitives only, never a live `Response`. */
-export interface PluginNetResponse {
-  readonly status: number;
-  readonly body: string;
-}
+import type { PluginNetResponse } from "./contract/net-egress.ts";
 
 // @orb-waive no-inline-package-interface(PluginNetEgress): baselined when the gate landed; burn-down item 952.
 /** The membrane's egress seam. `init` is the guest's raw (already dumped) request init; only GET/POST, a
@@ -124,3 +118,5 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   }
   return Object.values(value).every((v) => typeof v === "string");
 }
+
+export type { PluginNetResponse } from "./contract/net-egress.ts";
