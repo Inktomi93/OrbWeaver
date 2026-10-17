@@ -161,3 +161,37 @@ test("source and root replacement edits coalesce without overlapping checks or p
   writeFileSync(join(scratch, "platform.d.ts"), "// closed\n");
   expect(runs(scratch)).toBe(completed);
 });
+
+test("router declaration publication does not schedule native checks but authored server edits still do", { timeout: TIMEOUT }, async ({ scratch }) => {
+  const root = plant(scratch);
+  control(scratch, 0, "");
+  const server = await createServer({
+    configFile: false,
+    root,
+    plugins: [nativeTypecheck(scratch)],
+    logLevel: "silent",
+    server: { middlewareMode: true },
+    optimizeDeps: { noDiscovery: true },
+  });
+  try {
+    await expect.poll(() => runs(scratch), { timeout: POLL }).toBe(1);
+    const output = join(scratch, "packages/server/dist/router-types");
+    mkdirSync(join(output, "generations/native"), { recursive: true });
+    writeFileSync(join(output, "generations/native/router.d.ts"), "export interface AppRouter {}\n");
+    writeFileSync(join(output, "index.d.ts"), 'export type { AppRouter } from "./generations/native/router.d.ts";\n');
+    await new Promise((resolve) => setTimeout(resolve, scaledBudget(700)));
+    expect(runs(scratch)).toBe(1);
+    const source = join(scratch, "packages/server/src");
+    mkdirSync(source, { recursive: true });
+    writeFileSync(join(source, "router.ts"), "export const value = 1;\n");
+    await expect.poll(() => runs(scratch), { timeout: POLL }).toBe(2);
+    writeFileSync(join(scratch, "packages/server/tsconfig.json"), "{}\n");
+    await expect.poll(() => runs(scratch), { timeout: POLL }).toBe(3);
+    const sibling = join(scratch, "packages/server/dist/router-types-other");
+    mkdirSync(sibling, { recursive: true });
+    writeFileSync(join(sibling, "index.d.ts"), "export interface Sibling {}\n");
+    await expect.poll(() => runs(scratch), { timeout: POLL }).toBe(4);
+  } finally {
+    await server.close();
+  }
+});
