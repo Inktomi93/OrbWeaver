@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/nested-member-continuation-1002
+lane: codex/projected-object-reader-1002
 plan: test-foundation
 ---
 
@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-Nested optional-member and actual nullish projection pass bounded controls and security review. Captured helper/allocation identity and private-premise revocation remain required. Evidence: `reports/review/1002-nested-member-continuation-delivery.md`. Ordinary integration, current target and cost remain unqualified.
+Nested callable and nullish projection pass bounded controls and security review. Own-arrow receiver calls retain native reference, allocation and captured-target identity. Evidence: `reports/review/1002-projected-object-reader-delivery.md`. Scoped controls pass; target unresolved, cost unqualified.
 
 Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 

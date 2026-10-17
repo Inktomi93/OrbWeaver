@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-entry-network-1041
+lane: codex/native-hard-eslint-1041
 plan: test-foundation
 ---
 
@@ -28,7 +28,7 @@ D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswal
 
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
-Graph-owned forward-JWT execution and edge-test adoption pass scoped controls and security review. Evidence: `reports/review/1041-native-entry-network.md`. Combined-root qualification remains open; CORS, raw-origin and body-cap policies remain.
+Graph-owned forward-JWT execution and edge-test adoption pass scoped controls and security review. Evidence: `reports/review/1041-native-entry-network.md`. Ordinary root controls pass; CORS, raw-origin and body-cap policies remain.
 
 Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
