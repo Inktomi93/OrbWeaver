@@ -12,6 +12,9 @@ import { createBoundedRing } from "@orb/kit/bounded-ring";
 import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import { env } from "#foundation/env";
+import type { RequestRecord } from "./contract/logging.ts";
+
+export type { RequestRecord } from "./contract/logging.ts";
 
 // pino v10 exports `Logger` as a member of the `pino` namespace (not a top-level named export), so it is
 // referenced as `pino.Logger`. A local, non-exported alias keeps the rest of the file readable.
@@ -19,20 +22,6 @@ type Logger = pino.Logger;
 
 const LOG_RING_CAPACITY = 2000;
 const REQUEST_RING_CAPACITY = 500;
-
-// @orb-waive no-inline-package-interface(RequestRecord): baselined when the gate landed; burn-down item 952.
-/** One entry in the request ring; consumed by `recordRequest`/`recentRequests` + the debug surface. */
-export interface RequestRecord {
-  id: string;
-  method: string;
-  path: string;
-  status: number;
-  durationMs: number;
-  at: number;
-  /** The resolved caller (bound once auth resolves — see `bindRequestUser`). Absent on unauthenticated
-   *  requests; lets the debug request browser attribute + filter by user on a multi-user deploy. */
-  userId?: UserId;
-}
 
 /** The pino stream-attached ring of raw serialized log lines — strings in, parsed lazily on query (cheap
  *  writes; the parse cost only happens when someone curls /api/_debug/logs). The debug surface reads it.

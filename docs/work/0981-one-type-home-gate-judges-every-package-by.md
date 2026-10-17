@@ -33,6 +33,6 @@ Reviewed `5d7417fc59` consolidates client-only declarations into existing compon
 
 Sandbox limits use the canonical `PluginBudgets` directly. The empty duplicate and unused re-export are removed with their stale Knip baseline entry. Server types, exact lint, scoped placement and independent runtime-erasure comparison pass. Plugin-authoring declarations remain unchanged. Evidence: `reports/review/canonical-plugin-budgets-independent-review.md`.
 
-Native direct placement covers server domains and the database inspector. Inspector contracts derive database identities without parsing raw diagnostic JSON. Independent review, main production-root controls and complete selected native syntax pass. Existing Node diagnostics remain; application collection blocks waiver-budget reconciliation. Remaining package coverage stays open. Evidence: `reports/review/981-native-server-placement-ordinary.md`.
+Native direct placement covers server domains and foundation observability. Canonical contracts derive lower-owned data while preserving raw diagnostics, supported exports and runtime bodies. Independent review confirms the observability batch; final coupled qualification and budget reconciliation remain root-owned. Remaining packages stay open. Evidence: `reports/review/981-observability-type-home-delivery.md`.
 
 Client-error telemetry derives the canonical diagnostics schema without changing public admission or logging. Root controls and the cross-tenant sweep pass. Evidence: `reports/review/981-client-error-contract-ordinary.md`.

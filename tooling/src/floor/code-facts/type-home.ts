@@ -39,7 +39,7 @@ export function packageContractHome(name: PackageName): string {
 }
 
 const NATIVE_PACKAGES = PACKAGE_NAMES.filter((name) => PACKAGE_TYPE_HOMES[name].nativePilot);
-const NATIVE_SERVER_ROOTS = ["packages/server/src/domain", "packages/server/src/foundation/observability/debug/inspect"] as const;
+const NATIVE_SERVER_ROOTS = ["packages/server/src/domain", "packages/server/src/foundation/observability"] as const;
 export const TYPE_HOME_NATIVE_SOURCE_GLOBS = [
   ...NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`),
   ...NATIVE_SERVER_ROOTS.map((root) => `${root}/**/*.{ts,tsx}`),

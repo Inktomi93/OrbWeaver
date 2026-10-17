@@ -1,13 +1,17 @@
+import type { auditLogs } from "@orb/db";
 import type { StatementToken } from "@orb/db/wiring";
-import type { UserId } from "@orb/kit/ids";
 
 /** One audit event; null actor identifies a system operation rather than a user. */
-export interface AuditEntry {
-  actorUserId: UserId | null;
-  action: string;
-  entityType?: string | null;
-  entityId?: string | null;
-  metadata?: Record<string, unknown>;
+export interface AuditEntry
+  extends Pick<typeof auditLogs.$inferSelect, "actorUserId" | "action">,
+    Partial<Pick<typeof auditLogs.$inferSelect, "entityType" | "entityId">> {
+  metadata?: NonNullable<(typeof auditLogs.$inferSelect)["metadata"]>;
+}
+
+export interface AuditFailureSnapshot {
+  count: number;
+  firstFailureAt: (typeof auditLogs.$inferSelect)["createdAt"] | null;
+  lastFailureAt: (typeof auditLogs.$inferSelect)["createdAt"] | null;
 }
 
 export interface AuditWiring {

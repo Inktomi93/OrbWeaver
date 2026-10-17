@@ -60,10 +60,13 @@ import type { EvidenceSlice, EvidenceWindow } from "@orb/kit/evidence-window";
 import { sliceByWindow } from "@orb/kit/evidence-window";
 import { redactKnownSecrets, secretRedactionLiterals } from "@orb/kit/secret-redaction";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
+import type { BugReportInspectors } from "../contract/debug.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { recentTraces } from "../tracing.ts";
 import { ERROR_LEVEL, parseLogRingLine, ringLineLevel, ringLineTime } from "./log-ring-read.ts";
 import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+
+export type { BugReportInspectors } from "../contract/debug.ts";
 
 /** How deep each ring is read before the window filter — the ring capacities, so the filter sees everything the
  *  process still holds and `truncatedAt` can tell the truth about what it does not. */
@@ -77,14 +80,6 @@ const MIN_SECRET_LENGTH = 8;
 /** How much of a report id the markdown quotes as a lookup key — enough to be unique among a session's
  *  reports without making the reader retype a whole uuid (the lister resolves any unambiguous prefix). */
 const ID_PREFIX_HINT = 8;
-
-// @orb-waive no-inline-package-interface(BugReportInspectors): baselined when the gate landed; burn-down item 952.
-/** The optional domain-owned flight recorders, as the debug registrar already receives them. Absent ⇒ that
- *  source reports itself absent in the bundle rather than silently contributing nothing. */
-export interface BugReportInspectors {
-  readonly rpgTrace?: { readonly recent: (filter: { limit?: number }) => readonly object[] };
-  readonly memoryRecall?: { readonly recent: (filter: { limit?: number }) => readonly object[] };
-}
 
 function gitOutput(repoRoot: string, args: readonly string[]): string | null {
   // @orb-waive caught-failure-ownership(catch): git being absent, or the cwd not being a
@@ -214,11 +209,7 @@ export function snapshotServerEvidence(window: EvidenceWindow, inspectors: BugRe
 }
 
 /** One injected flight recorder, or an explicit "the port was not wired" row. */
-function recorderSlice(
-  source: string,
-  port: { readonly recent: (filter: { limit?: number }) => readonly object[] } | undefined,
-  window: EvidenceWindow,
-): EvidenceSlice<unknown> {
+function recorderSlice(source: string, port: BugReportInspectors["rpgTrace"], window: EvidenceWindow): EvidenceSlice<unknown> {
   if (port === undefined) {
     return {
       entries: [],

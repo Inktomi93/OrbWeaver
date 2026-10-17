@@ -129,9 +129,13 @@ test("inference native coverage and semantic remainder are disjoint without disc
   expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["Alias", "Generated", "GeneratedAlias", "ListedSchema", "Local", "Schema"]);
 });
 
-test("server domains and the DB inspector use native direct placement without activating neighboring owners", async ({ repoRoot }) => {
+test("server domains and observability use native direct placement without activating neighboring owners", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
-  const roots = ["packages/server/src/domain/probe", "packages/server/src/foundation/observability/debug/inspect"];
+  const roots = [
+    "packages/server/src/domain/probe",
+    "packages/server/src/foundation/observability/debug/inspect",
+    "packages/server/src/foundation/observability",
+  ];
   for (const root of roots) {
     for (const suffix of ["ts", "tsx", "d.ts"]) {
       const path = `${root}/verbs/probe.${suffix}`;
@@ -162,10 +166,15 @@ test("server domains and the DB inspector use native direct placement without ac
       expect(await nativeFindings(eslint, implementation, source), source).toEqual([]);
     }
   }
+  for (const file of ["audit.ts", "logger.ts", "memory-log.ts", "tracing.ts", "debug/routes.ts", "debug/wire-capture.ts", "debug/bug-report.ts"]) {
+    const path = `packages/server/src/foundation/observability/${file}`;
+    expect(await nativeFindings(eslint, path, "export interface Data {}; export type Scalar = string;"), path).toHaveLength(2);
+    expect(nativeTypeHomeDirectExport(path), path).toBe(true);
+  }
   for (const path of [
     "packages/server/src/domain/probe/verb.test.ts",
-    "packages/server/src/foundation/observability/debug/inspect-other/probe.ts",
-    "packages/server/src/foundation/observability/debug/routes.ts",
+    "packages/server/src/foundation/observability-other/probe.ts",
+    "packages/server/src/foundation/env/probe.ts",
     "packages/server/src/entry/probe.ts",
     "packages/server/src/transport/probe.ts",
     "packages/server/src/infra/probe.ts",
@@ -195,7 +204,12 @@ test("server native placement keeps local exports, proven schema origins and una
     ["barrel.ts", 'export type { Home } from "./contract/home.ts";', 0],
     ["contract/home.ts", "export interface Home {}", 0],
   ] as const;
-  for (const prefix of ["packages/server/src/domain/probe", "packages/server/src/foundation/observability/debug/inspect"]) {
+  const roots = [
+    "packages/server/src/domain/probe",
+    "packages/server/src/foundation/observability/debug/inspect",
+    "packages/server/src/foundation/observability",
+  ];
+  for (const prefix of roots) {
     for (const [file, source, count] of cases) {
       const path = `${prefix}/${file}`;
       project.createSourceFile(`${root}/${path}`, source);
@@ -208,7 +222,7 @@ test("server native placement keeps local exports, proven schema origins and una
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
     ["Generated", "GeneratedAlias", "ListedAlias", "ListedSchema", "Local", "Schema"]
-      .flatMap((token) => [token, token])
+      .flatMap((token) => roots.map(() => token))
       .toSorted((left, right) => left.localeCompare(right)),
   );
 });

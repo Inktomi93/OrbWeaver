@@ -15,7 +15,10 @@ import { BasicTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-tra
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
 import { errorMessage } from "@orb/kit/error-message";
 import { versionIdentity } from "#foundation/version";
+import type { RequestTrace, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 import { getLog } from "./logger.ts";
+
+export type { RequestTrace, RequestTraceTotals, SerializedSpan, SerializedSpanEvent, SpanAttrs } from "./contract/tracing.ts";
 
 const TRACER_NAME = "orbweaver";
 // The attribute the root span stamps + child spans copy down so the ring buckets a whole tree together.
@@ -31,62 +34,9 @@ const MAX_ATTR_LEN = 512;
 const MS_PER_SEC = 1000;
 const NS_PER_MS = 1e6;
 
-// @orb-waive no-inline-package-interface(SerializedSpan): baselined when the gate landed; burn-down item 952.
-/** Public span shape — the JSON /api/_debug/traces returns. */
-export interface SerializedSpan {
-  spanId: string;
-  parentSpanId: string | undefined;
-  name: string;
-  startedAt: number;
-  durationMs: number;
-  status: "ok" | "error";
-  attributes: Record<string, string | number | boolean>;
-  events: SerializedSpanEvent[];
-  /** Set on the root span only; mirrors the request id for client filtering. */
-  requestId: string;
-}
-
-// @orb-waive no-inline-package-interface(SerializedSpanEvent): baselined when the gate landed; burn-down item 952.
-/** A span event — `attributes` omitted entirely when there are none (exactOptionalPropertyTypes). */
-export interface SerializedSpanEvent {
-  name: string;
-  at: number;
-  attributes?: Record<string, string | number | boolean>;
-}
-
-// @orb-waive no-inline-package-interface(RequestTraceTotals): baselined when the gate landed; burn-down item 952.
-/** Precomputed per-trace totals so the list view need not walk every span. */
-export interface RequestTraceTotals {
-  spanCount: number;
-  dbSpanCount: number;
-  dbDurationMs: number;
-  /** Sum of durations for spans named "provider.*" (the chat runners). */
-  providerDurationMs: number;
-}
-
-// @orb-waive no-inline-package-interface(RequestTrace): baselined when the gate landed; burn-down item 952.
-/** A full request trace — the root + its descendants in capture order. */
-export interface RequestTrace {
-  requestId: string;
-  startedAt: number;
-  durationMs: number;
-  rootName: string;
-  status: "ok" | "error";
-  spans: SerializedSpan[];
-  totals: RequestTraceTotals;
-}
-
 interface BucketState {
   spans: SerializedSpan[];
   startedAtMin: number;
-}
-
-// @orb-waive no-inline-package-interface(SpanAttrs): baselined when the gate landed; burn-down item 952.
-/** Attributes a span may carry. Primitives only — anything else is a code smell (RP content via a span
- *  attribute is the regression to guard). An index-signature interface (not a `type` alias) so the
- *  no-inline-types grit leaves it (only exported `type`/zod-schema are matched). */
-export interface SpanAttrs {
-  [key: string]: string | number | boolean | undefined;
 }
 
 /** Per-requestId ring of completed traces. Each finished span appends into a transient bucket keyed by the
@@ -523,7 +473,7 @@ function serializeSpan(readable: ReadableSpan, requestId: string): SerializedSpa
 }
 
 // OTel hrtime is [seconds, nanos]. Convert to ms wall-clock (matches the epoch-ms timestamps elsewhere).
-function hrToMs(hr: [number, number]): number {
+function hrToMs(hr: ReadableSpan["startTime"]): number {
   return hr[0] * MS_PER_SEC + hr[1] / NS_PER_MS;
 }
 
@@ -533,8 +483,8 @@ function truncate(s: string): string {
 
 /** Coerce span attributes to JSON-safe primitives; truncate over-long strings (a defensive bound — no
  *  attribute should carry a long string, but truncating beats hanging the viewer on a 100KB blob). */
-function cleanAttrs(attrs: SpanAttrs): Record<string, string | number | boolean> {
-  const out: Record<string, string | number | boolean> = {};
+function cleanAttrs(attrs: SpanAttrs): SerializedSpan["attributes"] {
+  const out: SerializedSpan["attributes"] = {};
   for (const [k, v] of Object.entries(attrs)) {
     if (typeof v === "string") {
       out[k] = truncate(v);
@@ -545,8 +495,8 @@ function cleanAttrs(attrs: SpanAttrs): Record<string, string | number | boolean>
   return out;
 }
 
-function serializeAttrs(raw: Readonly<Record<string, unknown>>): Record<string, string | number | boolean> {
-  const out: Record<string, string | number | boolean> = {};
+function serializeAttrs(raw: Readonly<Record<string, unknown>>): SerializedSpan["attributes"] {
+  const out: SerializedSpan["attributes"] = {};
   for (const [k, v] of Object.entries(raw)) {
     if (typeof v === "string") {
       out[k] = truncate(v);

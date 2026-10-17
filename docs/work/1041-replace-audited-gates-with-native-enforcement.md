@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-type-home-migration-981
+lane: codex/native-move-delete-1041
 plan: test-foundation
 ---
 

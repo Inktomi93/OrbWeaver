@@ -269,3 +269,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D320 | [Legacy tests run and typecheck without semantic extraction](0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) | active |
 | D321 | [Native gate replacements and KEEP-only custom analysis](0321-native-gate-replacements-and-keep-only-analysis.md) | active |
 | D322 | [Schema-only exports do not require output aliases](0322-schema-only-exports-without-output-aliases.md) | active |
+| D323 | [Prototype exposure is a per-generation syntactic fact](0323-prototype-exposure-per-native-generation.md) | active |

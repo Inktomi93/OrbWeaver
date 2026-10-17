@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-16
+status: doing
+updated: 2026-10-17
 priority: P1
 area: tests
+lane: codex/corpus-smoke-matrix-898
 plan: test-mirror
 ---
 
@@ -23,4 +24,4 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Selected committed-corpus read/render intake passes; the complete flow, viewport, style and authentication matrix remains open. Ordinary collection does not establish execution. Corpus mode admits only its selected smoke file and single-user project; it owns no scripted provider. Real provider, local-auth and owner-copy admission need existing-owner integration. Additional `--project` arguments accumulate selections rather than replace defaults. Exercise each Settings group according to its actual public behavior. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/898-replacement-smoke-intake.md`. Replacement work waits for complete shared-reader foundations.
+Selected committed-corpus read/render intake passes; the complete flow, viewport, style and authentication matrix remains open. Ordinary collection does not establish execution. Corpus mode admits only its selected smoke file and single-user project; it owns no scripted provider. Real provider, local-auth and owner-copy admission need existing-owner integration. Additional `--project` arguments accumulate selections rather than replace defaults. Exercise each Settings group according to its actual public behavior. Evidence: `.claude/worktrees/codex-native-token-scales/reports/review/898-replacement-smoke-intake.md`. The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks already judge its specs. Only general legacy suite ports wait for shared-reader completion. Read `reports/review/seven-day-bottleneck-claude-analysis.md` before changing this dependency.

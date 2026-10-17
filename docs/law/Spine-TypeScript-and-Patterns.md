@@ -39,10 +39,10 @@ Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport
 
 | Gate | What it judges |
 | - | - |
-| ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and the database inspector; generated declarations and domain test mirrors retain custom ownership |
+| ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and foundation observability; generated declarations and domain test mirrors retain custom ownership |
 | `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in its existing populations, excluding qualified native direct aliases; local export origins and generated token ownership remain custom |
 | `no-inline-domain-interface` | server-domain interface origins outside contract homes, excluding qualified native direct declarations; local export lists and unadmitted generated declarations remain custom |
-| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and inspector direct declarations |
+| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and observability direct declarations |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
