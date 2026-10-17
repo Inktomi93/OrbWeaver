@@ -6,6 +6,6 @@ import { gate as domainFreshnessPlane } from "../../../../tooling/src/verify/gat
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 // "domain-freshness-plane" remains discoverable to the affected-instrument runner.
-test("domain freshness retains every declared schema-registry proof", () => {
+test("domain freshness retains every declared schema-registry proof", { tags: ["slow"] }, () => {
   expect(verifyPolicyProofs([domainFreshnessPlane])).toEqual([]);
 });
