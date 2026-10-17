@@ -1,16 +1,14 @@
-import { viewerViewSchema } from "@orb/contracts/identity";
 import { REFINERY_SCORE_MODES, refineryRunViewSchema, refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
-import { expect, test } from "@playwright/experimental-ct-react";
 import { PayloadOwnerStory } from "./_payload-stories.tsx";
 
-test("assay expansion survives a same-run clone but not a different immutable run", async ({ mount, page }) => {
+test("assay expansion survives a same-run clone but not a different immutable run", async ({ corpus, mount, page }) => {
   const ids = createSeededIds();
   const payload = refineryScorePayloadSchema.parse({
     fieldScores: [{ field: "description", score: 7, strengths: "Recognizable voice", weaknesses: "Missing context", suggestions: "Add a scene anchor" }],
@@ -43,11 +41,9 @@ test("assay expansion survives a same-run clone but not a different immutable ru
       })),
     },
   };
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role }),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
   });
   const component = await mount(<PayloadOwnerStory run={run} />);
   const assay = page.getByRole("button", { name: "description — 7", exact: true });

@@ -1,16 +1,12 @@
-import { viewerViewSchema } from "@orb/contracts/identity";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
-import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
-import { expect, test } from "@playwright/experimental-ct-react";
 import { EntryListRebaseStory } from "./_entry-list-stories.tsx";
 
-test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ mount, page }) => {
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
+test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, mount, page }) => {
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role }),
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
   });
   const component = await mount(<EntryListRebaseStory items={["Alpha", "Beta", "Gamma"]} />);
   await page.getByRole("button", { name: "Remove Beta", exact: true }).click();

@@ -1,5 +1,4 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
-import { viewerViewSchema } from "@orb/contracts/identity";
 import { PLUGIN_LOG_LEVELS, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -9,9 +8,7 @@ import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
-import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import type { Page } from "@playwright/test";
 import { PluginProtocolStory } from "./_ct-stories.tsx";
 
@@ -90,14 +87,11 @@ async function readProtocolResults(page: Page): Promise<{ inbound: JsonValue[]; 
 }
 
 for (const mode of ["lines", "chars"] as const) {
-  test(`native Worker log ${mode} limits preserve actual severity and refuse later overflow without stopping rendering`, async ({ mount, page }) => {
+  test(`native Worker log ${mode} limits preserve actual severity and refuse later overflow without stopping rendering`, async ({ corpus, mount, page }) => {
     const plugin = makePluginRow({ declaredCapabilities: ["ui.surface"], grantedCapabilities: ["ui.surface"] });
-    const settings = userSettingsView();
-    const caller = principal(settings.userId);
-    const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
     const trpc = await routeTrpc(page, {
-      "settings.getUserSettings": () => settings,
-      "sessions.me": () => me,
+      "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+      "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
       "plugin.list": () => [plugin],
       "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
       "plugin.getSurfaceState": () => null,
@@ -131,19 +125,20 @@ for (const mode of ["lines", "chars"] as const) {
   });
 }
 
-test("the native Worker exchanges boot, render, event, host-call/result and settlement through the production contribution", async ({ mount, page }) => {
+test("the native Worker exchanges boot, render, event, host-call/result and settlement through the production contribution", async ({
+  corpus,
+  mount,
+  page,
+}) => {
   const plugin = makePluginRow({
     name: "Native browser protocol",
     declaredCapabilities: ["ui.surface", "storage.kv"],
     grantedCapabilities: ["ui.surface", "storage.kv"],
   });
   const surfaces = [makePluginScriptedPage(plugin.id)];
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
-  const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => me,
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => surfaces,
     "plugin.getSurfaceState": () => null,
@@ -231,14 +226,11 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   expect(trpc.unstubbed()).toEqual([]);
 });
 
-test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({ mount, page }) => {
+test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({ corpus, mount, page }) => {
   const plugin = makePluginRow();
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
-  const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => me,
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
     "plugin.getSurfaceState": () => null,
@@ -335,7 +327,7 @@ const memoryTest = test.extend({
   },
 });
 
-memoryTest("native engine memory reservation refusal retires the real Worker without charging the plugin", async ({ mount, page, browser }) => {
+memoryTest("native engine memory reservation refusal retires the real Worker without charging the plugin", async ({ corpus, mount, page, browser }) => {
   const reservation = await page.evaluate(() => {
     const small = new WebAssembly.Memory({ initial: 1, maximum: 1 });
     try {
@@ -352,12 +344,9 @@ memoryTest("native engine memory reservation refusal retires the real Worker wit
     declaredCapabilities: ["ui.surface", "storage.kv"],
     grantedCapabilities: ["ui.surface", "storage.kv"],
   });
-  const settings = userSettingsView();
-  const caller = principal(settings.userId);
-  const me = viewerViewSchema.parse({ userId: caller.userId, handle: caller.handle, globalRole: caller.role });
   const trpc = await routeTrpc(page, {
-    "settings.getUserSettings": () => settings,
-    "sessions.me": () => me,
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
     "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
     "plugin.getSurfaceState": () => null,
