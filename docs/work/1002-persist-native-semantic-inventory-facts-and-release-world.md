@@ -38,7 +38,7 @@ Contextual sharing, optional calls and native resources preserve disposal, refus
 
 Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
 
-The target remains unresolved at `ctx.backgroundSignal`: source admission passes; namespace admission refuses an uncaptured lifecycle catch call. Capture-demand correction is in progress. Evidence: `reports/review/1002-original-callable-current/8934fedfe6/diagnosis.md`. Target and cost remain unqualified.
+The target remains unresolved at `ctx.backgroundSignal`: namespace admission refuses an uncaptured lifecycle catch call. Capture-demand correction passes review; the original retry is pending. Evidence: `reports/review/1002-original-callable-current/8934fedfe6/diagnosis.md`. Target and cost remain unqualified.
 
 Source lookup and contextual proof reuse pass ordinary controls and review. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
 
@@ -46,4 +46,4 @@ Missing-reference admission passes review and ordinary controls except the parti
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Review and ordinary controls retain the partial-env failure. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`.
 
-Native awaited namespaces preserve caller closure, assimilation refusal and premise lifetime. Direct aliases and captured catch pass scoped controls and review. Evidence: `reports/review/1002-module-alias-ordinary.md` and `reports/review/1002-native-catch-namespace-ordinary.md`. Original target qualification remains open.
+Native namespaces preserve caller closure, assimilation refusal and premise lifetime. Captured catch call demand requires actual publication after private-trial revocation. Scoped controls and review pass. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Target qualification stays open.

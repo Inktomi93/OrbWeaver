@@ -569,6 +569,21 @@ function awaitedNamespaceCatch(call: CallExpression, services: ReferenceResoluti
   return false;
 }
 
+function demandNamespaceCall(call: CallExpression, program: CallReturnProgram, services: NativeNamespaceValueServices): ReferenceFact<CallReturnProgram> {
+  if (program.callableContext?.admitted.has(call.compilerNode) === true) {
+    return services.refusal(call, "missing", "the namespace catch call is admitted but not yet published");
+  }
+  const demanded = program.demandValueCall?.(call);
+  if (demanded === undefined || demanded.kind === "unresolved") {
+    return demanded ?? services.refusal(call, "missing", "the namespace catch call was not captured");
+  }
+  const current = services.capturedProgram(call, { programs: [program] });
+  if (current.kind === "unresolved") {
+    return current;
+  }
+  return program.byCall.has(call.compilerNode) ? current : services.refusal(call, "missing", "the namespace catch call was not published by its capture owner");
+}
+
 function capturedNamespaceContext(
   call: CallExpression,
   context: ReturnedValueContext,
@@ -582,9 +597,6 @@ function capturedNamespaceContext(
   if (admitted.kind === "unresolved") {
     return admitted;
   }
-  if (!program.byCall.has(call.compilerNode)) {
-    return services.refusal(call, "missing", "the namespace catch call was not captured");
-  }
   const premise = context.inheritedReadPremise;
   if (premise !== undefined) {
     const live = premise.require(call, program);
@@ -594,7 +606,7 @@ function capturedNamespaceContext(
   } else if (program.inheritedReadTrialActive?.() === true) {
     return services.refusal(call, "unsupported", "namespace transfer cannot borrow a private trial without its continuation");
   }
-  return admitted;
+  return program.byCall.has(call.compilerNode) ? admitted : demandNamespaceCall(call, program, services);
 }
 
 function nativeNamespaceCatchIdentity(call: CallExpression, program: CallReturnProgram, services: NativeNamespaceValueServices): ReferenceFact<true> {
