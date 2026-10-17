@@ -263,6 +263,18 @@ function returnedCallValue(call: CallExpression, path: readonly string[], contex
       return demanded;
     }
   }
+  const operand = "nullishOperand" in context && context.nullishOperand === true ? context.program?.byCall.get(call.compilerNode)?.alternatives : undefined;
+  if (
+    operand?.kind === "resolved" &&
+    operand.value.some(
+      ({ target }) =>
+        ((N.isFunctionDeclaration(target) || N.isFunctionExpression(target) || N.isArrowFunction(target) || N.isMethodDeclaration(target)) &&
+          target.isAsync()) ||
+        ((N.isFunctionDeclaration(target) || N.isFunctionExpression(target) || N.isMethodDeclaration(target)) && target.isGenerator()),
+    )
+  ) {
+    return valueRefusal(call, "unsupported", "a nullish operand is an async or generator object rather than its returned value");
+  }
   const native = readNativeReturnedCall(call, path, context, nativeValueServices);
   if (native !== undefined) {
     return native;
@@ -970,6 +982,49 @@ function returnedConditionalValue(
   return valueAlternatives(value, [returnedValue(value.getWhenTrue(), path, context), returnedValue(value.getWhenFalse(), path, context)]);
 }
 
+interface NullishOperandContext extends ReturnedValueContext {
+  readonly nullishOperand: true;
+}
+
+function returnedAwaitValue(
+  value: import("ts-morph").AwaitExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  return "nullishOperand" in context && context.nullishOperand === true
+    ? valueRefusal(value, "unsupported", "a nullish operand has no supported native awaited-value boundary")
+    : returnedValue(value.getExpression(), path, context);
+}
+
+function returnedNullishValue(
+  value: import("ts-morph").BinaryExpression,
+  path: readonly string[],
+  context: ReturnedValueContext,
+): ReferenceFact<readonly ReturnedValueSource[]> {
+  const operand: NullishOperandContext = { ...context, nullishOperand: true };
+  const left =
+    context.callableValues === true && context.program !== undefined
+      ? callableSuppliedLeaves(value.getLeft(), [], context.program, {
+          bindings: context.bindings,
+          active: context.active,
+          activeValues: context.active,
+          continuation: operand,
+        })
+      : returnedValue(value.getLeft(), [], operand);
+  if (left.kind === "unresolved") {
+    return left;
+  }
+  const result = valueAlternatives(
+    value,
+    left.value.map((source) =>
+      source.present && source.path.length === 0 && source.value.getKind() === SyntaxKind.NullKeyword
+        ? returnedValue(value.getRight(), path, { ...operand, bindings: source.bindings })
+        : defaultBindingAlternative(value.getRight(), source, path, operand),
+    ),
+  );
+  return { ...result, trace: { ...result.trace, declarations: [...left.trace.declarations, ...result.trace.declarations] } };
+}
+
 function captureValueActivation(node: Node, path: readonly string[], context: ReturnedValueContext, supplied: boolean): ReturnedValueActivation | undefined {
   if (context.program === undefined || context.invocation === undefined) {
     return;
@@ -1139,13 +1194,16 @@ function returnedValue(node: Node, path: readonly string[], context: ReturnedVal
     ...(activation === undefined ? {} : { valueActivations: [...(context.valueActivations ?? []), activation] }),
   };
   if (N.isAwaitExpression(value)) {
-    return returnedValue(value.getExpression(), path, next);
+    return returnedAwaitValue(value, path, next);
   }
   if (N.isIdentifier(value)) {
     return returnedIdentifierValue(value, path, next);
   }
   if (N.isConditionalExpression(value)) {
     return returnedConditionalValue(value, path, next);
+  }
+  if (N.isBinaryExpression(value) && value.getOperatorToken().getKind() === SyntaxKind.QuestionQuestionToken) {
+    return returnedNullishValue(value, path, next);
   }
   if (N.isObjectLiteralExpression(value)) {
     return returnedObjectValue(value, path, next);
@@ -2525,13 +2583,78 @@ function nonCallableData(node: Node): boolean {
   return !callableValue(node) && (runtimeUndefinedValue(node) || readStaticAuthoredValue(node).kind === "resolved");
 }
 
+function projectedObjectClosed(source: ReturnedValueSource, proof: CallableUseProof): boolean {
+  let allocation = source.value;
+  for (
+    let parent = allocation.getParent();
+    (N.isConditionalExpression(parent) && parent.getCondition() !== allocation) ||
+    (N.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.QuestionQuestionToken);
+    parent = allocation.getParent()
+  ) {
+    allocation = parent;
+  }
+  const endpoint = source.selectedDescriptors?.[0]?.value;
+  if (endpoint !== undefined && unwrapTarget(endpoint) === allocation) {
+    return true;
+  }
+  const declaration = allocation.getParent();
+  const program = proof.program;
+  if (!N.isVariableDeclaration(declaration) || declaration.getInitializer() !== allocation || program === undefined) {
+    return false;
+  }
+  const name = declaration.getNameNode();
+  if (!N.isIdentifier(name)) {
+    return false;
+  }
+  const endpoints = new Set(source.selectedDescriptors?.map((descriptor) => descriptor.value));
+  const missing = unprovenReferenceUse(name, (use, binding) => {
+    const admitted = readCallReturnReference(use, binding, program);
+    return admitted.kind === "unresolved" ? refuseCallableUse(proof, admitted) : endpoints.has(use);
+  });
+  return missing === undefined && proof.state.refusal === undefined;
+}
+
 function callableProjectedTransfer(parent: Node, sources: ResolvedReferenceFact<readonly ReturnedValueSource[]>, proof: CallableUseProof): boolean | undefined {
-  if (proof.program === undefined || sources.value.every((source) => nonCallableData(source.value))) {
+  const program = proof.program;
+  if (program === undefined || sources.value.every((source) => nonCallableData(source.value))) {
     return;
   }
   const handed = callableArgumentHandoff(parent, proof);
   if (handed !== undefined) {
     return handed;
+  }
+  const continued = parent.getParent();
+  const member = continued === undefined ? undefined : staticMemberAccess(continued);
+  if (
+    member?.receiver === parent &&
+    (N.isPropertyAccessExpression(continued) || N.isElementAccessExpression(continued)) &&
+    continued.hasQuestionDotToken() &&
+    sources.value.every(
+      (source) =>
+        source.value.getKind() === SyntaxKind.NullKeyword ||
+        runtimeUndefinedValue(source.value) ||
+        (ownDataProperty(source, member.name, program) && projectedObjectClosed(source, proof)),
+    )
+  ) {
+    const projected = callableSuppliedLeaves(continued, [], program, { bindings: proof.bindings, active: new Set() });
+    if (projected.kind === "unresolved") {
+      return refuseCallableUse(proof, projected);
+    }
+    const selected = optionalCallableSources(continued, projected);
+    if (
+      selected.value.every((source) => {
+        const property = source.value.getParent();
+        return (
+          callableValue(source.value) &&
+          N.isPropertyAssignment(property) &&
+          property.getInitializer() === source.value &&
+          sources.value.some((receiver) => property.getParent() === receiver.value && matchingAllocationBindings(receiver.value, receiver, source))
+        );
+      })
+    ) {
+      return callableProjectedUse(continued, projected, proof);
+    }
+    return false;
   }
   if (
     sources.value.every((source) => callableValue(source.value)) &&
