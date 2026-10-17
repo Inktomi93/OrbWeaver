@@ -35,25 +35,7 @@
 // un-credentialed owner-password claim on a `deny` box. A containerized local deploy uses
 // `LOCAL_INITIAL_PASSWORD` instead (spec §3.2, already its documented state).
 
-// @orb-waive no-inline-package-interface(OwnerFallbackPeerInput): baselined when the gate landed; burn-down item 952.
-/** The raw env values the resolver reads — passed in so this file never touches `process.env`. */
-export interface OwnerFallbackPeerInput {
-  /** `AUTH_FALLBACK` — the knob `resolve` tests BEFORE the peer gate; `deny` makes this set unreachable. */
-  readonly authFallback: "owner" | "deny";
-  /** `AUTH_FALLBACK_TRUSTED_PEERS` — the raw comma CIDR list, or `undefined` when unset (the default). */
-  readonly trustedPeers: string | undefined;
-}
-
-// @orb-waive no-inline-package-interface(OwnerFallbackPeerPosture): baselined when the gate landed; burn-down item 952.
-/** The composed posture. Both fields are facts about this boot, safe to print in a boot log. */
-export interface OwnerFallbackPeerPosture {
-  /** The parsed CIDR entries, reported even when `AUTH_FALLBACK=deny` makes them inert — a misconfigured
-   *  deploy stays legible. */
-  readonly ranges: readonly string[];
-  /** True only when the widened set can actually admit somebody: ranges present AND the fallback enabled.
-   *  This is what the warning and the /api/_debug credential rule (`diagnostics.ts`) key on. */
-  readonly widened: boolean;
-}
+import type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./contract.ts";
 
 /** The ONE parse for this knob — `infra/auth/config.ts` imports it rather than re-spelling a CSV split, so
  *  the ranges the boot warning names and the ranges the gate matches can never drift. Trimmed, empties
@@ -93,3 +75,5 @@ export function ownerFallbackPeerWarnings(posture: OwnerFallbackPeerPosture): re
       "one person can reach.",
   ];
 }
+
+export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./contract.ts";

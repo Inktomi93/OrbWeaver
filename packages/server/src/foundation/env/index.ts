@@ -22,23 +22,29 @@ import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
-import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
 import { runsInContainer, settingInstruction } from "./container.ts";
-import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
-import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
+import type { BindPostureInput, DiagnosticsPostureInput, OwnerFallbackCredentialInput, OwnerFallbackPeerInput } from "./contract.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "./private-ranges.ts";
 import { EnvRefusedError } from "./refusal/index.ts";
 
 export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
-export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "./bind.ts";
 export { CONTAINER_MARKER_FILES, fileReadCommand, runsInContainer, settingInstruction } from "./container.ts";
-export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
-export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
-export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";
+export type {
+  BindPosture,
+  BindPostureInput,
+  DiagnosticsExposure,
+  DiagnosticsPosture,
+  DiagnosticsPostureInput,
+  OwnerFallbackCredentialInput,
+  OwnerFallbackPeerInput,
+  OwnerFallbackPeerPosture,
+} from "./contract.ts";
+export { DIAGNOSTICS_EXPOSURES } from "./contract.ts";
+export { diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
 export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
