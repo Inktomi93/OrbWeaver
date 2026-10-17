@@ -1,14 +1,5 @@
-// Policy: bus-payload-allowlist-health (D16) — the UNSUPPRESSIBLE half of the
-// bus-payload firewall: every way the shared wire-shape reader can fail to ESTABLISH a bus member's shape,
-// plus the two tripwires that catch the reader going blind.
-//
-// FAMILY `bus-payload` — identical to its sibling `bus-payload-allowlist`, and the shared reader is
-// `lib/bus-payload-fact.ts` (`busPayloadFact`), which performs the walk once for both. THE SPLIT AXIS IS
-// AUTHORITY, which is the only axis §12.1 admits: the sibling's exceptions are reviewed grants over
-// individual field names, and NOTHING here has a door at all. A fail-closed verdict says "I cannot prove no
-// credential hides behind this shape", and under D16 an unprovable bus shape IS the violation — there is no
-// per-site permission that could honestly license one, because the thing being licensed is unknown by
-// construction. That is why the legacy descriptor was `markerImmune` and why this half is `hard`.
+// Source-level bus shape health remains unsuppressible, including unresolved heritage erased by native types.
+// Singleton: busPayloadFact supplies its refusal, empty-root and blindness judgments; native tests own secret names.
 //
 // WHAT IT REPORTS. Three classes, all from the shared fact's DATA rather than from a second walk:
 //
@@ -28,9 +19,9 @@
 //      that reports a healthy denominator forever.
 //
 // WHY THE LOUD REFUSAL IS A DECISION, NOT A BUG TO EXEMPT AWAY. A base imported through a package subpath or
-// a `#alias` specifier does not resolve, and therefore REDS. That is the correct D16 answer: a bus member is
-// a closed object literal of branded ids, and a base this reader cannot read is a wire shape nobody can read
-// either. Do NOT widen the resolver by guessing at a same-named declaration elsewhere (an ambiguous or wrong
+// a `#alias` specifier does not resolve, and therefore REDS under this conservative source-health boundary.
+// The base must resolve through this reader inside the admitted contracts; native readability is a separate claim.
+// Do NOT widen the resolver by guessing at a same-named declaration elsewhere (an ambiguous or wrong
 // match would walk the wrong members and hand back a confident green), and do NOT mint a grant. Spell the
 // member inline, or import the base RELATIVELY so its declaration is provable.
 //
@@ -41,8 +32,7 @@
 // all-bus-homes-loaded guard would be the trap it exists to catch: rename ONE bus home and the guard
 // abstains exactly when its declarations went missing.
 //
-// POPULATION PORT: identical to the sibling's — `@contracts`, the same expression as the provider's, for the
-// same forced reason (a consumer narrower than its provider is handed nodes it may not NAME).
+// Population remains @contracts, matching the provider so its delivered anchors are reportable.
 //
 // THREE ANCHOR MOVES, each forced and each classified (§4.6 category 6 — an anchor move is a receipt, not
 // metadata; nothing binds to any of these, because this policy is `hard` and the marker census below is
@@ -62,9 +52,7 @@
 //      home (else the lowest admitted path) and the missing name moves into the message, where it was
 //      always the load-bearing half.
 //
-// AUTHORITY `hard`, severity `error`. Marker census 0 = 0 = 0 (measured 2026-09-13; the only
-// `@orb-gate-ignore bus-payload-allowlist` occurrences on the tree are this family's own test fixtures,
-// which §8 step 6 excludes by name, and the legacy descriptor was `markerImmune` so none of them ever bit).
+// Hard authority has no waiver or grant for unreadable wire shapes.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
 // `bus-payload-allowlist` descriptor at ddee5116a989e15ab36c7269ecd35eb9c8e45430, the parent of the conversion
@@ -87,14 +75,14 @@ const NOTIFICATIONS = "packages/contracts/src/notifications/index.ts";
 
 const MESSAGE =
   "a bus-event wire shape could not be ESTABLISHED, so this family cannot prove no credential hides behind " +
-  "it — and under D16 an unprovable bus shape is itself the violation. A token spelled " +
+  "it — an unprovable bus shape is itself the violation. A token spelled " +
   "`unresolved-base:<Name>`, `unresolved-schema:<Name>` or `unsupported-shape:<Kind>` is the FAIL-CLOSED " +
   "arm: keep a bus member a closed object literal with named keys, or a base/schema declared RELATIVELY " +
   "inside @orb/contracts. AN OPEN KEY SPACE IS ALSO REFUSED: an index signature, a `Record<…>`, an " +
   "`unknown`/`any` field, or a mapped type whose key space is not a finite string-literal union declares no " +
   "key vocabulary at all, so nothing anywhere can scan what rides inside it — spell the keys out. The house " +
   "`{ [K in <union>]: <template> }[<union>]` distribution IS read (its index erases the keys, so the wire " +
-  "fields are the template's), provided the union resolves. See docs/adr/0016-group-chat-data-never-branch.md.";
+  "fields are the template's), provided the union resolves. See Core-0-Architecture-and-Structure §8.";
 
 const EMPTY_ROOT_PREFIX =
   "this bus root resolved to ZERO wire members — it yielded no field, deferred to no other named root, and " +
@@ -113,7 +101,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "bus-payload-allowlist-health",
-  family: "bus-payload",
+  family: "bus-payload-allowlist-health",
   authority: "hard",
   severity: "error",
   population: "@contracts",

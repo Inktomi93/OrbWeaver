@@ -8,7 +8,6 @@ const APPLICATION = Object.freeze({
   "audit-client-tests": 1,
   "bound-field-via-hook": 1,
   "brand-in-name-position": 44,
-  "bus-payload-allowlist": 1,
   "caught-failure-ownership": 680,
   "chat-stream-writes-in-bus-only": 1,
   "chat-viewer-plane-canon-reads": 3,

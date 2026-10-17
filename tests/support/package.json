@@ -52,6 +52,7 @@
     "./iso/oklab-reference.ts": "./iso/oklab-reference.ts",
     "./iso/wire-ready.ts": "./iso/wire-ready.ts",
     "./iso/zod-leaf-paths.ts": "./iso/zod-leaf-paths.ts",
+    "./iso/bus-payload-policy.ts": "./iso/bus-payload-policy.ts",
     "./node/app-blocking-receipt.test.ts": "./node/app-blocking-receipt.test.ts",
     "./node/assert-token-roundtrip.ts": "./node/assert-token-roundtrip.ts",
     "./node/atlas-guest.ts": "./node/atlas-guest.ts",

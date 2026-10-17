@@ -1,4 +1,4 @@
-// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook, bus-payload-allowlist....
+// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -90,15 +90,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     why: "`useBoundField` IS the one home for the bound-field wiring: it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
     endsWhen:
       "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
-  },
-  {
-    id: "bus-payload-allowlist:credential-id",
-    policyId: "bus-payload-allowlist",
-    subject: "credentialId",
-    operation: "bus-payload-field",
-    why: "the user-bus `credentialsChanged` payload carries a branded `UserCredentialId` — an ID, not a secret, and D16's SAFE pattern is exactly id-only re-read: the subscriber re-reads canon by id and never trusts event-carried data. The SUBJECT here is the field NAME rather than a path, because the licensed thing is the name's appearance anywhere on the wire (the `suppressions` precedent for a class-wide identity), and the policy aggregates every site of one name into one finding so this row stays 1:1 (§12.5). This replaces the legacy gate-owned `SANCTIONED_FIELDS` table and its hand-rolled two-sided stale sweep; the central `stale-reviewed-grant` alarm is the stronger successor.",
-    endsWhen:
-      "no scanned bus payload declares a `credentialId` field any more — the user-bus stops carrying the id at all, this row is consumed zero times and the run alarms at its dead subject, which is exactly the loaded-gun case the legacy table's stale arm existed to catch.",
   },
   {
     id: "chat-stream-writes-in-bus-only:chat-bus-writes",

@@ -14,7 +14,6 @@ import { gate as beltTotal } from "../../../../tooling/src/verify/gates/bus-belt
 import { gate as consumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as definitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { gate as factHealth } from "../../../../tooling/src/verify/gates/bus-fact-health.ts";
-import { gate as payload } from "../../../../tooling/src/verify/gates/bus-payload-allowlist.ts";
 import { gate as payloadHealth } from "../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as producerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -32,7 +31,7 @@ const NODE_ARM = "packages/contracts/src/native/node-arm.ts";
 const BROWSER_ARM = "packages/contracts/src/native/browser-arm.ts";
 const SHARED_ARM = "packages/contracts/src/native/shared.ts";
 const SOURCES = [NODE_BUS, BROWSER_BUS, NODE_ARM, BROWSER_ARM, SHARED_ARM];
-const POLICIES = [beltTotal, consumerBelt, definitionBelts, factHealth, payload, payloadHealth, producerCoverage];
+const POLICIES = [beltTotal, consumerBelt, definitionBelts, factHealth, payloadHealth, producerCoverage];
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -116,7 +115,7 @@ test(
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     for (const [config, expected] of [
-      ["tsconfig.json", [beltTotal.id, consumerBelt.id, payload.id, producerCoverage.id]],
+      ["tsconfig.json", [beltTotal.id, consumerBelt.id, producerCoverage.id]],
       ["tsconfig.tests-dom.json", [consumerBelt.id, producerCoverage.id]],
     ] as const) {
       const project = new Project({ tsConfigFilePath: join(scratch, config) });
@@ -157,7 +156,7 @@ test(
         structure.push(await runStructure(scratch, [`--check=${id}`]));
       }
       const scoped = await runScopedCli(scratch, ["--scope", SOURCES.join(",")]);
-      expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 1, 0, 1], scoped: 1 });
+      expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 0, 1], scoped: 1 });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -179,7 +178,6 @@ test(
         { policyId: consumerBelt.id, file: NODE_BUS },
         { policyId: beltTotal.id, file: NODE_BUS },
         { policyId: producerCoverage.id, file: NODE_BUS },
-        { policyId: payload.id, file: NODE_ARM },
         { policyId: consumerBelt.id, file: BROWSER_BUS },
         { policyId: producerCoverage.id, file: BROWSER_BUS },
       ]);
@@ -191,7 +189,7 @@ test(
 );
 
 test(
-  "shared physical carriers retain browser-only inherited fields instead of reusing a Node visit",
+  "shared physical carriers retain browser-only inherited member identities instead of reusing a Node visit",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     writeFileSync(join(scratch, NODE_ARM), 'export interface NativeArm {type:"stable";safe:string}');
@@ -210,9 +208,6 @@ test(
     expect(result.toolErrors).toEqual([]);
     expect(result.factErrors).toEqual([]);
     expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === beltTotal.id).map(({ file }) => file)).toEqual([BROWSER_BUS]);
-    expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === payload.id).map(({ file, token }) => ({ file, token }))).toEqual([
-      { file: BROWSER_ARM, token: "apiKey" },
-    ]);
   },
   scaledBudget(60_000),
 );
@@ -314,15 +309,12 @@ test(
       project: context.project,
       ...nativeTypeFactOptions(context),
       knownPolicies: POLICIES,
-      policies: [payload, payloadHealth],
+      policies: [payloadHealth],
       reviewedGrants: [],
       failOnWarnings: false,
     });
     expect(result.toolErrors).toEqual([]);
     expect(result.factErrors).toEqual([]);
-    expect(result.policies.find((row) => row.id === payload.id)?.findings.map(({ file, token }) => ({ file, token }))).toEqual([
-      { file: SHARED_ARM, token: "apiKey" },
-    ]);
     expect(
       result.policies
         .find((row) => row.id === payloadHealth.id)
@@ -349,15 +341,12 @@ test(
       project: context.project,
       ...nativeTypeFactOptions(context),
       knownPolicies: POLICIES,
-      policies: [payload, payloadHealth],
+      policies: [payloadHealth],
       reviewedGrants: [],
       failOnWarnings: false,
     });
     expect(result.toolErrors).toEqual([]);
     expect(result.factErrors).toEqual([]);
-    expect(result.policies.find((row) => row.id === payload.id)?.findings.map(({ file, token }) => ({ file, token }))).toEqual([
-      { file: SHARED_ARM, token: "apiKey" },
-    ]);
     expect(
       result.policies.find((row) => row.id === payloadHealth.id)?.findings.some((row) => row.message?.includes("unsupported-shape:MappedType") === true),
     ).toBe(true);
@@ -377,7 +366,7 @@ test(
       project,
       nativeTypeFacts: () => isolatedTypeFacts(project),
       knownPolicies: POLICIES,
-      policies: [payload, payloadHealth],
+      policies: [payloadHealth],
       reviewedGrants: [],
       failOnWarnings: false,
     });
@@ -431,7 +420,7 @@ test(
       project,
       nativeTypeFacts: () => isolatedTypeFacts(project),
       knownPolicies: POLICIES,
-      policies: [payload, payloadHealth],
+      policies: [payloadHealth],
       reviewedGrants: [],
       failOnWarnings: false,
     });
@@ -481,7 +470,7 @@ test(
         };
       },
       knownPolicies: POLICIES,
-      policies: [payload, payloadHealth],
+      policies: [payloadHealth],
       reviewedGrants: [],
       failOnWarnings: false,
     });
@@ -499,9 +488,6 @@ test(
         .flatMap((demand) => demand.questions?.filter((question) => question.kind === "definition-closure").flatMap((question) => question.files ?? []) ?? [])
         .toSorted(),
     ).toEqual([root + "/" + NODE_BUS, root + "/" + carrier, root + "/" + unrelated].toSorted());
-    expect(result.policies.find((row) => row.id === payload.id)?.findings.map(({ file, token }) => ({ file, token }))).toEqual([
-      { file: carrier, token: "apiKey" },
-    ]);
   },
   scaledBudget(30_000),
 );

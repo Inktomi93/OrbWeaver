@@ -5,13 +5,16 @@ import { readMemberReferenceWithName } from "../../floor/code-facts/reference-fa
 import type { InventoryInvocationPlan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { projectAuthoredScalar } from "../../floor/code-facts/static-authored-value.ts";
 import { mapTypeObservationDemand } from "../../floor/code-facts/type-observations-codec.ts";
-import type { TypeObservationDemand, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
-import { TYPE_OBSERVATION_PROFILE, TYPE_OBSERVATION_VALUE_FACETS } from "../../floor/code-facts/type-observations-contract.ts";
+import type { TypeObservationDemand, TypeObservationQuestion, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
 import type { BusNativeRead, BusProviderKind, BusReadContext } from "../contract/bus-fact.ts";
 import type { GateFactContext } from "../contract/fact.ts";
 import { resolveCallableMember } from "./gate-contract-origin.ts";
 import { invocationOriginServices, requiredInvocationFact } from "./native-invocation.ts";
 import { typeObservationReaders } from "./type-observation-context.ts";
+
+// Bus value readers consume these facets; type slots and source bindings have separate closed questions.
+const BUS_VALUE_FACETS = ["module", "string", "stable", "authored-value"] as const satisfies NonNullable<TypeObservationQuestion["valueFacets"]>;
 
 export function busNativeRead(context: GateFactContext, nominees: () => readonly MorphNode[], questions: BusProviderKind): BusNativeRead {
   const native = context.nativeTypes;
@@ -95,7 +98,7 @@ export function busNativeRead(context: GateFactContext, nominees: () => readonly
           {
             kind: "definition-closure" as const,
             nodes: nodes.filter(Node.isIdentifier),
-            valueFacets: TYPE_OBSERVATION_VALUE_FACETS,
+            valueFacets: BUS_VALUE_FACETS,
             files: context.files.map((file) => file.getFilePath().replaceAll("\\", "/")),
           },
           { kind: "call-parameters" as const, properties: ["type"], nodes: (questions === "producer" ? nodes : []).filter(Node.isCallExpression) },
@@ -108,7 +111,7 @@ export function busNativeRead(context: GateFactContext, nominees: () => readonly
                 (node.getText().includes("Event") || node.getText().includes("Emitter")),
             ),
           },
-          { kind: "value-profiles", nodes: values, valueFacets: TYPE_OBSERVATION_VALUE_FACETS },
+          { kind: "value-profiles", nodes: values, valueFacets: BUS_VALUE_FACETS },
           { kind: "symbol-values" as const, properties: ["type"], nodes: (questions === "payload" ? [] : nodes).filter(Node.isIdentifier) },
         ],
       };
