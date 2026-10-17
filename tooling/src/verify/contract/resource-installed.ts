@@ -5,7 +5,7 @@ export const INSTALLED_PACKAGE_MODES = ["ast", "metadata", "text"] as const;
  *  the alias. */
 export type InstalledPackageMode = (typeof INSTALLED_PACKAGE_MODES)[number];
 
-export const INSTALLED_PACKAGE_IDS = ["base-ui", "react-compiler", "streamdown"] as const;
+export const INSTALLED_PACKAGE_IDS = ["base-ui", "streamdown"] as const;
 export type InstalledPackageId = (typeof INSTALLED_PACKAGE_IDS)[number];
 
 export interface InstalledPackageDefinition {
@@ -25,8 +25,6 @@ export interface InstalledPackageDefinition {
 export const INSTALLED_PACKAGE_DEFINITIONS: Readonly<Record<InstalledPackageId, InstalledPackageDefinition>> = {
   /** The Base UI family adjudicates the installed `.d.ts` surface against a committed manifest. */
   "base-ui": { specifier: "@base-ui/react", from: "packages/ui/package.json" },
-  /** `no-manual-memo` needs only whether the bundled denylist still names `@tanstack/react-virtual`. */
-  "react-compiler": { specifier: "babel-plugin-react-compiler", from: "packages/client/package.json" },
   /** The installed Markdown renderer whose bundled chunks are the ONLY writer of its `data-streamdown`
    *  selectors — the vendor half of `css-selector-has-a-writer`, reached through `vendorCssSurface`. */
   streamdown: { specifier: "streamdown", from: "packages/ui/package.json", directoryAnchor: "styles.css" },

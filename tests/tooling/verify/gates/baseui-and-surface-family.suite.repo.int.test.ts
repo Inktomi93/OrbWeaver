@@ -9,14 +9,13 @@ import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/p
 import { gate as portalContainerSeam } from "../../../../tooling/src/verify/gates/baseui-portal-container-seam.ts";
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
-import { gate as surfaceInAContainerHealth } from "../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
 
-const POLICIES = [portalContainerSeam, surfaceA11yFocus, surfaceInAContainer, surfaceInAContainerHealth] as const;
+const POLICIES = [portalContainerSeam, surfaceA11yFocus, surfaceInAContainer] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
@@ -44,7 +43,7 @@ test("every converted policy in both families keeps its two-sided proofs", () =>
 
 // ── §4.2 IDENTITY ARMS ──────────────────────────────────────────────────────────────────────────────
 //
-// One per ORDINARY policy (`surface-in-a-container-health` is `hard`, so it has no door), and each is the TRIPLE — `effectiveFindings []`,
+// One per ORDINARY policy, and each is the TRIPLE — `effectiveFindings []`,
 // `waivedFindings 1`, `authorityAlarms []`. The third assertion is the one a `mustPass` row cannot make:
 // an over-broad or duplicate marker ALARMS without changing the finding count, so a two-assertion arm would
 // pass a marker that suppresses the wrong thing. Every fixture produces exactly ONE finding, because one

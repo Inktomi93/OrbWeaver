@@ -2,11 +2,9 @@
 import { symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { gate as legacyMarkers } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
-import { gate as compilerHealth } from "../../../../tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -16,7 +14,6 @@ import { policy } from "./_policy-plan-fixture.ts";
 
 const APP = "packages/client/src/view.ts";
 const TOOL = "tooling/src/snap/lib/unrelated.ts";
-const HEALTH = "tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 
 test("application helper reach does not synthesize an instrument lifecycle, while global ownership still rejects an unslotted tool", () => {
   const root = "/application-artifact-subject";
@@ -45,60 +42,6 @@ test("application helper reach does not synthesize an instrument lifecycle, whil
     expect(policyPassExitCode(application)).toBe(0);
     expect(application.policies[0]?.owner.status).toBe("not-applicable");
   }
-});
-
-test.for([
-  {
-    name: "retired application grant",
-    proof: compilerHealth.mustFlag[0],
-    exit: 1,
-    owner: "success",
-    findings: [{ policyId: compilerHealth.id, file: HEALTH, token: "react-compiler" }],
-    error: /^$/u,
-    sources: [HEALTH],
-    unresolved: 0,
-  },
-  {
-    name: "live application grant",
-    proof: compilerHealth.mustPass[0],
-    exit: 0,
-    owner: "success",
-    findings: [],
-    error: /^$/u,
-    sources: [HEALTH],
-    unresolved: 0,
-  },
-  {
-    name: "unreadable application grant input",
-    proof: compilerHealth.mustRefuse[0],
-    exit: 2,
-    owner: "incomplete",
-    findings: [],
-    error: /react-compiler/u,
-    sources: [HEALTH],
-    unresolved: 1,
-  },
-])("application compiler grant health: $name", async ({ proof, exit, owner, findings, error, sources, unresolved }, { plantedTree }) => {
-  const scratch = await plantedTree(proof.files);
-  execFixtureGit(scratch, ["init", "--quiet", "--template="]);
-  const project = new Project({ skipAddingFilesFromTsConfig: true });
-  project.addSourceFileAtPath(join(scratch, HEALTH));
-  project.createSourceFile(join(scratch, APP), "export const app = true;\n");
-  const result = runPolicyPass({
-    knownPolicies: [compilerHealth],
-    policies: [compilerHealth],
-    root: scratch,
-    project,
-    applicationPaths: [APP],
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(policyPassExitCode(result)).toBe(exit);
-  expect(result.policies[0]?.owner.status).toBe(owner);
-  expect(result.authority.effectiveFindings.map(({ policyId, file, token }) => ({ policyId, file, token }))).toEqual(findings);
-  expect(result.toolErrors.map(({ message }) => message).join("\n")).toMatch(error);
-  expect(result.policies[0]?.population.effectiveSourcePaths).toEqual(sources);
-  expect(result.policies[0]?.receipts.filter(({ kind }) => kind === "resource")).toEqual([expect.objectContaining({ unresolved })]);
 });
 
 test("application suppression residue rejects app markers without judging an unrelated tool marker, while the full fact remains complete", () => {

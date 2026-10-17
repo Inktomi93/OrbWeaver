@@ -152,7 +152,7 @@ function resourcePolicyWithMalformedPass(row: Record<string, unknown>, overrides
 test("an installed-package request declares a closed MODE, and `file` is required exactly for text", () => {
   expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "ast" }] }))).not.toThrow();
   expect(() =>
-    assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "react-compiler", mode: "text", file: "dist/index.js" }] })),
+    assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "text", file: "index.js" }] })),
   ).not.toThrow();
   // The four malformed shapes below are ALREADY refused by tsc — the closed `InstalledPackageRequest` union
   // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove

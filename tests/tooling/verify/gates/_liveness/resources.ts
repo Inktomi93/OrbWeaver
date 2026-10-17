@@ -28,7 +28,6 @@ import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/ver
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as serverLayout } from "../../../../../tooling/src/verify/gates/server-layout.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
-import { gate as surfaceInAContainerHealth } from "../../../../../tooling/src/verify/gates/surface-in-a-container-health.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 
@@ -171,12 +170,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       },
     ],
     messageIncludes: "lint/suspicious/noLivenessProbe",
-  },
-  {
-    policy: surfaceInAContainerHealth,
-    // The shell directory the occurrence policy exempts leaves the reader's view.
-    overlays: [{ kind: "resource", path: "packages/client/src/features/app-shell", delete: true }],
-    messageIncludes: "stale shell exemption",
   },
   {
     policy: testLayout,

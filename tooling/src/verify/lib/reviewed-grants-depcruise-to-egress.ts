@@ -228,7 +228,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     subject: MANUAL_MEMO_CUSTOM_HOMES.mediaGrid,
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains real work.",
-    endsWhen: "the installed compiler delists @tanstack/react-virtual; no-manual-memo-compiler-health reports that transition.",
+    endsWhen: "the installed compiler delists @tanstack/react-virtual; tests/client/react-compiler-contract.test.ts reports that transition.",
   },
   {
     id: "no-manual-memo:message-list",
@@ -236,7 +236,7 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     subject: MANUAL_MEMO_CUSTOM_HOMES.messageList,
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains its only memoization.",
-    endsWhen: "the installed compiler delists @tanstack/react-virtual; no-manual-memo-compiler-health reports that transition.",
+    endsWhen: "the installed compiler delists @tanstack/react-virtual; tests/client/react-compiler-contract.test.ts reports that transition.",
   },
   {
     id: "no-raw-clock:entry-lifecycle",
