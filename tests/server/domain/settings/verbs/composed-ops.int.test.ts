@@ -1,11 +1,11 @@
 // Real settings verbs keep the user's latch plane separate and retain owner governance on certificate writes.
 import "@orb/testkit/node/composed-real.ts";
 import { DomainForbiddenError } from "@orb/kit/errors";
+import { createSettingsComposedOps } from "@orb/server/domain/settings";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
-import { createSettingsComposedOps } from "#server/domain/settings/index.ts";
 
 test("onboarding retains the original Principal, another user stays unseeded, and certificate governance remains owner-only", async ({
   harness,

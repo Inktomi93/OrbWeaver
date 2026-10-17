@@ -25,9 +25,9 @@
 
 import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { revealActionName } from "@orb/ui/lib";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { revealActionName } from "#ui/lib/action-names.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_ROUND_TRIP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {

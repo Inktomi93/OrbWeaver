@@ -26,7 +26,6 @@ import { gate as toolingBrowserDoor } from "../../../../../tooling/src/verify/ga
 import { gate as toolingChildProcessDoor } from "../../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
 import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
-import { gate as toolingRootConfigImport } from "../../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { gate as toolingSlotTemplate } from "../../../../../tooling/src/verify/gates/tooling-slot-template.ts";
 
 const CLIENT = "packages/client/src/features/chat/components";
@@ -175,11 +174,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingProjectHome,
     overlays: [add("tooling/src/ast/ops/liveness-load.ts", 'import { Project } from "ts-morph";\nexport const p = new Project({});\n')],
     messageIncludes: "a second ts-morph loader",
-  },
-  {
-    policy: toolingRootConfigImport,
-    overlays: [add("tooling/src/snap/ops/liveness-root.ts", 'import { castId } from "../../../../packages/kit/src/ids/index.ts";\nexport const x = castId;\n')],
-    messageIncludes: "operation: root-config-import:packages/kit/src/ids/index.ts",
   },
   {
     policy: toolingSlotTemplate,

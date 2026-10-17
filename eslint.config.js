@@ -112,6 +112,7 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
+import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -135,6 +136,16 @@ import {
   SOURCE_TYPE_SUPPRESSION_RULE,
 } from "./tooling/src/verify/lib/source-type-suppression-native.ts";
 import { readTailwindClassTokens } from "./tooling/src/verify/lib/tailwind-class-token.ts";
+import {
+  CONFIG_ANCHOR_FORMATTER,
+  CONFIG_ANCHOR_OWNER,
+  TEST_IMPORT_EXCLUSIONS,
+  TEST_IMPORT_GLOBS,
+  TEST_PACKAGE_SUBPATH_RULE,
+  TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS,
+  TOOLING_IMPORT_GLOBS,
+  TOOLING_ROOT_CONFIG_IMPORT_RULE,
+} from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -2046,6 +2057,74 @@ const uiSizeRule = {
   },
 };
 
+// Use the maintained module-position grammar with the native parser's existing node maps, never a Program.
+function nativeImportLiteral(context, node) {
+  const services = context.sourceCode.parserServices;
+  const compilerNode = services.esTreeNodeToTSNodeMap?.get(node);
+  if (compilerNode === undefined) {
+    throw new Error("Native import boundaries require the TypeScript parser's node maps");
+  }
+  const specifier = nativeModulePositionSpecifier(compilerNode);
+  if (specifier === undefined) {
+    return null;
+  }
+  const literal = services.tsNodeToESTreeNodeMap.get(specifier);
+  return literal?.type === "Literal" && typeof literal.value === "string" ? literal : null;
+}
+
+const testPackageSubpathRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const importer = relative(context.cwd, context.filename).replaceAll("\\", "/");
+    const check = (node) => {
+      const literal = nativeImportLiteral(context, node);
+      if (literal !== null && relativeClimb(importer, literal.value) !== undefined) {
+        context.report({ node: literal, message: "Tests use package public entries and @orb/testkit world doors, not relative source reaches." });
+      }
+    };
+    return {
+      ImportDeclaration: check,
+      ExportNamedDeclaration: check,
+      ExportAllDeclaration: check,
+      CallExpression: check,
+      ImportExpression: check,
+      TSImportType: check,
+    };
+  },
+};
+
+const toolingRootConfigImportRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const importer = relative(context.cwd, context.filename).replaceAll("\\", "/");
+    return {
+      ImportDeclaration: (node) => {
+        const target = resolveRelativeImport(importer, node.source.value);
+        if (target === null || target.startsWith(TOOLING_PREFIX)) {
+          return;
+        }
+        // Both operations execute the one maintained Knip config; neither may borrow any other root target.
+        if (
+          target === "knip.ts" &&
+          (importer === "tooling/src/verify/ops/application-knip.ts" || importer === "tooling/src/verify/ops/knip-negative-liveness.ts")
+        ) {
+          return;
+        }
+        context.report({
+          node: node.source,
+          message: "Tooling relative imports stay inside tooling/src; root-config access requires its exact maintained subject and target.",
+        });
+      },
+    };
+  },
+};
+
+const TEST_TOOLING_IMPORT_NATIVE_SETTINGS = {
+  "orb/test-tooling-import-inputs": createHash("sha256")
+    .update(JSON.stringify(TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(join(ROOT, path), "utf8")])))
+    .digest("hex"),
+};
+
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -2059,6 +2138,8 @@ const restrictionPlugin = {
     "testid-typed-only": typedTestIdRule,
     "scroll-container-positioned": scrollContainerRule,
     "ui-size-via-variant": uiSizeRule,
+    [TEST_PACKAGE_SUBPATH_RULE.slice("orb/".length)]: testPackageSubpathRule,
+    [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
   },
 };
 const RESTRICTION_BLOCKS = RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
@@ -2836,6 +2917,38 @@ export const hardConfig = [
     },
     rules: {
       [SOURCE_TYPE_SUPPRESSION_RULE]: ["error", { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true, "ts-check": false }],
+    },
+  },
+  {
+    files: TEST_IMPORT_GLOBS,
+    ignores: TEST_IMPORT_EXCLUSIONS,
+    plugins: { orb: restrictionPlugin },
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
+    rules: { [TEST_PACKAGE_SUBPATH_RULE]: "error" },
+  },
+  {
+    files: TOOLING_IMPORT_GLOBS,
+    plugins: { orb: restrictionPlugin },
+    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
+    rules: { [TOOLING_ROOT_CONFIG_IMPORT_RULE]: "error" },
+  },
+  {
+    files: [CONFIG_ANCHOR_OWNER],
+    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
+    rules: {
+      "no-restricted-exports": ["error", { restrictedNamedExports: [CONFIG_ANCHOR_FORMATTER] }],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: `ExportNamedDeclaration > ExportSpecifier[local.name='${CONFIG_ANCHOR_FORMATTER}']:not([exported.name='${CONFIG_ANCHOR_FORMATTER}'])`,
+          message: "The registry formatter stays private; registry-owned bodies receive their anchor id.",
+        },
+        {
+          selector: `ExportDefaultDeclaration > :matches(Identifier[name='${CONFIG_ANCHOR_FORMATTER}'], FunctionDeclaration[id.name='${CONFIG_ANCHOR_FORMATTER}'])`,
+          message: "The registry formatter stays private; registry-owned bodies receive their anchor id.",
+        },
+      ],
     },
   },
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },

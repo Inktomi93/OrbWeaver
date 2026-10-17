@@ -7,15 +7,10 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { Project } from "ts-morph";
 import { z } from "zod";
 import type { ApplicationSubjects } from "../../../../tooling/src/verify/contract/application.ts";
-import { gate } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { readApplicationSubjects } from "../../../../tooling/src/verify/lib/application-programs.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
-import { REVIEWED_GRANTS_TOOLING_TO_PERMISSION } from "../../../../tooling/src/verify/lib/reviewed-grants-tooling-to-permission.ts";
 import { applicationKnipPluginNames, materializeApplicationKnipView } from "../../../../tooling/src/verify/ops/application-knip.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -115,27 +110,6 @@ test("missing native Knip plugin metadata refuses rather than accepting a public
     "node_modules/knip/dist/index.js": "export {};",
   });
   expect(() => applicationKnipPluginNames(root)).toThrow("PluginNames.js");
-});
-
-test("the canonical Knip data import consumes exactly its reviewed permission and becomes stale when removed", ({ repoRoot }) => {
-  const path = "tooling/src/verify/ops/application-knip.ts";
-  const grant = REVIEWED_GRANTS_TOOLING_TO_PERMISSION.find((row) => row.policyId === gate.id && row.subject === path);
-  if (grant === undefined) {
-    throw new Error("canonical Knip data import permission is absent");
-  }
-  const root = "/knip-import-permission";
-  const project = new Project({ useInMemoryFileSystem: true });
-  const source = project.createSourceFile(`${root}/${path}`, readFileSync(join(repoRoot, path), "utf8"));
-  const run = (reviewedGrants: readonly (typeof grant)[]): ReturnType<typeof runPolicyPass> =>
-    runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants, failOnWarnings: false });
-  expect(policyPassExitCode(run([]))).toBe(1);
-  const licensed = run([grant]);
-  expect(policyPassExitCode(licensed)).toBe(0);
-  expect(licensed.authority.reviewedGrantConsumption).toEqual([expect.objectContaining({ id: grant.id, count: 1 })]);
-  source.getImportDeclarationOrThrow("../../../../knip.ts").remove();
-  const stale = run([grant]);
-  expect(policyPassExitCode(stale)).toBe(1);
-  expect(stale.authority.authorityAlarms).toEqual([expect.objectContaining({ policyId: gate.id, kind: "stale-reviewed-grant" })]);
 });
 
 test("native view preserves exact manifests, source bytes and workspace resolution; cleanup removes only its view", async ({ plantedTree, repoRoot }) => {

@@ -14,7 +14,7 @@
 // It reads the RESOLVED config (the module knip itself evaluates), not the file's text, so a pattern built
 // by an expression is judged as knip sees it. It reads the base `config` export: the production-mode default
 // export only adds positive script entries, so both modes carry the same negations. The import is a repo-root config read licensed by the
-// `tooling-root-config-import` reviewed grant. Tracked membership comes from the git index, the same
+// native exact-subject/target import permission. Tracked membership comes from the git index, the same
 // source the policy resources use (`ops/resource-tracked.ts`); an unreadable index is exit 2.
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";

@@ -20,6 +20,7 @@
     "./domain/preset": "./src/domain/preset/index.ts",
     "./domain/sessions": "./src/domain/sessions/index.ts",
     "./domain/share": "./src/domain/share/index.ts",
+    "./domain/tag": "./src/domain/tag/index.ts",
     "./entry/boot": "./src/entry/boot/index.ts",
     "./entry/auth": "./src/entry/auth/index.ts",
     "./entry/compose": "./src/entry/compose/index.ts",
