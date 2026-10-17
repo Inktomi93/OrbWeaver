@@ -9,12 +9,12 @@ import { isOwner } from "@orb/server/domain/admin";
 import { createImportAvatarStore } from "@orb/server/domain/assets";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import { buildImportContext, createInstallerCharacterImport } from "@orb/server/domain/import";
+import { createImportedCardTag } from "@orb/server/domain/tag";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-import { createImportedCardTag } from "#server/domain/tag/index.ts";
 
 test("owner binders retain Principal identity and ignore foreign owner arguments through real character/tag writes", async ({
   db,

@@ -28,23 +28,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "niced-exec.ts stops reading its own argv or is retired — the row is then consumed zero times and reds.",
   },
   {
-    id: "tooling-root-config-import:knip-negative-liveness",
-    policyId: "tooling-root-config-import",
-    subject: "tooling/src/verify/ops/knip-negative-liveness.ts",
-    operation: "root-config-import:knip.ts",
-    why: "the stage judges knip.ts's LITERAL negative patterns against the git index, and it must read the RESOLVED config knip itself evaluates; a text parse of knip.ts would be a second reader of the same data and would drift from what knip sees.",
-    endsWhen: "the negation-liveness check moves into knip or off this module — the row is then consumed zero times and reds.",
-  },
-  {
-    id: "tooling-root-config-import:application-knip",
-    policyId: "tooling-root-config-import",
-    subject: "tooling/src/verify/ops/application-knip.ts",
-    operation: "root-config-import:knip.ts",
-    why: "evaluates the canonical mode-dependent Knip configuration to derive its native application discovery view without respelling rules or production entry semantics.",
-    endsWhen:
-      "Knip exposes an equivalent public resolved-configuration snapshot or canonical configuration ownership moves; zero consumption makes this exact permission stale.",
-  },
-  {
     id: "tooling-artifact-path-home:artifacts",
     policyId: "tooling-artifact-path-home",
     subject: "tooling/src/floor/artifacts/artifacts.ts",

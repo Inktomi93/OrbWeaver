@@ -34,7 +34,7 @@ interface TimelineEntry {
 async function openedRoomId(page: Page): Promise<ChatId> {
   // Read the already-served navigation store, not a room identity inferred from network traffic.
   const chatId = await page.evaluate(async (modulePath) => {
-    const state = (await import(modulePath)) as Pick<typeof import("#client/state/active-chat-store.ts"), "activeChatId">;
+    const state = (await import(modulePath)) as Pick<typeof import("@orb/client/state"), "activeChatId">;
     return state.activeChatId();
   }, "/src/state/active-chat-store.ts");
   if (chatId === null) {

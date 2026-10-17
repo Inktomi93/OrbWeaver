@@ -4,7 +4,6 @@
 import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as ctConfigMirrorParity } from "../../../../../tooling/src/verify/gates/ct-config-mirror-parity.ts";
 import { gate as ctPollHealth } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint-health.ts";
-import { gate as testsPackageSubpath } from "../../../../../tooling/src/verify/gates/tests-package-subpath.ts";
 import { gate as testsRawPackageReach } from "../../../../../tooling/src/verify/gates/tests-raw-package-reach.ts";
 
 export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
@@ -27,18 +26,6 @@ export const TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
       },
     ],
     messageIncludes: "config sections differences:",
-  },
-  {
-    policy: testsPackageSubpath,
-    // A test climbing back into a package's source, where every real test enters through a declared door.
-    overlays: [
-      {
-        kind: "add",
-        path: "tests/server/liveness-relative.test.ts",
-        source: 'export { sha256Hex } from "../../packages/server/src/primitives/content-hash/index.ts";\n',
-      },
-    ],
-    messageIncludes: "Use the public entry of @orb/server.",
   },
   {
     policy: testsRawPackageReach,

@@ -1,4 +1,4 @@
-// Retained root-config and operator-argv authority controls use the production policy runtime.
+// Retained operator-argv authority controls use the production policy runtime.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -7,15 +7,13 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as argvFrontDoor } from "../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { gate as argvHealth } from "../../../../tooling/src/verify/gates/tooling-argv-front-door-health.ts";
-import { gate as rootConfigImport } from "../../../../tooling/src/verify/gates/tooling-root-config-import.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/tooling-front-door-family";
-const IMPORT_FAMILY: readonly GatePolicy[] = [rootConfigImport];
 const ARGV_FAMILY: readonly GatePolicy[] = [argvFrontDoor, argvHealth];
-const ALL: readonly GatePolicy[] = [...IMPORT_FAMILY, ...ARGV_FAMILY];
+const ALL: readonly GatePolicy[] = ARGV_FAMILY;
 const ANCHOR = "tooling/src/floor/cli/exit-contract.ts";
 const ANCHOR_SOURCE = "export const EXIT = { clean: 0 } as const;\n";
 const ENGINES_GRANT_ID = "tooling-argv-front-door:verify-config-snapshot-entry";
@@ -102,11 +100,10 @@ test("every argv grant row in the central table names a subject that exists on t
 test("a narrowed request judges the selected-files policies on the requested rows only, and DEFERS the whole-tree health policy", () => {
   const files = {
     [ANCHOR]: ANCHOR_SOURCE,
-    "tooling/src/aa/ops/root-config.ts": 'import knipConfig from "../../../../knip.ts";\nexport const globs = knipConfig;\n',
     "tooling/src/snap/cli.ts": 'import process from "node:process";\nexport const a = process.argv.slice(2);\n',
     "tooling/src/floor/cli/log.ts": "export const warn = 1;\n",
   };
-  for (const policy of [rootConfigImport, argvFrontDoor]) {
+  for (const policy of [argvFrontDoor]) {
     const narrowed = passOf([policy], files, { requestedPaths: ["tooling/src/floor/cli/log.ts"] });
     expect(narrowed.toolErrors, policy.id).toEqual([]);
     expect(narrowed.policies.find(({ id }) => id === policy.id)?.owner, policy.id).toMatchObject({ status: "success", population: "complete" });

@@ -36,6 +36,11 @@ import {
   SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS,
   SOURCE_TYPE_SUPPRESSION_RULE,
 } from "../lib/source-type-suppression-native.ts";
+import {
+  affectsTestToolingImportsNativeLint,
+  TEST_TOOLING_IMPORT_NATIVE_FAMILIES,
+  TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS,
+} from "../lib/test-tooling-imports-native.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -205,7 +210,8 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
         CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
         CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path) ||
         CLIENT_LEXICAL_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path)
+        SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+        TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.some((input) => input === path)
       ) ||
       (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
   );
@@ -256,6 +262,7 @@ function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Pr
     ...(map ? [clientMapMetadata(root)] : []),
     ...(lexical ? [clientLexicalMetadata(root)] : []),
     ...sourceTypeSuppressionMetadata(root, paths),
+    ...(paths.some(affectsTestToolingImportsNativeLint) && !paths.includes(".") ? TEST_TOOLING_IMPORT_NATIVE_FAMILIES : []),
   ];
   return recheckNativeFamilies(root, families);
 }

@@ -6,13 +6,9 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 const POLICY = "tests-raw-package-reach";
 
 const ROWS: Readonly<Record<string, readonly string[]>> = {
-  "tests/e2e/event-sequence.spec.ts": ["#client/state/active-chat-store.ts"],
-  "tests/e2e/live-parity-plus-capstone.spec.ts": ["#ui/lib/action-names.ts"],
-  "tests/e2e/support/chat-room.ts": ["#client/lib/row-qualifiers.ts"],
   "tests/tooling/motion-audit/ops/matrix-contract.test.ts": ["#client/lib/appearance-carrier-manifest.ts"],
   "tests/tooling/snap/ops/matrix-contract.test.ts": ["#client/lib/appearance-carrier-manifest.ts"],
   "tests/tooling/snap/ops/session-matrix.suite.int.test.ts": ["#client/lib/appearance-carrier-manifest.ts"],
-  "tests/tooling/ui-audit/ops/walker/target-identity.test.ts": ["#ui/lib/variant-attrs.ts"],
 };
 
 /** One grant per (test file, raw specifier). The operation is the gate's `raw-reach:<specifier>` token. */

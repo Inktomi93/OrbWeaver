@@ -6,7 +6,6 @@ import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-assembly-home.ts";
 import { gate as clones } from "../../../../tooling/src/verify/gates/test-production-clone.ts";
 import { gate as reach } from "../../../../tooling/src/verify/gates/test-reach.ts";
-import { gate as publicDoors } from "../../../../tooling/src/verify/gates/tests-package-subpath.ts";
 import { gate as rawDoors } from "../../../../tooling/src/verify/gates/tests-raw-package-reach.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
@@ -24,7 +23,7 @@ test("composed reach declared controls credit exercised subjects rather than inc
 });
 
 test("existing public testkit and package door controls retain both admitted and forbidden routes", () => {
-  expect(verifyPolicyProofs([publicDoors, rawDoors])).toEqual([]);
+  expect(verifyPolicyProofs([rawDoors])).toEqual([]);
 });
 
 function actualServiceCase(repoRoot: string, owner: string, factory: string): GatePolicy {

@@ -2,7 +2,7 @@
 // declared entries, so a test follows a refactor only by edit; each one needs a reviewed grant (Core-0 §5).
 // Arms: import · re-export · import() in a value or type position · vi.mock-family calls · DECLARED LIMITS: a raw
 // spelling read as a plain string is no module edge; the test kit cannot resolve the root map, so tsc refuses it there.
-// FAMILY: tests-package-subpath, tooling/src/verify/lib/test-import-door.ts#testImportDoor.
+// Singleton: tooling/src/verify/lib/test-import-door.ts#testImportDoor retains raw interpretation; native syntax owns relative reaches.
 // POPULATION: every test-tree file; one finding per (test file, raw specifier) is the grant identity.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -19,7 +19,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "tests-raw-package-reach",
-  family: "tests-package-subpath",
+  family: "tests-raw-package-reach",
   authority: "reviewed-grant",
   severity: "error",
   population: "@tests",

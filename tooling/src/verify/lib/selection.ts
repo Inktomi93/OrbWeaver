@@ -12,6 +12,7 @@ import { ctView } from "./ct-view.ts";
 import { planTypecheckPrograms } from "./program-routing.ts";
 import { classifyExplicitPaths, existsRel, gitChangedPathClassification, gitLsFiles, gitStagedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
 import { affectsSourceTypeSuppressionNativeLint, isSourceTypeSuppressionSource } from "./source-type-suppression-native.ts";
+import { affectsTestToolingImportsNativeLint, isTestImportNativeSource } from "./test-tooling-imports-native.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
@@ -60,8 +61,9 @@ function deriveViews(
     // Native metadata includes deleted inputs so missing authority cannot disappear from its dependent lint population.
     eslintPaths: [
       ...new Set([
-        ...filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p) || isSourceTypeSuppressionSource(p)),
+        ...filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p) || isSourceTypeSuppressionSource(p) || isTestImportNativeSource(p)),
         ...paths.filter(affectsSourceTypeSuppressionNativeLint),
+        ...paths.filter(affectsTestToolingImportsNativeLint),
       ]),
     ],
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
