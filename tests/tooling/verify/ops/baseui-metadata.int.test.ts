@@ -10,6 +10,7 @@ import type { Selection } from "@orb/tooling/verify";
 import { REGISTRY, runScopedEslint } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
 import { vi } from "vitest";
+import { z } from "zod";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "../../../../tooling/src/verify/contract/baseui.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
 import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "../../../../tooling/src/verify/lib/client-lexical-native.ts";
@@ -139,10 +140,11 @@ test("shared metadata parses each admitted file once per native profile", { tags
   const calls = vi.spyOn(ESLint.prototype, "lintFiles");
   try {
     expect(await runScopedEslint(root, ["eslint.config.js"])).toBe(0);
+    const parseRow = z.object({ profile: z.enum(["hard", "ordinary"]), file: z.string() });
     const parses = readFileSync(join(root, "parses.jsonl"), "utf8")
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line));
+      .map((line) => parseRow.parse(JSON.parse(line)));
     expect({
       nativeCalls: calls.mock.calls.length,
       hardParses: parses.filter(({ profile }) => profile === "hard").length,
