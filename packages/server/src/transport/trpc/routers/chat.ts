@@ -15,18 +15,14 @@ import {
   assemblyPreviewSchema,
   CHAT_MESSAGE_LIST_MAX_LIMIT,
   chatCensusInputSchema,
-  chatDetailSchema,
   chatIdInputSchema,
   chatInjectionInputSchema,
   chatInjectionViewSchema,
-  chatLineageViewSchema,
   chatListInputSchema,
-  chatListPageSchema,
   chatReactionsViewSchema,
   chatVariablesSchema,
   contextFitAnswerSchema,
   effectiveRegexViewSchema,
-  forkResultSchema,
   groupConfigSchema,
   guidedSteerSchema,
   hostTierRegexAllowSchema,
@@ -38,7 +34,6 @@ import {
   messageViewSchema,
   messageWindowSchema,
   nextTurnConnectionViewSchema,
-  participantViewSchema,
   REACTION_SPEAKER_NAME_MAX,
   reactionEmojiSchema,
   reapResultSchema,
@@ -47,7 +42,6 @@ import {
   roomOverridesSchema,
   seatKnobsSchema,
   shapeTraceSchema,
-  startChatResultSchema,
   startChatSchema,
   TOOL_CALL_EDIT_ACTIONS,
   turnOutcomeSchema,
@@ -68,6 +62,7 @@ import { TRPCError, tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
+import { chatDetailSchema, chatLineageViewSchema, chatListPageSchema, forkResultSchema, participantViewSchema, startChatResultSchema } from "../role-output.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 

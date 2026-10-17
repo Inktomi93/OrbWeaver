@@ -1,7 +1,8 @@
 // Roster display resolves one page's owned decorations and distinct public identities, not one card per seat.
-import type { ParticipantView } from "@orb/contracts/chat";
+
 import type { AssetId, CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
+import type { ParticipantData } from "../contract/views.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipantsBatch } from "../persistence/participants-read.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "../substrate/participant-name.ts";
@@ -21,10 +22,10 @@ function resolveSeatDisplayName(
 }
 
 export function createLoadParticipantViews(ctx: ChatContext): {
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
-  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>>;
+  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
+  readonly loadParticipantViewsBatch: (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>>;
 } {
-  const loadParticipantViewsBatch = async (chatIds: readonly ChatId[]): Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>> => {
+  const loadParticipantViewsBatch = async (chatIds: readonly ChatId[]): Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>> => {
     const rows = await loadParticipantsBatch(ctx.db, chatIds);
     const rowsByChat = Map.groupBy(rows, (row) => row.chatId);
     const hosts = new Map([...rowsByChat].map(([chatId, seats]) => [chatId, hostUserIdOf(seats)]));
@@ -46,7 +47,7 @@ export function createLoadParticipantViews(ctx: ChatContext): {
     const publicsByUser = new Map<UserId, Map<PersonaId | null, ReturnType<ChatContext["resolveUserPublics"]>>>();
     const hashes = new Map<AssetId | null, ReturnType<ChatContext["resolveAssetHash"]>>();
     const views = await Promise.all(
-      rows.map(async (r): Promise<ParticipantView> => {
+      rows.map(async (r): Promise<ParticipantData> => {
         const hostUserId = hosts.get(r.chatId);
         const deco =
           hostUserId === null || hostUserId === undefined || r.characterId === null ? floor : (decorations.get(hostUserId)?.get(r.characterId) ?? floor);
@@ -86,7 +87,7 @@ export function createLoadParticipantViews(ctx: ChatContext): {
     );
     return Map.groupBy(views, (view) => view.chatId);
   };
-  const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => (await loadParticipantViewsBatch([chatId])).get(chatId) ?? [];
+  const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantData[]> => (await loadParticipantViewsBatch([chatId])).get(chatId) ?? [];
 
   return { loadParticipantViews, loadParticipantViewsBatch };
 }

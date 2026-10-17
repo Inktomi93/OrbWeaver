@@ -1,4 +1,5 @@
 import type { SessionToken } from "@orb/kit/ids";
+import { captureUserRole } from "#primitives/role-data";
 import type { ValidatedSession } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectForValidation, slideExpiry } from "../persistence/sessions.ts";
@@ -26,7 +27,7 @@ export function createValidate(ctx: SessionsContext): Pick<SessionsService, "val
     return {
       sessionId: session.sessionId,
       userId: session.userId,
-      role: session.role,
+      role: captureUserRole(session.role),
       handle: session.handle,
       externalId: session.externalId,
       enabled: session.enabled,

@@ -18,18 +18,15 @@
 // SCOPE: `me` reflects ONLY the caller (`ctx.auth`) — derived from the request principal, NEVER from client
 // input. A caller can only ever read its OWN identity; there is no input to widen it.
 
-import type { ViewerView } from "@orb/contracts/identity";
-import { viewerViewSchema } from "@orb/contracts/identity";
+import { viewerViewSchema } from "../role-output.ts";
 import { authedProcedure, t } from "../trpc.ts";
 
 export const sessionsRouter = t.router({
   // The canonical viewer read — a pure projection of the resolved `Principal` (see file header). No verb,
   // no db round-trip: `role`→`globalRole` and `handle` are already request-fresh on `ctx.auth`.
-  me: authedProcedure.output(viewerViewSchema).query(
-    ({ ctx }): ViewerView => ({
-      userId: ctx.auth.userId,
-      handle: ctx.auth.handle,
-      globalRole: ctx.auth.role,
-    }),
-  ),
+  me: authedProcedure.output(viewerViewSchema).query(({ ctx }) => ({
+    userId: ctx.auth.userId,
+    handle: ctx.auth.handle,
+    globalRole: ctx.auth.role,
+  })),
 });

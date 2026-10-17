@@ -11,7 +11,6 @@ import type {
   LiveOnlyChatBusEvent,
   MemoryDigestInput,
   NextTurnConnectionView,
-  ParticipantView,
   PromptTransform,
   ResolveCharacterTagsOp,
   ResolveSeatDecoOp,
@@ -22,7 +21,7 @@ import type {
   TurnRetrievalEvents,
 } from "@orb/contracts/chat";
 import type { PruneMemoryBlocksParams } from "@orb/contracts/embeddings";
-import type { Can, ParticipantRole, Principal } from "@orb/contracts/identity";
+import type { Can, ChatMembership, Principal } from "@orb/contracts/identity";
 import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { SendAvailability } from "@orb/contracts/inference";
 import type { NotificationEvent, PresenceView } from "@orb/contracts/notifications";
@@ -66,6 +65,7 @@ import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { RpgTurnOps, RpgTurnTranscriptMessage } from "./rpg-turn.ts";
 import type { SignupInviteCapability, SignupInviteDeps } from "./signup.ts";
+import type { ParticipantData } from "./views.ts";
 
 export type { FilterOwnedAssetIdsOp, ResolveAssetHashOp } from "@orb/contracts/assets";
 export type { ResolveCharacterTagsOp, ResolveSeatDecoOp, ResolveViewerVisibility, SeatDeco, StoreSegmentParams, ViewerVisibility } from "@orb/contracts/chat";
@@ -108,7 +108,7 @@ export type LoadUserHandlesOp = (userIds: readonly UserId[]) => Promise<readonly
 export type ClaimChatOp = (chatId: ChatId) => Promise<void>;
 
 /** The present roster's participant views for a chat — the read-model resolver `service.ts` builds once. */
-export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+export type LoadParticipantViewsOp = (chatId: ChatId) => Promise<readonly ParticipantData[]>;
 
 /** The invite preview for a chat the caller already cleared for preview (`verbs/invite-preview.ts`). */
 export type AssembleInvitePreviewOp = (chatId: ChatId) => Promise<InvitePreview>;
@@ -353,10 +353,10 @@ export interface PostNarratorMessageDeps {
  *  present member / no such chat — one leak-free answer). rpg feeds it to `can()` for the game-auth gate; a
  *  `null` is the not-a-participant 404. A STANDALONE op with no principal — the raw membership lookup rpg gates
  *  around (membership has ONE loader; this is it exposed for injection, never a second read path). */
-export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<{ readonly role: ParticipantRole } | null>;
+export type GetMembership = (chatId: ChatId, userId: UserId) => Promise<ChatMembership | null>;
 
 /** The opaque rpg-pointer WRITE op (docs/plans/rpg/design.md): merge the healed `metadata.rpg` `{gameId}` sub-blob so
- *  the client's takeover gate is a sync read off `ChatDetail`. Called by rpg's `createGame`, the `updateConfig`
+ *  the client's takeover gate is a sync read off `ChatDetailData`. Called by rpg's `createGame`, the `updateConfig`
  *  engaged toggle, the game fork and (with `null`) `detachDanglingPointer`; chat never
  *  dereferences it (the truth is `rpg_games` — this is a SYNC SIGNAL). STANDALONE + principal-free (createGame
  *  gated host authority; the `GetMembership`/`PostNarratorMessage` injected-op precedent). The pointer schema is

@@ -1,6 +1,6 @@
 // Cookie bytes stay Node-owned; HTTP proves admission, while internal account reads retain their resolved caller.
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import type { Principal } from "@orb/contracts/identity";
+import type { Principal, ViewerView } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { z } from "zod";
@@ -22,7 +22,7 @@ export async function captureAccountViews(caller: Caller): Promise<CapturedAccou
 }
 
 /** Observe the same native cookie over HTTP; expected identity is a fixture check, not a Principal mint. */
-export async function captureCorpusCookieIdentity(root: ServerTestHarness, expected: Principal, cookie: string): Promise<CorpusCookieIdentity> {
+export async function captureCorpusCookieIdentity(root: ServerTestHarness, expected: ViewerView, cookie: string): Promise<CorpusCookieIdentity> {
   const address = await root.listen();
   const origin = `http://${address.address}:${String(address.port)}`;
   const read = async (path: string): Promise<Response> => {
@@ -38,7 +38,7 @@ export async function captureCorpusCookieIdentity(root: ServerTestHarness, expec
   const authMe = authMeSchema.parse(await (await read("/api/auth/me")).json());
   const envelope = z.object({ result: z.object({ data: viewerViewSchema }) }).parse(await (await read("/api/trpc/sessions.me")).json());
   const identity = corpusCookieIdentitySchema.parse({ authConfig, authMe, viewer: envelope.result.data });
-  if (identity.viewer.userId !== expected.userId || identity.viewer.handle !== expected.handle || identity.viewer.globalRole !== expected.role) {
+  if (identity.viewer.userId !== expected.userId || identity.viewer.handle !== expected.handle || identity.viewer.globalRole !== expected.globalRole) {
     throw new Error("Corpus cookie does not admit the expected viewer");
   }
   return identity;
@@ -55,6 +55,7 @@ export interface CapturedCookieAuth {
 /** Capture the actual HTTP cookie path for Node corpus readers. */
 export async function captureCookieAuth(root: ServerTestHarness, viewer: Principal, password: string): Promise<CapturedCookieAuth> {
   const caller = await root.internalCallerFor(root.ownerId);
+  const expected = await (await root.internalCallerFor(viewer.userId)).sessions.me();
   await caller.admin.resetPassword({ userId: viewer.userId, password });
   const anonymousConfigResponse = await root.http.request("/api/auth/config");
   if (!anonymousConfigResponse.ok) {
@@ -96,7 +97,7 @@ export async function captureCookieAuth(root: ServerTestHarness, viewer: Princip
     throw new Error(`synthetic corpus signed-in identity request failed (${signedInMeResponse.status})`);
   }
   const signedInMe = authMeSchema.parse(await signedInMeResponse.json());
-  if (!signedInMe.authenticated || signedInMe.handle !== viewer.handle || signedInMe.role !== viewer.role) {
+  if (!signedInMe.authenticated || signedInMe.handle !== expected.handle || signedInMe.role !== expected.globalRole) {
     throw new Error("synthetic corpus login cookie did not admit the actual seeded viewer");
   }
   const signedInConfigResponse = await root.http.request("/api/auth/config", { headers: { cookie } });
@@ -106,7 +107,7 @@ export async function captureCookieAuth(root: ServerTestHarness, viewer: Princip
   const signedInConfig = authConfigSchema.parse(await signedInConfigResponse.json());
   return {
     auth: { anonymousConfig, anonymousMe, signedInConfig, signedInMe },
-    identity: await captureCorpusCookieIdentity(root, viewer, cookie),
+    identity: await captureCorpusCookieIdentity(root, expected, cookie),
     cookie,
     loginBuckets,
     secrets: [password, cookie, readSessionCookie(new Headers({ cookie }), "http")].filter((value) => value !== null),

@@ -12,16 +12,14 @@
 // is play, and re-deriving state from play is `resyncFromStory` — a different verb with a different window.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { chatParticipants } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveRpgCardCorpus } from "../contract/context.ts";
+import type { ParticipantRow } from "../contract/participant-row.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-
-type ChatParticipantRow = typeof chatParticipants.$inferSelect;
 
 /** The card sections the round reads, in the order a human reads a card. A section with no prose is OMITTED
  *  (a thin card yields a short corpus, never a scaffold of empty headings that teaches the model to invent). */
@@ -33,7 +31,7 @@ const CARD_SECTIONS: readonly { readonly label: string; readonly of: (card: Char
 
 /** Does `characterId` hold a PRESENT character seat in this roster? `loadParticipants` already filters departed
  *  seats (`leftSeq IS NULL`), so a character that left the room is not seated. */
-function isSeatedCharacter(participants: readonly ChatParticipantRow[], characterId: CharacterId): boolean {
+function isSeatedCharacter(participants: readonly ParticipantRow[], characterId: CharacterId): boolean {
   return participants.some((row) => {
     const actor = classifyParticipant(row);
     return actor?.kind === "character" && actor.characterId === characterId;

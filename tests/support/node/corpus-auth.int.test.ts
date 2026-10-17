@@ -62,17 +62,17 @@ test("corpus cookie capture provisions and admits the actual member rather than 
   await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
   const member = await root.principalFor((await root.actor()).id);
   const capture = await captureCookieAuth(root, member, PASSWORD);
-  expect(capture.auth.signedInMe).toEqual({ authenticated: true, handle: member.handle, role: member.role });
-  expect(capture.identity.viewer).toEqual({ userId: member.userId, handle: member.handle, globalRole: member.role });
+  expect(capture.auth.signedInMe).toEqual({ authenticated: true, handle: member.handle, role: "user" });
+  expect(capture.identity.viewer).toEqual({ userId: member.userId, handle: member.handle, globalRole: "user" });
   expect(capture.identity.authMe).toEqual(capture.auth.signedInMe);
   expect(capture.identity.authConfig).toMatchObject({ mode: "local", transport: "http", clientScope: "loopback" });
   expect(await root.app.sessions.ownerNeedsPassword()).toBe(true);
   const owner = await root.principalFor(root.ownerId);
   const ownerCapture = await captureCookieAuth(root, owner, "native-owner-compatibility-password");
-  expect(ownerCapture.identity.viewer).toEqual({ userId: owner.userId, handle: owner.handle, globalRole: owner.role });
+  expect(ownerCapture.identity.viewer).toEqual({ userId: owner.userId, handle: owner.handle, globalRole: "owner" });
   await captureCookieAuth(root, member, PASSWORD);
-  expect(await captureCorpusCookieIdentity(root, owner, ownerCapture.cookie)).toEqual(ownerCapture.identity);
-  await expect(captureCorpusCookieIdentity(root, owner, capture.cookie)).rejects.toThrow("request refused");
+  expect(await captureCorpusCookieIdentity(root, ownerCapture.identity.viewer, ownerCapture.cookie)).toEqual(ownerCapture.identity);
+  await expect(captureCorpusCookieIdentity(root, ownerCapture.identity.viewer, capture.cookie)).rejects.toThrow("request refused");
 });
 
 test("native cookie identity refuses cross-viewer, anonymous, malformed, disabled, revoked and expired admission", async () => {
@@ -80,15 +80,17 @@ test("native cookie identity refuses cross-viewer, anonymous, malformed, disable
   const member = await root.principalFor((await root.actor()).id);
   const foreign = await root.principalFor((await root.actor()).id);
   const capture = await captureCookieAuth(root, member, PASSWORD);
-  expect((await captureCorpusCookieIdentity(root, member, capture.cookie)).viewer.userId).toBe(member.userId);
-  await expect(captureCorpusCookieIdentity(root, foreign, capture.cookie)).rejects.toThrow("does not admit the expected viewer");
-  await expect(captureCorpusCookieIdentity(root, member, "")).rejects.toThrow("request refused (401)");
+  expect((await captureCorpusCookieIdentity(root, capture.identity.viewer, capture.cookie)).viewer.userId).toBe(member.userId);
+  await expect(captureCorpusCookieIdentity(root, await (await root.internalCallerFor(foreign.userId)).sessions.me(), capture.cookie)).rejects.toThrow(
+    "does not admit the expected viewer",
+  );
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, "")).rejects.toThrow("request refused (401)");
   const token = readSessionCookie(new Headers({ cookie: capture.cookie }), "http");
   if (token === null) {
     throw new Error("native member cookie has no canonical session token");
   }
   const malformed = capture.cookie.replace(token, "%E0%A4%A");
-  await expect(captureCorpusCookieIdentity(root, member, malformed)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, malformed)).rejects.toThrow("request refused (401)");
   const login = (password: string, csrf: boolean): Promise<Response> =>
     Promise.resolve(
       root.http.request("/api/auth/login", {
@@ -110,19 +112,19 @@ test("native cookie identity refuses cross-viewer, anonymous, malformed, disable
   const disabled = await login(PASSWORD, true);
   expect(disabled.status).toBe(401);
   await disabled.arrayBuffer();
-  await expect(captureCorpusCookieIdentity(root, member, capture.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, capture.cookie)).rejects.toThrow("request refused (401)");
   await admin.admin.setEnabled({ userId: member.userId, enabled: true });
   const fresh = await captureCookieAuth(root, member, PASSWORD);
   const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie: fresh.cookie, [CSRF_HEADER]: "1" } });
   expect(logout.status).toBe(200);
   await logout.arrayBuffer();
-  await expect(captureCorpusCookieIdentity(root, member, fresh.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, fresh.cookie)).rejects.toThrow("request refused (401)");
   const expiring = await captureCookieAuth(root, member, PASSWORD);
-  expect((await captureCorpusCookieIdentity(root, member, expiring.cookie)).viewer.userId).toBe(member.userId);
+  expect((await captureCorpusCookieIdentity(root, capture.identity.viewer, expiring.cookie)).viewer.userId).toBe(member.userId);
   const minted = await root.db.select().from(sessions).where(eq(sessions.userId, member.userId));
   expect(minted.length).toBeGreaterThan(0);
   root.clock.advance(Math.max(...minted.map((row) => row.expiresAt)) - root.clock.now());
-  await expect(captureCorpusCookieIdentity(root, member, expiring.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, expiring.cookie)).rejects.toThrow("request refused (401)");
 });
 
 test("native loopback owner fallback cannot stand in for a cookie identity capture", async () => {
@@ -133,6 +135,18 @@ test("native loopback owner fallback cannot stand in for a cookie identity captu
   const ambient = await fetch(`http://${address.address}:${String(address.port)}/api/trpc/sessions.me`);
   expect(ambient.status).toBe(200);
   await ambient.arrayBuffer();
-  expect((await captureCorpusCookieIdentity(root, owner, capture.cookie)).viewer.userId).toBe(root.ownerId);
-  await expect(captureCorpusCookieIdentity(root, owner, "")).rejects.toThrow("request refused (401)");
+  expect((await captureCorpusCookieIdentity(root, capture.identity.viewer, capture.cookie)).viewer.userId).toBe(root.ownerId);
+  await expect(captureCorpusCookieIdentity(root, capture.identity.viewer, "")).rejects.toThrow("request refused (401)");
+});
+
+test("a frozen wire identity rejects a changed live role instead of normalizing the expected snapshot", async () => {
+  await using root = await createServerHarness({ authConfig: { ...authConfigFromEnv(), mode: "local", fallback: "deny" } });
+  const member = await root.principalFor((await root.actor()).id);
+  const captured = await captureCookieAuth(root, member, PASSWORD);
+  expect(captured.identity.viewer.globalRole).toBe("user");
+  await (await root.internalCallerFor(root.ownerId)).admin.setRole({ userId: member.userId, role: "admin" });
+  await expect(captureCorpusCookieIdentity(root, captured.identity.viewer, captured.cookie)).rejects.toThrow("does not admit the expected viewer");
+  const fresh = await (await root.internalCallerFor(member.userId)).sessions.me();
+  expect(fresh.globalRole).toBe("admin");
+  expect((await captureCorpusCookieIdentity(root, fresh, captured.cookie)).viewer).toEqual(fresh);
 });

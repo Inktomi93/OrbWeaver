@@ -3,6 +3,7 @@ import { admitsHandle } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { createIdSource } from "@orb/kit/ids";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
+import { captureUserRole } from "#primitives/role-data";
 import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionCandidate, ProvisionDecision, ProvisionDenyCause, ProvisionInsert, ProvisionResult, ProvisionUpdate } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
@@ -129,7 +130,7 @@ async function updateExisting(
     outcome: "provisioned",
     userId: existing.id,
     enabled: existing.enabled,
-    role: effectiveRole,
+    role: captureUserRole(effectiveRole),
     // W7b — the ONE upsert arm that can move a field `sessions.me` projects. `handle` and `role` are exactly
     // those fields; `externalId`/`email` are not (no identity read carries them), which is why they are
     // excluded here rather than "did anything change at all". The caller fans `identityChanged` on this
@@ -259,7 +260,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
     outcome: "provisioned",
     userId: settled.id,
     enabled: settled.enabled,
-    role: settled.role,
+    role: captureUserRole(settled.role),
     // A row that did not exist a moment ago has no other device holding a stale read of it (W7b).
     identityChanged: false,
   };
@@ -307,7 +308,7 @@ async function refuseLostOwnerBind(
 ): Promise<ProvisionResult> {
   const settled = await selectForProvisionById(ctx.db, owner.id);
   if (settled !== undefined && settled.externalId === externalId) {
-    return { outcome: "provisioned", userId: settled.id, enabled: settled.enabled, role: settled.role, identityChanged: false };
+    return { outcome: "provisioned", userId: settled.id, enabled: settled.enabled, role: captureUserRole(settled.role), identityChanged: false };
   }
   securityEvent(
     "sso_owner_bind_lost_race",
@@ -348,7 +349,7 @@ async function bindOwnerSubject(ctx: SessionsContext, owner: ProvisionCandidate,
   );
   // W7b: the bind writes `externalId` (+ maybe `email`) and deliberately leaves the owner's handle and role
   // alone — no identity read projects either column, so there is nothing for another device to re-read.
-  return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: "owner", identityChanged: false };
+  return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: captureUserRole("owner"), identityChanged: false };
 }
 
 /** The owner singleton downgrade (D17: exactly one owner) is decided pure; the warn names the kept owner. */

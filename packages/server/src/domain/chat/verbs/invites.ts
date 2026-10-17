@@ -11,7 +11,7 @@
 // refusal, never silently degraded to a share-link.
 
 import { randomBytes } from "node:crypto";
-import type { CreateInviteInput, DurableChatBusEvent, InvitePreview, InviteView, ParticipantView } from "@orb/contracts/chat";
+import type { CreateInviteInput, DurableChatBusEvent, InvitePreview, InviteView } from "@orb/contracts/chat";
 import { SIGNUP_MAX_TTL_MS, SIGNUP_MAX_USES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -30,6 +30,7 @@ import type {
   RevokeInviteParams,
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
+import type { ParticipantData } from "../contract/views.ts";
 import { requireHost } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import {
@@ -55,7 +56,7 @@ interface InviteDeps {
    *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
    *  -- an invite has to exist first, and minting it claimed. */
   readonly claimChat: ClaimChatOp;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
   /** The one preview assembly (`verbs/invite-preview.ts`), wired at `service.ts`. */
   readonly assemblePreview: AssembleInvitePreviewOp;
 }

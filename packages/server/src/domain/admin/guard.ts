@@ -5,8 +5,9 @@
 // caller passes in (chat passes the {@link ChatMembership} it loaded — admin never reads chat's db).
 // Authorization is re-evaluated per call; the decision is never cached back onto the Principal.
 
-import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
+import type { Can, ChatAction, ChatMembership, GlobalAction, Principal, ResourceRef, UserRole, UserRoleState } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
+import { participantRoleValue, userRoleValue } from "#primitives/role-data/decode";
 import type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "./contract/guard.ts";
 
 // The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
@@ -17,13 +18,18 @@ const ROLES_FOR_GLOBAL_ACTION = {
 } as const satisfies Record<GlobalAction, readonly UserRole[]>;
 
 /** Target validity for the immutable bootstrap owner, not a caller-privilege decision. */
-export function isBootstrapOwnerRole(role: UserRole): boolean {
+export function isBootstrapOwnerRole(role: UserRoleState): boolean {
+  return isBootstrapOwnerRoleCode(userRoleValue(role));
+}
+
+/** A requested role is input data, not the caller's authority or a resolved target record. */
+export function isBootstrapOwnerRoleCode(role: UserRole): boolean {
   return ROLES_FOR_GLOBAL_ACTION.owner.includes(role);
 }
 
 /** The GLOBAL-scope decision (the global-role axis). Throws on deny. */
 function decideGlobal(principal: Principal, action: GlobalAction): void {
-  if (!ROLES_FOR_GLOBAL_ACTION[action].includes(principal.role)) {
+  if (!ROLES_FOR_GLOBAL_ACTION[action].includes(userRoleValue(principal.role))) {
     throw new DomainForbiddenError(`requires ${action} privilege`);
   }
 }
@@ -36,11 +42,13 @@ function decideChat(action: ChatAction, membership: ChatMembership): void {
       // Present membership is established by chat's `loadMemberChat` before `can()` is reached. Any present
       // member reads in v1 — this is the seam where a future `observer` participant kind will deny.
       return;
-    case "host":
-      if (membership.role !== "host") {
+    case "host": {
+      const role = participantRoleValue(membership.role);
+      if (role !== "host") {
         throw new DomainForbiddenError("requires the room host");
       }
       return;
+    }
     default: {
       const _exhaustive: never = action;
       throw new DomainForbiddenError(`unsupported chat action: ${String(_exhaustive)}`);

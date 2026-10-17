@@ -12,7 +12,7 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView, RoomOverrides } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -37,6 +37,7 @@ import type { AssetId, CharacterId, ChatId, ChatParticipantId, PersonaId, UserId
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, eq, isNull, sql } from "drizzle-orm";
+import { captureParticipantRole } from "#primitives/role-data";
 import type { ChatContext } from "../context.ts";
 import type { ClaimChatOp, HandoffCopyPlan, HandoffResumption } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -64,9 +65,11 @@ import type {
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
 } from "../contract/params.ts";
+import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
-import { requireHost, requireParticipant } from "../guard.ts";
+import type { ParticipantData } from "../contract/views.ts";
+import { requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
@@ -82,10 +85,11 @@ import {
   repointCharacterSeatStatement,
   setPendingHostStatement,
 } from "../persistence/participant.ts";
-import { characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
+import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
 import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
+import { viewerHoldsHost } from "../substrate/member-visibility.ts";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { regexAllowOf } from "../substrate/regex-tier.ts";
@@ -197,14 +201,14 @@ export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): Par
   };
 }
 
-/** Maps a resolved chat_participants row to the ParticipantView read-model for a character participant:
+/** Maps a resolved chat_participants row to the ParticipantData read-model for a character participant:
  *  displayName/avatarAssetId come from the live card, handle is null. A null card (gone mid-delete)
  *  degrades the name to the removed-character label (never "", never the raw id). */
 async function characterParticipantView(
-  row: typeof chatParticipants.$inferSelect,
+  row: ParticipantRow,
   card: CharacterCard | null,
   resolveAssetHash: ChatContext["resolveAssetHash"],
-): Promise<ParticipantView> {
+): Promise<ParticipantData> {
   const avatarAssetId = card?.avatarAssetId ?? null;
   return {
     id: row.id,
@@ -801,7 +805,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
         kind: "character",
         userId: null,
         characterId,
-        role: "member",
+        role: captureParticipantRole("member"),
         activePersonaId: null,
         talkativeness: TALKATIVENESS_DEFAULT,
         disabled: false,
@@ -875,10 +879,10 @@ export async function setParticipantActivePersona(
  *  human seat, or the not-yet-rebuilt observer kind) carries no arbitration knobs → `participant_not_found`
  *  (host-only surface: the caller already sees the roster, so a coded refusal leaks nothing). An empty patch
  *  is a no-op that still returns the current view (idempotent — `applyToChat` re-apply leans on this). */
-/** Resolve a mutated seat row to its ParticipantView by kind — today only `character` (via its live card,
+/** Resolve a mutated seat row to its ParticipantData by kind — today only `character` (via its live card,
  *  under the host's ownership; a null card degrades to the removed-character label); the `agent` arm (via its
  *  soul name) grafts back on with the agent-principal program (docs/work/0048). */
-async function seatViewFor(ctx: ChatContext, ownerId: UserId, row: typeof chatParticipants.$inferSelect): Promise<ParticipantView> {
+async function seatViewFor(ctx: ChatContext, ownerId: UserId, row: ParticipantRow): Promise<ParticipantData> {
   const card = row.characterId !== null ? await ctx.getCard({ ownerId, characterId: row.characterId }) : null;
   return characterParticipantView(row, card, ctx.resolveAssetHash);
 }
@@ -912,7 +916,8 @@ function createSetSeatKnobs(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cl
         .set(set)
         .where(and(eq(chatParticipants.id, participantId), isNull(chatParticipants.leftSeq)))
         .returning();
-      row = rows.at(0) ?? seat;
+      const stored = rows.at(0);
+      row = stored === undefined ? seat : captureParticipantRow(stored);
     }
     await emit({ type: "chatUpdated", chatId });
     return seatViewFor(ctx, principal.userId, row);
@@ -1002,7 +1007,7 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
     const at = ctx.now();
     const leftSeq = await loadMaxMessageSeq(ctx.db, chatId);
     await markUserLeft(ctx.db, chatId, principal.userId, leftSeq);
-    if (role === "host") {
+    if (viewerHoldsHost({ role })) {
       await commitStatsFencedChatUpdate(ctx, principal.userId, ctx.db.update(chats).set({ archived: true, updatedAt: at }).where(eq(chats.id, chatId)));
     }
     await emit({ type: "chatUpdated", chatId });
@@ -1013,11 +1018,7 @@ function createSelfLeave(ctx: ChatContext, emit: EmitChatEvent): ChatService["se
  *  single-owned and a character seat whose card resolves null under the new owner would collapse to a
  *  blank name. Rather than refuse the transfer, drops those seats. Human seats are never dropped.
  *  Returns the present character participant ids to leftSeq-stamp. */
-async function resolveDroppedCharacterSeatIds(
-  ctx: ChatContext,
-  newOwnerUserId: UserId,
-  participants: readonly (typeof chatParticipants.$inferSelect)[],
-): Promise<ChatParticipantId[]> {
+async function resolveDroppedCharacterSeatIds(ctx: ChatContext, newOwnerUserId: UserId, participants: readonly ParticipantRow[]): Promise<ChatParticipantId[]> {
   const characterSeats = participants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ id: p.id, characterId: actor.characterId }] : [];
@@ -1033,10 +1034,7 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
   return async ({ principal, chatId, userId, offer }: NominateHostHandoffParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const participants = await loadParticipants(ctx.db, chatId);
-    const nominee = participants.find((p) => p.userId === userId);
-    if (nominee === undefined || nominee.role === "host") {
-      throw new ChatNotFoundError(chatId);
-    }
+    requireHandoffNominee(participants, userId, chatId);
     // The offer is parsed at the trust boundary and DEFAULTS TO NOTHING: a malformed blob is no offer, never
     // a copy nobody asked for. It is stored, not executed — the accept freezes the point in time (§5), so an
     // edit the host makes between nominate and accept rides into the copy and a nomination that is never

@@ -1,5 +1,6 @@
 import "./composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { StartChatResult } from "@orb/contracts/chat";
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import type { AgentSdkSpawn } from "@orb/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -10,7 +11,7 @@ import { createServerHarness } from "./server.ts";
 
 const INTENT = { maxContextTokens: 4096, maxOutputTokens: 64, compaction: { mode: "managed", verbatimTail: 8 } } as const;
 
-async function room(harness: ServerTestHarness): Promise<Awaited<ReturnType<ServerTestHarness["services"]["chat"]["startChat"]>>["chat"]> {
+async function room(harness: ServerTestHarness): Promise<StartChatResult["chat"]> {
   const caller = await harness.internalCallerFor(harness.ownerId);
   const principal = await harness.principalFor(harness.ownerId);
   const key = await caller.credentials.add({ provider: "claude-sub", key: "compaction-isolation-physical-token", metadata: { auth: "oauthToken" } });

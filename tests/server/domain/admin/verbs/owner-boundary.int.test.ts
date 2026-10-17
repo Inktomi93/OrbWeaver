@@ -24,10 +24,15 @@ test("owner includes delegated admin work while a delegate cannot grant elevated
   const admin = await root.principalFor(delegate.id);
   const member = await root.actor();
   const ordinary = await root.principalFor(member.id);
+  const caller = await root.internalCallerFor(owner.userId);
   const created = await root.services.admin.createUser({ principal: owner, handle: castId<Handle>("owner-created-user"), password: PASSWORD });
   const delegated = await root.services.admin.createUser({ principal: admin, handle: castId<Handle>("admin-created-user"), password: PASSWORD });
-  expect(created.role).toBe("user");
-  expect(delegated.role).toBe("user");
+  expect(typeof created.role).toBe("object");
+  expect(Object.isFrozen(created.role)).toBe(true);
+  expect(Object.keys(created.role)).toEqual([]);
+  const targets = await caller.admin.listUsers();
+  expect(targets.find(({ id }) => id === created.id)).toMatchObject({ role: "user" });
+  expect(targets.find(({ id }) => id === delegated.id)).toMatchObject({ role: "user" });
   await expect(root.services.admin.createUser({ principal: ordinary, handle: castId<Handle>("member-must-not-create"), password: PASSWORD })).rejects.toThrow(
     "requires admin privilege",
   );
@@ -39,9 +44,10 @@ test("owner includes delegated admin work while a delegate cannot grant elevated
     root.services.admin.createUser({ principal: owner, handle: castId<Handle>("second-owner-must-not-exist"), role: "owner", password: PASSWORD }),
   ).rejects.toMatchObject({ code: "cannot_grant_owner" });
   expect(await root.db.select({ id: users.id }).from(users).where(eq(users.role, "owner"))).toEqual([{ id: root.ownerId }]);
-  expect(await root.services.admin.setRole({ principal: owner, userId: owner.userId, role: "owner" })).toMatchObject({ id: owner.userId, role: "owner" });
+  expect(await caller.admin.setRole({ userId: owner.userId, role: "owner" })).toMatchObject({ id: owner.userId, role: "owner" });
   await expect(root.services.admin.setRole({ principal: owner, userId: owner.userId, role: "admin" })).rejects.toMatchObject({ code: "cannot_modify_owner" });
-  expect(await root.app.sessions.loadUserById(delegated.id)).toMatchObject({ role: "user", enabled: true });
+  expect(await root.app.sessions.loadUserById(delegated.id)).toMatchObject({ enabled: true });
+  expect(await (await root.internalCallerFor(delegated.id)).sessions.me()).toMatchObject({ globalRole: "user" });
 });
 
 test("a delegate cannot disable, bind or reset the owner, while the owner can rotate the credential used by actual HTTP login", async () => {

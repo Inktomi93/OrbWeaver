@@ -33,7 +33,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, HistoryFloorSeq, JoinHistoryVisibility, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 import { viewerHoldsHost } from "../member-visibility.ts";
 
@@ -63,7 +63,7 @@ export const NO_HISTORY_FLOOR: HistoryFloorSeq = historyFloor(0);
  * the conservative reading, and the only one the row can support (prior eras are not retained).
  */
 export function resolveHistoryFloorSeq(membership: {
-  readonly role: ParticipantRole;
+  readonly role: ParticipantRoleState;
   readonly joinSeq: number;
   readonly joinHistoryVisibility: JoinHistoryVisibility;
 }): HistoryFloorSeq {
@@ -134,7 +134,7 @@ function rank(level: MemberCardVisibility): number {
  * spelling. The parameter shape stays as-is deliberately; widening it to a row would move work onto the caller
  * for no gain and churn the D22 pins that call this positionally.
  */
-export function resolveCardVisibility(viewerRole: ParticipantRole, configured: MemberCardVisibility): MemberCardVisibility {
+export function resolveCardVisibility(viewerRole: ParticipantRoleState, configured: MemberCardVisibility): MemberCardVisibility {
   return viewerHoldsHost({ role: viewerRole }) ? "full" : configured;
 }
 

@@ -5,13 +5,15 @@
 // QUERIES ONLY: `loadParticipants`
 // reads the present (or full) `chat_participants` set; `buildInitialParticipantRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
-// `users` join here — the `no-direct-users-read` chokepoint); this returns the raw rows.
+// `users` join here — the `no-direct-users-read` chokepoint); this captures only the stored role while preserving every row field.
 
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
+import { captureParticipantRole } from "#primitives/role-data";
+import type { ParticipantRow } from "../contract/participant-row.ts";
 import { assertForcedCharacterMember } from "./participant.ts";
 
 /** How many rows an existence probe needs. */
@@ -20,31 +22,33 @@ const LIMIT_ONE = 1;
 /** The caller's PRESENT participant role in a chat (`leftSeq IS NULL`), or `null` — not a present member OR
  *  no such chat, collapsed into one leak-free answer. The narrow membership read behind the injected
  *  `getMembership` op (rpg's `can()` feed, docs/plans/rpg/design.md); rpg never reads `chat_participants` itself. */
-export async function loadPresentRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRole | null> {
+export async function loadPresentRole(db: Db, chatId: ChatId, userId: UserId): Promise<ParticipantRoleState | null> {
   const rows = await db
     .select({ role: chatParticipants.role })
     .from(chatParticipants)
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
-  return rows.at(0)?.role ?? null;
+  const row = rows.at(0);
+  return row === undefined ? null : captureParticipantRole(row.role);
 }
 
 /** The caller's PRESENT participant row narrowed to the three columns a VISIBILITY verdict is derived from —
  *  the role plus the D16 horizon pair (`joinSeq` + `joinHistoryVisibility`) the ONE clamp resolver consumes.
  *  `null` = not a present member OR no such chat (the same leak-free collapse as {@link loadPresentRole}).
- *  Deliberately raw: the policy→number derivation stays in `substrate/auth/clamp`, so this file cannot become
+ *  The horizon columns stay raw: the policy→number derivation stays in `substrate/auth/clamp`, so this file cannot become
  *  a second clamp home. Backs the injected `resolveViewerVisibility` op (`verbs/resolve-viewer-visibility`). */
 export async function loadPresentVisibilityRow(
   db: Db,
   chatId: ChatId,
   userId: UserId,
-): Promise<Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility"> | null> {
+): Promise<Pick<ParticipantRow, "role" | "joinSeq" | "joinHistoryVisibility"> | null> {
   const rows = await db
     .select({ role: chatParticipants.role, joinSeq: chatParticipants.joinSeq, joinHistoryVisibility: chatParticipants.joinHistoryVisibility })
     .from(chatParticipants)
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
     .limit(LIMIT_ONE);
-  return rows.at(0) ?? null;
+  const row = rows.at(0);
+  return row === undefined ? null : { ...row, role: captureParticipantRole(row.role) };
 }
 
 /** The BATCHED twin of {@link loadPresentVisibilityRow}: one viewer's present participant row across a SET
@@ -56,9 +60,9 @@ export async function loadPresentVisibilityRows(
   db: Db,
   chatIds: readonly ChatId[],
   userId: UserId,
-): Promise<Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>> {
+): Promise<Map<ChatId, Pick<ParticipantRow, "role" | "joinSeq" | "joinHistoryVisibility">>> {
   // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the per-chat viewer verdict. Ends if it outlives the call.
-  const out = new Map<ChatId, Pick<typeof chatParticipants.$inferSelect, "role" | "joinSeq" | "joinHistoryVisibility">>();
+  const out = new Map<ChatId, Pick<ParticipantRow, "role" | "joinSeq" | "joinHistoryVisibility">>();
   if (chatIds.length === 0) {
     return out;
   }
@@ -72,7 +76,7 @@ export async function loadPresentVisibilityRows(
     .from(chatParticipants)
     .where(and(inArray(chatParticipants.chatId, [...chatIds]), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)));
   for (const { chatId, ...verdict } of rows) {
-    out.set(chatId, verdict);
+    out.set(chatId, { ...verdict, role: captureParticipantRole(verdict.role) });
   }
   return out;
 }
@@ -131,12 +135,12 @@ export async function isPresentParticipant(db: Db, chatId: ChatId, userId: UserI
 /** The roster read (listParticipants / arbitration substrate). Default = PRESENT members only
  *  (`leftSeq IS NULL` — Part III §1); `includePast` returns the full history (kicked/left rows) for the host
  *  audit + `from-join`/`full` visibility resolution. Ordered by join order (`joinSeq`, then row id). */
-export async function loadParticipants(db: Db, chatId: ChatId, includePast = false): Promise<(typeof chatParticipants.$inferSelect)[]> {
+export async function loadParticipants(db: Db, chatId: ChatId, includePast = false): Promise<ParticipantRow[]> {
   const base = db.select().from(chatParticipants).$dynamic();
   const scoped = includePast
     ? base.where(eq(chatParticipants.chatId, chatId))
     : base.where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)));
-  return await scoped.orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+  return (await scoped.orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id))).map(captureParticipantRow);
 }
 
 /**
@@ -237,13 +241,19 @@ export function buildInitialParticipantRows(params: {
 }
 
 /** Present roster rows for a page of rooms, with the single-room reader's total seat order. */
-export async function loadParticipantsBatch(db: Db, chatIds: readonly ChatId[]): Promise<(typeof chatParticipants.$inferSelect)[]> {
+export async function loadParticipantsBatch(db: Db, chatIds: readonly ChatId[]): Promise<ParticipantRow[]> {
   if (chatIds.length === 0) {
     return [];
   }
-  return await db
+  const rows = await db
     .select()
     .from(chatParticipants)
     .where(and(inArray(chatParticipants.chatId, [...chatIds]), isNull(chatParticipants.leftSeq)))
     .orderBy(asc(chatParticipants.chatId), asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+  return rows.map(captureParticipantRow);
+}
+
+/** Raw storage rows stop here; downstream consumers receive captured role data. */
+export function captureParticipantRow(row: typeof chatParticipants.$inferSelect): ParticipantRow {
+  return { ...row, role: captureParticipantRole(row.role) };
 }

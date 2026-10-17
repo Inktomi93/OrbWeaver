@@ -317,7 +317,9 @@ test("settled search publication survives native authenticated clone reads and r
   });
   const section = produced.wire.searchLibrary;
   const principal = await clone.principalFor(section.viewerUserId);
-  await expect(captureCorpusCookieIdentity(clone, principal, produced.authentication.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(clone, produced.authentication.identity.viewer, produced.authentication.cookie)).rejects.toThrow(
+    "request refused (401)",
+  );
   const authentication = await captureCookieAuth(clone, principal, "fresh-private-search-clone-password");
   const address = await clone.listen();
   const origin = `http://${address.address}:${String(address.port)}`;

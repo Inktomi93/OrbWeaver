@@ -214,12 +214,15 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   const actors = await seedCorpusActors(root);
   const shared = await captureCookieAuth(root, await root.principalFor(actors.secondUserId), "native-shared-publication-password");
   const result = await seedCorpusNotifications(root);
+  const readerView = await (await root.internalCallerFor(result.reader.userId)).sessions.me();
+  const hostView = await (await root.internalCallerFor(result.host.userId)).sessions.me();
   const secrets = [OWNER_PASSWORD, ...result.secrets, ...shared.secrets];
   const memberIdentities = { notificationReader: result.admission.identity, sharedMember: shared.identity };
   const extended = { ...wire, notificationInbox: result.publication, memberIdentities };
   const decoded = parseCorpusWire(serializeCorpusWire(extended, secrets));
   expect(decoded.memberIdentities).toEqual(memberIdentities);
-  expect(memberIdentities.notificationReader.viewer).toEqual({ userId: result.reader.userId, handle: result.reader.handle, globalRole: result.reader.role });
+  expect(readerView).toMatchObject({ userId: result.reader.userId, handle: result.reader.handle, globalRole: "user" });
+  expect(memberIdentities.notificationReader.viewer).toEqual(readerView);
   expect(memberIdentities.sharedMember.viewer.userId).toBe(actors.secondUserId);
   const identityRead = { viewerUserId: shared.identity.viewer.userId, read: { input: undefined, output: shared.identity.viewer } };
   expect(createCorpusViewerReadResponder("sessions.me", actors.secondUserId, identityRead)(undefined)).toEqual(shared.identity.viewer);
@@ -230,7 +233,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
     "identity cohort mismatch",
   );
   const mismatchedIdentity = structuredClone(extended);
-  Object.assign(mismatchedIdentity.memberIdentities.sharedMember.authMe, { role: result.host.role, handle: result.host.handle });
+  Object.assign(mismatchedIdentity.memberIdentities.sharedMember.authMe, { role: hostView.globalRole, handle: hostView.handle });
   expect(() => serializeCorpusWire(mismatchedIdentity, secrets)).toThrow("identity response mismatch");
   const driftedIdentity = structuredClone(extended);
   Reflect.deleteProperty(driftedIdentity.memberIdentities.sharedMember.viewer, "globalRole");

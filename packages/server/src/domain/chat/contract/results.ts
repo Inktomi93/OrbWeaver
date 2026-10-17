@@ -15,6 +15,9 @@ import type {
   TurnOutcome,
   UserMacroDraws,
   VariantProviderMetadata,
+  ForkResult as WireForkResult,
+  RedeemInviteResult as WireRedeemInviteResult,
+  StartChatResult as WireStartChatResult,
 } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type {
@@ -45,7 +48,7 @@ import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/m
 import type { MessageRole } from "@orb/kit/message-role";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { ReactAsCharacterParams } from "./params.ts";
-import type { ChatVariables } from "./views.ts";
+import type { ChatDetailData, ChatVariables, ParticipantData } from "./views.ts";
 
 export type { RequestTurnOp } from "@orb/contracts/chat";
 
@@ -54,7 +57,7 @@ export type { RequestTurnOp } from "@orb/contracts/chat";
 // a MessageView; bulk mutators return void — only the other shapes are declared here.
 
 // The invite results are wire nodes: their strict schemas are the invite procedures' tRPC output parsers.
-export type { CreateInviteResult, RedeemInviteResult, TurnIntent } from "@orb/contracts/chat";
+export type { CreateInviteResult, TurnIntent } from "@orb/contracts/chat";
 
 /** The output axis: per-speaker (one message per speaker) vs narrator (one call voices all the seated characters).
  *
@@ -537,4 +540,15 @@ export type { ReactAsCharacterResult } from "@orb/contracts/chat";
  *  `contract/params.ts::ReactAsCharacterParams`). */
 export type ReactAsCharacterOp = (params: ReactAsCharacterParams) => Promise<ReactAsCharacterResult>;
 
-export type { ForkResult, ReapResult, StartChatResult, TurnOutcome } from "@orb/contracts/chat";
+export type { ReapResult, TurnOutcome } from "@orb/contracts/chat";
+
+export interface StartChatData extends Omit<WireStartChatResult, "chat"> {
+  readonly chat: ChatDetailData;
+}
+export interface ForkData extends Omit<WireForkResult, "chat"> {
+  readonly chat: ChatDetailData;
+}
+export interface RedeemInviteData extends Omit<WireRedeemInviteResult, "chat" | "participant"> {
+  readonly chat: ChatDetailData;
+  readonly participant: ParticipantData;
+}

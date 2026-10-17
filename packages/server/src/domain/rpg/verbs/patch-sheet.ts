@@ -19,7 +19,7 @@
 // verb-specific `DomainForbidden` sentence, it never silently strips), and every other field of the same patch
 // is untouched, so ordinary self-editing (className/attributes/flavor/level) still works.
 
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { RpgActorRef, RpgSheet } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -123,7 +123,7 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
  *  the patch actually NAMES one of them — key-presence, the same MA-4 test `mergeSheet` uses, so an omitted
  *  field is not a host ask and a member's ordinary self-edit is byte-identically unaffected. The verdict is the
  *  kernel's (`ctx.can`, through `assertHostRole`); this only decides WHEN to ask. */
-function assertTrackerExceptionHost(ctx: RpgContext, params: PatchSheetParams, role: ParticipantRole): void {
+function assertTrackerExceptionHost(ctx: RpgContext, params: PatchSheetParams, role: ParticipantRoleState): void {
   if (params.patch.trackerGrants === undefined && params.patch.trackerRevokes === undefined) {
     return;
   }

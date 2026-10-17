@@ -22,7 +22,7 @@
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatMetadata, DurableChatBusEvent, ParticipantView, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
 import {
   memberToolCalls,
   parseVariantMetadata,
@@ -43,8 +43,10 @@ import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ForkChatParams } from "../contract/params.ts";
-import type { ForkResult } from "../contract/results.ts";
+import type { ParticipantRow } from "../contract/participant-row.ts";
+import type { ForkData } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
+import type { ParticipantData } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
@@ -69,17 +71,17 @@ import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, 
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
- *  roster read-model for the returned `ChatDetail`. */
+ *  roster read-model for the returned `ChatDetailData`. */
 interface ForkDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
 }
 
 /** The fork slice of `ChatService` this grouped file owns. */
 type ForkVerbs = Pick<ChatService, "forkChat">;
 
 /** A present character roster row with its `characterId` narrowed non-null. */
-type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
+type CharacterSeatRow = ParticipantRow & {
   readonly characterId: CharacterId;
 };
 
@@ -444,11 +446,7 @@ function pushForkStatsDeltas(
  *  forker, who becomes the sole `runAsUserId` under which every seated character's card resolves. Cards are
  *  single-owned, so a seat the forker doesn't own would collapse to a blank card — rather than refuse the
  *  fork, we drop those seats. An owner forking their own chat keeps the whole roster unchanged. */
-async function resolveOwnedCharacterSeats(
-  ctx: ChatContext,
-  forkerUserId: UserId,
-  sourceParticipants: readonly (typeof chatParticipants.$inferSelect)[],
-): Promise<CharacterSeatRow[]> {
+async function resolveOwnedCharacterSeats(ctx: ChatContext, forkerUserId: UserId, sourceParticipants: readonly ParticipantRow[]): Promise<CharacterSeatRow[]> {
   const characterSeats = sourceParticipants.flatMap((p) => {
     const actor = classifyParticipant(p);
     return actor?.kind === "character" && p.leftSeq === null ? [{ ...p, characterId: actor.characterId }] : [];
@@ -574,7 +572,7 @@ async function commitForkBatch(ctx: ChatContext, chatId: ChatId, metadata: ChatM
  *  non-game source is a no-op (`cloned:false`) and the fork stays plain — reconciling with the metadata strip.
  *  A clone FAILURE is DEGRADED-not-broken: the fork already committed as a valid plain chat, so LOG and ship it
  *  plain rather than fail the whole fork (the stopgap posture — a plain fork never crashes; the W-G
- *  dangling-pointer heal covers any desync). Runs BEFORE the fork's read-back so the returned `ChatDetail`
+ *  dangling-pointer heal covers any desync). Runs BEFORE the fork's read-back so the returned `ChatDetailData`
  *  carries the fresh pointer. The clone still passes the forker's `readsHidden` posture so its host-secret
  *  strips (steeringNote / foreign gmPresetId / hidden-span tracker prose) stay wired as DEFENSE-IN-DEPTH —
  *  the verb gate already closes the multi-human member→host §3.6 laundering case (a non-host may fork only a
@@ -620,8 +618,8 @@ async function forkGameOntoFork(
 function assertForkAllowed(args: {
   readonly can: ChatContext["can"];
   readonly principal: Principal;
-  readonly role: (typeof chatParticipants.$inferSelect)["role"];
-  readonly sourceParticipants: readonly (typeof chatParticipants.$inferSelect)[];
+  readonly role: ParticipantRow["role"];
+  readonly sourceParticipants: readonly ParticipantRow[];
   readonly chatId: ChatId;
 }): void {
   const { can, principal, role, sourceParticipants, chatId } = args;
@@ -632,7 +630,7 @@ function assertForkAllowed(args: {
 }
 
 function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat"] {
-  return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkResult> => {
+  return async ({ principal, chatId, throughSeq, title }: ForkChatParams): Promise<ForkData> => {
     // `requireParticipant` first — a non-member gets a leak-free `ChatNotFoundError` (never reveal existence);
     // then `assertForkAllowed` enforces the host-or-sole-human fork gate. The
     // member→host strips downstream are DEFENSE-IN-DEPTH: this gate closes the multi-human laundering case at
@@ -777,7 +775,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     await commitForkBatch(ctx, chatId, forkMetadata, stmts);
 
     // FORK CLONES THE GAME (§3.2) — runs AFTER the atomic batch, BEFORE the read-back (so the returned
-    // `ChatDetail` carries the fresh pointer). Degraded-not-broken on failure. See `forkGameOntoFork`.
+    // `ChatDetailData` carries the fresh pointer). Degraded-not-broken on failure. See `forkGameOntoFork`.
     await forkGameOntoFork(ctx, { sourceChatId: chatId, newChatId, canonCopy, forker: { userId: principal.userId, readsHidden: forkerReadsHidden } });
 
     await deps.emit({ type: "chatCreated", chatId: newChatId });

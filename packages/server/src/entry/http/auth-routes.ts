@@ -30,7 +30,7 @@ import {
   signupRequestSchema,
   signupResultSchema,
 } from "@orb/contracts/chat";
-import type { RequestTransport, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { admitsHandle, withinHandleLength } from "@orb/kit/handle-key";
@@ -450,18 +450,7 @@ export interface SessionSocketEviction {
 /** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session,
  *  gating on `enabled`) or `denied` (the login gate refused — no session). `reason:"account-exists"` is the
  *  MS-W1 collision deny the callback surfaces as a DISTINCT, operator-actionable authError. */
-type ProvisionOutcome =
-  | {
-      readonly outcome: "provisioned";
-      readonly userId: UserId;
-      readonly enabled: boolean;
-      readonly role: UserRole;
-      /** W7b — the upsert moved a field `sessions.me` projects (handle / role). See
-       *  `ProvisionResult.identityChanged`; the callback fans `identityChanged` on this user's channel so
-       *  their OTHER live devices re-read the viewer instead of rendering the pre-rename identity. */
-      readonly identityChanged: boolean;
-    }
-  | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
+type ProvisionOutcome = Awaited<ReturnType<SessionsService["provisionIdentity"]>>;
 
 /** Why the callback's `provisionIdentity` refused, where the route tells it apart: `account-exists` gets its
  *  own authError, and `jit-closed` alone may become a pending join (D259). */

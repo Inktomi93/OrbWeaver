@@ -4,7 +4,7 @@
 // FLAG[admin-view-stays-local]: AdminUserView stays here rather than @orb/contracts/identity — promote it
 // only if the client ever deep-imports the shape instead of reading it through tRPC inference.
 
-import type { UserKind, UserRole } from "@orb/contracts/identity";
+import type { UserKind, UserRole, UserRoleState } from "@orb/contracts/identity";
 import { userKindSchema, userRoleSchema } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
@@ -22,6 +22,11 @@ export interface AdminUserView {
   readonly ownerHandle: Handle | null;
   readonly createdAt: number;
   readonly updatedAt: number;
+}
+
+/** Resolved server data is not the wire role string. */
+export interface AdminUserData extends Omit<AdminUserView, "role"> {
+  readonly role: UserRoleState;
 }
 
 export const adminUserViewSchema = z.strictObject({

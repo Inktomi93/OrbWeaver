@@ -1,4 +1,4 @@
-// substrate/viewer-gallery — the viewer's owned character seats (`ChatDetail.viewerOwnedCharacterIds`) and the
+// substrate/viewer-gallery — the viewer's owned character seats (`ChatDetailData.viewerOwnedCharacterIds`) and the
 // room's gallery subject derived from them (`viewerGalleryCharacterId`), so the two can never disagree. The pick is
 // `firstCharacterIdOf`, the one `generateImage` makes; ownership is the owner-scoped card read its auto-add reads.
 

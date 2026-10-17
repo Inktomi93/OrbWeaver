@@ -112,6 +112,7 @@ import type { AuditEntry } from "#foundation/observability";
 import { buildAuditStatement, buildAuditStatementIfPrecedingWrote, recordMemoryLog } from "#foundation/observability";
 import { systemTimers, waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
+import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 
 import { createReactToolDefinition } from "./chat-tools.ts";
@@ -326,7 +327,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // @orb-waive one-principal-mint-population(Principal): synthetic role-irrelevant principal for frozen-host reads; ends when a shared factory replaces it
   const hostPrincipal = (userId: UserId): Principal => ({
     userId,
-    role: "user",
+    role: captureUserRole("user"),
     handle: castId<Handle>(userId),
     externalId: null,
     via: "fallback",

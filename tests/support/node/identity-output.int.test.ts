@@ -36,7 +36,7 @@ test("native account and sharing suppliers keep request identity and owner-only 
     `output supplier: ${privateText}`,
   );
   const owned = await captureAccountViews(ownerCaller);
-  expect(owned.viewer).toEqual({ userId: owner.userId, handle: owner.handle, globalRole: owner.role });
+  expect(owned.viewer).toEqual({ userId: owner.userId, handle: owner.handle, globalRole: "owner" });
   expect(owned.diagnostics.serverErrors.kind).toBe("included");
   if (owned.diagnostics.serverErrors.kind !== "included") {
     throw new Error("native owner diagnostic control did not enter the included projection");

@@ -15,7 +15,12 @@ import { vi } from "vitest";
 
 const PASSWORD = "a-new-valid-password";
 
-test("a single-device admin kick ends every target socket, including another device and session-less SSO, but not another user's", async ({ db, app, ids }) => {
+test("a single-device admin kick ends every target socket, including another device and session-less SSO, but not another user's", async ({
+  harness,
+  db,
+  app,
+  ids,
+}) => {
   const actor = await seedUser(db, { role: "admin" });
   const target = await seedUser(db);
   const stranger = await seedUser(db);
@@ -36,21 +41,21 @@ test("a single-device admin kick ends every target socket, including another dev
       onEvicted: () => evicted[i]?.(),
     });
   }
-  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: first.sessionId });
+  await app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: first.sessionId });
   expect(evicted.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 0]);
   expect(await app.sessions.validate(first.token)).toBeNull();
   expect(await app.sessions.validate(second.token)).toMatchObject({ userId: target.id });
-  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: first.sessionId });
+  await app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: first.sessionId });
   expect(evicted.map((fn) => fn.mock.calls.length)).toEqual([1, 1, 1, 0]);
 });
 
-test("the admin gate runs before a revoke, and the queried target is stamped on secret-free session views", async ({ db, app }) => {
+test("the admin gate runs before a revoke, and the queried target is stamped on secret-free session views", async ({ harness, db, app }) => {
   const actor = await seedUser(db, { role: "admin" });
   const target = await seedUser(db);
   const session = await app.sessions.create({ userId: target.id, oidcIdToken: "private-id-token" });
-  await expect(app.services.admin.revokeSession({ principal: principal(target.id), sessionId: session.sessionId })).rejects.toThrow();
+  await expect(app.services.admin.revokeSession({ principal: await principal(harness, target.id), sessionId: session.sessionId })).rejects.toThrow();
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
-  const rows = await app.services.admin.listSessions({ principal: principal(actor.id, { role: actor.role }), userId: target.id });
+  const rows = await app.services.admin.listSessions({ principal: await principal(harness, actor.id), userId: target.id });
   expect(rows).toHaveLength(1);
   expect(rows[0]).toMatchObject({ id: session.sessionId, userId: target.id, revokedAt: null });
   expect(JSON.stringify(rows)).not.toContain("private-id-token");
@@ -58,7 +63,7 @@ test("the admin gate runs before a revoke, and the queried target is stamped on 
   expect(rows[0]).not.toHaveProperty("tokenHash");
 });
 
-test("revoke-all evicts session-less SSO even when the target has no cookie sessions", async ({ db, app, ids }) => {
+test("revoke-all evicts session-less SSO even when the target has no cookie sessions", async ({ harness, db, app, ids }) => {
   const actor = await seedUser(db, { role: "admin" });
   const target = await seedUser(db);
   const evicted = vi.fn();
@@ -68,11 +73,11 @@ test("revoke-all evicts session-less SSO even when the target has no cookie sess
     onDetach: vi.fn(),
     onEvicted: evicted,
   });
-  expect(await app.services.admin.revokeUserSessions({ principal: principal(actor.id, { role: actor.role }), userId: target.id })).toEqual({ revoked: 0 });
+  expect(await app.services.admin.revokeUserSessions({ principal: await principal(harness, actor.id), userId: target.id })).toEqual({ revoked: 0 });
   expect(evicted).toHaveBeenCalledOnce();
 });
 
-test("a refused durable revoke does not evict live sockets or invalidate a cookie", async ({ db, app, ids }) => {
+test("a refused durable revoke does not evict live sockets or invalidate a cookie", async ({ harness, db, app, ids }) => {
   const actor = await seedUser(db, { role: "admin" });
   const target = await seedUser(db);
   const session = await app.sessions.create({ userId: target.id });
@@ -84,15 +89,15 @@ test("a refused durable revoke does not evict live sockets or invalidate a cooki
     onEvicted: evicted,
   });
   await db.run(sql`CREATE TRIGGER refuse_session_revoke BEFORE UPDATE OF revoked_at ON sessions BEGIN SELECT RAISE(ABORT, 'revoke refused'); END`);
-  await expect(app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: session.sessionId })).rejects.toThrow();
+  await expect(app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId })).rejects.toThrow();
   expect(evicted).not.toHaveBeenCalled();
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });
   await db.run(sql`DROP TRIGGER refuse_session_revoke`);
-  await app.services.admin.revokeSession({ principal: principal(actor.id, { role: actor.role }), sessionId: session.sessionId });
+  await app.services.admin.revokeSession({ principal: await principal(harness, actor.id), sessionId: session.sessionId });
   expect(evicted).toHaveBeenCalledOnce();
 });
 
-test("the composed guarded audit stays adjacent and atomic with the password and session kick", async ({ db, app, ids }) => {
+test("the composed guarded audit stays adjacent and atomic with the password and session kick", async ({ harness, db, app, ids }) => {
   const actor = await seedUser(db, { role: "admin" });
   const target = await seedUser(db, { passwordHash: "original-hash" });
   const session = await app.sessions.create({ userId: target.id });
@@ -106,7 +111,7 @@ test("the composed guarded audit stays adjacent and atomic with the password and
   await db.run(
     sql`CREATE TRIGGER refuse_admin_audit BEFORE INSERT ON audit_logs WHEN NEW.action = 'admin.resetPassword' BEGIN SELECT RAISE(ABORT, 'audit refused'); END`,
   );
-  const params = { principal: principal(actor.id, { role: actor.role }), userId: target.id, password: PASSWORD };
+  const params = { principal: await principal(harness, actor.id), userId: target.id, password: PASSWORD };
   await expect(app.services.admin.resetPassword(params)).rejects.toThrow();
   expect((await db.select().from(users).where(eq(users.id, target.id)))[0]?.passwordHash).toBe("original-hash");
   expect(await app.sessions.validate(session.token)).toMatchObject({ userId: target.id });

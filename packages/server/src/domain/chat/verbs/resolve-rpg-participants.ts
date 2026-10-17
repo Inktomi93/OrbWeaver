@@ -12,15 +12,13 @@
 // a headless seat) is dropped — the tracker view only projects addressable actors.
 
 import type { RpgActorRef } from "@orb/contracts/rpg";
-import type { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveRpgParticipants, RpgParticipantActor } from "../contract/context.ts";
+import type { ParticipantRow } from "../contract/participant-row.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
-
-type ParticipantRow = typeof chatParticipants.$inferSelect;
 
 /** Resolve ONE present seat to an rpg actor (or `null` = not an addressable actor — a gone card, a headless
  *  seat, a hostless room's character). `hostUserId` owns the character-card read (D18/D19). */

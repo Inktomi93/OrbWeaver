@@ -39,6 +39,7 @@ const test = base.extend<{ requests: Request[]; providerFetch: typeof fetch }>({
 });
 
 test("the real greeting gate precedes template/funding reads; each completion resolves the caller's live Utility binding and preset", async ({
+  harness,
   db,
   services,
   clock,
@@ -46,8 +47,8 @@ test("the real greeting gate precedes template/funding reads; each completion re
 }) => {
   const owner = await seedUser(db);
   const stranger = await seedUser(db);
-  const actor = principal(owner.id, { role: owner.role, handle: owner.handle });
-  const neighbor = principal(stranger.id, { role: stranger.role, handle: stranger.handle });
+  const actor = await principal(harness, owner.id);
+  const neighbor = await principal(harness, stranger.id);
   const card = await seedCharacter(db, { ownerId: owner.id });
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({
@@ -99,13 +100,18 @@ test("the real greeting gate precedes template/funding reads; each completion re
   expect(await services.character.getCard({ principal: actor, characterId: card.id })).toMatchObject({ greetings: card.greetings });
 });
 
-test("a foreign preset degrades to the shipped template, but a real preset database failure refuses before completion", async ({ db, services, requests }) => {
+test("a foreign preset degrades to the shipped template, but a real preset database failure refuses before completion", async ({
+  harness,
+  db,
+  services,
+  requests,
+}) => {
   const owner = await seedUser(db);
   const stranger = await seedUser(db);
-  const actor = principal(owner.id, { role: owner.role, handle: owner.handle });
+  const actor = await principal(harness, owner.id);
   const card = await seedCharacter(db, { ownerId: owner.id });
   const foreign = await services.preset.create({ userId: stranger.id, name: "Foreign", kind: "prompt" });
-  const neighbor = principal(stranger.id, { role: stranger.role, handle: stranger.handle });
+  const neighbor = await principal(harness, stranger.id);
   await services.settings.updateUserSettingsSection({ principal: neighbor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });
   await services.settings.updateUserSettingsSection({ principal: actor, input: { section: "seeds", patch: { defaultPresetId: foreign.id } } });
   const template = createGreetingTemplate({

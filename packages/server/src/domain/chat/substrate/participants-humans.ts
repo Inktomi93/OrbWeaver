@@ -79,7 +79,7 @@ export async function ownedByConsentingHuman(
   return owned.some(Boolean);
 }
 
-/** How the room's pin stands for `ChatDetail.anchorState`. A pin nobody present and enabled owns is `held`:
+/** How the room's pin stands for `ChatDetailData.anchorState`. A pin nobody present and enabled owns is `held`:
  *  the card still means that persona (item 885). */
 export async function resolveAnchorState(
   ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,

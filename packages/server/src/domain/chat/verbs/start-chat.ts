@@ -33,7 +33,7 @@
 // a claim; the first claim comes from whatever the caller does NEXT (a send, a generated opening, an
 // explicit host config write — `verbs/claim-chat.ts`).
 
-import type { DurableChatBusEvent, MessageView, OpeningPolicy, ParticipantView } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, MessageView, OpeningPolicy } from "@orb/contracts/chat";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
@@ -44,8 +44,9 @@ import type { ChatContext, ChatServiceDeps } from "../context.ts";
 import type { ChatRpgGameBirthPlan } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { StartChatParams } from "../contract/params.ts";
-import type { StartChatResult, TurnOutcome } from "../contract/results.ts";
+import type { StartChatData, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
+import type { ParticipantData } from "../contract/views.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { buildInitialParticipantRows } from "../persistence/participants-read.ts";
 import { loadChatRow } from "../persistence/queries.ts";
@@ -56,11 +57,11 @@ import { resolveAnchorState } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
- *  returned `ChatDetail` roster. */
+ *  returned `ChatDetailData` roster. */
 interface StartChatDeps {
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly prepareCreationEvent: ChatServiceDeps["prepareCreationEvent"];
-  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantData[]>;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
@@ -180,7 +181,7 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     injections,
     temporary,
     startAsGame,
-  }: StartChatParams): Promise<StartChatResult> => {
+  }: StartChatParams): Promise<StartChatData> => {
     const now = ctx.now();
     const chatId = ctx.newChatId();
     const hostUserId = principal.userId;

@@ -18,8 +18,11 @@ import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "./context.ts";
+import { ChatNotFoundError } from "./contract/errors.ts";
+import type { ParticipantRow } from "./contract/participant-row.ts";
 import { loadMemberChat } from "./persistence/queries.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth/index.ts";
+import { hostSeatOf } from "./substrate/participants-host.ts";
 
 /** The chokepoint's deps: the DB read (`loadMemberChat`) + the injected `can()` decision seam. */
 type GuardCtx = Pick<ChatContext, "db" | "can">;
@@ -89,4 +92,17 @@ export async function requireAuthorOrHost(
 export async function gateLineagePerAncestor(ctx: GuardCtx, principal: Principal, ancestorChatIds: readonly ChatId[]): Promise<ChatId[]> {
   const memberships = await Promise.all(ancestorChatIds.map((id) => loadMemberChat(ctx.db, id, principal.userId)));
   return ancestorChatIds.filter((_, i) => memberships[i] !== undefined);
+}
+
+/** A nominee is a present non-host target; the caller's requireHost gate remains separate. */
+export function requireHandoffNominee<T extends Pick<ParticipantRow, "role" | "userId">>(
+  participants: readonly T[],
+  userId: Principal["userId"],
+  chatId: ChatId,
+): T {
+  const nominee = participants.find((participant) => participant.userId === userId);
+  if (nominee === undefined || nominee === hostSeatOf(participants)) {
+    throw new ChatNotFoundError(chatId);
+  }
+  return nominee;
 }

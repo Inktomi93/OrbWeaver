@@ -1,6 +1,6 @@
 // substrate/participants-host — THE participants host-LOOKUP (D19 "the host resolves by ROLE"): role → IDENTITY,
 // the ONE spelling for the whole class. Zero I/O, zero Principal: it reads an already-loaded seat list (the
-// `persistence/participants-read::loadParticipants` rows or a resolved `ParticipantView[]`) and answers WHO the host is.
+// `persistence/participants-read::loadParticipants` rows or a resolved `ParticipantData[]`) and answers WHO the host is.
 //
 // THE CLASS (the role-authority clause): a host lookup is in NEITHER of the two
 // role-comparison classes. It is not ENFORCEMENT (it decides nothing, throws nothing — that is
@@ -22,13 +22,14 @@
 // `observer`-shaped host row would otherwise make this lookup answer `null` while a real human host sat one
 // row below it. Fail-safe means "skip the seat that cannot own", not "give up at the first host-labelled row".
 
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
+import { participantRoleValue } from "#primitives/role-data/decode";
 
-/** The two columns a host lookup reads — structural, so both the raw `chat_participants` row
- *  (`loadParticipants`) and the resolved `ParticipantView` pass unchanged (neither shape is re-spelled here). */
+/** The two columns a host lookup reads — structural, so both the captured participant row
+ *  (`loadParticipants`) and the resolved `ParticipantData` pass unchanged (neither shape is re-spelled here). */
 interface HostSeat {
-  readonly role: ParticipantRole;
+  readonly role: ParticipantRoleState;
   readonly userId: UserId | null;
 }
 
@@ -36,7 +37,7 @@ interface HostSeat {
  *  so the caller gets its OWN row type back with every field intact — the invite preview reads the host's
  *  `handle` off it, the handoff reads `userId`. See the file header for the `userId` belt's one answer. */
 export function hostSeatOf<T extends HostSeat>(participants: readonly T[]): T | undefined {
-  return participants.find((seat) => seat.role === "host" && seat.userId !== null);
+  return participants.find((seat) => participantRoleValue(seat.role) === "host" && seat.userId !== null);
 }
 
 /** The host's USER id, or `null` for a hostless room. The lookup every ownership read wants (cards/presets/

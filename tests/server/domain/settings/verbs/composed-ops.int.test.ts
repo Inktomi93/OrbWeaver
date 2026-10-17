@@ -8,11 +8,12 @@ import { vi } from "vitest";
 import { createSettingsComposedOps } from "#server/domain/settings/index.ts";
 
 test("onboarding retains the original Principal, another user stays unseeded, and certificate governance remains owner-only", async ({
+  harness,
   db,
   services,
 }): Promise<void> => {
-  const actor = principal((await seedUser(db, { role: "admin" })).id, { role: "admin" });
-  const neighbor = principal((await seedUser(db)).id);
+  const actor = await principal(harness, (await seedUser(db, { role: "admin" })).id);
+  const neighbor = await principal(harness, (await seedUser(db)).id);
   const write = vi.spyOn(services.settings, "updateUserSettingsSection");
   const ops = createSettingsComposedOps(services.settings);
   await ops.markExamplePluginSeeded(actor);

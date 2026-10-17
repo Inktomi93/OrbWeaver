@@ -14,9 +14,13 @@ import { vi } from "vitest";
 
 const SLUG = SHOWCASE_PLUGIN_SLUGS[0];
 
-test("a missing real showcase bundle remains retryable, then lands owned, disabled and ungranted with a durable consent ask", async ({ db, services }) => {
+test("a missing real showcase bundle remains retryable, then lands owned, disabled and ungranted with a durable consent ask", async ({
+  harness,
+  db,
+  services,
+}) => {
   const user = await seedUser(db);
-  const actor = principal(user.id, { role: user.role, handle: user.handle });
+  const actor = await principal(harness, user.id);
   const source = { missing: true };
   const pluginOps = createPluginSeedOps(services.plugin);
   const settingsOps = createSettingsComposedOps(services.settings);
@@ -49,11 +53,11 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   ).toBe(true);
 });
 
-test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ db, services }) => {
+test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ harness, db, services }) => {
   const first = await seedUser(db);
   const second = await seedUser(db);
-  const actor = principal(first.id, { role: first.role, handle: first.handle });
-  const neighbor = principal(second.id, { role: second.role, handle: second.handle });
+  const actor = await principal(harness, first.id);
+  const neighbor = await principal(harness, second.id);
   const pluginOps = createPluginSeedOps(services.plugin);
   const settingsOps = createSettingsComposedOps(services.settings);
   const deps = {
@@ -86,18 +90,19 @@ test("real showcase deletion survives a cold seed, while another account receive
 });
 
 test("a failed real distributed install never latches; retry stays recipient-scoped, deduplicates in flight and respects withdrawal", async ({
+  harness,
   db,
   services,
 }) => {
   const publisher = await seedUser(db, { role: "admin" });
-  const admin = principal(publisher.id, { role: publisher.role, handle: publisher.handle });
+  const admin = await principal(harness, publisher.id);
   const bundle = await packShowcaseBundle(SLUG);
   if (bundle === null) {
     throw new Error("the real showcase package did not produce its bundle");
   }
   await services.plugin.installForAllUsers({ caller: admin, bundle });
   const recipient = await seedUser(db);
-  const actor = principal(recipient.id, { role: recipient.role, handle: recipient.handle });
+  const actor = await principal(harness, recipient.id);
   const settingsOps = createSettingsComposedOps(services.settings);
   const pluginOps = createPluginSeedOps(services.plugin);
   const apply = vi.fn(pluginOps.apply);

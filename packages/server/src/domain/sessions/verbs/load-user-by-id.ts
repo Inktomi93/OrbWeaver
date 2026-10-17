@@ -1,4 +1,5 @@
 import type { UserId } from "@orb/kit/ids";
+import { captureUserRole } from "#primitives/role-data";
 import type { UserPrincipalFields } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { selectForProvisionById } from "../persistence/users.ts";
@@ -24,7 +25,7 @@ export function createLoadUserById(ctx: Pick<SessionsContext, "db">): Pick<Sessi
     if (row === undefined) {
       return null;
     }
-    return { role: row.role, handle: row.handle, externalId: row.externalId, enabled: row.enabled };
+    return { role: captureUserRole(row.role), handle: row.handle, externalId: row.externalId, enabled: row.enabled };
   }
   return { loadUserById };
 }

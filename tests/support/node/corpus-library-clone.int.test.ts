@@ -96,7 +96,9 @@ test("portable preset and live-rule captures equal fresh native reads in a scrub
     importStagingDir: cloneLayout.importStaging,
   });
   const owner = await clone.principalFor(relations.viewerUserId);
-  await expect(captureCorpusCookieIdentity(clone, owner, produced.authentication.cookie)).rejects.toThrow("request refused (401)");
+  await expect(captureCorpusCookieIdentity(clone, produced.authentication.identity.viewer, produced.authentication.cookie)).rejects.toThrow(
+    "request refused (401)",
+  );
   const fresh = await captureCookieAuth(clone, owner, "private-fresh-clone-library-password");
   expect(fresh.identity).toEqual(produced.authentication.identity);
   expect(fresh.secrets.filter((secret) => produced.authentication.secrets.includes(secret))).toEqual([]);

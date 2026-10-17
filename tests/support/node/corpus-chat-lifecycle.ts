@@ -35,12 +35,13 @@ import type { ServerTestHarness } from "./server.ts";
 
 type ChatWire = ReturnType<typeof createCorpusChatWire>;
 type ChatService = ServerTestHarness["services"]["chat"];
+type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
 type NativeTurn = Awaited<ReturnType<ChatService["send"]>>;
 type NativeReplay = Awaited<ReturnType<typeof captureChatReplayRows>>;
 type NativeImported = Awaited<ReturnType<typeof seedImportedChatRows>>;
 interface NativeRoom {
   readonly character: Awaited<ReturnType<ServerTestHarness["services"]["character"]["create"]>>;
-  readonly room: Awaited<ReturnType<ChatService["startChat"]>>;
+  readonly room: Awaited<ReturnType<Caller["chat"]["startChat"]>>;
 }
 interface ImportReactionCapture extends NativeRoom {
   readonly asset: Awaited<ReturnType<ServerTestHarness["app"]["assets"]["store"]>>;
@@ -90,10 +91,10 @@ interface DeferredHandoffCapture extends NativeRoom {
   readonly drainRepeated: DeferredHandoffCapture["drained"];
   readonly completed: NativeReplay;
   readonly marker: Awaited<ReturnType<typeof captureChatHandoffResumption>>;
-  readonly accepted: Awaited<ReturnType<ChatService["getChat"]>> | undefined;
+  readonly accepted: Awaited<ReturnType<Caller["chat"]["getChat"]>> | undefined;
   readonly oldHostRefusal: string | undefined;
   readonly finalMarker: DeferredHandoffCapture["marker"];
-  readonly final: Awaited<ReturnType<ChatService["getChat"]>>;
+  readonly final: Awaited<ReturnType<Caller["chat"]["getChat"]>>;
   readonly acceptedSeat: NonNullable<DeferredHandoffCapture["accepted"]>["participants"][number];
   readonly finalSeat: DeferredHandoffCapture["final"]["participants"][number];
   readonly copiedCharacter: Awaited<ReturnType<ServerTestHarness["services"]["character"]["get"]>>;
@@ -275,6 +276,7 @@ async function deferAndHandoff(
 ): Promise<DeferredHandoffCapture> {
   const principal = await root.principalFor(root.ownerId);
   const member = await root.principalFor(memberUserId);
+  const memberCaller = await root.internalCallerFor(member.userId);
   const source = await lifecycleRoom(root, "corpus-lifecycle-deferred");
   const chatId = source.room.chat.id;
   const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
@@ -298,7 +300,7 @@ async function deferAndHandoff(
       }),
     ]);
     marker = await captureChatHandoffResumption(root.db, chatId);
-    accepted = await root.services.chat.getChat({ principal: member, chatId });
+    accepted = await memberCaller.chat.getChat({ chatId });
     try {
       await root.services.chat.acceptHostHandoff({ principal, chatId });
     } catch (error) {
@@ -312,7 +314,7 @@ async function deferAndHandoff(
     await accepting;
   }
   const finalMarker = await captureChatHandoffResumption(root.db, chatId);
-  const final = await root.services.chat.getChat({ principal: member, chatId });
+  const final = await memberCaller.chat.getChat({ chatId });
   const sourceSeat = source.room.chat.participants.find((seat) => seat.kind === "character" && seat.characterId === source.character.id);
   if (sourceSeat === undefined) {
     throw new Error("native handoff source has no character participant identity");

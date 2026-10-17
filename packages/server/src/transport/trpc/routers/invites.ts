@@ -35,12 +35,12 @@ import {
   inviteViewSchema,
   joinHistoryVisibilitySchema,
   previewInviteSchema,
-  redeemInviteResultSchema,
   redeemInviteSchema,
 } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { redeemInviteResultSchema } from "../role-output.ts";
 import { multiHumanProcedure, t } from "../trpc.ts";
 
 const createSchema = z.object({

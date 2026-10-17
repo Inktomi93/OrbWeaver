@@ -17,10 +17,13 @@ test("trusted boot moves its singleton seed key without taking another account's
   const otherId = await root.app.sessions.ensureUser(heldHandle);
   const deps = { db: root.db, sessions: root.app.sessions, now: root.clock.now };
   expect(await seedOwner({ ...deps, ownerHandles: ["boot-moved-owner"] })).toEqual([owner.userId]);
-  expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner", role: "owner", enabled: true });
+  expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner", enabled: true });
+  expect(await (await root.internalCallerFor(owner.userId)).sessions.me()).toMatchObject({ handle: "boot-moved-owner", globalRole: "owner" });
   await expect(seedOwner({ ...deps, ownerHandles: [heldHandle] })).rejects.toThrow("already held by another user");
-  expect(await root.app.sessions.loadUserById(otherId)).toMatchObject({ handle: heldHandle, role: "user" });
-  expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner", role: "owner" });
+  expect(await root.app.sessions.loadUserById(otherId)).toMatchObject({ handle: heldHandle });
+  expect(await (await root.internalCallerFor(otherId)).sessions.me()).toMatchObject({ handle: heldHandle, globalRole: "user" });
+  expect(await root.app.sessions.loadUserById(owner.userId)).toMatchObject({ handle: "boot-moved-owner" });
+  expect(await (await root.internalCallerFor(owner.userId)).sessions.me()).toMatchObject({ handle: "boot-moved-owner", globalRole: "owner" });
   await root.services.admin.setEnabled({ principal: await root.principalFor(owner.userId), userId: otherId, enabled: false });
   expect((await createListSeedAccountIds(root.db)()).toSorted()).toEqual([owner.userId, otherId].toSorted());
   expect(await seedOwner({ ...deps, ownerHandles: [owner.handle] })).toEqual([owner.userId]);

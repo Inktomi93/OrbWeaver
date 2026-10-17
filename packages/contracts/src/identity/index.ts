@@ -12,6 +12,9 @@
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import type { ParticipantRoleState, UserRoleState } from "./role-data.ts";
+
+export type { ParticipantRoleState, UserRoleState } from "./role-data.ts";
 
 // The global-authz axis. `owner` = the box owner (sole max-pro-sub/wallet holder; immutable; exactly one);
 // `admin` = delegated administrator; `user` = normal. The one home every gating domain derives from.
@@ -309,7 +312,7 @@ export interface ResolvedIdentity {
  *  "this IS the owner" marker — never infer it from `externalId === null` (a forward-header is also null). */
 export interface Principal {
   userId: UserId;
-  role: UserRole;
+  role: UserRoleState;
   handle: Handle;
   externalId: ExternalId | null;
   via: "cookie" | "header" | "fallback";
@@ -361,7 +364,7 @@ export type ParticipantRole = (typeof PARTICIPANT_ROLES)[number];
 /** The membership data chat feeds `can()` for a chat-resource decision. `can()` makes the verdict —
  *  chat never compares `role === 'host'` itself. */
 export interface ChatMembership {
-  readonly role: ParticipantRole;
+  readonly role: ParticipantRoleState;
 }
 
 /** GLOBAL scope — the global-role axis (admin/owner). */
