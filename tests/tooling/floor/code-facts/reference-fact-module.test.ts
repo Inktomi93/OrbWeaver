@@ -14,7 +14,12 @@ import {
   readObservedCallableConsumers,
   readSuppliedParameter,
 } from "../../../../tooling/src/floor/code-facts/call-returns.ts";
-import type { CallReturnObservations, CallReturnProgram, ReturnedValueContext } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
+import type {
+  CallReturnObservations,
+  CallReturnProgram,
+  InheritedReadPremise,
+  ReturnedValueContext,
+} from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
 import { readReturnedValue } from "../../../../tooling/src/floor/code-facts/value-carrier.ts";
 
 const DYNAMIC_ORIGIN_CASES = ["direct", "local", "destructured", "computed", "transitive"] as const;
@@ -285,6 +290,24 @@ function capturedNamespaceObservations(project: Project, input: CapturedNamespac
   return observeCallReturns(roots, input.references === false ? undefined : files.flatMap((file) => file.getDescendants()), { suppliedCallableTargets: true });
 }
 
+function namespaceTrialContinuation(
+  program: CallReturnProgram,
+  bindings: ReadonlyMap<MorphNode, MorphNode>,
+  premise: InheritedReadPremise,
+): ReturnedValueContext {
+  return {
+    program,
+    bindings,
+    active: new Set(),
+    terminals: new Set(),
+    nativeIterations: new Map(),
+    nativeValueTransfers: false,
+    explicitAbsentReturns: false,
+    callableValues: true,
+    inheritedReadPremise: premise,
+  };
+}
+
 for (const scenario of CAPTURED_NAMESPACE_CASES) {
   test(`captured native catch namespace: ${scenario.name}`, () => {
     const input: CapturedNamespaceCase = scenario;
@@ -323,6 +346,254 @@ for (const scenario of CAPTURED_NAMESPACE_CASES) {
       expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : []).toEqual(
         scenario.expected ? [call.compilerNode] : [],
       );
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const capture of ["full", "omitted initializer"] as const) {
+  test(`captured namespace call demand preserves its actual consumer: ${capture}`, () => {
+    const { project, source, call, caught, owner, parameter, declaration } = capturedNamespaceFixture();
+    beginReferencePass();
+    try {
+      const files = project.getSourceFiles();
+      const roots = capture === "full" ? files.flatMap((file) => file.getDescendantsOfKind(SyntaxKind.CallExpression)) : [call];
+      const observed = observeCallReturns(
+        roots,
+        files.flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual native capture owner is missing");
+      }
+      expect(program.program.getRootFileNames()).toEqual(expect.arrayContaining(files.map((file) => file.getFilePath())));
+      expect(program.program.getSourceFile(source.getFilePath())).toBe(source.compilerNode);
+      expect(program.sources.has(source)).toBe(true);
+      expect(program.byCall.has(call.compilerNode)).toBe(true);
+      expect(program.byCall.has(caught.compilerNode)).toBe(capture === "full");
+      expect(declaration !== undefined && program.program.isSourceFileDefaultLibrary(declaration.getSourceFile().compilerNode)).toBe(true);
+      const demand = program.demandValueCall;
+      if (demand === undefined) {
+        throw new Error("the actual call-capture demand owner is missing");
+      }
+      let requests = 0;
+      const actualDemand: NonNullable<CallReturnProgram["demandValueCall"]> = (requested) => {
+        expect(requested.compilerNode).toBe(caught.compilerNode);
+        requests++;
+        return demand(requested);
+      };
+      Object.defineProperty(program, "demandValueCall", { configurable: true, value: actualDemand });
+      const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+      const reference = element.getPropertyNameNodeOrThrow();
+      const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+      const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program });
+      expect(alias !== undefined && !("kind" in alias), namespaceAliasWitness(alias)).toBe(true);
+      const settled = program.suppliedCallableUses?.(call);
+      expect(settled?.kind, settled?.kind === "unresolved" ? settled.detail : capture).toBe("resolved");
+      expect(program.byCall.has(caught.compilerNode)).toBe(true);
+      const consumers = readObservedCallableConsumers(owner, program);
+      expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : consumers.detail).toEqual([call.compilerNode]);
+      const supplied = readSuppliedParameter(parameter.getNameNode(), new Map(), program);
+      expect(supplied.kind === "resolved" ? supplied.value.map((value) => value.value.compilerNode) : supplied.detail).toEqual([
+        parameter.getInitializerOrThrow().compilerNode,
+      ]);
+      expect(call.getArguments()).toHaveLength(0);
+      const targets = readCallTargets(call, undefined, observed);
+      expect(targets.kind === "resolved" ? targets.value.map((target) => target.compilerNode) : targets.detail).toEqual([owner.compilerNode]);
+      const published = program.nativeNamespaceAlias?.(reference, binding, owner, { program });
+      expect(published !== undefined && !("kind" in published), namespaceAliasWitness(published)).toBe(true);
+      expect(requests).toBe(capture === "full" ? 0 : 1);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+for (const scenario of [
+  "missing consumer",
+  "missing references",
+  "missing demander",
+  "rejected demand",
+  "unpublished receipt",
+  "returning handler",
+  "overwritten then",
+] as const) {
+  test(`captured namespace call demand retains refusal: ${scenario}`, () => {
+    const { project, source, call, caught, owner, parameter } = capturedNamespaceFixture({
+      before: `const seed=(()=>0)();${scenario === "overwritten then" ? "Promise.prototype.then=function(){return Promise.resolve({pick:()=>2});};" : ""}`,
+      ...(scenario === "returning handler" ? { handler: "()=>({pick:()=>2})" } : {}),
+    });
+    const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const reference = element.getPropertyNameNodeOrThrow();
+    const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    beginReferencePass();
+    try {
+      const files = project.getSourceFiles();
+      const seed = source.getVariableDeclarationOrThrow("seed").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+      const observed = observeCallReturns(
+        [scenario === "missing consumer" ? seed : call],
+        scenario === "missing references" ? undefined : files.flatMap((file) => file.getDescendants()),
+        { suppliedCallableTargets: true },
+      );
+      const program = observed.programs[0];
+      if (program === undefined) {
+        throw new Error("the actual native capture owner is missing");
+      }
+      expect(program.byCall.has(caught.compilerNode)).toBe(false);
+      if (scenario === "missing demander") {
+        Object.defineProperty(program, "demandValueCall", { configurable: true, value: undefined });
+      } else if (scenario === "rejected demand" || scenario === "unpublished receipt") {
+        const rejected: NonNullable<CallReturnProgram["demandValueCall"]> = (requested) =>
+          scenario === "rejected demand"
+            ? {
+                kind: "unresolved",
+                reason: "missing",
+                detail: "the controlled owner rejects capture",
+                node: requested,
+                trace: { declarations: [], origin: requested },
+              }
+            : { kind: "resolved", value: true, trace: { declarations: [], origin: requested } };
+        Object.defineProperty(program, "demandValueCall", { configurable: true, value: rejected });
+      }
+      const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program });
+      expect(scenario === "missing consumer" || (alias !== undefined && "kind" in alias)).toBe(true);
+      expect(readObservedCallableConsumers(owner, program).kind).toBe("unresolved");
+      expect(readSuppliedParameter(parameter.getNameNode(), new Map(), program).kind).toBe("unresolved");
+      expect(scenario !== "missing consumer" || !program.byCall.has(call.compilerNode)).toBe(true);
+      const remainsUncaptured = ["missing references", "missing demander", "rejected demand", "unpublished receipt"].includes(scenario);
+      expect(remainsUncaptured && program.byCall.has(caught.compilerNode)).toBe(false);
+    } finally {
+      endReferencePass();
+    }
+  });
+}
+
+test("captured namespace call demand revokes its private proof before ordinary publication", () => {
+  const { project, source, call, caught, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
+  const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+  const reference = element.getPropertyNameNodeOrThrow();
+  const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(
+      [call],
+      project.getSourceFiles().flatMap((file) => file.getDescendants()),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    const trial = program?.withInheritedReadTrial;
+    if (program === undefined || trial === undefined) {
+      throw new Error("the actual inherited-trial owner is missing");
+    }
+    expect(program.byCall.has(caught.compilerNode)).toBe(false);
+    const contexts: ReturnedValueContext[] = [];
+    const unchangedDuringDemand: boolean[] = [];
+    const revokedBeforePublication: boolean[] = [];
+    const publishedRetry: boolean[] = [];
+    const observedTrial: NonNullable<CallReturnProgram["withInheritedReadTrial"]> = (node, captured, prove) =>
+      trial(node, captured, () => {
+        try {
+          return prove();
+        } finally {
+          const context = contexts.at(-1);
+          if (context !== undefined && !program.byCall.has(caught.compilerNode)) {
+            revokedBeforePublication.push(context.inheritedReadPremise?.require(reference, program).kind === "unresolved");
+          }
+        }
+      });
+    Object.defineProperty(program, "withInheritedReadTrial", { configurable: true, value: observedTrial });
+    const effects = inspectInheritedReadEffects(binding, {
+      program,
+      values: (node, path, bindings, premise) => {
+        if (premise !== undefined) {
+          const context = namespaceTrialContinuation(program, bindings, premise);
+          contexts.push(context);
+          const present = program.byCall.has(caught.compilerNode);
+          const before = program.callableProofEpoch?.();
+          try {
+            const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
+            publishedRetry.push(present && alias !== undefined && !("kind" in alias));
+          } finally {
+            if (!present) {
+              const after = program.callableProofEpoch?.();
+              unchangedDuringDemand.push(
+                !program.byCall.has(caught.compilerNode) &&
+                  before?.callCount === after?.callCount &&
+                  before?.referenceRevision === after?.referenceRevision &&
+                  before?.sourceCount === after?.sourceCount &&
+                  program.inheritedReadTrialActive?.() === true,
+              );
+            }
+          }
+        }
+        return readReturnedValue(node, path, observed, { terminals: new Set(), bindings });
+      },
+    });
+    expect(effects.kind, effects.kind === "unresolved" ? effects.detail : "resolved").toBe("resolved");
+    expect(unchangedDuringDemand).toEqual([true]);
+    expect(revokedBeforePublication).toEqual([true]);
+    expect(publishedRetry.length > 0 && publishedRetry.every(Boolean)).toBe(true);
+    expect(program.byCall.has(caught.compilerNode)).toBe(true);
+    expect(contexts[0]?.inheritedReadPremise).not.toBe(contexts.at(-1)?.inheritedReadPremise);
+    expect(contexts[0]?.inheritedReadPremise?.require(reference, program)).toMatchObject({
+      kind: "unresolved",
+      detail: "the inherited-effect premise has expired",
+    });
+    expect(program.inheritedReadTrialActive?.()).toBe(false);
+    expect(program.suppliedCallableUses?.(call).kind).toBe("resolved");
+    const consumers = readObservedCallableConsumers(owner, program);
+    expect(consumers.kind === "resolved" ? consumers.value.map((consumer) => consumer.call.compilerNode) : consumers.detail).toEqual([call.compilerNode]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+for (const invalidation of ["expired premise", "foreign live premise", "changed source"] as const) {
+  test(`captured namespace call demand cannot publish with ${invalidation}`, () => {
+    const { project, source, call, caught, owner } = capturedNamespaceFixture({ after: 'const key="safe";const record={safe:{}};record[key];' });
+    const element = source.getFirstDescendantByKindOrThrow(SyntaxKind.BindingElement);
+    const reference = element.getPropertyNameNodeOrThrow();
+    const binding = element.getNameNode().asKindOrThrow(SyntaxKind.Identifier);
+    const nativeCaught = caught.compilerNode;
+    beginReferencePass();
+    try {
+      const references = project.getSourceFiles().flatMap((file) => file.getDescendants());
+      const observed = observeCallReturns([call], references, { suppliedCallableTargets: true });
+      const program = observed.programs[0];
+      const other = invalidation === "foreign live premise" ? observeCallReturns([call], references, { suppliedCallableTargets: true }) : observed;
+      const trialOwner = other.programs[0];
+      if (program === undefined || trialOwner === undefined) {
+        throw new Error("the actual native capture owners are missing");
+      }
+      let context: ReturnedValueContext | undefined;
+      const foreignRefusals: boolean[] = [];
+      const effects = inspectInheritedReadEffects(binding, {
+        program: trialOwner,
+        values: (node, path, bindings, premise) => {
+          if (premise !== undefined) {
+            context = namespaceTrialContinuation(program, bindings, premise);
+            if (invalidation === "foreign live premise") {
+              const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
+              foreignRefusals.push(alias !== undefined && "kind" in alias && !program.byCall.has(nativeCaught));
+            }
+          }
+          return readReturnedValue(node, path, other, { terminals: new Set(), bindings });
+        },
+      });
+      expect(effects.kind).toBe("resolved");
+      expect(context).toBeDefined();
+      expect(program.byCall.has(nativeCaught)).toBe(false);
+      const before = program.callableProofEpoch?.();
+      if (invalidation === "changed source") {
+        source.replaceWithText("export const changed=1;");
+      }
+      const alias = program.nativeNamespaceAlias?.(reference, binding, owner, { program, context });
+      expect(alias !== undefined && "kind" in alias).toBe(true);
+      expect(program.byCall.has(nativeCaught)).toBe(false);
+      expect(program.callableProofEpoch?.().callCount).toBe(before?.callCount);
+      expect(invalidation !== "foreign live premise" || (foreignRefusals.length > 0 && foreignRefusals.every(Boolean))).toBe(true);
     } finally {
       endReferencePass();
     }
