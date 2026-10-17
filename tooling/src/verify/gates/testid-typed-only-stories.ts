@@ -1,8 +1,4 @@
-// Gate: testid-typed-only-stories (UI-Gates-and-Lessons.md §11.5) — a CT story mounts with freeform `data-testid`
-// strings that the typed registry (`testId("key")`, client lib/test-ids.ts) would make compile-checked. Same subject
-// as `testid-typed-only`, read through `lib/testid-value.ts`; split because the population is the story modules and
-// the position is the attribute's VALUE, so one file can carry a distinct waiver per id instead of one ambiguous
-// `data-testid` position per JSX tree. A value with a paren is named by its leading paren-free slice.
+// Story freeform IDs retain their custom value-coordinate permissions; production literals use native lint.
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
@@ -16,7 +12,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "testid-typed-only-stories",
-  family: "testid-typed-only",
+  family: "testid-typed-only-stories",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@tests"], named: ["_*stories.tsx", "*.stories.tsx"] },

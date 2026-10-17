@@ -1,4 +1,4 @@
-// The `testid-typed-only` family's subject: a `data-testid` attribute whose value is a freeform string.
+// The story policy's lexical subject: a data-testid attribute whose value is a freeform string.
 import type { Node } from "ts-morph";
 import { Node as N } from "ts-morph";
 import { readStringValue } from "./ast-read.ts";

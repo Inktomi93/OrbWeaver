@@ -42,7 +42,7 @@ test("a coupled control adds only the selected policy's companion group", () => 
   const selected = decodeInstrumentAffectedPolicyIds(encodeInstrumentAffectedPolicyIds(["query-boundary-reservation-health"]));
   const expanded = includeInstrumentAffectedControlPolicies(selected, [
     ["query-boundary-reservation-health", "query-boundary-reservation"],
-    ["chrome-registry-completeness", "testid-typed-only"],
+    ["unrelated", "also-unrelated"],
   ]);
   expect(expanded === undefined ? [] : [...expanded].toSorted()).toEqual(["query-boundary-reservation", "query-boundary-reservation-health"]);
 });

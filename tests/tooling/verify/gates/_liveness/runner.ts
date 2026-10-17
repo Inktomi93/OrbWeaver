@@ -64,7 +64,6 @@ const CHUNKS = {
 export const ALL_ARMS: readonly RealCorpusLivenessArm[] = Object.values(CHUNKS).flat();
 const AFFECTED_POLICY_IDS = decodeInstrumentAffectedPolicyIds(processEnvValue(INSTRUMENT_AFFECTED_POLICIES_ENV));
 const CLOSEOUT_POLICY_IDS = ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"] as const;
-const DEAD_BATCH_CONTROL_IDS = ["chrome-registry-completeness", "testid-typed-only"] as const;
 const DEPENDENCY_CONTROL_IDS = [queryBoundaryReservationHealth.id, queryBoundaryReservation.id] as const;
 const RESOURCE_CONTROL_IDS = FRONTEND_ARMS.filter((arm) => arm.grantConsumption !== true && arm.overlays.some((overlay) => overlay.kind === "resource"))
   .slice(0, 1)
@@ -73,11 +72,10 @@ const GRANT_CONSUMPTION_CONTROL_IDS = FRONTEND_ARMS.filter((arm) => arm.grantCon
   .slice(0, 1)
   .map((arm) => arm.policy.id);
 const REPORT_ANCHOR_CONTROL_IDS = ALL_ARMS.filter((arm) => (arm.reportsAt?.length ?? 0) > 0).map((arm) => arm.policy.id);
-const RUNNER_POLICY_IDS = includeInstrumentAffectedControlPolicies(AFFECTED_POLICY_IDS, [DEAD_BATCH_CONTROL_IDS, DEPENDENCY_CONTROL_IDS]);
+const RUNNER_POLICY_IDS = includeInstrumentAffectedControlPolicies(AFFECTED_POLICY_IDS, [DEPENDENCY_CONTROL_IDS]);
 const KNOWN_ARMS = selectInstrumentAffectedArms(ALL_ARMS, RUNNER_POLICY_IDS);
 const CONTROL_POLICY_IDS = new Set([
   ...CLOSEOUT_POLICY_IDS,
-  ...DEAD_BATCH_CONTROL_IDS,
   ...DEPENDENCY_CONTROL_IDS,
   ...RESOURCE_CONTROL_IDS,
   ...GRANT_CONSUMPTION_CONTROL_IDS,
@@ -366,40 +364,6 @@ export function registerLivenessPartition(partitionIndex: number): void {
             "reported NOTHING for a real-corpus positive control",
           );
         }
-      },
-    );
-
-    test.runIf(instrumentAffectedIncludes(AFFECTED_POLICY_IDS, DEAD_BATCH_CONTROL_IDS))(
-      "partitioning preserves a live verdict and a DEAD batch-mate is still named dead",
-      { timeout: scaledBudget(controlBaseMs) },
-      ({ repoRoot }) => {
-        // Partitioning must not lend the dead control the live policy's finding.
-        const live = armFor("chrome-registry-completeness");
-        const deadOf = armFor("testid-typed-only");
-        const dead: RealCorpusLivenessArm = {
-          ...deadOf,
-          overlays: [{ kind: "add", path: "packages/client/src/components/liveness-clean-control.tsx", source: "export const clean = 1;\n" }],
-        };
-        const verdicts = liveness(repoRoot).proveBatch([live, dead]);
-        const liveVerdict = verdicts.get(live.policy.id);
-        const deadVerdict = verdicts.get(dead.policy.id);
-        if (liveVerdict === undefined || deadVerdict === undefined) {
-          throw new Error("the control batch produced no verdict for one of its two arms");
-        }
-        const isolatedLive = liveness(repoRoot).proveBatch([live]).get(live.policy.id);
-        if (isolatedLive === undefined) {
-          throw new Error("the isolated partition produced no verdict for the live arm");
-        }
-        const evidence = (verdict: RealCorpusArmVerdict): Pick<RealCorpusArmVerdict, "messages" | "refusals" | "outOfScope" | "staleGrants"> => ({
-          messages: verdict.messages,
-          refusals: verdict.refusals,
-          outOfScope: verdict.outOfScope,
-          staleGrants: verdict.staleGrants,
-        });
-        expect(evidence(liveVerdict), "partitioning changed the live arm's verdict evidence").toEqual(evidence(isolatedLive));
-        expect(deadVerdict.batch, "distinct interventions are proved separately").toEqual([dead.policy.id]);
-        expect(assertArmVerdict(live, liveVerdict).join("\n")).toContain(live.messageIncludes);
-        expect(() => assertArmVerdict(dead, deadVerdict)).toThrow("reported NOTHING for a real-corpus positive control");
       },
     );
 

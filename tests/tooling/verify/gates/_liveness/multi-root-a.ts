@@ -40,7 +40,6 @@ import { gate as injectedOpCallerParam } from "../../../../../tooling/src/verify
 import { gate as jsonColumnWriteParity } from "../../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as jsonColumnWriteParityHealth } from "../../../../../tooling/src/verify/gates/json-column-write-parity-health.ts";
 import { gate as knobWireCoverage } from "../../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
-import { gate as lifecyclePortability } from "../../../../../tooling/src/verify/gates/lifecycle-portability.ts";
 import { gate as macroResolutionHealth } from "../../../../../tooling/src/verify/gates/macro-resolution-health.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 
@@ -303,16 +302,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       edit(`${CONTRACTS}/settings/index.ts`, "export interface EffectiveAppConfig {\n", "export interface EffectiveAppConfig {\n  livenessGhost: number;\n"),
     ],
     messageIncludes: "livenessGhost",
-  },
-  {
-    policy: lifecyclePortability,
-    overlays: [
-      add(
-        "packages/db/src/schema/liveness-journal.ts",
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const livenessJournal = sqliteTable("liveness_journal", { id: text("id").primaryKey(), ownerId: text("owner_id"), body: text("body") });\n',
-      ),
-    ],
-    messageIncludes: "OWNER-STAMPED canon that no portable kind carries",
   },
   {
     policy: macroResolutionHealth,

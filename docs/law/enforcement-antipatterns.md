@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-16
+updated: 2026-10-17
 ---
 
 # Enforcement antipattern catalog
@@ -23,7 +23,7 @@ Maintained tools and structural gates enforce this catalog. Structural classes u
 | Copied production function | `copied-logic` | a test helper `pidAlive` with the body of an exported production `pidAlive` | The copy keeps passing when the production rule changes | `test-production-clone` | the [test-foundation rebuild](../plans/test-foundation/design.md) |
 | Oversized test file | native lint | a CT file that proves a whole surface in one review unit | Repeated setup and unrelated concerns hide the case that broke | ESLint `max-lines` in `eslint.config.js` | Split by concern; native bulk migration debt only shrinks. |
 | Boundary read without a parse | `unparsed-boundary` | `(await res.json()) as ChatImportResult`; `row.manifest.capabilities` off a `$type<PluginManifest>` column | The cast states what the writer meant, not what arrived; a server change or an old row reaches the domain unvalidated | `wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`, `zod-output-twin-parity` | the gate's waiver budget |
-| Re-spelled constant or union | `respelled-constant` | `data-testid="composer-input"` in a story; `z.enum(["a", "b"])` beside the canonical tuple | The copy keeps the old value when production renames it, and the test or selector silently stops matching | `no-inline-union-alias`, `no-inline-union-redecl`, `testid-typed-only`, `testid-typed-only-stories` | the legacy test rebuild, the legacy test rebuild |
+| Re-spelled constant or union | `respelled-constant` | `data-testid="composer-input"` in a story; `z.enum(["a", "b"])` beside the canonical tuple | The copy keeps the old value when production renames it, and the test or selector silently stops matching | `no-inline-union-alias`, `no-inline-union-redecl`, `testid-typed-only-stories`; ESLint `orb/testid-typed-only` for client code | the legacy test rebuild |
 | Cast or double cast | `cast` | `value as never`; `raw as unknown as ChatId` | The cast switches the type checker off at the one place it would catch a drift | `no-loose-id-cast`, `no-mint-via-cast`, `no-test-fabrication` | the legacy test rebuild |
 | Hand-forged id | `hand-forged-id` | `chatId: string`; `"chat_01abc" as ChatId` | A bare or literal id accepts every other brand and every malformed value | `no-raw-id`, `brand-in-name-position`, `typeid-prefix-boundary`, `no-fake-disabled-id` | the gate's waiver budget and the legacy test rebuild |
 | Fixture production cannot produce | `impossible-fixture` | an indexing state no verb writes; an `unknown` fixture export | The test proves behaviour for a state the product never reaches | `no-opaque-test-fixture`, `test-factory-contract`, `test-determinism` | the [test-foundation rebuild](../plans/test-foundation/design.md) |
