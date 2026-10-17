@@ -138,45 +138,40 @@ test("static parsing is lazy and repeated requests parse once while a new host r
 });
 
 test("installed text overlays are exact, snapshotted, and cached", () => {
-  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
+  const request = { id: "base-ui" as const, mode: "text" as const, file: "index.js" };
   const overlay = { request, source: "export const overlaidCompiler = true;\n" };
   const invocation = createResourceHost({ root: REPO_ROOT, installedPackageTextOverlays: [overlay] });
 
   request.file = "package.json";
   overlay.source = "export const mutatedCallerValue = true;\n";
 
-  const exact = invocation.host.installedPackage({ id: "react-compiler", mode: "text", file: "dist/index.js" });
-  expect(exact).toMatchObject({ status: "ready", value: { file: "dist/index.js", text: "export const overlaidCompiler = true;\n" } });
-  expect(invocation.host.installedPackage({ id: "react-compiler", mode: "text", file: "dist/index.js" })).toBe(exact);
+  const exact = invocation.host.installedPackage({ id: "base-ui", mode: "text", file: "index.js" });
+  expect(exact).toMatchObject({ status: "ready", value: { file: "index.js", text: "export const overlaidCompiler = true;\n" } });
+  expect(invocation.host.installedPackage({ id: "base-ui", mode: "text", file: "index.js" })).toBe(exact);
 
-  const different = invocation.host.installedPackage({ id: "react-compiler", mode: "text", file: "package.json" });
+  const different = invocation.host.installedPackage({ id: "base-ui", mode: "text", file: "package.json" });
   expect(different.status === "ready" && different.value.mode === "text" ? JSON.parse(different.value.text) : {}).toMatchObject({
-    name: "babel-plugin-react-compiler",
+    name: "@base-ui/react",
   });
-  expect(invocation.receipts().map(({ source }) => source)).toEqual([
-    "installed-package:react-compiler:text:dist/index.js",
-    "installed-package:react-compiler:text:package.json",
-  ]);
+  expect(invocation.receipts().map(({ source }) => source)).toEqual(["installed-package:base-ui:text:index.js", "installed-package:base-ui:text:package.json"]);
 });
 
 test("installed text overlays cannot invent packages or files", ({ scratch }) => {
   const missingPackage = createResourceHost({
     root: scratch,
-    installedPackageTextOverlays: [{ request: { id: "react-compiler", mode: "text", file: "dist/index.js" }, source: "export const invented = true;\n" }],
-  }).host.installedPackage({ id: "react-compiler", mode: "text", file: "dist/index.js" });
+    installedPackageTextOverlays: [{ request: { id: "base-ui", mode: "text", file: "index.js" }, source: "export const invented = true;\n" }],
+  }).host.installedPackage({ id: "base-ui", mode: "text", file: "index.js" });
   expect(missingPackage.status).toBe("missing");
 
   const missingFile = createResourceHost({
     root: REPO_ROOT,
-    installedPackageTextOverlays: [
-      { request: { id: "react-compiler", mode: "text", file: "dist/liveness-missing.js" }, source: "export const invented = true;\n" },
-    ],
-  }).host.installedPackage({ id: "react-compiler", mode: "text", file: "dist/liveness-missing.js" });
+    installedPackageTextOverlays: [{ request: { id: "base-ui", mode: "text", file: "dist/liveness-missing.js" }, source: "export const invented = true;\n" }],
+  }).host.installedPackage({ id: "base-ui", mode: "text", file: "dist/liveness-missing.js" });
   expect(missingFile.status).toBe("unresolved");
 });
 
 test("installed text overlays refuse duplicate exact identities", () => {
-  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
+  const request = { id: "base-ui" as const, mode: "text" as const, file: "index.js" };
   expect(() =>
     createResourceHost({
       root: REPO_ROOT,

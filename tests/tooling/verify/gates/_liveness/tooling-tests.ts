@@ -18,7 +18,6 @@ import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/g
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as gateModernization } from "../../../../../tooling/src/verify/gates/gate-modernization.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
-import { gate as noManualMemoCompilerHealth } from "../../../../../tooling/src/verify/gates/no-manual-memo-compiler-health.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
 import { gate as policyBindingResolution } from "../../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFamilyReaders } from "../../../../../tooling/src/verify/gates/policy-family-readers.ts";
@@ -134,17 +133,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "reports/",
-  },
-  {
-    policy: noManualMemoCompilerHealth,
-    overlays: [
-      {
-        kind: "installed-package",
-        request: { id: "react-compiler", mode: "text", file: "dist/index.js" },
-        source: "export const compiler = true;\n",
-      },
-    ],
-    messageIncludes: "no longer denylists @tanstack/react-virtual",
   },
   {
     policy: noOpaqueTestFixture,

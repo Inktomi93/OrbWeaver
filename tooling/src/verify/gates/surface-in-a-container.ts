@@ -7,7 +7,7 @@
 //
 // FAMILY `surface-composition` — the shared reader is `lib/surface-composition.ts`
 // (`rendersStructuralRoot` + `rendersLayoutContainer` + `exportedComponentAnchor`), with `surface-a11y-focus`
-// and this policy's own `-health` sibling as the other members. This one and `surface-a11y-focus` report the
+// as the other member. This one and `surface-a11y-focus` report the
 // SAME position deliberately: a surface-level verdict has no natural node, and two policies that agree on one
 // coordinate let ONE `@orb-waive` line carry each by id instead of each inventing a position the other cannot
 // see (guide §2.1, the `caught-failure.ts` shared-anchor payoff).
@@ -21,7 +21,7 @@
 // byte-identical. The ANCHORS half is EVIDENCE, not a subject — an anchors file is never reported — and
 // `execution: "entire-population"` is what makes that honest (below). Pinned by `mustPass[3]`/`mustPass[5]`.
 //
-// THE SHELL EXEMPTION IS PORTED FAITHFULLY, AS A POPULATION EXCLUSION PLUS A `hard` RATCHET, AND THE SHAPE IS
+// THE SHELL EXEMPTION IS PORTED FAITHFULLY, AS A POPULATION EXCLUSION, AND THE SHAPE IS
 // A RULING WITH RECEIPTS RATHER THAN A PREFERENCE (owner, 2026-09-13: *"i liked the gate how it did i think it
 // worked well? So lets just get it over faithfully."*).
 //   WHY NOT A REVIEWED GRANT, which is what the 2026-09-06 ruling normally requires (*sanctioned homes convert
@@ -37,14 +37,8 @@
 //   shape. §4's role table is the actual reason: SHELL establishes top-level named containers, ANCHOR wraps a
 //   surface in `container-type`, SURFACE consumes. The shell is not a containment consumer, so the exclusion
 //   encodes the law while the anchor rule merely happens to agree today.
-//   WHY THE RULING'S INTENT SURVIVES: what it protects is LIVENESS — an exemption must not silently un-scan a
-//   name someone later reuses. That is preserved by `surface-in-a-container-health`, which is `hard` and reds
-//   when the excluded feature directory no longer exists. Exclusion + liveness sibling, rather than grant +
-//   liveness, because the grant half cannot be made to fire at all.
-//
-// CATCH DELTA (§4.6): NONE in either direction. The admitted set, the acquittal rule and the shell's exemption
-// are byte-identical to the legacy descriptor, and the stale arm MOVED rather than retired — the sibling's
-// header carries its own successor statement.
+// The shell exclusion encodes that provider role; this policy does not certify the future liveness
+// of an excluded directory. Its product population and containment join remain unchanged.
 //
 // `execution: "entire-population"`: one surface's verdict depends on its FEATURE'S SIBLING FILES (does any
 // anchor render a container?), so it cannot compose over an arbitrary selected subset — a scoped run that

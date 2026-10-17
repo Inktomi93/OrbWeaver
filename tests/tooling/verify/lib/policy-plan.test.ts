@@ -273,7 +273,7 @@ test.describe("final policy planner", () => {
   });
 
   test.each([
-    ["installed-package", { kind: "installed-package", id: "react-compiler", mode: "metadata" }],
+    ["installed-package", { kind: "installed-package", id: "base-ui", mode: "metadata" }],
     ["authored-path", { kind: "authored-path" }],
   ] as const)("%s resource declarations plan with zero authored resource paths", (_case, request) => {
     const resource = policy(`unpopulated-${_case}`, {

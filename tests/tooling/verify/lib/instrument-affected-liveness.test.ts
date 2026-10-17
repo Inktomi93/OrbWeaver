@@ -33,9 +33,7 @@ test("a narrowed runner control executes for its selected policy and skips for a
 
 test("a grouped closeout control executes only its selected member", () => {
   const selected = decodeInstrumentAffectedPolicyIds(encodeInstrumentAffectedPolicyIds(["css-var-defined-health"]));
-  expect(
-    selectedInstrumentAffectedPolicyIds(selected, ["css-var-defined-health", "open-json-column-key-parity-health", "no-manual-memo-compiler-health"]),
-  ).toEqual(["css-var-defined-health"]);
+  expect(selectedInstrumentAffectedPolicyIds(selected, ["css-var-defined-health", "open-json-column-key-parity-health"])).toEqual(["css-var-defined-health"]);
 });
 
 test("a coupled control adds only the selected policy's companion group", () => {

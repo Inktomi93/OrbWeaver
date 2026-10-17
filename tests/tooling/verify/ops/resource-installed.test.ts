@@ -26,26 +26,26 @@ test("metadata resolves a package reached only through a pnpm store symlink", ()
 });
 
 test("text substitutes an exact overlay only after the real target validates", () => {
-  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
+  const request = { id: "base-ui" as const, mode: "text" as const, file: "index.js" };
   const fact = loadInstalledPackage(ROOT, request, { request, source: '{"browsers":[]}\n' });
 
-  expect(fact).toMatchObject({ status: "ready", value: { id: "react-compiler", mode: "text", file: "dist/index.js", text: '{"browsers":[]}\n' } });
+  expect(fact).toMatchObject({ status: "ready", value: { id: "base-ui", mode: "text", file: "index.js", text: '{"browsers":[]}\n' } });
 });
 
 test("text overlays cannot invent a target or cross request identities", () => {
-  const missingRequest = { id: "react-compiler" as const, mode: "text" as const, file: "liveness-missing.json" };
+  const missingRequest = { id: "base-ui" as const, mode: "text" as const, file: "liveness-missing.json" };
   expect(loadInstalledPackage(ROOT, missingRequest, { request: missingRequest, source: "{}\n" }).status).toBe("unresolved");
 
-  const request = { id: "react-compiler" as const, mode: "text" as const, file: "dist/index.js" };
+  const request = { id: "base-ui" as const, mode: "text" as const, file: "index.js" };
   const mismatch = {
-    request: { id: "react-compiler" as const, mode: "text" as const, file: "package.json" },
+    request: { id: "base-ui" as const, mode: "text" as const, file: "package.json" },
     source: "export const compiler = true;\n",
   };
   expect(loadInstalledPackage(ROOT, request, mismatch)).toMatchObject({ status: "unresolved", reason: expect.stringContaining("does not match") });
 });
 
 test("text cannot escape the package directory", () => {
-  const fact = loadInstalledPackage(ROOT, { id: "react-compiler", mode: "text", file: "package.json/../../../../etc/hostname" });
+  const fact = loadInstalledPackage(ROOT, { id: "base-ui", mode: "text", file: "package.json/../../../../etc/hostname" });
 
   // The path identity rule refuses the traversal before the read; a door that reads one named file must not
   // become a door that reads any file on the box.
