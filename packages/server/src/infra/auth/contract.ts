@@ -212,3 +212,36 @@ export type JwksKeySet = ReturnType<typeof createLocalJWKSet> | ReturnType<typeo
 export interface JwksReader extends Disposable {
   readonly jwksFor: (metaJwks: string, allowlist: readonly string[]) => JwksKeySet | null;
 }
+
+/** The subject a validated `logout_token` names — `sub` (the stable external id we key sessions on) and/or
+ *  `sid`. At least one is non-null (§2.4). We revoke by `sub`; `sid` alone is validated but unactionable
+ *  (we do not store a per-session IdP sid). */
+export interface LogoutTokenSubject {
+  readonly sub: string | null;
+  readonly sid: string | null;
+}
+
+export interface BackchannelVerifyArgs {
+  readonly logoutToken: string;
+  /** The issuer JWKS — an HTTPS URL or JSON literal admitted by the graph's {@link JwksReader}. */
+  readonly jwks: string;
+  readonly issuer: string;
+  readonly audience: string;
+}
+
+export interface BackchannelLogoutVerifier {
+  readonly verify: (args: BackchannelVerifyArgs) => Promise<LogoutTokenSubject | null>;
+}
+
+/** The local-password hashing seam; constructed at entry/ with the SESSION_SECRET pepper and injected
+ *  into the login route + admin user verbs. */
+export interface PasswordHasher {
+  /** false when no pepper is configured → hash/verify throw at call time. */
+  readonly enabled: boolean;
+  /** Hash a cleartext password into the self-contained `scrypt$salt$hash` form. Throws if too short. */
+  hash: (plain: string) => Promise<string>;
+  /** Constant-time verify of a cleartext password against a stored value. false (never throws) for a
+   *  null/empty/malformed stored value or any mismatch — so a nullable `passwordHash` passes straight
+   *  in and an SSO-only (null-hash) row simply fails to log in. */
+  verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
+}

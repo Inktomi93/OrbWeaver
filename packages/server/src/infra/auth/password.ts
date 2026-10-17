@@ -16,6 +16,7 @@
 
 import type { ScryptOptions } from "node:crypto";
 import { createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import type { PasswordHasher } from "./contract.ts";
 
 const ALGO = "scrypt";
 const HMAC_ALGORITHM = "sha256";
@@ -48,20 +49,6 @@ function scrypt(password: Buffer, salt: Buffer, keylen: number, options: ScryptO
   return new Promise((resolve, reject) => {
     scryptCb(password, salt, keylen, options, (err, derived) => (err ? reject(err) : resolve(derived)));
   });
-}
-
-// @orb-waive no-inline-package-interface(PasswordHasher): baselined when the gate landed; burn-down item 952.
-/** The local-password hashing seam; constructed at entry/ with the SESSION_SECRET pepper and injected
- *  into the login route + admin user verbs. */
-export interface PasswordHasher {
-  /** false when no pepper is configured → hash/verify throw at call time. */
-  readonly enabled: boolean;
-  /** Hash a cleartext password into the self-contained `scrypt$salt$hash` form. Throws if too short. */
-  hash: (plain: string) => Promise<string>;
-  /** Constant-time verify of a cleartext password against a stored value. false (never throws) for a
-   *  null/empty/malformed stored value or any mismatch — so a nullable `passwordHash` passes straight
-   *  in and an SSO-only (null-hash) row simply fails to log in. */
-  verify: (plain: string, stored: string | null | undefined) => Promise<boolean>;
 }
 
 /** Build a PasswordHasher over the SESSION_SECRET pepper, or a disabled hasher when no pepper is set. */
@@ -117,3 +104,5 @@ export function createPasswordHasher(pepperSecret: string | null | undefined): P
     },
   };
 }
+
+export type { PasswordHasher } from "./contract.ts";

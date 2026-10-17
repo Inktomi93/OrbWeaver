@@ -4,7 +4,7 @@
 // SecretBox; sessions ← the SESSION_SECRET pepper). The peppered session-token hasher RELOCATED to `domain/sessions/tokens/` (D38 — it is a sessions-resolution concern,
 // not infra crypto). NEVER imports @orb/db or any domain (the sealed-executor invariant).
 
-export type { BootSecretResolution, BootSecretSource } from "./contract.ts";
+export type { BootSecretResolution, BootSecretSource, Sealed, SecretBox } from "./contract.ts";
 export { bootSecretProvenance, decode32Bytes, loadOrCreateKeyfile, readSessionSecretKeyfile, resolveCredentialsKey, resolveSessionSecret } from "./key.ts";
 export { readSecretFile, removeSecretFile, writeSecretFile } from "./secret-file.ts";
-export { createSecretBox, type Sealed, type SecretBox } from "./secrets.ts";
+export { createSecretBox } from "./secrets.ts";
