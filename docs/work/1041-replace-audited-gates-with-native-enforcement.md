@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-hard-eslint-1041
+lane: codex/native-baseui-seals-1041
 plan: test-foundation
 ---
 
@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Execute D321 native replacements. Keep unmatched KEEP consumers and their data contracts. Use /home/inktomi/Desktop/gate-audit.
+Execute D321 native replacements. Keep unmatched KEEP data. Env/users policies wait for qualified producer/export boundaries. Use /home/inktomi/Desktop/gate-audit.
 
 ## Why
 
@@ -50,6 +50,6 @@ D322 removes schema-export membership hygiene, not authored parity or issues ori
 
 Native controls prove mounted/public schema limits. Private/uninstantiated obligations retain their gate. Evidence: `reports/review/1041-bounded-list-limit-ordinary.md`.
 
-Mandatory native ESLint enforces CORS syntax without inline suppression. Production HTTP controls classify mounted mutations and enforce intake limits and order. Interrupted bundle staging removes acquired incomplete files. Security review passes; combined main execution remains open. Evidence: `reports/review/1041-security-native-wave-independent-review.md`.
+Mandatory native ESLint enforces CORS syntax without inline suppression. Production HTTP controls classify mounted mutations and enforce intake limits and order. Interrupted bundle staging removes acquired incomplete files. Security review and ordinary main controls pass. Evidence: `reports/review/1041-security-native-wave-independent-review.md`.
 
-Stylelint owns motion, color and integer/rest CSS restrictions. Integer/rest semantic checks and complete CSS-variable enforcement remain. Native exceptions stay at their subjects; HARD disables fail. Independent review passes; combined main execution and PNPM dependency qualification remain open. Evidence: `reports/review/1041-native-css-enforcement-independent-review.md`.
+Stylelint owns motion, color and integer/rest CSS restrictions. Integer/rest semantic checks and complete CSS-variable enforcement remain. Native exceptions stay at their subjects; HARD disables fail. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-css-enforcement-independent-review.md`.

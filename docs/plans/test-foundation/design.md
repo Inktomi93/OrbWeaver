@@ -174,7 +174,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. Nested callable, own-arrow receiver and nullish projection pass bounded controls and security review. Native reference, allocation, helper and private-premise identity remain mandatory. Current-target qualification stays open. Evidence: `reports/review/1002-projected-object-reader-delivery.md`. Complete store qualification remains open.
+Contextual sharing, optional calls, native resources and own-arrow/nullish projection pass bounded controls and review. Annotated callable storage preserves native origins, allocation bindings and selected-slot closure. Admitted captured calls request ordinary settlement; only actual published targets and callers qualify. Private premises revoke before publication. Distinct contexts allow finite reentry; unknown contexts, mutation, escape and true recursion refuse. Sparse-env failure, original target and complete store/cost qualification remain open. Evidence: `reports/review/1002-annotated-callable-origin-ordinary.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -206,7 +206,7 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Independent review passes; combined main and PNPM dependency qualification remain open. Evidence: `reports/review/1041-native-wave-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Existing compiler and certification reds remain. Evidence: `reports/review/1041-native-wave-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 
@@ -261,7 +261,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 Give lanes cohesive assignments with explicit ownership, affected behavior and a scoped floor. Batch review corrections into the assignment's final commit. The orchestrator schedules compiler and gate-heavy work; lanes request permission before whole-tree checks.
 
-Run affected checks within measured host limits. Main owns whole-tree qualification.
+Use measured host limits. Main owns whole-tree qualification.
 
 Commit red is permitted under the owner-authorized check bypass, retaining commit-message validation and recording the reason and deferred checks. This does not permit suppressions, waiver inflation or weakened assertions.
 

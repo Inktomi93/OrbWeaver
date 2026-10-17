@@ -1962,7 +1962,7 @@ function selectedCallableOriginUses(origin: ReturnedValueSource, receiver: Retur
   return missing === undefined || refuseCallableUse(proof, valueRefusal(missing, "unsupported", "the selected callable has an unproven containing value use"));
 }
 
-function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof): boolean {
+function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proof: CallableUseProof, selectedPath: readonly string[] = []): boolean {
   const containers = carryingLiterals(use);
   const program = proof.program;
   const outer = containers.at(-1)?.literal;
@@ -1976,7 +1976,7 @@ function selectedCallableStorageUse(use: Node, origin: ReturnedValueSource, proo
     }
   }
   const site = valueSite(use);
-  const path = [...containers].reverse().flatMap(({ key }) => (key === undefined ? [] : [key]));
+  const path = [...[...containers].reverse().flatMap(({ key }) => (key === undefined ? [] : [key])), ...selectedPath];
   const stored = callableSuppliedLeaves(outer, path, program, { bindings: proof.bindings, active: new Set() });
   if (stored.kind === "unresolved") {
     return refuseCallableUse(proof, stored);
@@ -2504,6 +2504,44 @@ function computeCallableClosedUses(name: Identifier, proof: CallableUseProof): b
   );
 }
 
+function callableNullishStorageUse(use: Node, proof: CallableUseProof): boolean | undefined {
+  const continued = use.getParent();
+  const key = proof.selectedKey;
+  const program = proof.program;
+  if (
+    !N.isBinaryExpression(continued) ||
+    continued.getOperatorToken().getKind() !== SyntaxKind.QuestionQuestionToken ||
+    continued.getLeft() !== use ||
+    program === undefined ||
+    key === undefined ||
+    proof.path.length > 0 ||
+    carryingLiterals(continued).length === 0
+  ) {
+    return;
+  }
+  const selected = callableSuppliedLeaves(continued, [key], program, { bindings: proof.bindings, active: new Set() });
+  if (selected.kind === "unresolved") {
+    return refuseCallableUse(proof, selected);
+  }
+  return (
+    selected.value.length > 0 &&
+    selected.value.every((source) => {
+      const property = source.value.getParent();
+      const literal = property?.getParent();
+      return (
+        source.present &&
+        source.path.length === 0 &&
+        N.isPropertyAssignment(property) &&
+        property.getInitializer() === source.value &&
+        N.isObjectLiteralExpression(literal) &&
+        ownDataProperty({ value: literal, path: [], present: true, bindings: source.bindings }, key, program) &&
+        proof.origins.some((origin) => source.value.compilerNode === origin.value.compilerNode && matchingAllocationBindings(source.value, source, origin)) &&
+        selectedCallableStorageUse(continued, source, proof, [key])
+      );
+    })
+  );
+}
+
 function callableProjectionUse(use: Node, proof: CallableUseProof): boolean {
   if (isDocumentationLinkReference(use)) {
     return true;
@@ -2544,6 +2582,10 @@ function selectedCallableValueUse(use: Node, proof: CallableUseProof): boolean |
   const invocation = use.getParent();
   if (isReferenceDeclarationName(use)) {
     return;
+  }
+  const nullish = callableNullishStorageUse(use, proof);
+  if (nullish !== undefined) {
+    return nullish;
   }
   const calledFormal = N.isCallExpression(invocation) && invocation.getExpression() === use && callableFormalLeaf(use) !== undefined;
   return (proof.selectedValue === true || calledFormal) && proof.path.length === 0 && proof.program !== undefined
@@ -2600,21 +2642,40 @@ function projectedObjectInvocation(use: Node, source: ReturnedValueSource, proof
     return false;
   }
   const projected = callableSuppliedLeaves(access, [], program, { bindings: source.bindings, active: new Set() });
-  return (
-    projected.kind === "resolved" &&
-    projected.value.length > 0 &&
-    projected.value.every((actual) => {
-      const property = actual.value.getParent();
-      return (
-        N.isArrowFunction(actual.value) &&
-        N.isPropertyAssignment(property) &&
-        property.getInitializer() === actual.value &&
-        property.getParent() === source.value &&
-        matchingAllocationBindings(source.value, source, actual)
-      );
-    }) &&
-    callableProjectedUse(access, projected, { ...proof, bindings: source.bindings, completeInvocations: true })
-  );
+  if (
+    !(
+      projected.kind === "resolved" &&
+      projected.value.length > 0 &&
+      projected.value.every((actual) => {
+        const property = actual.value.getParent();
+        return (
+          N.isArrowFunction(actual.value) &&
+          N.isPropertyAssignment(property) &&
+          property.getInitializer() === actual.value &&
+          property.getParent() === source.value &&
+          matchingAllocationBindings(source.value, source, actual)
+        );
+      })
+    )
+  ) {
+    return false;
+  }
+  const observation = program.byCall.get(call.compilerNode);
+  const witness = observation?.invocationTargets ?? observation?.targets;
+  if (!(witness?.kind === "resolved" && projected.value.every((actual) => witness.value.some((target) => target.compilerNode === actual.value.compilerNode)))) {
+    if (!(program.byCall.has(call.compilerNode) && callableAdmits(proof.admits, call))) {
+      return false;
+    }
+    const settled = program.suppliedCallableUses?.(call);
+    if (settled?.kind === "unresolved") {
+      return refuseCallableUse(proof, settled);
+    }
+    const current = readCallReturnProgram(call, { programs: [program] });
+    if (current.kind === "unresolved") {
+      return refuseCallableUse(proof, current);
+    }
+  }
+  return callableProjectedUse(access, projected, { ...proof, bindings: source.bindings, completeInvocations: true });
 }
 
 function projectedObjectClosed(source: ReturnedValueSource, proof: CallableUseProof): boolean {
