@@ -25,11 +25,14 @@
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
 //   lint:eslint (scoped)     → cli.ts eslint-scoped <paths…>  (the same isolation over a verify selection)
+import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
-import { EXIT } from "../floor/cli/exit-contract.ts";
-import { runTool, UsageError } from "../floor/cli/run-tool.ts";
 import type { VerifyVerb } from "./index.ts";
-import {
+
+const { EXIT } = await import("../floor/cli/exit-contract.ts");
+const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+
+const {
   parse,
   refuseVerbTail,
   runApplicationStatic,
@@ -64,7 +67,7 @@ import {
   runVerify,
   VERB_HELP,
   VERIFY_VERBS,
-} from "./index.ts";
+} = await import("./index.ts");
 
 const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}> [args…]`;
 

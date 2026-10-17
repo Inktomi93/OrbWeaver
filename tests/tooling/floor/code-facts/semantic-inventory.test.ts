@@ -1,10 +1,11 @@
 // @subject tooling/src/floor/code-facts/semantic-inventory-records.ts
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { DatabaseSync, StatementSync } from "node:sqlite";
+import process from "node:process";
+import { StatementSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inventoryConsumerClass } from "@orb/tooling/floor/code-facts/inventory-consumers";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import type {
   InventoryBuildRequest,
   InventoryInvocationQuery,
@@ -15,7 +16,6 @@ import { INVENTORY_FORMAT, inventoryFamilies, invocationQuerySchema } from "@orb
 import {
   beginInventoryWrite,
   inventoryGenerationPrograms,
-  latestInventoryGeneration,
   latestInventoryPartitions,
   openInventoryDatabase,
   publishInventoryGeneration,
@@ -38,11 +38,113 @@ import {
   readInventoryInputs,
   readInventoryInvocationEvidence,
   readInventoryModules,
+  readInventoryReferenceQueries,
   readInventoryReferences,
   readInventorySources,
   readInventoryWitnesses,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader, ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
+import { copyNativeInventoryImplementation } from "../compiler/native-inventory-tree.ts";
+import { NATIVE_PUBLICATION_CASES } from "../compiler/native-publication-cases.ts";
+
+const publicationExpected = {
+  "independent-worlds": {
+    sameGeneration: true,
+    warmWorkers: [],
+    workerStarts: ["tsconfig.a.json"],
+    changedText: "export const changedA=4;\n",
+    pinnedText: "export const a=1;\n",
+  },
+  "wrong-worker": { error: expect.stringMatching(/wrong partition/u), injections: 1, latestUnchanged: true, pinnedText: "export const a=1;\n" },
+  "reused-world-drift": {
+    error: expect.stringMatching(/inputs changed during extraction/u),
+    injections: 1,
+    latestUnchanged: true,
+    pinnedText: "export const a=1;\n",
+  },
+  "malformed-stage": { error: expect.stringMatching(/CHECK constraint failed/u), injections: 1, latestUnchanged: true, pinnedText: "export const a=1;\n" },
+  "mixed-stage": { error: expect.stringMatching(/mixed source versions/u), injections: 1, latestUnchanged: true, pinnedText: "export const a=1;\n" },
+  "post-pin": {
+    error: expect.stringMatching(/injected read pin failure/u),
+    injections: 1,
+    published: true,
+    latest: 1,
+    connections: 1,
+    closed: true,
+    checkpointBusy: 0,
+    programs: ["tsconfig.a.json", "tsconfig.b.json"],
+  },
+  "post-metadata": {
+    error: expect.stringMatching(/injected pinned metadata failure/u),
+    injections: 1,
+    published: true,
+    latest: 1,
+    connections: 1,
+    closed: true,
+    checkpointBusy: 0,
+    programs: ["tsconfig.a.json", "tsconfig.b.json"],
+  },
+  "post-inputs": {
+    error: expect.stringMatching(/inputs changed during extraction/u),
+    injections: 1,
+    published: true,
+    latest: 1,
+    connections: 1,
+    closed: true,
+    checkpointBusy: 0,
+    programs: ["tsconfig.a.json", "tsconfig.b.json"],
+  },
+  "member-duplicate": {
+    error: expect.stringMatching(/read acquisition failed: native inventory generation member program differs/u),
+    membershipError: expect.stringMatching(/member program differs/u),
+    injections: 1,
+    latest: 1,
+    connections: 1,
+    closed: true,
+    checkpointBusy: 0,
+    restoredSame: true,
+    restoredFiles: ["a.ts", "b.ts"],
+  },
+  "member-swapped": {
+    error: expect.stringMatching(/read acquisition failed: native inventory generation member program differs/u),
+    membershipError: expect.stringMatching(/member program differs/u),
+    injections: 1,
+    latest: 1,
+    connections: 1,
+    closed: true,
+    checkpointBusy: 0,
+    restoredSame: true,
+    restoredFiles: ["a.ts", "b.ts"],
+  },
+  "concurrent-publisher": { error: null, injections: 1, selectedGeneration: 1, selectedExport: true, latest: 2 },
+  "shape-writer": {
+    called: true,
+    writerTransaction: true,
+    writerQueryOnly: { ["query_only"]: 0 },
+    catalogText: "export const a=1;\n",
+    selectedText: "export const a=1;\n",
+    readerTransaction: true,
+    readerQueryOnly: { ["query_only"]: 1 },
+  },
+  "lazy-reference-metadata": { before: 0, nonempty: true, queried: true, disposed: expect.stringMatching(/disposed/u) },
+} satisfies Record<(typeof NATIVE_PUBLICATION_CASES)[number], object>;
+
+test.for(NATIVE_PUBLICATION_CASES)("observed native publication preserves %s", { timeout: scaledBudget(120_000) }, (mode, { scratch, repoRoot }) => {
+  const implementation = copyNativeInventoryImplementation(scratch, repoRoot);
+  const root = join(scratch, "subject");
+  mkdirSync(root);
+  initialize(root);
+  const entry = fileURLToPath(new URL("../compiler/native-publication-cases.ts", import.meta.url));
+  const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
+  const resultPath = join(scratch, "result.json");
+  const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, mode, implementation, root, resultPath], { timeout: scaledBudget(110_000) });
+  expect(completed.errorCode).toBeUndefined();
+  expect(completed.status, completed.stderr).toBe(0);
+  expect(JSON.parse(readFileSync(resultPath, "utf8"))).toMatchObject({ mode, ...publicationExpected[mode] });
+});
 
 function write(root: string, path: string, text: string): void {
   const absolute = join(root, path);
@@ -80,6 +182,8 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
   }));
   return {
     intent: request.intent ?? "facts",
+    referenceMode: "complete",
+    referenceQueries: [],
     available: sources.map((source) => source.file),
     format: INVENTORY_FORMAT,
     families: request.intent === "membership" ? [] : inventoryFamilies(request.families),
@@ -134,15 +238,26 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
     modules: [...readInventoryModules(database, id)],
     bindings: [...readInventoryBindings(database, id)],
     references: [...readInventoryReferences(database, id)],
+    referenceQueries: [...readInventoryReferenceQueries(database, id)],
     witnesses: [...readInventoryWitnesses(database, id)],
   };
 }
 
-function stage(request: InventoryBuildRequest): void {
-  using database = openInventoryDatabase(request.destination);
-  database.exec("BEGIN IMMEDIATE");
-  publishInventoryGeneration(database, [partition(request)]);
-  database.exec("COMMIT");
+function readerFixture(root: string, capture = partition): ReturnType<typeof ownedInventoryReader> {
+  const db = openInventoryDatabase(join(root, ".cache/reader-fixture.sqlite"));
+  try {
+    beginInventoryWrite(db);
+    const generation = publishInventoryGeneration(
+      db,
+      readCompilerPrograms(root).map((descriptor) => capture({ root, descriptor, destination: "" })),
+    );
+    db.exec("COMMIT");
+    const partitions = readInventoryGeneration(db, generation);
+    return ownedInventoryReader(root, generation, acquireInventoryReadLease(db, generation, partitions), { db, dispose: () => db.close() });
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 function invocationMetadataPartitions(root: string): InventoryPartition[] {
@@ -171,18 +286,17 @@ test("materialized reader sources reuse canonical SDK lookup without sharing car
   write(scratch, "tsconfig.b.json", JSON.stringify({ files: ["a.ts", "b.ts"], compilerOptions: { noLib: true, types: [] } }));
   const alias = join(scratch, "alias-a.ts");
   write(scratch, "alias-a.ts", "export const a=1;\n");
-  const buildPartition = (request: InventoryBuildRequest): void => {
+  const capture = (request: InventoryBuildRequest): InventoryPartition => {
     const facts = partition(request);
     for (const source of facts.sources) {
       if (source.file === join(scratch, "a.ts")) {
         source.path = alias;
       }
     }
-    using db = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(db, [facts]);
+    return facts;
   };
-  using reader = createSemanticInventory({ root: scratch, buildPartition });
-  using other = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using reader = readerFixture(scratch, capture);
+  using other = readerFixture(scratch);
   const corpus = reader.sourceCorpus();
   const file = join(scratch, "a.ts");
   const lookup = vi.spyOn(Project.prototype, "getSourceFile");
@@ -211,7 +325,7 @@ test("materialized reader sources reuse canonical SDK lookup without sharing car
 
 test("materialized source lookup observes removal, external replacement, misses and disposal", ({ scratch }) => {
   initialize(scratch);
-  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using reader = readerFixture(scratch);
   const corpus = reader.sourceCorpus();
   const file = join(scratch, "a.ts");
   const source = corpus.getSourceFile(file);
@@ -248,7 +362,7 @@ test("materialized source lookup observes removal, external replacement, misses 
 
 test("materialized source lookup follows same-text and changed-text overwrite epochs", ({ scratch }) => {
   initialize(scratch);
-  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using reader = readerFixture(scratch);
   const source = reader.sourceCorpus().getSourceFile("a.ts");
   if (source === undefined) {
     throw new Error("overwrite source missing");
@@ -276,7 +390,7 @@ test("materialized source lookup follows same-text and changed-text overwrite ep
 
 test("materialized source lookup follows public moves and overwritten destinations", ({ scratch }) => {
   initialize(scratch);
-  using reader = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using reader = readerFixture(scratch);
   const corpus = reader.sourceCorpus();
   const source = corpus.getSourceFile("a.ts");
   if (source === undefined) {
@@ -465,73 +579,6 @@ test("owned replay refuses a declaration available only in another native partit
   expect(() => reader.invocationEvidence(original, first.id, { mode: "value", facets: [], arguments: [] })).toThrow("source is outside its native closure");
 });
 
-test("unchanged and independently invalidated partitions reuse without worker construction", ({ scratch }) => {
-  initialize(scratch);
-  const builds: string[] = [];
-  const buildPartition = (request: InventoryBuildRequest): void => {
-    builds.push(request.descriptor.id);
-    stage(request);
-  };
-  using first = createSemanticInventory({ root: scratch, buildPartition });
-  expect(builds).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
-  builds.length = 0;
-  using same = createSemanticInventory({ root: scratch, buildPartition });
-  expect(same.generation).toBe(first.generation);
-  expect(builds).toEqual([]);
-  write(scratch, "a.ts", "export const changed=3;\n");
-  using changed = createSemanticInventory({ root: scratch, buildPartition });
-  expect(builds).toEqual(["tsconfig.a.json"]);
-  expect(changed.sourceCorpus().getSourceFile("a.ts")?.getVariableDeclaration("changed")).toBeDefined();
-  expect(first.sourceCorpus().getSourceFile("a.ts")?.getVariableDeclaration("a")).toBeDefined();
-});
-
-test("failed or wrong workers retain the committed generation but refuse the current verdict", ({ scratch }) => {
-  initialize(scratch);
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  write(scratch, "a.ts", "export const changed=3;\n");
-  expect(() =>
-    createSemanticInventory({
-      root: scratch,
-      buildPartition: () => {
-        throw new Error("worker failed");
-      },
-    }),
-  ).toThrow("worker failed");
-  const wrong = (request: InventoryBuildRequest): void => {
-    using db = openInventoryDatabase(request.destination);
-    publishInventoryGeneration(db, [{ ...partition(request), program: "wrong" }]);
-  };
-  expect(() => createSemanticInventory({ root: scratch, buildPartition: wrong })).toThrow("wrong partition");
-  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(database)).toBe(previous.generation);
-  expect(
-    readInventoryGeneration(database, previous.generation).flatMap((row) =>
-      row.program === "tsconfig.a.json" ? [...readInventorySources(database, row.id)] : [],
-    )[0]?.text,
-  ).toContain("a=1");
-});
-
-test("a changed reused world refuses complete publication while pinned readers see the prior generation", ({ scratch }) => {
-  initialize(scratch);
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  write(scratch, "b.ts", "export const changedB=3;\n");
-  const changeDuringBuild = (request: InventoryBuildRequest): void => {
-    using reader = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-    expect(latestInventoryGeneration(reader)).toBe(previous.generation);
-    expect(previous.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
-    stage(request);
-    write(scratch, "a.ts", "export const changedA=4;\n");
-  };
-  expect(() => createSemanticInventory({ root: scratch, buildPartition: changeDuringBuild })).toThrow("inputs changed during extraction");
-  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(database)).toBe(previous.generation);
-  using complete = createSemanticInventory({ root: scratch, buildPartition: stage });
-  expect(complete.generation).toBeGreaterThan(previous.generation);
-  expect(complete.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("changedA");
-  expect(complete.sourceCorpus().getSourceFile("b.ts")?.getFullText()).toContain("changedB");
-  expect(previous.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
-});
-
 test("native partition storage never serializes or decodes a whole fact population", ({ scratch }) => {
   initialize(scratch);
   const descriptor = readCompilerPrograms(scratch)[0];
@@ -580,19 +627,16 @@ test("native partition storage never serializes or decodes a whole fact populati
   }
 });
 
-test("parent publication and pinned queries never eagerly decode the complete reference family", ({ scratch }) => {
+test("pinned queries never eagerly decode a complete detached reference family", ({ scratch }) => {
   initialize(scratch);
-  const buildPartition = (request: InventoryBuildRequest): void => {
+  const capture = (request: InventoryBuildRequest): InventoryPartition => {
     const facts = partition(request);
     const declaration = facts.exports[0]?.declarations[0];
     if (declaration === undefined) {
       throw new Error("native lazy-reader fixture declaration missing");
     }
     facts.references.push(...Array.from({ length: 4000 }, () => ({ declaration, reference: declaration, consumerClass: "product" as const })));
-    using staging = openInventoryDatabase(request.destination);
-    staging.exec("BEGIN IMMEDIATE");
-    publishInventoryGeneration(staging, [facts]);
-    staging.exec("COMMIT");
+    return facts;
   };
   let referenceQueries = 0;
   const observe = (statement: StatementSync): void => {
@@ -614,7 +658,7 @@ test("parent publication and pinned queries never eagerly decode the complete re
     return all.apply(this, args);
   });
   try {
-    using stored = createSemanticInventory({ root: scratch, buildPartition });
+    using stored = readerFixture(scratch, capture);
     expect(referenceQueries).toBe(0);
     const declaration = stored.sourceCorpus().getSourceFile("a.ts")?.getVariableDeclarationOrThrow("a");
     if (declaration === undefined) {
@@ -654,14 +698,7 @@ for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
         `INSERT INTO inventory_generation(id,format) VALUES(1,${String(legacyFormat)}); INSERT INTO inventory_member(generation,program,partition) VALUES(1,'tsconfig.a.json','legacy');`,
       );
     }
-    expect(() =>
-      createSemanticInventory({
-        root: scratch,
-        buildPartition: () => {
-          throw new Error("new-format worker failed");
-        },
-      }),
-    ).toThrow("new-format worker failed");
+    expect(() => nativeInventoryFixture({ root: scratch }, { failWorker: true })).toThrow("injected native worker exit");
     using observer = openInventoryDatabase(path);
     expect(observer.prepare("SELECT payload FROM inventory_partition WHERE id='legacy'").get()).toEqual({ payload: legacyPayload });
     expect(observer.prepare("SELECT program,descriptorVersion,compilerOptionsJson FROM inventory_descriptor WHERE partition='legacy'").get()).toEqual(
@@ -670,7 +707,7 @@ for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
         : undefined,
     );
     expect(observer.prepare("SELECT id,format FROM inventory_generation").all()).toEqual([{ id: 1, format: legacyFormat }]);
-    using current = createSemanticInventory({ root: scratch, buildPartition: stage });
+    using current = nativeInventoryFixture({ root: scratch });
     expect(current.generation).toBe(2);
     expect(current.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
     expect(observer.prepare("SELECT payload FROM inventory_partition WHERE id='legacy'").get()).toEqual({ payload: legacyPayload });
@@ -685,21 +722,6 @@ for (const legacyFormat of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
     ]);
   });
 }
-
-test("malformed staged records refuse publication and preserve pinned prior readers", ({ scratch }) => {
-  initialize(scratch);
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  write(scratch, "a.ts", "export const changed=3;\n");
-  const malformed = (request: InventoryBuildRequest): void => {
-    stage(request);
-    using database = openInventoryDatabase(request.destination);
-    database.exec("PRAGMA ignore_check_constraints=ON; UPDATE inventory_source SET authored=2;");
-  };
-  expect(() => createSemanticInventory({ root: scratch, buildPartition: malformed })).toThrow("CHECK constraint failed");
-  using observer = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(observer)).toBe(previous.generation);
-  expect(previous.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
-});
 
 test("indexed records round-trip every native partition field and raw reference row in order", ({ scratch }) => {
   initialize(scratch);
@@ -727,13 +749,13 @@ test("indexed records round-trip every native partition field and raw reference 
 
 test("inventory corpus ownership releases pinned storage on normal and exceptional scope exit", ({ scratch }) => {
   initialize(scratch);
-  using normal = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using normal = readerFixture(scratch);
   {
     using corpus = normal.sourceCorpus();
     expect(corpus.getSourceFiles()).toHaveLength(2);
   }
   expect(() => normal.sourceCorpus().getSourceFiles()).toThrow("disposed");
-  using exceptional = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using exceptional = readerFixture(scratch);
   expect(() => {
     using corpus = exceptional.sourceCorpus();
     expect(corpus.getSourceFiles()).toHaveLength(2);
@@ -786,6 +808,8 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
     shapes: [],
     pairs: [],
     intent: "facts",
+    referenceMode: "complete",
+    referenceQueries: [],
     available: [value],
     format: INVENTORY_FORMAT,
     program: value,
@@ -831,13 +855,13 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
 
 test("owned inventory snapshots retain old unread data across publication and external corruption", ({ scratch }) => {
   initialize(scratch);
-  using first = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using first = readerFixture(scratch);
   expect(first.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
   write(scratch, "a.ts", "export const changedA=3;\n");
   write(scratch, "b.ts", "export const changedB=4;\n");
-  using second = createSemanticInventory({ root: scratch, buildPartition: stage });
+  using second = readerFixture(scratch);
   expect(second.generation).toBeGreaterThan(first.generation);
-  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  using db = openInventoryDatabase(join(scratch, ".cache/reader-fixture.sqlite"));
   const partitions = readInventoryGeneration(db, first.generation);
   const selected = partitions.find((row) => row.program === "tsconfig.b.json");
   if (selected === undefined) {
@@ -853,234 +877,6 @@ test("owned inventory snapshots retain old unread data across publication and ex
   expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
 });
 
-test("owned inventory preflight metadata failures preserve the prior published generation", ({ scratch }) => {
-  initialize(scratch);
-  using previous = createSemanticInventory({ root: scratch, buildPartition: stage });
-  write(scratch, "b.ts", "export const changed=3;\n");
-  const malformed = (request: InventoryBuildRequest): void => {
-    const facts = partition(request);
-    if (request.descriptor.id === "tsconfig.b.json") {
-      const file = join(scratch, "a.ts");
-      facts.sources.push({ file, path: file, text: "export const mixed=0;", authored: true, consumerClass: "product" });
-      facts.available.push(file);
-    }
-    using db = openInventoryDatabase(request.destination);
-    beginInventoryWrite(db);
-    publishInventoryGeneration(db, [facts]);
-    db.exec("COMMIT");
-  };
-  expect(() => createSemanticInventory({ root: scratch, buildPartition: malformed })).toThrow("mixed source versions");
-  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(db)).toBe(previous.generation);
-  expect(db.prepare("PRAGMA wal_checkpoint(PASSIVE)").get()).toMatchObject({ busy: 0 });
-});
-
-test.for(["pin", "metadata", "inputs"] as const)(
-  "owned inventory postpublication %s failure releases acquisition without erasing publication",
-  (failure, { scratch }) => {
-    initialize(scratch);
-    const path = join(scratch, ".cache/semantic-inventory.sqlite");
-    const connections = new Set<DatabaseSync>();
-    let published = false;
-    let pinned = false;
-    const execute = DatabaseSync.prototype.exec;
-    const prepare = DatabaseSync.prototype.prepare;
-    const execution = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
-      const owned = this.location() === path;
-      if (owned) {
-        connections.add(this);
-      }
-      if (owned && published && sql === "BEGIN" && failure === "pin") {
-        throw new Error("injected read pin failure");
-      }
-      execute.call(this, sql);
-      if (owned && sql === "COMMIT" && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
-        published = true;
-        if (failure === "inputs") {
-          write(scratch, "a.ts", "export const gapMutation=3;\n");
-        }
-      }
-      if (owned && published && sql === "BEGIN") {
-        pinned = true;
-      }
-    });
-    const preparation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
-      if (this.location() === path && pinned && failure === "metadata" && args[0].includes("SELECT ordinal,file,path,consumerClass")) {
-        throw new Error("injected pinned metadata failure");
-      }
-      return prepare.apply(this, args);
-    });
-    try {
-      expect(() => createSemanticInventory({ root: scratch, buildPartition: stage })).toThrow(
-        { inputs: "inputs changed during extraction", pin: "injected read pin failure", metadata: "injected pinned metadata failure" }[failure],
-      );
-    } finally {
-      preparation.mockRestore();
-      execution.mockRestore();
-    }
-    expect(published).toBe(true);
-    expect(connections.size).toBe(1);
-    expect([...connections].every((connection) => !connection.isOpen)).toBe(true);
-    using db = openInventoryDatabase(path);
-    expect(latestInventoryGeneration(db)).toBe(1);
-    expect(readInventoryGeneration(db, 1).map(({ program }) => program)).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
-    expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
-  },
-);
-
-test.for(["duplicate", "swapped"] as const)("owned inventory handoff refuses %s native-world membership mappings", (mapping, { scratch }) => {
-  initialize(scratch);
-  const path = join(scratch, ".cache/semantic-inventory.sqlite");
-  const connections = new Set<DatabaseSync>();
-  let accepted: readonly StoredInventoryPartition[] = [];
-  let corrupted = false;
-  const execute = DatabaseSync.prototype.exec;
-  const publication = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
-    const owned = this.location() === path;
-    if (owned && !corrupted) {
-      connections.add(this);
-    }
-    execute.call(this, sql);
-    if (owned && sql === "COMMIT" && !corrupted && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
-      accepted = readInventoryGeneration(this, 1);
-      const [first, second] = accepted;
-      if (first === undefined || second === undefined) {
-        throw new Error("handoff requires two accepted native worlds");
-      }
-      corrupted = true;
-      using writer = openInventoryDatabase(path);
-      beginInventoryWrite(writer);
-      writer.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND partition=?").run(first.id, second.id);
-      if (mapping === "swapped") {
-        writer.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND program=?").run(second.id, JSON.stringify(first.program));
-      }
-      writer.exec("COMMIT");
-    }
-  });
-  let acquired: ReturnType<typeof createSemanticInventory> | undefined;
-  try {
-    expect(() => {
-      acquired = createSemanticInventory({ root: scratch, buildPartition: stage });
-    }).toThrow("native inventory read acquisition failed: native inventory generation member program differs from its partition");
-  } finally {
-    publication.mockRestore();
-    acquired?.[Symbol.dispose]();
-  }
-  expect(corrupted).toBe(true);
-  expect(connections.size).toBe(1);
-  expect([...connections].every((connection) => !connection.isOpen)).toBe(true);
-  using db = openInventoryDatabase(path);
-  expect(latestInventoryGeneration(db)).toBe(1);
-  expect(() => readInventoryGeneration(db, 1)).toThrow("native inventory generation member program differs from its partition");
-  beginInventoryWrite(db);
-  for (const selected of accepted) {
-    db.prepare("UPDATE inventory_member SET partition=? WHERE generation=1 AND program=?").run(selected.id, JSON.stringify(selected.program));
-  }
-  db.exec("COMMIT");
-  expect(readInventoryGeneration(db, 1)).toStrictEqual(accepted);
-  using restored = inventoryReader(scratch, 1, accepted, { db, dispose: () => undefined });
-  expect(
-    restored
-      .sourceCorpus()
-      .getSourceFiles()
-      .map((source) => source.getBaseName())
-      .toSorted(),
-  ).toEqual(["a.ts", "b.ts"]);
-  expect(db.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()).toMatchObject({ busy: 0 });
-});
-
-test("owned inventory handoff pins its chosen generation instead of a concurrent publisher latest", ({ scratch }) => {
-  initialize(scratch);
-  const path = join(scratch, ".cache/semantic-inventory.sqlite");
-  const descriptors = readCompilerPrograms(scratch);
-  let raced = false;
-  const execute = DatabaseSync.prototype.exec;
-  const publication = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (this: DatabaseSync, sql: string): void {
-    const owned = this.location() === path;
-    execute.call(this, sql);
-    if (owned && sql === "COMMIT" && !raced && this.prepare("SELECT id FROM inventory_generation LIMIT 1").get() !== undefined) {
-      raced = true;
-      using writer = openInventoryDatabase(path);
-      beginInventoryWrite(writer);
-      publishInventoryGeneration(
-        writer,
-        descriptors.map((descriptor) => ({
-          ...partition({ root: scratch, descriptor, destination: "unused" }),
-          intent: "membership" as const,
-          families: [],
-          exports: [],
-        })),
-      );
-      writer.exec("COMMIT");
-    }
-  });
-  let acquired: ReturnType<typeof createSemanticInventory>;
-  try {
-    acquired = createSemanticInventory({ root: scratch, buildPartition: stage });
-  } finally {
-    publication.mockRestore();
-  }
-  using inventory = acquired;
-  expect(raced).toBe(true);
-  expect(inventory.generation).toBe(1);
-  const declaration = inventory.sourceCorpus().getSourceFile("a.ts")?.getVariableDeclarationOrThrow("a");
-  if (declaration === undefined) {
-    throw new Error("selected generation declaration is missing");
-  }
-  expect(inventory.exports(declaration.getSourceFile()).has("a")).toBe(true);
-  using db = openInventoryDatabase(path);
-  expect(latestInventoryGeneration(db)).toBe(2);
-});
-
-test("owned inventory shape preparation borrows the staged writer without query-only conversion", ({ scratch }) => {
-  initialize(scratch);
-  const path = join(scratch, ".cache/semantic-inventory.sqlite");
-  const source = new Project({ useInMemoryFileSystem: true }).createSourceFile(join(scratch, "a.ts"), readFileSync(join(scratch, "a.ts"), "utf8"));
-  const connections: DatabaseSync[] = [];
-  const prepare = DatabaseSync.prototype.prepare;
-  const observation = vi.spyOn(DatabaseSync.prototype, "prepare").mockImplementation(function (this: DatabaseSync, ...args) {
-    if (this.location() === path && !connections.includes(this)) {
-      connections.push(this);
-    }
-    return prepare.apply(this, args);
-  });
-  let called = false;
-  let acquired: ReturnType<typeof createSemanticInventory>;
-  try {
-    acquired = createSemanticInventory({
-      root: scratch,
-      buildPartition: stage,
-      shapePlan: {
-        sources: [source],
-        prepare: (catalog) => {
-          called = true;
-          const connection = connections.find((db) => db.isOpen);
-          if (connection === undefined) {
-            throw new Error("shape writer connection missing");
-          }
-          expect(connection.isTransaction).toBe(true);
-          expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 0 });
-          connection.exec("SAVEPOINT shapeCallback");
-          expect(catalog.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
-          connection.exec("ROLLBACK TO shapeCallback;RELEASE shapeCallback");
-          return [];
-        },
-      },
-    });
-  } finally {
-    observation.mockRestore();
-  }
-  using inventory = acquired;
-  expect(inventory.sourceCorpus().getSourceFile("a.ts")?.getFullText()).toContain("a=1");
-  expect(called).toBe(true);
-  const connection = connections.find((db) => db.isOpen);
-  if (connection === undefined) {
-    throw new Error("owned shape final connection missing");
-  }
-  expect(connection.isTransaction).toBe(true);
-  expect(connection.prepare("PRAGMA query_only").get()).toEqual({ ["query_only"]: 1 });
-});
-
 function initializeLegacyWorlds(root: string): void {
   initialize(root);
   for (const [world, config] of Object.entries(LEGACY_TEST_WORLD_PROGRAMS)) {
@@ -1090,18 +886,12 @@ function initializeLegacyWorlds(root: string): void {
   }
 }
 
-test("legacy analysis eligibility retains compiler programs but omits their semantic partitions", ({ scratch }) => {
+test("legacy analysis eligibility retains compiler programs but omits their semantic partitions", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
   initializeLegacyWorlds(scratch);
   const programs = readCompilerPrograms(scratch);
   expect(programs.map(({ id }) => id)).toEqual(expect.arrayContaining(Object.values(LEGACY_TEST_WORLD_PROGRAMS)));
   const built: string[] = [];
-  using reader = createSemanticInventory({
-    root: scratch,
-    buildPartition: (request) => {
-      built.push(request.descriptor.id);
-      stage(request);
-    },
-  });
+  using reader = nativeInventoryFixture({ root: scratch }, { workers: built });
   expect(built.toSorted()).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
   expect(reader.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
 });
@@ -1116,10 +906,10 @@ test("legacy analysis eligibility rejects explicit legacy demand before worker c
     if (descriptor === undefined) {
       throw new Error("the neutral legacy compiler owner disappeared");
     }
-    const buildPartition = vi.fn(stage);
+    const built: string[] = [];
     expect(() => workspace.program(config)).toThrow("execution and typecheck only");
-    expect(() => createSemanticInventory({ root: scratch, programs: [descriptor], buildPartition })).toThrow("execution and typecheck only");
-    expect(buildPartition).not.toHaveBeenCalled();
+    expect(() => nativeInventoryFixture({ root: scratch, programs: [descriptor] }, { workers: built })).toThrow("execution and typecheck only");
+    expect(built).toEqual([]);
     expect(() => createSemanticWorkspace({ root: scratch, programs: [descriptor] })).toThrow("execution and typecheck only");
     expect(() => extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") })).toThrow("execution and typecheck only");
   }
@@ -1138,11 +928,11 @@ test("legacy analysis eligibility publishes a new exact generation without relab
   using old = ownedInventoryReader(scratch, historical, acquireInventoryReadLease(db, historical, historicalPartitions), { db, dispose: () => undefined });
   const oldPrograms = descriptors.map(({ id }) => id).toSorted();
   const oldPartitions = readInventoryGeneration(db, historical).map(({ id }) => id);
-  const buildPartition = vi.fn(stage);
-  using current = createSemanticInventory({ root: scratch, buildPartition });
+  const built: string[] = [];
+  using current = nativeInventoryFixture({ root: scratch }, { workers: built });
   expect(current.generation).not.toBe(historical);
   expect(current.programs).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
-  expect(buildPartition).not.toHaveBeenCalled();
+  expect(built.toSorted()).toEqual(["tsconfig.a.json", "tsconfig.b.json"]);
   expect(old.programs).toEqual(oldPrograms);
   expect(readInventoryGeneration(db, historical).map(({ id }) => id)).toEqual(oldPartitions);
   using latest = openInventoryDatabase(path);

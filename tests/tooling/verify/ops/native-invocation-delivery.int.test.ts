@@ -1,18 +1,26 @@
 import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
-import { vi } from "vitest";
+import { beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as determinism } from "../../../../tooling/src/verify/gates/test-determinism.ts";
 import { gate as mocks } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
-import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+// These adapter verdicts borrow a real child-produced pinned generation, not Vite execution authority.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const NODE_TEST = "tests/server/native-invocation.test.ts";
 const BROWSER_TEST = "tests/client/native-invocation.test.tsx";
@@ -74,7 +82,7 @@ export const spy=vi.spyOn.bind(vi,collaborator);
   for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(pathToFileURL(join(repoRoot, `tooling/src/verify/gates/${id}.ts`)).href)};`,
+      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
   execFixtureGit(root, ["init", "-q"]);
@@ -115,10 +123,10 @@ test(
       const exits: number[] = [];
       for (const path of [NODE_TEST, BROWSER_TEST, MJS_HELPER]) {
         for (const { id } of POLICIES) {
-          exits.push(await runStructure(scratch, [`--check=${id}`, `--file=${path}`]));
+          exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`, `--file=${path}`], { forbidSyntax: true }));
         }
       }
-      exits.push(await runScopedCli(scratch, ["--scope", `${NODE_TEST},${BROWSER_TEST},${MJS_HELPER}`]));
+      exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", `${NODE_TEST},${BROWSER_TEST},${MJS_HELPER}`], { forbidSyntax: true }));
       expect(exits).toEqual([1, 1, 0, 0, 1, 1, 1]);
       const result = runPolicyPass({
         root: scratch,

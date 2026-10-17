@@ -1,12 +1,13 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { resolveCallableDeclaration } from "../../../../tooling/src/floor/code-facts/reference-fact-call.ts";
 import type { CallableDeclaration, ReferenceFact } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
-import { createSemanticInventory } from "../../../../tooling/src/floor/code-facts/semantic-inventory.ts";
 import type { InventorySpan } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { DEFAULT_INVENTORY_FAMILIES } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
@@ -17,11 +18,11 @@ import {
 import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { extractInventoryPartition } from "../../../../tooling/src/floor/compiler/semantic-inventory-extract.ts";
-import { inventoryFileSystem } from "../../../../tooling/src/floor/compiler/semantic-inventory-filesystem.ts";
-import { runInventoryPartitionWorker } from "../../../../tooling/src/floor/compiler/semantic-inventory-worker-run.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
 
 const NODE = "tests/server/callable.test.ts";
 const BROWSER = "tests/client/callable.test.tsx";
@@ -105,7 +106,12 @@ test(
       }
       return source.getDescendantsOfKind(SyntaxKind.CallExpression).map((call) => ({ program, call, node: span(call) }));
     });
-    using inventory = createSemanticInventory({ root: scratch, programs, families: ["callable-declarations"], callableQueries: requests });
+    using inventory = nativeInventoryFixture({
+      root: scratch,
+      programs,
+      families: ["callable-declarations"],
+      callableQueries: requests.map(({ program, node }) => ({ program, node })),
+    });
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("callable-declarations");
     const syntax = new Project({ useInMemoryFileSystem: true, skipAddingFilesFromTsConfig: true });
     const nodeSource = syntax.createSourceFile(join(scratch, NODE), SOURCE);
@@ -186,54 +192,30 @@ test(
     const options = { root: scratch, programs: [descriptor], families: ["callable-declarations"] as const };
     const first = { program: descriptor.id, node: span(firstCall) };
     const second = { program: descriptor.id, node: span(secondCall) };
-    using before = createSemanticInventory({ ...options, callableQueries: [first] });
+    using before = nativeInventoryFixture({ ...options, callableQueries: [first] });
     expect(() => before.callableDeclaration(secondCall, descriptor.id)).toThrow("callable declaration span is unavailable");
-    using expanded = createSemanticInventory({ ...options, callableQueries: [first, second] });
+    using expanded = nativeInventoryFixture({ ...options, callableQueries: [first, second] });
     expect(expanded.generation).toBeGreaterThan(before.generation);
     expect(expanded.callableDeclaration(secondCall, descriptor.id).kind).toBe("resolved");
-    using reused = createSemanticInventory({ ...options, callableQueries: [second, first] });
+    using reused = nativeInventoryFixture({ ...options, callableQueries: [second, first] });
     expect(reused.generation).toBe(expanded.generation);
     expect(before.callableDeclaration(firstCall, descriptor.id).kind).toBe("resolved");
-    const altered = SOURCE.replace("return 1;", "return 9;");
-    expect(altered).not.toBe(SOURCE);
-    const fileSystem = inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), {
-      root: scratch,
-      files: [{ path: join(scratch, NODE), text: altered }],
-      deleted: [],
+    const entry = fileURLToPath(new URL("../compiler/native-family-cases.ts", import.meta.url));
+    const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+    const resultPath = join(scratch, "callable-boundaries.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "callable-boundaries", scratch, resultPath]);
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(resultPath, "utf8"))).toMatchObject({
+      overlayBody: "{return 9;}",
+      pinnedBody: "{return 1;}",
+      overlayIdentity: true,
+      latestUnchanged: true,
+      missing: expect.stringContaining("require closed demand"),
+      foreign: expect.stringContaining("require closed demand"),
+      incomplete: expect.stringContaining("incomplete callable coverage"),
+      interventions: 1,
+      incompleteGeneration: 0,
     });
-    using overlay = createSemanticInventory({ ...options, callableQueries: [first], fileSystem, overlay: { addedPaths: [], deletedPaths: [] } });
-    const overlaySource = overlay.sourceCorpus().getSourceFile(NODE);
-    const overlayCall = overlaySource?.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getStart() === first.node.start);
-    if (overlayCall === undefined) {
-      throw new Error("callable overlay query is missing");
-    }
-    const overlayFact = overlay.callableDeclaration(overlayCall, descriptor.id);
-    const originalFact = before.callableDeclaration(firstCall, descriptor.id);
-    expect(overlayFact.kind === "resolved" && overlayFact.value.body?.getText()).toBe("{return 9;}");
-    expect(originalFact.kind === "resolved" && originalFact.value.body?.getText()).toBe("{return 1;}");
-    expect(overlayFact.kind === "resolved" && overlayFact.value.sourceFile).toBe(overlaySource);
-    using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-    expect(latestInventoryGeneration(db)).toBe(expanded.generation);
-    expect(() => createSemanticInventory(options)).toThrow("require closed demand");
-    expect(() => createSemanticInventory({ ...options, callableQueries: [{ ...first, program: "foreign" }] })).toThrow("require closed demand");
-    const incompletePath = join(scratch, "incomplete.sqlite");
-    expect(() =>
-      createSemanticInventory({
-        ...options,
-        databasePath: incompletePath,
-        callableQueries: [first],
-        buildPartition: (request) => {
-          runInventoryPartitionWorker(request);
-          using staging = openInventoryDatabase(request.destination);
-          staging.exec("BEGIN IMMEDIATE");
-          staging.prepare("DELETE FROM inventory_callable_trace").run();
-          staging.prepare("DELETE FROM inventory_callable_declaration").run();
-          staging.exec("COMMIT");
-        },
-      }),
-    ).toThrow("incomplete callable coverage");
-    using incomplete = openInventoryDatabase(incompletePath);
-    expect(latestInventoryGeneration(incomplete)).toBe(0);
   },
   scaledBudget(60_000),
 );
@@ -248,7 +230,7 @@ test(
     if (descriptor === undefined || source === undefined || call === undefined) {
       throw new Error("callable corruption query is missing");
     }
-    using inventory = createSemanticInventory({
+    using inventory = nativeInventoryFixture({
       root: scratch,
       programs: [descriptor],
       families: ["callable-declarations"],

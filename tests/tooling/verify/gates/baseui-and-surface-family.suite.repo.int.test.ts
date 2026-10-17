@@ -3,10 +3,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { describe } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-
 import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
@@ -14,6 +13,16 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { loadInstalledPackage } from "../../../../tooling/src/verify/ops/resource-installed.ts";
+import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
+
+// Composition/verdict assertions borrow an actual native snapshot; this process supplies no current-execution receipt.
+beforeEach(async () => {
+  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
+  const producer = vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
+  return (): void => {
+    producer.mockRestore();
+  };
+});
 
 const POLICIES = [surfaceA11yFocus, surfaceInAContainer] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));

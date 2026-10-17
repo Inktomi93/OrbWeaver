@@ -1,12 +1,17 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { buildLiveness, collectApiSurface, collectOrphanCandidates, ownExports } from "@orb/tooling/ast";
-import { createSemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { readInventoryModules } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
+import { copyNativeInventoryImplementation } from "../compiler/native-inventory-tree.ts";
 
 function write(root: string, path: string, text: string): void {
   const absolute = join(root, path);
@@ -41,9 +46,9 @@ function fixtureValue<T>(value: T | undefined): T {
 test("anonymous default aliases and nonliteral dynamic refusals retain native collector meaning", ({ scratch }) => {
   initialize(scratch);
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const nativeCorpus = native.sourceCorpus();
-  const storedCorpus = stored.sourceCorpus();
+  using storedCorpus = stored.sourceCorpus();
   const summarize = (corpus: typeof nativeCorpus): object => {
     const live = buildLiveness(corpus);
     return {
@@ -65,12 +70,12 @@ test("anonymous default aliases and nonliteral dynamic refusals retain native co
   });
 });
 
-test("detached source-reader witnesses refuse identically instead of keeping an export alive", ({ scratch }) => {
+test("detached source-reader witnesses refuse identically instead of keeping an export alive", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "src/consumer.ts", "const witness='Public' satisfies keyof typeof import('./barrel'); export const checked='detached';\n");
   const native = createSemanticWorkspace({ root: scratch });
   expect(() => buildLiveness(native.sourceCorpus())).toThrow("detached external-consumption witness");
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   expect(() => buildLiveness(stored.sourceCorpus())).toThrow("detached external-consumption witness");
 });
 
@@ -102,44 +107,40 @@ test("a physically shared importer with differing native targets refuses world s
       .map((usage) => [...usage.parents().keys()].filter((key) => key.includes("/fixture-platform/")))
       .toSorted((left, right) => String(left).localeCompare(String(right))),
   ).toEqual(targets.map((target) => [`${target}\0${String("export const ".length)}`]).toSorted((left, right) => String(left).localeCompare(String(right))));
-  using stored = createSemanticInventory({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch });
   const importing = fixtureValue(stored.sourceCorpus().getSourceFile("src/consumer.ts")).getImportDeclarationOrThrow("fixture-platform");
   expect(() => stored.moduleTarget(importing)).toThrow("native semantic inventory ambiguity");
   expect(() => buildLiveness(stored.sourceCorpus())).toThrow("native semantic inventory ambiguity");
   expect(() => stored.bindingUsage(importing.getSourceFile()).parents()).toThrow("native semantic inventory ambiguity");
 });
 
-test("config mutation rejects captured descriptors while workspace inventory uses current native options", ({ scratch }) => {
-  write(scratch, ".gitignore", ".cache/\n");
-  write(scratch, "a.ts", "export const choice='a';\n");
-  write(scratch, "b.ts", "export const choice='b';\n");
-  write(scratch, "consumer.ts", "import {choice} from '@choice'; export const used=choice;\n");
-  const config = (choice: string): string =>
-    JSON.stringify({
-      files: ["a.ts", "b.ts", "consumer.ts"],
-      compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler", paths: { "@choice": [`./${choice}.ts`] } },
+test(
+  "config mutation rejects captured descriptors while workspace inventory uses current native options",
+  ({ scratch, repoRoot }) => {
+    const implementation = copyNativeInventoryImplementation(scratch, repoRoot);
+    const root = join(scratch, "subject");
+    mkdirSync(root);
+    writeFileSync(join(root, ".gitignore"), ".cache/\n");
+    execFixtureGit(root, ["init", "-q"]);
+    const entry = fileURLToPath(new URL("../compiler/native-inventory-adapter-cases.ts", import.meta.url));
+    const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
+    const resultPath = join(scratch, "result.json");
+    const completed = runNicedSync(process.execPath, ["--import", bootstrap, entry, "workspace-config", implementation, root, resultPath], {
+      timeout: scaledBudget(110_000),
     });
-  write(scratch, "tsconfig.json", config("a"));
-  write(scratch, "tsconfig.side.json", JSON.stringify({ files: ["a.ts"], compilerOptions: { noLib: true, types: [] } }));
-  execFixtureGit(scratch, ["init", "-q"]);
-  const workspace = createSemanticWorkspace({ root: scratch });
-  const captured = workspace.programs.map(({ descriptor }) => descriptor);
-  using previous = workspace.inventory();
-  const target = (inventory: typeof previous): string | undefined =>
-    inventory.moduleTarget(fixtureValue(inventory.sourceCorpus().getSourceFile("consumer.ts")).getImportDeclarationOrThrow("@choice"))?.getFilePath();
-  expect(target(previous)).toBe(join(scratch, "a.ts"));
-  write(scratch, "tsconfig.json", config("b"));
-  expect(() => createSemanticInventory({ root: scratch, programs: captured })).toThrow("descriptor snapshot is stale");
-  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  expect(latestInventoryGeneration(database)).toBe(previous.generation);
-  using current = workspace.inventory();
-  expect(target(current)).toBe(join(scratch, "b.ts"));
-  using fresh = createSemanticInventory({ root: scratch });
-  expect(target(fresh)).toBe(join(scratch, "b.ts"));
-  expect(fresh.generation).toBe(current.generation);
-  const currentDescriptors = createSemanticWorkspace({ root: scratch }).programs.map(({ descriptor }) => descriptor);
-  using selected = createSemanticInventory({ root: scratch, programs: currentDescriptors.filter(({ id }) => id === "tsconfig.json") });
-  expect(selected.programs).toEqual(["tsconfig.json"]);
-  expect(target(selected)).toBe(join(scratch, "b.ts"));
-  expect(target(previous)).toBe(join(scratch, "a.ts"));
-});
+    expect(completed.status, completed.stderr).toBe(0);
+    expect(JSON.parse(readFileSync(resultPath, "utf8"))).toMatchObject({
+      mode: "workspace-config",
+      before: "a.ts",
+      stale: expect.stringMatching(/descriptor snapshot is stale/u),
+      refusedWithoutPublication: true,
+      current: "b.ts",
+      fresh: "b.ts",
+      freshReused: true,
+      selected: "b.ts",
+      selectedPrograms: ["tsconfig.json"],
+      pinned: "a.ts",
+    });
+  },
+  scaledBudget(120_000),
+);

@@ -40,6 +40,7 @@ import {
   shapePairSchema,
   spanSchema,
 } from "./semantic-inventory-contract.ts";
+import { INVENTORY_RUNTIME_ROLES, inventoryImplementationSchema } from "./semantic-inventory-runtime-contract.ts";
 
 const exportRecordSchema = partitionSchema.shape.exports.element.omit({ declarations: true });
 const moduleRecordSchema = partitionSchema.shape.modules.element.omit({ declarations: true, node: true });
@@ -52,8 +53,24 @@ const PARTITION = "partition TEXT NOT NULL REFERENCES inventory_partition(id)";
 const ORDINAL = "ordinal INTEGER NOT NULL";
 const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product','tooling','test'))";
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
+const RUNTIME_ROLE = `role TEXT NOT NULL CHECK(role IN (${INVENTORY_RUNTIME_ROLES.map((role) => `'${role}'`).join(",")}))`;
 
 export const inventoryRecordTables = {
+  runtimeHeader: {
+    name: "inventory_runtime_header",
+    columns: "role,payload",
+    definition: `${PARTITION},${RUNTIME_ROLE},payload TEXT NOT NULL CHECK(json_valid(payload) AND json_type(payload)='object'),PRIMARY KEY(partition,role)`,
+  },
+  runtimeSource: {
+    name: "inventory_runtime_source",
+    columns: "role,ordinal,payload",
+    definition: `${PARTITION},${RUNTIME_ROLE},${ORDINAL},payload TEXT NOT NULL CHECK(json_valid(payload) AND json_type(payload)='object'),PRIMARY KEY(partition,role,ordinal)`,
+  },
+  runtimeResolution: {
+    name: "inventory_runtime_resolution",
+    columns: "role,ordinal,payload",
+    definition: `${PARTITION},${RUNTIME_ROLE},${ORDINAL},payload TEXT NOT NULL CHECK(json_valid(payload) AND json_type(payload)='object'),PRIMARY KEY(partition,role,ordinal)`,
+  },
   drizzleEvidence: {
     name: "inventory_drizzle_evidence",
     columns: "ordinal,key,atomCount",
@@ -334,6 +351,23 @@ function writeExportDeclarations(
   }
 }
 
+function visitRuntimeRecords(implementation: InventoryPartition["implementation"], write: (record: InventoryRecord) => void): void {
+  if (implementation === undefined) {
+    return;
+  }
+  const captured = inventoryImplementationSchema.parse(implementation);
+  for (const role of INVENTORY_RUNTIME_ROLES) {
+    const { sources, resolutions, ...header } = captured[role];
+    write({ table: "runtimeHeader", values: [role, JSON.stringify({ ...header, sourceCount: sources.length, resolutionCount: resolutions.length })] });
+    sources.forEach((source, ordinal) => {
+      write({ table: "runtimeSource", values: [role, ordinal, JSON.stringify(source)] });
+    });
+    resolutions.forEach((request, ordinal) => {
+      write({ table: "runtimeResolution", values: [role, ordinal, JSON.stringify(request)] });
+    });
+  }
+}
+
 /** Stream normalized rows to hashing or SQLite without constructing a serialized population. */
 export function visitInventoryRecords(partition: InventoryPartition, write: (record: InventoryRecord) => void): void {
   const metadata = partitionMetadataSchema.parse(partition);
@@ -381,6 +415,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     const input = inputSchema.parse(entry);
     emit("input", ordinal, inventoryString(input.path), input.kind, inventoryString(input.version));
   });
+  visitRuntimeRecords(partition.implementation, write);
   partition.sources.forEach((entry, ordinal) => {
     const source = partitionSchema.shape.sources.element.parse(entry);
     emit(

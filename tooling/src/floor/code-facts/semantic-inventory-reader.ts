@@ -169,6 +169,7 @@ function createInventoryReader(
     if (!open) {
       throw new SemanticInventoryError("native semantic inventory has been disposed");
     }
+    storage.assertImplementation?.();
   };
   // Captured library text owns these paths; implicit virtual libs would collide before lazy source creation.
   const project = new Project({
@@ -746,6 +747,7 @@ function createInventoryReader(
         return `${canonicalPath(node.getSourceFile().getFilePath())}${INVENTORY_KEY_SEPARATOR}${selected.map((partition) => partition.id).join(INVENTORY_KEY_SEPARATOR)}`;
       };
       const key = contextKey(source);
+      // biome-ignore lint/nursery/useDisposables: bindingUses owns each cached handle until the inventory disposal loop.
       let usage = bindingUses.get(key);
       if (usage === undefined) {
         usage = createSourceBindingUsage(source, {
