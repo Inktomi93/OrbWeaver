@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Preserve D320 analysis eligibility. Legacy worlds remain run/typecheck-only; selected native worlds retain complete compiler semantics. Record eligible scope in demand, generation identity and completeness.
+Preserve D320 eligibility: legacy runs/typechecks only; selected worlds retain complete semantics. Version eligible scope in demand, generations and completeness.
 
 Build the persisted native-world store and worker lifecycle. Collectors share export origins, module targets, bindings and references. Unported typed consumers keep native views.
 
@@ -28,19 +28,19 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 Bounded extraction, publication and reuse pass; complete demand stays open. Evidence: `.claude/worktrees/codex-native-token-memo-1002/reports/review/1002-root-post-token-memo-qualification.md`.
 
-Input, brand and lifetime controls pass. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`. Collector corrections preserve native meaning: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
+Input/lifetime controls pass: `reports/review/authored-input-integrated.md`, `reports/review/1002-native-kit-format6-result.md`. Native collector corrections: `.claude/worktrees/codex-inventory-consumer-parity-1002/reports/review/1002-inventory-consumer-parity-independent-review.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
 Reference storage and guarded bindings pass review. Evidence: `reports/review/native-reference-string-integration.md` and `reports/review/shape-binding-integrated.md`.
 
-Contextual sharing, optional calls and native resources preserve disposal, refusal and invalidation. Opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md` and its linked reviews.
+Native resources preserve disposal, refusal and invalidation; opaque callbacks remain uncached. Evidence: `reports/review/native-resource-integrated.md`.
 
-Reached-call capture uses explicit reference inputs, native lifetimes and atomic observations. Omitted inputs preserve ordinary behavior. SDK transport and helper-freshness controls pass. Tooling types pass; Node retains inherited diagnostics.
+Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
 
 Nested callable and nullish storage retain native origins, allocations and references. Annotated own-arrow calls obtain actual settled targets after private-premise revocation. Controls, review and ordinary integrated execution pass. Evidence: `reports/review/1002-annotated-callable-origin-ordinary.md`. Original target refuses an actual record copy; cost remains unqualified.
 
-Source lookup and contextual proof reuse pass review and controls. Evidence: `reports/review/1002-first-refusal-ordinary.md`.
+Exact positive and negative source-admission dependencies replace global refinement invalidation. Full native freshness validation and opaque whole-source semantics remain. Controls and security review pass; ordinary integration and cost measurement remain open. Evidence: `reports/review/1002-source-admission-ledger-delivery.md`.
 
 Missing-reference admission passes bounded controls except the partial-env failure. Its sparse-world effect obligation remains unresolved; no retained env-domain demand justifies new execution analysis. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
 

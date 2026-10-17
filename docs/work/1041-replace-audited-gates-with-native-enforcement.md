@@ -26,7 +26,7 @@ Migrated rows have qualified successors and adjudicated exceptions. Security con
 
 Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
 
-SQL delivery passes review and controls. Remaining native delivery gaps do not block migration. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`.
+SQL delivery passes review and controls; remaining gaps do not block migration. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`.
 
 Production owns forward-JWT execution and network lifetime. Public URL callers cannot request configured-endpoint authority; configured endpoints retain their separate capability. Production-root body limits preserve intake order and clean incomplete staging. Security review and ordinary integrated runtime and native type controls pass. Evidence: `reports/review/1041-egress-watchdog-independent-review.md` and `reports/review/1041-native-wave-ordinary.md`. Raw-origin and asset policies remain.
 
@@ -44,6 +44,6 @@ Schema-export membership is removed; parity and issues origin remain. Bounded-li
 
 Mandatory ESLint enforces CORS without inline suppression. Stylelint owns motion, color and integer/rest CSS. Their semantic checks and complete CSS-variable enforcement remain. Review, ordinary native controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-wave-ordinary.md`.
 
-Native Base UI lint owns derivation, handlers and parallel-state styling. Metadata admission invalidates caches; semantic checks remain. Combined qualification stays open. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`.
+Native Base UI lint owns derivation, handlers and parallel-state styling. Metadata admission invalidates caches; semantic checks remain. Bounded main controls pass; migration remains open. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`.
 
 Maintained CTs use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
