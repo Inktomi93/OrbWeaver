@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
+import type { DevToolsAssetManifest, DevToolsAssetPin, DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
 import {
   adjudicateDevToolsClosure,
   readChromiumBrowserVersion,
@@ -100,6 +100,76 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
+// Keep manifest edits self-consistent so each control reaches its intended closure clause.
+async function rewriteManifest(root: string, manifest: DevToolsAssetManifest, pin: DevToolsAssetPin): Promise<void> {
+  const text = canonical(manifest);
+  await writeFile(join(root, "manifest.json"), text);
+  await writeFile(
+    join(root, "pin.json"),
+    canonical({
+      ...pin,
+      manifestSha256: createHash("sha256").update(text).digest("hex"),
+      resourceCount: manifest.resources.length,
+      decodedBytes: manifest.resources.reduce((total, asset) => total + asset.bytes, 0),
+    }),
+  );
+}
+
+test("manifest checksum drift refuses otherwise intact native assets", async () => {
+  const { root } = await syntheticRoot();
+  const { pin } = verifyDevToolsAssets(root);
+  await writeFile(join(root, "pin.json"), canonical({ ...pin, manifestSha256: createHash("sha256").update("different manifest").digest("hex") }));
+  expect(() => verifyDevToolsAssets(root)).toThrow("manifest checksum does not match the tuple pin");
+});
+
+test("decoded totals cannot drift from individually valid resources", async () => {
+  const { root } = await syntheticRoot();
+  const { pin } = verifyDevToolsAssets(root);
+  await writeFile(join(root, "pin.json"), canonical({ ...pin, decodedBytes: pin.decodedBytes + 1 }));
+  expect(() => verifyDevToolsAssets(root)).toThrow("decoded-byte total drift");
+});
+
+test("valid local notices still require the pinned upstream revision", async () => {
+  const { root } = await syntheticRoot();
+  const { pin } = verifyDevToolsAssets(root);
+  const path = join(root, "licenses.json");
+  const text = await readFile(path, "utf8");
+  const source = `+/${pin.devtoolsFrontendRevision}/LICENSE`;
+  expect(text).toContain(source);
+  await writeFile(path, text.replace(source, "+/wrong-revision/LICENSE"));
+  expect(() => verifyDevToolsAssets(root)).toThrow("license source is not revision-pinned");
+});
+
+test("a manifest cannot serve a different file from its canonical URL", async () => {
+  const { root } = await syntheticRoot();
+  const { manifest, pin } = verifyDevToolsAssets(root);
+  await rewriteManifest(root, { ...manifest, resources: manifest.resources.map((asset) => ({ ...asset, file: `${asset.file}.other` })) }, pin);
+  expect(() => verifyDevToolsAssets(root)).toThrow("non-canonical or duplicate DevTools resource");
+});
+
+test("duplicate served URLs cannot silently replace a reviewed resource", async () => {
+  const { root } = await syntheticRoot();
+  const { manifest, pin } = verifyDevToolsAssets(root);
+  await rewriteManifest(root, { ...manifest, resources: [...manifest.resources, ...manifest.resources] }, pin);
+  expect(() => verifyDevToolsAssets(root)).toThrow("non-canonical or duplicate DevTools resource");
+});
+
+test("an asset cannot name an absent license family", async () => {
+  const { root } = await syntheticRoot();
+  const { manifest, pin } = verifyDevToolsAssets(root);
+  await rewriteManifest(root, { ...manifest, resources: manifest.resources.map((asset) => ({ ...asset, licenseFamily: "absent-family" })) }, pin);
+  expect(() => verifyDevToolsAssets(root)).toThrow("absent or mismatched license family");
+});
+
+for (const control of ["pin.json", "manifest.json", "licenses.json"]) {
+  test(`a missing ${control} refuses before native assets become available`, async () => {
+    const { root } = await syntheticRoot();
+    verifyDevToolsAssets(root);
+    await unlink(join(root, control));
+    expect(() => verifyDevToolsAssets(root)).toThrow(control);
+  });
+}
+
 test("the verified asset server binds loopback and serves only exact GET/HEAD members", async () => {
   const { root } = await syntheticRoot();
   const server = await startDevToolsAssetServer(verifyDevToolsAssets(root));
@@ -160,6 +230,27 @@ test("symlinks are forbidden even when their target is an ordinary file", async 
   expect(() => verifyDevToolsAssets(fixture.root)).toThrow("symlink forbidden");
 });
 
+test("a verified canonical closure remains served after its root alias disappears", async () => {
+  const { root } = await syntheticRoot();
+  const canonicalAssets = verifyDevToolsAssets(root);
+  const aliasRoot = await mkdtemp(join(tmpdir(), "orb-devtools-alias-test-"));
+  roots.push(aliasRoot);
+  const alias = join(aliasRoot, "closure");
+  await symlink(root, alias, "dir");
+  const assets = verifyDevToolsAssets(alias);
+  expect(assets.root).toBe(canonicalAssets.root);
+  expect(assets.manifest).toEqual(canonicalAssets.manifest);
+  await unlink(alias);
+  const server = await startDevToolsAssetServer(assets);
+  try {
+    const response = await fetch(`${server.origin}/serve_rev/@${assets.pin.devtoolsFrontendRevision}/inspector.html`);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("official fixture asset");
+  } finally {
+    await server.close();
+  }
+});
+
 test("every real manifest resource is Git-tracked, including resources beneath ignored directory names", async () => {
   // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const manifest = JSON.parse(
@@ -178,14 +269,7 @@ test("every real manifest resource is Git-tracked, including resources beneath i
   expect(untrackedManifestResources(manifest.resources, tracked)).toEqual([]);
 });
 
-// THE SPLIT'S OWN PIN (#1584, the `devtools-frontend-assets` conversion). `verifyDevToolsAssetsSync` and the
-// final gate policy now reach the SAME verdict through the SAME code — the runtime loads the adjudicator's
-// input off disk, the policy takes it from the `devtools-closure` + `installed-package` ResourceHost doors.
-// Nothing else holds that equivalence: the gate's own conformance rows never touch the runtime path, and this
-// suite never touched the policy path, so a future edit could quietly make one caller stricter than the other.
-// This row drives the adjudicator DIRECTLY over a census assembled the way the resource door assembles one —
-// hashing every regular member from a plain directory walk — and asserts both the clean verdict and the same
-// refusal the runtime raises on the same mutation.
+// The native filesystem loader and pure adjudicator must agree on valid input and the same broken bytes.
 function walkCensus(root: string, directory = root, into: DevToolsClosureFile[] = []): DevToolsClosureFile[] {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
@@ -226,8 +310,7 @@ test("the pure adjudicator and the filesystem entry point cannot drift apart", a
   expect(() => verifyDevToolsAssets(root)).toThrow("hash/size mismatch");
   expect(() => adjudicateDevToolsClosure(adjudicationInput(root), installed)).toThrow("hash/size mismatch");
 
-  // And the tuple half, which only the policy's doors can get wrong: a drifting installed version refuses
-  // through the adjudicator exactly as it does through `installedPlaywrightTuple()`.
+  // A drifting supplied tuple must refuse as the native installed tuple does.
   const clean = await syntheticRoot();
   expect(() => adjudicateDevToolsClosure(adjudicationInput(clean.root), { ...installed, version: "0.0.0-planted-drift" })).toThrow(
     "Playwright/Chromium tuple drift",

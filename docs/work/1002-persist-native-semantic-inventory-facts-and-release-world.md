@@ -38,7 +38,7 @@ Native resources preserve disposal, refusal and invalidation; opaque callbacks r
 
 Reached-call capture preserves explicit references, native lifetimes and atomic observations. SDK transport and helper freshness pass controls. Tooling types pass; Node remains red.
 
-Native callable controls retain allocation and publication boundaries. Original replay rejects a present signal with a pending projection; isolated signal controls pass. Earlier receiver admission remains unobserved. Selected/delegate invocations remain unpublished. Evidence: `reports/review/1002-original-callable-installed-currentness-diagnosis.md`.
+Native callable controls retain allocation and publication boundaries. Original receiver/allocation pass; optional absence reaches an inherited-effect refusal at the mode lookup. Selected/delegate invocations remain unpublished. The bounded reproduction passes unchanged; no repair is selected. Evidence: `reports/review/1002-native-signal-projection-diagnosis.md`.
 
 Exact admission dependencies preserve native freshness and whole-source opacity. SDK-owned wrapper invalidation and capture census reuse pass review and ordinary installed controls. Traced replay confirms census reuse; target and full cost qualification stay open. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`.
 

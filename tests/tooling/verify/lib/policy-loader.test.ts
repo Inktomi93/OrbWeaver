@@ -152,7 +152,7 @@ function resourcePolicyWithMalformedPass(row: Record<string, unknown>, overrides
 test("an installed-package request declares a closed MODE, and `file` is required exactly for text", () => {
   expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "ast" }] }))).not.toThrow();
   expect(() =>
-    assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "playwright-core", mode: "text", file: "browsers.json" }] })),
+    assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "react-compiler", mode: "text", file: "dist/index.js" }] })),
   ).not.toThrow();
   // The four malformed shapes below are ALREADY refused by tsc — the closed `InstalledPackageRequest` union
   // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove
@@ -167,6 +167,9 @@ test("an installed-package request declares a closed MODE, and `file` is require
   );
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "types" }))).toThrow(/mode/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "nope", mode: "ast" }))).toThrow(/id is unknown/i);
+  for (const id of ["playwright-test", "playwright-core"]) {
+    expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id, mode: "metadata" }))).toThrow(/id is unknown/i);
+  }
 });
 
 test("the same installed package in two MODES is two declarations, not a duplicate", () => {
@@ -637,7 +640,6 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
     { kind: "documents" },
     { kind: "vendor-css-surface" },
     { kind: "token-contract" },
-    { kind: "devtools-closure" },
   ] as const) {
     expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
   }
@@ -647,6 +649,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "devtools-closure" }))).toThrow(/kind is unknown/i);
   // An id on a kind that takes none is an unknown PROPERTY, never a silently ignored field.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "documents", id: "docs" }))).toThrow(/unknown property/i);
 });

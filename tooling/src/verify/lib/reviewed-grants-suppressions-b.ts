@@ -4,6 +4,15 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:source-orb-ui-size-via-variant",
+    policyId: "suppressions",
+    subject: "orb/ui-size-via-variant",
+    operation: "source",
+    why: "RULING — the character sort and Labels sort Select triggers retain field chrome while taking content width so their adjacent filters keep the remaining row space. Select's inline layout also removes that chrome and is not equivalent. Only these actual content-width field cases receive line-local native directives; other sealed-box overrides remain prohibited.",
+    endsWhen:
+      "Select exposes a content-width field variant that replaces these directives, the content-width field requirement ends, or the final source directive disappears.",
+  },
+  {
     id: "suppressions:source-orb-baseui-derives-not-respells",
     policyId: "suppressions",
     subject: "orb/baseui-derives-not-respells",

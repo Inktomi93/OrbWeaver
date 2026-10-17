@@ -1,27 +1,7 @@
-// The two CANONICAL GENERATED ARTIFACTS — deliberately narrow, exactly as the ResourceHost access-pattern ruling
-// §7 specifies them, and neither reachable through any door that already ships.
-//
-// WHY `installed-package` DOES NOT COVER EITHER. Its three modes are a parsed declaration surface, a manifest
-// tuple, and ONE named file's text. The token vault is seven authored documents that are one contract; the
-// DevTools closure is a 500-file BYTE closure whose subject is the hash of every member. A `text` read of one
-// file is not a closure, and a closure assembled by a policy calling `text` 500 times would be a private
-// reader wearing a contract's clothes.
-//
-// THE VALIDATORS STAY WHERE THEY ARE. `validateTokenContractTexts` and the DevTools pin/manifest/licence
-// validation are unique algorithms owned by their gates (`packages/ui/token-contract.ts:757`,
-// `tooling/src/floor/devtools/devtools-assets.ts`'s `adjudicateDevToolsClosure`). These doors own LOADING,
-// identity, refusal and the receipt — which is why each publishes the count the validator would otherwise
-// have to be trusted about: seven token texts, and the exact file/byte census of the closure.
-//
-// AND THE CLOSURE MEMBER SHAPE HAS ONE HOME, WHICH IS THE VALIDATOR'S. `DevToolsClosureFile` is the
-// adjudicator's input vocabulary, so it is declared beside the algorithm that consumes it and imported here
-// rather than re-spelled — two identical structural declarations would type-check forever and drift the
-// first time the census gains a field.
-
+// The canonical token vault and generated-type preparation share production-owned shapes.
 import type { TokenContractTexts, TokenRemovalBaseline } from "@orb/ui/token-contract";
 import { TOKEN_ARTIFACT_PATHS, TOKEN_ARTIFACT_SOURCE_PATHS, TOKEN_TYPESCRIPT_ARTIFACT_KEYS } from "@orb/ui/token-contract";
 import type { GeneratedTypeHomeContext } from "../../floor/code-facts/type-home-contract.ts";
-import type { DevToolsClosureFile } from "../../floor/devtools/devtools-assets.ts";
 import { UI_PACKAGE_ROOT } from "./css-family.ts";
 
 /** The canonical token bundle, by the same field names the validator takes. Keeping the SHAPE aligned with
@@ -67,23 +47,4 @@ export const TOKEN_GENERATION_INPUT_PATHS = [
 export interface TokenGeneratedTypeResource {
   readonly context: GeneratedTypeHomeContext;
   readonly observed: ReadonlyMap<string, string>;
-}
-
-/** The committed DevTools frontend closure root. Every member is owned, regular and hashed. */
-export const DEVTOOLS_CLOSURE_ROOT = "tooling/src/snap/lib/devtools-frontend";
-export const DEVTOOLS_CLOSURE_PIN = "tooling/src/snap/lib/devtools-frontend/pin.json";
-export const DEVTOOLS_CLOSURE_MANIFEST = "tooling/src/snap/lib/devtools-frontend/manifest.json";
-export const DEVTOOLS_CLOSURE_LICENSES = "tooling/src/snap/lib/devtools-frontend/licenses.json";
-
-export interface DevToolsClosure {
-  readonly root: string;
-  /** The three control documents, as text, because the pin's own `manifestSha256` is over the manifest's
-   *  exact BYTES and re-serializing a parsed copy would not reproduce it. */
-  readonly pinText: string;
-  readonly manifestText: string;
-  readonly licensesText: string;
-  /** EVERY regular file under the root, the three control documents included, sorted by `file`. The exact
-   *  inventory is the subject: an extra unowned member is as much a defect as a missing one. */
-  readonly files: readonly DevToolsClosureFile[];
-  readonly totalBytes: number;
 }

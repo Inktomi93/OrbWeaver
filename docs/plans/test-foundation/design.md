@@ -169,7 +169,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Native callable controls preserve allocation-bound origins, selected-slot and ordered-copy closure, and publication after private-premise revocation. Finite contextual reentry qualifies; unknown contexts, mutation, escape and true recursion refuse. Exact dependencies retain native validation and whole-source opacity. Original replay rejects a present signal's pending projection; isolated signal controls pass. Earlier receiver admission remains unobserved and selected/delegate invocations unpublished. Sparse-env and full store/cost acceptance stay open. Evidence: `reports/review/1002-original-callable-installed-currentness-diagnosis.md`.
+Native callable controls preserve allocation-bound origins, selected-slot and ordered-copy closure, and publication after private-premise revocation. Finite contextual reentry qualifies; unknown contexts, mutation, escape and true recursion refuse. Exact dependencies retain native validation and whole-source opacity. Original receiver/allocation pass. Optional absence reaches an inherited-effect refusal at the mode lookup; target/delegate invocations remain unpublished. The bounded reproduction passes unchanged; no repair is selected. Sparse-env and full store/cost acceptance stay open. Evidence: `reports/review/1002-native-signal-projection-diagnosis.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -213,7 +213,7 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
-Native portability controls judge production schema and mounted doors. Native lint owns client literal IDs, scroll positioning and source error-suppression refusal. Browser imports validate before effects. Story and token readers remain; the inactive settings proxy is removed.
+Native schema tests own portability; native runtime owns DevTools byte closure. Native lint owns client literal IDs, scroll positioning, sealed sizes and source suppression refusal. Shared metadata scans preserve scope and authority. Browser imports validate before effects. Story and token readers remain.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
 

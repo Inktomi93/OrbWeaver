@@ -11,7 +11,7 @@
 //
 // THE CALL SITE IS NOT OURS TO SILENCE: nothing in `tooling/src` or playwright-core 1.61.1 calls Autofill
 // (playwright names it only in `types/protocol.d.ts`); the caller is inside the vendored closure, whose
-// bytes are hash-pinned by the `devtools-frontend-assets` gate. So the answer is a named partition, like
+// bytes are hash-validated by native DevTools asset admission. So the answer is a named partition, like
 // the sandbox-trace and file-origin classes beside it in `ops/noise.ts` — never dropped: the report prints
 // the lines, the manifest keeps them, and the RESULT line counts them under `devtools-frontend-noise`.
 //

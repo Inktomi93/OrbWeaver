@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(296 registered gates)
+(294 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -137,7 +137,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `design-audit-rule-proof` | — | hard/error | @tooling,@tests\* | the design-audit proof denominator is… |
 | `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
 | `detached-work-traced-health` | detached-work-traced | hard/error | @server,@inference | detached-work-traced derived ZERO… |
-| `devtools-frontend-assets` | — | hard/error | none | the revision-matched official… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
@@ -346,7 +345,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ui-primitive-overlay-health` | ui-primitive | hard/error | @ui | the primitive overlay is missing its… |
 | `ui-primitive-permissions` | ui-primitive | reviewed-grant/error | @ui,@tests\* | a primitive shape, CT obligation,… |
 | `ui-primitive-structure` | ui-primitive | ordinary/error | @ui | UI source re-exports private variants… |
-| `ui-size-via-variant` | tailwind-class-token | ordinary/error | @client,@ui | sizes come from variants — a… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
 | `vector-scope-derived` | — | ordinary/error | @server | a vector-substrate chokepoint was… |

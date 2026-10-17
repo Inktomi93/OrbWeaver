@@ -47,4 +47,4 @@ Reviewed standalone Node-child and Base UI item-model exceptions preserve native
 
 Hook exceptions preserve value-keyed effects and retained factory identity. The bracket effect depends only on selection. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
 
-Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review passes; combined metadata remains open. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
+Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review and scoped integration pass. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.

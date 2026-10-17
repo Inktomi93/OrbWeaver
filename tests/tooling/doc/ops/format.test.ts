@@ -177,7 +177,7 @@ test("SOURCE FIDELITY: contiguous code-template-code fragments are conservativel
 test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHOR are fenced", () => {
   // Class 2 (#2144) is the skills tree plus the `tooling/` guides the constitution cites as law. ONE
   // exclusion survives: the DevTools closure is vendored AND hash-validated, so formatting the one `.md`
-  // in it reds `devtools-frontend-assets` rather than tidying a doc.
+  // in it fails native DevTools asset validation rather than tidying a doc.
   //
   // The GENERATED `flags.md` was the second, until #2178. It is asserted PRESENT here now: its deadlock
   // (`check:docs` wanting escapes that `check:ledgers-fresh` would overwrite) was closed at the SOURCE —

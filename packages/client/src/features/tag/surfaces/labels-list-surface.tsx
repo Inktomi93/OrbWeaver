@@ -63,7 +63,7 @@ function LabelsSortSelect(): ReactElement {
   return (
     <Select
       aria-label="Sort tags"
-      // @orb-waive ui-size-via-variant(w-auto): content-width Select leaves the row slack to its filter; auto overrides the standard w-full deterministically.
+      // eslint-disable-next-line orb/ui-size-via-variant -- Content-width field Select leaves room for the filter; inline layout would also remove its field chrome.
       className="w-auto"
       items={sort.options}
       onValueChange={(value): void => {

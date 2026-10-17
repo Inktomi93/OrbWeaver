@@ -48,7 +48,6 @@ export const GATE_RESOURCE_REQUEST_KINDS = [
   "exact-file",
   "vendor-css-surface",
   "token-contract",
-  "devtools-closure",
   "authored-path",
   "authored-text",
 ] as const;
@@ -89,7 +88,6 @@ export type GateResourceRequest =
   | { readonly kind: "vendor-css-surface" }
   | { readonly kind: "token-contract" }
   | TokenGeneratedTypeRequest
-  | { readonly kind: "devtools-closure" }
   | { readonly kind: "authored-path" }
   | { readonly kind: "authored-text" };
 

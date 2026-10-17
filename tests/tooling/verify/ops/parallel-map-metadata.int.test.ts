@@ -51,7 +51,7 @@ test("registry retains deleted canonical map input even with no ordinary source"
   ]);
 });
 
-test("home-helper-only changes rejudge actual client map subjects", async ({ plantedTree, repoRoot }) => {
+test("home-helper-only changes rejudge actual client map subjects", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, "export const M={chats:1,characters:2};");
   expect(await runScopedEslint(root, [HOME_HELPER])).toBe(1);
 });

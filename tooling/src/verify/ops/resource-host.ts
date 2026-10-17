@@ -21,7 +21,7 @@ import type { MirrorFamilyId } from "../contract/resource-mirror.ts";
 import type { AuthoredTextCorpus, AuthoredTextFile, AuthoredTextRefusal } from "../contract/resource-text.ts";
 import type { AuthoredTreeId } from "../contract/resource-tree.ts";
 import { ordinaryWaiverResourceFormat } from "../lib/ordinary-waiver-source.ts";
-import { loadDevToolsClosure, loadTokenContract, loadTokenGeneratedTypes } from "./resource-artifact.ts";
+import { loadTokenContract, loadTokenGeneratedTypes } from "./resource-artifact.ts";
 import { loadPackageMetadata, loadStaticConfig } from "./resource-config.ts";
 import { loadCssFacts } from "./resource-css.ts";
 import { loadDocumentIndex, loadLedger } from "./resource-document.ts";
@@ -233,7 +233,6 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
     exactFiles,
     vendorCssSurface: cached("vendor-css-surface", () => loadVendorCssSurface(root)),
     tokenContract,
-    devtoolsClosure: cached("devtools-closure", () => loadDevToolsClosure(reader)),
     authoredPaths: demanded("authored-path", (selectors) => loadAuthoredPaths(root, selectors)),
     authoredText: demanded("authored-text", (paths) => loadAuthoredText(paths)),
   });

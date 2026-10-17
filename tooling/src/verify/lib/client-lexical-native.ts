@@ -9,7 +9,7 @@ export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
   "tooling/src/verify/ops/eslint.ts",
 ] as const;
 
-export const CLIENT_LEXICAL_NATIVE_RULES = ["orb/testid-typed-only", "orb/scroll-container-positioned"] as const;
+export const CLIENT_LEXICAL_NATIVE_RULES = ["orb/testid-typed-only", "orb/scroll-container-positioned", "orb/ui-size-via-variant"] as const;
 
 /** Deleted helpers remain inputs; containing-directory requests retain the same dependency. */
 export function affectsClientLexicalNativeLint(path: string): boolean {

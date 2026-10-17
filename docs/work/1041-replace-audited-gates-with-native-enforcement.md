@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-17
 priority: P1
 area: tooling
-lane: codex/native-assets-1041
+lane: main
 plan: test-foundation
 ---
 
@@ -40,4 +40,8 @@ Maintained component cases use captured viewer/settings reads. Browser cases and
 
 Native bus assertions, real-root controls and preserved health inputs pass partial security review. Only secret-name enforcement moves; source health remains. The bus-local request names consumed facets without weakening generic contracts. Scoped ordinary main qualification passes with inherited type diagnostics. Evidence: `reports/review/1041-native-bus-boundary-ordinary.md`.
 
-Native portability schema/door controls and client literal replacements pass independent wave review. Retained readers remain; ordinary combined integration is open. Evidence: `reports/review/1041-native-replacement-wave-independent-review.md`.
+Native portability, client literals and source-suppression refusal pass independent review and scoped integration. Retained readers remain. Evidence: `reports/review/1041-native-replacement-wave-ordinary.md`.
+
+The asset-write native successor remains unqualified: valid table transfers and canonical origins exceed its lexical proposal. Existing enforcement remains. Evidence: `reports/review/1041-assets-native-successor-disposition.md`.
+
+Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Merged qualification remains open. Evidence: `reports/review/1041-native-retirement-wave-independent-review.md`.

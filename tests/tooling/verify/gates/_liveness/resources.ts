@@ -21,7 +21,6 @@ import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/ver
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as depcruiseGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
-import { gate as devtoolsFrontendAssets } from "../../../../../tooling/src/verify/gates/devtools-frontend-assets.ts";
 import { gate as featureOwnsDefinition } from "../../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as featureStructure } from "../../../../../tooling/src/verify/gates/feature-structure.ts";
 import { gate as ledgerSymbolLiveness } from "../../../../../tooling/src/verify/gates/ledger-symbol-liveness.ts";
@@ -48,7 +47,6 @@ const PRODUCT_SHEETS = [
   CLIENT_GLOBALS,
   "packages/client/src/features/app-shell/surfaces/shell.css",
 ] as const;
-const DEVTOOLS_ASSET = "tooling/src/snap/lib/devtools-frontend/assets/serve_rev/@33c2f401a9c8ddad2159eb0ab83aa244a5247361/application_tokens.css";
 // Assembled so no suppression directive appears whole in this file.
 const SUPPRESSION = ["biome", "-ignore"].join("");
 
@@ -113,12 +111,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "GROWTH",
-  },
-  {
-    policy: devtoolsFrontendAssets,
-    overlays: [source(DEVTOOLS_ASSET, "mutated liveness asset\n")],
-    reportsAt: ["tooling/src/snap/lib/devtools-frontend/pin.json"],
-    messageIncludes: "hash/size mismatch",
   },
   {
     policy: featureOwnsDefinition,

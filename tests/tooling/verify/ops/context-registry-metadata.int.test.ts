@@ -53,7 +53,7 @@ test("the registry carries deleted context vocabulary without ordinary sources",
   expect(row?.scopedArgv?.(metadataSelection())).toEqual(["node", "tooling/src/verify/cli.ts", "eslint-scoped", VOCABULARY]);
 });
 
-test("a sharedleaf edit rejudges actual client syntax instead of linting only the helper", async ({ plantedTree, repoRoot }) => {
+test("a sharedleaf edit rejudges actual client syntax instead of linting only the helper", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, BAD);
   writeFileSync(join(root, VOCABULARY), readFileSync(join(root, VOCABULARY), "utf8") + "\n// Edited vocabulary input.\n");
   expect(await runScopedEslint(root, [VOCABULARY])).toBe(1);
