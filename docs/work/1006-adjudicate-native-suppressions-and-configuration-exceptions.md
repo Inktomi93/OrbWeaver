@@ -42,3 +42,5 @@ Remaining Zod issue permissions serve structured paths, model correction or reco
 Native parser-fixture permissions apply only to source-string restrictions. Runtime clock and entropy judgments remain active. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
 
 Reviewed native exceptions retain actual transferred or borrowed lifetimes, atomic derived-plane replacements, producer compatibility and platform-only physical assertions. Stale comments are removed. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Broader disposition remains open.
+
+Reviewed standalone Node-child and Base UI item-model exceptions preserve native execution and narrow public contracts. Their distinct classes do not authorize budget growth. Keep the central alarm visible until broader disposition removes unnecessary permissions. Evidence: `reports/review/1041-egress-watchdog-ordinary.md` and `reports/review/1041-native-baseui-seals-delivery.md`.

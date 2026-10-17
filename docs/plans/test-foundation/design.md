@@ -8,15 +8,13 @@ updated: 2026-10-17
 
 ## Goal
 
-Run the real product through one harness. Share one code-facts engine across codemods, `pnpm ast` and verify gates. Tests and gates hold no second product or code reader.
-
-Tests prove production behavior without copied rules. Shared readers reduce check cost. Rebuilt files receive full enforcement, with the type system carrying each expressible invariant.
+Run production through one harness without copied rules. Share one code-facts engine across codemods, `pnpm ast` and gates. Enforce rebuilt files through native types and tools where possible.
 
 ## Shape
 
 ### Order of work
 
-This plan owns execution order. The [test-mirror inventory](../test-mirror/design.md) supplies migration candidates, not a competing retrofit queue. Work items own assignments, blockers and evidence.
+This plan owns order. The [test-mirror inventory](../test-mirror/design.md) supplies candidates. Work items own assignments, blockers and evidence.
 
 Read the [side-plan priority note](../inference-flow/design.md#reading-priority) before using inference-flow to choose work or report program status.
 
@@ -58,7 +56,7 @@ Testkit exists as a world-split package. The client mounting foundation delegate
 
 The synthetic corpus is committed under Node testkit support. Selected native clone, server continuation, smoke, component and isolated-stage consumers pass without private directory selectors. Public plugin stages also feed default native continuation and the Extensions component. Public default-corpus E2E passes through an independent clone. Additive required CI wiring preserves ordinary smoke selection and artifacts; hosted execution remains unqualified. A native browser reservation-limit case qualifies unavailable handling, Retry and Worker retirement without changing production budgets. Component media uses private clones and native viewer admission; production owns blob authorization, variants and headers. Node replay state preserves settled time and ID continuation; browser consumers receive only portable wire and HTTP bytes. Production tag and character insert writers use the injected business clock. The committed corpus carries their native stamps with reviewed private-state and capture preservation. The full ordinary capsule passes under the registered slow completion policy; its producer and assertion population is unchanged. Default corpus Snap intake passes its corpus assertion, ARIA and navigation map. Reviewed marker repairs preserve list and context focus return. An owned loopback provider serves native preview through the production graph. Refusal controls preserve resources until consumer completion and reject unscripted origins. Separate provider recipes remain unqualified; software rendering withholds the application snapshot. Builders, required-field failure and layer intake meet the corpus foundation exit. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/959-completion-boundary-audit.md`. Item 898 owns the replacement smoke matrix; item 977 owns UI and reporting findings. Stable timing and hosted CI remain unqualified. General legacy ports still wait for complete shared-reader foundations.
 
-SDK execution joins native Query and observed direct-child completion. It does not promise a sandbox for arbitrary trusted executables or universal descendant containment. This scope does not imply a shipped-CLI defect.
+SDK execution joins native Query and observed direct-child completion, not arbitrary executable sandboxing or universal descendant containment.
 
 ### Architecture workstreams
 
@@ -206,7 +204,9 @@ The chat engine receives an actual narrow capability object; chat binds memory o
 
 Device-local factory names derive from the production registry. Native factory option types require version, partialize and migrate. Private implementation imports remain restricted; the legacy adapter admits only its existing callers. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Runtime migration behavior remains the factories' responsibility.
 
-Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Public URL policy rejects caller-supplied configured authority. Real composed controls enforce regex deadlines; ordinary integration remains open. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Existing compiler and certification reds remain. Evidence: `reports/review/1041-native-wave-ordinary.md`.
+Native lint owns lexical class, skin, banned utilities, z-index and determinism. Mandatory ESLint enforces CORS without inline suppression. Real HTTP controls enforce mounted mutation limits and order. Public URL policy rejects caller-supplied configured authority. Real composed controls enforce regex deadlines; ordinary integrated runtime and native type controls pass. Raw-origin and asset policies remain. Stylelint owns motion, color and integer/rest CSS; their semantic checks and complete CSS-variable enforcement remain. Review, ordinary main controls and isolated frozen-PNPM CSS qualification pass. Existing compiler and certification reds remain. Evidence: `reports/review/1041-native-wave-ordinary.md`.
+
+Native Base UI lint owns per-file derivation, mandatory handlers and parallel-state styling. Metadata admission invalidates caches; semantic owners remain. Maintained CTs use captured viewer/settings reads. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`. Combined native qualification remains open.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 

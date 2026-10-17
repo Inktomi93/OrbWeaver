@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-09
+updated: 2026-10-17
 ---
 
 # Motion & Animation Guide
@@ -565,8 +565,7 @@ a fade-out.
 `data-ending-style` on the part itself is the defect pattern. Until a dedicated gate ships, this is
 REVIEW-ENFORCED. The structural detection shape: a Tailwind `data-ending-style:` variant on a child
 element inside a Base UI popup, with no `data-ending-style:` variant on the popup's own root. The
-`baseui-state-data-attributes` gate owns the adjacent concern (styling through Base UI's own data attrs
-rather than parallel React state) and is the natural home for this check.
+`orb/baseui-state-data-attributes` ESLint rule owns the adjacent parallel-state styling concern, not exit-target completeness.
 
 **Practical consequence:** always put at least `opacity: 0` on `[data-ending-style]` of the popup root
 itself, even if most of the exit visual is on a child. `OVERLAY_MOTION.anchoredPopup` and
@@ -586,9 +585,7 @@ data-attribute for the full duration of a closing animation (Base UI keeps `data
 a React boolean flips on the first event). Styling off the boolean creates a second source of truth —
 the component visually snaps while the animation is still running.
 
-**Enforcer:** `baseui-state-data-attributes` gate (LIVE — `Core-Enforcement-Active-Gates.md`). It reads
-the committed Base UI surface manifest per part and REDs a seal that holds local React state mirroring
-a state key Base UI already stamps on the DOM. Minted at zero live violations.
+**Enforcer:** `orb/baseui-state-data-attributes` in `eslint.config.js` checks local hook-state names used in Base UI part styling. The rule consumes the committed surface manifest. Scoped metadata changes rejudge seals and invalidate native lint caches. This lexical check does not prove general state-value provenance.
 
 **The closed set:** `data-starting-style` (one frame, enter "from") · `data-ending-style` (exit "to") ·
 `data-open` (while open) · `data-closed` (while closed, if `keepMounted`) · `data-disabled` ·

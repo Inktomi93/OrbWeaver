@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(306 registered gates)
+(303 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -74,10 +74,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `assumes-single-replica` | — | ordinary/error | @server,@inference\* | module-scope mutable per-process… |
 | `audit-client-tests` | — | ordinary/error | @tests\* | a test file carries a structural… |
 | `baseui-anatomy-completeness` | baseui-read | hard/error | @ui | the Base UI anatomy ledger and the… |
-| `baseui-derives-not-respells` | baseui-read | ordinary/error | @ui | a @orb/ui seal hand-writes a data… |
-| `baseui-derives-not-respells-health` | baseui-read | hard/error | @ui | a @orb/ui seal hand-writes an EVENT… |
 | `baseui-portal-container-seam` | baseui-read | ordinary/error | @ui | a sealed Base UI portal does not… |
-| `baseui-state-data-attributes` | baseui-read | ordinary/error | @ui | a @orb/ui seal computes a Base UI… |
 | `baseui-surface-manifest` | baseui-read | hard/error | none | the committed Base UI surface… |
 | `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |

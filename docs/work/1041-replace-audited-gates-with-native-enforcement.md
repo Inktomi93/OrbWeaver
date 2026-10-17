@@ -12,7 +12,7 @@ plan: test-foundation
 
 ## What
 
-Execute D321 native replacements. Keep unmatched KEEP data. Env/users policies wait for qualified producer/export boundaries. Use /home/inktomi/Desktop/gate-audit.
+Execute D321 replacements from /home/inktomi/Desktop/gate-audit. Preserve KEEP inputs and unmatched producer boundaries.
 
 ## Why
 
@@ -24,13 +24,13 @@ Migrated rows have qualified successors and adjudicated exceptions. Security con
 
 ## Evidence
 
-D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
+Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
 
 SQL delivery passes review and controls. Remaining native delivery gaps do not block migration. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`.
 
-Production owns forward-JWT execution and network lifetime. Public URL callers cannot request configured-endpoint authority; configured endpoints retain their separate capability. Production-root body limits preserve intake order and clean incomplete staging. Security review passes; combined network qualification remains open. Evidence: `reports/review/1041-egress-watchdog-independent-review.md` and `reports/review/1041-native-wave-ordinary.md`. Raw-origin and asset policies remain.
+Production owns forward-JWT execution and network lifetime. Public URL callers cannot request configured-endpoint authority; configured endpoints retain their separate capability. Production-root body limits preserve intake order and clean incomplete staging. Security review and ordinary integrated runtime and native type controls pass. Evidence: `reports/review/1041-egress-watchdog-independent-review.md` and `reports/review/1041-native-wave-ordinary.md`. Raw-origin and asset policies remain.
 
-Real composed preview controls enforce world-info regex deadlines, normal matching and invalid-pattern literal fallback. Local source interventions discriminate missing protection. Review passes; ordinary integrated execution remains open. Evidence: `reports/review/1041-native-regex-watchdog-delivery.md`.
+Composed preview controls enforce regex deadlines, normal matching and invalid-pattern fallback. Defect interventions discriminate protection. Review and integrated execution pass. Evidence: `reports/review/1041-native-regex-watchdog-delivery.md`.
 
 Chat binds memory outside narrow engine inputs. Native imports and production-root controls preserve authority. Principal-origin and role checks remain because public Callers expose raw roles. Legacy direct constructors need real-root replacement. Evidence: `reports/review/1041-engine-authority-ordinary.md` and `reports/review/1041-native-turn-role-authority-ordinary.md`.
 
@@ -43,3 +43,7 @@ Native lint owns lexical class, skin, utility, z-index and determinism restricti
 Schema-export membership is removed; parity and issues origin remain. Bounded-list controls prove mounted/public limits; private/uninstantiated obligations retain their gate. Evidence: `reports/review/1041-native-zod-surface-ordinary.md` and `reports/review/1041-bounded-list-limit-ordinary.md`.
 
 Mandatory ESLint enforces CORS without inline suppression. Stylelint owns motion, color and integer/rest CSS. Their semantic checks and complete CSS-variable enforcement remain. Review, ordinary native controls and isolated frozen-PNPM CSS qualification pass. Evidence: `reports/review/1041-native-wave-ordinary.md`.
+
+Native Base UI lint owns derivation, handlers and parallel-state styling. Metadata admission invalidates caches; semantic checks remain. Combined qualification stays open. Evidence: `reports/review/1041-native-baseui-seals-delivery.md`.
+
+Maintained CTs use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
