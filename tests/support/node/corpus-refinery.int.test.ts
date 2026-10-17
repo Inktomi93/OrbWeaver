@@ -161,3 +161,35 @@ test("all native forge arms produce owner-belted drafts while needs-raw and malf
   expect(physical.requests.length - before).toBe(2);
   expect(await caller.refinery.listSchemas()).toEqual([]);
 });
+
+test("the forge renders a final document refusal for the author without losing the raw draft or retrying the model", async () => {
+  const replies = new Map(CORPUS_STRUCTURED_REPLIES);
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "The keeper preserves the orbital ledger.",
+    structuredReplies: replies,
+    images: [],
+  });
+  await using root = await createServerHarness({ providerFetch: physical.execute });
+  await seedCorpusConnections(root, await root.principalFor(root.ownerId));
+  const caller = await root.internalCallerFor(root.ownerId);
+  const draft = await caller.refinery.generateSchema({ stage: "score", description: "Explain the keeper's score.", arm: "single" });
+  if (draft.kind !== "draft") {
+    throw new Error("the physical design did not produce its positive-control draft", { cause: draft });
+  }
+  const raw = replies.get("refinery_schema_design");
+  if (raw === undefined) {
+    throw new Error("the physical script has no refinery design response");
+  }
+  const design = forgeDesignEnvelopeSchema.parse(JSON.parse(raw));
+  replies.set("refinery_schema_design", JSON.stringify({ ...design, name: "not a valid identifier!!!" }));
+  const before = physical.requests.length;
+  expect(await caller.refinery.generateSchema({ stage: "score", description: "Explain the keeper's score.", arm: "single" })).toEqual({
+    kind: "failed",
+    message: "That design didn't pass the schema checks: ✖ name must match ^[a-zA-Z_][a-zA-Z0-9_]*$\n  → at name",
+    raw: JSON.stringify(draft.schema, null, 2),
+  });
+  expect(physical.requests.length - before).toBe(1);
+  expect(await caller.refinery.listSchemas()).toEqual([]);
+});

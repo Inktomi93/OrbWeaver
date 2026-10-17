@@ -24,21 +24,21 @@ Each migrated row has a qualified successor and adjudicated exceptions. Security
 
 ## Evidence
 
-D321 records the owner rulings. The audit crosswalk is `reports/review/gate-audit-owner-crosswalk.md`. Producer rows group runtime instances.
+D321 records owner rulings. Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`.
 
-D321 owns retained-reader dependencies, authority boundaries and reservation semantics.
+D321 owns retained dependencies, authority boundaries and reservation semantics.
 
 SQL delivery passes review and controls. Evidence: `reports/review/1027-native-sql-owner-corrections-ordinary.md`. Remaining 1027 gaps do not block migration.
 
 Native infra identifier and direct identity import restrictions preserve generated and declaration source coverage. Production-root identity and admin controls catch planted authority defects. Canonical admin target validity ends its reviewed grants. Independent security review passes. Evidence: `reports/review/1041-infra-admin-ordinary.md`. Turn identity and typed role gates remain active pending qualified successors.
 
-Native file-size limits preserve scopes and shrinking test debt. Structural antipattern routing excludes native lint. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
+Native size limits preserve scopes and shrinking debt. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
 Chat constructs narrow engine inputs and binds memory outside it. Native imports and production-root turn/memory controls pass security review. Evidence: `reports/review/1041-engine-authority-ordinary.md`. Legacy direct constructors remain unqualified replacement debt, not inherited compiler diagnostics.
 
 Native database constraints enforce freeze-provenance row normalization. Complete canon body writers and production-root controls preserve freshness beyond SQL constraints. Migration preserves coherent stored bytes and refuses invalid rows atomically. Independent security review passes. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Ordinary production-root controls pass; application and hosted CI stay unqualified.
 
-Production device-local names and required persistence options use native factory types. Private implementation and legacy adapter imports remain restricted. Independent review passes. Evidence: `reports/review/1041-persisted-factory-ordinary.md`. Application qualification remains open.
+Device-local names and persistence options use native types. Private and legacy imports stay restricted. Evidence: `reports/review/1041-persisted-factory-ordinary.md`.
 
 Native lexical class and skin restrictions replace custom owners; shared z-index and semantic readers remain. Evidence: `reports/review/1041-skin-fragment-native-ordinary.md`.
 
@@ -47,3 +47,5 @@ Resolved role data uses private capture/decoder and canonical wire boundaries. P
 Production registries supply config anchors and safe navigation with owned jump cancellation. Native types and route-map lint replace exact claims; semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts need real-door replacement.
 
 Inert DB, statement and batch wiring preserves original operands. Native import/loader boundaries replace query detection; per-call analysis remains. Security review passes. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
+
+D322 removes schema-export membership hygiene, not authored parity or issues origin. Native forge errors preserve raw drafts and refusal. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`. Other issues grants remain unjudged.

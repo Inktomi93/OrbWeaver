@@ -87,8 +87,7 @@ const APPLICATION = Object.freeze({
   "ui-size-via-variant": 3,
   "wire-schema-vocab-one-home": 1,
   "z-index-tier-permission": 2,
-  "zod-error-issues-home": 9,
-  "zod-export-membership": 4,
+  "zod-error-issues-home": 8,
 });
 
 const IMPLEMENTATION = Object.freeze({

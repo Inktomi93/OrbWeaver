@@ -8,10 +8,8 @@
 // fields. Input equality is deliberately not asserted: defaults, coercions and preprocessors legitimately
 // change input while preserving output.
 //
-// FAMILY: `zod-output-twin-parity` has two distinct predicates over one shared semantic reader. This policy
-// proves exact bidirectional output parity once an authored twin exists; `zod-export-membership` proves that
-// every exported concrete schema has an explicit output owner in the first place. Cast, satisfies, annotation,
-// contextual-manifest and alias spellings remain one parity predicate rather than separate policy families.
+// Singleton family: cast, satisfies, annotation, contextual-manifest and alias spellings express the same
+// authored output-parity promise. A schema-only export does not create that promise.
 import type { Expression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";

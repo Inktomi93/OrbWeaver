@@ -58,7 +58,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(316 registered gates)
+(315 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -373,7 +373,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `z-index-tier-health` | ui-z-index-tier | hard/error | @client,@ui | the reviewed z-index home set or… |
 | `z-index-tier-permission` | ui-z-index-tier | reviewed-grant/error | @client,@ui | reviewed z-index implementation home… |
 | `zod-error-issues-home` | zod-modern-spellings | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
-| `zod-export-membership` | zod-output-twin-parity | reviewed-grant/error | @product,@tests | an exported Zod schema has no… |
 | `zod-modern-spellings` | — | ordinary/error | @product,@tests | a superseded zod spelling — the 4.4.3… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 | `zustand-selector-derived` | — | ordinary/error | @client | zustand selector returns a fresh… |

@@ -40,7 +40,6 @@ import { gate as tableExplicitPrimaryKey } from "../../../../../tooling/src/veri
 import { gate as tableScopingClass } from "../../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
-import { gate as zodExportMembership } from "../../../../../tooling/src/verify/gates/zod-export-membership.ts";
 import { gate as zodModernSpellings } from "../../../../../tooling/src/verify/gates/zod-modern-spellings.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 
@@ -292,11 +291,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "hand-flattened zod `issues`",
-  },
-  {
-    policy: zodExportMembership,
-    overlays: [add("packages/inference/src/liveness/schema.ts", 'import * as z from "zod";\nexport const livenessWire = z.object({ value: z.string() });\n')],
-    messageIncludes: "no semantic output owner",
   },
   {
     policy: zodModernSpellings,

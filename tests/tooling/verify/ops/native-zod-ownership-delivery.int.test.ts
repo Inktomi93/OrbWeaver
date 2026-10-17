@@ -6,7 +6,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node } from "ts-morph";
 import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as membership } from "../../../../tooling/src/verify/gates/zod-export-membership.ts";
 import { gate as parity } from "../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -16,7 +15,7 @@ import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const COMPILER_OPTIONS = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
-const POLICIES = [membership, parity];
+const POLICIES = [parity];
 const entryPath = (browser: boolean): string => `packages/${browser ? "client" : "server"}/src/schema.ts`;
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const put = (path: string, source: string): void => {
@@ -28,7 +27,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   const entry = entryPath(browser);
   const files = {
     [entry]:
-      'import * as z from "zod";import type {Expected} from "#expected";export const owned=z.object({mode:z.literal("node")}) satisfies z.ZodType<Expected>;export type Owned=z.output<typeof owned>;export const unowned=z.string();',
+      'import * as z from "zod";import type {Expected} from "#expected";export const owned=z.object({mode:z.literal("node")}) satisfies z.ZodType<Expected>;',
     "packages/contracts/src/node.ts": 'export interface Expected {mode:"node"}',
     "packages/contracts/src/browser.ts": 'export interface Expected {mode:"browser"}',
   };
@@ -58,7 +57,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
 }
 
 test(
-  "native Zod structure and scoped commands retain conditional-world output and export authority without syntax semantics",
+  "native Zod structure and scoped commands retain conditional-world output parity without syntax semantics",
   async ({ scratch, repoRoot }) => {
     for (const browser of [false, true]) {
       const root = join(scratch, browser ? "browser" : "node");
@@ -76,7 +75,6 @@ test(
       }
       expect(baseline.outputToTarget).toBe(!browser);
       expect(baseline.targetToOutput).toBe(!browser);
-      expect(native.sourceFile.getExportSymbols().some((symbol) => symbol.getName() === "unowned")).toBe(true);
       const getType = Node.prototype.getType;
       const getSymbol = Node.prototype.getSymbol;
       const types = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
@@ -95,7 +93,7 @@ test(
       const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
       try {
         expect.soft(await runStructure(root, ["--check=zod-output-twin-parity"])).toBe(browser ? 1 : 0);
-        expect.soft(await runScopedCli(root, ["--scope", "packages/**"])).toBe(1);
+        expect.soft(await runScopedCli(root, ["--scope", "packages/**"])).toBe(browser ? 1 : 0);
         const result = runPolicyPass({
           root,
           project: context.project,
@@ -107,9 +105,6 @@ test(
         });
         expect.soft(result.toolErrors).toEqual([]);
         expect.soft(result.policies.find(({ id }) => id === parity.id)?.findings).toHaveLength(browser ? 1 : 0);
-        expect
-          .soft(result.policies.find(({ id }) => id === membership.id)?.findings)
-          .toMatchObject([{ file: entryPath(browser), subject: entryPath(browser), operation: "schema-only-export:unowned", token: "unowned" }]);
       } finally {
         useContext.mockRestore();
         symbols.mockRestore();
@@ -167,10 +162,6 @@ test(
         failOnWarnings: false,
       });
       expect(result.toolErrors).toEqual([]);
-      expect(result.policies.find(({ id }) => id === membership.id)?.receipts).toMatchObject([
-        { members: 1, unresolved: 0, source: expect.stringContaining("twins=1") },
-      ]);
-      expect(result.policies.find(({ id }) => id === membership.id)?.findings).toEqual([]);
       expect(result.policies.find(({ id }) => id === parity.id)?.receipts).toMatchObject([{ members: 1, unresolved: 0 }]);
       expect(result.policies.find(({ id }) => id === parity.id)?.findings).toMatchObject([
         { file: shared, message: expect.stringContaining("authored type is not assignable") },

@@ -8,7 +8,7 @@ updated: 2026-10-17
 
 ## Goal
 
-Tests run the real product through one harness, and one code-facts engine serves codemods, `pnpm ast` and the verify gates. When the product changes, the tests and the gates change with it, because neither holds a second copy of the product or of the way code is read.
+Run the real product through one harness. Share one code-facts engine across codemods, `pnpm ast` and verify gates. Tests and gates hold no second product or code reader.
 
 The aim is three things at once. Honest: a test proves what production does, never what a copy of it does. Small: tests stop outweighing the product, and the per-step cost of checks stops dominating agent time. Strict: a gate judges every rebuilt file at full strength with no waivers, and the type system carries as much of the proof as it can.
 
@@ -174,7 +174,7 @@ The store-backed inventory corpus is a separate syntax carrier over the complete
 
 Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
 
-Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. The target remains unresolved at `ctx.backgroundSignal`. Native catch admission resolves; the later `createLifecycle` call lacks an admitted supplied consumer. Preserve importing-world semantics; no generic mode-key repair is established. Evidence: `reports/review/1002-native-promise-catch-identity-ordinary.md`. Target and complete store qualification remain open.
+Contextual sharing, optional invocation and native resource registration pass bounded controls and independent review. Reached-call capture retains explicit reference inputs, actual callers/defaults, native lifetime validation and atomic observations. Distinct supplied contexts permit finite reentry; unknown contexts, mutation, escape and true recursion still refuse. Callable-proof reuse binds to its refinement read-set and source epoch. Private premises remain revocable; conditional observations never become public facts. Ordinary controls retain the partial-env failure. The last target refused `createLifecycle` supplied-consumer admission after catch resolution. Namespace-only acquisition passes review and bounded controls; target replay remains open. Evidence: `reports/review/1002-callable-consumer-demand-ordinary.md`. Complete store qualification remains open.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -195,6 +195,8 @@ Prove native world differences, alias and dynamic-import identity, complete popu
 ### Gates move to native enforcement
 
 [D321](../../adr/0321-native-gate-replacements-and-keep-only-analysis.md) owns the migration rulings. [The migration item](../../work/1041-replace-audited-gates-with-native-enforcement.md) follows the assigned SQL delivery, not complete retained-reader or cost qualification. The canonical external audit is in /home/inktomi/Desktop/gate-audit. Read its README, folder CSVs and raw results; loose Desktop copies are obsolete.
+
+D322 permits schema-only exports. Membership hygiene is removed; authored parity and issues-origin enforcement remain. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`.
 
 The audit asks whether a custom engine is necessary after changing the enforcement mechanism. The earlier typed-necessity census describes current implementations. A genuine Type dependency can move to a type change, native typed lint or a production test. Neither census alone proves a successor correct.
 

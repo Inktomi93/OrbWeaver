@@ -268,3 +268,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D319 | [Native protocol time stays native in scripted test edges](0319-native-protocol-time-in-scripted-test-edges.md) | active |
 | D320 | [Legacy tests run and typecheck without semantic extraction](0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) | active |
 | D321 | [Native gate replacements and KEEP-only custom analysis](0321-native-gate-replacements-and-keep-only-analysis.md) | active |
+| D322 | [Schema-only exports do not require output aliases](0322-schema-only-exports-without-output-aliases.md) | active |
