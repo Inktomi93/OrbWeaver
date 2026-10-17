@@ -169,7 +169,7 @@ test("an old native reader retains its immutable family while a fresh reader fol
   const first = prepareRouterDeclarations(root);
   const oldHost = ts.createCompilerHost({ module: ts.ModuleKind.NodeNext, noEmit: true, types: [] });
   const read = oldHost.readFile;
-  let second: ReturnType<typeof prepareRouterDeclarations> | undefined;
+  let second: typeof first | undefined;
   oldHost.readFile = (path): string | undefined => {
     const text = read(path);
     if (path === first.entry && second === undefined) {
