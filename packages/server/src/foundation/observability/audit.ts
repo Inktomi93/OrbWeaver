@@ -15,23 +15,16 @@ import { databaseForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import { createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import type { AuditEntry, AuditWiring } from "./contract/audit-wiring.ts";
+import type { AuditEntry, AuditFailureSnapshot, AuditWiring } from "./contract/audit-wiring.ts";
 import { getLog } from "./logger.ts";
 
-export type { AuditEntry } from "./contract/audit-wiring.ts";
+export type { AuditEntry, AuditFailureSnapshot } from "./contract/audit-wiring.ts";
 
 let auditFailureCount = 0;
 let firstFailureAt: number | null = null;
 let lastFailureAt: number | null = null;
 // Re-raise the suppressed failure as a structural warn every Nth occurrence.
 const ALERT_EVERY = 25;
-
-// @orb-waive no-inline-package-interface(AuditFailureSnapshot): baselined when the gate landed; burn-down item 952.
-export interface AuditFailureSnapshot {
-  count: number;
-  firstFailureAt: number | null;
-  lastFailureAt: number | null;
-}
 
 export function getAuditFailureSnapshot(): AuditFailureSnapshot {
   return { count: auditFailureCount, firstFailureAt, lastFailureAt };

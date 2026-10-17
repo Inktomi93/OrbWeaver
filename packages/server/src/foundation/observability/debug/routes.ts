@@ -23,9 +23,6 @@ import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
 import type { DeploymentRenderPolicy } from "@orb/contracts/chat";
 import type { DebugErrorsResponse, RpgTracesResponse, WireCapturesResponse } from "@orb/contracts/debug";
-import type { RpgTraceRecord } from "@orb/contracts/rpg";
-import type { EffectiveAppConfig, GlobalSettingView } from "@orb/contracts/settings";
-import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { BugReportRecord } from "@orb/kit/bug-report";
 import { resolveEvidenceWindow } from "@orb/kit/evidence-window";
@@ -37,6 +34,7 @@ import { z } from "zod";
 import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
 import { versionIdentity } from "#foundation/version";
 import { getAuditFailureSnapshot } from "../audit.ts";
+import type { DebugAuthOptions, DebugRoutesOptions } from "../contract/debug.ts";
 import { logRing, recentRequests, securityEvent } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
 import { captureNowMs, mintBugReportId, readBuildIdentity, secretLiterals, snapshotServerEvidence, writeBugReport } from "./bug-report.ts";
@@ -58,6 +56,16 @@ import {
 import { ERROR_LEVEL, levelValue, parseLogRingLine, ringLineLevel } from "./log-ring-read.ts";
 import type { WireCaptureFilter } from "./wire-capture.ts";
 import { isWireCaptureEnabled, recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
+
+export type {
+  AdminAuthChecker,
+  AssetInspector,
+  DebugAuthOptions,
+  DebugRoutesOptions,
+  MemoryRecallInspector,
+  RpgTraceInspector,
+  SocketInspector,
+} from "../contract/debug.ts";
 
 const MAX_RING_READ = 2000;
 const DEFAULT_LOG_LIMIT = 200;
@@ -213,104 +221,6 @@ function collectErrors(limit: number): Record<string, unknown>[] {
     }
   }
   return errors;
-}
-
-// @orb-waive no-inline-package-interface(AssetInspector): baselined when the gate landed; burn-down item 952.
-/** Asset-store health port — structural-injection so foundation accepts assets' `fsck` without importing
- *  it. `object` return so no domain type crosses the boundary. */
-export interface AssetInspector {
-  fsck: () => Promise<object>;
-}
-
-// @orb-waive no-inline-package-interface(AdminAuthChecker): baselined when the gate landed; burn-down item 952.
-/** Session-auth gate — structural-injection so foundation accepts the entry auth verdict without importing
- *  it. Consulted before the token check. `isAdmin` must never throw (the middleware catches anyway: a
- *  misbehaving seam falls through to the token check, it never opens the gate). The METHOD keeps its
- *  historical name because renaming a structural port renames it at the wiring site too; the CONTRACT below
- *  is the truth, and it is owner-only.
- *
- *  THE IMPLEMENTOR'S CONTRACT, and the one this port cannot check for itself: `true` means the caller
- *  PRESENTED a credential AND that credential's principal is the box OWNER (D17 — a delegated `admin` is
- *  refused here; see the file header). Because this arm short-circuits BOTH the token comparison and the
- *  `expectedToken === undefined` → 404 branch, an impl that returns `true` for a merely-inferred principal
- *  opens the entire surface unconditionally — which is exactly what the production impl did until
- *  AUTHFIX-2 (`entry/auth/seam.ts::debugGateCredentialed`). An ORIGIN is not a credential.
- *
- *  IT TAKES THE REQUEST CONTEXT, NOT THE HEADERS, AND IT IS SYNCHRONOUS — both deliberate (#1193). The impl
- *  must answer from the principal the app's auth middleware ALREADY resolved onto the context (spine
- *  invariant #2), because that is the only resolution that saw the request's raw TCP peer; the previous
- *  `(headers) => Promise<boolean>` shape invited a second, peer-less resolution, and that is precisely what
- *  refused the box operator's own loopback-owner session at this door. A sync signature makes the re-resolve
- *  unwritable rather than merely discouraged. */
-export interface AdminAuthChecker {
-  isAdmin: (c: Context) => boolean;
-}
-
-// @orb-waive no-inline-package-interface(RpgTraceInspector): baselined when the gate landed; burn-down item 952.
-/** The rpg flight-recorder read port (R-OBS) — structural-injection so foundation accepts `domain/rpg`'s ring
- *  recorder without importing it (the `AssetInspector` precedent). Returns `object[]` so no rpg type crosses the
- *  boundary; the records serialize straight to JSON. Host-only via the debug gate; read-only (D75). */
-export interface RpgTraceInspector {
-  recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly RpgTraceRecord[];
-}
-
-// @orb-waive no-inline-package-interface(MemoryRecallInspector): baselined when the gate landed; burn-down item 952.
-/** The MEMORY-RECALL flight-recorder read port (#250) — the `RpgTraceInspector` shape, one domain over: the
- *  per-recall trace ring `domain/chat/memory/recall/recorder.ts` fills. Returns `object[]` so no chat/memory
- *  type crosses the boundary. This is the lens for "what memories did that turn fetch, and why" — the
- *  question that previously had no answer short of reading the prompt and guessing. */
-export interface MemoryRecallInspector {
-  recent: (filter: { chatId?: ChatId; limit?: number }) => readonly object[];
-}
-
-// @orb-waive no-inline-package-interface(SocketInspector): baselined when the gate landed; burn-down item 952.
-/** The multiplexed-socket read port (SSE-1 §12) — structural-injection so foundation accepts transport's
- *  socket registry without importing it (the `RpgTraceInspector` precedent; transport sits ABOVE foundation
- *  in the tier list, so the dependency has to arrive as data). This is the STARVATION REGRESSION PIN: the
- *  whole point of the multiplex is "one socket per tab, and opening a game chat adds ZERO", which is a claim
- *  about a COUNT that nothing outside the process can otherwise observe. */
-export interface SocketInspector {
-  liveSocketCount: (userId?: UserId) => number;
-}
-
-// @orb-waive no-inline-package-interface(DebugAuthOptions): baselined when the gate landed; burn-down item 952.
-/** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
-export interface DebugAuthOptions {
-  expectedToken: string | undefined;
-  /** When set, an admin SESSION passes the gate without a token (the token stays the headless fallback —
-   *  `scripts/probes/*` and the e2e harness use it). Read `AdminAuthChecker`'s contract before wiring one. */
-  adminAuth?: AdminAuthChecker;
-}
-
-// @orb-waive no-inline-package-interface(DebugRoutesOptions): baselined when the gate landed; burn-down item 952.
-/** The /api/_debug registrar options. The `db` handle (optional) adds the /db/* probe surface; `assets`
- *  adds the CAS health check; `auth` overrides the default DEBUG_TOKEN gate (tests pass a known shape). */
-export interface DebugRoutesOptions {
-  /** Required selection prevents a configured app from silently omitting its stored settings view. */
-  readonly appSettingRows: (() => Promise<readonly GlobalSettingView[]>) | null;
-  db?: DatabaseHandle;
-  assets?: AssetInspector;
-  /** The rpg flight-recorder read port (R-OBS). Absent ⇒ the /rpg/traces route is not registered (tracing off). */
-  rpgTrace?: RpgTraceInspector;
-  /** The memory-recall flight-recorder read port (#250). Absent ⇒ the /memory/recalls route is not registered. */
-  memoryRecall?: MemoryRecallInspector;
-  /** The live multiplexed-socket counter (SSE-1). Absent ⇒ the /stream/sockets route is not registered. */
-  sockets?: SocketInspector;
-  /** The resolved deployment config getter. Absent ⇒ `/config/app` still serves the RAW settings rows, and the
-   *  render-policy probes report the stored tri-states with a `null` resolved verdict rather than guessing a
-   *  floor — an absent answer beats a wrong one on the surface whose whole job is removing that inference. */
-  effectiveConfig?: () => EffectiveAppConfig;
-  /** #412 — whether the provider wire-capture REQUEST sink is actually wired into the backends. Compose owns
-   *  that decision (`env.WIRE_CAPTURE === "on"` OR its `wireCapture` force flag), so it must be injected: this
-   *  tier cannot see the force flag. Absent ⇒ `isWireCaptureEnabled()` (the env half), which is the right
-   *  answer for a hand-built app that never forced the sink on.
-   *
-   *  It is a GETTER rather than a boolean so a reader always sees the live decision, and it feeds ONLY the
-   *  `/wire/captures` arm — `/wire/outcomes` publishes `isWireCaptureEnabled()` because the outcome recorder
-   *  self-gates on exactly that (the gating asymmetry stated in `wire-capture.ts`). Two arms, two truths; one
-   *  shared flag here would be a lie on whichever arm it did not describe. */
-  wireCaptureEnabled?: () => boolean;
-  auth?: DebugAuthOptions | string;
 }
 
 /** The refusal's ARM-NAMING half. A caller told only "an admin session or x-debug-token" cannot act: the

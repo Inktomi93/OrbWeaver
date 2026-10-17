@@ -66,19 +66,13 @@ import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { WireCapture } from "@orb/contracts/debug";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
-import type { ChatId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
+import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
+
+export type { WireCaptureFilter, WireOutcome, WireToolCall, WireWarning } from "../contract/wire-capture.ts";
 
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
 const WIRE_CAPTURE_RING_CAPACITY = 256;
-
-// @orb-waive no-inline-package-interface(WireCaptureFilter): baselined when the gate landed; burn-down item 952.
-/** Filter for a host read: by `chatId` and/or `providerId`, newest-first, capped by `limit`. */
-export interface WireCaptureFilter {
-  readonly chatId?: ChatId | undefined;
-  readonly providerId?: string | undefined;
-  readonly limit?: number | undefined;
-}
 
 // The bounded ring (most-recent-first read). Module singleton — SAFE because writes are gated (see header).
 // The circular-buffer MECHANISM is @orb/kit/bounded-ring (one engine, every recorder: the log + request
@@ -137,72 +131,6 @@ export function resetWireCaptures(): void {
   outcomeRing.clear();
 }
 
-// ── OUTCOMES ────────────────────────────────────────────────────────────────────────────────────────────
-
-// @orb-waive no-inline-package-interface(WireToolCall): baselined when the gate landed; burn-down item 952.
-/** One tool call as it came back, for the debug read. `args` is the RAW argument string the model emitted —
- *  not the parsed form — because the malformed cases are exactly the ones worth seeing, and those do not
- *  parse. Truncated: a log surface, not a payload store. */
-export interface WireToolCall {
-  readonly name: string;
-  readonly args: string;
-}
-
-// @orb-waive no-inline-package-interface(WireWarning): baselined when the gate landed; burn-down item 952.
-/** One RAW provider degradation the turn's runner raised, exactly as it was raised (#1440). The user gets a
- *  re-voiced `settings_adjusted` chat warning; the OPERATOR gets this — the runner's own code + prose, which
- *  names the knob and the value it clamped to. Foundation cannot import infra's `WARNING_CODES`, so `code` is
- *  a plain string here for the same reason `terminalReason` is: assignability at the engine's call site is
- *  the enforcer. */
-export interface WireWarning {
-  readonly code: string;
-  readonly message: string;
-}
-
-// @orb-waive no-inline-package-interface(WireOutcome): baselined when the gate landed; burn-down item 952.
-/** What the model actually returned for one turn. Lengths, not bodies (see the header). */
-export interface WireOutcome {
-  readonly chatId: ChatId;
-  readonly at: number;
-  readonly model: string | null;
-  /** How the turn ENDED, from the engine's own lifecycle classification. `"completed"` = `runTurnPipeline`
-   *  RESOLVED (the historical only case — note that a REFUSED empty generation is still `"completed"`: the
-   *  pipeline returned, the guard refused after). The other three are the POST-START THROW arms and mirror
-   *  the domain's `TurnAbortReason` value-for-value: `"error"` a provider/DB fault · `"user"` a caller
-   *  cancel · `"stale"` the heartbeat's lock-loss. Foundation cannot import the domain union (it reaches UP
-   *  to nothing), so ASSIGNABILITY at the engine's two call sites is the enforcer — a new abort reason
-   *  fails `tsc` here rather than landing as an unrecognized string. */
-  readonly disposition: "completed" | "error" | "user" | "stale";
-  /** The provider's own terminator — the single most diagnostic field, and the tell for a tool-only
-   *  completion on a folded turn (whose tool calls land no `ToolCallRecord`, so `toolCalls` reads 0). */
-  readonly finishReason: string | null;
-  readonly stopReason: string | null;
-  /** The RAW backend terminal/subtype string this turn ended on (`ProviderError.terminalReason` — the
-   *  agent-sdk dialect, e.g. `"api_error"`/`"prompt_too_long"`), falling back to the normalized
-   *  `ProviderError.kind`. On a fault it is threaded from the error the provider layer ALREADY classified
-   *  — never re-derived here. `null` when the backend reported none. */
-  readonly terminalReason: string | null;
-  readonly contentChars: number;
-  readonly reasoningChars: number;
-  readonly tokensOut: number | null;
-  readonly maxOutputTokens: number | null;
-  /** How many MODEL CALLS the backend made for this ONE turn (the agent-sdk's `num_turns`; 1 on a plain
-   *  single-shot completion, `null` when a backend reports none).
-   *
-   *  LOAD-BEARING FOR READING `tokensOut`, and the reason this field exists: `tokensOut` is the SUM over
-   *  every call in the turn, while `maxOutputTokens` is the PER-CALL ceiling. Without the denominator a
-   *  four-call turn reads as `tokensOut:8192` against `maxOutputTokens:2048` and looks exactly like a
-   *  backend ignoring the output cap — the misread that put a phantom cost bug on the board.
-   * The cap is honored per call; the row was missing its
-   *  unit. */
-  readonly modelCalls: number | null;
-  readonly reasoningEffort: string | null;
-  readonly toolCalls: readonly WireToolCall[];
-  /** The RAW provider degradations this turn carried — empty on a fault (the pipeline threw before it could
-   *  report any) and on a turn the provider ran exactly as asked. */
-  readonly warnings: readonly WireWarning[];
-}
-
 const outcomeRing = createBoundedRing<WireOutcome>(WIRE_CAPTURE_RING_CAPACITY);
 
 /** Cap on one rendered tool-argument string. */
@@ -226,7 +154,7 @@ export function recordTurnOutcome(outcome: WireOutcome): void {
 }
 
 /** Read recent outcomes, newest-first, optionally filtered by chatId. */
-export function recentTurnOutcomes(filter: { readonly chatId?: ChatId | undefined; readonly limit?: number | undefined } = {}): WireOutcome[] {
+export function recentTurnOutcomes(filter: Pick<WireCaptureFilter, "chatId" | "limit"> = {}): WireOutcome[] {
   const limit = filter.limit ?? DEFAULT_READ_LIMIT;
   const out: WireOutcome[] = [];
   for (const outcome of outcomeRing.newestFirst()) {
