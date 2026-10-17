@@ -4,7 +4,7 @@
 // `@orb/contracts/extraction` (the client labels types from the same list).
 
 import type { DocFormat } from "@orb/contracts/extraction";
-import type { Loader } from "./loader.ts";
+import type { Loader } from "./contract.ts";
 import { loadDocx } from "./loaders/docx.ts";
 import { loadEpub } from "./loaders/epub.ts";
 import { loadHtml } from "./loaders/html.ts";

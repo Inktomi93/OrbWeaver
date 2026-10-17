@@ -14,8 +14,8 @@
 
 import type { DocFormat, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import type { RawExtraction } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
-import type { RawExtraction } from "./loader.ts";
 import { normalizeText } from "./normalize.ts";
 import { EXTRACTOR_VERSION } from "./version.ts";
 

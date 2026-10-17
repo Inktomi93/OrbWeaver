@@ -24,4 +24,4 @@ Native controls preserve local factory ownership, cross-tier exposure, sanctione
 
 ## Evidence
 
-Reviewed adapter, transport, env and canonical subscription declarations are integrated. Existing runtime security controls remain unchanged. D327 owns the bounded env policy category. Native placement, importer metadata, generic contribution and complete population qualification remain open. Evidence: `reports/review/1042-boundary-home-adjudication.md` and `reports/review/1042-boundary-home-independent-review.md`.
+Reviewed adapter, transport, env and canonical subscription declarations are integrated. Existing runtime security controls remain unchanged; D327 owns bounded env policy. Native placement and importer source, generic contribution and lazy metadata dispatch pass bounded review after correction. Isolated private returned-data and directory reselection controls pass. Production importer completion and cost, Hono contribution, AppRouter ownership, marker removal and complete qualification remain open. Evidence: `reports/review/1042-native-placement-delivery.md` and `reports/review/1042-native-placement-review-corrections-independent.md`.

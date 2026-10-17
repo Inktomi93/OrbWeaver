@@ -2,7 +2,8 @@ import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
-import { Project } from "ts-morph";
+import { Project, ScriptTarget } from "ts-morph";
+import { serverFactoryTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
 import type { TypeHomeNativeSource } from "../../../../tooling/src/floor/code-facts/type-home-contract.ts";
 import { createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
@@ -75,18 +76,75 @@ test("ownership evidence does not turn package categories or false paths into pe
 
 const POLICIES = [inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces];
 
+test("server factory ownership follows local signatures without admitting wire data or shadowed names", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ScriptTarget.ES2022 } });
+  for (const tier of ["entry", "transport", "infra", "foundation"]) {
+    const path = `packages/server/src/${tier}/factory.ts`;
+    const source = project.createSourceFile(
+      `/factory-home/${path}`,
+      `
+export interface Options { readonly enabled: boolean; }
+export interface Dependency { readonly run: () => void; }
+export interface Handle { readonly stop: () => void; }
+export interface Supporting { readonly limit: number; }
+interface Dependencies { readonly operation: Dependency; readonly support: Supporting; }
+export interface Unused { readonly run: () => void; }
+export interface Shadow { readonly run: () => void; }
+export interface BodyOnly { readonly run: () => void; }
+export interface Erased { readonly run: () => void; }
+type Ignore<T> = { readonly kind: "ignored" };
+export interface PayloadResponse { readonly value: string; }
+export interface CallableResult { readonly run: () => void; }
+export interface InferredHandle { readonly close: () => void; }
+export interface AsyncHandle { readonly finish: () => void; }
+export type NestedOptions = Readonly<Options>;
+export type DataResponse = { readonly value: string };
+export interface Recursive { readonly next?: Recursive; readonly run: () => void; }
+export function create(options: Options, deps: Dependencies): Handle { return { stop: deps.operation.run }; }
+export const createResult = (): CallableResult => ({ run() {} });
+export function inferred() { const handle: InferredHandle = { close() {} }; return handle; }
+export async function inferredAsync() { const handle: AsyncHandle = { finish() {} }; return handle; }
+export function nested(value: NestedOptions): Recursive { return { run() {} }; }
+export function data(): DataResponse { return { value: "wire" }; }
+export function wire(): PayloadResponse { return { value: "wire" }; }
+export function shadow<Shadow>(value: Shadow): Shadow { return value; }
+export function body(): void { const unused: BodyOnly | undefined = undefined; }
+export function ignored(value: Ignore<Erased>): void {}
+export function ignoredReturn() { const value: Ignore<Erased> = { kind: "ignored" }; return value; }
+`,
+    );
+    const factory = {
+      kind: "parser" as const,
+      program: project.getProgram().compilerObject,
+      source: source.compilerNode,
+      checker: project.getTypeChecker().compilerObject,
+    };
+    for (const name of ["Options", "Dependency", "Handle", "Supporting", "CallableResult", "InferredHandle", "AsyncHandle", "Recursive"]) {
+      expect(serverFactoryTypeHome(source.getInterfaceOrThrow(name), path, factory), `${tier}/${name}`).toBe(true);
+    }
+    expect(serverFactoryTypeHome(source.getTypeAliasOrThrow("NestedOptions"), path, factory)).toBe(true);
+    expect(serverFactoryTypeHome(source.getTypeAliasOrThrow("DataResponse"), path, factory)).toBe(false);
+    for (const name of ["Unused", "Shadow", "BodyOnly", "PayloadResponse", "Erased"]) {
+      expect(serverFactoryTypeHome(source.getInterfaceOrThrow(name), path, factory), `${tier}/${name}`).toBe(false);
+    }
+  }
+});
+
 test("the four adapters preserve exact accusations, authored positions and ordinary waiver consumption", () => {
   const root = "/type-home-declarations";
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of [
     [
       "packages/server/src/domain/chat/verbs/read.ts",
-      `export type Direct = string;
+      `type Direct = string;
+export { Direct };
 type Local = number;
 export { Local as A, Local as B };
-export default interface Default { readonly value: string; }
+interface Default { readonly value: string; }
+export { Default as default };
 // @orb-waive no-inline-domain-interface(Waived): this control retains its exact authored position.
-export interface Waived { readonly value: string; }
+interface Waived { readonly value: string; }
+export { Waived };
 `,
     ],
     ["packages/server/src/infra/read.ts", "export interface Infra { readonly value: string; }"],
@@ -116,7 +174,6 @@ export type ComponentApi = { readonly children: string };
       ["no-inline-types", "Local"],
       ["no-inline-types", "ComponentApi"],
       ["no-inline-domain-interface", "Default"],
-      ["no-inline-package-interface", "Infra"],
       ["no-inline-wire-interface", "HandView"],
       ["no-inline-wire-interface", "DataRow"],
     ].toSorted((left, right) => left.join(":").localeCompare(right.join(":"))),
@@ -304,7 +361,7 @@ test("generated vocabulary requires current producer bytes and the local native 
     expect(judgeTypeHomeDeclaration(syntax.getTypeAliasOrThrow(name), input)).toMatchObject({ kind: "subject", ownership: { kind: "unqualified" } });
   }
   expect(judgeTypeHomeDeclaration(declaration, input)).toMatchObject({ kind: "subject", ownership: { kind: "generated-owned" } });
-  expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, outputs: new Map([[outputPath, text + "\n"]]) } })).toMatchObject({
+  expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, outputs: new Map([[outputPath, `${text}\n`]]) } })).toMatchObject({
     kind: "refused",
   });
   expect(judgeTypeHomeDeclaration(declaration, { ...input, generated: { ...input.generated, sources: new Map() } })).toMatchObject({ kind: "refused" });
@@ -328,7 +385,7 @@ test("generated vocabulary requires current producer bytes and the local native 
           ...input.generated,
           outputs: new Map([
             [outputPath, text],
-            [themesPath, themesText + "\n"],
+            [themesPath, `${themesText}\n`],
           ]),
         },
       },
@@ -371,6 +428,6 @@ test("generated vocabulary requires current producer bytes and the local native 
   if (nativeOutput === undefined) {
     throw new Error("missing captured output");
   }
-  nativeOutput.view.sourceFile.replaceWithText(text + "\n");
+  nativeOutput.view.sourceFile.replaceWithText(`${text}\n`);
   expect(judgeTypeHomeDeclaration(declaration, input)).toMatchObject({ kind: "refused" });
 });

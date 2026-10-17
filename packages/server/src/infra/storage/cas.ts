@@ -30,28 +30,9 @@ import type { UserId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
+import type { Cas, PutResult } from "./contract.ts";
 
-// @orb-waive no-inline-package-interface(PutResult): baselined when the gate landed; burn-down item 952.
-export interface PutResult {
-  hash: string;
-  size: number;
-  /** false if the blob already existed (within-user dedup) — the write was skipped, the mtime bumped. */
-  created: boolean;
-}
-
-// @orb-waive no-inline-package-interface(Cas): baselined when the gate landed; burn-down item 952.
-export interface Cas {
-  putBytes: (ownerId: UserId, bytes: Uint8Array, now: number) => Promise<PutResult>;
-  blobPath: (ownerId: UserId, hash: string) => string;
-  exists: (ownerId: UserId, hash: string) => Promise<boolean>;
-  /** Read counterpart of putBytes's mtime bump — collectGarbage's grace window compares this to skip a just-put-but-not-yet-linked blob. */
-  mtimeMs: (ownerId: UserId, hash: string) => Promise<number | undefined>;
-  read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
-  verify: (ownerId: UserId, hash: string) => Promise<boolean>;
-  remove: (ownerId: UserId, hash: string) => Promise<void>;
-  listHashes: (ownerId: UserId) => AsyncIterable<string>;
-  listOwners: () => AsyncIterable<string>;
-}
+export type { Cas, PutResult } from "./contract.ts";
 
 const SHARD_SEGMENT = /^[0-9a-f]{2}$/;
 const SHARD_A_END = 2;

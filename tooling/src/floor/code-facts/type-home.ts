@@ -24,6 +24,28 @@ const TYPE_HOME_GENERATED_SUFFIX = ".gen.ts";
 export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`, "packages/server/src/domain/**/*.test.{ts,tsx}"] as const;
 
 export const TYPE_HOME_NATIVE_POLICY_ID = "type-home-direct-export";
+export const SERVER_FACTORY_TIER_REFERENCE_POLICY_ID = "server-factory-tier-reference";
+
+// Tier-4 owns these driver/context APIs at their concrete canonical homes.
+export const SERVER_TYPE_API_HOMES = [
+  "packages/server/src/transport/trpc/context.ts",
+  "packages/server/src/transport/rate-limit.ts",
+  "packages/server/src/transport/trpc/presence-registry.ts",
+  "packages/server/src/transport/trpc/stream/socket-registry.ts",
+  "packages/server/src/transport/jobs/oidc-gc-scheduler.ts",
+] as const;
+
+/** The server tier that consumes or declares an API, independent of its spelling. */
+export function serverTypeTier(path: string): string | undefined {
+  const root = sourceRoot("server");
+  return path.startsWith(root) ? path.slice(root.length).split("/")[0] : undefined;
+}
+
+/** Concrete transport homes retain their existing ownership, not a factory-signature exception. */
+export function serverTypeApiHome(path: string): boolean {
+  return SERVER_TYPE_API_HOMES.some((home) => path === home);
+}
+export const SERVER_FACTORY_TYPE_HOME_ROOTS = ["entry", "transport", "infra", "foundation"].map((tier) => `packages/server/src/${tier}/`);
 
 function packageRoot(name: PackageName): string {
   return `packages/${name}/`;
@@ -43,10 +65,17 @@ const NATIVE_SERVER_ROOTS = ["packages/server/src/domain", "packages/server/src/
 export const TYPE_HOME_NATIVE_SOURCE_GLOBS = [
   ...NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`),
   ...NATIVE_SERVER_ROOTS.map((root) => `${root}/**/*.{ts,tsx}`),
+  ...SERVER_FACTORY_TYPE_HOME_ROOTS.map((root) => `${root}**/*.{ts,tsx}`),
 ];
 export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = [
+  ...SERVER_TYPE_API_HOMES,
   ...NATIVE_PACKAGES.map((name) => `${packageContractHome(name)}**/*.{ts,tsx}`),
   ...NATIVE_SERVER_ROOTS.flatMap((root) => [`${root}/**/contract/**/*.{ts,tsx}`, `${root}/**/contract.ts`]),
+  "packages/server/src/infra/*/contract/**/*.{ts,tsx}",
+  "packages/server/src/infra/*/contract.ts",
+  "packages/server/src/transport/trpc/contract/**/*.{ts,tsx}",
+  "packages/server/src/transport/jobs/contract/**/*.{ts,tsx}",
+  "packages/server/src/foundation/env/contract.ts",
 ];
 
 /** Classify the canonical package/world and answer only the sanctioned package-contract path question. */
@@ -76,4 +105,9 @@ export function nativeTypeHomeDirectExport(path: string): boolean {
     !TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern)) &&
     !TYPE_HOME_NATIVE_UNADMITTED_GLOBS.some((pattern) => matchesGlob(path, pattern))
   );
+}
+
+/** D324's existing server-tier population delegates both direct and local export lists. */
+export function nativeFactoryTypeHomePopulation(path: string): boolean {
+  return SERVER_FACTORY_TYPE_HOME_ROOTS.some((root) => path.startsWith(root)) && nativeTypeHomeDirectExport(path);
 }

@@ -1,9 +1,18 @@
 // Admitted declaration findings retain their policy identity, authority and authored-name coordinates.
-import type { Node } from "ts-morph";
-import { nativeTypeHomeDirectExport, UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";
+import { Node } from "ts-morph";
+import {
+  nativeFactoryTypeHomePopulation,
+  nativeTypeHomeDirectExport,
+  serverTypeApiHome,
+  UI_TOKEN_AUTHORING_CONTRACT_HOME,
+} from "../../floor/code-facts/type-home.ts";
 import type { TypeHomeDeclarationClaim, TypeHomeDeclarationInput } from "../../floor/code-facts/type-home-contract.ts";
 import { judgeTypeHomeDeclaration } from "../../floor/code-facts/type-home-declaration.ts";
 import type { GatePolicyContext, GatePolicyFindingDetails } from "../contract/policy.ts";
+
+function declarationHasSuccessorHome(node: Node, path: string): boolean {
+  return !Node.isVariableStatement(node) && (serverTypeApiHome(path) || nativeFactoryTypeHomePopulation(path));
+}
 
 /** Unqualified ownership cannot erase a current accusation; only successor equivalence may retire its owner. */
 export function reportTypeHomeDeclaration(
@@ -17,6 +26,9 @@ export function reportTypeHomeDeclaration(
 ): void {
   const { component, generated, ...finding } = details;
   const path = ctx.relativePath(node.getSourceFile());
+  if (declarationHasSuccessorHome(node, path)) {
+    return;
+  }
   const judgment = judgeTypeHomeDeclaration(node, {
     path,
     claim,

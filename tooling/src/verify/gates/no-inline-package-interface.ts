@@ -1,22 +1,14 @@
-// Policy: no-inline-package-interface (Spine-TypeScript-and-Patterns.md §7.4) — an exported interface in server
-// entry, transport, infra or foundation, or in `@orb/inference`, outside a type home. The interface half of
-// `no-inline-types` for the packages `no-inline-domain-interface` does not reach: a shape lives in a domain
-// `contract/`, `@orb/contracts`, the package's `src/contract/` or `@orb/kit`, never beside the code that uses it.
-// UI Node token authoring uses its sanctioned token-contract.ts home; browser APIs remain outside this arm.
-// The client is not judged: client-only views are a home of their own (the §7.4 table).
-//
-// FAMILY `no-inline-types` (split by POPULATION): authored-name reporting lives in `lib/type-home-policy.ts`;
-// the floor recognizes exported declarations. Server domains and `primitives/` are subtracted, as in the wire
-// sibling, so the three interface policies partition the implementation roots without overlap.
+// Interface placement outside sanctioned homes; qualified server declarations delegate to native lint.
+// D324 factory ownership is judged only in the parser-owned native Program, never the syntax workspace.
+// Generated, inference export-list and UI-authoring claims retain this owner.
 import { SyntaxKind } from "ts-morph";
 import { UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";
 import { defineGate } from "../contract/policy.ts";
 import { reportTypeHomeDeclaration } from "../lib/type-home-policy.ts";
 
 const MESSAGE =
-  "exported interface in server entry, transport, infra, foundation or inference outside a type home — a shape " +
-  "lives in a domain's contract/, @orb/contracts, the package's src/contract/ or @orb/kit. Move it there and " +
-  "import it. See Spine-TypeScript-and-Patterns.md §7.4.";
+  "exported interface outside its canonical type home; native lint owns qualified server factory APIs, " +
+  "while wire data, generated declarations and nonserver APIs retain their existing ownership obligations (D324; Spine-TypeScript §7.4).";
 const FIX =
   "move the interface to its type home and import it. A baselined site is waived with " +
   "`@orb-waive no-inline-package-interface(<position>): <reason naming its burn-down item>` on the line above, " +
@@ -51,14 +43,9 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: {
-        "packages/server/src/entry/compose/chat.ts": "export interface ChatComposeResult {\n  readonly a: string;\n}\n",
-        "packages/server/src/infra/storage/cas.ts": "export interface PutResult {\n  readonly hash: string;\n}\n",
-        "packages/server/src/foundation/env/bind.ts": "export interface BindPosture {\n  readonly host: string;\n}\n",
-        "packages/server/src/transport/trpc/x.ts": "export interface Frame {\n  readonly n: number;\n}\n",
-      },
-      expect: { count: 4 },
-      why: "the founding shape in each server tier the domain sibling does not reach, whatever the interface is named",
+      files: { "packages/server/src/foundation/result.gen.ts": "export interface Generated {readonly value:string}" },
+      expect: { count: 1, token: "Generated" },
+      why: "Unadmitted generated declarations retain the custom owner rather than receiving a syntax-checker factory grant.",
     },
     {
       mode: "source",
@@ -100,12 +87,8 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: {
-        "packages/server/src/infra/storage/cas.ts":
-          "// @orb-waive no-inline-package-interface(PutResult): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
-          "export interface PutResult {\n  readonly hash: string;\n}\n",
-      },
-      why: "POSITIONAL IDENTITY: the position is the interface's declared name, built on a one-finding fixture",
+      files: { "packages/server/src/infra/storage/cas.ts": "export interface PutResult {readonly hash:string}" },
+      why: "Native type-home lint owns this server interface; its native positional-authority control is retained in the factory-placement suite.",
     },
   ],
 });

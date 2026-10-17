@@ -78,14 +78,15 @@
 //   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, matchesGlob, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
+  nativeFactoryTypeHomePopulation,
+  SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  serverTypeTier,
   TYPE_HOME_NATIVE_CONTRACT_GLOBS,
   TYPE_HOME_NATIVE_POLICY_ID,
-  TYPE_HOME_NATIVE_SOURCE_GLOBS,
-  TYPE_HOME_NATIVE_UNADMITTED_GLOBS,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
@@ -119,15 +120,19 @@ import { ID_BRAND_HOME, nativeCanonicalIdBrand } from "./tooling/src/floor/code-
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
+import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
+import { readParserSignatureTypeExposures } from "./tooling/src/floor/code-facts/shape-derivation.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
   declaredByPackage,
+  readParserTransparentAliasOrigin,
   resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
 } from "./tooling/src/floor/code-facts/type-member-origin.ts";
 import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
 import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
+import { canonicalCompilerPath } from "./tooling/src/floor/compiler/ts-workspace.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -168,12 +173,13 @@ import {
   TOOLING_IMPORT_GLOBS,
   TOOLING_ROOT_CONFIG_IMPORT_RULE,
 } from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
-import { TYPED_NATIVE_POLICIES, typedNativeInputPaths } from "./tooling/src/verify/lib/typed-native-inputs.ts";
+import { TYPED_NATIVE_POLICIES, typedNativeCompilerContext, typedNativeInputPaths } from "./tooling/src/verify/lib/typed-native-inputs.ts";
 import { waivableCoordinate } from "./tooling/src/verify/lib/waivable-coordinate.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const NATIVE_TYPED_COMPILER_CONTEXT = typedNativeCompilerContext(ROOT);
 
 // The linted TS surface. @orb/ui is gated NOW (its components must be React-Compiler-clean, D54);
 // @orb/client is skeletal but wired so the gate is live the moment code lands.
@@ -1257,19 +1263,7 @@ const RESTRICTIONS = [
       },
     ],
   },
-  {
-    id: TYPE_HOME_NATIVE_POLICY_ID,
-    scope: TYPE_HOME_NATIVE_SOURCE_GLOBS,
-    notUnder: [...TYPE_HOME_NATIVE_CONTRACT_GLOBS, ...TYPE_HOME_NATIVE_UNADMITTED_GLOBS],
-    homes: [],
-    selectors: [
-      {
-        selector: ":matches(ExportNamedDeclaration, ExportDefaultDeclaration) > :matches(TSTypeAliasDeclaration, TSInterfaceDeclaration)",
-        message:
-          "An exported type belongs in its owning domain, package or foundation contract home; import or reexport its canonical declaration (Spine-TypeScript §7.4).",
-      },
-    ],
-  },
+
   {
     id: "no-raw-zustand-persist",
     scope: rootSources("@client"),
@@ -2547,7 +2541,7 @@ function nativeAliasFlag(symbol) {
   return (symbol.flags & ts.SymbolFlags.Alias) !== 0;
 }
 
-function nativeFunctionExported(node, checker) {
+function nativeDeclarationExported(node, checker) {
   if (node.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
     return true;
   }
@@ -2569,7 +2563,7 @@ const testFactoryContractRule = {
     const native = nativeDeclarationContext(context);
     const check = (node) => {
       const declaration = native.esTreeNodeToTSNodeMap.get(node);
-      if (!ts.isFunctionDeclaration(declaration) || declaration.name === undefined || !nativeFunctionExported(declaration, native.checker)) {
+      if (!ts.isFunctionDeclaration(declaration) || declaration.name === undefined || !nativeDeclarationExported(declaration, native.checker)) {
         return;
       }
       const name = declaration.name.text;
@@ -2603,7 +2597,7 @@ const testFactoryContractRule = {
 
 function nativeFixtureSubject(declaration, checker) {
   if (ts.isFunctionDeclaration(declaration)) {
-    return nativeFunctionExported(declaration, checker) ? { output: declaration, annotation: declaration.type } : null;
+    return nativeDeclarationExported(declaration, checker) ? { output: declaration, annotation: declaration.type } : null;
   }
   if (!ts.isVariableDeclaration(declaration)) {
     throw new Error("Native fixture output selected another declaration kind");
@@ -2688,6 +2682,205 @@ const contextReturnTypeRule = {
       });
     };
     return { Identifier: check };
+  },
+};
+
+function verifyNativeCompilerContext(context, native) {
+  const roster = typedNativeCompilerContext(context.cwd).configs;
+  if (roster === undefined) {
+    return;
+  }
+  const config = native.program.getCompilerOptions().configFilePath;
+  if (typeof config !== "string" || !roster.includes(relative(context.cwd, config).replaceAll("\\", "/"))) {
+    throw new Error("Native typed parser Program does not match the admitted compiler cache context");
+  }
+}
+
+const typeHomeDeclarationRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    verifyNativeCompilerContext(context, native);
+    const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
+    const check = (node) => {
+      const declaration = native.esTreeNodeToTSNodeMap.get(node);
+      if (!(ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration))) {
+        return;
+      }
+      const direct = declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
+      if (!(direct || (nativeFactoryTypeHomePopulation(path) && nativeDeclarationExported(declaration, native.checker)))) {
+        return;
+      }
+      const wrapped = nativeWrappedNode(declaration, native);
+      if (serverFactoryTypeHome(wrapped, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
+        return;
+      }
+      context.report({
+        node: native.tsNodeToESTreeNodeMap.get(declaration.name),
+        message:
+          "An exported type belongs in its canonical domain, wire, package or foundation contract home unless its local factory signature owns it (D324; Spine-TypeScript §7.4).",
+      });
+    };
+    return { TSInterfaceDeclaration: check, TSTypeAliasDeclaration: check };
+  },
+};
+
+const serverFactoryTierReferenceRule = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      crossTierFactoryType:
+        "Factory type {{name}} is local to {{owner}} but exposed to {{consumer}}; move the shared API to its sanctioned owner contract (D324).",
+      unreadableFactoryExposure: "Cross-tier factory exposure cannot be established: {{detail}}.",
+    },
+  },
+  create(context) {
+    const native = nativeDeclarationContext(context);
+    verifyNativeCompilerContext(context, native);
+    const consumer = relative(context.cwd, context.filename).replaceAll("\\", "/");
+    const tier = serverTypeTier(consumer);
+    const ownership = new Map();
+    const canonicalAlias = (declaration) => {
+      if (!ts.isTypeAliasDeclaration(declaration)) {
+        return false;
+      }
+      const origin = readParserTransparentAliasOrigin(declaration, {
+        kind: "parser",
+        program: native.program,
+        checker: native.checker,
+        source: declaration.getSourceFile(),
+      });
+      const terminals = origin.kind === "resolved" ? (origin.value.at(-1)?.declarations ?? []) : [];
+      return (
+        terminals.length > 0 &&
+        terminals.every((node) => {
+          const physical = canonicalCompilerPath(context.cwd, node.getSourceFile().getFilePath()).replaceAll("\\", "/");
+          const path = relative(context.cwd, physical).replaceAll("\\", "/");
+          return physical.includes("/node_modules/") || TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern));
+        })
+      );
+    };
+    const subject = (declaration) => {
+      if (!(ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration))) {
+        return false;
+      }
+      const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
+      if (!nativeFactoryTypeHomePopulation(owner) || serverTypeTier(owner) === tier || canonicalAlias(declaration)) {
+        return false;
+      }
+      if (!ownership.has(declaration)) {
+        ownership.set(
+          declaration,
+          serverFactoryTypeHome(nativeWrappedNode(declaration, native), owner, {
+            kind: "parser",
+            program: native.program,
+            checker: native.checker,
+            source: declaration.getSourceFile(),
+          }),
+        );
+      }
+      return ownership.get(declaration);
+    };
+    const reportSubjects = (declarations, reported, seen) => {
+      let accused = false;
+      for (const declaration of declarations) {
+        if (!subject(declaration)) {
+          continue;
+        }
+        accused = true;
+        if (seen.has(declaration)) {
+          continue;
+        }
+        seen.add(declaration);
+        context.report({
+          node: reported,
+          messageId: "crossTierFactoryType",
+          data: { name: declaration.name?.text ?? "default", owner: relative(context.cwd, declaration.getSourceFile().fileName), consumer },
+        });
+      }
+      return accused;
+    };
+    const crossesTier = (declaration) => {
+      const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
+      const ownerTier = serverTypeTier(owner);
+      return ownerTier !== undefined && ownerTier !== tier;
+    };
+    const inspect = (raw, reported, seen, projectDoor) => {
+      const type = native.checker.getTypeAtLocation(raw);
+      const symbol = native.checker.getSymbolAtLocation(raw) ?? native.checker.getAwaitedType(type)?.getSymbol() ?? type.getSymbol();
+      const target = symbol !== undefined && nativeAliasFlag(symbol) ? native.checker.getAliasedSymbol(symbol) : symbol;
+      const roots = target?.declarations ?? [];
+      if (roots.length === 0) {
+        if (projectDoor) {
+          context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native project reference has no declaration" } });
+        }
+        return;
+      }
+      if (!roots.some(crossesTier)) {
+        return;
+      }
+      const graph = readParserSignatureTypeExposures({
+        node: raw,
+        rootType: type,
+        parser: { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
+      });
+      const accused = reportSubjects([...roots, ...graph.trace.declarations.map((node) => node.compilerNode)], reported, seen);
+      if (!accused && graph.kind === "unresolved") {
+        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: graph.detail } });
+      }
+    };
+    const moduleExports = (literal, reported, seen) => {
+      const symbol = native.checker.getSymbolAtLocation(literal);
+      if (symbol === undefined) {
+        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native module reference has no declaration" } });
+        return;
+      }
+      for (const exported of native.checker.getExportsOfModule(symbol)) {
+        const target = nativeAliasFlag(exported) ? native.checker.getAliasedSymbol(exported) : exported;
+        for (const declaration of target.declarations ?? []) {
+          inspect(declaration.name ?? declaration, reported, seen, true);
+        }
+      }
+    };
+    const importDeclaration = (node) => {
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      const projectDoor = node.source.value.startsWith(".") || node.source.value.startsWith("#") || node.source.value.startsWith("@orb/");
+      for (const specifier of node.specifiers) {
+        const seen = new Set();
+        if (specifier.type === "ImportNamespaceSpecifier") {
+          moduleExports(raw.moduleSpecifier, specifier.local, seen);
+        } else {
+          inspect(native.esTreeNodeToTSNodeMap.get(specifier.local), specifier.local, seen, projectDoor);
+        }
+      }
+    };
+    const exportNamedDeclaration = (node) => {
+      for (const specifier of node.specifiers) {
+        inspect(native.esTreeNodeToTSNodeMap.get(specifier.local), specifier.local, new Set(), node.source !== null);
+      }
+    };
+    const exportAllDeclaration = (node) => {
+      moduleExports(native.esTreeNodeToTSNodeMap.get(node).moduleSpecifier, node.source, new Set());
+    };
+    const importExpression = (node) => {
+      inspect(native.esTreeNodeToTSNodeMap.get(node), node, new Set(), true);
+    };
+    const importType = (node) => {
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      if (raw.qualifier === undefined) {
+        moduleExports(raw.argument.literal, node, new Set());
+      } else {
+        inspect(raw.qualifier, node, new Set(), true);
+      }
+    };
+    return {
+      ImportDeclaration: importDeclaration,
+      ExportNamedDeclaration: exportNamedDeclaration,
+      ExportAllDeclaration: exportAllDeclaration,
+      ImportExpression: importExpression,
+      TSImportType: importType,
+    };
   },
 };
 
@@ -3575,6 +3768,8 @@ const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES;
 const restrictionPlugin = {
   rules: {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
+    [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryTierReferenceRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
     "client-cache-surgery-only-in-data": nativePackageCallRule(
       ["invalidateQueries", "setQueryData", "cancelQueries", "getQueryData", "removeQueries", "resetQueries"],
@@ -3638,11 +3833,14 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
       ? {
           settings: {
             [`orb/typed-native-inputs/${id}`]: createHash("sha256")
+              .update(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id).declarationPackage === undefined ? "" : NATIVE_TYPED_COMPILER_CONTEXT.identity)
               .update(
                 JSON.stringify(
                   typedNativeInputPaths(
                     TYPED_NATIVE_POLICIES.find((entry) => entry.id === id),
                     AUTHORED_NATIVE_INPUT_PATHS,
+                    ROOT,
+                    NATIVE_TYPED_COMPILER_CONTEXT.configs,
                   ).map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
                 ),
               )

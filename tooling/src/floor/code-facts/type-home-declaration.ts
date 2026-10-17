@@ -6,7 +6,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
 import { canonicalCompilerPath, registeredSemanticSourceView, semanticWorkspaceOf } from "../compiler/ts-workspace.ts";
 import { componentTypeHome } from "./component-type-home.ts";
-import { inlineShapeNames, isPlainDataShape } from "./shape-declaration.ts";
+import { inlineShapeNames, isPlainDataShape, WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
 import { packageContractHome, packageTypeHome, UI_TOKEN_AUTHORING_CONTRACT_HOME } from "./type-home.ts";
 import type {
   DeclarationTypeHomeOwnership,
@@ -17,8 +17,6 @@ import type {
   TypeHomeDeclarationPlane,
   TypeHomeNativeSource,
 } from "./type-home-contract.ts";
-
-const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
 
 function declarationPlane(node: MorphNode): TypeHomeDeclarationPlane {
   if (Node.isVariableStatement(node)) {

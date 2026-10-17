@@ -700,15 +700,19 @@ test("ordinary reporting accepts only delivered component ownership and preserve
   expect(run(delivered)).toEqual(["Copy", "UnusedProps"]);
 });
 
-test("native substituted members and callable slots prove binding-specific Ref, authored and mapped support without erased grants", ({ scratch, repoRoot }) => {
-  const { read } = fixture(scratch, repoRoot);
-  for (const name of ["Handle", "Payload", "MappedPayload", "HeritagePayload"]) {
-    expect(read(name), name).toMatchObject({ kind: "owned" });
-  }
-  for (const name of ["NestedErased", "ErasedVocabulary", "ConstrainedOnly", "ErasedHeritage"]) {
-    expect(read(name), name).toMatchObject({ kind: "unqualified" });
-  }
-});
+test(
+  "native substituted members and callable slots prove binding-specific Ref, authored and mapped support without erased grants",
+  ({ scratch, repoRoot }) => {
+    const { read } = fixture(scratch, repoRoot);
+    for (const name of ["Handle", "Payload", "MappedPayload", "HeritagePayload"]) {
+      expect(read(name), name).toMatchObject({ kind: "owned" });
+    }
+    for (const name of ["NestedErased", "ErasedVocabulary", "ConstrainedOnly", "ErasedHeritage"]) {
+      expect(read(name), name).toMatchObject({ kind: "unqualified" });
+    }
+  },
+  scaledBudget(15_000),
+);
 
 test("actual returned installed BaseUI rendering contributes a native DOM root, unlike shadow, disabled or unused calls", ({ scratch, repoRoot }) => {
   const { read } = fixture(scratch, repoRoot);

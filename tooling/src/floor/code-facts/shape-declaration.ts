@@ -5,10 +5,12 @@ import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import { shapeExports } from "./shape-facts.ts";
 import { isFactoryCallFromPackage, ZOD_PACKAGE } from "./zod-origin.ts";
 
+export const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
+
 /** True when the interface and every type it nests are data: no call or construct signature anywhere. A hook
  *  result, a service bundle or a deps record carries behaviour and cannot cross a wire; a wire shape cannot.
  *  Scalars (anything that is neither an object nor a union or intersection of them) are data. */
-export function isPlainDataShape(node: InterfaceDeclaration): boolean {
+export function isPlainDataShape(node: InterfaceDeclaration | TypeAliasDeclaration): boolean {
   const seen = new Set<unknown>();
   const holdsBehaviour = (type: Type): boolean => {
     if (seen.has(type.compilerType)) {

@@ -4,6 +4,8 @@ export interface EslintFileAdmission {
   readonly path: string;
   readonly requiresTypeInformation: boolean;
   readonly hasEnabledRules: boolean;
+  /** Null means the configured parser world cannot receive persistent native dependency-cache authority. */
+  readonly compilerConfigs?: readonly string[] | null;
 }
 
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];
