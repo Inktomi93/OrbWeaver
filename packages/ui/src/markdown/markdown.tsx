@@ -186,7 +186,7 @@ export function Markdown({
   if (children.length > MAX_RENDER_LENGTH) {
     return (
       <pre
-        // @orb-waive no-arbitrary-tw-values(max-h-[60cqh]): container-relative overflow cap has no token equivalent; ends when a cqh cap token exists.
+        // eslint-disable-next-line orb/no-arbitrary-tw-values -- Oversized prose needs a container-relative overflow cap; ends when a cqh cap token exists.
         className={cn("relative max-h-[60cqh] overflow-auto overscroll-contain whitespace-pre-wrap text-body leading-body", className)}
         data-slot="markdown-oversized"
       >

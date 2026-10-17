@@ -9,8 +9,8 @@
 // made them (`roster-member-surface.tsx:156`, `plugin-row-leaves.tsx:209`, `tag-member-surface.tsx:100`,
 // `regex-member-surface.tsx:90`, `databank-detail-surface.tsx:198`, `compact-summary-peek.tsx:34`).
 //
-// SIBLING OF `no-arbitrary-tw-values`, SAME FAMILY (`tailwind-class-token`), SPLIT BY AUTHORITY, which §4
-// requires rather than permits. That policy is `ordinary`: an off-token bracket is a local call an author
+// SIBLING OF `no-hover-display-swap`, SAME FAMILY (`tailwind-class-token`), SPLIT BY AUTHORITY, which §4
+// requires rather than permits. That policy is `ordinary`: a hover-keyed display swap is a local call an author
 // can waive at the site with a reason. A BANNED UTILITY is a house ruling about a value, so its exceptions
 // are `reviewed-grant` rows in the central table with a `why` and an `endsWhen` — reviewed once, centrally,
 // never per-site. Both read their class tokens through the one `lib/tailwind-class-token.ts` reader, which

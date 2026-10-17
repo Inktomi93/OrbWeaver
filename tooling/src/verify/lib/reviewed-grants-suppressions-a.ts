@@ -220,15 +220,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/nursery/useExplicitReturnType` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-nursery-use-nullish-coalescing",
-    policyId: "suppressions",
-    subject: "lint/nursery/useNullishCoalescing",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — a real boolean OR on defaulted `boolean` operands — `??` only falls through on null/undefined and would silently ignore an explicit false (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 7 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `lint/nursery/useNullishCoalescing` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-performance-no-namespace-import",
     policyId: "suppressions",
     subject: "lint/performance/noNamespaceImport",
@@ -290,5 +281,13 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
     why: "RULING — a re-export at the ORIGINAL module's own path preserves that module's public API after a slice of it was extracted to a sibling leaf (tooling-size splits); it is a compatibility seam for the module's existing importers, not the fan-out barrel the rule polices.",
     endsWhen:
       "the last governed source site under `lint/performance/noBarrelFile` disappears, or a split module's re-export is dropped in favor of repointing every importer directly.",
+  },
+  {
+    id: "suppressions:source-orb-no-arbitrary-tw-values",
+    policyId: "suppressions",
+    subject: "orb/no-arbitrary-tw-values",
+    operation: "source",
+    why: "D321 native migration preserves canonical layout track recipes, markdown container-relative overflow caps, and inherited-radius Card skins with minimal per-ID line directives; none is feature-local sizing debt.",
+    endsWhen: "the last recipe is expressed by an appropriate token or no longer rendered; native unused-disable errors retire each obsolete line directive.",
   },
 ];

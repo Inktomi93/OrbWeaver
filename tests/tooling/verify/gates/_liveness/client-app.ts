@@ -24,11 +24,8 @@ import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify
 import { gate as noInlineInvalidateOutsideSeam } from "../../../../../tooling/src/verify/gates/no-inline-invalidate-outside-seam.ts";
 import { gate as noMutatingRegisterApi } from "../../../../../tooling/src/verify/gates/no-mutating-register-api.ts";
 import { gate as noParallelSectionMap } from "../../../../../tooling/src/verify/gates/no-parallel-section-map.ts";
-import { gate as noPointerVariantsInFeatures } from "../../../../../tooling/src/verify/gates/no-pointer-variants-in-features.ts";
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
-import { gate as pointerCapabilityTierHealth } from "../../../../../tooling/src/verify/gates/pointer-capability-tier-health.ts";
-import { gate as pointerCapabilityTierPermission } from "../../../../../tooling/src/verify/gates/pointer-capability-tier-permission.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
@@ -185,11 +182,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "per-id object literal re-declares",
   },
   {
-    policy: noPointerVariantsInFeatures,
-    overlays: [add(`${CHAT_COMPONENTS}/liveness-pointer.tsx`, 'export const x = <div className="pointer-coarse:hidden" />;\n')],
-    messageIncludes: "pointer/hover capability variant",
-  },
-  {
     policy: persistenceBoundary,
     overlays: [add(`${CHAT_LIB}/liveness-storage.ts`, 'export const read = (): string | null => localStorage.getItem("k");\n')],
     messageIncludes: "outside the persistence doors",
@@ -204,30 +196,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Duplicate copy",
-  },
-  {
-    policy: pointerCapabilityTierHealth,
-    // The subject is PRESENCE: the reviewed shell home exists while feature files do. Overwriting its files
-    // would leave them present, so the whole home leaves the corpus.
-    overlays: [{ kind: "remove", path: "packages/client/src/features/app-shell/" }],
-    messageIncludes: "missing reviewed pointer-capability home",
-  },
-  {
-    policy: pointerCapabilityTierPermission,
-    // A REVIEWED-GRANT policy: it folds every capability site in the shell home into ONE candidate the central
-    // grant licenses, so on the real tree it speaks only as a granted finding. The fold anchors on the home's
-    // first file; this path sorts before every real one, so the licensed report lands where the arm looks, and
-    // its site list (`line(s): …`) names line 3 only if the fold read this file's two capability variants —
-    // line 1 is the file anchor itself (the policy's zero-hit candidate), so a fold that saw no variant says
-    // `line(s): 1.`.
-    overlays: [
-      add(
-        "packages/client/src/features/app-shell/_liveness-pointer.tsx",
-        'export const probe = 1;\n\nexport const x = <><div className="pointer-coarse:hidden" /><div className="pointer-fine:block" /></>;\n',
-      ),
-    ],
-    messageIncludes: "line(s): 1, 3.",
-    granted: true,
   },
   {
     policy: queryBoundaryReservationHealth,

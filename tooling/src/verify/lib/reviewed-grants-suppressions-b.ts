@@ -40,15 +40,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noControlCharactersInRegex` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-suspicious-no-deprecated-imports",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noDeprecatedImports",
-    operation: "source",
-    why: "RULING — the vendor deprecates an overload we do not use; the supported form is what the call site spells (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 10 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noDeprecatedImports` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-suspicious-no-explicit-any",
     policyId: "suppressions",
     subject: "lint/suspicious/noExplicitAny",
@@ -65,15 +56,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     why: "TOOL FALSE POSITIVE — gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 9 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noTemplateCurlyInString` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-lint-suspicious-no-unnecessary-conditions",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noUnnecessaryConditions",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — biome's type service cannot see through the cross-package zod-union inference, so a live runtime branch reads as unreachable (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 19 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noUnnecessaryConditions` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
     id: "suppressions:source-react-hooks-exhaustive-deps",

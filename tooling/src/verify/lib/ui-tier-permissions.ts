@@ -2,10 +2,9 @@ import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
-import { readTailwindClassTokens } from "./tailwind-class-token.ts";
 import { waivableCoordinate } from "./waivable-coordinate.ts";
 
-const UI_TIER_IDS = ["z-index", "skin-fragment", "pointer-capability"] as const;
+const UI_TIER_IDS = ["z-index", "skin-fragment"] as const;
 // @orb-waive no-inline-types(UiTierId): consumed within this fact module only; the gate reads through the fact, not the type; ends when a gate imports it directly
 export type UiTierId = (typeof UI_TIER_IDS)[number];
 
@@ -16,15 +15,12 @@ export interface UiTierHome {
 export const UI_TIER_HOMES = {
   "z-index": [{ path: "packages/ui/src/layout/" }, { path: "packages/ui/src/markdown/" }],
   "skin-fragment": [{ path: "packages/ui/src/lib/" }],
-  "pointer-capability": [{ path: "packages/client/src/features/app-shell/" }],
 } as const satisfies Readonly<Record<UiTierId, readonly UiTierHome[]>>;
 
 export const Z_TOKEN_NAMES = ["base", "raised", "overlay", "modal", "popover", "toast", "tooltip"] as const;
 const Z_TOKEN_SET: ReadonlySet<string> = new Set(Z_TOKEN_NAMES);
 const Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 const SEMANTIC_Z_REGEX = /\bz-\(--z-([a-z0-9-]+)\)/gu;
-const POINTER_VARIANT_RE = /^(?:any-)?pointer-(?:coarse|fine):/u;
-const CAPABILITY_MEDIA_RE = /\[@media\([^)]*(?:any-pointer|pointer|hover)\s*:[^)]*\)\]:/u;
 const CLASS_COMPOSERS: ReadonlySet<string> = new Set(["cn", "clsx", "cva", "tv"]);
 
 const SKIN_SIGNATURES = [
@@ -48,7 +44,6 @@ export interface UiTierOccurrence {
 export interface UiTierFacts {
   readonly occurrences: readonly UiTierOccurrence[];
   readonly files: readonly SourceFile[];
-  readonly featureFiles: number;
   readonly receipt: { readonly source: string; readonly members: number };
 }
 
@@ -93,17 +88,6 @@ function scanSkin(occurrences: UiTierOccurrence[], node: MorphNode, path: string
   }
 }
 
-function scanPointer(occurrences: UiTierOccurrence[], node: MorphNode, path: string, text: string): void {
-  if (!(path.startsWith("packages/client/src/features/") && (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)))) {
-    return;
-  }
-  for (const hit of readTailwindClassTokens(text)) {
-    if (POINTER_VARIANT_RE.test(hit.token) || CAPABILITY_MEDIA_RE.test(hit.token)) {
-      addOccurrence(occurrences, { tier: "pointer-capability", node, path, token: hit.token, offset: hit.offset });
-    }
-  }
-}
-
 export const uiTierPermissionFact = defineFact({
   id: "ui-tier-permissions",
   population: ["@client", "@ui"],
@@ -111,13 +95,7 @@ export const uiTierPermissionFact = defineFact({
   resources: [],
   create: (ctx) => {
     const occurrences: UiTierOccurrence[] = [];
-    let featureFiles = 0;
     return {
-      visitFile: (sourceFile) => {
-        if (ctx.relativePath(sourceFile).startsWith("packages/client/src/features/")) {
-          featureFiles += 1;
-        }
-      },
       visitors: [
         {
           kinds: [
@@ -132,14 +110,13 @@ export const uiTierPermissionFact = defineFact({
             const text = node.getText();
             scanZIndex(occurrences, node, path, text);
             scanSkin(occurrences, node, path, text);
-            scanPointer(occurrences, node, path, text);
           },
         },
       ],
       finish: () => {
         const receipt = { source: "ui-tier-permission-sources", members: ctx.files.length };
         ctx.receipt({ kind: "population", ...receipt });
-        return { occurrences, files: ctx.files, featureFiles, receipt };
+        return { occurrences, files: ctx.files, receipt };
       },
     };
   },

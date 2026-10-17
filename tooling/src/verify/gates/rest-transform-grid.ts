@@ -7,7 +7,7 @@
 // comment spans before parsing, so a commented-out rule is never judged.
 //
 // DECLARED LIMITS (each a mustPass row): a fractional-px arbitrary TRANSLATE utility is already RED under
-// `no-arbitrary-tw-values` (its SCOPED_UTILITY_RE names `translate(-x|-y|-z)?`), and a PERCENTAGE translate
+// the native `orb/no-arbitrary-tw-values` layout utility restriction, and a PERCENTAGE translate
 // is a runtime fraction of the element's own box — neither is re-judged here; both land at resolved-pixel
 // time on ui-audit's `off-grid-transform` rule. A STATE-prefixed class token, a state-KEYED stylesheet rule
 // (attribute-value or state-pseudo-class selector) and an @keyframes/@starting-style block are all MOTION,
@@ -418,7 +418,7 @@ export const gate = defineGate({
         "packages/ui/src/x.tsx": 'export const G = <div className="scale-[1.02]" />;\n',
       },
       expect: { count: 1, token: "scale-[1.02]" },
-      why: "an arbitrary rest scale is the unprovable case, and `scale` is absent from no-arbitrary-tw-values' SCOPED_UTILITY_RE — nothing else on the ladder judges it",
+      why: "an arbitrary rest scale is the unprovable case, and `scale` is outside the native orb/no-arbitrary-tw-values utility vocabulary — nothing else on the ladder judges it",
     },
     {
       mode: "resource",

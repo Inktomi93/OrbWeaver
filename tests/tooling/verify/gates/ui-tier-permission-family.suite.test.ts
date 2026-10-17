@@ -1,5 +1,4 @@
-// The §4.5 REFUSAL pins for the nine policies over the shared `ui-tier-permissions` fact — the
-// `ui-z-index-tier`, `ui-skin-fragment-tier` and `ui-pointer-capability-tier` families (#0038).
+// Refusal pins for the z-index and skin-fragment families over the shared ui-tier-permissions fact.
 //
 // WHY THEY LIVE HERE AND NOT AS `mustRefuse` ROWS. The fact counts `ctx.files` and throws nothing, and every
 // consumer's population sits inside the fact's (`@client`/`@ui`), so the one supply failure it can reach is
@@ -18,10 +17,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as pointerOutside } from "../../../../tooling/src/verify/gates/no-pointer-variants-in-features.ts";
 import { gate as zOutside } from "../../../../tooling/src/verify/gates/no-raw-z-index.ts";
-import { gate as pointerHealth } from "../../../../tooling/src/verify/gates/pointer-capability-tier-health.ts";
-import { gate as pointerPermission } from "../../../../tooling/src/verify/gates/pointer-capability-tier-permission.ts";
 import { gate as skinHealth } from "../../../../tooling/src/verify/gates/skin-fragment-tier-health.ts";
 import { gate as skinPermission } from "../../../../tooling/src/verify/gates/skin-fragment-tier-permission.ts";
 import { gate as skinOutside } from "../../../../tooling/src/verify/gates/ui-skin-fragment-purity.ts";
@@ -32,7 +28,7 @@ import { Z_TOKEN_NAMES } from "../../../../tooling/src/verify/lib/ui-tier-permis
 
 const ROOT = "/ui-tier-refusal";
 const ZERO_PATHS = "admitted zero paths";
-/** Outside both `@client` and `@ui`, so every one of the nine populations admits nothing. */
+/** Outside both `@client` and `@ui`, so every remaining population admits nothing. */
 const OUTSIDE = { "packages/server/src/x.ts": "export const x = 1;" };
 const CLIENT = { "packages/client/src/features/demo/x.ts": "export const x = 1;" };
 const UI = { "packages/ui/src/primitives/x.ts": "export const x = 1;" };
@@ -66,9 +62,9 @@ function refusalShape(result: PolicyPassResult): Record<string, unknown> {
   };
 }
 
-/** The nine consumers, iterated by value: the refusal-coverage recognizer follows a `for…of` binding to the
+/** The consumers, iterated by value: the refusal-coverage recognizer follows a `for…of` binding to the
  *  iterated array, and a destructured `[policy, files]` head would hide the driven set from it. */
-const POLICIES = [zOutside, zPermission, zHealth, skinOutside, skinPermission, skinHealth, pointerOutside, pointerPermission, pointerHealth];
+const POLICIES = [zOutside, zPermission, zHealth, skinOutside, skinPermission, skinHealth];
 
 /** The smallest overlay each population admits — the verdict half of the two-sided pin. */
 function admitted(policy: GatePolicy): Readonly<Record<string, string>> {

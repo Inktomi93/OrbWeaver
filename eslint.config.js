@@ -626,8 +626,93 @@ const INFRA_AUTH_RESTRICTIONS = [
   },
 ];
 
+const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
+const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
+const CLASS_SPAN_START = String.raw`(?:^|\s)`;
+const CLASS_SPAN_END = String.raw`(?=\s|$)`;
+const STATIC_CLASS_SPAN = "TemplateLiteral[expressions.length=0] > TemplateElement";
+const ARBITRARY_CLASS = String.raw`(?:[^\s]*:)?(?:[whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|grid-(cols|rows)|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\())[^\s:]+\]`;
+const NAMED_COLOR = String.raw`\b(bg|text|border|ring|fill|stroke)-(black|white)(\/\d+)?\b`;
+const PALETTE_COLOR = String.raw`\b(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|accent|caret|divide|placeholder|shadow|ring-offset)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?\b`;
+const HEX_COLOR = String.raw`-\[#[0-9a-fA-F]{3,8}\]`;
+const VIEWPORT_CLASS = String.raw`(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`;
+const POINTER_CLASS = String.raw`(?:any-)?pointer-(?:coarse|fine):`;
+const CAPABILITY_MEDIA_CLASS = String.raw`\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]:`;
+const WIDTH_CLASS = String.raw`(?:(?:max-|min-)?w-\[[^\s\]]+\]|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+))`;
+
+// These unfenced lexical bans also judge generated declarations; carrier-aware Tailwind rules do not.
+const CLASS_RESTRICTIONS = [
+  {
+    id: "no-arbitrary-tw-values",
+    scope: rootSources("@client", "@ui"),
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${ARBITRARY_CLASS}${CLASS_LITERAL_END}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${ARBITRARY_CLASS}${CLASS_SPAN_END}/])`,
+        message: "Arbitrary Tailwind layout/size/type value bypasses the token scale; use a token utility or extend tokens.json.",
+      },
+    ],
+  },
+  {
+    id: "no-color-literals",
+    scope: rootSources("@client", "@ui"),
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${NAMED_COLOR}/], ${STATIC_CLASS_SPAN}[value.raw=/${NAMED_COLOR}/])`,
+        message: "A named non-token color bypasses the theme; use a semantic token, or bg-backdrop for a scrim.",
+      },
+      {
+        selector: String.raw`:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}(?![^\s]*${NAMED_COLOR})[^\s]*${PALETTE_COLOR}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}(?![^\s]*${NAMED_COLOR})[^\s]*${PALETTE_COLOR}/])`,
+        message: "A palette-scale color bypasses the theme; use a semantic token such as text-destructive or bg-primary.",
+      },
+      {
+        selector: String.raw`:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}(?![^\s]*${NAMED_COLOR})(?![^\s]*${PALETTE_COLOR})[^\s]*${HEX_COLOR}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}(?![^\s]*${NAMED_COLOR})(?![^\s]*${PALETTE_COLOR})[^\s]*${HEX_COLOR}/])`,
+        message: "An arbitrary hex color bypasses the theme; use a semantic color token from theme.css.",
+      },
+    ],
+  },
+  {
+    id: "no-media-queries-in-features",
+    scope: rootSources("@client", "@ui"),
+    notUnder: ["packages/client/src/features/app-shell/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${VIEWPORT_CLASS}/], TemplateElement[value.raw=/${CLASS_SPAN_START}${VIEWPORT_CLASS}/])`,
+        message: "Viewport breakpoints belong to app-shell; adapt to the pane with a container query or Container size.",
+      },
+    ],
+  },
+  {
+    id: "no-pointer-variants-in-features",
+    scope: [CLIENT_FEATURES],
+    notUnder: ["packages/client/src/features/app-shell/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${POINTER_CLASS}|${CAPABILITY_MEDIA_CLASS}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${POINTER_CLASS}|${CAPABILITY_MEDIA_CLASS}/])`,
+        message: "Device capability adaptation belongs to shared tokens or app-shell, not feature-local pointer/hover capability variants.",
+      },
+    ],
+  },
+  {
+    id: "no-raw-container-widths",
+    scope: rootSources("@client", "@ui"),
+    notUnder: ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(Literal[value=type(string)][raw=/${CLASS_LITERAL_START}${WIDTH_CLASS}${CLASS_LITERAL_END}/], ${STATIC_CLASS_SPAN}[value.raw=/${CLASS_SPAN_START}${WIDTH_CLASS}${CLASS_SPAN_END}/])`,
+        message: "Raw content widths bypass the container scale; use Container size or a max-w-cq-* token utility.",
+      },
+    ],
+  },
+];
+
 const RESTRICTIONS = [
   ...INFRA_AUTH_RESTRICTIONS,
+  ...CLASS_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -1604,7 +1689,7 @@ const FILE_SIZE_BLOCKS = [
 export default [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
-    block.rules === undefined || INFRA_AUTH_RESTRICTIONS.some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
+    block.rules === undefined || [...INFRA_AUTH_RESTRICTIONS, ...CLASS_RESTRICTIONS].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block
       : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
   ),
