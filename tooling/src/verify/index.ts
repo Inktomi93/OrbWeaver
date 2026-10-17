@@ -19,6 +19,7 @@ export type {
 } from "./contract/baseui.ts";
 export type { CaughtFailureJudgment, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
 export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
+export { PRODUCT_STYLESHEETS, STYLELINT_CONFIG_PATH } from "./contract/css-family.ts";
 export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
 export { defineFact, factProvider } from "./contract/fact.ts";
@@ -200,6 +201,7 @@ export { runShow, SHOW_HELP } from "./ops/show.ts";
 export { runShowcaseRelease, showcaseVersionViolations } from "./ops/showcase-release.ts";
 export { runStructure } from "./ops/structure.ts";
 export { runStructureDelta, STRUCTURE_DELTA_USAGE } from "./ops/structure-delta.ts";
+export { runStylelint } from "./ops/stylelint.ts";
 export { findMultiMembershipFiles, findUnrunFiles, runTestsExecutionMembership, unclassifiedVitestProjects } from "./ops/tests-execution-membership.ts";
 export {
   classifyMembership,

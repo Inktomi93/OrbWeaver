@@ -25,10 +25,8 @@ import { gate as devtoolsFrontendAssets } from "../../../../../tooling/src/verif
 import { gate as featureOwnsDefinition } from "../../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as featureStructure } from "../../../../../tooling/src/verify/gates/feature-structure.ts";
 import { gate as ledgerSymbolLiveness } from "../../../../../tooling/src/verify/gates/ledger-symbol-liveness.ts";
-import { gate as motionTokenPurity } from "../../../../../tooling/src/verify/gates/motion-token-purity.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as noNulBytesInSource } from "../../../../../tooling/src/verify/gates/no-nul-bytes-in-source.ts";
-import { gate as noRawColorInCss } from "../../../../../tooling/src/verify/gates/no-raw-color-in-css.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { gate as rootDevelopmentDependencies } from "../../../../../tooling/src/verify/gates/root-development-dependencies.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
@@ -145,11 +143,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "domain/chat/verbs/liveness-nonexistent-file.ts",
   },
   {
-    policy: motionTokenPurity,
-    overlays: [append(CLIENT_GLOBALS, "\n.liveness-motion {\n  transition: opacity 220ms ease-out;\n}\n")],
-    messageIncludes: "raw motion value",
-  },
-  {
     policy: noFormStateInUseeffect,
     overlays: [
       {
@@ -164,11 +157,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noNulBytesInSource,
     overlays: [source("packages/kit/src/liveness-nul.ts", 'export const livenessNul = "a\u0000b";\n')],
     messageIncludes: "NUL",
-  },
-  {
-    policy: noRawColorInCss,
-    overlays: [append(CLIENT_GLOBALS, "\n.liveness-color {\n  color: #ff0000;\n}\n")],
-    messageIncludes: "Raw value: `#ff0000`",
   },
   {
     policy: overArtPlateArm,
