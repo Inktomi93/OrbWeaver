@@ -1,6 +1,6 @@
 import type { FileSystemHost, Node, Project, ResolutionHostFactory, SourceFile } from "ts-morph";
 import type { SourceBindingUsage } from "../code-facts/binding-usage-contract.ts";
-import type { SemanticInventory } from "../code-facts/semantic-inventory-contract.ts";
+import type { SemanticInventory, SemanticInventoryOptions } from "../code-facts/semantic-inventory-contract.ts";
 import type { CompilerProgram, CompilerSourceOverlay } from "./compiler-programs-contract.ts";
 
 /** Native queries used by one captured computation; unsupported native lifetimes cannot grant reuse. */
@@ -84,7 +84,7 @@ export interface SemanticWorkspace {
   readonly visitReferences: (node: Node, visit: (reference: SemanticReference) => boolean) => boolean;
 }
 
-export interface SemanticWorkspaceOptions {
+export interface SemanticWorkspaceOptions extends Pick<SemanticInventoryOptions, "projectedPaths"> {
   readonly root: string;
   readonly programs?: readonly CompilerProgram[];
   readonly overlay?: CompilerSourceOverlay;

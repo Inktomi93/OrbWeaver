@@ -802,10 +802,14 @@ export type InventoryPartition = z.infer<typeof partitionSchema>;
 export type InventorySymbols = z.infer<typeof symbolSchema>;
 
 export interface InventoryOverlay {
+  /** Projected byte availability never grants authored membership. */
+  readonly authoredAddedPaths: readonly string[];
   readonly root: string;
   readonly files: readonly { readonly path: string; readonly text: string }[];
   readonly deleted: readonly string[];
 }
+
+export type InventoryFileProjection = Pick<InventoryOverlay, "root" | "files" | "deleted">;
 
 export interface InventoryBuildRequest {
   readonly idBrandQueries?: readonly InventorySpan[];
@@ -859,6 +863,8 @@ export interface SemanticInventoryOptions {
   readonly programs?: readonly CompilerProgram[];
   readonly databasePath?: string;
   readonly overlay?: CompilerSourceOverlay;
+  /** Known transaction byte overrides are independent of authored additions. */
+  readonly projectedPaths?: readonly string[];
   readonly fileSystem?: FileSystemHost;
   readonly buildPartition?: (request: InventoryBuildRequest) => void;
 }

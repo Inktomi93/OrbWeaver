@@ -6,6 +6,7 @@ import process from "node:process";
 import { backup, DatabaseSync, StatementSync } from "node:sqlite";
 import type {
   InventoryBuildRequest,
+  InventoryFileProjection,
   InventoryOverlay,
   InventoryShapeQuery,
   InventoryWorkerRequest,
@@ -22,7 +23,8 @@ if (requestPath === undefined || resultPath === undefined) {
 const request = JSON.parse(readFileSync(requestPath, "utf8")) as {
   readonly options: SemanticInventoryOptions;
   readonly failWorker?: boolean;
-  readonly projection?: InventoryOverlay;
+  readonly projection?: InventoryFileProjection;
+  readonly authoredAddedPaths?: InventoryOverlay["authoredAddedPaths"];
   readonly fault?: NativeInventoryFault;
   readonly observeCoverage?: boolean;
   readonly shapeQueries?: readonly InventoryShapeQuery[];
@@ -94,8 +96,11 @@ if (request.projection !== undefined) {
   options = {
     ...options,
     fileSystem: inventoryFileSystem(new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem(), request.projection),
+    projectedPaths: request.projection.files.map(({ path }) => path),
     overlay: {
-      addedPaths: request.projection.files.filter(({ path }) => !existsSync(path)).map(({ path }) => relative(options.root, path).split(sep).join("/")),
+      addedPaths: (request.authoredAddedPaths ?? request.projection.files.filter(({ path }) => !existsSync(path)).map(({ path }) => path)).map((path) =>
+        relative(options.root, path).split(sep).join("/"),
+      ),
       deletedPaths: request.projection.deleted.map((path) => relative(options.root, path).split(sep).join("/")),
     },
   };

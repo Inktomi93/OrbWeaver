@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -155,6 +155,7 @@ test.for(["identical", "different", "symlink", "overlay", "js-depth"] as const)(
         ? {
             ...request,
             overlay: {
+              authoredAddedPaths: [added],
               root: scratch,
               files: [
                 { path: consumer, text: `${readFileSync(consumer, "utf8")}\nimport {virtual} from './virtual'; export const useVirtual=virtual;\n` },
@@ -2353,3 +2354,94 @@ test("legacy analysis eligibility preserves the complete native closure of an el
   expect(partition.available.toSorted()).toEqual([join(scratch, "entry.ts"), join(scratch, "tests/legacy/dependency.ts")].toSorted());
   expect(JSON.parse(partition.compilerOptionsJson)).toEqual(descriptor.commandLine.options);
 });
+
+test("an ignored dependency overlay transports exact worker bytes without granting authored membership", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
+  const dependency = join(scratch, "vendor/value.ts");
+  const physical = "export const value=1;\n";
+  const projected = "export const value=2;\n";
+  writeFileSync(join(scratch, ".gitignore"), ".cache/\nvendor/\n");
+  mkdirSync(dirname(dependency), { recursive: true });
+  writeFileSync(dependency, physical);
+  writeFileSync(join(scratch, "consumer.ts"), "import {value} from './vendor/value';export const use=value;\n");
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const options = { root: scratch, families: ["bindings"] as const };
+  using previous = nativeInventoryFixture(options);
+  const requests: InventoryBuildRequest[] = [];
+  const backups: string[] = [];
+  let refusal: string | undefined;
+  let observed: object | undefined;
+  try {
+    using current = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: [{ path: dependency, text: projected }], deleted: [] },
+      requests,
+      backups,
+    });
+    const backup = fixtureValue(backups[0]);
+    using db = openInventoryDatabase(backup);
+    const partition = fixtureValue(readInventoryGeneration(db, current.generation)[0]);
+    observed = {
+      text: current.sourceCorpus().getSourceFile(dependency)?.getFullText(),
+      authored: [...readInventorySourceMetadata(db, partition.id)].find((source) => source.file === dependency)?.authored,
+      membership: [...readInventoryInputs(db, partition.id)].find((input) => input.path === dependency && input.kind === "authored")?.version,
+    };
+  } catch (error) {
+    refusal = String(error);
+  }
+  expect(requests).toHaveLength(1);
+  expect(requests[0]?.overlay?.files.find((file) => file.path === dependency)).toEqual({ path: dependency, text: projected });
+  expect(requests[0]?.overlay).toMatchObject({ authoredAddedPaths: [] });
+  expect(refusal).toBeUndefined();
+  expect(observed).toEqual({ text: projected, authored: false, membership: "false" });
+  expect(readFileSync(dependency, "utf8")).toBe(physical);
+  expect(previous.sourceCorpus().getSourceFile(dependency)?.getFullText()).toBe(physical);
+});
+
+test.for(["authored-addition", "byte-only-addition", "deletion"] as const)(
+  "native overlay byte availability and authored membership remain separate under %s",
+  { timeout: scaledBudget(60_000) },
+  (mode, { scratch }) => {
+    const dependency = join(scratch, "value.ts");
+    const physical = "export const value=1;\n";
+    const projected = "export const value=2;\n";
+    const deleted = mode === "deletion";
+    const added = mode === "authored-addition";
+    writeFileSync(join(scratch, ".gitignore"), ".cache/\n");
+    if (deleted) {
+      writeFileSync(dependency, physical);
+    }
+    writeFileSync(join(scratch, "consumer.ts"), "import {value} from './value';export const use=value;\n");
+    writeFileSync(
+      join(scratch, "tsconfig.json"),
+      JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+    );
+    execFixtureGit(scratch, ["init", "-q"]);
+    const options = { root: scratch, families: ["bindings"] as const };
+    using previous = nativeInventoryFixture(options);
+    const requests: InventoryBuildRequest[] = [];
+    const backups: string[] = [];
+    using current = nativeInventoryFixture(options, {
+      projection: { root: scratch, files: deleted ? [] : [{ path: dependency, text: projected }], deleted: deleted ? [dependency] : [] },
+      authoredAddedPaths: added ? [dependency] : [],
+      requests,
+      backups,
+    });
+    expect(requests).toHaveLength(1);
+    const overlay = fixtureValue(requests[0]?.overlay);
+    expect(overlay.authoredAddedPaths).toEqual(added ? [dependency] : []);
+    expect(overlay.files.find((file) => file.path === dependency)).toEqual(deleted ? undefined : { path: dependency, text: projected });
+    expect(inventoryAuthoredFiles(scratch, overlay).has(dependency)).toBe(added);
+    expect(current.sourceCorpus().getSourceFile(dependency)?.getFullText()).toBe(deleted ? undefined : projected);
+    using db = openInventoryDatabase(fixtureValue(backups[0]));
+    const partition = fixtureValue(readInventoryGeneration(db, current.generation)[0]);
+    const source = [...readInventorySourceMetadata(db, partition.id)].find((entry) => entry.file === dependency);
+    expect(source?.authored).toBe(deleted ? undefined : added);
+    expect(previous.sourceCorpus().getSourceFile(dependency)?.getFullText()).toBe(deleted ? physical : undefined);
+    expect(existsSync(dependency)).toBe(deleted);
+    const physicalText = existsSync(dependency) ? readFileSync(dependency, "utf8") : undefined;
+    expect(physicalText).toBe(deleted ? physical : undefined);
+  },
+);

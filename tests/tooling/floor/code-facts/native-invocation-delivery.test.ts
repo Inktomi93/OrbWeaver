@@ -8,7 +8,12 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
-import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import type {
+  InventoryBuildRequest,
+  InventoryInvocationPlan,
+  InventorySpan,
+  NativeInvocationEvidence,
+} from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
   DEFAULT_INVENTORY_FAMILIES,
   invocationAtomSchema,
@@ -19,6 +24,7 @@ import {
   openInventoryDatabase,
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
+import { inventoryAuthoredFiles } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
 import {
   acquireInventoryReadLease,
   hasInventoryInvocationCoverage,
@@ -469,13 +475,24 @@ test(
     ).toThrow("injected native worker exit");
     using failedWorker = openInventoryDatabase(failedWorkerPath);
     expect(latestInventoryGeneration(failedWorker)).toBe(0);
+    const overlayRequests: InventoryBuildRequest[] = [];
     using overlay = nativeInventoryFixture(
       {
         ...options,
         invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
       },
-      { projection: { root: scratch, files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }], deleted: [] } },
+      {
+        projection: { root: scratch, files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }], deleted: [] },
+        requests: overlayRequests,
+      },
     );
+    expect(overlayRequests).toHaveLength(1);
+    expect(overlayRequests[0]?.overlay?.files.find((file) => file.path === join(scratch, "vendor/bound.ts"))).toEqual({
+      path: join(scratch, "vendor/bound.ts"),
+      text: "export const bound=()=>1;",
+    });
+    expect(inventoryAuthoredFiles(scratch, overlayRequests[0]?.overlay).has(join(scratch, "vendor/bound.ts"))).toBe(false);
+    expect(overlay.sourceCorpus().getSourceFile("vendor/bound.ts")?.getFullText()).toBe("export const bound=()=>1;");
     expect(() => overlay.invocationEvidence(call, descriptor.id, PLAN)).toThrow("replay source/epoch is stale");
     const overlayCall = overlay
       .sourceCorpus()
@@ -1094,10 +1111,19 @@ test(
     };
     using main = nativeInventoryFixture(options);
     const lifetime: NativeInventoryLifetime[] = [];
+    const overlayRequests: InventoryBuildRequest[] = [];
     using overlay = nativeInventoryFixture(options, {
       projection: { root: scratch, files: [{ path: join(scratch, "vendor/bound.ts"), text: "export const bound=()=>1;" }], deleted: [] },
       lifetime,
+      requests: overlayRequests,
     });
+    expect(overlayRequests).toHaveLength(1);
+    expect(overlayRequests[0]?.overlay?.files.find((file) => file.path === join(scratch, "vendor/bound.ts"))).toEqual({
+      path: join(scratch, "vendor/bound.ts"),
+      text: "export const bound=()=>1;",
+    });
+    expect(inventoryAuthoredFiles(scratch, overlayRequests[0]?.overlay).has(join(scratch, "vendor/bound.ts"))).toBe(false);
+    expect(overlay.sourceCorpus().getSourceFile("vendor/bound.ts")?.getFullText()).toBe("export const bound=()=>1;");
     expect(lifetime).toEqual([{ transaction: true, queryOnly: 1, existed: true, closed: true, removed: true }]);
     const source = overlay.sourceCorpus().getSourceFile(SOURCE);
     const overlayCall = source?.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getText() === "bound()");

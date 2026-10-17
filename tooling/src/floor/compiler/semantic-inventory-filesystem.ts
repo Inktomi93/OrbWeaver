@@ -1,10 +1,10 @@
 import { dirname } from "node:path";
 import type { FileSystemHost, RuntimeDirEntry } from "ts-morph";
-import type { InventoryInput, InventoryOverlay } from "../code-facts/semantic-inventory-contract.ts";
+import type { InventoryFileProjection, InventoryInput } from "../code-facts/semantic-inventory-contract.ts";
 import { inputVersion } from "../code-facts/semantic-inventory-inputs.ts";
 
 /** Preserve native absolute resolution paths while projecting transaction bytes into a child. */
-export function inventoryFileSystem(base: FileSystemHost, overlay?: InventoryOverlay, inputs?: Map<string, InventoryInput>): FileSystemHost {
+export function inventoryFileSystem(base: FileSystemHost, overlay?: InventoryFileProjection, inputs?: Map<string, InventoryInput>): FileSystemHost {
   const text = new Map(overlay?.files.map((file) => [file.path, file.text]));
   const deleted = new Set(overlay?.deleted);
   const directories = new Set<string>();

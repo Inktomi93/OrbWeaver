@@ -8,11 +8,15 @@ import type { InventoryInput, InventoryInputContext, InventoryOverlay } from "./
 
 /** Authorship follows physical identity, but unrelated roster entries are not native filesystem dependencies. */
 export function inventoryAuthoredFiles(root: string, overlay?: InventoryOverlay): ReadonlySet<string> {
-  return new Set(
-    [...readAuthoredRepositoryInventory(root).paths, ...(overlay?.files.map((file) => file.path) ?? [])].map((path) =>
+  const authored = new Set(
+    [...readAuthoredRepositoryInventory(root).paths, ...(overlay === undefined ? [] : overlay.authoredAddedPaths)].map((path) =>
       canonicalInventoryPath(resolve(root, path)),
     ),
   );
+  for (const path of overlay?.deleted ?? []) {
+    authored.delete(canonicalInventoryPath(resolve(root, path)));
+  }
+  return authored;
 }
 
 /** Version bytes by content rather than timestamps. */

@@ -94,8 +94,14 @@ export function createCodemodSemanticWorkspace(opts: {
   readonly project: Project;
   readonly repoRoot: string;
   readonly overlay: CompilerSourceOverlay;
+  readonly projectedPaths: readonly string[];
 }): SemanticWorkspace {
-  const { project, repoRoot, overlay } = opts;
+  const { project, repoRoot, overlay, projectedPaths } = opts;
   const sources = currentSources(project, repoRoot);
-  return createSemanticWorkspace({ root: repoRoot, overlay, fileSystem: overlayFileSystem(project.getFileSystem(), sources, overlay, repoRoot) });
+  return createSemanticWorkspace({
+    root: repoRoot,
+    overlay,
+    projectedPaths,
+    fileSystem: overlayFileSystem(project.getFileSystem(), sources, overlay, repoRoot),
+  });
 }
