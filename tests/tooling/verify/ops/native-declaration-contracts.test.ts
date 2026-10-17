@@ -265,6 +265,11 @@ test("native signature brands derive canonical declarations and preserve exact s
 
 const QUERY_SURFACE = "packages/client/src/features/example/surfaces/example.tsx";
 const QUERY_RULES = ["orb/no-inline-invalidate-outside-seam", "orb/client-cache-surgery-only-in-data", "orb/no-inline-optimistic-in-surface"] as const;
+const QUERY_RULE_INDEX = {
+  [QUERY_RULES[0]]: 0,
+  [QUERY_RULES[1]]: 1,
+  [QUERY_RULES[2]]: 2,
+} as const satisfies Record<(typeof QUERY_RULES)[number], number>;
 
 test("native query seams preserve package identity, every founding catch, casts, unreadable receivers and computed-key limits", async ({
   scratch,
@@ -314,7 +319,8 @@ test("native query seams preserve package identity, every founding catch, casts,
       false,
     ],
   ] as const;
-  for (const [index, rule] of QUERY_RULES.entries()) {
+  for (const rule of QUERY_RULES) {
+    const index = QUERY_RULE_INDEX[rule];
     const config = await eslint.calculateConfigForFile(join(repoRoot, QUERY_SURFACE));
     expect(config.rules[rule], rule).toEqual([2]);
     for (const [source, counts, unreadable] of cases) {

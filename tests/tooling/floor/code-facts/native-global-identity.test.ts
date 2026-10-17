@@ -1,13 +1,11 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { createWrappedNode, Node } from "ts-morph";
-import ts from "typescript";
+import { createWrappedNode, Node, Project } from "ts-morph";
 import { vi } from "vitest";
 import { resolveGlobalMemberOrigin } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
 
 test("ambient identity preserves native aliases, shadows and refusals without acquiring a Project", ({ scratch }) => {
-  const path = join(scratch, "ambient.ts");
   const cases = [
     ["export const selected=Date.now;", "resolved", "Date.now"],
     ["const clock=Date;export const selected=clock.now;", "resolved", "Date.now"],
@@ -23,23 +21,31 @@ test("ambient identity preserves native aliases, shadows and refusals without ac
     ["Date.now=()=>0;export const selected=Date.now;", "unresolved", "write"],
     ["const first=second;const second=first;export const selected=first;", "unresolved", "cycle"],
   ] as const;
+  const inputs = cases.map(([source, kind, value], index) => {
+    const path = join(scratch, `ambient-${index}.ts`);
+    writeFileSync(path, source);
+    const nativeProject = new Project({ compilerOptions: { types: [], strict: true, lib: ["lib.es2022.d.ts", "lib.dom.d.ts"] } });
+    const file = nativeProject.addSourceFileAtPath(path);
+    const declaration = file.getVariableDeclarations().find((candidate) => candidate.getName() === "selected");
+    const initializer = declaration?.getInitializer();
+    if (initializer === undefined) {
+      throw new Error("native ambient fixture is missing");
+    }
+    return {
+      source,
+      kind,
+      value,
+      initializer: initializer.compilerNode,
+      sourceFile: file.compilerNode,
+      checker: nativeProject.getTypeChecker().compilerObject,
+    };
+  });
   const project = vi.spyOn(Node.prototype, "getProject").mockImplementation(() => {
     throw new Error("ambient identity acquired a Project");
   });
   try {
-    for (const [source, kind, value] of cases) {
-      writeFileSync(path, source);
-      const program = ts.createProgram([path], { types: [], strict: true, lib: ["lib.es2022.d.ts", "lib.dom.d.ts"] });
-      const checker = program.getTypeChecker();
-      const file = program.getSourceFile(path);
-      const declaration = file?.statements
-        .filter(ts.isVariableStatement)
-        .flatMap((statement) => [...statement.declarationList.declarations])
-        .find((node) => node.name.getText(file) === "selected");
-      if (file === undefined || declaration?.initializer === undefined) {
-        throw new Error("native ambient fixture is missing");
-      }
-      const wrapped = createWrappedNode(declaration.initializer, { typeChecker: checker, sourceFile: file });
+    for (const { source, kind, value, initializer, sourceFile, checker } of inputs) {
+      const wrapped = createWrappedNode(initializer, { typeChecker: checker, sourceFile });
       const read = resolveGlobalMemberOrigin(wrapped);
       expect(read.kind, source).toBe(kind);
       expect(read.kind === "resolved" ? [read.value.globalName, ...read.value.memberPath].join(".") : read.reason, source).toBe(value);
