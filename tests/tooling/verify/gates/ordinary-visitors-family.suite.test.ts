@@ -161,7 +161,7 @@ test("registry-assembly-at-door-only REFUSES when the registry home no longer ex
 test("an ordinary waiver binds to the exact policy and position this wave's reports supply", () => {
   const waived = passOf(noInlineTypes, {
     "packages/server/src/domain/x/verb.ts":
-      "// @orb-waive no-inline-types(Foo): the proof's stand-in reason and its end condition.\nexport type Foo = string;\n",
+      "// @orb-waive no-inline-types(Foo): the proof's stand-in reason and its end condition.\ntype Foo = string;\nexport type { Foo };\n",
   });
 
   expect(waived.authority.effectiveFindings).toEqual([]);
@@ -171,7 +171,8 @@ test("an ordinary waiver binds to the exact policy and position this wave's repo
 
 test("a waiver naming the WRONG position suppresses nothing and reports a dead position", () => {
   const mismatched = passOf(noInlineTypes, {
-    "packages/server/src/domain/x/verb.ts": "// @orb-waive no-inline-types(Bar): names a type this carrier does not declare.\nexport type Foo = string;\n",
+    "packages/server/src/domain/x/verb.ts":
+      "// @orb-waive no-inline-types(Bar): names a type this carrier does not declare.\ntype Foo = string;\nexport type { Foo };\n",
   });
 
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);

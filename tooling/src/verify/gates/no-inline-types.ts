@@ -1,6 +1,6 @@
 // Policy: no-inline-types (Spine-TypeScript-and-Patterns.md §7.4) — a shape has ONE home, decided by who
-// needs it. An exported `type` alias, or an exported const bound to a zod object/enum/discriminatedUnion
-// schema, declared OUTSIDE a type home is a second spelling of a shape that already has an owner.
+// needs it. Shared reporting subtracts qualified native direct declarations while retaining local alias
+// exports and proven zod object/enum/discriminatedUnion schema origins outside the sanctioned homes.
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`
@@ -138,9 +138,9 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { "packages/server/src/domain/x/verb.ts": "export type Foo = string;\n" },
+      files: { "packages/server/src/domain/x/verb.ts": "type Foo = string;\nexport type { Foo };\n" },
       expect: { count: 1, token: "Foo" },
-      why: "the founding shape — an exported type alias in a verb, whose home is the domain's contract/",
+      why: "a locally export-listed alias in a verb retains the custom placement obligation; native syntax owns direct declarations",
     },
     {
       mode: "resource",
@@ -186,7 +186,7 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { "packages/server/src/domain/regex/verbs/scripts/create.ts": "export type Foo = string;\n" },
+      files: { "packages/server/src/domain/regex/verbs/scripts/create.ts": "type Foo = string;\nexport type { Foo };\n" },
       expect: { count: 1, token: "Foo" },
       why: "THE #408 STRING ACCIDENT, closed on the same reasoning as the deleted `/tools/` clause: the legacy `/scripts/` type-home clause matched exactly ONE directory inside the judged roots — the regex SCRIPT library's verbs — and exempted a domain subsystem by pure substring luck. The repo's own `scripts/` tree is out of the population by root, so nothing is lost by not reproducing it",
     },
@@ -203,8 +203,8 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/client/src/features/x/fixtures.ts": "export type A = string;\n",
-        "packages/server/src/domain/x/seed-fixtures.ts": "export type B = string;\n",
-        "packages/server/src/domain/x/_support.ts": "export type C = string;\n",
+        "packages/server/src/domain/x/seed-fixtures.ts": "type B = string;\nexport type { B };\n",
+        "packages/server/src/domain/x/_support.ts": "type C = string;\nexport type { C };\n",
         "tooling/src/snap/lib/run.fixtures.ts": "export type D = string;\n",
       },
       expect: { count: 4 },

@@ -1,4 +1,5 @@
 // Package type-home intent; only sanctioned runtime and authoring contracts receive structural verdicts.
+import { matchesGlob } from "node:path";
 import type { PackageName } from "../compiler/project-worlds.ts";
 import { PACKAGE_NAMES, worldOf } from "../compiler/project-worlds.ts";
 import type { PackageTypeHomeClassification, PackageTypeHomePolicy } from "./type-home-contract.ts";
@@ -20,7 +21,7 @@ export const PACKAGE_TYPE_HOMES = {
 export const UI_TOKEN_AUTHORING_CONTRACT_HOME = "packages/ui/token-contract.ts";
 
 const TYPE_HOME_GENERATED_SUFFIX = ".gen.ts";
-export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`] as const;
+export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`, "packages/server/src/domain/**/*.test.{ts,tsx}"] as const;
 
 export const TYPE_HOME_NATIVE_POLICY_ID = "type-home-direct-export";
 
@@ -38,8 +39,15 @@ export function packageContractHome(name: PackageName): string {
 }
 
 const NATIVE_PACKAGES = PACKAGE_NAMES.filter((name) => PACKAGE_TYPE_HOMES[name].nativePilot);
-export const TYPE_HOME_NATIVE_SOURCE_GLOBS = NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`);
-export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = NATIVE_PACKAGES.map((name) => `${packageContractHome(name)}**/*.{ts,tsx}`);
+const NATIVE_SERVER_ROOTS = ["packages/server/src/domain", "packages/server/src/foundation/observability/debug/inspect"] as const;
+export const TYPE_HOME_NATIVE_SOURCE_GLOBS = [
+  ...NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`),
+  ...NATIVE_SERVER_ROOTS.map((root) => `${root}/**/*.{ts,tsx}`),
+];
+export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = [
+  ...NATIVE_PACKAGES.map((name) => `${packageContractHome(name)}**/*.{ts,tsx}`),
+  ...NATIVE_SERVER_ROOTS.flatMap((root) => [`${root}/**/contract/**/*.{ts,tsx}`, `${root}/**/contract.ts`]),
+];
 
 /** Classify the canonical package/world and answer only the sanctioned package-contract path question. */
 export function packageTypeHome(path: string): PackageTypeHomeClassification | undefined {
@@ -63,12 +71,9 @@ export function packageTypeHome(path: string): PackageTypeHomeClassification | u
 
 /** Effective native syntax admission; generated declarations retain their semantic owner. */
 export function nativeTypeHomeDirectExport(path: string): boolean {
-  const classification = packageTypeHome(path);
   return (
-    classification?.nativePilot === true &&
-    classification.home === false &&
-    path.startsWith(sourceRoot(classification.packageName)) &&
-    /\.tsx?$/.test(path) &&
-    !path.endsWith(TYPE_HOME_GENERATED_SUFFIX)
+    TYPE_HOME_NATIVE_SOURCE_GLOBS.some((pattern) => matchesGlob(path, pattern)) &&
+    !TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern)) &&
+    !TYPE_HOME_NATIVE_UNADMITTED_GLOBS.some((pattern) => matchesGlob(path, pattern))
   );
 }

@@ -5,21 +5,10 @@
 
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, messages } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
 import { count, desc, eq } from "drizzle-orm";
-import type { CharacterListRow } from "../../contract/inspect.ts";
+import type { CharacterListRow, ChatListRow } from "../../contract/inspect.ts";
 
-export type { CharacterListRow } from "../../contract/inspect.ts";
-
-// @orb-waive no-inline-package-interface(ChatListRow): baselined when the gate landed; burn-down item 952.
-/** One chat-list row (the discovery shape — id + title + the two headline counts + recency). */
-export interface ChatListRow {
-  id: ChatId;
-  title: string | null;
-  participantCount: number;
-  messageCount: number;
-  updatedAt: number;
-}
+export type { CharacterListRow, ChatListRow } from "../../contract/inspect.ts";
 
 /** Every chat with its participant + message counts, newest-updated first. Two grouped COUNT subqueries
  *  keep it one round-trip per table rather than N+1 per chat. */

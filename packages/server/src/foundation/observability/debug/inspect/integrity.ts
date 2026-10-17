@@ -5,13 +5,9 @@ import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { getLog } from "#src/foundation/observability/logger.ts";
 
-// @orb-waive no-inline-package-interface(IntegrityReport): baselined when the gate landed; burn-down item 952.
-/** The integrity probe result (foundation-internal; returned as JSON by /api/_debug/db/integrity). */
-export interface IntegrityReport {
-  ok: boolean;
-  foreignKeyViolations: Record<string, unknown>[];
-  integrityCheck: string[];
-}
+import type { IntegrityReport } from "../../contract/inspect.ts";
+
+export type { IntegrityReport } from "../../contract/inspect.ts";
 
 export async function integrityProbe(db: Db): Promise<IntegrityReport> {
   const fk = await db.all<Record<string, unknown>>(sql`PRAGMA foreign_key_check`);
