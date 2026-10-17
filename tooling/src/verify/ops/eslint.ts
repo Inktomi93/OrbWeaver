@@ -29,6 +29,12 @@ import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RU
 import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
+import {
+  affectsSourceTypeSuppressionNativeLint,
+  SOURCE_TYPE_SUPPRESSION_GLOBS,
+  SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS,
+  SOURCE_TYPE_SUPPRESSION_RULE,
+} from "../lib/source-type-suppression-native.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -203,12 +209,17 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (supplemental === EXIT.toolError) {
     return EXIT.toolError;
   }
+  supplemental = Math.max(supplemental, await recheckSourceTypeSuppressionMetadata(root, paths));
+  if (supplemental === EXIT.toolError) {
+    return EXIT.toolError;
+  }
   const sources = paths.filter(
     (path) =>
       !(
         BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) ||
         CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path)
+        CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+        SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path)
       ) ||
       (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
   );
@@ -221,6 +232,20 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     return supplemental;
   }
   return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
+}
+
+function recheckSourceTypeSuppressionMetadata(root: string, paths: readonly string[]): Promise<number> {
+  if (!paths.some(affectsSourceTypeSuppressionNativeLint) || paths.includes(".")) {
+    return Promise.resolve(EXIT.clean);
+  }
+  for (const path of SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS) {
+    readFileSync(resolve(root, path));
+  }
+  return nativeSyntaxPass(root, [...SOURCE_TYPE_SUPPRESSION_GLOBS], {
+    hard: true,
+    rules: new Set([SOURCE_TYPE_SUPPRESSION_RULE]),
+    label: "source-type-suppression-native",
+  });
 }
 
 function coversNativeRoots(paths: readonly string[], roots: readonly string[]): boolean {

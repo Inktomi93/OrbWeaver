@@ -128,6 +128,11 @@ import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts
 import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
 import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
+import {
+  SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
+  SOURCE_TYPE_SUPPRESSION_GLOBS,
+  SOURCE_TYPE_SUPPRESSION_RULE,
+} from "./tooling/src/verify/lib/source-type-suppression-native.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
 // This config lives at the repo root; projectService/tsconfig discovery is rooted here.
@@ -2625,6 +2630,11 @@ const FILE_SIZE_BLOCKS = [
 
 // Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
 const ORDINARY_CONFIG = [
+  {
+    files: SOURCE_TYPE_SUPPRESSION_GLOBS,
+    ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
+    languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
+  },
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
@@ -2685,6 +2695,18 @@ export const hardConfig = [
     },
   },
   { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
+  {
+    files: SOURCE_TYPE_SUPPRESSION_GLOBS,
+    ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true }, sourceType: "module" },
+    },
+    rules: {
+      [SOURCE_TYPE_SUPPRESSION_RULE]: ["error", { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true, "ts-check": false }],
+    },
+  },
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
 ];
 

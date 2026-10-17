@@ -26,6 +26,7 @@ import http from "node:http";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "@playwright/test";
+import { prepareGoldenTools } from "./browser-tools.ts";
 import { FIXTURES_DIR, ST_OUTPUT_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 
 const ST_LOG_REGEX = /listen|error|EADD/i;
@@ -465,50 +466,7 @@ async function main(): Promise<void> {
 
     if (fixture.tools && fixture.tools.length > 0) {
       console.log(`[Golden] Injecting ${fixture.tools.length} test tools via ToolManager...`);
-      await page.evaluate(
-        async (args: {
-          fixture: { model?: string };
-          tools: Array<{
-            name: string;
-            description: string;
-            parameters: unknown;
-          }>;
-        }) => {
-          // @ts-expect-error: Virtual import in browser context
-          const { model_list } = await import("./scripts/openai.js");
-          const modelId = args.fixture.model ?? "claude-3-5-sonnet-20240620";
-          // biome-ignore lint/suspicious/noExplicitAny: Untyped script object
-          const existing = model_list.find((m: any) => m.id === modelId);
-          if (existing) {
-            existing.tools = true;
-            existing.supports_tools = true;
-            existing.max_context_length = 200_000;
-          } else {
-            // biome-ignore lint/style/useNamingConvention: Needed for ST's model_list format
-            model_list.push({ id: modelId, tools: true, supports_tools: true, max_context_length: 200_000 });
-          }
-
-          // @ts-expect-error: Virtual import in browser context
-          const { extension_settings } = await import("./scripts/extensions.js");
-          extension_settings.tool_calling = extension_settings.tool_calling || {};
-          extension_settings.tool_calling.function_calling = true;
-
-          // @ts-expect-error: Virtual import in browser context
-          const { ToolManager } = await import("./scripts/tool-calling.js");
-          // biome-ignore lint/suspicious/noExplicitAny: Untyped script object
-          for (const t of args.tools as any[]) {
-            ToolManager.registerFunctionTool({
-              name: t.name,
-              displayName: t.name,
-              description: t.description,
-              parameters: t.parameters,
-              action: () => "mock_tool_result",
-              shouldRegister: () => true,
-            });
-          }
-        },
-        { tools: fixture.tools, fixture },
-      );
+      await page.evaluate(prepareGoldenTools, { origin: page.url(), model: fixture.model, tools: fixture.tools });
       // Wait for it to settle
       // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: ST needs time to settle
       await page.waitForTimeout(500);

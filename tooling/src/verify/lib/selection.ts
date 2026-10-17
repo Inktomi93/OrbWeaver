@@ -11,6 +11,7 @@ import type { ChangedPathClassification, CtView, Selection, SelectionRequest } f
 import { ctView } from "./ct-view.ts";
 import { planTypecheckPrograms } from "./program-routing.ts";
 import { classifyExplicitPaths, existsRel, gitChangedPathClassification, gitLsFiles, gitStagedPathClassification, packageDir, ROOT } from "./repo-paths.ts";
+import { affectsSourceTypeSuppressionNativeLint, isSourceTypeSuppressionSource } from "./source-type-suppression-native.ts";
 
 // ── the path-zone predicates (lifted verbatim from check/file.ts — kept in ONE place) ──
 // Mirrors the native ESLint config's scoped population — and the mirroring is LOAD-BEARING, not
@@ -56,9 +57,13 @@ function deriveViews(
   const paths = semanticPaths.map((path) => path.path);
   const typecheck = planTypecheckPrograms(root, semanticPaths, "affected");
   return {
-    // Every direct-file view derives from the classification's ONE current-filesystem subset. The all-path
-    // view below still drives tsconfig/graph/structure/deletion semantics.
-    eslintPaths: filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p)),
+    // Native metadata includes deleted inputs so missing authority cannot disappear from its dependent lint population.
+    eslintPaths: [
+      ...new Set([
+        ...filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p) || isSourceTypeSuppressionSource(p)),
+        ...paths.filter(affectsSourceTypeSuppressionNativeLint),
+      ]),
+    ],
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
     docsPaths: filterPaths(existingPaths, (p) => DOCS_MD_RE.test(p)),
     tsconfigs: typecheck.programs,
@@ -170,7 +175,7 @@ function resolvePackage(name: string, root: string): Selection {
     paths,
     existingPaths: paths,
     runtimeSubjects,
-    eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) ? [prefix] : [],
+    eslintPaths: ESLINT_RE.test(`${prefix}x.ts`) || runtimeSubjects.some(isSourceTypeSuppressionSource) ? [prefix] : [],
     depcruisePaths: [prefix],
     docsPaths: [],
     tsconfigs: typecheck.programs,
@@ -203,7 +208,7 @@ function resolveScope(glob: string, root: string): Selection {
     paths,
     existingPaths: paths,
     runtimeSubjects,
-    eslintPaths: !isLegacyTestPath(prefix) && ESLINT_RE.test(`${prefix}/x.ts`) ? [prefix] : [],
+    eslintPaths: !isLegacyTestPath(prefix) && (ESLINT_RE.test(`${prefix}/x.ts`) || runtimeSubjects.some(isSourceTypeSuppressionSource)) ? [prefix] : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: DOCS_MD_RE.test(`${prefix}/x.md`) ? [prefix] : [],
     tsconfigs: typecheck.programs,

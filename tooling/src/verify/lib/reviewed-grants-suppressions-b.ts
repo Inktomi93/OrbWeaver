@@ -162,15 +162,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `react-you-might-not-need-an-effect/no-external-store-subscription` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-ts-expect-error",
-    policyId: "suppressions",
-    subject: "@ts-expect-error",
-    operation: "source",
-    why: "RULING — probe-only compatibility seams intentionally import untyped JS or browser-virtual modules whose runtime shape is asserted immediately after the directive (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 5 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `@ts-expect-error` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-typescript-eslint-no-unnecessary-condition",
     policyId: "suppressions",
     subject: "@typescript-eslint/no-unnecessary-condition",
