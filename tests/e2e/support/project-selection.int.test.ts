@@ -48,6 +48,29 @@ test("the corpus matrix forwards one selected phone cell without accumulating de
   expect(transcript).not.toContain("[corpus-local-");
 });
 
+test("the corpus matrix composes its selected cell before a native terminator and file filter", { tags: ["slow"] }, () => {
+  const project = `corpus-phone-${THEME_CHAT_STYLES[0]}`;
+  const result = runNicedSync("pnpm", [
+    "--config.verify-deps-before-run=false",
+    "e2e:corpus:matrix",
+    `--project=${project}`,
+    "--list",
+    "tests/e2e/smoke.spec.ts",
+    "--",
+  ]);
+  const transcript = result.stdout + result.stderr;
+  expect(result.status, transcript).toBe(0);
+  const collected = transcript.split("\n").filter((line) => /^\s+\[corpus-/u.test(line));
+  expect(collected.length).toBeGreaterThan(0);
+  for (const line of collected) {
+    expect(line).toContain(`[${project}] › smoke.spec.ts:`);
+  }
+  expect(transcript).toContain("tests in 1 file");
+  expect(transcript).not.toContain("Backup exports a real library");
+  expect(transcript).not.toContain("second send works");
+  expect(transcript).toContain("Corpus matrix: 1 of 1 cells completed; failures=[]; missing=[]");
+});
+
 function collectedProjects(suites: readonly JSONReportSuite[]): string[] {
   return suites.flatMap((suite) => [...suite.specs.flatMap((spec) => spec.tests.map((entry) => entry.projectName)), ...collectedProjects(suite.suites ?? [])]);
 }

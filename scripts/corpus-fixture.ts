@@ -39,8 +39,8 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
         "scripts/corpus-fixture.ts",
         "e2e",
         ...(directory === undefined || directory === "--" ? ["--"] : [directory, "--"]),
-        ...forwarded,
         `--project=${cell.name}`,
+        ...forwarded,
       ],
       {
         cwd: process.cwd(),
