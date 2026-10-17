@@ -52,23 +52,23 @@ test("helper-only edit rejudges client literal IDs", { tags: ["slow"] }, async (
   expect(await runScopedEslint(root, [HELPER])).toBe(1);
 });
 
-test("helper-only edit rejudges UI scroll literals", async ({ plantedTree, repoRoot }) => {
+test("helper-only edit rejudges UI scroll literals", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, "export const legal=1;", 'export const A="overflow-y-auto";');
   expect(await runScopedEslint(root, [HELPER])).toBe(1);
 });
 
-test("helper-only edit rejudges derived store outputs", async ({ plantedTree, repoRoot }) => {
+test("helper-only edit rejudges derived store outputs", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, "export const x=useXStore(s=>({a:s.a}));");
   expect(await runScopedEslint(root, [HELPER])).toBe(1);
 });
 
-test("helper-only edit with legal frontend syntax is clean", async ({ plantedTree, repoRoot }) => {
+test("helper-only edit with legal frontend syntax is clean", { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, 'export const A=<div data-testid={testId("key")}/>;', 'export const A="relative overflow-y-auto";');
   expect(await runScopedEslint(root, [HELPER])).toBe(0);
 });
 
 for (const allowed of [false, true]) {
-  test(`lexical metadata mixed source retains ordinary lint: ${allowed ? "legal" : "blocked"}`, async ({ plantedTree, repoRoot }) => {
+  test(`lexical metadata mixed source retains ordinary lint: ${allowed ? "legal" : "blocked"}`, { tags: ["slow"] }, async ({ plantedTree, repoRoot }) => {
     const root = await nativeRoot(plantedTree, repoRoot, "export const legal=1;");
     writeFileSync(join(root, "ordinary.js"), allowed ? "export const legal=1;\n" : "alert('blocked');\n");
     expect(await runScopedEslint(root, [HELPER, "ordinary.js"])).toBe(allowed ? 0 : 1);

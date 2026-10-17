@@ -34,15 +34,17 @@ Native context/register syntax qualifies; origin and count owners remain. Parall
 
 Native spacing, typography and hover checks pass complete frontend selection. Home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`.
 
+Native derived-store syntax passes review, complete selected lint and helper-only admission. Typed stability, windowed and density claims remain. Loader controls pass with registered completion. Evidence: `reports/review/1041-native-derived-store-ordinary.md`.
+
 Maintained component cases use captured viewer/settings reads. Browser cases and DOM types pass. Evidence: `reports/review/1041-maintained-ct-principal-adoption-independent-review.md`.
 
 Scoped native bus controls pass; source health remains. Bus-local requests preserve generic contracts. Inherited type diagnostics remain. Evidence: `reports/review/1041-native-bus-boundary-ordinary.md`.
 
-Native portability, literals and suppression refusal pass scoped review and integration. Retained readers remain. Evidence: `reports/review/1041-native-replacement-wave-ordinary.md`.
+Native portability, literals and suppression refusal qualify. Evidence: `reports/review/1041-native-replacement-wave-ordinary.md`.
 
 Asset-write enforcement remains; valid transfers exceed its lexical proposal. Evidence: `reports/review/1041-assets-native-successor-disposition.md`.
 
-Sealed sizing, native DevTools closure and shared metadata scans pass wave review. Canonical root aliases retain verified buffered bytes; descendant links refuse. Scoped integration passes; Node retains its inherited diagnostics. Evidence: `reports/review/1041-native-retirement-wave-ordinary.md`.
+Sealed sizing, DevTools closure and shared metadata scans qualify. Root aliases preserve buffered bytes; descendant links refuse. Evidence: `reports/review/1041-native-retirement-wave-ordinary.md`.
 
 Native manifest contracts use Node CI; root dependencies remain tooling-owned. Acquisition refusals remain. Evidence: `reports/review/1041-native-package-manifests-ordinary.md`.
 
@@ -50,4 +52,4 @@ Production token validation and history run in Node CI; generated type facts rem
 
 Compiler expiry uses Node CI; containment and memo enforcement remain. Evidence: `reports/review/1041-native-ui-health-ordinary.md`. Native floorless geometry uses public UI metadata and output contracts; complete frontend qualification stays open. Evidence: `reports/review/1041-native-floorless-ordinary.md`.
 
-Native test/tooling imports and formatter restrictions are integrated. Engine cases use the public root; inferred types reject extra authority. Raw reach remains custom. Scoped runtime and DOM controls pass; wider qualification remains open. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`.
+Native test/tooling imports and formatter restrictions qualify. Public-root controls and inferred types reject extra authority. Raw reach and wider qualification remain open. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`.

@@ -205,7 +205,7 @@ Native lint owns lexical class, skin, banned utilities, z-index and determinism.
 
 Native Base UI lint owns derivation, handlers and state styling. Surface/anatomy contracts run in ordinary Node CI; portal and CSS semantic owners remain. Metadata admission invalidates caches. Maintained CTs use captured reads. Bounded controls pass; full migration remains open. Evidence: `reports/review/1041-native-baseui-ledger-ordinary.md`.
 
-Context/register lint preserves publication and count owners. Parallel-map checks retain their timing limit. Native spacing, typography and hover syntax pass complete frontend selection; home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`.
+Context/register lint preserves publication and count owners. Parallel-map timing remains open. Native spacing, typography and hover syntax qualify; home-health and ink semantics remain. Evidence: `reports/review/1041-native-frontend-class-wave-ordinary.md`. Native derived-store syntax qualifies; typed stability remains. Evidence: `reports/review/1041-native-derived-store-ordinary.md`.
 
 Production registries supply config anchors and safe navigation; cleanup cancels delayed jumps. Native types enforce planned/live sections, dormant tiles and rail mobile policy. Native lint rejects route literal maps. Other semantic readers remain. Evidence: `reports/review/1041-native-client-registries-ordinary.md`. Legacy direct mounts require real-door replacement; application qualification stays open.
 

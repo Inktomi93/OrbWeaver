@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-15
+updated: 2026-10-17
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -35,13 +35,14 @@ D42 and D54 place domain-agnostic component, DOM and string-math primitives in U
 
 Inline application shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
 
-**The gates (`tooling/src/verify/gates/`, ts-morph, live):**
+**The enforcers:**
 
 | Gate | What it judges |
 | - | - |
-| `no-inline-types` | exported type aliases and exported zod object/enum/discriminatedUnion consts in client, server, inference, tooling and tests, outside the homes: the client `data`/`forms`/`state`/`lib` tiers, `server/src/primitives`, `tooling/src/floor`, `contract/`, and the test home (`tests/support/**` and fixture or `_support` modules) |
-| `no-inline-domain-interface` | every exported interface in a server domain outside `contract/` |
-| `no-inline-package-interface` | every exported interface in server entry, transport, infra and foundation and in inference outside `contract/` |
+| ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and the database inspector; generated declarations and domain test mirrors retain custom ownership |
+| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in its existing populations, excluding qualified native direct aliases; local export origins and generated token ownership remain custom |
+| `no-inline-domain-interface` | server-domain interface origins outside contract homes, excluding qualified native direct declarations; local export lists and unadmitted generated declarations remain custom |
+| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and inspector direct declarations |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
