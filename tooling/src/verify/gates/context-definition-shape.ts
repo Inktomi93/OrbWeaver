@@ -3,9 +3,9 @@
 import type { TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
+import { resolveTypeIdentityOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { defineGate } from "../contract/policy.ts";
 import { DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "../lib/context-definition-shape.ts";
-import { resolveTypeIdentityOrigin } from "../lib/type-member-origin.ts";
 
 const CONTEXT_TAB_DEF = "ContextTabDef";
 const MESSAGE = "A context projection must explicitly name void or a type published by lib/registry-contracts.ts (O5 strict).";

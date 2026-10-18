@@ -18,9 +18,9 @@ import {
   resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
-  resolveTypePropertyOrigin,
-  resolveTypeValueOrigins,
-} from "../../../../tooling/src/verify/lib/type-member-origin.ts";
+} from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
+import { resolveTypePropertyOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin-core.ts";
+import { resolveTypeValueOrigins } from "../../../../tooling/src/floor/code-facts/type-member-origin-graph.ts";
 
 /** Test-only fail-fast tripwire for any expanding generic. A removed production recurrence boundary must
  *  fail an assertion rather than exhaust the test worker. This budget is not a production hop limit. */

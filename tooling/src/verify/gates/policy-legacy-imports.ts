@@ -133,13 +133,13 @@ import type { ExportDeclaration, ImportDeclaration, SourceFile, Node as TsNode, 
 import { Node, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import type { ModuleMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
+import { resolveTypeValueOrigins } from "../../floor/code-facts/type-member-origin-graph.ts";
 import type { GateContractKind } from "../contract/gate-corpus.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { TypeIdentityOrigin } from "../contract/type-member-origin.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "../lib/origin-verdict.ts";
 import { finalRegistrationOf, gateRegistrationOf } from "../lib/policy-descriptor-read.ts";
-import { resolveTypeValueOrigins } from "../lib/type-member-origin.ts";
 import { familyFixture, finalProbeModule, HARD_TRUNK } from "./_proof/policy-soundness.ts";
 
 const SELF = "tooling/src/verify/gates/policy-legacy-imports.ts";

@@ -20,7 +20,8 @@ import {
   resolveModuleMemberOrigin,
 } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
-import { MAX_RECEIVER_HOPS, uncastReceiver } from "../../floor/code-facts/type-member-origin-core.ts";
+import { declaredByAnyPackage, resolveTypeMemberOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { MAX_RECEIVER_HOPS, resolveTypePropertyOrigin, uncastReceiver } from "../../floor/code-facts/type-member-origin-core.ts";
 import type {
   GlobalOriginServices,
   MemberOriginServices,
@@ -30,7 +31,6 @@ import type {
 } from "../contract/origin-verdict.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { declaredByAnyPackage, resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "./type-member-origin.ts";
 
 /** The home a policy seals: one repo-relative file and the exported names it owns. */
 export interface ProjectHomeDeclaration {

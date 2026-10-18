@@ -80,7 +80,6 @@ function readNativeValueTransfer(call: CallExpression, context: DependencyContex
   ) {
     return { inputs: [read.value.receiver, ...call.getArguments()], declarations };
   }
-  // biome-ignore lint/complexity/noUselessUndefined: noImplicitReturns requires an explicit unsupported effect.
   return undefined;
 }
 

@@ -32,9 +32,9 @@
 // The legacy `owner-scoped-reads` descriptor (04978142566ff3412b204f73d849f0b9bf301154) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion.
 //
-// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents` for the
-// (a)-class set, `reportBlindWhenEmpty` for the zero-derivation refusal), plus `lib/tenancy-read.ts` for
-// the call SHAPES this member and its two write siblings ask about. All four members answer "which tables
+// FAMILY `tenancy-scope` — the class registry is `lib/tenancy-scope.ts` (`ownerScopedTableIdents` for the
+// (a)-class set); `lib/tenancy-scope-blind.ts` owns the zero-derivation refusal `reportBlindWhenEmpty`.
+// `lib/tenancy-read.ts` owns the call SHAPES this member and its two write siblings ask about. All four members answer "which tables
 // are ownerId-scoped" from the one registry, so the read half and the write half cannot disagree about
 // which table is even in scope — which is precisely how a cross-tenant hole hides.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
@@ -62,6 +62,7 @@ import { readPrototypeExposureCensus } from "../../floor/code-facts/reference-fa
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
+import { resolveTypeValueOrigins } from "../../floor/code-facts/type-member-origin-graph.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -86,11 +87,10 @@ import {
   foreignKeysBetween,
   membershipScopedTableIdents,
   ownerScopedTableIdents,
-  reportBlindWhenEmpty,
   schemaTableIndex,
   scopeParentsOfDerivedTables,
 } from "../lib/tenancy-scope.ts";
-import { resolveTypeValueOrigins } from "../lib/type-member-origin.ts";
+import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";
 
 const EVERY_OWNER_HOME = "/packages/contracts/src/workloads/execution.ts";

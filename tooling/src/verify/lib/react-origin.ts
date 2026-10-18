@@ -46,10 +46,10 @@ import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-
 import type { ImportSpecifier, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
+import { declaredByAnyPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { ReactExportFinding, ReactOriginVerdict } from "../contract/origin-verdict.ts";
 import type { GatePolicyVisitor } from "../contract/policy-primitives.ts";
 import { classifyOriginRefusal } from "./origin-verdict.ts";
-import { declaredByAnyPackage } from "./type-member-origin.ts";
 
 /** The module door React is authored as. A re-export shim keeps its OWN specifier, so the canonical
  *  target is what proves the origin; this is only the cheap first-pass filter and the external-door name. */

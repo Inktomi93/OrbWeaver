@@ -106,7 +106,6 @@ function supportingViewRefusal(input: ComponentTypeHomeInput): string | undefine
       return "Component supporting source belongs to a foreign declaration owner boundary.";
     }
   }
-  // biome-ignore lint/complexity/noUselessUndefined: noImplicitReturns requires an explicit refusal-free result.
   return undefined;
 }
 
@@ -190,7 +189,6 @@ function renderLeaves(raw: MorphNode, sources: ReadonlySet<SourceFile>, seen: Re
     const binding = resolveStableExpression(value);
     return binding.kind === "resolved" ? renderLeaves(binding.value, sources, visited) : undefined;
   }
-  // biome-ignore lint/complexity/noUselessUndefined: noImplicitReturns requires an explicit unsupported result.
   return undefined;
 }
 
@@ -775,6 +773,5 @@ function primitiveAttributeEvidence(
       }
     }
   }
-  // biome-ignore lint/complexity/noUselessUndefined: noImplicitReturns requires the unsupported result.
   return undefined;
 }

@@ -8,7 +8,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { terminalCall } from "../../floor/code-facts/schema-value.ts";
-import { observedTypeIdentityOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { declaredByPackage, observedTypeIdentityOrigin } from "../../floor/code-facts/type-member-origin.ts";
 import { observedTypePropertyOrigin } from "../../floor/code-facts/type-member-origin-core.ts";
 import type { ObservedReference } from "../../floor/code-facts/type-observations-contract.ts";
 import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
@@ -18,7 +18,6 @@ import type { TrpcOutputRead } from "../contract/trpc-output.ts";
 import { TRPC_OUTPUT_CHAIN_METHODS, TRPC_OUTPUT_ROOT } from "../contract/trpc-output.ts";
 import { unwrapExpression } from "../lib/ast-read.ts";
 import { nativeTrpcOutputRead } from "../lib/trpc-output-native.ts";
-import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { trpcOutputProof } from "./_proof/trpc-output.ts";
 
 const TRPC_SERVER = "@trpc/server";

@@ -121,15 +121,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/complexity/noUselessReturn` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-complexity-no-useless-undefined",
-    policyId: "suppressions",
-    subject: "lint/complexity/noUselessUndefined",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — the explicit undefined fallthrough satisfies TypeScript noImplicitReturns because sibling branches return values (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 4 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `lint/complexity/noUselessUndefined` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-complexity-use-max-params",
     policyId: "suppressions",
     subject: "lint/complexity/useMaxParams",
