@@ -34,6 +34,17 @@ export async function startFilmstripAuthFixture(scratch: string): Promise<{ read
   const logPath = join(scratch, "filmstrip-auth-fixture.log");
   await writeFile(script, SOURCE);
   const child = spawnNicedChild(process.execPath, [script, ready], { env: inheritedProcessEnv({ [AUTH_MODE_KEY]: "local" }), logPath });
+  await using lifetime = new AsyncDisposableStack();
+  lifetime.defer(async () => {
+    // This in-memory fixture has no shutdown work; completion, not signal delivery, releases its owner.
+    child.killGroup("SIGKILL");
+    for (let attempt = 0; attempt < READY_ATTEMPTS && !child.hasExited(); attempt += 1) {
+      await sleep(READY_POLL_MS);
+    }
+    if (!child.hasExited()) {
+      throw new Error("filmstrip auth fixture child did not exit after teardown");
+    }
+  });
   for (let attempt = 0; attempt < READY_ATTEMPTS && !existsSync(ready); attempt += 1) {
     if (child.hasExited()) {
       throw new Error(`filmstrip auth fixture exited during boot: ${readFileSync(logPath, "utf8")}`);
@@ -41,20 +52,16 @@ export async function startFilmstripAuthFixture(scratch: string): Promise<{ read
     await sleep(READY_POLL_MS);
   }
   if (!existsSync(ready)) {
-    child.killGroup("SIGKILL");
     throw new Error(`filmstrip auth fixture did not publish readiness: ${readFileSync(logPath, "utf8")}`);
   }
   const readiness: unknown = JSON.parse(await readFile(ready, "utf8"));
   const port = isPlainObject(readiness) ? readiness["port"] : undefined;
   if (typeof port !== "number") {
-    child.killGroup("SIGKILL");
     throw new Error(`filmstrip auth fixture published malformed readiness: ${JSON.stringify(readiness)}`);
   }
+  const owned = lifetime.move();
   return {
     base: `http://127.0.0.1:${String(port)}`,
-    close: async (): Promise<void> => {
-      child.killGroup("SIGTERM");
-      await sleep(READY_POLL_MS);
-    },
+    close: (): Promise<void> => owned.disposeAsync(),
   };
 }
