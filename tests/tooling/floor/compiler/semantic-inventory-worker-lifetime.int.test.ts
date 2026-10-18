@@ -3,8 +3,8 @@
 // A stopped controller must not leave its native inventory worker running. The worker is frozen with
 // SIGSTOP once it appears: that holds it mid-extraction and makes it a worker that cannot honor TERM.
 import { spawn } from "node:child_process";
-import { cpSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -106,7 +106,17 @@ function groupMembers(group: number): readonly number[] {
     .filter((pid) => processGroupId(pid) === group);
 }
 
-test("SIGTERM to the controller ends and joins a worker that ignores TERM", { timeout }, async ({ scratch, repoRoot }) => {
+// The worker's last argument is the request file inside the controller's scratch directory.
+function requestScratchOf(started: readonly number[]): string {
+  const worker = listProcesses().find(({ pid, cmdline }) => started.includes(pid) && cmdline.includes(WORKER_ENTRY) && !cmdline.includes(LAUNCHER_ENTRY));
+  const request = worker?.cmdline.split(" ").at(-1);
+  if (request === undefined) {
+    throw new Error("the frozen worker names no request file");
+  }
+  return dirname(request);
+}
+
+test("SIGTERM to the controller ends and joins a worker that ignores TERM and removes its scratch", { timeout }, async ({ scratch, repoRoot }) => {
   const planted = plantController(scratch, repoRoot);
   const controller = spawn(process.execPath, ["--import", planted.bootstrap, planted.entry], {
     cwd: planted.cwd,
@@ -121,8 +131,10 @@ test("SIGTERM to the controller ends and joins a worker that ignores TERM", { ti
   let started: readonly number[] = [];
   try {
     started = await freezeWorker(pid);
+    const requestScratch = requestScratchOf(started);
     controller.kill("SIGTERM");
     expect(await survivorsAfter(started), "every process the stopped controller started").toEqual([]);
+    expect(existsSync(requestScratch), "the stopped controller's worker scratch directory").toBe(false);
   } finally {
     reap([pid, ...started]);
   }

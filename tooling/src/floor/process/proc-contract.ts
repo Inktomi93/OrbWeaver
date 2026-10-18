@@ -68,8 +68,9 @@ export interface RunNicedSyncOptions extends CaptureCeilingOption {
   readonly timeout?: number;
   /** Run the child under the `niced-exec.ts` launcher, which stops and joins it if this caller dies. A
    *  caller blocked in a sync spawn runs no signal handler, so a long-lived, memory-heavy child needs this
-   *  or a SIGTERM to the caller orphans it. Costs one node start per call. */
-  readonly supervised?: boolean;
+   *  or a SIGTERM to the caller orphans it. Costs one node start per call. A `scratch` directory is the
+   *  caller's to remove; the launcher removes it instead when the caller dies, since its `finally` never runs. */
+  readonly supervised?: true | { readonly scratch: string };
 }
 
 export interface RunNicedSyncResult {

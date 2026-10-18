@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
-import { survivorsOfStoppedCaller, writeFreezingCaller } from "../../floor/process/stop-fixture.ts";
+import { stopFrozenCaller, writeFreezingCaller } from "../../floor/process/stop-fixture.ts";
 
 const COMPILER_WRAPPER = "scripts/ts7.ts";
 
@@ -26,5 +26,5 @@ test("SIGTERM to a typecheck run ends and joins its async compiler child", { tim
     `const {executeTypecheckPrograms}=await import(${JSON.stringify(typecheck)});
 await executeTypecheckPrograms(${JSON.stringify(subject)},null);`,
   );
-  expect(await survivorsOfStoppedCaller(caller, repoRoot), "every process the stopped typecheck run started").toEqual([]);
+  expect((await stopFrozenCaller(caller, repoRoot)).survivors, "every process the stopped typecheck run started").toEqual([]);
 });

@@ -1,13 +1,14 @@
 // The portable `nice`: lowers its own priority, then runs argv as its child. Package.json scripts, win32 sync
 // doors and supervised sync doors (`LAUNCHER_PARENT_ENV` set) launch it. A supervised launcher guards its
 // caller's pid and stops and joins the child if that caller dies, since a caller blocked in spawnSync cannot.
+import { rmSync } from "node:fs";
 import process from "node:process";
 import { pidAlive } from "../artifacts/run-retention.ts";
 import { EXIT } from "../cli/exit-contract.ts";
 import { spawnFullPriorityChild } from "./proc.ts";
 import { childExitCode } from "./proc-signals.ts";
 import { inheritedProcessEnv, processEnvValue } from "./process-env.ts";
-import { LAUNCHER_PARENT_ENV, lowerToolingPriority } from "./process-priority.ts";
+import { LAUNCHER_PARENT_ENV, LAUNCHER_SCRATCH_ENV, lowerToolingPriority } from "./process-priority.ts";
 import { escalateStop } from "./stop-escalation.ts";
 
 const PARENT_POLL_MS = 500;
@@ -46,15 +47,24 @@ function run(argv: readonly string[]): void {
     return;
   }
   const parent = supervisedParent();
+  const scratch = processEnvValue(LAUNCHER_SCRATCH_ENV);
+  // The caller's `finally` owns its scratch; once the caller is dead, nothing else will remove it.
+  const removeOrphanedScratch = (): void => {
+    if (parent !== undefined && scratch !== undefined && parentGone(parent)) {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  };
   if (parent !== undefined && parentGone(parent)) {
     process.stderr.write(`niced-exec: caller ${String(parent)} exited before ${cmd} started\n`);
     process.exitCode = EXIT.toolError;
+    removeOrphanedScratch();
     return;
   }
 
-  // A nested launcher in the child's tree must not guard this launcher's caller.
+  // A nested launcher in the child's tree must not guard this launcher's caller or its scratch.
   const env = inheritedProcessEnv();
   delete env[LAUNCHER_PARENT_ENV];
+  delete env[LAUNCHER_SCRATCH_ENV];
   // Not detached: a group kill aimed at this launcher (Ctrl-C, a stage timeout) must reach the child too.
   const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit", env });
 
@@ -98,6 +108,7 @@ function run(argv: readonly string[]): void {
     .wait()
     .then((exit) => {
       clearInterval(watch);
+      removeOrphanedScratch();
       if (exit.error !== undefined) {
         process.stderr.write(`niced-exec: spawn failed: ${cmd}: ${exit.error.message}\n`);
         process.exitCode = EXIT.toolError;

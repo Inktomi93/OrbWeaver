@@ -1,7 +1,7 @@
 // Stop a real caller while the child it launched is frozen, and report what outlived it. Linux only: the
 // in-caller watcher reads /proc, because a caller blocked in a sync spawn cannot observe its own child.
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { pidAlive } from "../../../../tooling/src/floor/artifacts/run-retention.ts";
 import { listProcesses } from "../../../../tooling/src/floor/host/platform.ts";
@@ -46,8 +46,15 @@ function descendantsOf(root: number): number[] {
   return found;
 }
 
-/** Run `caller`, SIGTERM it once its child is frozen, and return every process it started that survives. */
-export async function survivorsOfStoppedCaller(caller: string, cwd: string): Promise<readonly number[]> {
+export interface StoppedCaller {
+  /** Every process the caller started that is still alive after the whole escalation. */
+  readonly survivors: readonly number[];
+  /** The frozen child's argv, read before the stop. */
+  readonly frozenArgv: readonly string[];
+}
+
+/** Run `caller`, SIGTERM it once its child is frozen, and report what outlived it. */
+export async function stopFrozenCaller(caller: string, cwd: string): Promise<StoppedCaller> {
   const child = spawn(process.execPath, [caller], { cwd, stdio: ["ignore", "pipe", "ignore"], detached: true });
   const pid = child.pid;
   if (pid === undefined) {
@@ -55,21 +62,23 @@ export async function survivorsOfStoppedCaller(caller: string, cwd: string): Pro
   }
   let started: readonly number[] = [];
   try {
-    await new Promise<void>((resolve, reject) => {
+    const frozen = await new Promise<number>((resolve, reject) => {
       let output = "";
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
         output += chunk;
-        if (FROZEN_LINE.test(output)) {
-          resolve();
+        const match = FROZEN_LINE.exec(output);
+        if (match?.[1] !== undefined) {
+          resolve(Number(match[1]));
         }
       });
       child.once("exit", (code, signal) => reject(new Error(`the caller exited (${String(code ?? signal)}) before its child was frozen`)));
     });
+    const frozenArgv = readFileSync(`/proc/${String(frozen)}/cmdline`, "utf8").split("\0");
     started = descendantsOf(pid);
     child.kill("SIGTERM");
     await settle(() => !started.some(pidAlive), ESCALATION_BASE_MS);
-    return started.filter(pidAlive);
+    return { survivors: started.filter(pidAlive), frozenArgv };
   } finally {
     for (const survivor of [pid, ...started].filter(pidAlive)) {
       process.kill(survivor, "SIGKILL");

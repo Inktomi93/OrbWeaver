@@ -109,9 +109,10 @@ const DEFAULT_TIMEOUT_BASE_MS = 120_000;
  *  field's own note in ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const supervised = opts.supervised === true;
+  const supervised = opts.supervised !== undefined;
+  const scratch = typeof opts.supervised === "object" ? opts.supervised.scratch : undefined;
   const niced = supervised ? launcherCommand(cmd, args) : nicedCommand(cmd, args);
-  const env = supervised ? supervisedEnv(opts.env) : opts.env;
+  const env = supervised ? supervisedEnv(opts.env, scratch) : opts.env;
   const res = DOORS.spawnSync(niced.command, niced.args, {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(env === undefined ? {} : { env }),

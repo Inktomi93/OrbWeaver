@@ -70,3 +70,34 @@ Related:
   wrapper", which checks exit semantics through the launcher. One cold-start case timed out at 32 s at load
   average 20 and passed alone at 23 s once load dropped.
 - `pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome: clean.
+
+## 1065: scratch left by a killed caller
+
+The supervised launcher owns the cleanup. `runNicedSync`'s `supervised` option now also takes
+`{ scratch }`, and the path travels in `ORB_LAUNCHER_SCRATCH` next to the guarded pid. The launcher
+removes that directory only if the caller is dead: after joining the child, or at boot when the caller is
+already gone. A live caller's own `finally` still owns the removal. The launcher strips the key from its
+child's environment. Two callers use it:
+- the inventory request directory (`semantic-inventory-worker-run.ts`);
+- the ESLint arguments directory under `.cache/eslint/argv-*` (`eslint-profile.ts`), the same leak in
+  the 1063 path.
+
+The window left uncovered is a caller killed between `mkdtemp` and the spawn, which takes microseconds.
+
+Tests: the 1055 lifetime SIGTERM case and the 1063 ESLint stop case now also assert the directory is gone.
+
+Red (fix reverse-applied):
+
+```
+   × SIGTERM to a scoped ESLint run ends and joins its native worker and removes its arguments 38477ms
+   × SIGTERM to the controller ends and joins a worker that ignores TERM and removes its scratch 20205ms
+AssertionError: the stopped controller's worker scratch directory: expected true to be false
+AssertionError: the stopped run's arguments directory: expected true to be false
+```
+
+Green: 9 files and 53 tests pass. They are the lifetime test (3), eslint-stop, typecheck-stop,
+niced-exec.int, process-priority.int, proc, proc.int, proc-signals and semantic-inventory-worker-run.int.
+`pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome on the 10 changed files: clean.
+
+Not cleaned: 37 older `/tmp/orb-native-inventory-worker-*` directories on this host from earlier killed
+runs. Their owners can't be attributed, so they were left in place.
