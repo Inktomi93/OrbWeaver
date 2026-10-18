@@ -439,6 +439,73 @@ test("custom declaration owners delegate only covered server alias/interface pop
   }
 });
 
+test("inherited native signatures preserve selected projected contribution and reject opposite, unknown, ambiguous or other formals in both realms", ({
+  scratch,
+}) => {
+  const path = join(scratch, "conditional.ts");
+  const text = `interface Env {Variables:{readonly value:string}}
+interface AmbiguousEnv {Variables:Record<string,any>}
+type IsAny<T>=0 extends (1&T)?true:false;
+interface Empty {}
+class Selected<T extends {Variables:object}>{readonly value!:Readonly<Empty & (IsAny<T["Variables"]> extends true ? Record<string,any> : T["Variables"])>}
+class Opposite<T extends {Variables:object}>{readonly value!:Readonly<Empty & (T["Variables"] extends string ? T["Variables"] : Record<string,any>)>}
+class Unreadable<T extends {Variables:object}>{readonly value!:(T["Variables"] extends object ? unknown : T["Variables"])}
+class Outer<T extends {Variables:object},U>{readonly value!:(T["Variables"] extends string ? T["Variables"] : U)}
+interface Bound {Bindings?:object;Variables?:object}
+class ContextCarrier<E extends Bound>{readonly vars!:Readonly<Empty & (IsAny<E["Variables"]> extends true ? Record<string,any> : E["Variables"])>}
+type FailureHandler<E extends Bound>=(error:Error,context:ContextCarrier<E>)=>void;
+class HandlerBase<E extends Bound>{onError(handler:FailureHandler<E>):this{return this}}
+class InheritedHandler<E extends Bound> extends HandlerBase<E>{}
+type HandlerPositive=HandlerBase<Env>;
+type InheritedPositive=InheritedHandler<Env>;
+type Positive=Selected<Env>;
+type Negative=Opposite<Env>;
+type Unknown=Unreadable<Env>;
+type Ambiguous=Selected<AmbiguousEnv>;
+type OtherFormal=Outer<Env,Env["Variables"]>;
+`;
+  writeFileSync(path, text);
+  const program = ts.createProgram([path], { strict: true, types: [], target: ts.ScriptTarget.ES2022, lib: ["lib.es2022.d.ts"] });
+  const source = program.getSourceFile(path);
+  if (source === undefined) {
+    throw new Error("conditional native source missing");
+  }
+  const parser = { kind: "parser" as const, program, source, checker: program.getTypeChecker() };
+  const project = new Project({ useInMemoryFileSystem: true });
+  const morphSource = project.createSourceFile(path, text);
+  const morphProgram = project.getProgram().compilerObject;
+  const observations: (readonly [string, boolean, boolean])[] = [];
+  for (const [name, expected] of [
+    ["HandlerPositive", true],
+    ["InheritedPositive", true],
+    ["Positive", true],
+    ["Negative", false],
+    ["Unknown", false],
+    ["Ambiguous", false],
+    ["OtherFormal", false],
+  ] as const) {
+    const alias = declaredShape(source, name);
+    if (!(ts.isTypeAliasDeclaration(alias) && ts.isTypeReferenceNode(alias.type))) {
+      throw new Error("conditional native reference missing");
+    }
+    const argument = alias.type.typeArguments?.[0];
+    if (argument === undefined || !ts.isTypeReferenceNode(argument) || !ts.isIdentifier(argument.typeName)) {
+      throw new Error("conditional binding missing");
+    }
+    const native = readParserGenericArgumentContribution({ reference: alias.type, argument, binding: argument.typeName, parser });
+    observations.push([`parser/${name}`, native.kind === "resolved" && native.value.contributes, expected]);
+    const reference = morphSource.getTypeAliasOrThrow(name).getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeReference);
+    const supplied = reference.getTypeArguments()[0];
+    if (supplied === undefined) {
+      throw new Error("conditional Morph argument missing");
+    }
+    const binding = supplied.asKindOrThrow(SyntaxKind.TypeReference).getTypeName();
+    const morph = readNativeGenericArgumentContribution({ reference, argument: supplied, binding, program: morphProgram, source: morphSource.compilerNode });
+    observations.push([`Morph/${name}`, morph.kind === "resolved" && morph.value.contributes, expected]);
+  }
+  expect(observations.map(([name, actual]) => [name, actual])).toEqual(observations.map(([name, , expected]) => [name, expected]));
+});
+
 test("native indexed and mapped projections qualify while installed Hono retains refusal and erased or transformed mappings grant no ownership", ({
   scratch,
   repoRoot,
