@@ -17,7 +17,7 @@
 // 2026-08-02) — `actionsReserved`, so the cluster stays IN FLOW and the row's layout is identical at rest
 // and on hover. Three defects died with the old shape:
 //   · the P0 HOVER LOOP — the pressed state used to paint as a title-line "Active" Badge that
-//     `display:none`d itself on hover (`ROW_REVEAL_SWAP`). That reflowed the title line UNDER a stationary
+//     `display:none`d itself on hover. That reflowed the title line UNDER a stationary
 //     pointer, so the hover boundary slid across the cursor and the row re-hit-tested at frame rate
 //     (~85 crossings/sec measured, zero DOM mutations). Nothing on this row enters or leaves layout now:
 //     the toggle is permanently mounted and reveal is opacity-only.

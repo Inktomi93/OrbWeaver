@@ -178,12 +178,12 @@ export function CharacterCardTile({
  *  paints two stars. `undefined` when the row is in neither state: the slot is data-driven, never an empty
  *  reserved box.
  *
- *  COARSE KEEPS THE MARKER (#1695, the coupled half of the collapse below). Plain `ROW_REVEAL_SWAP` computes
- *  `display:none` at a coarse pointer on one premise: that the toggle carrying the same datum is permanently
- *  visible there. `ROW_ACTION_INLINE` on that toggle DELETES the premise — it stands down and its datum moves
- *  into a CLOSED menu — so the swap is hover-only here and coarse keeps the ★ permanently. Without this the
- *  measured result is a starred row with no star anywhere on it (proven on the chats roster, which is why
- *  `ROW_REVEAL_SWAP_COARSE_KEEP` exists). */
+ *  COARSE KEEPS THE MARKER (#1695, the coupled half of the collapse below). Hiding the marker at a coarse
+ *  pointer would rest on one premise: that the toggle carrying the same datum is permanently visible there.
+ *  `ROW_ACTION_INLINE` on that toggle DELETES the premise — it stands down and its datum moves into a CLOSED
+ *  menu — so the swap is hover-only (`ROW_REVEAL_SWAP_COARSE_KEEP`) and coarse keeps the ★ permanently.
+ *  Without this the measured result is a starred row with no star anywhere on it (proven on the chats
+ *  roster). */
 function rowMarkers(character: Pick<CharacterCardItem, "archived" | "starred">): ReactNode {
   if (!(character.archived || character.starred)) {
     return;

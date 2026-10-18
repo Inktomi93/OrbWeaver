@@ -20,7 +20,7 @@ export const listRowVariants = tv({
     // `group/row` is the ROW-WIDE reveal group — NAMED because `body` below is itself an (unnamed) group, so
     // a marker living inside the content column can only key on the whole row's hover/focus-within through a
     // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
-    // carries the same datum (`ROW_REVEAL_SWAP`) instead of both painting at once.
+    // carries the same datum (the client's `ROW_REVEAL_SWAP_COARSE_KEEP`) instead of both painting at once.
     // BOTH group spellings are load-bearing: `group/row` drives the named marker swaps below, while the
     // client-shared ROW_REVEAL posture and this variant's floated-action hit-test arm use the unnamed
     // `group-hover` / `group-focus-within` selectors. Dropping the unnamed group leaves the action painted

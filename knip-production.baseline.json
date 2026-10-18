@@ -1,9 +1,5 @@
 [
   "[\"exports\",\"packages/client/src/agent-nav/index.ts\",\"\",\"resolveConfigTarget\"]",
-  "[\"exports\",\"packages/client/src/components/index.ts\",\"\",\"ListPaneHeader\"]",
-  "[\"exports\",\"packages/client/src/components/index.ts\",\"\",\"SettingRowDevActions\"]",
-  "[\"exports\",\"packages/client/src/components/index.ts\",\"\",\"SettingRowResetAction\"]",
-  "[\"exports\",\"packages/client/src/components/row-reveal.ts\",\"\",\"ROW_REVEAL_SWAP\"]",
   "[\"exports\",\"packages/client/src/components/setting-row-actions.tsx\",\"\",\"SettingRowDevActions\"]",
   "[\"exports\",\"packages/client/src/components/setting-row-actions.tsx\",\"\",\"SettingRowResetAction\"]",
   "[\"exports\",\"packages/client/src/compose/index.ts\",\"\",\"characterDetailContributors\"]",
