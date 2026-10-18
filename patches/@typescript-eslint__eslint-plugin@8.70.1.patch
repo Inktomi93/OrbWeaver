@@ -1,0 +1,53 @@
+diff --git a/dist/rules/consistent-type-assertions.js b/dist/rules/consistent-type-assertions.js
+--- a/dist/rules/consistent-type-assertions.js
++++ b/dist/rules/consistent-type-assertions.js
+@@ -196,10 +196,20 @@
+                 (node.parent.type === utils_1.AST_NODE_TYPES.TemplateLiteral &&
+                     node.parent.parent.type === utils_1.AST_NODE_TYPES.TaggedTemplateExpression));
+         }
++        function literalOperand(node) {
++            let expression = node.expression;
++            while (expression.type === utils_1.AST_NODE_TYPES.TSAsExpression ||
++                expression.type === utils_1.AST_NODE_TYPES.TSTypeAssertion ||
++                expression.type === utils_1.AST_NODE_TYPES.TSSatisfiesExpression ||
++                expression.type === utils_1.AST_NODE_TYPES.TSNonNullExpression) {
++                expression = expression.expression;
++            }
++            return expression;
++        }
+         function checkExpressionForObjectAssertion(node) {
+             if (options.assertionStyle === 'never' ||
+                 options.objectLiteralTypeAssertions === 'allow' ||
+-                node.expression.type !== utils_1.AST_NODE_TYPES.ObjectExpression) {
++                literalOperand(node).type !== utils_1.AST_NODE_TYPES.ObjectExpression) {
+                 return;
+             }
+             if (options.objectLiteralTypeAssertions === 'allow-as-parameter' &&
+@@ -218,7 +228,7 @@
+         function checkExpressionForArrayAssertion(node) {
+             if (options.assertionStyle === 'never' ||
+                 options.arrayLiteralTypeAssertions === 'allow' ||
+-                node.expression.type !== utils_1.AST_NODE_TYPES.ArrayExpression) {
++                literalOperand(node).type !== utils_1.AST_NODE_TYPES.ArrayExpression) {
+                 return;
+             }
+             if (options.arrayLiteralTypeAssertions === 'allow-as-parameter' &&
+diff --git a/dist/rules/no-unsafe-type-assertion.js b/dist/rules/no-unsafe-type-assertion.js
+--- a/dist/rules/no-unsafe-type-assertion.js
++++ b/dist/rules/no-unsafe-type-assertion.js
+@@ -108,14 +108,7 @@
+             const expressionWidenedType = isObjectLiteralType(expressionType)
+                 ? checker.getWidenedType(expressionType)
+                 : expressionType;
+-            let isAssertionSafe;
+-            try {
+-                isAssertionSafe = checker.isTypeAssignableTo(expressionWidenedType, assertedType);
+-            }
+-            catch {
+-                // workaround for https://github.com/microsoft/TypeScript/issues/62933
+-                return;
+-            }
++            const isAssertionSafe = checker.isTypeAssignableTo(expressionWidenedType, assertedType);
+             if (isAssertionSafe) {
+                 return;
+             }

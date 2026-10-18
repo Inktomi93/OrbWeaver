@@ -173,7 +173,12 @@ import {
   TOOLING_IMPORT_GLOBS,
   TOOLING_ROOT_CONFIG_IMPORT_RULE,
 } from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
-import { TYPED_NATIVE_POLICIES, typedNativeCompilerContext, typedNativeInputPaths } from "./tooling/src/verify/lib/typed-native-inputs.ts";
+import {
+  TYPED_NATIVE_POLICIES,
+  typedNativeCompilerContext,
+  typedNativeInputIdentity,
+  typedNativeInputPaths,
+} from "./tooling/src/verify/lib/typed-native-inputs.ts";
 import { waivableCoordinate } from "./tooling/src/verify/lib/waivable-coordinate.ts";
 import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
 
@@ -1222,6 +1227,22 @@ const PROTOTYPE_MUTATION_SELECTORS = [
 ];
 
 const RESTRICTIONS = [
+  {
+    id: "no-test-fabrication",
+    scope: ["tests/**/*.{ts,tsx}"],
+    notUnder: [`${LEGACY_TEST_ROOT}/**`],
+    homes: [],
+    selectors: [
+      {
+        selector: "TSAsExpression[typeAnnotation.type='TSAnyKeyword']",
+        message: "An assertion to any erases the test contract; build a real value or keep deliberate invalid-input evidence beside its boundary.",
+      },
+      {
+        selector: "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']",
+        message: "An unknown double cast fabricates the target contract; build a real value or narrow it instead (D325).",
+      },
+    ],
+  },
   {
     id: "no-prototype-mutation",
     scope: MAINTAINED_GLOBAL_SURFACES.flatMap(({ files }) => files),
@@ -3762,7 +3783,7 @@ const brandNamePositionRule = {
   },
 };
 
-const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES;
+const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId }) => ruleId.startsWith("orb/"));
 
 const restrictionPlugin = {
   rules: {
@@ -3817,6 +3838,22 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
   },
 };
+function typedNativeSettings(entry) {
+  return {
+    [`orb/typed-native-inputs/${entry.id}`]: createHash("sha256")
+      .update(typedNativeInputIdentity(entry, NATIVE_TYPED_COMPILER_CONTEXT.identity))
+      .update(
+        JSON.stringify(
+          typedNativeInputPaths(entry, AUTHORED_NATIVE_INPUT_PATHS, ROOT, NATIVE_TYPED_COMPILER_CONTEXT.configs).map((path) => [
+            path,
+            readFileSync(join(ROOT, path), "utf8"),
+          ]),
+        ),
+      )
+      .digest("hex"),
+  };
+}
+
 const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS].map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
   const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
   return {
@@ -3830,21 +3867,7 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
     ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
     ...(TYPED_NATIVE_POLICIES.some((entry) => entry.id === id)
       ? {
-          settings: {
-            [`orb/typed-native-inputs/${id}`]: createHash("sha256")
-              .update(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id).declarationPackage === undefined ? "" : NATIVE_TYPED_COMPILER_CONTEXT.identity)
-              .update(
-                JSON.stringify(
-                  typedNativeInputPaths(
-                    TYPED_NATIVE_POLICIES.find((entry) => entry.id === id),
-                    AUTHORED_NATIVE_INPUT_PATHS,
-                    ROOT,
-                    NATIVE_TYPED_COMPILER_CONTEXT.configs,
-                  ).map((path) => [path, readFileSync(join(ROOT, path), "utf8")]),
-                ),
-              )
-              .digest("hex"),
-          },
+          settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id)),
         }
       : {}),
     ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
@@ -3965,10 +3988,7 @@ const STANDARD_CONFIG = tseslint.config(
     },
   },
   {
-    // Syntactic parser for the browser component tests. These live under tests/ (owned by the ui /
-    // client package tsconfigs via reach-back includes), so projectService's upward search lands on
-    // the root tsconfig — which EXCLUDES them. react-hooks rules are syntactic (no type info needed),
-    // so parse without projectService. (no-deprecated stays off here — shipped-source-only above.)
+    // JSX syntax options compose with the maintained-test owning Programs below.
     files: CT_SURFACE,
     languageOptions: {
       parser: tseslint.parser,
@@ -4013,9 +4033,8 @@ const STANDARD_CONFIG = tseslint.config(
     // structurally cannot see a dropped/misused Promise. Uniform across the WHOLE type-aware surface
     // (server/kit/db/contracts AND ui/client) — an unawaited server db-write/bus-emit is the highest-value
     // catch, not just a frontend concern. Measured 2026-07-04 on the current tree: no-floating-promises 0,
-    // no-misused-promises 0, require-await 0, await-thenable 0 (zero false-positive cost). NOT reached by
-    // the CT_SURFACE blocks (syntactic parser, no program) — .ct.tsx/_ct-stories parse without type info,
-    // so these skip test files, which is correct. (`await-thenable` was adopted once the db-layer seam was
+    // no-misused-promises 0, require-await 0, await-thenable 0 (zero false-positive cost). These rules remain shipped-source-only;
+    // maintained tests receive their own native policies. (`await-thenable` was adopted once the db-layer seam was
     // fixed: the 3 standalone-run sites returning `BatchStmt` — which erases the drizzle builder's
     // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/query`: `BatchStmt & PromiseLike<T>`), so the
     // bare `await` is type-honest; `BatchStmt` stays the erased multi-table batch-INPUT type.)
@@ -4056,16 +4075,8 @@ const STANDARD_CONFIG = tseslint.config(
     },
   },
   {
-    // THE ESCAPEE PARSER (#473, widened #1231). `projectService` cannot serve the test tree at all: it
-    // searches UPWARD from a file, lands on the root tsconfig, and a file in that config's `exclude` then
-    // answers "was not found by the project service" — silently, as a PARSE error, so the file is linted by
-    // NOTHING. The root excludes 22 files under tests/** plus three whole trees, spread across
-    // tests/support, tests/tooling AND tests/server, so EVERY test tree carrying an escapee is parsed here
-    // instead, with all three owning programs handed over at once (TEST_TREE_PROJECTS). Measured on the
-    // full 22-file escapee census: 9 parse errors before this block covered them, 0 after.
-    // Note the whole DIRECTORY rides the array, never a filename list: tests-dom's include set moves, and a
-    // copy of it here would rot silently into exactly the unlinted-file gap this block exists to close.
-    files: [...TESTS_DOM_OWNED, TOOLING_TESTS, ...NODE_TEST_DIRS],
+    // Test worlds overlap; the parser selects the actual owner instead of upward project-service discovery.
+    files: rootSources("@tests"),
     ignores: [LEGACY_TEST_LINT_GLOB],
     languageOptions: {
       parser: tseslint.parser,
@@ -4076,6 +4087,24 @@ const STANDARD_CONFIG = tseslint.config(
       // whole file goes unlinted exactly like the gap this block closes.
       parserOptions: { project: TEST_TREE_PROJECTS, projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: [LEGACY_TEST_LINT_GLOB],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "as", objectLiteralTypeAssertions: "never", arrayLiteralTypeAssertions: "never" },
+      ],
+    },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: [LEGACY_TEST_LINT_GLOB, TOOLING_TESTS],
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find(({ ruleId }) => ruleId === "@typescript-eslint/no-unsafe-type-assertion")),
+    rules: { "@typescript-eslint/no-unsafe-type-assertion": "error" },
   },
   {
     // Root, package-root, and direct scripts/ TypeScript files are Node-executed build/config tools.
@@ -4543,6 +4572,9 @@ const ORDINARY_CONFIG = [
   ...FILE_SIZE_BLOCKS,
   ...STANDARD_CONFIG.map((block) =>
     block.rules === undefined ||
+    Object.hasOwn(block.rules, "orb/no-test-fabrication") ||
+    Object.hasOwn(block.rules, "@typescript-eslint/consistent-type-assertions") ||
+    Object.hasOwn(block.rules, "@typescript-eslint/no-unsafe-type-assertion") ||
     [
       ...INFRA_AUTH_RESTRICTIONS,
       ...CLASS_RESTRICTIONS,

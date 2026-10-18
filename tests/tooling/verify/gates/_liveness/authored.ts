@@ -16,7 +16,6 @@ import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/
 
 import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
-import { gate as noTestFabrication } from "../../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 
@@ -76,11 +75,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       add("packages/server/src/liveness-axis-respell.ts", "export interface LivenessRespell { mode: 'a' | 'b' | 'c' }\n"),
     ],
     messageIncludes: "re-spells the canonical tuple",
-  },
-  {
-    policy: noTestFabrication,
-    overlays: [add("tests/tooling/liveness-fabrication.test.ts", "declare const source: unknown;\nexport const value = source as any;\n")],
-    messageIncludes: "as any",
   },
   {
     policy: persistenceNoInMemoryState,

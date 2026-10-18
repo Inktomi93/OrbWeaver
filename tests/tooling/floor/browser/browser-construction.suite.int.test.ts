@@ -17,7 +17,7 @@ import type { CapturedConsole, ProbeAttachOptions, ProbeContext, ProbeLaunchOpti
 import { instrumentPageError } from "@orb/tooling/floor/browser/browser-contract";
 import { resolveBrowserEnvironmentContract } from "@orb/tooling/floor/browser/browser-environment";
 import { resolveProbeMedia } from "@orb/tooling/floor/browser/browser-media";
-import type { Browser, BrowserContext, Page } from "@playwright/test";
+import type { Browser, BrowserContext } from "@playwright/test";
 import { vi } from "vitest";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -118,42 +118,47 @@ async function closeOrigin(server: Server): Promise<void> {
 test("probeContext and probeSession preserve the complete shared projection, live getter, owned flag, and cleanup", async () => {
   const opts = launchOptions();
   const capture = createPageCapture(resolveProbeMedia(opts), 7);
-  const closeContext = vi.fn(async () => undefined);
-  const closeBrowser = vi.fn(async () => undefined);
+  const owner = await launchProbeSession(opts);
+  const browser = owner.browser;
+  const contextHandle = owner.context;
+  const page = owner.page;
+  const closeContext = vi.spyOn(contextHandle, "close");
+  const closeBrowser = vi.spyOn(browser, "close");
   const cleanup = vi.fn(async () => undefined);
-  // @orb-waive no-test-fabrication(unknown): Browser has no public constructor; probeSession reads only close on this focused Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // projection/cleanup path. Ends when probeSession accepts a structural close handle or this uses a real browser.
-  const browser = { close: closeBrowser } as unknown as Browser;
-  // @orb-waive no-test-fabrication(unknown): BrowserContext has no public constructor; closeProbeSession reads only close on this Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // focused projection/cleanup path. Ends when ProbeContext accepts a structural close handle or this uses a real context.
-  const contextHandle = { close: closeContext } as unknown as BrowserContext;
-  // @orb-waive no-test-fabrication(Page): Page has no public constructor and this projection test compares only handle identity; Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // no Page member is read. Ends when the projection contract accepts an opaque page identity or this uses a real page.
-  const page = {} as Page;
-  const environmentContract = resolveBrowserEnvironmentContract(opts, null);
-  const context = probeContext({
-    context: contextHandle,
-    pages: [page],
-    capture,
-    settingsEvidence: NULL_SETTINGS,
-    environmentContract,
-    owned: true,
-  });
-  const contexts = [context];
-  const session = probeSession(browser, context, contexts, [cleanup]);
+  let closed = false;
+  try {
+    const environmentContract = resolveBrowserEnvironmentContract(opts, null);
+    const context = probeContext({
+      context: contextHandle,
+      pages: [page],
+      capture,
+      settingsEvidence: NULL_SETTINGS,
+      environmentContract,
+      owned: true,
+    });
+    const contexts = [context];
+    const session = probeSession(browser, context, contexts, [cleanup]);
 
-  expectContextProjection(context, true);
-  expect(context.context).toBe(contextHandle);
-  expect(context.pages).toEqual([page]);
-  expect(context.environmentContract).toBe(environmentContract);
-  expectSessionProjection(session, browser, context, contexts);
-  expect(session.cleanup).toEqual([cleanup]);
-  plantConsole(context, session, "builder-live-getter");
+    expectContextProjection(context, true);
+    expect(context.context).toBe(contextHandle);
+    expect(context.pages).toEqual([page]);
+    expect(context.environmentContract).toBe(environmentContract);
+    expectSessionProjection(session, browser, context, contexts);
+    expect(session.cleanup).toEqual([cleanup]);
+    plantConsole(context, session, "builder-live-getter");
 
-  await closeProbeSession(session);
-  expect(closeContext).toHaveBeenCalledOnce();
-  expect(closeBrowser).toHaveBeenCalledOnce();
-  expect(cleanup).toHaveBeenCalledOnce();
+    await closeProbeSession(session);
+    closed = true;
+    expect(closeContext).toHaveBeenCalledOnce();
+    expect(closeBrowser).toHaveBeenCalledOnce();
+    expect(cleanup).toHaveBeenCalledOnce();
+  } finally {
+    closeContext.mockRestore();
+    closeBrowser.mockRestore();
+    if (!closed) {
+      await closeProbeSession(owner);
+    }
+  }
 });
 
 test("launch, buildProbeContext, and probeSessionForContext preserve selection and the shared evidence contract", async () => {

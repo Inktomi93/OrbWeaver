@@ -25,7 +25,6 @@ import type {
 import {
   assertInvocationEvidence,
   callableDeclarationSchema,
-  castRelationResultSchema,
   computedNameSchema,
   drizzleQueryKey,
   drizzleSchemas,
@@ -841,32 +840,6 @@ function assertReferenceSpans(db: DatabaseSync, id: string, spans: readonly Inve
     ) {
       throw new SemanticInventoryError("native reference span is outside its captured native closure");
     }
-  }
-}
-
-/** One scalar native cast result; missing rows remain unavailable to the contextual reader. */
-export function* readInventoryCasts(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["casts"][number]> {
-  requireInventoryFamily(db, id, "cast-relations");
-  const filter = node === undefined ? "" : " AND s.file=? AND s.start=? AND s.end=? AND s.kind=?";
-  const values: SQLInputValue[] = node === undefined ? [id] : [id, inventoryString(node.file), node.start, node.end, node.kind];
-  for (const row of db
-    .prepare(
-      `SELECT s.file,s.start,s.end,s.kind,c.leftToRight,c.rightToLeft,c.leftIsAny,c.rightIsAny,c.reason FROM inventory_cast c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=?${filter} ORDER BY c.ordinal`,
-    )
-    .iterate(...values)) {
-    const result =
-      row["reason"] === null
-        ? {
-            kind: "resolved",
-            value: {
-              leftToRight: boolean.parse(row["leftToRight"]),
-              rightToLeft: boolean.parse(row["rightToLeft"]),
-              leftIsAny: boolean.parse(row["leftIsAny"]),
-              rightIsAny: boolean.parse(row["rightIsAny"]),
-            },
-          }
-        : { kind: "unavailable", reason: row["reason"] };
-    yield { node: spanRow.parse(row), result: castRelationResultSchema.parse(result) };
   }
 }
 

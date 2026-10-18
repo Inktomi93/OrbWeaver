@@ -28,22 +28,11 @@
 //     states it rather than pretending otherwise; closing it needs a reader that can tell a discarded
 //     result from a consumed one, which is a different subject.
 //
-// WHAT `no-test-fabrication` OWNS AND THIS POLICY DOES NOT, stated with `file:line` because overlapping
-// two policies over one subject is how a double report gets shipped (#1625). `no-test-fabrication.ts:47-54`
-// declares `population: { in: ["@authored"], under: ["tests/**"] }`, `analysis: "syntax"`, and its subject
-// is the CAST EXPRESSION: `doubleCastAnchor` (`:33-36`) reports `X as unknown as Y` and `literalCastAnchor`
-// (`:38-45`) reports an object/array literal asserted `as Y`, with `NON_FABRICATING_CAST_TARGETS` (`:21`)
-// excluding `as const`/`as any`/`as unknown`. THAT POPULATION ALREADY CONTAINS EVERY FIXTURE MODULE — every
-// `fixtures.ts` and every `support/**` helper on the tree is under `tests/` (re-derived 2026-09-19 by
-// `git ls-files`: 57 `fixtures.ts(x)` modules, all under `tests/`) — so a double cast INSIDE a fixture
-// helper body is already judged there and is deliberately NOT an arm here. The #1630 re-cut predicted that
-// cast would be the case `no-test-fabrication` misses; on today's tree it is not, and adding it would ship
-// the duplicate report rather than a catch. What that policy structurally cannot see is the shape with NO
-// CAST AT ALL: a declared or inferred `unknown` return, which is this policy's whole subject.
+// Native assertion rules judge cast expressions in maintained tests; they do not judge fixture export types.
+// D325 exempts tooling only from value narrowing, not any, double or literal assertions. Explicit raw
+// `as unknown` boundaries remain legal, so declared or inferred unknown exports still need this owner.
 //
-// FAMILY: singleton — no other policy judges a fixture module's declared export types, and this one shares
-// no `lib/` reader with `no-test-fabrication` (that policy reads cast expressions through `lib/ast-read.ts`
-// and `lib/waivable-coordinate.ts`; a shared PRIMITIVE is not a family).
+// FAMILY: singleton — native assertion rules share no declaration-output reader with this policy.
 //
 // POPULATION: new policy, no legacy predecessor. `@tests` fenced by `under` to the two homes a fixture
 // module actually lives in — a `support/**` directory at any depth, and the `fixtures.ts` / `*.fixtures.ts`
@@ -190,7 +179,7 @@ export const gate = defineGate({
         "tests/support/rpg.fixtures.ts": 'export function makeGame() {\n  return JSON.parse("{}") as unknown;\n}\n',
       },
       expect: { count: 1, token: "makeGame" },
-      why: 'AN INFERRED `unknown` with NO ANNOTATION TO POINT AT — the case the re-cut calls "declared or inferred". There is no type node, so the finding anchors on the declaration NAME, which is the only authored slice that exists. `no-test-fabrication` does not judge this either: its `NON_FABRICATING_CAST_TARGETS` (`no-test-fabrication.ts:21`) deliberately excludes a bare `as unknown`',
+      why: "An inferred unknown has no return annotation, so the finding anchors on the declaration name. Native assertion rules permit an explicit as-unknown raw boundary; the exported opaque type remains this declaration owner's separate subject.",
     },
   ],
   mustPass: [

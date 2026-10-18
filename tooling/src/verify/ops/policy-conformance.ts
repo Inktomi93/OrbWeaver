@@ -9,7 +9,6 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
-import { readAssignabilityChecker, readNativeTypeRelation } from "../../floor/code-facts/assignability.ts";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { readDrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence.ts";
 import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
@@ -769,13 +768,6 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       },
       prepareShapes: (requested): void => {
         checkerFor(requested);
-      },
-      castRelations: (nodes): ReturnType<NativeTypeFactReader["castRelations"]> => {
-        const checker = readAssignabilityChecker(checkerFor(nodes));
-        if (checker === undefined) {
-          throw new Error("isolated type proof checker epoch is unavailable");
-        }
-        return new Map(nodes.map((node) => [node, readNativeTypeRelation(checker, node.getExpression().getType(), node.getType())]));
       },
       idBrands: (nodes): ReturnType<NativeTypeFactReader["idBrands"]> => {
         const checker = checkerFor(nodes);

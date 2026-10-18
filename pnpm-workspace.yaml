@@ -541,6 +541,7 @@ patchedDependencies:
   '@stryker-mutator/core@10.0.0': patches/@stryker-mutator__core@10.0.0.patch
   '@stryker-mutator/typescript-checker@10.0.0': patches/@stryker-mutator__typescript-checker@10.0.0.patch
   '@ts-morph/common@0.29.0': patches/@ts-morph__common@0.29.0.patch
+  '@typescript-eslint/eslint-plugin@8.70.1': patches/@typescript-eslint__eslint-plugin@8.70.1.patch
   node-av@6.1.1: patches/node-av@6.1.1.patch
   chrome-devtools-mcp@1.8.0: patches/chrome-devtools-mcp@1.8.0.patch
   # #0081: clone packs are attacker-controlled. This exact-version patch bounds object count, declared and

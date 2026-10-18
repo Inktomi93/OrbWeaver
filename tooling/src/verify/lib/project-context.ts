@@ -13,9 +13,8 @@ import {
   semanticProgramMatchesDescriptor,
   semanticWorkspaceOf,
 } from "@orb/tooling/floor/compiler/ts-workspace";
-import type { AsExpression, Node, SourceFile, TypeNode } from "ts-morph";
+import type { Node, SourceFile, TypeNode } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
-import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
@@ -233,9 +232,6 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "invocation-evidence":
             rows.push({ kind: query.kind, nodes: [...query.nodes], plan: invocationPlanSchema.parse(query.plan) });
             break;
-          case "cast-relations":
-            rows.push({ kind: query.kind, nodes: [...query.nodes] });
-            break;
           case "id-brands":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
@@ -335,13 +331,6 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "invocation-evidence", nodes, { plan }).invocationEvidence(nodes, plan);
-    },
-    castRelations: (owner, nodes): ReturnType<NativeTypeContext["castRelations"]> => {
-      if (nodes.length === 0) {
-        assertReadable();
-        return new Map();
-      }
-      return selected(owner, "cast-relations", nodes).castRelations(nodes);
     },
     declarationOutputs: (owner, nodes): ReturnType<NativeTypeContext["declarationOutputs"]> => {
       if (nodes.length === 0) {
@@ -800,16 +789,6 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
     },
     runtimeExports: (sources): ReturnType<NativeTypeFactReader["runtimeExports"]> =>
       new Map(sources.map((source) => [source, inventory.runtimeExports(source, owner(source))])),
-    castRelations: (casts): ReadonlyMap<AsExpression, TypeRelation> =>
-      new Map(
-        casts.map((node) => {
-          const result = inventory.castRelation(node, owner(node));
-          if (result.kind === "unavailable") {
-            throw new SemanticInventoryError(`native cast relation unavailable: ${result.reason}`);
-          }
-          return [node, result.value];
-        }),
-      ),
     idBrands: (brands): ReadonlyMap<TypeNode, string | null> => new Map(brands.map((node) => [node, inventory.idBrand(node, owner(node))])),
     [Symbol.dispose]: (): void => {
       binding?.[Symbol.dispose]();

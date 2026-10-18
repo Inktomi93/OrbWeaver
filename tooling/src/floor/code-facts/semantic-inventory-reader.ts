@@ -45,7 +45,6 @@ import {
   readInventoryBindings,
   readInventoryBrands,
   readInventoryCallableDeclarations,
-  readInventoryCasts,
   readInventoryComputedNames,
   readInventoryDeclarationOutputs,
   readInventoryDrizzleCall,
@@ -716,15 +715,6 @@ function createInventoryReader(
         throw new SemanticInventoryError("native id brand span is unavailable in its native partition");
       }
       return match.brand;
-    },
-    castRelation: (node, program) => {
-      const { partition, span } = nativeSpan(node, program, "cast-relations");
-      const matches = [...readInventoryCasts(db, partition.id, span)];
-      const match = matches[0];
-      if (matches.length !== 1 || match === undefined) {
-        throw new SemanticInventoryError("native cast relation span is unavailable in its native partition");
-      }
-      return match.result;
     },
     programs: partitions.map((partition) => partition.program),
     canonicalPath,

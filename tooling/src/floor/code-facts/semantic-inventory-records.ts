@@ -17,7 +17,6 @@ import type {
 import {
   assertInvocationEvidence,
   callableDeclarationSchema,
-  castRelationResultSchema,
   computedNameSchema,
   drizzleQueryKey,
   drizzleSchemas,
@@ -201,15 +200,11 @@ export const inventoryRecordTables = {
     columns: "ordinal,node,brand",
     definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,brand TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
   },
+  // Retired tags remain admissible only in physical storage so committed historical generations survive upgrades.
   family: {
     name: "inventory_family",
     columns: "ordinal,name",
-    definition: `${PARTITION},${ORDINAL},name TEXT NOT NULL CHECK(name IN (${INVENTORY_FAMILIES.map((family) => `'${family}'`).join(",")})),PRIMARY KEY(partition,ordinal),UNIQUE(partition,name)`,
-  },
-  cast: {
-    name: "inventory_cast",
-    columns: "ordinal,node,leftToRight,rightToLeft,leftIsAny,rightIsAny,reason",
-    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,leftToRight INTEGER CHECK(leftToRight IN (0,1)),rightToLeft INTEGER CHECK(rightToLeft IN (0,1)),leftIsAny INTEGER CHECK(leftIsAny IN (0,1)),rightIsAny INTEGER CHECK(rightIsAny IN (0,1)),reason TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE},CHECK((reason IS NULL AND leftToRight IS NOT NULL AND rightToLeft IS NOT NULL AND leftIsAny IS NOT NULL AND rightIsAny IS NOT NULL) OR (reason='primitive-absent' AND leftToRight IS NULL AND rightToLeft IS NULL AND leftIsAny IS NULL AND rightIsAny IS NULL))`,
+    definition: `${PARTITION},${ORDINAL},name TEXT NOT NULL CHECK(name IN (${INVENTORY_FAMILIES.map((family) => `'${family}'`).join(",")},'cast-relations')),PRIMARY KEY(partition,ordinal),UNIQUE(partition,name)`,
   },
   descriptor: {
     name: "inventory_descriptor",
@@ -671,14 +666,6 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
       fact.initializer?.kind ?? null,
       fact.initializer === null ? null : Number(fact.initializer.callable),
     );
-  });
-  partition.casts.forEach((entry, ordinal) => {
-    const result = castRelationResultSchema.parse(entry.result);
-    const values =
-      result.kind === "resolved"
-        ? [Number(result.value.leftToRight), Number(result.value.rightToLeft), Number(result.value.leftIsAny), Number(result.value.rightIsAny), null]
-        : [null, null, null, null, result.reason];
-    emit("cast", ordinal, spanId(entry.node), ...values);
   });
   writeReferenceQueries(partition, emit, spanId);
   partition.references.forEach((entry, ordinal) => {
