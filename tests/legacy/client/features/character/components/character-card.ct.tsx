@@ -351,10 +351,10 @@ test.describe("coarse pointer", () => {
       await expect.poll(() => nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
     });
 
-    // THE MARKER SURVIVES THE COLLAPSE. `ROW_REVEAL_SWAP` computes `display:none` at coarse on the premise
-    // that the toggle carrying the same datum is permanently visible there — the collapse above DELETES that
-    // premise, and a plain `ROW_REVEAL_SWAP` would leave a STARRED row with no star anywhere (the exact bug
-    // `ROW_REVEAL_SWAP_COARSE_KEEP` was minted for on the chats row). VISIBLE, not merely attached.
+    // THE MARKER SURVIVES THE COLLAPSE. Hiding the marker at coarse would rest on the premise that the
+    // toggle carrying the same datum is permanently visible there — the collapse above DELETES that premise,
+    // and a marker hidden at coarse would leave a STARRED row with no star anywhere (the bug
+    // `ROW_REVEAL_SWAP_COARSE_KEEP` prevents on the chats row). VISIBLE, not merely attached.
     test(`@${width}: a starred row still shows its ★ — the marker is the only telling left`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<CharacterCardTileStory name="Aria Nightshade" starred={true} width={width} />);

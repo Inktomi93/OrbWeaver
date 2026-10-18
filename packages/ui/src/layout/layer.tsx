@@ -3,8 +3,8 @@ import { layerVariants } from "./variants.ts";
 
 /**
  * One-cell overlay stack (UI-Arch §4): every child occupies the SAME grid cell, so the box reserves the
- * WIDEST child instead of the SUM. The layout half of the row-reveal swap (`ROW_REVEAL_SWAP`,
- * client/components/row-reveal.ts): a rest-visible MARKER cluster and the hover-revealed ACTION cluster are
+ * WIDEST child instead of the SUM. The layout half of the row-reveal marker swap
+ * (client/components/row-reveal.ts): a rest-visible MARKER cluster and the hover-revealed ACTION cluster are
  * two paints of one strip, never two strips — side by side they charged the row for both while only ever
  * showing one, which is what starved the persona row's name column to 58px of 358 (side-eye 2026-08-06 P1).
  *

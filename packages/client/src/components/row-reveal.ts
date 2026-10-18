@@ -28,18 +28,13 @@ export const ROW_REVEAL =
  *  hover recomputes, the marker returns, and the row flips at frame rate. MEASURED on the preset list
  *  (2026-08-02, real mouse): ~1,727 pointerover/out pairs, ~85 crossings/sec, with ZERO DOM mutations — pure
  *  CSS, no React involved, and invisible to every CT (a synthetic pointer does not re-hit-test on layout
- *  shift). `pointer-coarse:hidden` stays `display` on purpose: a media state is not hover-variable, so it
- *  cannot oscillate, and at coarse the always-visible cluster means the marker's box would be dead air. */
-export const ROW_REVEAL_SWAP = "group-hover/row:invisible group-focus-within/row:invisible pointer-coarse:hidden";
-
-/** ROW_REVEAL_SWAP's COARSE-COLLAPSE twin — the marker that must SURVIVE a coarse pointer.
+ *  shift).
  *
- *  `ROW_REVEAL_SWAP`'s `pointer-coarse:hidden` rests on one premise: at coarse the reveal cluster is
- *  permanently visible, so the control that carries the same datum is on screen and the marker's box would
- *  be dead air. `ROW_ACTION_INLINE` (below) DELETES that premise for the rows it collapses — their state
- *  toggle stands down at coarse and the datum moves into the overflow menu, which is closed. A row that
- *  keeps `ROW_REVEAL_SWAP` there paints NEITHER: measured on the 320px chats roster, a starred chat showed
- *  no star at all. So a collapsing row's marker swaps on hover ONLY, and coarse keeps it permanently. */
+ *  COARSE KEEPS THE MARKER. Hiding it at a coarse pointer would rest on one premise: that the control
+ *  carrying the same datum is permanently visible there. `ROW_ACTION_INLINE` (below) deletes that premise
+ *  for the rows it collapses — their state toggle stands down at coarse and the datum moves into the
+ *  overflow menu, which is closed. A marker hidden there paints NEITHER: measured on the 320px chats roster,
+ *  a starred chat showed no star at all. So the marker swaps on hover ONLY, and coarse keeps it. */
 export const ROW_REVEAL_SWAP_COARSE_KEEP = "group-hover/row:invisible group-focus-within/row:invisible";
 
 // ── THE COARSE COLLAPSE (side-eye 2026-08-07) ────────────────────────────────────────────────────────

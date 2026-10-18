@@ -31,7 +31,7 @@ interface RowToggleActionBaseProps {
   readonly pressedClassName?: string;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
    *  `never` = always reveal-gated, for a row that shows the PRESSED state elsewhere at rest (the chats
-   *  row's title-line ★ marker, `ListRow.markers` + `ROW_REVEAL_SWAP`). D11's invariant — pressed state is
+   *  row's title-line ★ marker, `ListRow.markers` + `ROW_REVEAL_SWAP_COARSE_KEEP`). D11's invariant — pressed state is
    *  visible at rest — is still met there, in the marker slot; this control is then purely the affordance,
    *  and reveal-gating it is what keeps the row from painting two stars at once. */
   readonly rest?: "always" | "never" | "when-on";

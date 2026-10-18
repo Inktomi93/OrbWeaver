@@ -131,7 +131,7 @@ function RowLeadingSingle({
  *  data-driven, never an empty reserved box.
  *
  *  The ★ here and the star TOGGLE in the floated cluster are ONE concept, so on a list pane (a caller that
- *  owns the mutation) the marker rides `ROW_REVEAL_SWAP`: it paints the pressed state at rest and steps
+ *  owns the mutation) the marker rides `ROW_REVEAL_SWAP_COARSE_KEEP`: it paints the pressed state at rest and steps
  *  aside exactly when the control that sets it reveals. The landing strip has no row-action grammar, so
  *  there its ★ is unconditional. */
 function rowMarkers({
@@ -158,9 +158,9 @@ function rowMarkers({
           screen reader, and the two states are never one ambiguous mark. */}
       {chat.gamePaused && !chat.isGame ? <Icon className="text-muted-foreground/60" icon={Swords} label="Game chat — paused" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
-          at a coarse pointer, so the plain `ROW_REVEAL_SWAP` would have hidden the marker while the control
-          carrying the same datum was also gone — a starred chat with no star anywhere on the row. The swap
-          is hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
+          at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
+          the same datum was gone too — a starred chat with no star anywhere on the row. The swap is
+          hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
       {chat.starred ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
       {chat.archived ? (
         <Badge intent="neutral" size="sm" tone="soft">

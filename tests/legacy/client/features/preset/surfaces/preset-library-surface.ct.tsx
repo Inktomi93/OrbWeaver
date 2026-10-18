@@ -348,7 +348,7 @@ test("P0 the row's geometry is IDENTICAL at rest and under hover — nothing ent
 
   const atRest = await boxes();
   await row.hover();
-  expect(await boxes(), "a hover-variable layout is the hit-test oscillator — see ROW_REVEAL_SWAP").toEqual(atRest);
+  expect(await boxes(), "a hover-variable layout is the hit-test oscillator — see row-reveal.ts").toEqual(atRest);
 });
 
 test("item 18 the trailing cluster paints NO box of its own — the glyphs ride the row's hover tint", async ({ mount, page }) => {

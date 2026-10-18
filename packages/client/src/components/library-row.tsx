@@ -90,7 +90,7 @@ export interface LibraryRowProps {
    * flow at the row's end. Pass it for a row whose cluster carries a REST-VISIBLE control (a pressed state
    * toggle): the float arm is inert at rest and sits ON the title text, so a rest-visible control there is
    * both unclickable and an overlay. Reserving the strip is also what makes the row's geometry constant —
-   * see `ROW_REVEAL_SWAP` for the hit-test oscillation a hover-variable row layout causes.
+   * see `ROW_REVEAL_SWAP_COARSE_KEEP` (`row-reveal.ts`) for the hit-test oscillation a hover-variable row layout causes.
    *
    * THE VALUE IS THE **LIST'S** WIDEST CLUSTER, not this row's (§12.2 slot count, 1–{@link CLUSTER_SLOTS}).
    * The strip pads to it (`clusterSpacers`) so the state column lands at ONE x on every row even when some

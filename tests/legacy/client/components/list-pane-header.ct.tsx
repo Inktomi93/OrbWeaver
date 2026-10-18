@@ -8,11 +8,11 @@
 //   · `back` is a real focusable button carrying its accessible name (the glyph has no text);
 //   · exactly ONE action node renders (D66 A2 — one primary per pane per mode).
 
-import { ListPaneHeader } from "@orb/client/components";
 import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { ListPaneHeader } from "#client/components/list-pane-header.tsx";
 import { ListBandInShell, NarrowBand } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = Number.parseFloat(TOKENS["text.micro"].value) * 16;

@@ -16,10 +16,10 @@
 // plain data crosses. `resetFired` mirrors the call into a marker so a spec asserts the HANDLER ran rather
 // than a repaint.
 
-import { SettingRowDevActions, SettingRowResetAction } from "@orb/client/components";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { SettingRowDevActions, SettingRowResetAction } from "#client/components/setting-row-actions.tsx";
 
 /** A real leaf address — the copy verbs' output is derived from it, so it is the production spelling. */
 const ADDRESS = { group: "appearance", sub: "message-style", setting: "color-quoted-speech" } as const;

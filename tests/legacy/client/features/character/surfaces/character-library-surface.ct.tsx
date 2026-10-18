@@ -1610,7 +1610,7 @@ test("P1-3 the row name keeps its column at the #242 SQUEEZED list width too (th
 
 // HOVER STABILITY IS HELD-UNDER-ATTACK, and this fix is exactly the kind that breaks it: a cluster that
 // changed the row's layout on reveal would re-hit-test the row under a stationary pointer at frame rate
-// (`ROW_REVEAL_SWAP`'s measured ~85 crossings/sec). Floating it out of flow is what makes the reveal free.
+// (the ~85 crossings/sec measured in `row-reveal.ts`). Floating it out of flow is what makes the reveal free.
 test("P1-3 revealing the row's controls costs ZERO reflow — the title box is identical hovered", async ({ mount, page }) => {
   await routeOneLongName(page);
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);

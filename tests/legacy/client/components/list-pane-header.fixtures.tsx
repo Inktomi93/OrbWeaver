@@ -4,9 +4,9 @@
 // chain simply never matches and the CT would pass against a broken pane. This is the smallest skeleton
 // that reproduces the production chain: shell grid → list panel → the always-present band → the slot.
 
-import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
+import { ListPaneHeader } from "#client/components/list-pane-header.tsx";
 
 interface BandInShellProps {
   /** The scoped-mode entity half — a SCOPED title survives the mobile shed, an unscoped one does not. */
