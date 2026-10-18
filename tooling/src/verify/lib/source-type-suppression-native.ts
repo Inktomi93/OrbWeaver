@@ -1,5 +1,7 @@
 // One source population and metadata seam for the mandatory native type-comment boundary.
+
 import { matchesGlob } from "node:path";
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "../contract/config-snapshot.ts";
 
 export const SOURCE_TYPE_SUPPRESSION_RULE = "@typescript-eslint/ban-ts-comment";
 export const SOURCE_TYPE_SUPPRESSION_GLOBS = [
@@ -20,7 +22,7 @@ export const SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS = [
   "pnpm-workspace.yaml",
   "tooling/src/verify/lib/source-type-suppression-native.ts",
   "tooling/src/verify/lib/selection.ts",
-  "tooling/src/verify/ops/eslint.ts",
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
 ] as const;
 
 export function isSourceTypeSuppressionSource(path: string): boolean {

@@ -13,7 +13,8 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { TYPED_NATIVE_POLICIES } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import { partitionEslintFiles, runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { partitionEslintFiles } from "../../../../tooling/src/verify/ops/eslint-profile.ts";
 import { nativeFabricationPlugin } from "./_fixtures/native-fabrication-candidate.ts";
 
 const SUBJECT = "packages/server/src/domain/chat/contract/fixture.ts";
@@ -121,7 +122,9 @@ test("a canonical brand edit reselects actual typed consumers, invalidates warm 
   fixture(scratch, repoRoot);
   const proc = await import("../../../../tooling/src/floor/process/proc.ts");
   const run = proc.runNicedSync;
+  const exec = proc.execNicedSync;
   const argumentsSeen: string[][] = [];
+  const discoveries: string[][] = [];
   const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
     const path = args[2];
     if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
@@ -129,19 +132,36 @@ test("a canonical brand edit reselects actual typed consumers, invalidates warm 
     }
     return run(executable, args, options);
   });
+  const discovery = vi.spyOn(proc, "execNicedSync").mockImplementation((executable, args, options) => {
+    if (executable === "pnpm" && args[3] === "eslint-discovery") {
+      discoveries.push(args.slice(4));
+    }
+    return exec(executable, args, options);
+  });
   try {
     expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(0);
+    expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
+    expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
     expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
     expect(argumentsSeen.some((args) => args.some((value) => value.includes("metadata-typed-tsconfig.json")))).toBe(true);
     argumentsSeen.length = 0;
+    discoveries.length = 0;
     writeFileSync(join(scratch, ID_BRAND_HOME), `${BRAND_SOURCE}export type SessionId=Branded<"session">;`);
     expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(1);
+    expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
+    expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
     expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
     argumentsSeen.length = 0;
+    discoveries.length = 0;
     expect(await runScopedEslint(scratch, ["unrelated.js"])).toBe(0);
     expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(false);
     expect(argumentsSeen.some((args) => args.includes("unrelated.js"))).toBe(true);
+    expect(discoveries).toEqual([["unrelated.js"]]);
+    const dispatcher = "tooling/src/verify/ops/eslint-profile.ts";
+    rmSync(join(scratch, dispatcher));
+    await expect(runScopedEslint(scratch, [dispatcher])).rejects.toThrow("ENOENT");
   } finally {
+    discovery.mockRestore();
     child.mockRestore();
   }
 }, 60_000);

@@ -7,8 +7,9 @@ import type { CompilerProgram } from "@orb/tooling/verify";
 import { ESLint } from "eslint";
 import { DISCOVERY_MAX_BUFFER_BYTES, parsedDiscovery, readDiscoveredPopulation } from "../../../../tooling/src/verify/lib/config-snapshot.ts";
 import { eslintConfiguredPaths, readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
-import { partitionEslintFiles, runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
+import { partitionEslintFiles } from "../../../../tooling/src/verify/ops/eslint-profile.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // LOAD-HONEST BUDGETS: the ceiling arm drives the discovery child four times; the measurement arm asks

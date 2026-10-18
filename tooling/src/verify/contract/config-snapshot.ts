@@ -1,4 +1,11 @@
 export const CONFIG_SNAPSHOT_RUNNERS = ["vitest", "depcruise"] as const;
+export const ESLINT_CONFIG_REL = "eslint.config.js";
+export const ESLINT_HARD_CONFIG_REL = "eslint-hard.config.js";
+export const ESLINT_NATIVE_EXECUTION_INPUT_PATHS = [
+  "tooling/src/verify/contract/config-snapshot.ts",
+  "tooling/src/verify/ops/eslint.ts",
+  "tooling/src/verify/ops/eslint-profile.ts",
+] as const;
 
 export interface EslintFileAdmission {
   readonly path: string;
@@ -6,6 +13,12 @@ export interface EslintFileAdmission {
   readonly hasEnabledRules: boolean;
   /** Null means the configured parser world cannot receive persistent native dependency-cache authority. */
   readonly compilerConfigs?: readonly string[] | null;
+}
+
+export interface EslintCompletedProfiles {
+  readonly ordinary: EslintFileAdmission;
+  readonly hard: EslintFileAdmission | undefined;
+  readonly identity: string;
 }
 
 export type ConfigSnapshotRunner = (typeof CONFIG_SNAPSHOT_RUNNERS)[number];

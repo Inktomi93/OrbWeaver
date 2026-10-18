@@ -1,17 +1,14 @@
 // Native compiler-owner shards isolate HARD authority from ordinary exceptions and cache lifetimes.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
-import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs.ts";
-import { compilerConfigRoster, readCompilerProgramsFromInventory } from "../../floor/compiler/compiler-programs.ts";
-import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
+import { compilerConfigRoster } from "../../floor/compiler/compiler-programs.ts";
 import { BASE_UI_DATA_RULE, BASE_UI_HANDLER_RULE, BASE_UI_NATIVE_INPUT_PATHS, BASE_UI_STATE_RULE } from "../contract/baseui.ts";
-import type { EslintFileAdmission, EslintNativeMetadataFamily as NativeMetadataFamily } from "../contract/config-snapshot.ts";
+import type { EslintCompletedProfiles, EslintFileAdmission, EslintNativeMetadataFamily as NativeMetadataFamily } from "../contract/config-snapshot.ts";
+import { ESLINT_CONFIG_REL as CONFIG_REL, ESLINT_HARD_CONFIG_REL as HARD_CONFIG_REL } from "../contract/config-snapshot.ts";
 import { POPULATION_ROOTS } from "../contract/population.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
@@ -20,7 +17,6 @@ import { affectsClientLexicalNativeLint, CLIENT_LEXICAL_NATIVE_INPUT_PATHS, CLIE
 import { affectsClientMapNativeLint, CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "../lib/client-map-native.ts";
 import { DISCOVERY_MAX_BUFFER_BYTES, readAdmittedEslintPopulation, readDiscoveredPopulation, readTypedEslintAdmissions } from "../lib/config-snapshot.ts";
 import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RULES } from "../lib/context-definition-shape.ts";
-import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import {
   affectsSourceTypeSuppressionNativeLint,
@@ -36,7 +32,6 @@ import {
 import {
   affectsTypedNativeLint,
   affectsTypedNativePolicy,
-  TYPED_NATIVE_COMPILER_CONTEXT_ENV,
   TYPED_NATIVE_POLICIES,
   typedNativeCompilerConfigs,
   typedNativeDependencyInputs,
@@ -45,59 +40,9 @@ import {
   validateTypedCompilerInputs,
 } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
+import { hasCompletedProfiles, runProfiles } from "./eslint-profile.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
-
-const CONFIG_REL = "eslint.config.js";
-const HARD_CONFIG_REL = "eslint-hard.config.js";
-const HARD_CHILD_FLAGS = ["--config", HARD_CONFIG_REL, "--no-config-lookup", "--no-inline-config"] as const;
-// Worker threads reload the partition Program; owner processes already provide the isolation boundary.
-const CHILD_FLAGS = ["--max-warnings", "0", "--cache", "--cache-strategy", "content", "--concurrency", "off"] as const;
-const ESLINT_CACHE_DIR = ".cache/eslint";
-const UNTYPED_OWNER = "<untyped>";
-
-function ownerFor(path: string, owners: readonly string[]): string {
-  if (!isTypeWorldSource(path)) {
-    return UNTYPED_OWNER;
-  }
-  const predicted = predictedProgram(path);
-  if (predicted !== undefined && owners.includes(predicted)) {
-    return predicted;
-  }
-  if (owners.length === 1) {
-    return owners[0] ?? "<unowned>";
-  }
-  throw new Error(`ESLint file ${path} has ${owners.length === 0 ? "no native compiler owner" : `ambiguous native compiler owners {${owners.join(", ")}}`}`);
-}
-
-export function partitionEslintFiles(
-  paths: readonly string[],
-  programs: readonly CompilerProgramMembership[],
-  typedPaths?: ReadonlySet<string>,
-): ReadonlyMap<string, readonly string[]> {
-  if (paths.length === 0) {
-    throw new Error("ESLint discovery produced an empty population; no lint verdict is available");
-  }
-  if (new Set(paths).size !== paths.length) {
-    throw new Error("ESLint discovery produced duplicate file identities");
-  }
-  const roots = new Map<string, string[]>();
-  for (const program of programs) {
-    for (const path of program.files) {
-      const owners = roots.get(path) ?? [];
-      owners.push(program.id);
-      roots.set(path, owners);
-    }
-  }
-  const groups = new Map<string, string[]>();
-  for (const path of paths) {
-    const owner = typedPaths !== undefined && !typedPaths.has(path) ? UNTYPED_OWNER : ownerFor(path, roots.get(path) ?? []);
-    const members = groups.get(owner) ?? [];
-    members.push(path);
-    groups.set(owner, members);
-  }
-  return groups;
-}
 
 /** Cross-check native discovery against effective ConfigArray admission. */
 function admittedPopulation(root: string, patterns: readonly string[]): Promise<readonly EslintFileAdmission[]> {
@@ -119,7 +64,18 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (paths.length === 0) {
     throw new UsageError(`eslint-scoped needs at least one path\n${ESLINT_SCOPED_USAGE}`);
   }
-  const supplemental = await recheckScopedNativeMetadata(root, paths);
+  const populations = new Map<string, ReturnType<typeof admittedPopulation>>();
+  const observe: typeof admittedPopulation = (directory, patterns) => {
+    const key = JSON.stringify([directory, patterns]);
+    let population = populations.get(key);
+    if (population === undefined) {
+      population = admittedPopulation(directory, patterns);
+      populations.set(key, population);
+    }
+    return population;
+  };
+  const completed = new Map<string, EslintCompletedProfiles>();
+  const supplemental = await recheckScopedNativeMetadata(root, paths, observe, completed);
   if (supplemental === EXIT.toolError) {
     return EXIT.toolError;
   }
@@ -140,7 +96,10 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   if (sources.length === 0) {
     return supplemental;
   }
-  const admitted = await admittedPopulation(root, sources);
+  if (sources.every((path) => completed.has(path)) && (await hasCompletedProfiles(root, sources, completed))) {
+    return supplemental;
+  }
+  const admitted = await observe(root, sources);
   if (admitted.length === 0) {
     process.stderr.write("[eslint] eslint.config.js ignores every scoped source path; nothing ordinary to lint\n");
     return supplemental;
@@ -165,14 +124,19 @@ function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): 
   ];
 }
 
-async function recheckScopedNativeMetadata(root: string, paths: readonly string[]): Promise<number> {
+async function recheckScopedNativeMetadata(
+  root: string,
+  paths: readonly string[],
+  observe: typeof admittedPopulation,
+  completed: Map<string, EslintCompletedProfiles>,
+): Promise<number> {
   const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
   const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const map = paths.some(affectsClientMapNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const frontendRoots = [...POPULATION_ROOTS["@client"], ...POPULATION_ROOTS["@ui"]];
   const lexical = paths.some(affectsClientLexicalNativeLint) && !coversNativeRoots(paths, frontendRoots);
   const families = [
-    ...(await typedNativeMetadata(root, paths)),
+    ...(await typedNativeMetadata(root, paths, observe)),
     ...(baseUi ? baseUiMetadata(root) : []),
     ...(context ? [contextMetadata(root)] : []),
     ...(map ? [clientMapMetadata(root)] : []),
@@ -180,10 +144,10 @@ async function recheckScopedNativeMetadata(root: string, paths: readonly string[
     ...sourceTypeSuppressionMetadata(root, paths),
     ...(paths.some(affectsTestToolingImportsNativeLint) && !paths.includes(".") ? TEST_TOOLING_IMPORT_NATIVE_FAMILIES : []),
   ];
-  return recheckNativeFamilies(root, families);
+  return recheckNativeFamilies(root, families, observe, completed);
 }
 
-async function typedNativeMetadata(root: string, paths: readonly string[]): Promise<NativeMetadataFamily[]> {
+async function typedNativeMetadata(root: string, paths: readonly string[], observe: typeof admittedPopulation): Promise<NativeMetadataFamily[]> {
   if (!paths.some((path) => affectsTypedNativeLint(path, root)) || paths.includes(".")) {
     return [];
   }
@@ -199,7 +163,7 @@ async function typedNativeMetadata(root: string, paths: readonly string[]): Prom
     const family = { hard: entry.hard, requiresTypeInformation: true, patterns: ["."], rules: [entry.ruleId], label: `typed-native:${entry.id}` };
     let compilerConfigs: readonly string[] | undefined;
     if (entry.declarationPackage !== undefined) {
-      declarationAdmissions ??= await admittedPopulation(root, ["."]);
+      declarationAdmissions ??= await observe(root, ["."]);
       const active = await readTypedEslintAdmissions(root, CONFIG_REL, declarationAdmissions, [family]);
       if (active.length === 0) {
         continue;
@@ -212,11 +176,16 @@ async function typedNativeMetadata(root: string, paths: readonly string[]): Prom
   return families;
 }
 
-async function recheckTypedNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
+async function recheckTypedNativeFamilies(
+  root: string,
+  families: readonly NativeMetadataFamily[],
+  observe: typeof admittedPopulation,
+  completed: Map<string, EslintCompletedProfiles>,
+): Promise<number> {
   if (families.length === 0) {
     return EXIT.clean;
   }
-  const admitted = await admittedPopulation(root, [...new Set(families.flatMap((family) => family.patterns))]);
+  const admitted = await observe(root, [...new Set(families.flatMap((family) => family.patterns))]);
   const selected = new Set<string>();
   for (const hard of [false, true]) {
     const matching = families.filter((family) => family.hard === hard);
@@ -241,13 +210,21 @@ async function recheckTypedNativeFamilies(root: string, families: readonly Nativ
         root,
         admitted.filter(({ path }) => selected.has(path)),
         "metadata-typed-",
+        completed,
       );
 }
 
-async function recheckNativeFamilies(root: string, families: readonly NativeMetadataFamily[]): Promise<number> {
+async function recheckNativeFamilies(
+  root: string,
+  families: readonly NativeMetadataFamily[],
+  observe: typeof admittedPopulation,
+  completed: Map<string, EslintCompletedProfiles>,
+): Promise<number> {
   const typedVerdict = await recheckTypedNativeFamilies(
     root,
     families.filter((family) => family.requiresTypeInformation === true),
+    observe,
+    completed,
   );
   if (typedVerdict === EXIT.toolError) {
     return typedVerdict;
@@ -376,74 +353,4 @@ async function nativeSyntaxPass(root: string, patterns: string[], families: read
     return EXIT.toolError;
   }
   return results.some((result) => result.errorCount > 0 || result.warningCount > 0) ? EXIT.violations : EXIT.clean;
-}
-
-async function runProfiles(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string): Promise<number> {
-  const hardAdmissions = await readEslintFileAdmissions(
-    root,
-    HARD_CONFIG_REL,
-    admitted.map(({ path }) => path),
-  );
-  if (hardAdmissions.some((entry) => entry.requiresTypeInformation && entry.compilerConfigs?.length !== 1)) {
-    throw new Error("HARD native compiler admission is unavailable");
-  }
-  const hard = hardAdmissions.filter(({ hasEnabledRules }) => hasEnabledRules);
-  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, `${cachePrefix}hard-`, true);
-  if (hardVerdict === EXIT.toolError) {
-    return EXIT.toolError;
-  }
-  return Math.max(hardVerdict, runPartitions(root, admitted, cachePrefix, false));
-}
-
-function nativeCompilerChildEnv(root: string, admitted: readonly EslintFileAdmission[]): NodeJS.ProcessEnv {
-  const configs = typedNativeCompilerConfigs(admitted.filter((entry) => entry.requiresTypeInformation));
-  return inheritedProcessEnv({
-    [TYPED_NATIVE_COMPILER_CONTEXT_ENV]: JSON.stringify({ root, configs: configs === undefined || configs.length === 0 ? null : configs }),
-  });
-}
-
-function runPartitions(root: string, admitted: readonly EslintFileAdmission[], cachePrefix: string, hard: boolean): number {
-  const filenames = admitted.map(({ path }) => path);
-  const typedPaths = new Set(admitted.filter(({ requiresTypeInformation }) => requiresTypeInformation).map(({ path }) => path));
-  const programs = typedPaths.size === 0 ? [] : readCompilerProgramsFromInventory(readPolicyRepositoryInventory(root));
-  const groups = partitionEslintFiles(filenames, programs, typedPaths);
-  const cacheDir = join(root, ESLINT_CACHE_DIR);
-  mkdirSync(cacheDir, { recursive: true });
-
-  let verdict: number = EXIT.clean;
-  for (const [owner, paths] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
-    const partition = admitted.filter((entry) => paths.includes(entry.path));
-    if (hard && partition.some((entry) => entry.requiresTypeInformation && (entry.compilerConfigs?.length !== 1 || entry.compilerConfigs[0] !== owner))) {
-      throw new Error(`HARD native compiler admission does not match owner ${owner}`);
-    }
-    process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
-    const ownerCacheFile = join(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}.eslintcache`);
-    const argumentsDir = mkdtempSync(join(cacheDir, "argv-"));
-    let childVerdict: number;
-    try {
-      const argumentsFile = join(argumentsDir, "arguments.json");
-      const suppressionsFile = join(argumentsDir, "suppressions.json");
-      if (hard) {
-        // Ordinary migration debt must never grant permission to the HARD profile.
-        writeFileSync(suppressionsFile, "{}");
-      }
-      const profileFlags = hard ? [...HARD_CHILD_FLAGS, "--suppressions-location", suppressionsFile] : [];
-      writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, "--cache-location", ownerCacheFile, ...paths]));
-      const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], {
-        cwd: root,
-        stdio: "inherit",
-        env: nativeCompilerChildEnv(root, partition),
-      });
-      childVerdict = eslintScheme(result.status);
-    } finally {
-      rmSync(argumentsDir, { recursive: true, force: true });
-    }
-    if (childVerdict === EXIT.toolError) {
-      return EXIT.toolError;
-    }
-    if (childVerdict === EXIT.violations) {
-      verdict = EXIT.violations;
-    }
-  }
-  return verdict;
 }

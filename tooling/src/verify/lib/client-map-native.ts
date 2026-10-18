@@ -1,3 +1,4 @@
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "../contract/config-snapshot.ts";
 /** Canonical data and implementation changes must rejudge the native parallel-map wall. */
 export const CLIENT_MAP_NATIVE_INPUT_PATHS = [
   "eslint.config.js",
@@ -12,7 +13,7 @@ export const CLIENT_MAP_NATIVE_INPUT_PATHS = [
   "tooling/src/verify/contract/registry-definition-home.ts",
   "tooling/src/verify/lib/registry-definition-home.ts",
   "tooling/src/verify/lib/client-map-native.ts",
-  "tooling/src/verify/ops/eslint.ts",
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
 ] as const;
 
 export const CLIENT_MAP_NATIVE_RULE = "orb/no-parallel-section-map";
