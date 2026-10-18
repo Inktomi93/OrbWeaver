@@ -1,12 +1,15 @@
-// Read-only triage of one package's rows in knip-production.baseline.json (work item 989). It buckets
-// each row so a lane judges only the hard ones and deletes nothing. The buckets are leads, not verdicts.
+// Read-only triage of one package's production Knip rows (work item 989): the rows of
+// knip-production.baseline.json, or the findings outside it. It buckets each row so a lane judges only
+// the hard ones and deletes nothing. The buckets are leads, not verdicts.
 //
-//   node scripts/triage-production-exports.ts packages/kit --rot=<pnpm ast rot packages/kit --json --max 100000 output>
-//        [--baseline=knip-production.baseline.json] [--out=<records.json, outside the repo>] [--root=<checkout>]
+//   node scripts/triage-production-exports.ts packages/kit [--rot=<pnpm ast rot packages/kit --json --max 100000 output>]
+//        [--baseline=knip-production.baseline.json] [--knip=<pnpm knip:prod --reporter json --no-exit-code output>]
+//        [--out=<records.json, outside the repo>] [--list] [--root=<checkout>]
 //
-// Consumers come from one ast-grep pass over import/export statements resolved with the TypeScript module
-// resolver; declaration facts (tuples, signature types, @public, schemas) come from ast-grep rules. rot
-// supplies the reachability verdicts attached to each record. No row is changed or removed here.
+// Rows come from the baseline, or from --knip (the non-baselined findings). Consumers come from one ast-grep
+// pass over import/export statements resolved with the TypeScript module resolver; declaration facts (tuples,
+// signature types, @public, schemas, dispatch tables, bound constants) come from ast-grep rules. rot, when
+// given, supplies the reachability verdicts attached to each record. No row is changed or removed here.
 
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -78,11 +81,20 @@ interface Verdict {
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
-  options: { baseline: { type: "string" }, rot: { type: "string" }, out: { type: "string" }, root: { type: "string" } },
+  options: {
+    baseline: { type: "string" },
+    knip: { type: "string" },
+    rot: { type: "string" },
+    out: { type: "string" },
+    list: { type: "boolean" },
+    root: { type: "string" },
+  },
 });
 const pkgArg = positionals[0];
-if (pkgArg === undefined || values.rot === undefined) {
-  console.error("usage: triage-production-exports.ts <packages/name> --rot=<rot json> [--baseline=<file>] [--out=<json>] [--root=<checkout>]");
+if (pkgArg === undefined) {
+  console.error(
+    "usage: triage-production-exports.ts <packages/name> [--rot=<rot json>] [--baseline=<file>] [--knip=<knip json>] [--out=<json>] [--list] [--root=<checkout>]",
+  );
   process.exit(EXIT_MISUSE);
 }
 const root = resolve(values.root ?? process.cwd());
@@ -455,7 +467,26 @@ function headerOf(file: string): string {
 // ── 6. rows ─────────────────────────────────────────────────────────────────────────────────────────────
 const baselinePath = values.baseline ?? "knip-production.baseline.json";
 const baselineKeys = JSON.parse(readFileSync(resolve(root, baselinePath), "utf8")) as string[];
-const rows: Row[] = baselineKeys
+// `pnpm knip:prod --reporter json` prints only the findings the baseline does not admit; each becomes the key
+// knip-baseline.config.ts would write, so both sources feed one pipeline. A `files` finding names itself.
+interface KnipJson {
+  readonly issues: readonly {
+    readonly file: string;
+    readonly exports: readonly { name: string }[];
+    readonly types: readonly { name: string }[];
+    readonly files: readonly { name: string }[];
+  }[];
+}
+const findingKeys: string[] =
+  values.knip === undefined
+    ? []
+    : (JSON.parse(readFileSync(resolve(root, values.knip), "utf8")) as KnipJson).issues.flatMap((i) => [
+        ...i.exports.map((e) => JSON.stringify(["exports", i.file, "", e.name])),
+        ...i.types.map((t) => JSON.stringify(["types", i.file, "", t.name])),
+        ...i.files.map((f) => JSON.stringify(["files", i.file, "", f.name])),
+      ]);
+const knownKeys = new Set([...baselineKeys, ...findingKeys]);
+const rows: Row[] = (values.knip === undefined ? baselineKeys : findingKeys)
   .map((key) => {
     const [kind, file, , symbol] = JSON.parse(key) as [string, string, string, string];
     return { key, kind: kind ?? "", file: file ?? "", symbol: symbol ?? "" };
@@ -561,6 +592,85 @@ if (pkgDir === "packages/contracts") {
   }
 }
 
+// Dispatch tables: `X: Record<Union, ...>` or `{...} satisfies Record<Union, ...>`. A `string` or `number` key is
+// a lookup map, not an axis that fails `tsc` when a member is added, so it does not count.
+const DISPATCH_RE =
+  /^[\w$]+\s*:\s*(?:Readonly<\s*)?Record<\s*(?!string\b|number\b|symbol\b)|\bsatisfies\s+(?:Readonly<\s*)?Record<\s*(?!string\b|number\b|symbol\b)/u;
+const dispatchTables = new Set<string>(); // `file\0name`
+for (const m of pkgScan(`  kind: variable_declarator
+  any:
+    - has: { kind: type_annotation, regex: '^:\\s*(?:Readonly<\\s*)?Record<' }
+    - has: { field: value, kind: satisfies_expression, regex: 'satisfies\\s+(?:Readonly<\\s*)?Record<' }`)) {
+  const n = nameAfter(/^([\w$]+)/u, m.text);
+  if (n !== undefined && DISPATCH_RE.test(m.text)) {
+    dispatchTables.add(`${m.file}\0${n}`);
+  }
+}
+// Bound constants: a literal, a computed literal, an `as const` object, or an alias of one. Spine-Testing
+// section 10 has tests import limits, ids and prefixes from their production home, so a bound constant is a
+// test anchor the module may not have yet.
+const boundConstants = new Set<string>(); // `file\0name`
+const MODULE_CONST = "inside: { kind: lexical_declaration, regex: '^const\\b', inside: { any: [{ kind: program }, { kind: export_statement }] } }";
+for (const m of pkgScan(`  kind: variable_declarator
+  ${MODULE_CONST}
+  has:
+    field: value
+    any:
+      - kind: number
+      - kind: string
+      - kind: regex
+      - kind: 'true'
+      - kind: 'false'
+      - kind: unary_expression
+      - kind: binary_expression
+      - kind: template_string
+      - kind: as_expression
+        has: { kind: object }`)) {
+  const n = nameAfter(/^([\w$]+)/u, m.text);
+  if (n !== undefined) {
+    boundConstants.add(`${m.file}\0${n}`);
+  }
+}
+const boundNames = new Set([...boundConstants].map((k) => k.split("\0")[1]));
+for (const m of pkgScan(`  kind: variable_declarator
+  ${MODULE_CONST}
+  has: { field: value, kind: identifier }`)) {
+  const [, name, target] = /^([\w$]+)\s*=\s*([\w$]+)\s*$/u.exec(m.text) ?? [];
+  if (name !== undefined && target !== undefined && boundNames.has(target)) {
+    boundConstants.add(`${m.file}\0${name}`);
+  }
+}
+// A tuple read with `.includes` is a membership list; no type derives from it, so only the author knows if it is a door.
+const includesReceivers = new Set<string>();
+for (const m of pkgScan("  pattern: $T.includes($$$)")) {
+  const n = nameAfter(/^\(?\s*([\w$]+)/u, m.text);
+  if (n !== undefined) {
+    includesReceivers.add(n);
+  }
+}
+// Names the law cites in code spans: docs/law and docs/adr are the reasons an export stays.
+const lawNames = new Map<string, string>(); // name -> first doc
+for (const file of tracked.filter((f) => /^docs\/(?:law|adr)\/.+\.md$/u.test(f))) {
+  const spans = [...textOf(file).matchAll(/```[\s\S]*?```|`[^`\n]+`/gu)].map((s) => s[0]);
+  for (const span of spans) {
+    for (const t of span.matchAll(TOKEN_RE)) {
+      if (!lawNames.has(t[0])) {
+        lawNames.set(t[0], file);
+      }
+    }
+  }
+}
+// A `{@link Name}` in a door's TSDoc names an export the door deliberately presents.
+const linkedNames = new Map<string, string>(); // name -> `file:line`
+for (const file of tracked.filter((f) => f.startsWith(`${pkgDir}/`) && /\/index\.tsx?$/u.test(f))) {
+  const text = textOf(file);
+  for (const m of text.matchAll(/\{@link\s+([\w$]+)/gu)) {
+    if (!linkedNames.has(m[1] ?? "")) {
+      linkedNames.set(m[1] ?? "", `${file}:${lineAt(text, m.index)}`);
+    }
+  }
+}
+
 // uses of each row's name inside its own file (the declaration is one use; a bare export clause is another)
 const rowFiles = [...new Set(rows.map((r) => r.file))];
 const allSymbols = [...new Set(rows.map((r) => r.symbol))];
@@ -597,7 +707,8 @@ function parseRot(raw: string): RotSection[] {
     .filter((chunk) => chunk.trim() !== "")
     .map((chunk) => JSON.parse(`${chunk}}`) as RotSection);
 }
-const rotSections = parseRot(readFileSync(resolve(root, values.rot), "utf8"));
+// `pnpm ast rot` runs for tens of minutes on a large package, so its verdicts are optional.
+const rotSections = values.rot === undefined ? [] : parseRot(readFileSync(resolve(root, values.rot), "utf8"));
 const rotTruncated = rotSections.filter((s) => s.shown < s.total).map((s) => s.label);
 const rotTags = new Map<string, string[]>();
 for (const section of rotSections) {
@@ -639,7 +750,29 @@ const RETAIN_RULES: readonly ((c: Case) => string | null)[] = [
       : null,
   (c: Case): string | null =>
     pkgDir === "packages/contracts" && !c.reexport && schemaDecls.has(keyOf(c.at)) ? "module-level contract schema (contract-structural-copy reads it)" : null,
+  (c: Case): string | null => (dispatchTables.has(keyOf(c.at)) ? "dispatch table" : null),
+  (c: Case): string | null => {
+    const doc = lawNames.get(c.row.symbol) ?? lawNames.get(c.at.name);
+    const link = linkedNames.get(c.row.symbol) ?? linkedNames.get(c.at.name);
+    return doc !== undefined || link !== undefined ? `named in law (${link ?? doc})` : null;
+  },
 ];
+
+// Shapes a deletion must not decide alone. They skip the candidate bucket and land in judge.
+const JUDGE_RULES: readonly ((c: Case) => string | null)[] = [
+  // A barrel link to a bound constant is still a removable door; only the declaration is the test anchor.
+  (c: Case): string | null => (!c.reexport && boundConstants.has(keyOf(c.at)) && usedInModule(c.at) ? "bound constant (Spine-Testing §10)" : null),
+  (c: Case): string | null =>
+    tupleNames.has(keyOf(c.at)) && includesReceivers.has(c.at.name) ? "as const tuple read with .includes and no derived union" : null,
+];
+function usedInModule(node: Node2): boolean {
+  const uses = [
+    ...textOf(node.file)
+      .replace(COMMENTS_RE, "")
+      .matchAll(new RegExp(`(?<![\\w$])${node.name.replace(/\$/gu, "\\$")}(?![\\w$])`, "gu")),
+  ];
+  return uses.length > 1;
+}
 
 function candidateReason(c: Case): string | null {
   // A swallowed export can be load-bearing through the namespace that swallows it.
@@ -667,6 +800,10 @@ function verdictOf(c: Case): Verdict {
   const retain = RETAIN_RULES.map((rule) => rule(c)).filter((r): r is string => r !== null);
   if (retain.length > 0) {
     return { bucket: "auto-retain", reasons: retain };
+  }
+  const hard = JUDGE_RULES.map((rule) => rule(c)).filter((r): r is string => r !== null);
+  if (hard.length > 0) {
+    return { bucket: "judge", reasons: hard };
   }
   const candidate = c.row.kind === "files" ? null : candidateReason(c);
   return candidate === null ? { bucket: "judge", reasons: judgeReasons(c) } : { bucket: "auto-candidate", reasons: [candidate] };
@@ -699,7 +836,7 @@ function triage(row: Row): Triaged {
   const verdict = verdictOf({ row, origin, at, consumers, ownUses, rot, reexport, outside });
   // Dropping a barrel link leaves the origin export unused in production; when the baseline has no row for it,
   // Knip may report it as a new key.
-  const mintsKey = reexport && !baselineKeys.some((k) => k === JSON.stringify([row.kind, at.file, "", at.name]));
+  const mintsKey = reexport && !knownKeys.has(JSON.stringify([row.kind, at.file, "", at.name]));
   return {
     key: row.key,
     symbol: row.symbol,
@@ -741,6 +878,14 @@ if (values.out !== undefined) {
 console.log(`${pkgName}: ${records.length} rows -> ${BUCKETS.map((b) => `${b} ${counts[b]}`).join(", ")}`);
 for (const [reason, n] of [...reasonCounts].sort((a, b) => b[1] - a[1])) {
   console.log(`  ${String(n).padStart(COUNT_PAD)}  ${reason}`);
+}
+if (values.list === true) {
+  for (const r of records.filter((x) => x.bucket === "auto-candidate")) {
+    const importers = CONSUMER_CLASSES.filter((c) => r.consumers[c].count > 0).map((c) => `${c}=${r.consumers[c].count}`);
+    console.log(
+      `CANDIDATE ${r.kind} ${r.file}#${r.symbol} | ${r.reasons[0]} | origin ${r.origin ?? "unresolved"} | own-uses ${r.ownModuleUses} | importers ${importers.join(",") || "none"}${r.mintsKey ? " | mints a key" : ""}`,
+    );
+  }
 }
 console.log(JSON.stringify(summary.scanned), `readerFiles=${summary.readerFilesScanned}`, `rotTaggedRows=${summary.rotTaggedRows}`);
 if (rotTruncated.length > 0) {
