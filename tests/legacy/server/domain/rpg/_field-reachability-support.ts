@@ -100,7 +100,7 @@ export interface Fixture {
 export const RPG_MACRO_KEYS = ["rpgSceneState", "rpgCast", "rpgQuests", "rpgDelta"] as const;
 
 /** An empty extraction — every plane present, so a probe spells only what it writes. */
-export function extraction(over: Partial<RpgExtraction>): RpgExtraction {
+function extraction(over: Partial<RpgExtraction>): RpgExtraction {
   return { party: [], inventory: [], trackers: [], quests: [], journal: [], ...over };
 }
 

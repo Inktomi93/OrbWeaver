@@ -133,7 +133,7 @@ export interface ChatScenarioOptions {
 }
 
 /** Per-`send` overrides. Default caller = the host; default persona attribution = the participant's active. */
-export interface SendOptions {
+interface SendOptions {
   readonly principal?: Principal;
   readonly personaId?: PersonaId | null;
   readonly guided?: GuidedSteer;

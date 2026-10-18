@@ -66,7 +66,8 @@ export const config = {
       // @typescript/native (npm:typescript@7) is imported by stryker's typescript-checker itself when
       // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
       // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
-      ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native"],
+      // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).
+      ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native", "@anthropic-ai/sdk"],
       // knip's Stryker plugin only globs `.js`/`.mjs`/`.cjs`/`.json` configs; naming the `.ts` configs is
       // what lets it read `testRunner`/`checkers` and credit the runner and checker packages.
       stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
@@ -75,6 +76,8 @@ export const config = {
     "tests/support": {
       entry: ["{iso,node,browser}/**/*.{ts,tsx}"],
       project: ["{iso,node,browser}/**/*.{ts,tsx}"],
+      // Peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml); never imported.
+      ignoreDependencies: ["@anthropic-ai/sdk"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
     // (research-zone scripts import them by subpath until their tools promote).
