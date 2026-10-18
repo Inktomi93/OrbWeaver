@@ -63,6 +63,10 @@ export interface RunNicedSyncOptions extends CaptureCeilingOption {
    *  child can hang — a planted mutant that turns a loop infinite is the standing case — MUST set this,
    *  or the run never returns a verdict at all. */
   readonly timeout?: number;
+  /** Run the child under the `niced-exec.ts` launcher, which stops and joins it if this caller dies. A
+   *  caller blocked in a sync spawn runs no signal handler, so a long-lived, memory-heavy child needs this
+   *  or a SIGTERM to the caller orphans it. Costs one node start per call. */
+  readonly supervised?: boolean;
 }
 
 export interface RunNicedSyncResult {

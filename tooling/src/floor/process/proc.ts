@@ -28,7 +28,7 @@ import type {
   TranscriptResult,
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
-import { lowerChildPriority, nicedCommand } from "./process-priority.ts";
+import { launcherCommand, lowerChildPriority, nicedCommand } from "./process-priority.ts";
 
 /** The doors' option + result shapes live in ./proc-contract.ts (split at the 450-line cap, #2242) and
  *  are re-exported here for the same reason `PrunedRun` is re-exported from ./artifacts.ts: this module is
@@ -110,7 +110,7 @@ const DEFAULT_TIMEOUT_BASE_MS = 120_000;
  *  ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const niced = nicedCommand(cmd, args);
+  const niced = opts.supervised === true ? launcherCommand(cmd, args) : nicedCommand(cmd, args);
   const res = DOORS.spawnSync(niced.command, niced.args, {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),

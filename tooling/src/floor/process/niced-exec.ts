@@ -20,13 +20,40 @@
 // relay, so this launcher only ignores them (a no-op handler, so it does not die first and orphan the
 // child by exiting). SIGTERM is typically aimed at ONE pid, this launcher's — that one IS relayed, direct
 // to the child, never as a group signal (the child is not its own group leader here to relay one to).
+//
+// THE LAUNCHER OWNS ITS CHILD'S LIFETIME. A sync door's caller is blocked inside `spawnSync` and cannot run a
+// signal handler, so a SIGTERM to that caller kills it and would orphan the child. This launcher stays
+// responsive: when its parent dies, or when it is told to stop, it escalates TERM then KILL on the child
+// and exits only after the child has.
 import process from "node:process";
+import { pidAlive } from "../artifacts/run-retention.ts";
 import { EXIT } from "../cli/exit-contract.ts";
 import { spawnFullPriorityChild } from "./proc.ts";
 import { childExitCode } from "./proc-signals.ts";
 import { lowerToolingPriority } from "./process-priority.ts";
+import { escalateStop } from "./stop-escalation.ts";
+
+const PARENT_POLL_MS = 500;
+const IGNORED_SIGNALS = ["SIGINT", "SIGQUIT", "SIGHUP"] as const;
 
 lowerToolingPriority();
+
+// POSIX reparents an orphan, so a changed ppid is the death notice; win32 never reparents, so ask for the pid.
+function parentGone(parent: number): boolean {
+  return process.ppid !== parent || (process.platform === "win32" && !pidAlive(parent));
+}
+
+// Die of the child's own signal so a sync door reads `signal`, not a 128+N code it would have to decode.
+// win32 has no such death; the exit code mirror stands there.
+function mirrorSignal(signal: NodeJS.Signals | null): void {
+  if (signal === null || process.platform === "win32") {
+    return;
+  }
+  for (const name of [...IGNORED_SIGNALS, "SIGTERM"] as const) {
+    process.removeAllListeners(name);
+  }
+  process.kill(process.pid, signal);
+}
 
 function run(argv: readonly string[]): void {
   const [cmd, ...args] = argv;
@@ -36,24 +63,50 @@ function run(argv: readonly string[]): void {
     return;
   }
 
+  const parent = process.ppid;
   const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit" });
+  let stopping = false;
+  const stop = (): void => {
+    if (stopping) {
+      return;
+    }
+    stopping = true;
+    escalateStop({ signal: (signal) => child.kill(signal), gone: child.hasExited })
+      .then((gone) => {
+        if (!gone) {
+          process.stderr.write(`niced-exec: ${cmd} outlived TERM and KILL\n`);
+        }
+      })
+      .catch((error: unknown) => {
+        process.stderr.write(`niced-exec: stopping ${cmd} failed: ${String(error)}\n`);
+        process.exitCode = EXIT.toolError;
+      });
+  };
 
   // Never dying from these is the whole point — they already reached the real child directly.
   const ignore = (): void => undefined;
-  process.on("SIGINT", ignore);
-  process.on("SIGQUIT", ignore);
-  process.on("SIGHUP", ignore);
-  process.on("SIGTERM", () => child.kill("SIGTERM"));
+  for (const signal of IGNORED_SIGNALS) {
+    process.on(signal, ignore);
+  }
+  process.on("SIGTERM", stop);
+  const watch = setInterval(() => {
+    if (parentGone(parent)) {
+      stop();
+    }
+  }, PARENT_POLL_MS);
+  watch.unref();
 
   child
     .wait()
     .then((exit) => {
+      clearInterval(watch);
       if (exit.error !== undefined) {
         process.stderr.write(`niced-exec: spawn failed: ${cmd}: ${exit.error.message}\n`);
         process.exitCode = EXIT.toolError;
         return;
       }
       process.exitCode = childExitCode(exit);
+      mirrorSignal(exit.signal);
     })
     .catch((error: unknown) => {
       // `wait()` never rejects (a spawn failure resolves as `exit.error`, above) — this is a pure

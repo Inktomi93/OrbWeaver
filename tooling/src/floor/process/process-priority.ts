@@ -13,16 +13,24 @@ export const TOOLING_PRIORITY: number = constants.priority.PRIORITY_BELOW_NORMAL
 let lowered = false;
 
 /** Lower THIS process's own priority once; idempotent so `niced-exec.ts` can call it unconditionally at
- *  startup. A child spawned after this call inherits the lowered priority. */
+ *  startup. A child spawned after this call inherits the lowered priority. A process already below the
+ *  target stays there, as under `nice`: an unprivileged process cannot raise its priority back. */
 export function lowerToolingPriority(): void {
   if (lowered) {
     return;
   }
   lowered = true;
-  setPriority(TOOLING_PRIORITY);
+  if (getPriority() < TOOLING_PRIORITY) {
+    setPriority(TOOLING_PRIORITY);
+  }
 }
 
 const NICED_EXEC_ENTRY = fileURLToPath(new URL("./niced-exec.ts", import.meta.url));
+
+/** The `niced-exec.ts` launcher form: it lowers its own priority, then supervises `cmd` until it exits. */
+export function launcherCommand(cmd: string, args: readonly string[]): NicedCommand {
+  return { command: process.execPath, args: [NICED_EXEC_ENTRY, cmd, ...args] };
+}
 
 /** The command a SYNC door spawns to run `cmd args…` at {@link TOOLING_PRIORITY}: a sync spawn returns no pid
  *  to lower before the child runs. POSIX uses `nice`, which execs `cmd` in place; win32 has no `nice`, so it
@@ -31,7 +39,7 @@ const NICED_EXEC_ENTRY = fileURLToPath(new URL("./niced-exec.ts", import.meta.ur
  *  calls {@link lowerChildPriority} instead. */
 export function nicedCommand(cmd: string, args: readonly string[], platform: NodeJS.Platform = process.platform): NicedCommand {
   return platform === "win32"
-    ? { command: process.execPath, args: [NICED_EXEC_ENTRY, cmd, ...args] }
+    ? launcherCommand(cmd, args)
     : { command: "nice", args: ["-n", String(Math.max(0, TOOLING_PRIORITY - getPriority())), cmd, ...args] };
 }
 
