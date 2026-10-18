@@ -1,14 +1,22 @@
 // Settings writes use the shipped controls and HTTP owners; About is intentionally read-only.
 
+import { stat } from "node:fs/promises";
 import { testId } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
+import { authConfigSchema } from "@orb/contracts/auth-config";
+import type { PortableTextFile } from "@orb/contracts/portability";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
-import type { Page } from "@playwright/test";
+import { prepareBackupFolder } from "@orb/testkit/node/backup-folder.ts";
+import type { Page, Request, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
+
+const BUNDLE_IMPORT_ROUTE = "/api/import/bundle";
+const IMPORT_GROUP_NAME = /^Import /u;
 
 async function toggleAndReload(page: Page, group: ConfigGroupId, label: string): Promise<boolean> {
   await openGroup(page, group);
@@ -24,6 +32,123 @@ async function toggleAndReload(page: Page, group: ConfigGroupId, label: string):
   await control.click();
   expect((await restored).ok()).toBe(true);
   return checked;
+}
+
+async function assertZipSizeRefusal(page: Page, path: string): Promise<void> {
+  let posted = 0;
+  const record = (request: Request): void => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === BUNDLE_IMPORT_ROUTE) {
+      posted += 1;
+    }
+  };
+  page.on("request", record);
+  try {
+    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
+    const zone = page.locator('[data-slot="file-dropzone"]').filter({ has: page.getByTestId(testId("backupImportDropzone")) });
+    await expect(zone.getByRole("alert")).toContainText(/exceeds the .+ limit$/u);
+    await expect(page.getByRole("group", { name: IMPORT_GROUP_NAME })).toHaveCount(0);
+    expect(posted).toBe(0);
+  } finally {
+    page.off("request", record);
+  }
+}
+
+async function chooseBackup(page: Page, path: string, folder: boolean): Promise<void> {
+  if (folder) {
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Import a folder…", exact: true }).click()]);
+    await chooser.setFiles(path);
+  } else {
+    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
+  }
+}
+
+async function assertNativeRestore(page: Page, host: ReturnType<typeof ownerActor>, folder: boolean, entries: number): Promise<void> {
+  const owner = await host.trpc.sessions.me.query(undefined);
+  const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
+  await expect(preflight).toBeVisible();
+  // A full capped page cannot prove the complete native workload-set difference.
+  const before = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+  expect(before.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+  const beforeIds = new Set(before.map((row) => row.id));
+  const route = folder ? "/api/import/tree" : BUNDLE_IMPORT_ROUTE;
+  const matches = (response: Response): boolean => response.request().method() === "POST" && new URL(response.url()).pathname === route;
+  const statuses: number[] = [];
+  const record = (response: Response): void => {
+    if (matches(response)) {
+      statuses.push(response.status());
+    }
+  };
+  page.on("response", record);
+  try {
+    const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: "Import", exact: true }).click()]);
+    expect(response.status()).toBe(202);
+    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: 60_000 });
+    expect(statuses.every((status) => status === 202)).toBe(true);
+    // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
+    const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+    expect(after.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+    const created = after.filter((row) => !beforeIds.has(row.id));
+    expect(created).toHaveLength(statuses.length);
+    expect(created.length).toBe(folder ? statuses.length : 1);
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+    for (const row of created) {
+      const workload = await host.trpc.workloads.get.query({ id: row.id });
+      expect(workload.ownerId).toBe(owner.userId);
+      expect(workload.status).toBe("succeeded");
+      if (workload.poison || workload.kind !== "import-bundle" || workload.result === null) {
+        throw new Error("Backup import has no canonical bundle result");
+      }
+      expect(workload.params.source ?? "zip").toBe(folder ? "dir" : "zip");
+      imported += workload.result.imported;
+      skipped += workload.result.skipped;
+      failed += workload.result.failed;
+    }
+    // Native successful reuse counts as imported; skipped means an unsupported or unattempted file.
+    expect(failed).toBe(0);
+    expect(skipped).toBe(0);
+    expect(imported + skipped + failed).toBe(entries);
+    await expect(page.getByTestId(testId("importReport"))).toContainText(`${String(imported)} imported`);
+  } finally {
+    page.off("response", record);
+  }
+}
+
+async function assertRestoredWitness(
+  page: Page,
+  host: ReturnType<typeof ownerActor>,
+  witness: RegexScriptRow,
+  exported: PortableTextFile,
+): Promise<RegexScriptRow> {
+  const restored = (await host.trpc.regex.listScripts.query(undefined)).filter((script) => script.name === witness.name);
+  expect(restored).toHaveLength(1);
+  const restoredScript = restored[0];
+  if (restoredScript === undefined) {
+    throw new Error("Backup import did not restore its removed script");
+  }
+  expect(restoredScript.id).not.toBe(witness.id);
+  expect((await host.trpc.regex.exportScript.query({ scriptId: restoredScript.id })).fileText).toBe(exported.fileText);
+  await openGroup(page, "regex");
+  await page.getByRole("button", { name: witness.name, exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Replace with", exact: true })).toHaveValue(witness.replaceString);
+  return restoredScript;
+}
+
+async function restoreBackup(
+  page: Page,
+  host: ReturnType<typeof ownerActor>,
+  witness: RegexScriptRow,
+  input: { readonly path: string; readonly folder: boolean; readonly entries: number; readonly exported: PortableTextFile },
+): Promise<RegexScriptRow> {
+  await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
+  expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
+  await chooseBackup(page, input.path, input.folder);
+  await assertNativeRestore(page, host, input.folder, input.entries);
+  if (!input.folder) {
+    await page.getByRole("button", { name: "Import another", exact: true }).click();
+  }
+  return await assertRestoredWitness(page, host, witness, input.exported);
 }
 
 test.describe("committed corpus settings", () => {
@@ -104,14 +229,13 @@ test.describe("committed corpus settings", () => {
   test("Backup exports a real library and imports the downloaded bundle", { tag: "@smoke" }, async ({ page, baseURL }, testInfo) => {
     test.setTimeout(120_000);
     const host = ownerActor(baseURL ?? "");
-    const owner = await host.trpc.sessions.me.query(undefined);
     const scriptId = SELECTED_CORPUS_FIXTURE?.wire.regexLibrary?.ids.scriptId;
     if (scriptId === undefined) {
       throw new Error("Backup restore requires the captured regex library");
     }
     // An unattached native duplicate makes the removable witness without deleting captured scope edges.
     const copy = await host.trpc.regex.duplicateScript.mutate({ scriptId });
-    const witness = await host.trpc.regex.updateScript.mutate({ scriptId: copy.id, input: { name: `Backup restore ${copy.id}` } });
+    let witness: RegexScriptRow = await host.trpc.regex.updateScript.mutate({ scriptId: copy.id, input: { name: `Backup restore ${copy.id}` } });
     const exported = await host.trpc.regex.exportScript.query({ scriptId: witness.id });
     await openGroup(page, "backup");
     const downloaded = page.waitForEvent("download");
@@ -122,49 +246,17 @@ test.describe("committed corpus settings", () => {
     expect(filename).toMatch(/\.zip$/iu);
     const path = testInfo.outputPath(filename);
     await download.saveAs(path);
-    await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
-    expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
-    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
-    // The native list has no cursor, so a full capped page cannot prove a complete identity snapshot.
-    const beforeImports = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
-    expect(beforeImports.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
-    const beforeImportIds = new Set(beforeImports.map((row) => row.id));
-    const [response] = await Promise.all([
-      page.waitForResponse((candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === "/api/import/bundle"),
-      page
-        .getByRole("group", { name: /^Import “/u })
-        .getByRole("button", { name: "Import", exact: true })
-        .click(),
-    ]);
-    expect(response.status()).toBe(202);
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: 60_000 });
-    const afterImports = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
-    expect(afterImports.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
-    const createdImports = afterImports.filter((row) => !beforeImportIds.has(row.id));
-    expect(createdImports).toHaveLength(1);
-    const createdImport = createdImports[0];
-    if (createdImport === undefined) {
-      throw new Error("Backup import did not create its native workload");
+    const configResponse = await page.request.get("/api/auth/config");
+    expect(configResponse.ok()).toBe(true);
+    const caps = authConfigSchema.parse(await configResponse.json()).uploads;
+    const overZipCap = (await stat(path)).size > caps.importTotal;
+    await using folder = await prepareBackupFolder(path, testInfo.outputPath("backup-folder"));
+    if (overZipCap) {
+      await assertZipSizeRefusal(page, path);
+    } else {
+      witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported });
+      await openGroup(page, "backup");
     }
-    const workload = await host.trpc.workloads.get.query({ id: createdImport.id });
-    expect(workload.ownerId).toBe(owner.userId);
-    expect(workload.status).toBe("succeeded");
-    if (workload.poison || workload.kind !== "import-bundle" || workload.result === null) {
-      throw new Error("Backup import has no canonical bundle result");
-    }
-    expect(workload.result.failed).toBe(0);
-    expect(workload.result.imported).toBeGreaterThan(0);
-    await expect(page.getByTestId(testId("importReport"))).toContainText(`${String(workload.result.imported)} imported`);
-    const restored = (await host.trpc.regex.listScripts.query(undefined)).filter((script) => script.name === witness.name);
-    expect(restored).toHaveLength(1);
-    const restoredScript = restored[0];
-    if (restoredScript === undefined) {
-      throw new Error("Backup import did not restore its removed script");
-    }
-    expect(restoredScript.id).not.toBe(witness.id);
-    expect((await host.trpc.regex.exportScript.query({ scriptId: restoredScript.id })).fileText).toBe(exported.fileText);
-    await openGroup(page, "regex");
-    await page.getByRole("button", { name: witness.name, exact: true }).click();
-    await expect(page.getByRole("textbox", { name: "Replace with", exact: true })).toHaveValue(witness.replaceString);
+    await restoreBackup(page, host, witness, { path: folder.directory, folder: true, entries: folder.entries, exported });
   });
 });

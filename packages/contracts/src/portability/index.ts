@@ -37,6 +37,23 @@ export const PORTABLE_KINDS = [
 /** A portable entity kind — the routing key that ties a bundle subdirectory to its owning descriptor. */
 export type PortableKind = (typeof PORTABLE_KINDS)[number];
 
+/** Native archive directories, shared by export descriptors and folder-layout admission. */
+export const PORTABLE_DIRECTORIES = {
+  character: "characters/",
+  chat: "chats/",
+  persona: "personas/",
+  "world-info": "world-info/",
+  regex: "regex/",
+  databank: "databank/",
+  preset: "presets/",
+  theme: "themes/",
+  "user-settings": "user-settings/",
+  tag: "tags/",
+  gallery: "gallery/",
+  assets: "assets/",
+  imagery: "imagery/",
+} as const satisfies Readonly<Record<PortableKind, string>>;
+
 /** Fixed dependency order the core imports a full bundle in — personas/world-info/tags land before
  *  characters, characters+personas before chats — so foreign-key-style attachments resolve. */
 export const PORTABLE_IMPORT_ORDER = [

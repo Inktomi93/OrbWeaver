@@ -199,7 +199,8 @@
     "./node/corpus-chat-outputs.ts": "./node/corpus-chat-outputs.ts",
     "./node/corpus-rpg-outputs.ts": "./node/corpus-rpg-outputs.ts",
     "./node/corpus-surface-outputs.ts": "./node/corpus-surface-outputs.ts",
-    "./node/corpus-surface-wire.ts": "./node/corpus-surface-wire.ts"
+    "./node/corpus-surface-wire.ts": "./node/corpus-surface-wire.ts",
+    "./node/backup-folder.ts": "./node/backup-folder.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",

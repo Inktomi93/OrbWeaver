@@ -11,8 +11,8 @@
 // is sent or listed in `skipped` with its reason; a slug collision (two cards whose names slug alike) sends
 // both and the server disambiguates, as it does for a folder uploaded whole.
 
-import type { StProfileHandledEntry } from "@orb/contracts/import";
-import { chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
+import type { StProfileHandledEntry, TreeLayoutDeclaration } from "@orb/contracts/import";
+import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import { slugifyHandle } from "@orb/kit/slug";
 import { relativePathOf } from "./import-tree.ts";
 
@@ -36,6 +36,8 @@ export interface TreeImportPlan {
   /** Files and bytes the batches carry (a file repeated across uploads counts once). */
   readonly files: number;
   readonly bytes: number;
+  /** The layout every upload declares, or null when each upload is recognized on its own. */
+  readonly layout: TreeLayoutDeclaration | null;
 }
 
 const PNG_EXT = /\.png$/iu;
@@ -112,19 +114,6 @@ function commonWrapper(paths: readonly string[]): string | null {
   }
   const prefix = first.slice(0, slash + 1);
   return paths.every((p) => p.startsWith(prefix)) ? prefix.slice(0, -1) : null;
-}
-
-const PROFILE_MARKERS: ReadonlySet<string> = new Set([ST_SETTINGS_FILE, CHARACTERS_DIR, CHATS_DIR, USER_AVATARS_DIR]);
-
-/** How many leading segments name the profile dir: 0 when the picked folder IS a profile, 1 when it holds
- *  profile subdirs (the `data/` root), null when the tree is not SillyTavern-shaped. */
-function profileDepth(paths: readonly string[]): 0 | 1 | null {
-  const top = new Set(paths.map((p) => p.split("/")[0] ?? ""));
-  if ([...top].some((name) => PROFILE_MARKERS.has(name))) {
-    return 0;
-  }
-  const second = new Set(paths.map((p) => p.split("/")[1] ?? ""));
-  return [...second].some((name) => PROFILE_MARKERS.has(name)) ? 1 : null;
 }
 
 /** The server's chat-dir pairing: the slug, else the slug minus an ST folder-name decoration
@@ -220,10 +209,8 @@ class Packer {
   }
 }
 
-/** A non-SillyTavern tree (an unzipped orb backup): every file imports on its own, so the plan is a plain
- *  greedy split in path order with nothing skipped but an over-cap file. */
-function planGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps): TreeImportPlan {
-  const skipped: SkippedTreeFile[] = [];
+/** A greedy split in path order; an over-cap file joins `skipped`. */
+function packGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
   const packer = new Packer(caps, []);
   let files = 0;
   let bytes = 0;
@@ -237,6 +224,19 @@ function planGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps): Tre
     bytes += f.file.size;
   }
   return { batches: packer.finish(), skipped, files, bytes };
+}
+
+/** A native tree (an unzipped orb backup): every file imports on its own. One upload is recognized as native
+ *  by itself. Split uploads each declare the native layout, which the server admits only when every entry sits
+ *  under a native directory, so an entry outside one is skipped here instead of refusing its whole upload. */
+function planGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps): TreeImportPlan {
+  const whole = packGeneric(planned, caps, []);
+  if (whole.batches.length <= 1) {
+    return { ...whole, layout: null };
+  }
+  const nativeEntry = (f: PlannedFile): boolean => admitTreeBatch([f.path], "orb").kind === "orb";
+  const outside = planned.filter((f) => !nativeEntry(f)).map((f) => ({ path: f.path, reason: UNHANDLED_FALLBACK }));
+  return { ...packGeneric(planned.filter(nativeEntry), caps, outside), layout: "orb" };
 }
 
 /** Where one picked file belongs in the plan. */
@@ -386,11 +386,17 @@ export async function planTreeImport(
     const path = wrapper === null ? raw : raw.slice(wrapper.length + 1);
     return { file, path, segments: path.split("/") };
   });
-  const depth = profileDepth(planned.map((f) => f.path));
-  if (depth === null) {
+  const layout = admitTreeBatch(
+    planned.map((f) => f.path),
+    null,
+  );
+  if (layout.kind === "reject") {
+    throw new Error("The selected folder does not contain an unambiguous supported library layout");
+  }
+  if (layout.kind === "orb") {
     return planGeneric(planned, caps);
   }
-  const inProfile = depth === 0 ? planned : planned.map((f) => ({ ...f, segments: f.segments.slice(1) }));
+  const inProfile = layout.stagePrefix === "" ? planned.map((f) => ({ ...f, segments: f.segments.slice(1) })) : planned;
   const classified = classifySt(inProfile, caps);
   const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
 
@@ -423,7 +429,7 @@ export async function planTreeImport(
   for (const f of counted) {
     bytes += f.file.size;
   }
-  return { batches: packer.finish(), skipped: classified.skipped, files: counted.size, bytes };
+  return { batches: packer.finish(), skipped: classified.skipped, files: counted.size, bytes, layout: null };
 }
 
 /** Every file the plan's uploads carry, once each (settings.json and the avatars repeat across batches). The
