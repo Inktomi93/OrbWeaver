@@ -36,6 +36,6 @@ Follow the [foundation plan's public-door order](../plans/test-foundation/design
 
 Reviewed non-macro kit cleanup removes obsolete exports and dead implementations while preserving canonical macro identity. The baseline drops only matching stale keys. Kit/iso programs and retained kit cases pass; legacy remains red without an exact baseline. Test-supported surfaces and CSS-oracle models remain production API decisions, not established application consumers. Evidence: `reports/review/989-kit-nonmacro-independent.md`.
 
-Kit internal exports are being removed through public-entry regression cases. CSS models remain debt pending real producer/renderer qualification, not consumers added for liveness. Evidence: `reports/review/989-kit-test-supported-api-adjudication.md`.
+Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
 
 Search compatibility cleanup preserves the legacy cases through their existing raw-reach map. Native findings shrink without new baseline keys. Evidence: `reports/review/989-search-compatibility-cleanup.md`.

@@ -15,7 +15,7 @@ import {
   derivedForeground,
   derivedForegroundLightness,
   derivedForegroundLightnessForSurfaces,
-  derivedMutedForegroundLightness,
+  derivedMutedForegroundPair,
   inputCompositeSurface,
   oklchToSrgb,
   proseInkLightness,
@@ -207,6 +207,7 @@ describe("#969 accepted-base foreground contract", () => {
     const sidebarAccent = rampSurface(base, deltas.sidebarAccent);
     const secondary = rampSurface(base, deltas.secondary);
     const muted = rampSurface(base, deltas.muted);
+    const mutedPair = derivedMutedForegroundPair(base, [base, card, popover, sidebar, secondary, muted], [base, card, popover]);
     const pairs = [
       [{ l: derivedForegroundLightnessForSurfaces([base, raised, card]), c: 0, h: base.h }, base, "foreground/background"],
       [derivedForeground(card), card, "card-foreground/card"],
@@ -214,25 +215,7 @@ describe("#969 accepted-base foreground contract", () => {
       [derivedForeground(sidebar), sidebar, "sidebar-foreground/sidebar"],
       [derivedForeground(sidebarAccent), sidebarAccent, "sidebar-accent-foreground/sidebar-accent"],
       [derivedForeground(secondary), secondary, "secondary-foreground/secondary"],
-      [
-        {
-          l: derivedMutedForegroundLightness([
-            base,
-            card,
-            popover,
-            sidebar,
-            secondary,
-            muted,
-            inputCompositeSurface(base, base),
-            inputCompositeSurface(base, card),
-            inputCompositeSurface(base, popover),
-          ]),
-          c: 0,
-          h: base.h,
-        },
-        muted,
-        "muted-foreground/muted",
-      ],
+      [{ l: mutedPair.lightness, c: 0, h: base.h }, muted, "muted-foreground/muted"],
     ] as const;
     for (const [ink, surface, label] of pairs) {
       expect(wcagContrastRatio(oklchToSrgb(ink), oklchToSrgb(surface)), label).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
@@ -242,9 +225,9 @@ describe("#969 accepted-base foreground contract", () => {
       throw new Error("muted foreground pair missing");
     }
     for (const [surface, label] of [
-      [inputCompositeSurface(base, base), "input/background"],
-      [inputCompositeSurface(base, card), "input/card"],
-      [inputCompositeSurface(base, popover), "input/popover"],
+      [inputCompositeSurface(base, base, mutedPair.inputAlpha), "input/background"],
+      [inputCompositeSurface(base, card, mutedPair.inputAlpha), "input/card"],
+      [inputCompositeSurface(base, popover, mutedPair.inputAlpha), "input/popover"],
     ] as const) {
       expect(wcagContrastRatio(oklchToSrgb(mutedInk), oklchToSrgb(surface)), label).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     }

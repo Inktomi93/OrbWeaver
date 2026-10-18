@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
+lane: wt/claude-fabrication-1041
 plan: test-foundation
 ---
 
@@ -28,7 +29,7 @@ The supported `pnpm ast apisurface --in /src/ --public --json --max 1000000` com
 
 Bounded native UI projection completes with worker release: elapsed 1:58.62, maximum RSS 2,501,396 KiB, no swaps. This is not aggregate concurrent memory or a full apisurface measurement.
 
-Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB, without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
+Tests-DOM publication at `7394d01aaf` revalidates inputs and releases workers. Sampled RSS is not a continuous peak. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
@@ -39,5 +40,7 @@ The profiled TS7 prototype is slower, larger and fails reference parity. TS7 wor
 Reviewed indexing and name links qualify complete DOM publication, currentness and release at measured cost. Historical runs keep their source and SDK identity; timings are not a controlled speedup benchmark. Bounded same-process warm readers qualify; cross-process reuse, native equivalence, other worlds and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-current-tests-dom-warm-reuse.md`.
 
 Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.
+
+Citation-resource cost analysis preserves existing findings and authority alarms. Evidence: `reports/review/965-citation-resource-current-cost.md`.
 
 AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.
