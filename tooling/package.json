@@ -249,6 +249,7 @@
     "typescript": "catalog:",
     "unbash": "catalog:",
     "vitest": "catalog:",
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

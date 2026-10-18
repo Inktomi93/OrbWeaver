@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P2
 area: tooling
-lane: codex/router-declaration-bridge-965
 plan: test-foundation
 ---
 
@@ -24,4 +23,4 @@ A bare `node` invocation of the verify CLI completes the server-world inventory 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed CLI startup and inventory workers consume the existing workspace heap configuration. Explicit native heap caps retain precedence. Native signal and stderr evidence survive worker failure. Bounded process, publication and lifetime controls pass; tooling types pass and Node diagnostics remain unchanged. Full server-world bare-versus-pnpm completion and peak-memory comparison remain open. Evidence: `reports/review/1046-heap-floor-independent.md`.

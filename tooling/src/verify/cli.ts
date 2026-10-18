@@ -32,153 +32,156 @@ import type { VerifyVerb } from "./index.ts";
 const { EXIT } = await import("../floor/cli/exit-contract.ts");
 const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
 
-const {
-  parse,
-  refuseVerbTail,
-  runApplicationStatic,
-  runApplicationTypeMembership,
-  runAssetRefsCoverage,
-  runBaseline,
-  runBootChunkRatchet,
-  runConfigSnapshot,
-  runDbBaselineParity,
-  runDebtWalk,
-  runEslint,
-  runGateContract,
-  runGitTextSafety,
-  runInstrumentAffected,
-  runKnipNegativeLiveness,
-  runLedgersFresh,
-  runNewGate,
-  runPolicyConformance,
-  runRatchetGateCli,
-  runScopedCli,
-  runScopedEslint,
-  runScopedTest,
-  runShow,
-  runShowcaseRelease,
-  runStructure,
-  runStructureDelta,
-  runStylelint,
-  runTestsExecutionMembership,
-  runTestsTypeMembership,
-  runTypecheck,
-  runTypecheckPlan,
-  runVerify,
-  VERB_HELP,
-  VERIFY_VERBS,
-} = await import("./index.ts");
-
-const USAGE = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}> [args…]`;
-
-// ONE usage line per verb, answered BEFORE dispatch (#809) — the text table lives in cli-help.ts.
-//
-// `structure --help` used to fall through to `runStructure`, which loads the whole-repo ts-morph project
-// before it ever looks at argv — measured on this tree: exit 134 (heap OOM) in 5.4s under bare node's
-// ~4GB self-cap. A help request must never do work; it is answered here, where nothing has been built yet.
-
-function isVerb(candidate: string): candidate is VerifyVerb {
-  return (VERIFY_VERBS as readonly string[]).includes(candidate);
-}
-
-/** A `--help`/`-h` ANYWHERE in a known verb's args is a help request — no verb takes those as a value. */
-function helpRequested(rest: readonly string[]): boolean {
-  return rest.some((arg) => arg === "--help" || arg === "-h");
-}
-
-async function dispatch(verb: string, root: string, rest: readonly string[]): Promise<number> {
-  switch (verb) {
-    case "run": {
-      const parsed = parse(rest);
-      if ("error" in parsed) {
-        throw new UsageError(parsed.error);
-      }
-      return await runVerify(root, parsed);
-    }
-    case "structure":
-      return await runStructure(root, rest);
-    case "structure-delta":
-      return runStructureDelta(root, rest);
-    case "show":
-      return runShow(root, rest);
-    case "scoped":
-      return await runScopedCli(root, rest);
-    case "scoped-test":
-      return await runScopedTest(root, rest);
-    case "new-gate":
-      return runNewGate(root, rest);
-    case "gate-contract":
-      return runGateContract(root);
-    case "policy-conformance":
-      return await runPolicyConformance(root);
-    case "baseline":
-      return runBaseline(root, rest);
-    case "tests-membership":
-      return rest.includes("--application")
-        ? await runApplicationTypeMembership(
-            root,
-            rest.filter((arg) => arg !== "--application"),
-          )
-        : runTestsTypeMembership(root, rest);
-    case "tests-execution-membership":
-      return runTestsExecutionMembership(root, rest);
-    case "db-baseline":
-      return await runDbBaselineParity(root);
-    case "asset-refs":
-      return await runAssetRefsCoverage(root);
-    case "boot-chunk":
-      return await runBootChunkRatchet(root);
-    case "ledgers-fresh":
-      return runLedgersFresh(root, rest);
-    case "knip-negative-liveness":
-      return runKnipNegativeLiveness(root);
-    case "debt":
-      return runDebtWalk(root, rest);
-    case "ratchet-gate":
-      return runRatchetGateCli(root);
-    case "config-snapshot": {
-      return await runConfigSnapshot(root, rest);
-    }
-    case "typecheck-plan":
-      return runTypecheckPlan(root, rest);
-    case "typecheck":
-      return await runTypecheck(root, rest);
-    case "application-static":
-      return await runApplicationStatic(root, rest);
-    case "eslint":
-      return await runEslint(root);
-    case "eslint-scoped":
-      return await runScopedEslint(root, rest);
-    case "git-text-safety":
-      return await runGitTextSafety(root, rest);
-    case "stylelint":
-      return await runStylelint(root, rest);
-    case "instrument-affected":
-      return await runInstrumentAffected(root, rest);
-    case "showcase-release":
-      return runShowcaseRelease(root);
-    default:
-      throw new UsageError(`unknown verb "${verb}"\n${USAGE}`);
-  }
-}
-
 await runTool(async () => {
-  const [verb, ...rest] = process.argv.slice(2);
-  if (verb === undefined || verb === "--help" || verb === "-h") {
-    process.stdout.write(`${USAGE}\n`);
-    return verb === undefined ? EXIT.misuse : EXIT.clean;
+  const { reexecWithNodeHeapFloor } = await import("../floor/process/node-heap.ts");
+  reexecWithNodeHeapFloor(process.argv.slice(1));
+
+  const {
+    parse,
+    refuseVerbTail,
+    runApplicationStatic,
+    runApplicationTypeMembership,
+    runAssetRefsCoverage,
+    runBaseline,
+    runBootChunkRatchet,
+    runConfigSnapshot,
+    runDbBaselineParity,
+    runDebtWalk,
+    runEslint,
+    runGateContract,
+    runGitTextSafety,
+    runInstrumentAffected,
+    runKnipNegativeLiveness,
+    runLedgersFresh,
+    runNewGate,
+    runPolicyConformance,
+    runRatchetGateCli,
+    runScopedCli,
+    runScopedEslint,
+    runScopedTest,
+    runShow,
+    runShowcaseRelease,
+    runStructure,
+    runStructureDelta,
+    runStylelint,
+    runTestsExecutionMembership,
+    runTestsTypeMembership,
+    runTypecheck,
+    runTypecheckPlan,
+    runVerify,
+    VERB_HELP,
+    VERIFY_VERBS,
+  } = await import("./index.ts");
+
+  const Usage = `usage: node tooling/src/verify/cli.ts <${VERIFY_VERBS.join("|")}> [args…]`;
+
+  // ONE usage line per verb, answered BEFORE dispatch (#809) — the text table lives in cli-help.ts.
+  //
+  // `structure --help` used to fall through to `runStructure`, which loads the whole-repo ts-morph project
+  // before it ever looks at argv — measured on this tree: exit 134 (heap OOM) in 5.4s under bare node's
+  // ~4GB self-cap. A help request must never do work; it is answered here, where nothing has been built yet.
+
+  function isVerb(candidate: string): candidate is VerifyVerb {
+    return (VERIFY_VERBS as readonly string[]).includes(candidate);
+  }
+
+  /** A `--help`/`-h` ANYWHERE in a known verb's args is a help request — no verb takes those as a value. */
+  function helpRequested(rest: readonly string[]): boolean {
+    return rest.some((arg) => arg === "--help" || arg === "-h");
+  }
+
+  async function dispatch(verb: string, root: string, rest: readonly string[]): Promise<number> {
+    switch (verb) {
+      case "run": {
+        const parsed = parse(rest);
+        if ("error" in parsed) {
+          throw new UsageError(parsed.error);
+        }
+        return await runVerify(root, parsed);
+      }
+      case "structure":
+        return await runStructure(root, rest);
+      case "structure-delta":
+        return runStructureDelta(root, rest);
+      case "show":
+        return runShow(root, rest);
+      case "scoped":
+        return await runScopedCli(root, rest);
+      case "scoped-test":
+        return await runScopedTest(root, rest);
+      case "new-gate":
+        return runNewGate(root, rest);
+      case "gate-contract":
+        return runGateContract(root);
+      case "policy-conformance":
+        return await runPolicyConformance(root);
+      case "baseline":
+        return runBaseline(root, rest);
+      case "tests-membership":
+        return rest.includes("--application")
+          ? await runApplicationTypeMembership(
+              root,
+              rest.filter((arg) => arg !== "--application"),
+            )
+          : runTestsTypeMembership(root, rest);
+      case "tests-execution-membership":
+        return runTestsExecutionMembership(root, rest);
+      case "db-baseline":
+        return await runDbBaselineParity(root);
+      case "asset-refs":
+        return await runAssetRefsCoverage(root);
+      case "boot-chunk":
+        return await runBootChunkRatchet(root);
+      case "ledgers-fresh":
+        return runLedgersFresh(root, rest);
+      case "knip-negative-liveness":
+        return runKnipNegativeLiveness(root);
+      case "debt":
+        return runDebtWalk(root, rest);
+      case "ratchet-gate":
+        return runRatchetGateCli(root);
+      case "config-snapshot": {
+        return await runConfigSnapshot(root, rest);
+      }
+      case "typecheck-plan":
+        return runTypecheckPlan(root, rest);
+      case "typecheck":
+        return await runTypecheck(root, rest);
+      case "application-static":
+        return await runApplicationStatic(root, rest);
+      case "eslint":
+        return await runEslint(root);
+      case "eslint-scoped":
+        return await runScopedEslint(root, rest);
+      case "git-text-safety":
+        return await runGitTextSafety(root, rest);
+      case "stylelint":
+        return await runStylelint(root, rest);
+      case "instrument-affected":
+        return await runInstrumentAffected(root, rest);
+      case "showcase-release":
+        return runShowcaseRelease(root);
+      default:
+        throw new UsageError(`unknown verb "${verb}"\n${Usage}`);
+    }
+  }
+
+  const [verbName, ...verbArgs] = process.argv.slice(2);
+  if (verbName === undefined || verbName === "--help" || verbName === "-h") {
+    process.stdout.write(`${Usage}\n`);
+    return verbName === undefined ? EXIT.misuse : EXIT.clean;
   }
   // ANSWER HELP BEFORE ANY WORK (#809) — see VERB_HELP. `structure --help` reached the subcommand body,
   // which builds the whole-repo ts-morph project, and died at 134 before argv was ever consulted.
-  if (isVerb(verb) && helpRequested(rest)) {
-    process.stdout.write(`${VERB_HELP[verb]}\n`);
+  if (isVerb(verbName) && helpRequested(verbArgs)) {
+    process.stdout.write(`${VERB_HELP[verbName]}\n`);
     return EXIT.clean;
   }
   // The TAIL axis (#1117): the verbs that take no arguments used to consume `rest` unread, so a typo'd
   // scope flag ran the whole-tree verb and reported a verdict about a scope nobody asked for. Refused
   // here, after the help answer and before any work — lib/verb-tail.ts rules every verb.
-  if (isVerb(verb)) {
-    refuseVerbTail(verb, rest);
+  if (isVerb(verbName)) {
+    refuseVerbTail(verbName, verbArgs);
   }
-  return await dispatch(verb, process.cwd(), rest);
+  return await dispatch(verbName, process.cwd(), verbArgs);
 });
