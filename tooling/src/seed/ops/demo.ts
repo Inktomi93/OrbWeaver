@@ -165,7 +165,7 @@ export async function seedDemoContent(deps: SeedDemoDeps): Promise<SeedDemoResul
 
   // A second human (idempotent: ensureUser upserts by handle). Passwordless — a demo participant, not a
   // login; sidesteps the AUTH_MODE=local password-hash SESSION_SECRET requirement.
-  const secondId = await built.sessions.ensureUser(castId<Handle>(SECOND_HUMAN_HANDLE));
+  const secondId = deps.secondUserId ?? (await built.sessions.ensureUser(castId<Handle>(SECOND_HUMAN_HANDLE)));
   const second = await principalFor(secondId);
   log(`second human ready: ${SECOND_HUMAN_HANDLE}`);
 
@@ -223,7 +223,7 @@ export async function seedDemoContent(deps: SeedDemoDeps): Promise<SeedDemoResul
         patch: { talkativeness: FIRST_SEAT_TALKATIVENESS },
       });
     }
-    const invite = await services.chat.createInvite({ principal: owner, chatId: group.chat.id, input: { invitedHandle: castId<Handle>(SECOND_HUMAN_HANDLE) } });
+    const invite = await services.chat.createInvite({ principal: owner, chatId: group.chat.id, input: { invitedHandle: second.handle } });
     await services.chat.acceptInvite({ principal: second, inviteId: invite.invite.id });
     groupTurn = await runTurn(
       () => services.chat.send({ principal: owner, chatId: groupChatId, content: "Everyone here? Let's plan the next splice." }),

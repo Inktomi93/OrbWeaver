@@ -7,6 +7,7 @@ import { auditLogs, themes, userSettings } from "@orb/db";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import { seedStats } from "./factories/stats.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
@@ -198,14 +199,14 @@ async function statsReads(caller: Caller, characterId: CharacterId): Promise<Sta
 export async function seedCorpusStatsSettings(root: ServerTestHarness, history: HistoryReferences): Promise<StatsSettingsCaptures> {
   await root.settleBackground();
   const caller = await root.internalCallerFor(root.ownerId);
-  const emptyActor = await root.actor();
-  const empty = await root.internalCallerFor(emptyActor.id);
+  const emptyActor = await seedCorpusAccount(root);
+  const empty = await root.internalCallerFor(emptyActor.userId);
   const absent = {
     overview: await read<"stats.overview">(undefined, empty.stats.overview),
     wrapped: await read<"stats.wrapped">(undefined, empty.stats.wrapped),
     freshness: await read<"stats.freshness">(undefined, empty.stats.freshness),
     settings: await read<"settings.getUserSettings">(undefined, empty.settings.getUserSettings),
-    row: await root.db.select().from(userSettings).where(eq(userSettings.userId, emptyActor.id)).get(),
+    row: await root.db.select().from(userSettings).where(eq(userSettings.userId, emptyActor.userId)).get(),
   };
   const computedEmpty = await read<"stats.reconcile">(undefined, empty.stats.reconcile);
   const emptyAfter = {

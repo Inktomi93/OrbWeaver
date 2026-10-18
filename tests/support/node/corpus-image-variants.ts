@@ -3,12 +3,14 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
 import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema } from "@orb/contracts/imagery";
 import { assets, imageryGenerations } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 import { z } from "zod";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { CorpusImageWire } from "./corpus-image-wire.ts";
 import { CORPUS_VARIANT_EDIT_MODEL, CORPUS_VARIANT_IMAGE_MODEL, CORPUS_VARIANT_KEY, CORPUS_VARIANT_TEXT_MODEL } from "./corpus-image-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
@@ -79,7 +81,7 @@ interface CorpusImageVariants {
   readonly secrets: readonly string[];
 }
 
-async function login(root: ServerTestHarness, handle: string, password: string, origin: string): Promise<NativeAuth> {
+async function login(root: ServerTestHarness, handle: Handle, password: string, origin: string): Promise<NativeAuth> {
   const response = await fetch(new URL("/api/auth/login", origin), {
     method: "POST",
     headers: { [CSRF_HEADER]: "1" },
@@ -177,16 +179,16 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { detectServer: false },
     },
   });
-  const member = await root.actor();
-  const foreign = await root.actor();
-  await caller.admin.resetPassword({ userId: member.id, password: CORPUS_VARIANT_PASSWORD });
-  await caller.admin.resetPassword({ userId: foreign.id, password: CORPUS_VARIANT_PASSWORD });
+  const member = await seedCorpusAccount(root);
+  const foreign = await seedCorpusAccount(root);
+  await caller.admin.resetPassword({ userId: member.userId, password: CORPUS_VARIANT_PASSWORD });
+  await caller.admin.resetPassword({ userId: foreign.userId, password: CORPUS_VARIANT_PASSWORD });
   const address = await root.listen();
   const origin = `http://${address.address}:${String(address.port)}`;
   const ownerAuth = await login(root, principal.handle, ownerPassword, origin);
   const memberAuth = await login(root, member.handle, CORPUS_VARIANT_PASSWORD, origin);
   const foreignAuth = await login(root, foreign.handle, CORPUS_VARIANT_PASSWORD, origin);
-  const memberPrincipal = await root.principalFor(member.id);
+  const memberPrincipal = member;
   const character = await caller.character.create({
     input: createCharacterSchema.parse({
       handle: "image-variant-witness",
@@ -321,7 +323,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       credential,
       connections: [image, edit, text, embed],
       ownerId: root.ownerId,
-      memberId: member.id,
+      memberId: member.userId,
       character,
       room,
       skips,

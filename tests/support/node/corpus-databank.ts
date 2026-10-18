@@ -1,6 +1,7 @@
 // Native document envelopes and room projections stay separate from private canon and workload evidence.
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { UserId } from "@orb/kit/ids";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import { seedCorpusConnections } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import type { CapturedDatabankViews, SeededCreatedDocument } from "./factories/databank.ts";
@@ -33,12 +34,11 @@ interface CorpusDatabank {
 /** Author consent through real destinations and retain the native queued identity through executed reindexing. */
 export async function seedCorpusDatabank(root: ServerTestHarness): Promise<CorpusDatabank> {
   const principal = await root.principalFor(root.ownerId);
-  const other = await root.actor();
-  const member = await root.principalFor(other.id);
+  const member = await seedCorpusAccount(root);
   await seedCorpusConnections(root, principal);
   await seedCorpusConnections(root, member);
   const caller = await root.internalCallerFor(root.ownerId);
-  const memberCaller = await root.internalCallerFor(other.id);
+  const memberCaller = await root.internalCallerFor(member.userId);
   const character = await caller.character.create({
     input: createCharacterSchema.parse({ handle: "databank-output-seat", name: "Bank witness", description: "A keeper of consented documents." }),
   });
@@ -87,7 +87,7 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
   const departedActive = await memberCaller.databank.listActiveForChat({ chatId: room.chat.id });
   return {
     viewerUserId: root.ownerId,
-    memberUserId: other.id,
+    memberUserId: member.userId,
     character,
     room,
     created,

@@ -4,6 +4,7 @@ import type { ChatResult, Resolved } from "@orb/inference";
 import { toChatRequest } from "@orb/inference";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_SDK_EMPTY, CORPUS_SDK_HOLD, CORPUS_SDK_MODEL, CORPUS_SDK_QUERY, CORPUS_SDK_REUSE, CORPUS_SDK_TOKEN } from "./corpus-sdk-protocol.ts";
 import type { createCorpusSdkExecution } from "./corpus-sdk-wire.ts";
 import { captureSdkSessionRows, seedUserConnection } from "./factories/connection.ts";
@@ -55,7 +56,7 @@ async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor,
 
 /** Save a subscription connection through its actual actor, credential and binding admission. */
 export async function seedCorpusSdkActor(root: ServerTestHarness): Promise<SdkActor> {
-  const principal = await root.principalFor((await root.actor()).id);
+  const principal = await seedCorpusAccount(root);
   const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal, provider: "claude-sub", key: CORPUS_SDK_TOKEN });
   const connection = await savedSdkConnection(root, { principal, credential });
   await root.services.connection.setBinding({ principal, task: "chat", connectionId: connection.id });
@@ -138,7 +139,7 @@ export async function seedCorpusSdkSessions(root: ServerTestHarness, wire: Retur
   const alternate = { result: await runCanon(room.chat.id, alternateConnection.id), rows: await captured(room.chat.id, alternateConnection.id) };
   const beforeForeign = await captured(room.chat.id);
   const callsBefore = wire.children.length;
-  const foreign = await root.principalFor((await root.actor()).id);
+  const foreign = await seedCorpusAccount(root);
   const refusal = await root.app.runtime.resolve({ principal: foreign, connectionId: connection.id, task: "chat", cachedFacts: true }).then(
     () => {
       throw new Error("foreign native SDK connection unexpectedly resolved");

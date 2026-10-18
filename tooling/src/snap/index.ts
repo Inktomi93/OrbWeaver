@@ -171,7 +171,7 @@ export { armStageKeeper, runStageKeeper, stageKeeperAlive } from "./ops/stage-ke
 export { markerRoot as stageMarkerRoot, readBands, setStageKeeper, stageBandVerdictFor, withBandsLock, writeBands } from "./ops/stage-marker.ts";
 // The bounded reap ledger (#1163): which ARM ended a stage. `--stage-status` prints it; a proof reads it.
 export { describeStageReaps, readStageReaps, recordStageReap } from "./ops/stage-reap-log.ts";
-export { cloneStageDb } from "./ops/stage-source.ts";
+export { cloneMigratedStageDb, cloneStageDb } from "./ops/stage-source.ts";
 // The boot-dead arm (#1837): cli.ts's own exit runs it — a stage this run BOOTED that never served a settled
 // app. Front-door members so a proof can plant a booted row and drive the SHIPPED teardown.
 export { tearDownBootDeadStage, tearDownStageRow } from "./ops/stage-teardown.ts";

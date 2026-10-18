@@ -28,10 +28,11 @@
 // the stack tool's dev pins and fixture recipe. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
+import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { devTargetAllowed } from "./target-guard.ts";
@@ -224,6 +225,14 @@ export const SELECTED_CORPUS_FIXTURE = corpusDirectory === undefined ? undefined
 export const SELECTED_LOCAL_CORPUS_FIXTURE = localCorpusDirectory === undefined ? undefined : loadCorpusFixture(localCorpusDirectory);
 /** Additive corpus qualification retains ordinary smoke reports and warm-up diagnostics in the same job. */
 export const E2E_REPORT_PREFIX = SELECTED_CORPUS_FIXTURE === undefined ? "reports/e2e" : (process.env["E2E_CORPUS_REPORT_PREFIX"] ?? "reports/e2e-corpus");
+for (const fixture of [SELECTED_CORPUS_FIXTURE, SELECTED_LOCAL_CORPUS_FIXTURE]) {
+  if (fixture?.privateParent !== undefined) {
+    assertPrivateCorpusOutputArguments(process.argv);
+    assertPrivateCorpusNetwork();
+    assertPrivateCorpusOutput(fixture.privateParent, E2E_REPORT_PREFIX);
+    assertPrivateCorpusOutput(fixture.privateParent, join(tmpdir(), "private-browser-temporary"));
+  }
+}
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {

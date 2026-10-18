@@ -10,10 +10,11 @@ import { closeDb } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/inference";
 import { createBinding } from "@orb/kit/binding";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
 import { ownerHandles } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
+import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
@@ -42,6 +43,7 @@ export interface ServerHarnessOptions
   readonly allowPublicBind?: boolean;
   readonly pluginSpawn?: NonNullable<ServicesDeps["pluginExecution"]>["spawn"];
   readonly db?: Db;
+  readonly startJobs?: boolean;
   readonly clock?: Clock;
   /** Ownership transfers to this root; the supplied scheduler is disposed even when construction fails. */
   readonly timers?: ControlledTimers;
@@ -90,6 +92,8 @@ export interface ServerTestHarness extends AsyncDisposable {
   readonly secretsDir: string;
   readonly ownerClaimFile?: string;
   readonly settleBackground: ServicesResult["settleBackground"];
+  readonly runAdmittedWorkload?: (id: WorkloadId, signal: AbortSignal) => Promise<void>;
+  readonly tickWorkloadSchedules?: () => Promise<void>;
   readonly settleSharing: ShareGraph["settle"];
 }
 
@@ -287,6 +291,34 @@ function shareInputsFor(options: ServerHarnessOptions | UnclaimedServerHarnessOp
   };
 }
 
+function workloadsFor(
+  app: ServicesResult,
+  execution: Parameters<typeof runWorkload>[0],
+  shutdown: AbortSignal,
+  startJobs: ServerHarnessOptions["startJobs"],
+): Pick<ServerTestHarness, "runAdmittedWorkload" | "tickWorkloadSchedules"> {
+  if (startJobs !== false) {
+    app.startJobs();
+    return {};
+  }
+  const runAdmittedWorkload: NonNullable<ServerTestHarness["runAdmittedWorkload"]> = async (id, signal) => {
+    shutdown.throwIfAborted();
+    signal.throwIfAborted();
+    const row = await loadWorkload(execution.db, app.workloadContributions, id);
+    if (row === null || row.poison) {
+      throw new Error("The admitted workload has no runnable native row");
+    }
+    const completion = runWorkload(execution, row, AbortSignal.any([signal, shutdown]));
+    app.supervise(`server-harness-workload:${id}`, "workloads.run", { workloadId: id }, () => completion);
+    await completion;
+  };
+  const tickWorkloadSchedulesOnce = async (): Promise<void> => {
+    shutdown.throwIfAborted();
+    await tickWorkloadSchedules({ db: execution.db, now: execution.now, start: app.services.workloads.start });
+  };
+  return { runAdmittedWorkload, tickWorkloadSchedules: tickWorkloadSchedulesOnce };
+}
+
 /** Build an owned in-process server graph; a supplied database remains its caller's resource. */
 export function createServerHarness(options: UnclaimedServerHarnessOptions): Promise<UnclaimedServerTestHarness>;
 export function createServerHarness(options?: ServerHarnessOptions): Promise<ServerTestHarness>;
@@ -351,6 +383,16 @@ export async function createServerHarness(
     networkExecution: { ...options.networkExecution, resolver: options.networkExecution?.resolver ?? refusingResolver },
   });
   appLifetime = app;
+  const manualWorkloadAbort = new AbortController();
+  construction.defer(() => manualWorkloadAbort.abort());
+  const workloadExecution = {
+    db: wiringDb,
+    now: clock.now,
+    contributions: app.workloadContributions,
+    audit: app.audit,
+    emitEvent: app.workloadEvents.emitWorkloadEvent,
+    scheduleInterval: timers.interval,
+  } satisfies Parameters<typeof runWorkload>[0];
   const principalFor = createHostPrincipalResolver(app.sessions);
   const credentialsKeyOk = await app.services.credentials.probeKeyDecrypt();
   const configuredOidc = await configuredOidcFor(options, app, { ...inputs, db: wiringDb });
@@ -405,7 +447,7 @@ export async function createServerHarness(
       },
       idSource,
     );
-  app.startJobs();
+  const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();
   return {
     app,
@@ -431,6 +473,7 @@ export async function createServerHarness(
     relayDir,
     secretsDir,
     settleBackground: app.settleBackground,
+    ...workloadDriver,
     settleSharing: sharing.settle,
     async [Symbol.asyncDispose](): Promise<void> {
       closing = true;

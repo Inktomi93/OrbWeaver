@@ -62,6 +62,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   const resumed = await caller.workloads.setScheduleEnabled({ id: schedule.id, enabled: true });
   root.timers.advance(MS_PER_MINUTE);
   await root.settleBackground();
+  await root.tickWorkloadSchedules?.();
   const afterTick = await caller.workloads.listSchedules({ kind: "reconcile-stats" });
   const admitted = (await caller.workloads.list({ kind: "reconcile-stats" })).filter((job) => !pausedJobs.some((old) => old.id === job.id));
   if (admitted.length !== 1) {

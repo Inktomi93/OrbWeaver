@@ -44,6 +44,7 @@ export interface RunFullSeedResult {
 }
 
 export interface SeedDemoDeps {
+  readonly secondUserId?: UserId;
   readonly services: Services;
   readonly built: Built;
   readonly owner: Principal;
