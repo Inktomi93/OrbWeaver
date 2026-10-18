@@ -97,6 +97,7 @@ test("occurrence coverage distinguishes native alias and property fallback from 
         event: "native-occurrence-parity",
         requested: queries.length,
         indexed: new Set(queries.filter((_, index) => answers[index]?.kind === "indexed").map((query) => JSON.stringify(query))).size,
+        computed: answers.filter((answer) => answer.kind === "computed").length,
         native: answers.filter((answer) => answer.kind === "native").length,
         indexedDeclarations: nodes.filter((_, index) => answers[index]?.kind === "indexed").map((node) => [node.getText(), node.getParent()?.getKindName()]),
       }),
@@ -107,7 +108,7 @@ test("occurrence coverage distinguishes native alias and property fallback from 
         throw new Error("native occurrence query missing");
       }
       const actual =
-        answer.kind === "indexed" ? answer.references : (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+        answer.kind === "native" ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []) : answer.references;
       expect(actual, `${query.fileName}:${String(query.position)} ${nodes[index]?.getText()}`).toEqual(expected[index]);
     }
   } finally {
@@ -133,7 +134,9 @@ test.each([
   try {
     const answer = pass.findReferencesFromOccurrences([query])[0];
     const actual =
-      answer?.kind === "indexed" ? answer.references : (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+      answer === undefined || answer.kind === "native"
+        ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [])
+        : answer.references;
     expect(expected.flatMap((group) => group.references)).toHaveLength(2);
     expect(actual).toEqual(expected);
     expect(answer).toEqual({ kind: "native" });
@@ -141,6 +144,80 @@ test.each([
     pass.dispose();
     service.dispose();
   }
+});
+
+function relationFixture(): Project {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: {
+      noLib: true,
+      types: [],
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      jsx: ts.JsxEmit.Preserve,
+      target: ts.ScriptTarget.ES2022,
+    },
+  });
+  project.createSourceFile(
+    "/members.tsx",
+    `export class Base { method(){return 1;} static make(){return new Base();} #hidden=1; peek(){return this.#hidden;} }
+     export class Derived extends Base { override method(){return 2;} constructor(public param:number, private secret:string){super(); this.secret; this.param;} }
+     export interface Named { id:string; label?:string }
+     export type Union = { kind:"a"; id:string } | { kind:"b"; id:string };
+     export interface Props { title:string }
+     export function View(props:Props){return props.title;}
+     export function use(){
+       const named:Named={id:"x", label:"y"}; const {id}=named; const again={id};
+       const union:Union={kind:"a", id:"z"}; const unionId=union.id;
+       const derived=new Derived(1,"s"); derived.method(); derived.param; Base.make();
+       const view=<View title={named.label ?? ""}/>;
+       return [again, unionId, view, named["id"]];
+     }`,
+  );
+  project.createSourceFile(
+    "/consumer.ts",
+    "import {Base,Derived,type Named} from './members';import * as all from './members';export {Named as Renamed} from './members';const n:Named={id:'q'};export const used=[n.id,new Base().method(),new Derived(2,'t').param,all.use];",
+  );
+  return project;
+}
+
+test("the occurrence relation answers every member, alias and contextual query exactly as native search", () => {
+  const project = relationFixture();
+  const nodes = project
+    .getSourceFiles()
+    .flatMap((source) => [SyntaxKind.Identifier, SyntaxKind.StringLiteral, SyntaxKind.PrivateIdentifier].flatMap((kind) => source.getDescendantsOfKind(kind)));
+  const queries = nodes.map((node) => ({ fileName: node.getSourceFile().getFilePath(), position: node.getStart() }));
+  const service = project.getLanguageService().compilerObject;
+  const expected = queries.map((query) => service.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+  const results = [true, false].map((occurrenceRelation) => {
+    const pass = service.createReadonlyReferencePass({ occurrenceRelation });
+    try {
+      const answers = pass.findReferencesFromOccurrences(queries);
+      for (const [index, answer] of answers.entries()) {
+        const query = queries[index];
+        if (query === undefined) {
+          throw new Error("native relation query missing");
+        }
+        const actual =
+          answer.kind === "native" ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []) : answer.references;
+        expect(actual, `${String(occurrenceRelation)} ${query.fileName}:${String(query.position)} ${nodes[index]?.getText()}`).toEqual(expected[index]);
+      }
+      return { kinds: answers.map((answer) => answer.kind), statistics: pass.getOccurrenceStatistics() };
+    } finally {
+      pass.dispose();
+    }
+  });
+  service.dispose();
+  const [relation, perQuery] = results;
+  if (relation === undefined || perQuery === undefined) {
+    throw new Error("native relation comparison missing");
+  }
+  // The relation changes only how location judgments are reached, never which answers are computed.
+  expect(relation.kinds).toEqual(perQuery.kinds);
+  expect(relation.statistics.relationBuilds).toBeGreaterThan(0);
+  expect(relation.statistics.relationHits).toBeGreaterThan(0);
+  expect(relation.statistics.relationNativeEntries).toBeGreaterThan(0);
+  expect(perQuery.statistics).toMatchObject({ relationBuilds: 0, relationEntries: 0, relationHits: 0 });
 });
 
 test("occurrence batches detach repeated answers and retry cancellation without partial coverage", () => {

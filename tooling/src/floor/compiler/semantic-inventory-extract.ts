@@ -1022,7 +1022,9 @@ function extractReferenceFacts(
   }
   for (const [index, declaration] of declarations.entries()) {
     const answer = occurrences?.[index];
-    const nativeReferences = nativeReferenceFacts({ pass, program }, declaration.query, spans, answer?.kind === "indexed" ? answer.references : undefined);
+    // Indexed and computed answers are already native search output; only a never-computed query searches here.
+    const captured = answer === undefined || answer.kind === "native" ? undefined : answer.references;
+    const nativeReferences = nativeReferenceFacts({ pass, program }, declaration.query, spans, captured);
     for (const reference of nativeReferences) {
       references.push({ declaration: declaration.declaration, ...reference });
     }

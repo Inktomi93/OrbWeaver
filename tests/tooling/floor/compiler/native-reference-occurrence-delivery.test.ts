@@ -127,7 +127,7 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   expect(completed.status, completed.stdout + completed.stderr).toBe(0);
   const observed = z
     .object({
-      coverage: z.array(z.array(z.object({ kind: z.enum(["indexed", "native"]), declarationKind: z.number() }))),
+      coverage: z.array(z.array(z.object({ kind: z.enum(["indexed", "computed", "native"]), declarationKind: z.number() }))),
       before: z.object({ origins: z.array(z.string()), zero: z.array(z.never()) }),
       now: z.object({ origins: z.array(z.string()) }),
       warmReused: z.boolean(),
