@@ -65,7 +65,7 @@ function deriveViews(
         ...filterPaths(existingPaths, (p) => ESLINT_RE.test(p) || isNodeToolSource(p) || isSourceTypeSuppressionSource(p) || isTestImportNativeSource(p)),
         ...paths.filter(affectsSourceTypeSuppressionNativeLint),
         ...paths.filter(affectsTestToolingImportsNativeLint),
-        ...paths.filter(affectsTypedNativeLint),
+        ...paths.filter((path) => affectsTypedNativeLint(path, root)),
       ]),
     ],
     depcruisePaths: filterPaths(existingPaths, isDepcruisePath),
@@ -212,7 +212,11 @@ function resolveScope(glob: string, root: string): Selection {
     paths,
     existingPaths: paths,
     runtimeSubjects,
-    eslintPaths: !isLegacyTestPath(prefix) && (ESLINT_RE.test(`${prefix}/x.ts`) || runtimeSubjects.some(isSourceTypeSuppressionSource)) ? [prefix] : [],
+    eslintPaths:
+      !isLegacyTestPath(prefix) &&
+      (ESLINT_RE.test(`${prefix}/x.ts`) || runtimeSubjects.some(isSourceTypeSuppressionSource) || affectsTypedNativeLint(prefix, root))
+        ? [prefix]
+        : [],
     depcruisePaths: isDepcruisePath(`${prefix}/x.ts`) ? [prefix] : [],
     docsPaths: DOCS_MD_RE.test(`${prefix}/x.md`) ? [prefix] : [],
     tsconfigs: typecheck.programs,

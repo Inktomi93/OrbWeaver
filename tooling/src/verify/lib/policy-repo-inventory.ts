@@ -5,7 +5,7 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { assertRepoPath, readAuthoredRepositoryInventory } from "../../floor/compiler/authored-repository.ts";
+import { assertRepoPath, readAuthoredRepositoryInventory, readAuthoredRepositoryPathnames } from "../../floor/compiler/authored-repository.ts";
 import type {
   PolicyChangedSelection,
   PolicyRepositoryInventory,
@@ -73,6 +73,23 @@ export function readPolicyRepositoryInventory(root: string): PolicyRepositoryInv
     mergeBase: null,
   };
   return { root: canonicalRoot, trackedPaths, untrackedPaths, paths, receipt };
+}
+
+/** Manifest deletion remains an invalidation signal after its authored pathname disappears. */
+export function isPackageManifestPath(path: string): boolean {
+  return path === "package.json" || path.endsWith("/package.json");
+}
+
+/** Coarse metadata eligibility only; native configuration still owns the selected source population. */
+export function affectsRepositoryManifest(path: string, root?: string): boolean {
+  if (isPackageManifestPath(path)) {
+    return true;
+  }
+  if (root === undefined || statSync(resolve(root, path), { throwIfNoEntry: false })?.isDirectory() !== true) {
+    return false;
+  }
+  const prefix = `${path.replace(/\/+$/u, "")}/`;
+  return readAuthoredRepositoryPathnames(root).some((input) => isPackageManifestPath(input) && input.startsWith(prefix));
 }
 
 function isStandaloneNonGitRoot(root: string): boolean {

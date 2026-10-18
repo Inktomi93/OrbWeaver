@@ -17,7 +17,7 @@ import { compilerConfigRoster, readCompilerProgramGraph } from "../../floor/comp
 import type { EslintFileAdmission, EslintNativeMetadataFamily } from "../contract/config-snapshot.ts";
 import type { PolicyWorkspacePackage } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
-import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "./policy-repo-inventory.ts";
+import { affectsRepositoryManifest, isPackageManifestPath, readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "./policy-repo-inventory.ts";
 import { TOOLING_ENTRY_NATIVE_POLICIES } from "./tooling-entry-native.ts";
 
 const SERVER_DECLARATION_PACKAGE = "@orb/server";
@@ -253,14 +253,15 @@ export function affectsTypedNativePolicy(entry: (typeof TYPED_NATIVE_POLICIES)[n
 }
 
 /** Deleted inputs and containing-directory selections retain the dependent native population. */
-export function affectsTypedNativeLint(path: string): boolean {
+export function affectsTypedNativeLint(path: string, root?: string): boolean {
   return (
     path === "." ||
     compilerConfigRoster([path]).length > 0 ||
     path.endsWith(".d.ts") ||
     path.startsWith("packages/") ||
-    authoredInputRoots.some((root) => path.startsWith(root) || root.startsWith(`${path.replace(/\/$/u, "")}/`)) ||
-    TYPED_NATIVE_POLICIES.some((entry) => affectsTypedNativePolicy(entry, path))
+    authoredInputRoots.some((sourceRoot) => path.startsWith(sourceRoot) || sourceRoot.startsWith(`${path.replace(/\/$/u, "")}/`)) ||
+    TYPED_NATIVE_POLICIES.some((entry) => affectsTypedNativePolicy(entry, path)) ||
+    affectsRepositoryManifest(path, root)
   );
 }
 
@@ -339,7 +340,7 @@ export function typedNativeDependencyInputs(
     if (root === undefined || !statSync(root).isDirectory()) {
       throw new Error(`native process-private dependency owner is missing for ${entry.id}`);
     }
-    const manifests = authoredPaths.filter(packageManifestPath);
+    const manifests = authoredPaths.filter(isPackageManifestPath);
     return { paths: [...new Set([...base, ...manifests])], roots: authoredInputRoots, unknownCompiler: true };
   }
   if (entry.declarationPackage === undefined) {
@@ -399,16 +400,12 @@ export function validateTypedCompilerInputs(root: string, paths: readonly string
   return true;
 }
 
-function packageManifestPath(path: string): boolean {
-  return path === "package.json" || path.endsWith("/package.json");
-}
-
 function typedDependencyChanged(data: ReturnType<typeof typedNativeDependencyInputs>, path: string, processPrivate: boolean): boolean {
   const prefix = path.replace(/\/$/u, "");
   return (
-    (processPrivate && packageManifestPath(path)) ||
+    (processPrivate && isPackageManifestPath(path)) ||
     (data.unknownCompiler && path.endsWith(".d.ts")) ||
-    data.paths.includes(path) ||
+    data.paths.some((input) => input === path || input.startsWith(`${prefix}/`)) ||
     data.roots.some((root) => path.startsWith(root) || root.startsWith(`${prefix}/`))
   );
 }

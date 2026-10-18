@@ -185,7 +185,7 @@ async function recheckScopedNativeMetadata(root: string, paths: readonly string[
 }
 
 async function typedNativeMetadata(root: string, paths: readonly string[]): Promise<NativeMetadataFamily[]> {
-  if (!paths.some(affectsTypedNativeLint) || paths.includes(".")) {
+  if (!paths.some((path) => affectsTypedNativeLint(path, root)) || paths.includes(".")) {
     return [];
   }
   const configs = validateTypedCompilerInputs(root, paths);
