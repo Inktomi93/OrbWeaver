@@ -1,4 +1,5 @@
 import type { KnipConfig, KnipConfiguration } from "knip";
+import { BASELINED_TYPES } from "./knip-baseline.config.ts";
 
 // The resolver owns public doors; Knip owns unused files, symbols and dependencies (D318).
 export const config = {
@@ -174,9 +175,17 @@ function patternList(patterns: string | readonly string[] | undefined): readonly
   return typeof patterns === "string" ? [patterns] : patterns;
 }
 
+// D318: the production run is the one judge of symbol and file liveness for production files, with its
+// shrink-only baseline. Without this, the default run re-reports that same debt with no baseline, and
+// test-only consumers decide liveness. Files outside the `!` patterns keep their default symbol checks.
+function defaultWorkspace(workspace: WorkspaceConfig): WorkspaceConfig {
+  const shipped = patternList(workspace.project).flatMap((pattern) => (pattern.endsWith("!") ? [pattern.slice(0, -1)] : []));
+  return shipped.length === 0 ? workspace : { ...workspace, ignoreIssues: Object.fromEntries(shipped.map((pattern) => [pattern, [...BASELINED_TYPES]])) };
+}
+
 function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfiguration {
   if (!(production || strict)) {
-    return config;
+    return { ...config, workspaces: Object.fromEntries(Object.entries(config.workspaces).map(([name, workspace]) => [name, defaultWorkspace(workspace)])) };
   }
   const workspaces: Record<string, WorkspaceConfig> = { ...config.workspaces };
   for (const [name, entries] of Object.entries(PRODUCTION_SCRIPT_ENTRIES)) {
