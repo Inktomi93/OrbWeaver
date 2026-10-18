@@ -2,16 +2,10 @@
 // It records every signed request's protected header and payload, validates HTTP-01 by fetching the challenge from
 // the issuer's own responder, and signs a leaf over the CSR's key for the order's IP identifier.
 
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Buffer): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ protected: string; payload: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ type: string; value: string }[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash, generateKeyPairSync } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import { isPlainObject } from "@orb/kit/guards";
 import { ipCertificatePem, readCsr } from "./x509.ts";
 
 /** One signed request as the authority decoded it. */
@@ -49,13 +43,20 @@ export interface FakeAcme {
 const NONCE = "fake-nonce";
 
 function base64urlJson(segment: string): Record<string, unknown> {
-  return JSON.parse(Buffer.from(segment, "base64url").toString("utf-8")) as Record<string, unknown>;
+  const value: unknown = JSON.parse(Buffer.from(segment, "base64url").toString("utf-8"));
+  if (!isPlainObject(value)) {
+    throw new Error("ACME signed JSON must be an object");
+  }
+  return value;
 }
 
 async function body(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
-    chunks.push(chunk as Buffer);
+    if (!Buffer.isBuffer(chunk)) {
+      throw new Error("ACME request stream did not yield bytes");
+    }
+    chunks.push(chunk);
   }
   return Buffer.concat(chunks).toString("utf-8");
 }
@@ -76,6 +77,14 @@ function send(res: ServerResponse, status: number, value: unknown, headers: Reco
 interface Signed {
   readonly protectedHeader: Record<string, unknown>;
   readonly payload: Record<string, unknown> | null;
+}
+
+function decodeSigned(text: string): Signed {
+  const jws: unknown = JSON.parse(text);
+  if (!isPlainObject(jws) || typeof jws["protected"] !== "string" || typeof jws["payload"] !== "string") {
+    throw new Error("ACME request requires protected and payload segments");
+  }
+  return { protectedHeader: base64urlJson(jws["protected"]), payload: jws["payload"] === "" ? null : base64urlJson(jws["payload"]) };
 }
 
 /** Starts the authority on an ephemeral loopback port. */
@@ -136,7 +145,11 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
   // One handler per signed resource; each answers the way RFC 8555 section 7 shapes that resource.
   const signedRoutes: Record<string, (res: ServerResponse, signed: Signed) => Promise<void> | void> = {
     "/new-account": (res, { protectedHeader }) => {
-      accountJwk = (protectedHeader["jwk"] as Record<string, unknown> | undefined) ?? {};
+      const jwk = protectedHeader["jwk"];
+      if (!isPlainObject(jwk)) {
+        throw new Error("ACME new account requires a JWK object");
+      }
+      accountJwk = jwk;
       send(res, 201, { status: "valid" }, { location: `${base}/acct/1` });
     },
     "/new-order": (res, { payload }) => {
@@ -147,8 +160,12 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
       challengeStatus = "pending";
       challengeError = null;
       orderStatus = "pending";
-      const [first] = (payload?.["identifiers"] as { type: string; value: string }[] | undefined) ?? [];
-      identifier = first ?? identifier;
+      const identifiers = payload?.["identifiers"];
+      const first: unknown = Array.isArray(identifiers) ? identifiers[0] : undefined;
+      if (!isPlainObject(first) || typeof first["type"] !== "string" || typeof first["value"] !== "string") {
+        throw new Error("ACME new order requires an identifier");
+      }
+      identifier = { type: first["type"], value: first["value"] };
       send(res, 201, order(), { location: `${base}/order/1` });
     },
     "/authz/1": (res) => {
@@ -201,8 +218,7 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
       send(res, 200, "");
       return;
     }
-    const jws = JSON.parse(await body(req)) as { protected: string; payload: string };
-    const signed: Signed = { protectedHeader: base64urlJson(jws.protected), payload: jws.payload === "" ? null : base64urlJson(jws.payload) };
+    const signed = decodeSigned(await body(req));
     requests.push({ path, ...signed });
     const handler = signedRoutes[path];
     if (handler === undefined) {
@@ -220,7 +236,11 @@ export async function startFakeAcme(options: FakeAcmeOptions): Promise<FakeAcme>
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
-  base = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
+  const address = server.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("ACME authority did not bind a TCP port");
+  }
+  base = `http://127.0.0.1:${String(address.port)}`;
   return {
     directoryUrl: `${base}/directory`,
     requests,

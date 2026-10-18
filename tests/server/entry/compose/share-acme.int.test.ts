@@ -419,3 +419,37 @@ test("native renewals keep the serving certificate on failure, replace it on rec
   expect(subject.authority.requests.filter((entry) => entry.path === "/new-order")).toHaveLength(ordersBeforeExpiry);
   await expect(tlsConfig(subject.setting.httpsPort, renewed)).rejects.toThrow();
 });
+
+test("the ACME edge records object JSON but rejects malformed envelope, key and identifier observations", async () => {
+  await using owners = new AsyncDisposableStack();
+  const authority = await startFakeAcme({ challengePort: await freeLoopbackPort(), token: TOKEN, notBefore: FROZEN_AT_MS, notAfter: NOT_AFTER });
+  owners.defer(authority.close);
+  const encode = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const post = (path: string, protectedHeader: unknown, payload: unknown): Promise<Response> =>
+    fetch(new URL(path, authority.directoryUrl), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ protected: encode(protectedHeader), payload: payload === null ? "" : encode(payload) }),
+    });
+  const header = { jwk: { crv: "P-256", kty: "EC", x: "x", y: "y" }, extraObservation: "retained" };
+  expect((await post("/new-account", header, { termsOfServiceAgreed: true })).status).toBe(201);
+  expect(authority.requests.at(-1)?.protectedHeader).toEqual(header);
+  expect((await post("/new-order", {}, { identifiers: [{ type: "ip", value: ADDRESS }], profile: "shortlived" })).status).toBe(201);
+  expect((await post("/order/1", {}, null)).status).toBe(200);
+  expect(authority.requests.at(-1)?.payload).toBeNull();
+
+  expect((await post("/new-account", [], {})).status).toBe(500);
+  expect((await post("/new-account", { jwk: [] }, {})).status).toBe(500);
+  expect((await post("/new-order", {}, [])).status).toBe(500);
+  expect((await post("/new-order", {}, { identifiers: [{ type: 1, value: ADDRESS }] })).status).toBe(500);
+  expect(
+    (
+      await fetch(new URL("/new-account", authority.directoryUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ protected: 1, payload: "" }),
+      })
+    ).status,
+  ).toBe(500);
+  expect((await post("/order/1", {}, null)).status).toBe(200);
+});
