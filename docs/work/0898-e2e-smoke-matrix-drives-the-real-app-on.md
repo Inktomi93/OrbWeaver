@@ -24,7 +24,7 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Hosted qualification, owner-copy execution and production-defect controls remain open; collection is not execution.
+Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Hosted qualification and owner-copy execution remain open; collection is not execution.
 
 Responsive navigation, canon, persona freshness, recent threads and restored-room navigation have scoped production evidence. Preserve their source epochs and historical failures. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
 
@@ -36,4 +36,4 @@ Request-sensitive corpus publication passes its seed and native boundary control
 
 Isolated E2E stacks disable only the native checker HUD. Terminal lint diagnostics and Vite application errors remain. Red-first browser controls and independent review pass; complete matrix acceptance stays open. Evidence: `reports/review/898-checker-hud-independent-review.md`.
 
-The complete synthetic case population has passing local evidence through the frozen matrix and targeted recovery. Original failures remain recorded. This is case-scoped composition across source epochs, not a fresh aggregate on current source. Current native-client desktop and phone conversation plus local sharing cases pass. Evidence: `reports/review/898-native-trpc-browser-qualification.md`. Hosted, owner-copy and production-defect acceptance remain open. Evidence: `reports/review/898-v2-matrix-qualification.md` and `reports/review/898-v2-matrix-recovery.md`.
+The complete synthetic case population has passing local evidence through the frozen matrix and targeted recovery. Original failures remain recorded. This is case-scoped composition across source epochs, not a fresh aggregate on current source. Current native-client desktop and phone conversation plus local sharing cases pass. Evidence: `reports/review/898-native-trpc-browser-qualification.md`. Production-defect controls pass; see `reports/review/898-production-defect-controls.md`. Hosted and owner-copy acceptance remain open. Evidence: `reports/review/898-v2-matrix-qualification.md` and `reports/review/898-v2-matrix-recovery.md`.
