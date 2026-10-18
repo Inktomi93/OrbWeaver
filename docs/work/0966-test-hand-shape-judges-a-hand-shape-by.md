@@ -1,9 +1,9 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-18
 priority: P2
-lane: wt/agent-a6985bb819dc9927c
+blocked: on 1051
 plan: test-foundation
 ---
 
@@ -23,6 +23,7 @@ The qualified floor reader supplies direct boundary associations and canonical d
 
 ## Evidence
 
+Integrated at `32928876b0` after two independent verifier rounds: direct-boundary judgments through aliases, wrappers, containers, unions, function values and constrained generics, with every unsupported identity reported UNKNOWN. The whole-population qualification remains owed until 1051 fixes the evaluate cost. Evidence: `reports/review/966-hand-shape-final.md` in lane `wt/agent-a6985bb819dc9927c`.
 Partial source is saved at `affa11ba8d` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
 
 D328 bounds static assurance; native relation alone cannot distinguish copied intent from independent identical declarations. The consumed shape-reader subset qualifies before this gate changes. General shape equivalence remains with item 954. Implementation and qualification remain open.
