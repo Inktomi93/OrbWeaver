@@ -7,8 +7,8 @@
 // violation, degrading to a hard per-char split ("") as the last resort. A part longer than `size` recurses
 // one level finer; the "" level always makes progress (bounded stride) so recursion terminates.
 
-/** The separator hierarchy, coarsest → finest. `""` = hard per-char split (last resort). */
-export const CHUNK_SEPARATORS = ["\n\n", "\n", " ", ""] as const;
+// The separator hierarchy, coarsest → finest. `""` = hard per-char split (last resort).
+const CHUNK_SEPARATORS = ["\n\n", "\n", " ", ""] as const;
 
 const HIGH_SURROGATE_MIN = 0xd8_00;
 const HIGH_SURROGATE_MAX = 0xdb_ff;

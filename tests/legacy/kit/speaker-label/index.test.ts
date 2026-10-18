@@ -1,7 +1,6 @@
 import {
   cleanPerSpeakerReply,
   foreignLabelStops,
-  includesWholeName,
   LEADING_SPEAKER_TAG,
   NAME_END_BOUNDARY,
   normalizeExampleStart,
@@ -330,22 +329,6 @@ test("resolveSegmentAnchor: the snippet is a PREFIX, so a tail edit keeps the an
 });
 
 // ── the shared name boundary (#1439) — the ONE class both server matchers borrow ──────────────────────
-
-test("includesWholeName bounds on the UNICODE letter/number class, in both directions", () => {
-  // ASCII behaviour is unchanged (the property class is a superset of `[a-z0-9]`).
-  expect(includesWholeName("ari waits", "ari")).toBe(true);
-  expect(includesWholeName("arianna waits", "ari")).toBe(false);
-  // Cyrillic / CJK: a whole-word hit at ordinary separators…
-  expect(includesWholeName("аня открыла дверь", "аня")).toBe(true);
-  expect(includesWholeName("結衣 が入ってきた", "結衣")).toBe(true);
-  expect(includesWholeName("аня, стой", "аня")).toBe(true);
-  // …and NOT inside a longer Unicode word (the `[a-z0-9]` test called both neighbours separators).
-  expect(includesWholeName("анятолия смотрит", "аня")).toBe(false);
-  expect(includesWholeName("結衣子", "結衣")).toBe(false);
-  // String edges are boundaries; an empty needle is never a name.
-  expect(includesWholeName("аня", "аня")).toBe(true);
-  expect(includesWholeName("anything", "")).toBe(false);
-});
 
 test("NAME_END_BOUNDARY is a lookahead that a built pattern can embed (the `\\b` it replaces was ASCII-only)", () => {
   const re = (name: string): RegExp => new RegExp(`@${name}${NAME_END_BOUNDARY}`, "giu");

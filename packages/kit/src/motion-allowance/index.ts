@@ -15,12 +15,12 @@
 // `data-ending-style` phases, and whose claimed phase matches that state. An application-authored height
 // animation, or a Base UI claim whose lifecycle evidence contradicts it, stays dirty.
 
-/** The property set a library-owned lifecycle animation may carry — Base UI's measured panel height. */
-export const SANCTIONED_LIBRARY_PROPERTIES = ["height"] as const;
-/** The only animation owner an allowance can be claimed for. */
-export const SANCTIONED_ANIMATION_OWNER = "base-ui";
-/** The only mechanism the allowance covers: a CSS transition attached to the library's lifecycle states. */
-export const SANCTIONED_ANIMATION_MECHANISM = "css-transition";
+// The property set a library-owned lifecycle animation may carry — Base UI's measured panel height.
+const SANCTIONED_LIBRARY_PROPERTIES = ["height"] as const;
+// The only animation owner an allowance can be claimed for.
+const SANCTIONED_ANIMATION_OWNER = "base-ui";
+// The only mechanism the allowance covers: a CSS transition attached to the library's lifecycle states.
+const SANCTIONED_ANIMATION_MECHANISM = "css-transition";
 
 /** The launch facts an allowance decision reads.
  *

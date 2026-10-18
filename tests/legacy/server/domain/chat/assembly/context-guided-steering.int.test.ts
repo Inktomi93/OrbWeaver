@@ -1,9 +1,9 @@
 // assembly/context — guided steering and its delivery depth, the new-chat marker, the owner-verified roster, and the immutable/pure ctx (§5).
 
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema } from "@orb/contracts/preset";
-import { ZWSP } from "@orb/kit/guided";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { ZWSP } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { makeChatContext, seedCharacter, seedChat, seedUser } from "../_support.ts";

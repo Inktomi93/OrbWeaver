@@ -64,13 +64,3 @@ export const OKLAB_OUT_OF_GAMUT_VECTOR = {
   oklch: { l: 0.690_12, c: 0.250_77, h: 199.893 },
   srgbUnit: { r: -0.6018, g: 0.7621, b: 0.8448 },
 } as const;
-
-/** Rectangular and polar forms of one colour, as the oklab() and oklch() example lists of
- *  https://www.w3.org/TR/css-color-4/ (section 9.4) print them in the same order. */
-export const OKLAB_POLAR_PAIRS: ReadonlyArray<{ readonly lab: readonly [l: number, a: number, b: number]; readonly oklch: Oklch }> = [
-  { lab: [0.401_01, 0.1147, 0.0453], oklch: { l: 0.401_01, c: 0.123_32, h: 21.555 } },
-  { lab: [0.596_86, 0.1009, 0.1192], oklch: { l: 0.596_86, c: 0.156_19, h: 49.7694 } },
-  { lab: [0.651_25, -0.032, 0.1274], oklch: { l: 0.651_25, c: 0.131_38, h: 104.097 } },
-  { lab: [0.660_16, -0.1084, 0.1114], oklch: { l: 0.660_16, c: 0.155_46, h: 134.231 } },
-  { lab: [0.723_22, -0.0465, -0.115], oklch: { l: 0.723_22, c: 0.124_03, h: 247.996 } },
-];

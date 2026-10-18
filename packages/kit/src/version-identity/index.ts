@@ -50,9 +50,9 @@ export type ReleaseChannel = (typeof RELEASE_CHANNELS)[number];
  *  throwaway `git init` whose HEAD names a ref that does not exist. Never a fabricated sha, never a throw. */
 export const UNKNOWN_COMMIT = "unknown";
 
-/** How much of a sha the UI, the boot line and the bug bundle print. Twelve, not git's seven/nine: this
- *  string is pasted into an issue and then into `git show`, and twelve is unambiguous in a repo this size. */
-export const SHORT_COMMIT_LENGTH = 12;
+// How much of a sha the UI, the boot line and the bug bundle print. Twelve, not git's seven/nine: this
+// string is pasted into an issue and then into `git show`, and twelve is unambiguous in a repo this size.
+const SHORT_COMMIT_LENGTH = 12;
 
 /** A git object id as the ref files spell it — sha-1 (40) or sha-256 (64) lowercase hex. */
 const OBJECT_ID_RE = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/u;

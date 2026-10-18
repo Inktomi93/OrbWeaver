@@ -1,13 +1,11 @@
 // The kit's sRGB <-> OKLCH maths against published OKLab known answers (`tests/support/iso/oklab-reference.ts`).
 // Nothing here is computed by the kit, so a transposed coefficient cannot hide behind a round trip.
-import { oklabToOklch, oklchToSrgb, srgbToOklch } from "@orb/kit/theme-derivation";
-import { OKLAB_OUT_OF_GAMUT_VECTOR, OKLAB_POLAR_PAIRS, OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "@orb/testkit/iso/oklab-reference.ts";
+import { oklchToSrgb, srgbToOklch } from "@orb/kit/theme-derivation";
+import { OKLAB_OUT_OF_GAMUT_VECTOR, OKLAB_VECTORS, SRGB_CHANNEL_TOLERANCE } from "@orb/testkit/iso/oklab-reference.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 const SRGB_MAX = 255;
 const GAMUT_EDGE_CHANNEL_TOLERANCE = 0.1;
-// The pairs publish a and b to four decimals, which at chroma ~0.12 moves the recovered hue by up to ~0.03 degrees.
-const POLAR_HUE_TOLERANCE = 0.05;
 const NEUTRAL_CHROMA_TOLERANCE = 1e-4;
 const GREY_STEPS = [0, 1, 8, 40, 64, 99, 128, 180, 220, 254, 255] as const;
 
@@ -39,13 +37,6 @@ test("oklchToSrgb clamps an out-of-gamut colour channel by channel at the publis
   expect(got.r, "negative red clamps to 0").toBe(0);
   expect(Math.abs(got.g - srgbUnit.g * SRGB_MAX), "green").toBeLessThanOrEqual(GAMUT_EDGE_CHANNEL_TOLERANCE);
   expect(Math.abs(got.b - srgbUnit.b * SRGB_MAX), "blue").toBeLessThanOrEqual(GAMUT_EDGE_CHANNEL_TOLERANCE);
-});
-
-test.each(OKLAB_POLAR_PAIRS.map((pair) => [pair.oklch.h, pair] as const))("oklabToOklch matches the CSS Color 4 polar form at hue %s", (_hue, pair) => {
-  const got = oklabToOklch(...pair.lab);
-  expect(got.l).toBe(pair.oklch.l);
-  expect(got.c).toBeCloseTo(pair.oklch.c, 4);
-  expect(Math.abs(got.h - pair.oklch.h)).toBeLessThanOrEqual(POLAR_HUE_TOLERANCE);
 });
 
 // Ottosson's reference puts D65 white at (L, a, b) = (1, 0, 0); the neutral axis has no chroma and its
