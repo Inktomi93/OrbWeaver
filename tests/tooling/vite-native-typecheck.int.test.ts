@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { chromium } from "@playwright/test";
 import { nativeTypecheck } from "../../packages/client/native-typecheck.config.ts";
 import type { Plugin } from "../../packages/client/node_modules/vite/dist/node/index.js";
@@ -43,6 +45,75 @@ function runs(root: string): number {
 }
 
 const plugins = (viteConfig as { readonly plugins: readonly Plugin[] }).plugins;
+
+test("E2E_HARNESS retains ESLint diagnostics without mounting the checker overlay", { timeout: TIMEOUT }, async ({ scratch }) => {
+  const root = plant(scratch);
+  control(scratch, 1, ERROR);
+  const require = createRequire(import.meta.url);
+  const parser = pathToFileURL(require.resolve("typescript-eslint")).href;
+  writeFileSync(join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { strict: true, target: "esnext", noEmit: true }, include: ["src"] }));
+  writeFileSync(
+    join(root, "eslint.config.js"),
+    `import ts from ${JSON.stringify(parser)};
+export default [{ files: ["src/**/*.ts"], languageOptions: { parser: ts.parser, parserOptions: { projectService: true, tsconfigRootDir: ${JSON.stringify(root)} } }, plugins: { "@typescript-eslint": ts.plugin }, rules: { "@typescript-eslint/no-floating-promises": "error" } }];`,
+  );
+  writeFileSync(join(root, "src", "lint.ts"), "Promise.resolve(42);\n");
+
+  const harnessConfig = await withProcessEnv("E2E_HARNESS", "on", async () => {
+    const configUrl = new URL("../../packages/client/vite.config.ts", import.meta.url);
+    configUrl.searchParams.set("e2e", randomUUID());
+    return await import(/* @vite-ignore */ configUrl.href);
+  });
+  const harnessPlugins = (harnessConfig.default as { readonly plugins: readonly Plugin[] }).plugins;
+  const lintPlugin = harnessPlugins.find((plugin) => plugin.name === "vite-plugin-checker");
+  if (lintPlugin === undefined) {
+    throw new Error("Missing production ESLint checker");
+  }
+
+  const logs: string[] = [];
+  const logger = createLogger("silent");
+  logger.error = (message): void => {
+    logs.push(message);
+  };
+  logger.info = (message): void => {
+    logs.push(message);
+  };
+  const server = await createServer({
+    configFile: false,
+    customLogger: logger,
+    root,
+    logLevel: "silent",
+    plugins: [nativeTypecheck(scratch), lintPlugin],
+    optimizeDeps: { noDiscovery: true },
+    server: { port: 0, host: "127.0.0.1" },
+  });
+  try {
+    server.config.logger.error = (message): void => {
+      logs.push(message);
+    };
+    server.config.logger.info = (message): void => {
+      logs.push(message);
+    };
+    await server.listen();
+    const browser = await chromium.launch({ headless: true });
+    try {
+      await expect.poll(() => logs.join("\n"), { timeout: POLL }).toContain("no-floating-promises");
+      const page = await browser.newPage();
+      const address = server.httpServer?.address();
+      if (address === null || typeof address !== "object") {
+        throw new Error("Vite did not listen");
+      }
+      await page.goto(`http://127.0.0.1:${address.port}`);
+      const appError = page.locator("vite-error-overlay");
+      await expect.poll(() => appError.locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([expect.stringContaining("TS2322")]);
+      await expect.poll(() => page.locator("vite-plugin-checker-error-overlay").locator(".message-body").allTextContents(), { timeout: POLL }).toEqual([]);
+    } finally {
+      await browser.close();
+    }
+  } finally {
+    await server.close();
+  }
+});
 
 test("native type feedback renders initial errors, clears on repair, and preserves typed ESLint feedback", { timeout: TIMEOUT }, async ({ scratch }) => {
   const root = plant(scratch);
