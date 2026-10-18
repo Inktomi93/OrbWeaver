@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-17
+status: doing
+updated: 2026-10-18
 priority: P2
 area: tooling
+lane: wt/claude-fabrication-1041
 plan: test-foundation
 ---
 
@@ -25,7 +26,7 @@ Every entry has source evidence and a retain, remove, fix or unresolved decision
 
 Runtime and scanner repairs preserve native boundaries. Evidence: `ba07cbab45`, `0534d11010`, `88fd25fdcc`, `4a2b60faa6`, `159dd24975`.
 
-Native parser/dependency repairs preserve semantics. AST/codemod permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`; root diagnostics remain separate.
+AST/codemod permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`; root diagnostics remain separate.
 
 DB import, framework and naming scopes retain only their actual intake subjects. Evidence: `.claude/worktrees/codex-wire-chat-rpg-959/reports/review/1006-db-primary-key-suppressions.md`, the adjacent protocol-naming delivery, and `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-mixed-framework-independent-review.md`.
 

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
+lane: codex/native-fabrication-review-1041
 plan: test-foundation
 ---
 
