@@ -1,9 +1,8 @@
 // backends/openai-compat/chat — the OpenRouter plugin list merge, the request debug block, modelled extras, and the full-body byte-equality pin per dialect.
 
 // @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 import { extrasConnection, orRequest, runOpenAiCompatChatTurn, sentBody, turnDeps } from "./_chat-support.ts";

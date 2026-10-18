@@ -2,8 +2,8 @@
 
 // @orb-waive-file no-test-fabrication({ readonly format: { readonly type: string; readonly schema: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly type: string; readonly budget_tokens: number }): baselined when the gate widened to value casts; burn-down item 906.
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { anthropicTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 import { BUDGET, curatedConnection, deps, ProviderError, recordedTurn, runAnthropicChatTurn, SIGNATURE, THINKING, turnRequest } from "./_chat-support.ts";

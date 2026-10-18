@@ -11,14 +11,13 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createAnthropicBackend } from "#inference/backends/anthropic-messages/index.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { StructuredRequest, SummarizeRequest } from "#inference/contract/roles.ts";
 import type { InferenceLog } from "#inference/deps.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { anthropicTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 

@@ -2,7 +2,6 @@
 // path. Nothing here is declared by hand: a field changed on the server changes these and reds the specs that read it.
 // `@trpc/server` is not a root dependency, so the router's own `_def` is read instead of `inferRouterOutputs`.
 
-import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { AppRouter } from "@orb/server";
 
 type RouterRecord = AppRouter["_def"]["record"];
@@ -77,6 +76,3 @@ export type TrackerDefInput = NonNullable<RpgConfigPatch["trackers"]>[number];
 
 /** `Omit` that distributes over a union input, so each arm keeps its own keys. */
 export type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
-
-/** One collected room value — the durable `seq` cursor carried INSIDE the frame + the yielded event. */
-export type StreamValue = Pick<StreamFrameFor<"chat">, "seq" | "event">;

@@ -14,7 +14,6 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { measuredRows } from "#inference/capability/sources/measured/loader.ts";
@@ -24,7 +23,7 @@ import { ProviderError } from "#inference/contract/errors.ts";
 import type { InferenceLog } from "#inference/deps.ts";
 import { buildBackends } from "#inference/registry/backends.ts";
 import { createProviderExecutor } from "#inference/roles/executor.ts";
-import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../_support.ts";
+import { fakeApiKeySecret, fakeDeps, fakeResolved, wireSchema } from "../_support.ts";
 import type { RecordedRequest, SseEvent } from "../backends/_hosted-support.ts";
 import { anthropicTextStream, generationCapability } from "../backends/_hosted-support.ts";
 

@@ -31,6 +31,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
@@ -44,7 +45,7 @@ import {
 } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
+import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -55,14 +56,28 @@ const OPENER_MARKER = FIXTURE_LIE_SPAN_OPEN.slice(-24);
 /** Stop collecting once the turn's reply has COMMITTED for this viewer (its content carries the cover
  *  marker) — by then every delta of the slot has flowed past. */
 function sawReply(values: readonly StreamValue[]): boolean {
-  return values.some((v) => v.event.type === "messageCommitted" && (v.event.view?.content ?? "").includes(FIXTURE_COVER_MARKER));
+  return values.some((value) => {
+    const event = readStreamEvent(value);
+    if (event["type"] !== "messageCommitted" || event["view"] === undefined) {
+      return false;
+    }
+    const view = pageObject(event["view"], "committed SSE view");
+    return pageString(view["content"], "committed SSE view content").includes(FIXTURE_COVER_MARKER);
+  });
 }
 
 /** The durable `seq` of the frame carrying the span's OPENER chunk, read off the HOST's stream (the host
  *  sees deltas verbatim, so the raw opener bytes are findable there). Resuming AT this seq puts a reader's
  *  first delta squarely inside the still-open tag. */
 function openerSeq(values: readonly StreamValue[]): number | undefined {
-  return values.find((v) => v.event.type === "delta" && v.event.delta.kind === "text" && v.event.delta.text.includes(OPENER_MARKER))?.seq;
+  return values.find((value) => {
+    const event = readStreamEvent(value);
+    if (event["type"] !== "delta") {
+      return false;
+    }
+    const delta = pageObject(event["delta"], "SSE opener delta");
+    return pageString(delta["kind"], "SSE opener delta kind") === "text" && pageString(delta["text"], "SSE opener delta text").includes(OPENER_MARKER);
+  })?.seq;
 }
 
 test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never receives its tail; the HOST does", async ({ baseURL }) => {
@@ -72,21 +87,21 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   const fixture = await startFixtureProvider(E2E_FIXTURE_PROVIDER_PORT, undefined, "What happened to the well?");
   let restoreProvider: (() => Promise<void>) | undefined;
 
-  const priorList = await host.query("character.list", {});
+  const priorList = await host.trpc.character.list.query({});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
-    await host.mutation("character.remove", { characterId: prior.id });
+    await host.trpc.character.remove.mutate({ characterId: prior.id });
   }
-  const character = await host.mutation("character.create", {
+  const character = await host.trpc.character.create.mutate({
     input: { handle: CARD_HANDLE, name: "Baron", description: "e2e mid-slot resume probe", greetings: [{ text: "The hall is cold." }] },
   });
 
   try {
     restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
-    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
+    const started = await host.trpc.chat.startChat.mutate({ characterIds: [character.id] });
     const chatId = started.chat.id;
-    await host.mutation("rpg.createGame", { chatId, mode: "lite" });
-    await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
+    await host.trpc.rpg.createGame.mutate({ chatId, mode: "lite" });
+    await host.trpc.rpg.updateConfig.mutate({ chatId, patch: { deception: true, hiddenContentReveal: true } });
 
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
@@ -96,7 +111,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     // themselves, so no host-presence defer applies.
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     await sleep(PRESENCE_SETTLE_MS);
-    await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
+    await host.trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
     const hostValues = requireSatisfied(await hostLive, "host live");
 
     const cursor = openerSeq(hostValues);
@@ -144,7 +159,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     // clean payload is a per-viewer withholding, not "the cursor was past everything".
     expect(hostBytes, "the host resuming from the same cursor must receive the tail (else the cursor proved nothing)").toContain(FIXTURE_LIE_TAIL);
   } finally {
-    await host.mutation("character.remove", { characterId: character.id });
+    await host.trpc.character.remove.mutate({ characterId: character.id });
     await restoreProvider?.();
     await fixture.close();
   }
