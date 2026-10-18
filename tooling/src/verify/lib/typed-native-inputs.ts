@@ -72,6 +72,7 @@ const SCALAR_INPUTS = [
   "tooling/src/floor/compiler/ts-workspace.ts",
 ];
 const authored = POPULATION_SETS["@authored"].flatMap((root) => POPULATION_ROOTS[root].map((prefix) => `${prefix}**/*.{ts,tsx}`));
+const authoredInputRoots = POPULATION_SETS["@authored"].flatMap((root) => POPULATION_ROOTS[root]);
 const brandRoots = ["@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tests"] as const;
 const product = POPULATION_SETS["@product"].flatMap((root) => POPULATION_ROOTS[root].map((prefix) => `${prefix}**/*.{ts,tsx}`));
 const AMBIENT_INPUTS = [
@@ -96,6 +97,14 @@ const TYPE_HOME_INPUTS = [
 ];
 
 export const TYPED_NATIVE_POLICIES = [
+  {
+    id: "test-value-cast",
+    ruleId: "@typescript-eslint/no-unsafe-type-assertion",
+    processPrivate: true,
+    scope: ["tests/**/*.{ts,tsx}"],
+    notUnder: ["tests/tooling/**"],
+    inputs: [...COMMON_INPUTS, "patches/@typescript-eslint__eslint-plugin@8.70.1.patch"],
+  },
   {
     id: TYPE_HOME_NATIVE_POLICY_ID,
     declarationPackage: SERVER_DECLARATION_PACKAGE,
@@ -218,11 +227,21 @@ export const TYPED_NATIVE_POLICIES = [
   { id: "no-context-returntype", scope: authored.map((glob) => [glob, "**/context.ts"]), inputs: COMMON_INPUTS },
 ].map((entry) => ({
   ...entry,
+  ruleId: entry.ruleId ?? `orb/${entry.id}`,
+  processPrivate: entry.processPrivate === true,
   declarationPackage: "declarationPackage" in entry ? entry.declarationPackage : undefined,
   dependencyScope: "dependencyScope" in entry ? entry.dependencyScope : ["."],
   homes: [],
   notUnder: [...(entry.notUnder ?? []), "tests/legacy/**"],
 }));
+
+/** This family has no observed parser dependency closure; its existing child lifetime supplies no persistent reuse authority. */
+export function typedNativeInputIdentity(entry: (typeof TYPED_NATIVE_POLICIES)[number], configuredIdentity: string): string {
+  if (entry.processPrivate) {
+    return UNCACHED_CONTEXT_IDENTITY;
+  }
+  return entry.declarationPackage === undefined ? "" : configuredIdentity;
+}
 
 /** Literal policy implementation inputs retain deletion and directory-selection signals. */
 export function affectsTypedNativePolicy(entry: (typeof TYPED_NATIVE_POLICIES)[number], path: string): boolean {
@@ -237,6 +256,7 @@ export function affectsTypedNativeLint(path: string): boolean {
     compilerConfigRoster([path]).length > 0 ||
     path.endsWith(".d.ts") ||
     path.startsWith("packages/") ||
+    authoredInputRoots.some((root) => path.startsWith(root) || root.startsWith(`${path.replace(/\/$/u, "")}/`)) ||
     TYPED_NATIVE_POLICIES.some((entry) => affectsTypedNativePolicy(entry, path))
   );
 }
@@ -312,6 +332,15 @@ export function typedNativeDependencyInputs(
   configs?: readonly string[],
 ): { readonly paths: readonly string[]; readonly roots: readonly string[]; readonly unknownCompiler: boolean } {
   const base = [...entry.inputs, ...compilerConfigRoster(authoredPaths)];
+  if (entry.processPrivate) {
+    if (root === undefined) {
+      throw new Error(`native process-private dependency owner is missing for ${entry.id}`);
+    }
+    const manifests = readPolicyWorkspacePackages(readPolicyRepositoryInventory(root)).map((owner) =>
+      owner.path === "." ? "package.json" : `${owner.path}/package.json`,
+    );
+    return { paths: [...new Set([...base, ...manifests])], roots: authoredInputRoots, unknownCompiler: true };
+  }
   if (entry.declarationPackage === undefined) {
     return { paths: [...new Set(base)], roots: [], unknownCompiler: false };
   }
@@ -385,6 +414,10 @@ export function typedNativeDependencySignal(
   authoredPaths: readonly string[],
   root: string,
 ): boolean {
+  if (entry.processPrivate) {
+    const inputs = typedNativeDependencyInputs(entry, authoredPaths, root);
+    return paths.some((path) => typedDependencyChanged(inputs, path));
+  }
   if (entry.declarationPackage === undefined) {
     return false;
   }

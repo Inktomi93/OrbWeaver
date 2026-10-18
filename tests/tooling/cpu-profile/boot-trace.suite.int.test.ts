@@ -47,15 +47,15 @@ function plantedStartFailure(detachFailure?: Error): {
     }
     return Promise.resolve({});
   });
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- CDP start refusal must preserve the primary failure, aggregate detach failure and remove listeners once. Ends when this fault uses a real injectable CDP session.
   const cdp = {
     on: vi.fn(),
     once: vi.fn(),
     removeListener,
     detach,
     send,
-    // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
   } as unknown as CDPSession;
-  // @orb-waive no-test-fabrication(unknown): this page exposes only the real newCDPSession boundary because the planted start rejection prevents every Page read. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- The Page supplies only the CDP session before the planted start refusal; the tests assert observer removal and terminal detach. Ends when that acquisition fault is injectable.
   const page = { context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }) } as unknown as Page;
   return { page, detach, removeListener, send };
 }
@@ -95,6 +95,7 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
     return Promise.resolve({});
   });
   const detach = vi.fn(() => Promise.resolve());
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- CDP completion is controlled to assert abort sends Tracing.end, removes instrumentation and detaches once. Ends when a real session can expose this controlled completion.
   const cdp = {
     on: vi.fn(),
     once: vi.fn((event: string, listener: () => void) => {
@@ -105,9 +106,8 @@ test("beginBootTrace abort stops tracing and removes its browser instrumentation
     removeListener: vi.fn(),
     detach,
     send,
-    // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
   } as unknown as CDPSession;
-  // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- The Page supplies the controlled session for the abort lifecycle assertions, not application data. Ends when the session acquisition seam accepts this capability directly.
   const page = { context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }) } as unknown as Page;
   const active = await beginBootTrace(page);
   await active.abort();
@@ -132,6 +132,7 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
       return Promise.resolve({});
     });
     const detach = vi.fn(() => Promise.resolve());
+    // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled CDP completion isolates the stalled presentation refusal while the test asserts raw-event retention and terminal cleanup. Ends when a real session supports this exact fault.
     const cdp = {
       on: vi.fn(),
       once: vi.fn((event: string, listener: () => void) => {
@@ -142,13 +143,12 @@ test("beginBootTrace bounds a stalled presentation, retains raw events, and perf
       removeListener: vi.fn(),
       detach,
       send,
-      // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
     } as unknown as CDPSession;
+    // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- The Page deliberately never presents so the real load budget must refuse and retain its raw trace. Ends when this presentation fault can be injected into a real page.
     const page = {
       context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }),
       waitForLoadState: vi.fn(() => Promise.resolve()),
       evaluate: vi.fn(() => new Promise<never>(() => undefined)),
-      // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
     } as unknown as Page;
     const rawTracePath = join(scratch, "stalled-presentation.trace.json");
     const active = await beginBootTrace(page);
@@ -181,7 +181,7 @@ for (const failureMode of ["completion", "presentation-and-completion", "end-com
         return Promise.resolve({});
       });
       const detach = vi.fn(() => Promise.resolve());
-      // @orb-waive no-test-fabrication(unknown): deliberately stall the third-party CDP stop boundary after delivering one real-shaped event. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+      // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- CDP delivers one event before stop/completion stalls; the tests assert retained bytes, incomplete retention and exactly-once detach. Ends when real CDP supports these controlled faults.
       const cdp = {
         on: vi.fn((_name: string, collect: (payload: { value: unknown[] }) => void) => collect({ value: [event] })),
         once: vi.fn(),
@@ -189,13 +189,13 @@ for (const failureMode of ["completion", "presentation-and-completion", "end-com
         detach,
         send,
       } as unknown as CDPSession;
+      // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- The Page controls the presentation phase while real stop/refusal code must retain the event and all phase failures. Ends when this phase fault is injectable into a real page.
       const page = {
         context: () => ({ newCDPSession: (): Promise<CDPSession> => Promise.resolve(cdp) }),
         waitForLoadState: vi.fn(() => Promise.resolve()),
         evaluate: vi.fn(() =>
           failureMode === "presentation-and-completion" ? new Promise<never>(() => undefined) : Promise.resolve({ count: 1, latestStartTime: 1 }),
         ),
-        // @orb-waive no-test-fabrication(unknown): deliberate partial — CDP profiling types have no factory; only exercised fields set
       } as unknown as Page;
       const rawTracePath = join(scratch, `${failureMode}.trace.json`);
       const active = await beginBootTrace(page);

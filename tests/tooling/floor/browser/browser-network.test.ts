@@ -37,12 +37,10 @@ function pageOwner(page: Page): { readonly contexts: readonly { readonly pages: 
 }
 
 async function installed(cdp = new FakeCdp(), bodyReadTimeoutMs?: number): Promise<{ readonly cdp: FakeCdp; readonly page: Page }> {
-  // @orb-waive no-test-fabrication(Page): Page has no public constructor; browser-network uses this value only as the WeakMap key Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // for the controller installed below. Ends when that controller seam accepts an opaque identity or this uses a real page.
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- This Page is only the controller WeakMap identity; protocol events and hung reads remain controlled. Ends when the identity seam accepts an opaque key.
   const page = {} as Page;
   await wirePageNetwork(
-    // @orb-waive no-test-fabrication(unknown): CDPSession has no public constructor; FakeCdp implements the exact on/send event boundary Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // exercised here. Ends when wirePageNetwork accepts that structural boundary or this suite uses a real CDP session.
+    // eslint-disable-next-line orb/no-test-fabrication -- Controlled CDP on/send events preserve malformed, omitted and hung protocol inputs for normalization/refusal assertions. Ends when native protocol injection supplies those cases.
     cdp as unknown as CDPSession,
     page,
     { contextIndex: 2, pageIndex: 3, window: { value: 4 } },

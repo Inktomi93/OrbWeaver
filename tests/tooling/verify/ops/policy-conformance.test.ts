@@ -22,7 +22,7 @@ const SOURCE_PASS: GatePolicyProof = {
   why: "the nearest legal shape",
 };
 
-function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
+function sourcePolicy(id: string, overrides: Partial<Omit<GatePolicy, "severity" | "workItem">> = {}): GatePolicy {
   return defineGate({
     id,
     family: id,
@@ -44,8 +44,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     mustFlag: [SOURCE_FLAG],
     mustPass: [SOURCE_PASS],
     ...overrides,
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 test("source and types proofs receive their exact files and relative imports resolve", () => {
@@ -115,38 +114,40 @@ test("source and types proofs receive their exact files and relative imports res
 });
 
 test("mustFlag precision uses effective warnings and finding or descriptor messages", () => {
-  const warning = sourcePolicy("warning-precision", {
-    severity: "warning",
-    workItem: 1584,
-    message: "descriptor fallback message",
-    create: (ctx) => ({
-      visitors: [
-        {
-          kinds: [SyntaxKind.VariableDeclaration],
-          visit: (node) => {
-            if (node.getText().startsWith("bad")) {
-              ctx.report.node(node, { token: "bad", offset: 0, message: "finding override detail" });
-            } else if (node.getText().startsWith("fallback")) {
-              ctx.report.node(node);
-            }
+  const warning = defineGate({
+    ...sourcePolicy("warning-precision", {
+      message: "descriptor fallback message",
+      create: (ctx) => ({
+        visitors: [
+          {
+            kinds: [SyntaxKind.VariableDeclaration],
+            visit: (node) => {
+              if (node.getText().startsWith("bad")) {
+                ctx.report.node(node, { token: "bad", offset: 0, message: "finding override detail" });
+              } else if (node.getText().startsWith("fallback")) {
+                ctx.report.node(node);
+              }
+            },
           },
+        ],
+      }),
+      mustFlag: [
+        {
+          mode: "source",
+          files: { "packages/client/src/proof.ts": "const ok = 1;\nconst bad = 2;\n" },
+          expect: { count: 1, line: 2, token: "bad", messageIncludes: "override detail" },
+          why: "exact warning precision",
+        },
+        {
+          mode: "source",
+          files: { "packages/client/src/proof.ts": "const fallback = 1;\n" },
+          expect: { messageIncludes: "fallback message" },
+          why: "descriptor message fallback",
         },
       ],
     }),
-    mustFlag: [
-      {
-        mode: "source",
-        files: { "packages/client/src/proof.ts": "const ok = 1;\nconst bad = 2;\n" },
-        expect: { count: 1, line: 2, token: "bad", messageIncludes: "override detail" },
-        why: "exact warning precision",
-      },
-      {
-        mode: "source",
-        files: { "packages/client/src/proof.ts": "const fallback = 1;\n" },
-        expect: { messageIncludes: "fallback message" },
-        why: "descriptor message fallback",
-      },
-    ],
+    severity: "warning",
+    workItem: 1584,
   });
 
   expect(verifyPolicyProofs([warning])).toEqual([]);
@@ -213,8 +214,7 @@ test("the invocation boundary refuses invalid policy sets before any example run
     },
   });
   const duplicate = sourcePolicy("a-counted");
-  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  const unbranded = { ...counted, id: "z-unbranded", family: "z-unbranded" } as GatePolicy;
+  const unbranded = { ...counted, id: "z-unbranded", family: "z-unbranded" };
   const invalid = defineGate({ ...counted, id: "z-invalid", family: "z-invalid", mustFlag: [] });
 
   expect(() => verifyPolicyProofs([])).toThrow(/nonempty|policy/i);
@@ -288,8 +288,7 @@ test("a countFrom row names a driver the policy's own module declares, and an un
     ...gate,
     mustFlag: [{ ...first.row, expect: { ...first.row.expect, countFrom: "NO_SUCH_DRIVER" } }],
     mustPass: gate.mustPass.slice(0, 1),
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
   const failures = verifyPolicyProofs([forged]);
   expect(failures.map(({ arm, exampleIndex }) => `${arm}[${exampleIndex}]`)).toEqual(["mustFlag[0]"]);
   expect(failures[0]?.detail).toMatch(
@@ -642,8 +641,7 @@ test("a link nested under an earlier link cannot write outside the fixture root,
         why: "a destination under an earlier link resolves through that link",
       },
     ],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
 
   let refusal: unknown;
   try {
@@ -681,8 +679,7 @@ test("a .git/config fixture cannot run a command during the runner's git add —
         why: "repository config written before `git init` survives the reinitialize and names fsmonitor for `git add --all`",
       },
     ],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
 
   let refusal: unknown;
   try {
@@ -980,8 +977,7 @@ function reviewedPolicy(id: string, options: ReviewedPolicyOptions = {}): GatePo
       },
     ],
     mustPass: [{ ...SOURCE_PASS, files: { [GRANT_FLAG_FILE]: "export const clean = true;\n" } }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 const MATCHING_GRANT = { subject: GRANT_SUBJECT, operation: GRANT_OPERATION } as const;
@@ -1095,8 +1091,7 @@ test("the identity verdict never accepts one half alone — a second unlicensed 
         }
       },
     }),
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
   const failures = verifyPolicyProofs([policy]);
   expect(failures).toHaveLength(1);
   expect(failures[0]?.detail).toMatch(/grant identity run: expected ZERO effective findings.*but got 1/su);
@@ -1147,8 +1142,7 @@ test("a SECOND valid witness on another row is legal and is proven too", () => {
         why: "a second emitted identity, equally bindable",
       },
     ],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
   expect(verifyPolicyProofs([twoWitnesses])).toEqual([]);
 
   // The control that keeps the row above from being vacuous: give the SECOND row the FIRST row's identity and only
@@ -1158,8 +1152,7 @@ test("a SECOND valid witness on another row is legal and is proven too", () => {
     id: "grant-identity-two-witnesses-crossed",
     family: "grant-identity-two-witnesses-crossed",
     mustFlag: [twoWitnesses.mustFlag[0] as GatePolicyProof, { ...(twoWitnesses.mustFlag[1] as GatePolicyProof), grant: MATCHING_GRANT }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the conformance verifier exercises; no factory exists
-  } as GatePolicy);
+  });
   const failures = verifyPolicyProofs([crossed]);
   expect(failures.map(({ arm, exampleIndex }) => [arm, exampleIndex])).toEqual([["mustFlag", 1]]);
   expect(failures[0]?.detail).toContain("[stale-reviewed-grant]");

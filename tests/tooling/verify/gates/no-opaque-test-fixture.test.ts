@@ -1,24 +1,17 @@
-// Family test for `no-opaque-test-fixture` (#1630) — a declared SINGLETON: no other policy judges a
-// fixture module's declared export TYPES, and the cast-expression subject next door belongs to
-// `no-test-fabrication`.
-//
-// WHAT ONLY THIS FILE CAN PROVE, because a declared row structurally cannot (GATE-AUTHORING §5):
-//   · §4.2 THE ORDINARY IDENTITY ARM — the correct `@orb-waive` marker at the reported position consumes
-//     exactly ONE finding, leaves ZERO effective findings and ZERO authority alarms. A `mustPass` row
-//     asserts none of those three numbers; it only asserts that nothing survived.
-//   · THE DEAD-POSITION ALARM — the same marker naming a position this policy never reports must ALARM
-//     rather than silently suppress. Without this arm a marker engine matching on the CARRIER alone would
-//     read identically to the arm above, and the whole waiver door would be unproven.
-//   · THE OVERLAP CLAIM the module's header makes with `no-test-fabrication`: that the two policies judge
-//     DIFFERENT shapes and do not double-report one site. A header that asserts a guarantee owes a control.
+// Fixture export types and native assertions retain separate source subjects and exception authority.
 
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
+import ts from "typescript";
+import tseslint from "typescript-eslint";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
-import { gate as noTestFabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { nativeFabricationPlugin } from "../ops/_fixtures/native-fabrication-candidate.ts";
 
 const ROOT = "/no-opaque-test-fixture";
 const FIXTURE = "tests/client/features/rpg/fixtures.ts";
@@ -49,6 +42,28 @@ function run(policies: readonly GatePolicy[], files: Readonly<Record<string, str
     waived: result.authority.waivedFindings.length,
     alarms: result.authority.authorityAlarms.map((alarm) => `${alarm.kind}:${alarm.policyId}`),
   };
+}
+
+async function nativeFindings(root: string, repoRoot: string, source: string): Promise<readonly string[]> {
+  const path = join(root, FIXTURE);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, source);
+  const program = ts.createProgram([path], { strict: true, noLib: true, types: [] });
+  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(FIXTURE);
+  const rules = ["orb/no-test-fabrication", "@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-unsafe-type-assertion"];
+  expect(rules.map((id) => config?.rules?.[id]?.[0])).toEqual([2, 2, 2]);
+  const messages = new Linter({ cwd: root }).verify(
+    source,
+    {
+      files: ["**/*.ts"],
+      plugins: { ...config?.plugins, "@typescript-eslint": nativeFabricationPlugin(root, repoRoot) },
+      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false } },
+      rules: Object.fromEntries(rules.map((id) => [id, config?.rules?.[id]])),
+    },
+    { filename: path },
+  );
+  expect(messages.some(({ fatal }) => fatal === true)).toBe(false);
+  return messages.map(({ ruleId, line }) => `${ruleId}@${line}`).toSorted((left, right) => left.localeCompare(right));
 }
 
 test("the policy's own declared proofs hold through the production dispatcher", () => {
@@ -88,30 +103,29 @@ test("a marker naming a position the policy never reports ALARMS instead of supp
   expect(offByOne.alarms.join(" | ")).toContain("no-opaque-test-fixture");
 });
 
-// THE HEADER'S OVERLAP CLAIM, driven. The two policies are run TOGETHER over one file carrying one of
-// each shape, and each site is reported by exactly one of them.
-test("no double report with no-test-fabrication: each policy sees the shape the other cannot", () => {
-  const both = run([gate, noTestFabrication], {
-    [FIXTURE]:
-      "interface Game {\n" +
-      "  readonly ruleset: string;\n" +
-      "}\n" +
-      "export function makeGame(): unknown {\n" +
-      "  return {};\n" +
-      "}\n" +
-      "export function fabricate(): Game {\n" +
-      "  return {} as unknown as Game;\n" +
-      "}\n",
-  });
-  expect(both.alarms).toEqual([]);
-  // Line 4 is the `unknown` return annotation; line 8 is the double cast. Neither line carries two
-  // findings, and neither policy reports the other's line.
-  expect([...both.hits].sort()).toEqual(["no-opaque-test-fixture@4", "no-test-fabrication@8"]);
+test("opaque fixture declarations remain distinct from every native assertion finding on the same source", async ({ scratch, repoRoot }) => {
+  const source =
+    "interface Game {\n" +
+    "  readonly ruleset: string;\n" +
+    "}\n" +
+    "export function makeGame(): unknown {\n" +
+    "  return {};\n" +
+    "}\n" +
+    "export function fabricate(): Game {\n" +
+    "  return {} as unknown as Game;\n" +
+    "}\n";
+  const opaque = run([gate], { [FIXTURE]: source });
+  expect(opaque.alarms).toEqual([]);
+  expect(opaque.hits).toEqual(["no-opaque-test-fixture@4"]);
+  expect(await nativeFindings(scratch, repoRoot, source)).toEqual(
+    ["orb/no-test-fabrication@8", "@typescript-eslint/consistent-type-assertions@8", "@typescript-eslint/no-unsafe-type-assertion@8"].toSorted((left, right) =>
+      left.localeCompare(right),
+    ),
+  );
 });
 
-// The other half of the same claim: the FIXTURE-SHAPED defect this policy exists for is invisible to
-// `no-test-fabrication`, which is why the overlap analysis ends in two policies rather than one.
-test("no-test-fabrication alone reads a `: unknown` fixture export completely clean", () => {
-  const alone = run([noTestFabrication], { [FIXTURE]: "export function makeGame(): unknown {\n  return {};\n}\n" });
-  expect({ hits: alone.hits, waived: alone.waived, alarms: alone.alarms }).toEqual({ hits: [], waived: 0, alarms: [] });
+test("native assertion rules leave an unknown fixture export clean without hiding the KEEP declaration finding", async ({ scratch, repoRoot }) => {
+  const source = "export function makeGame(): unknown {\n  return {};\n}\n";
+  expect(await nativeFindings(scratch, repoRoot, source)).toEqual([]);
+  expect(run([gate], { [FIXTURE]: source }).hits).toEqual(["no-opaque-test-fixture@1"]);
 });

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -6,15 +6,27 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { z } from "zod";
 import { ID_BRAND_HOME } from "../../../../tooling/src/floor/code-facts/id-brand.ts";
+import { readAuthoredRepositoryInventory } from "../../../../tooling/src/floor/compiler/authored-repository.ts";
+import { readCompilerProgramGraph } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
+import { TEST_WORLD_PROGRAMS } from "../../../../tooling/src/floor/compiler/project-worlds.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { resolveSelection } from "../../../../tooling/src/verify/lib/selection.ts";
 import { TYPED_NATIVE_POLICIES } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
-import { runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
+import { partitionEslintFiles, runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { nativeFabricationPlugin } from "./_fixtures/native-fabrication-candidate.ts";
 
 const SUBJECT = "packages/server/src/domain/chat/contract/fixture.ts";
 const BRAND_RULE = "orb/brand-in-name-position";
 const BRAND_SOURCE =
   'declare const brand:unique symbol;export type Branded<P extends string>=string & {readonly [brand]:P};export type ChatId=Branded<"chat">;';
+
+const MAINTAINED_TEST_PATHS = [
+  "tests/client/compose/_mount-stories.tsx",
+  "tests/support/browser/deterministic-helpers.ct.tsx",
+  "tests/support/node/route-trpc.ts",
+  "tests/support/iso/zod-leaf-paths.ts",
+] as const;
 
 function fixture(root: string, repoRoot: string, mode: "typed" | "untyped" | "unowned" = "typed"): void {
   const put = (path: string, text: string): void => {
@@ -72,6 +84,39 @@ rules:{"${BRAND_RULE}":"error"}}];`,
   execFixtureGit(root, ["add", "."]);
 }
 
+test("ordinary maintained test syntax retains native owners while legacy stays untyped", async ({ repoRoot }) => {
+  const paths = MAINTAINED_TEST_PATHS;
+  const legacyPath = "tests/legacy/client/probe.ct.tsx";
+  const allOrdinary = await readEslintFileAdmissions(repoRoot, "eslint.config.js", [...paths, legacyPath]);
+  const ordinary = allOrdinary.filter(({ path }) => path !== legacyPath);
+  expect(ordinary.map(({ path, requiresTypeInformation, compilerConfigs }) => ({ path, requiresTypeInformation, compilerConfigs }))).toEqual(
+    paths.map((path) => ({
+      path,
+      requiresTypeInformation: true,
+      compilerConfigs: [TEST_WORLD_PROGRAMS.node, TEST_WORLD_PROGRAMS.browser, TEST_WORLD_PROGRAMS.iso],
+    })),
+  );
+  const legacy = allOrdinary.filter(({ path }) => path === legacyPath);
+  expect(legacy).toMatchObject([{ requiresTypeInformation: false }]);
+});
+
+test("native compiler membership maps maintained test subjects to all admitted worlds", ({ repoRoot }) => {
+  const paths = MAINTAINED_TEST_PATHS;
+  const configs = [TEST_WORLD_PROGRAMS.node, TEST_WORLD_PROGRAMS.browser, TEST_WORLD_PROGRAMS.iso];
+  const owners = partitionEslintFiles(paths, readCompilerProgramGraph(readAuthoredRepositoryInventory(repoRoot), configs), new Set(paths));
+  expect(owners.get(TEST_WORLD_PROGRAMS.browser)).toEqual(paths.slice(0, 2));
+  expect(owners.get(TEST_WORLD_PROGRAMS.node)).toEqual([paths[2]]);
+  expect(owners.get(TEST_WORLD_PROGRAMS.iso)).toEqual([paths[3]]);
+});
+
+test("HARD keeps maintained TSX Node and iso subjects Program-free", async ({ repoRoot }) => {
+  const paths = MAINTAINED_TEST_PATHS;
+  const hard = await readEslintFileAdmissions(repoRoot, "eslint-hard.config.js", paths);
+  expect(hard.map(({ path, requiresTypeInformation }) => ({ path, requiresTypeInformation }))).toEqual(
+    paths.map((path) => ({ path, requiresTypeInformation: false })),
+  );
+});
+
 test("a canonical brand edit reselects actual typed consumers, invalidates warm cache and leaves unrelated edits scoped", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
   const proc = await import("../../../../tooling/src/floor/process/proc.ts");
@@ -99,6 +144,72 @@ test("a canonical brand edit reselects actual typed consumers, invalidates warm 
   } finally {
     child.mockRestore();
   }
+}, 60_000);
+
+test("stock value assertions reselect unchanged consumers and recompute per-owner cache generations after provider and rule-code changes", async ({
+  scratch,
+  repoRoot,
+  runCli,
+}) => {
+  fixture(scratch, repoRoot);
+  const entry = TYPED_NATIVE_POLICIES.find(({ id }) => id === "test-value-cast");
+  if (entry === undefined) {
+    throw new Error("stock value metadata is missing");
+  }
+  for (const path of entry.inputs) {
+    if (path === "eslint.config.js" || path === "package.json") {
+      continue;
+    }
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), readFileSync(join(repoRoot, path)));
+  }
+  const pluginRoot = join(scratch, "tooling/src/native-value");
+  nativeFabricationPlugin(pluginRoot, repoRoot);
+  const subject = "tests/support/node/value.ts";
+  const provider = "packages/kit/src/provider.ts";
+  const source = `import type {Target} from '../../../packages/kit/src/provider.ts';declare const value:{readonly n:number};export const result=value as Target;`;
+  mkdirSync(dirname(join(scratch, subject)), { recursive: true });
+  writeFileSync(join(scratch, subject), source);
+  writeFileSync(join(scratch, provider), "export interface Target{readonly n:number}");
+  writeFileSync(
+    join(scratch, "tsconfig.json"),
+    JSON.stringify({ compilerOptions: { noLib: true, types: [], strict: true, module: "ESNext", moduleResolution: "Bundler" }, files: [provider, subject] }),
+  );
+  writeFileSync(
+    join(scratch, "eslint.config.js"),
+    `import tseslint from 'typescript-eslint';
+import {createRequire} from 'node:module';import {createHash} from 'node:crypto';import {readFileSync} from 'node:fs';import {join} from 'node:path';import {fileURLToPath} from 'node:url';
+import {TYPED_NATIVE_POLICIES,typedNativeInputIdentity,typedNativeInputPaths} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/typed-native-inputs.ts")).href)};
+import {readAuthoredRepositoryInventory} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/floor/compiler/authored-repository.ts")).href)};
+const root=fileURLToPath(new URL('.',import.meta.url));const require=createRequire(import.meta.url);const entry=TYPED_NATIVE_POLICIES.find(entry=>entry.id==='test-value-cast');
+export default [{ignores:['node_modules/**','.cache/**','reports/**','tooling/**','scripts/**']},
+{files:['packages/**/*.ts'],languageOptions:{parser:tseslint.parser,parserOptions:{project:false,projectService:false}},rules:{'no-debugger':'error'}},
+{files:entry.scope,ignores:entry.notUnder,
+languageOptions:{parser:tseslint.parser,parserOptions:{project:['tsconfig.json'],projectService:false,tsconfigRootDir:root}},
+plugins:{'@typescript-eslint':require(${JSON.stringify(join(pluginRoot, "plugin/dist/index.js"))})},
+settings:{['orb/typed-native-inputs/'+entry.id]:createHash('sha256').update(typedNativeInputIdentity(entry,'configured-owner')).update(JSON.stringify(typedNativeInputPaths(entry,readAuthoredRepositoryInventory(root).paths,root).map(path=>[path,readFileSync(join(root,path),'utf8')]))).digest('hex')},rules:{[entry.ruleId]:'error'}}];`,
+  );
+  execFixtureGit(scratch, ["add", "."]);
+  const first = await runCli("verify", ["eslint-scoped", provider], { cwd: scratch });
+  await expect(first).toExitWith(0);
+  expect(readdirSync(join(scratch, ".cache/eslint"))).toContain("metadata-typed-tsconfig.json.eslintcache");
+  writeFileSync(join(scratch, provider), "export interface Target{readonly n:number;readonly required:string}");
+  const changed = await runCli("verify", ["eslint-scoped", dirname(provider)], { cwd: scratch });
+  await expect(changed).toExitWith(1);
+  expect(changed.stdout).toContain("tests/support/node/value.ts");
+  writeFileSync(join(scratch, provider), "export interface Target{readonly n:number}");
+  const clean = await runCli("verify", ["eslint-scoped", provider], { cwd: scratch });
+  await expect(clean).toExitWith(0);
+  const implementation = "tooling/src/native-value/plugin/dist/rules/no-unsafe-type-assertion.js";
+  const before = readFileSync(join(scratch, implementation), "utf8");
+  const condition = "if (isAssertionSafe)";
+  expect(before.split(condition)).toHaveLength(2);
+  writeFileSync(join(scratch, implementation), before.replace(condition, "if (!isAssertionSafe)"));
+  const revised = await runCli("verify", ["eslint-scoped", implementation], { cwd: scratch });
+  await expect(revised).toExitWith(1);
+  expect(revised.stdout).toContain("tests/support/node/value.ts");
+  expect(revised.stdout).toContain("Unsafe type assertion");
+  expect(readFileSync(join(scratch, subject), "utf8")).toBe(source);
 }, 60_000);
 
 for (const mode of ["untyped", "unowned"] as const) {

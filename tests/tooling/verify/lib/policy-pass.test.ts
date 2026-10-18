@@ -10,6 +10,7 @@ import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
+import type { ResourceHostOptions } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
@@ -27,7 +28,9 @@ function proofMode(analysis: GatePolicy["analysis"]): GatePolicyProofMode {
   return analysis === "syntax" ? "source" : analysis;
 }
 
-function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
+type PolicyOverrides = Partial<Omit<GatePolicy, "severity" | "workItem">>;
+
+function policy(id: string, overrides: PolicyOverrides = {}): GatePolicy {
   const analysis = overrides.analysis ?? "syntax";
   const mode = proofMode(analysis);
   const path = mode === "resource" ? "resources/proof.json" : "packages/client/src/proof.ts";
@@ -47,8 +50,7 @@ function policy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
     mustFlag: [{ mode, files: { [path]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode, files: { [path]: "export const clean = true;\n" }, why: "nearest legal shape" }],
     ...overrides,
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 function run(policies: readonly GatePolicy[], project: Project, overrides: Partial<PolicyPassInput> = {}): PolicyPassResult {
@@ -90,20 +92,17 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
       },
     });
   const valid = counted("valid-policy");
-  // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the pass runner exercises; no factory exists
-  const unbranded = { ...valid, id: "unbranded-policy", family: "unbranded-policy" } as GatePolicy;
-  // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+  const unbranded = { ...valid, id: "unbranded-policy", family: "unbranded-policy" };
   const invalid = defineGate({
     ...valid,
     id: "invalid-policy",
     family: "invalid-policy",
-    analysis: "bogus",
-    execution: "bogus",
     facts: [],
     mustFlag: [],
     mustPass: [],
-    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an invalid create return
-  } as never);
+  });
+  // Loaded JavaScript can corrupt descriptor axes after registration; the invocation must validate before hooks.
+  Object.assign(invalid, { analysis: "bogus", execution: "bogus" });
 
   expect(() => run([], project)).toThrow(/nonempty|policy/i);
   expect(() => run([counted("duplicate-policy"), counted("duplicate-policy")], project)).toThrow(/duplicate/i);
@@ -115,7 +114,7 @@ test("the invocation boundary rejects empty, duplicate, unbranded, and invalid p
 test("selected policies must be exact loaded descriptor identities before any hook runs", () => {
   const project = projectOf({ "packages/client/src/a.ts": "export const a = 1;\n" });
   const events: string[] = [];
-  const tracked = (id: string, overrides: Partial<GatePolicy> = {}): GatePolicy =>
+  const tracked = (id: string, overrides: PolicyOverrides = {}): GatePolicy =>
     policy(id, {
       create: () => {
         events.push("create");
@@ -505,6 +504,7 @@ test("semantic and resource receipt failures remain visible and withhold their o
     authority: "ordinary",
     // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the pass runner's handling of an unknown evaluation result
     // @orb-waive no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Deliberately invalid receipt discriminant must reach ctx.receipt's real dispatcher intake and withhold the owner. Ends when that runtime validation is removed.
     create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
   });
 
@@ -988,16 +988,18 @@ test("central authority handles hard, ordinary, reviewed, and warning promotion"
     "packages/client/src/ordinary.ts": "// @orb-waive ordinary-policy(ordinary): fixture\nexport const ordinary = 1;\n",
     "packages/client/src/reviewed.ts": "export const reviewed = 1;\n",
   });
-  const anchored = (id: string, file: string, overrides: Partial<GatePolicy> = {}): GatePolicy =>
+  const anchored = (id: string, file: string, overrides: PolicyOverrides = {}): GatePolicy =>
     policy(id, { create: (ctx) => ({ evaluate: () => ctx.report.file(file, { subject: file, operation: "read" }) }), ...overrides });
   const hard = anchored("hard-policy", "packages/client/src/hard.ts");
-  const ordinary = anchored("ordinary-policy", "packages/client/src/ordinary.ts", {
-    authority: "ordinary",
+  const ordinary = defineGate({
+    ...anchored("ordinary-policy", "packages/client/src/ordinary.ts", {
+      authority: "ordinary",
+      create: (ctx) => ({
+        evaluate: () => ctx.report.file("packages/client/src/ordinary.ts", { line: 2, column: 14, token: "ordinary" }),
+      }),
+    }),
     severity: "warning",
     workItem: 1584,
-    create: (ctx) => ({
-      evaluate: () => ctx.report.file("packages/client/src/ordinary.ts", { line: 2, column: 14, token: "ordinary" }),
-    }),
   });
   const reviewed = anchored("reviewed-policy", "packages/client/src/reviewed.ts", {
     authority: "reviewed-grant",
@@ -1539,6 +1541,7 @@ test("resource contexts share one invocation host with injected overlays and own
 test("resource injection cannot substitute a different root with the same relative paths", async ({ plantedTree }) => {
   const root = await plantedTree({ "package.json": '{"name":"root-a"}' });
   const otherRoot = await plantedTree({ "package.json": '{"name":"root-b"}' });
+  const resourceOptions: ResourceHostOptions = { root: otherRoot };
   const names: string[] = [];
   const gate = policy("root-identity", {
     analysis: "resource",
@@ -1554,9 +1557,7 @@ test("resource injection cannot substitute a different root with the same relati
   });
   const result = run([gate], projectOf({}), {
     root,
-    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test report handling of non-file findings
-    // @orb-waive no-loose-id-cast({ root: otherRoot }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-    resourceOptions: { root: otherRoot } as never,
+    resourceOptions,
   });
   expect(names).toEqual(["root-a"]);
   expect(result.toolErrors).toEqual([]);

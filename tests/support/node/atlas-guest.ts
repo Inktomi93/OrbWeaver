@@ -16,7 +16,6 @@
 // WHAT THE REAL SANDBOX ADDS (marshalling, caps, the belts) is pinned in `tests/legacy/server/infra/plugin-host/`;
 // the atlas's registration + activation publish in the REAL sandbox is `seed-example-plugins.int.test.ts`.
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { join } from "node:path";
 import vm from "node:vm";
 import { packPluginDirectory } from "@orb/plugin-toolchain";
@@ -119,12 +118,13 @@ export async function bootAtlas(options: AtlasBootOptions = {}): Promise<AtlasDr
   const cardData = new Map<string, unknown>();
   const kv = new Map<string, string>();
   let onAction: ((action: { actionId: string; values: Record<string, string> }) => Promise<void>) | null = null;
+  const ingest = options.ingest;
   const character =
-    options.ingest === undefined
+    ingest === undefined
       ? {}
       : {
           ingest: (card: unknown): Promise<AtlasIngestOutcome> => {
-            const outcome = (options.ingest as (c: unknown) => AtlasIngestOutcome)(card);
+            const outcome = ingest(card);
             ingests.push(outcome.characterId);
             return Promise.resolve(outcome);
           },

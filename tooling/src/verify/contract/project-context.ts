@@ -8,8 +8,7 @@
 // `requestedPaths` and acquires the checker through the policy context, so re-exposing either here would
 // be a second spelling of a decision `lib/policy-pass.ts` already owns.
 
-import type { AsExpression, CallExpression, ExportDeclaration, ImportDeclaration, Node, Project, SourceFile, TypeNode } from "ts-morph";
-import type { TypeRelation } from "../../floor/code-facts/assignability.ts";
+import type { CallExpression, ExportDeclaration, ImportDeclaration, Node, Project, SourceFile, TypeNode } from "ts-morph";
 import type { DrizzleCallEvidence, DrizzleEvidenceMode } from "../../floor/code-facts/drizzle-evidence-contract.ts";
 import type { CallableDeclaration, GlobalMemberOrigin, ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaIdentityModel } from "../../floor/code-facts/schema-identity-contract.ts";
@@ -34,7 +33,6 @@ export type NativeTypeRequest =
   | { readonly kind: "invocation-evidence"; readonly nodes: readonly Node[]; readonly plan: InventoryInvocationPlan }
   | { readonly kind: "global-origins"; readonly nodes: readonly Node[] }
   | { readonly kind: "global-bindings"; readonly nodes: readonly Node[] }
-  | { readonly kind: "cast-relations"; readonly nodes: readonly AsExpression[] }
   | { readonly kind: "id-brands"; readonly nodes: readonly TypeNode[] }
   | { readonly kind: "runtime-exports"; readonly nodes: readonly SourceFile[] }
   | { readonly kind: "declaration-outputs"; readonly nodes: readonly Node[] }
@@ -60,7 +58,6 @@ export interface NativeTypeFactReader extends Disposable {
   readonly declarationOutputs: (nodes: readonly Node[]) => ReadonlyMap<Node, boolean | null>;
   readonly prepareShapes: (sources: readonly SourceFile[]) => void;
   readonly runtimeExports: (nodes: readonly SourceFile[]) => ReadonlyMap<SourceFile, readonly InventoryRuntimeExport[]>;
-  readonly castRelations: (nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
   readonly idBrands: (nodes: readonly TypeNode[]) => ReadonlyMap<TypeNode, string | null>;
 }
 
@@ -81,7 +78,6 @@ export interface NativeTypeContext {
   readonly prepareShapes: NativeTypeFactReader["prepareShapes"];
   readonly runtimeExports: NativeTypeFactReader["runtimeExports"];
   readonly request: (query: NativeTypeRequest) => void;
-  readonly castRelations: NativeTypeFactReader["castRelations"];
   readonly idBrands: NativeTypeFactReader["idBrands"];
 }
 
@@ -108,7 +104,6 @@ export interface NativeTypeFacts extends Disposable {
   readonly runtimeExports: (owner: string, nodes: readonly SourceFile[]) => ReturnType<NativeTypeFactReader["runtimeExports"]>;
   readonly request: (owner: string, query: NativeTypeRequest) => void;
   readonly seal: (owners: ReadonlySet<string>) => void;
-  readonly castRelations: (owner: string, nodes: readonly AsExpression[]) => ReadonlyMap<AsExpression, TypeRelation>;
   readonly idBrands: (owner: string, nodes: readonly TypeNode[]) => ReadonlyMap<TypeNode, string | null>;
 }
 

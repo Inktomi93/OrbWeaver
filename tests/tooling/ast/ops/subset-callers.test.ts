@@ -557,16 +557,17 @@ describe("ast subset-callers lens (the LEVEL-2 destructured-door arm)", () => {
 // fails on the retired lookup, the second is the fence that keeps the repair from annotating everything.
 
 test("a client door whose verb is a RULED pair is annotated with the ruling and the doors it names", () => {
-  const ruled = ruledDoorPairs();
-  const note = ratifiedNote(
+  const [finding] = auditFor(
     {
-      site: { node: undefined, keys: [], via: null, door: "`mutation` ← useContinueTurnMutation → trpc.chat.continueTurn", unresolved: null },
-      missing: [],
-      supersets: [],
-      // @orb-waive no-test-fabrication(unknown): deliberate partial SubsetFinding — only the fields the assertion exercises
-    } as unknown as SubsetFinding,
-    ruled,
-  );
+      "packages/client/src/a.ts": `${factory("useContinueTurnMutation", "chat.continueTurn")}export const A=()=>useContinueTurnMutation({trpc}).mutate({chatId});`,
+      "packages/client/src/b.ts": `${factory("useSiblingContinueTurnMutation", "chat.continueTurn")}export const B=()=>useSiblingContinueTurnMutation({trpc}).mutate({chatId,messageId});`,
+    },
+    "continueTurn",
+  ).findings;
+  if (finding === undefined) {
+    throw new Error("the ruled-door fixture did not produce its actual subset finding");
+  }
+  const note = ratifiedNote(finding, ruledDoorPairs());
 
   expect(note, "the ruling is NAMED — the reader disagrees with the decision rather than re-deriving it").toContain("chats::chat.continueTurn");
   expect(note, "with the doors it rules").toContain("use-guided-actions.ts");
@@ -574,15 +575,17 @@ test("a client door whose verb is a RULED pair is annotated with the ruling and 
 });
 
 test("a door on a verb NO ruling names is not annotated — the repair joins on the verb, never on everything", () => {
-  const note = ratifiedNote(
+  const [finding] = auditFor(
     {
-      site: { node: undefined, keys: [], via: null, door: "`mutation` ← useForkChatMutation → trpc.chat.forkChat", unresolved: null },
-      missing: [],
-      supersets: [],
-      // @orb-waive no-test-fabrication(unknown): deliberate partial SubsetFinding — only the fields the assertion exercises
-    } as unknown as SubsetFinding,
-    ruledDoorPairs(),
-  );
+      "packages/client/src/a.ts": `${factory("useForkChatMutation", "chat.forkChat")}export const A=()=>useForkChatMutation({trpc}).mutate({chatId});`,
+      "packages/client/src/b.ts": `${factory("useSiblingForkChatMutation", "chat.forkChat")}export const B=()=>useSiblingForkChatMutation({trpc}).mutate({chatId,messageId});`,
+    },
+    "forkChat",
+  ).findings;
+  if (finding === undefined) {
+    throw new Error("the unruled-door fixture did not produce its actual subset finding");
+  }
+  const note = ratifiedNote(finding, ruledDoorPairs());
 
   expect(note, "`chat.forkChat` is the founding UNRULED pair — annotating it would launder a decision nobody made").toBe("");
 });

@@ -153,7 +153,7 @@ function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: 
     facts: [],
     resources: [],
     message: "test fixture: a `.forbidden` member read",
-    fix: "read the member through lib/symbol-reference.ts",
+    fix: `read the member through lib/symbol-reference.ts, or record a justified exception with @orb-waive ${id}(...): <reason>`,
     // THE CONTROL COLLECTS IN THE WALK AND REPORTS IN `evaluate`, and that shape is forced rather than
     // decorative (#2199). `execution: "entire-population"` is a CLAIM that the verdict cannot compose over a
     // subset, and #2111's A21 check refuses a policy making that claim with no post-walk hook at all — so
@@ -185,8 +185,7 @@ function controlPolicy(id: string, kinds: readonly SyntaxKind[], detect: (text: 
     },
     mustFlag: grantProofs ?? [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "the dotted spelling" }],
     mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS }, why: "a member this law does not name" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the spelling-twin census exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 test("THE PLANTED CONTROL, FINAL side: the same blindness is detected on a defineGate policy, and the migrated spelling is not", () => {
@@ -247,8 +246,7 @@ for (const phase of ["baseline", "grant"] as const) {
     const broken = defineGate({
       ...base,
       mustFlag: base.mustFlag.map((proof, index) => (phase === "baseline" && index === 0 ? { ...proof, expect: { count: 2 } } : proof)),
-      // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the spelling-twin census exercises; no factory exists
-    } as GatePolicy);
+    });
     const failures = verifyPolicyProofs([broken]);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatchObject({ arm: "mustFlag", exampleIndex: 0 });
@@ -292,8 +290,7 @@ for (const arm of ["mustPass", "mustRefuse"] as const) {
         return base.create(ctx);
       },
       mustRefuse: [refusalProof],
-      // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the spelling-twin census exercises; no factory exists
-    } as GatePolicy);
+    });
     expect(verifyPolicyProofs([valid])).toEqual([]);
     expect(spellingTwinCensus({ gates: [valid] }, scratchParser())).toEqual({ blind: {}, examined: 1, skipped: [] });
 
@@ -302,8 +299,7 @@ for (const arm of ["mustPass", "mustRefuse"] as const) {
       ...(arm === "mustPass"
         ? { mustPass: [{ mode: "source", files: { "packages/ui/src/x.ts": CONTROL_MUST_FLAG }, why: "a finding contradicts this passing proof" }] }
         : { mustRefuse: [{ ...refusalProof, files: { "packages/ui/src/x.ts": CONTROL_MUST_PASS } }] }),
-      // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the spelling-twin census exercises; no factory exists
-    } as GatePolicy);
+    });
     const failures = verifyPolicyProofs([broken]);
     expect(failures).toHaveLength(1);
     expect(failures[0]).toMatchObject({ policyId: broken.id, arm, exampleIndex: 0 });

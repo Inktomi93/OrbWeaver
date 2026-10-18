@@ -10,7 +10,6 @@
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans
 // in production — so what a budget test counts is exactly what shows up as `db.*` spans at runtime.
 
-// @orb-waive-file no-test-fabrication({ sql?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db, LibSqlWrap } from "@orb/db";
 import { closeDb, createDb } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
@@ -166,7 +165,7 @@ function sqlOf(arg: unknown): string {
     return arg;
   }
   if (arg !== null && typeof arg === "object" && "sql" in arg) {
-    return (arg as { sql?: string }).sql ?? "?";
+    return typeof arg.sql === "string" ? arg.sql : "?";
   }
   return "?";
 }
@@ -187,7 +186,7 @@ function countingClient<T extends object>(client: T, log: string[]): T {
       }
       return (...args: unknown[]): unknown => {
         if (prop === "batch" && Array.isArray(args[0])) {
-          for (const stmt of args[0] as unknown[]) {
+          for (const stmt of args[0]) {
             log.push(sqlOf(stmt));
           }
         } else if (prop === "transaction") {
@@ -195,8 +194,7 @@ function countingClient<T extends object>(client: T, log: string[]): T {
         } else {
           log.push(sqlOf(args[0]));
         }
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-        return (value as (...a: unknown[]) => unknown).apply(target, args);
+        return Reflect.apply(value, target, args);
       };
     },
   });
@@ -221,13 +219,13 @@ function parkOnGate(gate: StatementGate, arrivals: number): Promise<void> {
   return gate.released.promise;
 }
 
-function heldExecute<T extends object>(target: T, value: (...a: unknown[]) => unknown, current: () => StatementGate | undefined) {
+function heldExecute(invoke: (args: unknown[]) => unknown, current: () => StatementGate | undefined) {
   return (...args: unknown[]): unknown => {
     const gate = current();
     if (gate === undefined || !gateMatches(gate, sqlOf(args[0]))) {
-      return value.apply(target, args);
+      return invoke(args);
     }
-    return parkOnGate(gate, 1).then(() => value.apply(target, args));
+    return parkOnGate(gate, 1).then(() => invoke(args));
   };
 }
 
@@ -235,15 +233,15 @@ function heldExecute<T extends object>(target: T, value: (...a: unknown[]) => un
  *  house's own law names it (`batch-is-the-only-atomic-unit-and-it-bans-read-first`) — there is no way to
  *  let a batch's non-matching statements through while holding only the matching one, so a hold that
  *  matches ANY statement inside the array parks the WHOLE call. */
-function heldBatch<T extends object>(target: T, value: (...a: unknown[]) => unknown, current: () => StatementGate | undefined) {
+function heldBatch(invoke: (args: unknown[]) => unknown, current: () => StatementGate | undefined) {
   return (...args: unknown[]): unknown => {
     const gate = current();
-    const statements = Array.isArray(args[0]) ? (args[0] as readonly unknown[]) : [];
+    const statements = Array.isArray(args[0]) ? args[0] : [];
     const matches = gate === undefined ? 0 : statements.filter((stmt) => gateMatches(gate, sqlOf(stmt))).length;
     if (gate === undefined || matches === 0) {
-      return value.apply(target, args);
+      return invoke(args);
     }
-    return parkOnGate(gate, matches).then(() => value.apply(target, args));
+    return parkOnGate(gate, matches).then(() => invoke(args));
   };
 }
 
@@ -262,12 +260,10 @@ function holdingClient<T extends object>(client: T, current: () => StatementGate
         return value;
       }
       if (prop === "execute") {
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-        return heldExecute(target, value as (...a: unknown[]) => unknown, current);
+        return heldExecute((args) => Reflect.apply(value, target, args), current);
       }
       if (prop === "batch") {
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
-        return heldBatch(target, value as (...a: unknown[]) => unknown, current);
+        return heldBatch((args) => Reflect.apply(value, target, args), current);
       }
       return value.bind(target);
     },

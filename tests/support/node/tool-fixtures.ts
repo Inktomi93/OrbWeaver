@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(NodeJS.ErrnoException): baselined when the gate widened to value casts; burn-down item 906.
-
 // The tooling composed test (docs/law/Core-Tooling-Law.md §5.1) — EXTENDS the house `test`
 // (./fixtures.ts), so tooling tests keep clock/ids/db/app/callers and gain the tool seams. Import
 // `test`/`expect` from HERE in tests/tooling/** (gate: test-fixture-imports §4.8 — this module is also
@@ -82,13 +80,13 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
   const canonicalRoot = existsSync(lexicalRoot) ? realpathSync(lexicalRoot) : lexicalRoot;
   const relativeCandidate = relative(lexicalRoot, candidate);
   let prefix = lexicalRoot;
-  for (const segment of relativeCandidate === "" ? [] : relativeCandidate.split(sep)) {
+  for (const segment of relativeCandidate.split(sep).filter((part) => part !== "")) {
     prefix = join(prefix, segment);
     try {
       lstatSync(prefix);
     } catch (error) {
       // The first ABSENT ancestor ends the walk: nothing below it can already be a link out.
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
         break;
       }
       throw error;

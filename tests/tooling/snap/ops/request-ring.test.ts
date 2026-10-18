@@ -19,8 +19,7 @@ function fakePage(): EventEmitter & Page {
 }
 
 function fakeRequest(spec: FakeRequestSpec): Request {
-  // @orb-waive no-test-fabrication(unknown): minimal Playwright Request event double; RequestRing reads exactly these six methods, Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // while requests.int.test.ts proves the same path with real Playwright Request instances.
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled Request events expose the six consumed methods to measure pending sizes, retention and eviction. Ends when native protocol injection supplies those cases.
   return {
     method: () => "GET",
     url: () => spec.url,
@@ -39,8 +38,7 @@ function fakeRequest(spec: FakeRequestSpec): Request {
 }
 
 function fakeResponse(request: Request, body: string, contentType: string): Response {
-  // @orb-waive no-test-fabrication(unknown): minimal Playwright Response event double; RequestRing reads exactly these five methods, Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // while requests.int.test.ts proves the same path with real Playwright Response instances.
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled Response methods expose deferred/rejected bodies and exact content/budget limits, not successful browser behavior. Ends when native protocol injection supplies those cases.
   return {
     request: () => request,
     url: () => request.url(),

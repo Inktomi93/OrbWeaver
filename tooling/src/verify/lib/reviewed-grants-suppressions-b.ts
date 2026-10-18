@@ -4,6 +4,32 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:tests-typescript-eslint-no-unsafe-type-assertion",
+    policyId: "suppressions",
+    subject: "@typescript-eslint/no-unsafe-type-assertion",
+    operation: "tests",
+    why: "RULING — passive tRPC and socket recorders correlate actual protocol observations by procedure path or stream fields without validating or normalizing their bytes. Parsing would change malformed identifiers, omitted defaults and transform-sensitive inputs; these observations grant no application, domain or identity authority.",
+    endsWhen: "a native typed wire recorder preserves these raw observations, the protocol observations disappear, or the final adjacent directive is removed.",
+  },
+  {
+    id: "suppressions:tests-orb-no-test-fabrication",
+    policyId: "suppressions",
+    subject: "orb/no-test-fabrication",
+    operation: "tests",
+    why: "RULING — boot-trace, heap-capture, browser-network, request-ring and appearance fallback plants control external protocol failures, events and retention. Separate scalar-appearance and unbranded-asset-row negatives must reach their real verifier intake and refuse. These exact plants grant no application, domain or identity authority.",
+    endsWhen:
+      "native protocol fault/event injection replaces the external plants, the individually reviewed scalar/Drizzle runtime validations are removed, their actual observations disappear, or the final directive is removed.",
+  },
+  {
+    id: "suppressions:tests-typescript-eslint-consistent-type-assertions",
+    policyId: "suppressions",
+    subject: "@typescript-eslint/consistent-type-assertions",
+    operation: "tests",
+    why: "RULING — boot-trace, heap-capture, request-ring and appearance fallback plants expose consumed external protocol methods; browser-network uses Page only as a WeakMap key. Individually reviewed internal negatives cover unknown owner coverage before authority judgment, a bogus dispatcher receipt and an unbranded asset row at real runtime validation. These exact plants mint no domain or heap identity.",
+    endsWhen:
+      "native protocol injection or an opaque identity seam replaces the external plants, the exact owner-coverage/receipt/Drizzle runtime validations are removed, their observations disappear, or the final directive is removed.",
+  },
+  {
     id: "suppressions:source-orb-brand-in-name-position",
     policyId: "suppressions",
     subject: "orb/brand-in-name-position",

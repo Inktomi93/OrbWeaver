@@ -4,8 +4,6 @@ import { resolve } from "node:path";
 import process from "node:process";
 import type { FileSystemHost, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind, ts } from "ts-morph";
-import type { AssignabilityChecker } from "../code-facts/assignability.ts";
-import { readAssignabilityChecker, readNativeTypeRelation } from "../code-facts/assignability.ts";
 import { readDeclarationOutput } from "../code-facts/declaration-output.ts";
 import { nativeIdBrand } from "../code-facts/id-brand.ts";
 import { inventoryConsumerClass } from "../code-facts/inventory-consumers.ts";
@@ -246,7 +244,6 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           modules: [],
           bindings: [],
           witnesses: [],
-          casts: [],
           brands: [],
           runtimeExports: [],
           declarationOutputs: [],
@@ -550,7 +547,6 @@ type SourceFactValues = Pick<
   | "modules"
   | "bindings"
   | "witnesses"
-  | "casts"
   | "brands"
   | "runtimeExports"
   | "declarationOutputs"
@@ -569,7 +565,6 @@ interface SourceFactCollection {
   readonly values: SourceFactValues;
   readonly referenceDeclarations: Map<InventorySpan, ReferenceDeclaration>;
   readonly shapeNodes: WeakSet<ts.Node>;
-  readonly checker: AssignabilityChecker | undefined;
   readonly exportQueries: Map<string, InventoryExportDeclarationQuery[]>;
   readonly callableQueries: Set<string>;
   readonly callableKinds: ReadonlySet<SyntaxKind>;
@@ -666,19 +661,6 @@ function collectIdentifierFacts(node: MorphNode, context: SourceFactCollection):
   if (context.families.has("references")) {
     registerReferenceDeclarations(node.getSymbol()?.getDeclarations() ?? [], context.authored, context.referenceDeclarations, context.spans);
   }
-}
-
-function collectCastFact(node: MorphNode, context: SourceFactCollection): void {
-  if (!Node.isAsExpression(node)) {
-    throw new Error("native cast visitor received another node kind");
-  }
-  context.values.casts.push({
-    node: context.spans.node(node),
-    result:
-      context.checker === undefined
-        ? { kind: "unavailable", reason: "primitive-absent" }
-        : { kind: "resolved", value: readNativeTypeRelation(context.checker, node.getExpression().getType(), node.getType()) },
-  });
 }
 
 function collectBrandFact(node: MorphNode, context: SourceFactCollection): void {
@@ -844,9 +826,6 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
   if (families.has("bindings") || families.has("references") || context.globalBindingQueries.size > 0) {
     visitors.set(SyntaxKind.Identifier, [(node): void => collectIdentifierFacts(node, context)]);
   }
-  if (families.has("cast-relations")) {
-    visitors.set(SyntaxKind.AsExpression, [(node): void => collectCastFact(node, context)]);
-  }
   if (families.has("id-brands")) {
     visitors.set(SyntaxKind.TypeAliasDeclaration, [...(visitors.get(SyntaxKind.TypeAliasDeclaration) ?? []), (node): void => collectBrandFact(node, context)]);
     visitors.set(SyntaxKind.AsExpression, [...(visitors.get(SyntaxKind.AsExpression) ?? []), (node): void => collectBrandFact(node, context)]);
@@ -959,7 +938,6 @@ function extractSourceFacts(
       modules: [],
       bindings: [],
       witnesses: [],
-      casts: [],
       brands: [],
       runtimeExports: [],
       declarationOutputs: [],
@@ -975,7 +953,6 @@ function extractSourceFacts(
     brandKeys: new Set(),
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
-    checker: readAssignabilityChecker({ compilerObject: program.getTypeChecker() }),
   };
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));

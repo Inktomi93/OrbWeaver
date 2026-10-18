@@ -142,9 +142,8 @@ test("asserted scopes refuse empty, duplicate, missing, ignored, malformed, trav
   for (const request of cases) {
     expect(() => resolvePolicyScope(scratch, request), JSON.stringify(request)).toThrow();
   }
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test scope resolution with an invalid execution value
-  // @orb-waive no-loose-id-cast({ kind: "whole", extra: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  expect(() => resolvePolicyScope(scratch, { kind: "whole", extra: true } as never)).toThrow(/scope request/i);
+  const extraKeyRequest = { kind: "whole", extra: true } as const;
+  expect(() => resolvePolicyScope(scratch, extraKeyRequest)).toThrow(/scope request/i);
 });
 
 test("Git-authored internal symlink aliases stay distinct and selectable while an external escape refuses", ({ scratch }) => {

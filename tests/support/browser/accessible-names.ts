@@ -27,7 +27,6 @@
 //   Indentation is two spaces per level and encodes ancestry, which is what makes the duplicate-name
 //   probe scope-aware instead of page-global.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import type { Locator, Page } from "@playwright/test";
 
 /** One node of the parsed ARIA tree. `scope` is the ancestor chain that disambiguates a repeated name. */
@@ -265,7 +264,7 @@ export async function labelInNameFindings(root: Locator | Page): Promise<readonl
        * "talks50" and misses the real one — measured on the Members row, 2026-08-07.
        */
       const visibleLabelOf = (node: Element): string => {
-        const clone = node.cloneNode(true) as HTMLElement;
+        const clone = node.ownerDocument.importNode(node, true);
         const ids = (node.getAttribute("aria-describedby") ?? "").split(/\s+/).filter((s) => s !== "");
         for (const id of ids) {
           for (const described of clone.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {

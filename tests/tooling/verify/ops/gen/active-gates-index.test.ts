@@ -9,7 +9,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy } from "@orb/tooling/verify";
 import { defineGate, deriveActiveGatesIndexMarkdown } from "@orb/tooling/verify";
 
-function gate(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): GatePolicy {
+function gate(overrides: Partial<Pick<GatePolicy, "id" | "family" | "message" | "population">> = {}): GatePolicy {
   return defineGate({
     id: "probe-gate",
     family: "probe-gate",
@@ -25,8 +25,7 @@ function gate(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): GatePo
     mustFlag: [],
     mustPass: [],
     ...overrides,
-    // @orb-waive no-test-fabrication(Parameters<typeof defineGate>[0]): satisfies rejects the full literal spread over Partial<...> overrides; ends if ExactPolicy can assert that without a cast.
-  } as Parameters<typeof defineGate>[0]) as GatePolicy;
+  });
 }
 
 function rowsOf(markdown: string): readonly string[] {

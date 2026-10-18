@@ -9,27 +9,31 @@
 // HEAP_OUTGOING_EDGE_CAP), and what this file owns is whether the RECEIPT describes that policy honestly.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { HeapSnapshotIdentity, HeapSnapshotReceipt } from "../../../../tooling/src/snap/contract/heap.ts";
-import { HEAP_OUTGOING_EDGE_CAP } from "../../../../tooling/src/snap/contract/heap.ts";
+import type { HeapSnapshotIdentity } from "../../../../tooling/src/snap/contract/heap.ts";
+import {
+  HEAP_OUTGOING_EDGE_CAP,
+  HEAP_PARSER_PACKAGE,
+  HEAP_PARSER_VERSION,
+  heapCaptureSessionIdSchema,
+  heapTargetIdSchema,
+} from "../../../../tooling/src/snap/contract/heap.ts";
 import { buildHeapRetainerReceipt } from "../../../../tooling/src/snap/lib/heap-analysis.ts";
 import type { HeapDevToolsParser, HeapParsedRetainers } from "../../../../tooling/src/snap/lib/heap-devtools.ts";
 
-// @orb-waive no-test-fabrication(unknown): minimal snapshot identity double; heapLimit reads only label/cap — the retainer-cap arithmetic is under test, not the identity shape Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-const IDENTITY = {
+const IDENTITY: HeapSnapshotIdentity = {
   label: "before",
   rawPath: "/tmp/before.heapsnapshot",
   summaryPath: "/tmp/before.json",
   sha256: "0".repeat(64),
   bytes: 1024,
   capturedAt: "2026-09-06T00:00:00.000Z",
-  captureSessionId: "capture-1",
+  captureSessionId: heapCaptureSessionIdSchema.parse("capture-1"),
   browser: { product: "Chrome/1", protocolVersion: "1.3", revision: "r1", userAgent: "ua", jsVersion: "v8" },
-  target: { targetId: "t1", browserContextId: null, url: "http://127.0.0.1:5173/", title: "orb", contextIndex: 0, pageIndex: 0 },
-  parser: { package: "chrome-devtools-mcp", version: "1.8.0", engine: "HeapSnapshotManager" },
-} as unknown as HeapSnapshotIdentity;
+  target: { targetId: heapTargetIdSchema.parse("t1"), browserContextId: null, url: "http://127.0.0.1:5173/", title: "orb", contextIndex: 0, pageIndex: 0 },
+  parser: { package: HEAP_PARSER_PACKAGE, version: HEAP_PARSER_VERSION, engine: "HeapSnapshotManager" },
+};
 
-// @orb-waive no-test-fabrication(unknown): minimal snapshot receipt double for the same reason as IDENTITY above Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-const SNAPSHOT = { v: 1, kind: "snapshot", identity: IDENTITY } as unknown as HeapSnapshotReceipt;
+const SNAPSHOT = { identity: IDENTITY };
 
 function edge(index: number): HeapParsedRetainers["outgoing"][number] {
   return {
@@ -39,7 +43,7 @@ function edge(index: number): HeapParsedRetainers["outgoing"][number] {
   };
 }
 
-function parserReturning(outgoing: number, outgoingTotal: number): HeapDevToolsParser {
+function parserReturning(outgoing: number, outgoingTotal: number): Pick<HeapDevToolsParser, "retainers"> {
   const parsed: HeapParsedRetainers = {
     candidates: 1,
     selected: { nodeId: 1, name: "Detached HTMLDivElement", type: "object", distance: 3, selfSize: 64, retainedSize: 512, detached: false },
@@ -49,8 +53,7 @@ function parserReturning(outgoing: number, outgoingTotal: number): HeapDevToolsP
     outgoingTotal,
     pathLimits: { depth: false, nodes: false, siblings: false },
   };
-  // @orb-waive no-test-fabrication(unknown): minimal HeapDevToolsParser double; the analysis reads exactly retainers() — the parsed-retainer shape is the real one Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return { retainers: async (): Promise<HeapParsedRetainers> => await Promise.resolve(parsed) } as unknown as HeapDevToolsParser;
+  return { retainers: async (): Promise<HeapParsedRetainers> => await Promise.resolve(parsed) };
 }
 
 function outgoingLimit(limits: Awaited<ReturnType<typeof buildHeapRetainerReceipt>>["limits"]): (typeof limits)[number] {

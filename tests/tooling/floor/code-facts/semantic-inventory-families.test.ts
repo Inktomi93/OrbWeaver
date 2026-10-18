@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { canonicalIdBrand, nativeIdBrand } from "@orb/tooling/floor/code-facts/id-brand";
 import { DEFAULT_INVENTORY_FAMILIES, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { openInventoryDatabase, publishInventoryGeneration, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import { extractInventoryPartition } from "@orb/tooling/floor/compiler/semantic-inventory-extract";
 import { createSemanticWorkspace, nativeCompilerSourceFiles } from "@orb/tooling/floor/compiler/ts-workspace";
@@ -14,7 +14,6 @@ import type { LanguageService } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readInventoryReferences } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
-import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { idBrandProofModule } from "../../../../tooling/src/verify/gates/_proof/id-brand.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -56,33 +55,18 @@ test("scalar-only extraction requests no reference pass while default inventory 
     return service;
   });
   try {
-    const casts = extractInventoryPartition({ ...request, families: ["cast-relations"] });
-    expect(passes).toBe(0);
-    expect(casts.families).toEqual(["cast-relations"]);
-    expect(casts.casts.map(({ result }) => result)).toEqual([
-      { kind: "resolved", value: { leftToRight: false, rightToLeft: true, leftIsAny: false, rightIsAny: false } },
-    ]);
-    expect([casts.exports, casts.modules, casts.bindings, casts.witnesses, casts.references, casts.brands]).toEqual([[], [], [], [], [], []]);
     const brands = extractInventoryPartition({ ...request, families: ["id-brands"] });
     expect(passes).toBe(0);
     expect(brands.brands.map(({ brand }) => brand)).toEqual([null]);
-    expect([brands.casts, brands.exports, brands.modules, brands.bindings, brands.witnesses, brands.references]).toEqual([[], [], [], [], [], []]);
+    expect([brands.exports, brands.modules, brands.bindings, brands.witnesses, brands.references]).toEqual([[], [], [], [], []]);
     const runtime = extractInventoryPartition({ ...request, families: ["runtime-exports"] });
     expect(passes).toBe(0);
     expect(runtime.runtimeExports).toMatchObject([{ name: "value", callable: false, initializer: { callable: false } }]);
-    expect([runtime.casts, runtime.brands, runtime.exports, runtime.modules, runtime.bindings, runtime.witnesses, runtime.references]).toEqual([
-      [],
-      [],
-      [],
-      [],
-      [],
-      [],
-      [],
-    ]);
+    expect([runtime.brands, runtime.exports, runtime.modules, runtime.bindings, runtime.witnesses, runtime.references]).toEqual([[], [], [], [], [], []]);
     const legacy = extractInventoryPartition(request);
     expect(passes).toBe(1);
     expect(legacy.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
-    expect([legacy.casts, legacy.brands, legacy.runtimeExports]).toEqual([[], [], []]);
+    expect([legacy.brands, legacy.runtimeExports]).toEqual([[], []]);
     expect(legacy.exports.length).toBeGreaterThan(0);
     expect(legacy.references.length).toBeGreaterThan(0);
   } finally {
@@ -96,18 +80,18 @@ test("scalar-only extraction requests no reference pass while default inventory 
 test("closed family presence refuses absent queries and reuses compatible exited-worker partitions without mixed generations", ({ scratch }) => {
   initialize(scratch);
   const builds: string[] = [];
-  using casts = nativeInventoryFixture({ root: scratch, families: ["cast-relations"] }, { workers: builds });
-  const file = casts.sourceCorpus().getSourceFile("source.ts");
+  using scalars = nativeInventoryFixture({ root: scratch, families: ["id-brands"] }, { workers: builds });
+  const file = scalars.sourceCorpus().getSourceFile("source.ts");
   if (file === undefined) {
     throw new Error("missing source");
   }
-  const node = file.getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression);
-  expect(casts.castRelation(node, "tsconfig.json")).toMatchObject({ kind: "resolved", value: { leftToRight: false } });
-  expect(() => casts.exports(file)).toThrow("family unavailable: exports");
-  expect(() => casts.references(node)).toThrow("family unavailable: references");
-  expect(() => casts.idBrand(node, "tsconfig.json")).toThrow("family unavailable: id-brands");
+  const node = file.getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression).getTypeNodeOrThrow();
+  expect(scalars.idBrand(node, "tsconfig.json")).toBeNull();
+  expect(() => scalars.exports(file)).toThrow("family unavailable: exports");
+  expect(() => scalars.references(node)).toThrow("family unavailable: references");
+  expect(() => scalars.runtimeExports(file, "tsconfig.json")).toThrow("family unavailable: runtime-exports");
   using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
-  const partition = readInventoryGeneration(database, casts.generation)[0];
+  const partition = readInventoryGeneration(database, scalars.generation)[0];
   if (partition === undefined || partition.workerPid === undefined) {
     throw new Error("missing worker identity");
   }
@@ -117,17 +101,17 @@ test("closed family presence refuses absent queries and reuses compatible exited
   expect(() => [...readInventoryReferences(database, partition.id)]).toThrow("family unavailable: references");
   using legacy = nativeInventoryFixture({ root: scratch }, { workers: builds });
   expect(legacy.exports(legacy.sourceCorpus().getSourceFile("source.ts") ?? file).has("value")).toBe(true);
-  using reused = nativeInventoryFixture({ root: scratch, families: ["cast-relations"] }, { workers: builds });
+  using reused = nativeInventoryFixture({ root: scratch, families: ["id-brands"] }, { workers: builds });
   expect(builds).toEqual(["tsconfig.json", "tsconfig.json"]);
-  expect(partition.families).toEqual(["cast-relations"]);
+  expect(partition.families).toEqual(["id-brands"]);
   expect(readInventoryGeneration(database, legacy.generation)[0]?.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
   expect(readInventoryGeneration(database, reused.generation).map(({ id }) => id)).toEqual([partition.id]);
-  expect(() => reused.castRelation(node, "foreign-world")).toThrow("partition is unavailable");
+  expect(() => reused.idBrand(node, "foreign-world")).toThrow("partition is unavailable");
   file.replaceWithText("declare const original:string; export const value=original as number;");
-  const changed = file.getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression);
-  expect(() => casts.castRelation(changed, "tsconfig.json")).toThrow("source/epoch");
+  const changed = file.getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression).getTypeNodeOrThrow();
+  expect(() => scalars.idBrand(changed, "tsconfig.json")).toThrow("source/epoch");
   reused[Symbol.dispose]();
-  expect(() => reused.castRelation(changed, "tsconfig.json")).toThrow("disposed");
+  expect(() => reused.idBrand(changed, "tsconfig.json")).toThrow("disposed");
 });
 
 test("family demands and current-source invalidation remain explicit instead of reusing stale scalar facts", { timeout: scaledBudget(60_000) }, ({
@@ -135,7 +119,7 @@ test("family demands and current-source invalidation remain explicit instead of 
 }) => {
   initialize(scratch);
   expect(() => inventoryFamilies([])).toThrow();
-  expect(() => inventoryFamilies(["cast-relations", "cast-relations"])).toThrow();
+  expect(() => inventoryFamilies(["id-brands", "id-brands"])).toThrow();
   expect(() => inventoryFamilies(["missing"])).toThrow();
   const entry = fileURLToPath(new URL("../compiler/native-family-cases.ts", import.meta.url));
   const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
@@ -148,33 +132,6 @@ test("family demands and current-source invalidation remain explicit instead of 
     latestUnchanged: true,
     pinnedText: expect.stringContaining("number|string"),
   });
-});
-
-test("an unavailable native primitive survives extraction and indexed storage without becoming false assignability", async ({ scratch }) => {
-  initialize(scratch);
-  const assignability = await import("@orb/tooling/floor/code-facts/assignability");
-  const primitive = vi.spyOn(assignability, "readAssignabilityChecker").mockReturnValue(undefined);
-  try {
-    const descriptor = readCompilerPrograms(scratch)[0];
-    if (descriptor === undefined) {
-      throw new Error("missing scalar descriptor");
-    }
-    const partition = extractInventoryPartition({ root: scratch, descriptor, families: ["cast-relations"], destination: join(scratch, "unused.sqlite") });
-    expect(partition.casts.map(({ result }) => result)).toEqual([{ kind: "unavailable", reason: "primitive-absent" }]);
-    using staging = openInventoryDatabase(join(scratch, "scalar.sqlite"));
-    const generation = publishInventoryGeneration(staging, [partition]);
-    using inventory = inventoryReader(scratch, generation, readInventoryGeneration(staging, generation), { db: staging, dispose: () => undefined });
-    const source = inventory.sourceCorpus().getSourceFile("source.ts");
-    if (source === undefined) {
-      throw new Error("missing captured source");
-    }
-    expect(inventory.castRelation(source.getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression), "tsconfig.json")).toEqual({
-      kind: "unavailable",
-      reason: "primitive-absent",
-    });
-  } finally {
-    primitive.mockRestore();
-  }
 });
 
 test("native brand scalar preserves the public checker reader over aliases, unions, plain and counterfeit types", { timeout: scaledBudget(60_000) }, ({
@@ -231,7 +188,6 @@ type Generic<T extends string>=Branded<T>;
     }
     expect(new Map(carrier.getTypeAliases().map((alias) => [alias.getName(), stored.idBrand(alias.getTypeNodeOrThrow(), "tsconfig.json")]))).toEqual(before);
     expect(() => stored.idBrand(carrier.getTypeAliasOrThrow("Original").getNameNode(), "tsconfig.json")).toThrow("brand span is unavailable");
-    expect(() => stored.castRelation(carrier.getTypeAliasOrThrow("Original"), "tsconfig.json")).toThrow("family unavailable: cast-relations");
     expect(() => stored.idBrand(carrier.getTypeAliasOrThrow("Plain").getTypeNodeOrThrow(), "foreign-world")).toThrow("partition is unavailable");
     carrier.replaceWithText("type Original=string;");
     const changed = carrier.getTypeAliasOrThrow("Original").getTypeNodeOrThrow();

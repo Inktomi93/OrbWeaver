@@ -94,7 +94,7 @@ test("an owner result without a known coverage is refused before any grant is ju
   };
   const live = finding("reviewed.ts", { subject: "src/live.ts", operation: "read" });
   const coverage: string = "partial";
-  // @orb-waive no-test-fabrication(GateOwnerResult): the runtime boundary must refuse a coverage outside GATE_OWNER_COVERAGES
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Unknown coverage must hit runtime owner validation before grant or stale-authority judgment. Ends when that runtime validation is removed.
   const unknownCoverage = { ...owner("reviewed-policy", [live]), coverage } as GateOwnerResult;
   const refused = coordinate({ selectedPolicies: [POLICIES[2] as SelectedGatePolicy], ownerResults: [unknownCoverage], reviewedGrants: [grant] });
 
@@ -114,8 +114,9 @@ test("an owner result without a known coverage is refused before any grant is ju
 });
 
 test("raw findings cannot spoof policy identity or severity", () => {
-  // @orb-waive no-test-fabrication(RawGateFinding): partial fixture — only the fields the authority resolver exercises; no factory exists
-  const spoofed = { ...finding("spoof.ts"), policyId: "other", severity: "warning" } as RawGateFinding;
+  const spoofed = finding("spoof.ts");
+  Reflect.set(spoofed, "policyId", "other");
+  Reflect.set(spoofed, "severity", "warning");
   const result = coordinate({
     selectedPolicies: [POLICIES[0] as SelectedGatePolicy],
     ownerResults: [owner("hard-policy", [spoofed])],
