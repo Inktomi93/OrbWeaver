@@ -46,6 +46,24 @@ test("a sync door's child lands at the tooling priority from a caller that is al
   expect(Number(stdout)).toBe(TOOLING_PRIORITY);
 });
 
+// An unprivileged process cannot raise its own priority, so one already below the target must stay there
+// rather than throw (the launcher calls this at startup under any caller's niceness).
+test("lowerToolingPriority leaves a process already below the tooling priority where it is", () => {
+  const below = TOOLING_PRIORITY + 5;
+  const script = [
+    "import { pathToFileURL } from 'node:url';",
+    "import os from 'node:os';",
+    `const mod = await import(pathToFileURL(${JSON.stringify(`${process.cwd()}/tooling/src/floor/process/process-priority.ts`)}).href);`,
+    `os.setPriority(${String(below)});`,
+    "mod.lowerToolingPriority();",
+    "process.stdout.write(String(os.getPriority()));",
+  ].join("\n");
+
+  const stdout = execFileSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8" });
+
+  expect(Number(stdout)).toBe(below);
+});
+
 test("win32 has no `nice`, so a sync door keeps the niced-exec launcher there", () => {
   const win = nicedCommand("git", ["status"], "win32");
   expect(win.command).toBe(process.execPath);
