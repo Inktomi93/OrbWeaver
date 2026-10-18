@@ -105,13 +105,13 @@ test(
   scaledBudget(30_000),
 );
 
-test("a hard profile requesting type information refuses before a compiler or child can start", async ({ plantedTree, repoRoot }) => {
+test("a hard profile refuses typed subjects without canonical compiler admission", async ({ plantedTree, repoRoot }) => {
   const root = await rootFor(plantedTree, repoRoot, "debugger;\n");
   writeFileSync(
     join(root, HARD_CONFIG),
     `export default [{ files: ["source.js"], languageOptions: { parserOptions: { projectService: true } }, rules: { "no-restricted-syntax": ["error", "DebuggerStatement"] } }];`,
   );
-  await expect(runScopedEslint(root, [SOURCE])).rejects.toThrow("hard ESLint profile requested type information for source.js");
+  await expect(runScopedEslint(root, [SOURCE])).rejects.toThrow("HARD native compiler admission is unavailable");
 });
 
 test(

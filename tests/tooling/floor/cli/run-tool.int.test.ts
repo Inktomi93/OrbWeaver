@@ -54,3 +54,10 @@ test("NEVER-DOWNGRADE: a violations verdict already set survives a late crash as
   const res = await runScratch(plantedTree, script('await runTool(() => { process.exitCode = 1; throw new Error("epilogue blew up"); });'));
   expect(res.code).toBe(EXIT.toolError);
 });
+
+test("a local fake runTool retains the crash/verdict collision instead of canonical exit honesty", async ({ plantedTree }) => {
+  const res = await runScratch(plantedTree, 'function runTool(main:()=>number){main();} runTool(()=>{throw new Error("fake runner");});');
+  expect(res.code).toBe(EXIT.violations);
+  expect(res.stderr).toContain("fake runner");
+  expect(res.stderr).not.toContain("TOOL ERROR");
+});

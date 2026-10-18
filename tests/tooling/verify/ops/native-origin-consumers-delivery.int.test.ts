@@ -14,8 +14,6 @@ import { gate as selection } from "../../../../tooling/src/verify/gates/selectio
 import { gate as artifacts } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as browser } from "../../../../tooling/src/verify/gates/tooling-browser-door.ts";
 import { gate as child } from "../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
-import { gate as cli } from "../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
-import { gate as ops } from "../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
 import { gate as projectDoor } from "../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -205,7 +203,7 @@ test(
 test(
   "migrated origin and query policies retain every declared verdict and authority witness",
   () => {
-    expect(verifyPolicyProofs([...POLICIES, bound, stream, assembly, cli, ops, child, artifacts])).toEqual([]);
+    expect(verifyPolicyProofs([...POLICIES, bound, stream, assembly, child, artifacts])).toEqual([]);
   },
   scaledBudget(180_000),
 );
@@ -286,7 +284,7 @@ test(
     );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const policies = [bound, stream, assembly, cli, ops, child, artifacts];
+    const policies = [bound, stream, assembly, child, artifacts];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -306,8 +304,6 @@ test(
         { id: bound.id, sites: [{ file: field, token: "useFieldContext", operation: "raw-field-context-read" }] },
         { id: stream.id, sites: [{ file: nodeHandle, token: "chatStream", operation: "chat-stream-write-handle" }] },
         { id: assembly.id, sites: [{ file: assemblySource, token: "assemble", operation: null }] },
-        { id: cli.id, sites: [] },
-        { id: ops.id, sites: [{ file: LOADER, token: undefined, operation: null }] },
         { id: child.id, sites: [{ file: opsSource, token: "spawn", operation: "full-priority-spawn" }] },
         { id: artifacts.id, sites: [] },
       ].toSorted((left, right) => left.id.localeCompare(right.id)),

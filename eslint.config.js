@@ -132,6 +132,7 @@ import {
 } from "./tooling/src/floor/code-facts/type-member-origin.ts";
 import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
 import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
+import { moduleScopeCalls } from "./tooling/src/floor/compiler/module-entry.ts";
 import { canonicalCompilerPath } from "./tooling/src/floor/compiler/ts-workspace.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
@@ -152,7 +153,12 @@ import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling
 import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
 import { createKitIdCallMatcher } from "./tooling/src/verify/lib/id-brand.ts";
 import { classifyOriginRefusal, referenceNamesExport } from "./tooling/src/verify/lib/origin-verdict.ts";
-import { classifyPackageMemberOrigin, readsAmbientGlobalPath } from "./tooling/src/verify/lib/project-home-origin.ts";
+import {
+  classifyPackageMemberOrigin,
+  classifyProjectHomeOrigin,
+  locateProjectHome,
+  readsAmbientGlobalPath,
+} from "./tooling/src/verify/lib/project-home-origin.ts";
 import { TIER_IMPLEMENTATION_HOMES as SPACING_HOMES } from "./tooling/src/verify/lib/raw-spacing-tier.ts";
 import { TIER_IMPLEMENTATION_HOMES as TYPOGRAPHY_HOMES } from "./tooling/src/verify/lib/raw-typography-tier.ts";
 import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
@@ -173,6 +179,7 @@ import {
   TOOLING_IMPORT_GLOBS,
   TOOLING_ROOT_CONFIG_IMPORT_RULE,
 } from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
+import { TOOLING_ENTRY_HOMES } from "./tooling/src/verify/lib/tooling-entry-native.ts";
 import {
   TYPED_NATIVE_POLICIES,
   typedNativeCompilerContext,
@@ -2908,6 +2915,59 @@ function nativeWrappedNode(node, native) {
   return createWrappedNode(node, { typeChecker: native.checker, sourceFile: node.getSourceFile() });
 }
 
+function toolingEntryRule(ops) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const native = nativeDeclarationContext(context);
+      if (typedNativeCompilerContext(context.cwd).configs === undefined) {
+        throw new Error("HARD tool entry requires an admitted native compiler context");
+      }
+      verifyNativeCompilerContext(context, native);
+      const homes = [TOOLING_ENTRY_HOMES.runner, ...(ops ? [TOOLING_ENTRY_HOMES.guard] : [])].map((home) => {
+        const source = native.program.getSourceFile(join(context.cwd, home.path));
+        const located = locateProjectHome(
+          source === undefined ? [] : [nativeWrappedNode(source, native)],
+          (file) => relative(context.cwd, file.getFilePath()).replaceAll("\\", "/"),
+          home,
+        );
+        if (located.members === 0 || located.unresolved !== 0) {
+          throw new Error(`HARD tool entry home/export unavailable: ${home.path} (${home.names.join(", ")})`);
+        }
+        return located;
+      });
+      let entered = false;
+      const entersHome = (callee) => homes.some((home) => classifyProjectHomeOrigin(callee, home) === "home");
+      const callExpression = (node) => {
+        if (!ops) {
+          entered ||= entersHome(nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node.callee), native));
+        }
+      };
+      return {
+        CallExpression: callExpression,
+        "Program:exit"(node) {
+          const source = native.esTreeNodeToTSNodeMap.get(node);
+          if (native.program.getSourceFile(source.fileName) !== source) {
+            throw new Error("HARD tool entry parser source does not belong to its admitted native Program");
+          }
+          if (ops) {
+            entered = moduleScopeCalls(nativeWrappedNode(source, native)).some((call) => entersHome(call.getExpression()));
+          }
+          if (!entered) {
+            context.report({
+              node,
+              loc: { line: 1, column: 0 },
+              message: ops
+                ? "An ops library requires a module-scope call to canonical refuseDirectInvocation or runTool; no proven entry exists."
+                : "A tool cli.ts must call the canonical runTool export; no proven entry exists.",
+            });
+          }
+        },
+      };
+    },
+  };
+}
+
 function ambientDeterminismRule(clock) {
   const memberName = clock ? "now" : "random";
   const globalName = clock ? "Date" : "Math";
@@ -3783,10 +3843,12 @@ const brandNamePositionRule = {
   },
 };
 
-const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId }) => ruleId.startsWith("orb/"));
+const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 const restrictionPlugin = {
   rules: {
+    "tooling-cli-entry": toolingEntryRule(false),
+    "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryTierReferenceRule,
@@ -4623,7 +4685,7 @@ const ORDINARY_CONFIG = [
 
 export default ORDINARY_CONFIG;
 
-// HARD syntax runs separately so its no-inline-config policy cannot invalidate ordinary native exceptions.
+// HARD rules run separately so their no-inline-config policy cannot invalidate ordinary native exceptions.
 export const hardConfig = [
   ...ORDINARY_CONFIG.filter(
     (block) => block.rules === undefined || block.files === undefined || Object.keys(block).some((key) => !["files", "ignores", "name", "rules"].includes(key)),
@@ -4696,6 +4758,16 @@ export const hardConfig = [
       ],
     },
   },
+  ...TYPED_NATIVE_POLICIES.filter((entry) => entry.hard).map((entry) => ({
+    files: entry.scope,
+    plugins: { orb: restrictionPlugin },
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { project: false, projectService: true, programs: null, tsconfigRootDir: ROOT, sourceType: "module" },
+    },
+    settings: typedNativeSettings(entry),
+    rules: { [entry.ruleId]: "error" },
+  })),
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
 ];
 

@@ -1,57 +1,4 @@
-// The standing family floor for the ten-policy split of `tooling-shared-plumbing` (#1950 group 4):
-//
-//   `tooling-project-home` · `tooling-browser-door` · `tooling-child-process-door` (singletons, reviewed-grant)
-//   `tooling-artifact-path-home` (reviewed-grant) + `tooling-artifact-run-slot` (hard) — family `tooling-artifact`
-//   `tooling-process-exit-home` (reviewed-grant) — family `process-member`, with the argv pair
-//   `tooling-cli-entry` (hard) — family `tooling-program-entry`, with `tooling-ops-direct-invocation`
-//   `tooling-port-registry` (reviewed-grant) + `tooling-clock-budget` (ORDINARY) + `tooling-runner-config-literals`
-//   (hard, resource) — family `plumbing-literals`
-//
-// What a declared row structurally cannot express lives here:
-//   §4.2 — the one ordinary policy's identity arm, all three assertions, alarms first.
-//   §4.3 — grant identity for every reviewed-grant policy with the REAL rows from `lib/reviewed-grants.ts`: the
-//          intended row is consumed exactly once; a row keyed on the wrong operation licenses nothing; a row
-//          whose subject no longer performs the act (or is gone) is STALE after a complete run — the legacy
-//          five-table stale sweep (HOMES · PROJECT_SITES · FULL_PRIORITY_CALLERS · PORT_HOME · CLOCK_SITES)
-//          collapsed to central grant liveness plus one ordinary waiver.
-//   §4.5 — the located homes REFUSE at the receipt phase when absent or renamed (conformance has no
-//          must-refuse arm); the `exact-file` door refuses at the population phase when a root config is
-//          missing (the legacy blindness tripwire, now the runtime's); every `entire-population` policy DEFERS a
-//          narrowed request. Plus the AMBIENT branch of `tooling-process-exit-home`, pinned against a plant
-//          derived from the shared `_proof/node-types.ts` surface (the same augmentation shape plus `exit`).
-//   §4.6 — the conversion differential against the frozen legacy descriptor (`bbdccb2d5c`): every one of its 36
-//          examples replayed through the legacy `runPass` FIRST and then through the UNION of the nine tree
-//          policies, differences CLASSIFIED rather than averaged (below), and the legacy-side coverage of every
-//          arm asserted so the replay is evidence. The resource policy's differential is the real-tree replay:
-//          the legacy read only the vitest + CT configs and reported zero; the final policy over the pre-fix
-//          tree reported three literal clocks in `playwright.config.ts` (measured 2026-09-12, recorded in the
-//          module header and the conversion commit).
-//   The REAL-TREE run: the ten policies over this checkout with the central grant table — zero tool errors,
-//   zero effective findings, every one of the nineteen plumbing grants consumed exactly once, the one
-//   translated clock waiver bound, and no authority alarm naming a plumbing policy. Before the conversion
-//   commit's eleven fixes the same run reported 13 effective findings (measured, see the commit).
-//
-// CLASSIFIED DIFFERENCES (§4.6), applied to the legacy outcome so each comparison is one `toEqual`:
-//   (1) IDENTITY — the two legacy F2 examples declare a LOCAL `spawnFullPriority*` and call it; the final door
-//       arm resolves by declaration and a local function is not proc.ts's door, so they report nothing (the
-//       un-niced spawn such a function needs is the import arm's finding, pinned in the module).
-//   (2) GRANULARITY — the stage-band example carries TWO port literals in one file; the final policy reports
-//       ONE `(subject, operation)` finding (a grant licenses one identity).
-//   (3) GRANTS — five legacy mustPass rows sat on censused subjects (ports.ts, ts-workspace.ts, comment-spans.ts,
-//       browser.ts, the CLOCK_SITES structure.int.test.ts row); the final policies REPORT them (the
-//       differential carries no grants and no waiver), and the real rows are proven in §4.3 / §4.2.
-//   (4) HOMES — the three located homes (proc.ts, run-tool.ts, artifact-out.ts) are planted beside every
-//       legacy example so the union never refuses at the receipt phase; the legacy verdict is asserted
-//       IDENTICAL with and without them, so the plant changes nothing on the legacy side.
-//   (5) STALE / BLIND — the legacy anchor-only example produced the five tables' stale rows and two
-//       "cannot read" root-config tripwires; those are grant liveness and the exact-file refusal now, not
-//       findings.
-//   (6) POSITION — the legacy anchored E/G at line 0 (E at the cli.ts, G at a cli.ts that need not exist) and
-//       composed port/clock tokens (`FIXTURE_PORT = 8123`); the final sink anchors E at the cli's line 1, G at
-//       the first filing call IN ITS OWN FILE (the legacy message names that file first), and the literal
-//       policies at the literal. Files are compared, not lines.
-//   (7) MESSAGE — the legacy `process.exit(2)` example (no import, no `@types/node`) is UNREADABLE to the
-//       shared resolver and reported fail-closed under the disjoint text; count identical, message differs.
+// Verdict, authority and home-refusal controls for the retained tooling plumbing policies.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -66,7 +13,6 @@ import { gate as artifactPathHome } from "../../../../tooling/src/verify/gates/t
 import { gate as artifactRunSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as browserDoor } from "../../../../tooling/src/verify/gates/tooling-browser-door.ts";
 import { gate as childProcessDoor } from "../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
-import { gate as cliEntry } from "../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
 import { gate as clockBudget } from "../../../../tooling/src/verify/gates/tooling-clock-budget.ts";
 import { gate as portRegistry } from "../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as processExitHome } from "../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
@@ -89,18 +35,8 @@ beforeEach(async () => {
 });
 
 const ROOT = "/tooling-plumbing-family";
-/** The nine policies over SOURCE populations — the differential's union. */
-const TREE: readonly GatePolicy[] = [
-  projectHome,
-  browserDoor,
-  artifactPathHome,
-  artifactRunSlot,
-  processExitHome,
-  cliEntry,
-  childProcessDoor,
-  portRegistry,
-  clockBudget,
-];
+/** Retained source policies share the bounded plumbing controls. */
+const TREE: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, artifactRunSlot, processExitHome, childProcessDoor, portRegistry, clockBudget];
 const ALL: readonly GatePolicy[] = [...TREE, runnerConfigLiterals];
 const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor, portRegistry];
 // 19 at mint; 17 since `tooling-project-home:dangling-refs` (cb4c0feab1) and `:enforcement-registry-parity`
@@ -165,7 +101,7 @@ function passOf(policies: readonly GatePolicy[], files: Readonly<Record<string, 
 
 const sorted = (lines: readonly string[]): readonly string[] => lines.toSorted((left, right) => left.localeCompare(right));
 
-test("all ten plumbing policies preserve their founding fixtures", () => {
+test("retained plumbing policies preserve their founding fixtures", () => {
   expect(verifyPolicyProofs(ALL)).toEqual([]);
 });
 
@@ -378,12 +314,6 @@ test("a complete run files one receipt PER LOCATED HOME, all resolved", () => {
     { kind: "population", source: "artifact home: filers", members: 2, unresolved: 0 },
     { kind: "population", source: "artifact home: run slot", members: 1, unresolved: 0 },
   ]);
-  const entry = passOf([cliEntry], {
-    [RUNNER_HOME]: RUNNER_STUB,
-    "tooling/src/goodcli/cli.ts": 'import { runTool } from "../floor/cli/run-tool.ts";\nawait runTool(() => 0);\n',
-  });
-  expect(refusalOf(entry)).toEqual({ toolErrors: [], withheld: [], effective: 0 });
-  expect(entry.policies[0]?.receipts).toEqual([{ kind: "population", source: "program-entry home: run-tool", members: 1, unresolved: 0 }]);
   const doors = passOf([childProcessDoor], { [PROC_HOME]: PROC_STUB, "tooling/src/snap/lib/clean.ts": "export const clean = true;\n" });
   expect(refusalOf(doors)).toEqual({ toolErrors: [], withheld: [], effective: 0 });
   expect(doors.policies[0]?.receipts).toEqual([{ kind: "population", source: "child-process home: proc", members: 2, unresolved: 0 }]);
@@ -392,11 +322,6 @@ test("a complete run files one receipt PER LOCATED HOME, all resolved", () => {
 test("an ABSENT home REFUSES at the receipt phase — the legacy rename tripwire, now the runtime's own tool error", () => {
   const cases: readonly (readonly [GatePolicy, Readonly<Record<string, string>>, string])[] = [
     [artifactRunSlot, SLOTTED_TOOL, '"artifact home: filers" resolved zero members'],
-    [
-      cliEntry,
-      { "tooling/src/goodcli/cli.ts": 'import { runTool } from "../floor/cli/run-tool.ts";\nawait runTool(() => 0);\n' },
-      '"program-entry home: run-tool" resolved zero members',
-    ],
     [childProcessDoor, { "tooling/src/snap/lib/clean.ts": "export const clean = true;\n" }, '"child-process home: proc" resolved zero members'],
   ];
   for (const [policy, files, message] of cases) {
@@ -505,7 +430,7 @@ test("a bare `process.exit(` resolves through the AUGMENTED @types/node global o
 
 // ─── THE REAL TREE ──────────────────────────────────────────────────────────────────────────────────────
 test(
-  "the ten policies over this checkout: no findings, every plumbing grant consumed once, the translated clock waiver bound",
+  "the retained policies over this checkout: no findings, every plumbing grant consumed once, the translated clock waiver bound",
   () => {
     const root = process.cwd();
     const context = projectCtx(root);
@@ -535,7 +460,7 @@ test(
     ).toEqual(["tests/tooling/tool-guard.int.test.ts 120_000"]);
     expect(result.authority.reviewedGrantConsumption.filter((row) => row.count !== 1)).toEqual([]);
     expect(result.authority.reviewedGrantConsumption).toHaveLength(PLUMBING_GRANT_COUNT);
-    // Only this run's ten policies are KNOWN to it, so every other policy's live `@orb-waive` marker reads as
+    // Only this run's retained policies are KNOWN to it, so every other policy's live `@orb-waive` marker reads as
     // an unknown-policy alarm — a narrowed-roster artefact, not a verdict about the tree. An alarm naming a
     // plumbing policy, or of any other kind, is the real thing.
     const mine = new Set(ALL.map(({ id }) => id));

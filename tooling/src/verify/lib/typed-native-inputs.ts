@@ -1,7 +1,7 @@
 // Native typed policy scopes and source dependencies are shared by configuration, cache identity and changed selection.
 
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import type { EslintFileAdmission, EslintNativeMetadataFamily } from "../contrac
 import type { PolicyWorkspacePackage } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "./policy-repo-inventory.ts";
+import { TOOLING_ENTRY_NATIVE_POLICIES } from "./tooling-entry-native.ts";
 
 const SERVER_DECLARATION_PACKAGE = "@orb/server";
 const WORKSPACE_PROTOCOL = "workspace:";
@@ -97,6 +98,7 @@ const TYPE_HOME_INPUTS = [
 ];
 
 export const TYPED_NATIVE_POLICIES = [
+  ...TOOLING_ENTRY_NATIVE_POLICIES.map((entry) => ({ ...entry, inputs: [...SCALAR_INPUTS, ...entry.inputs] })),
   {
     id: "test-value-cast",
     ruleId: "@typescript-eslint/no-unsafe-type-assertion",
@@ -227,12 +229,13 @@ export const TYPED_NATIVE_POLICIES = [
   { id: "no-context-returntype", scope: authored.map((glob) => [glob, "**/context.ts"]), inputs: COMMON_INPUTS },
 ].map((entry) => ({
   ...entry,
-  ruleId: entry.ruleId ?? `orb/${entry.id}`,
+  ruleId: "ruleId" in entry ? (entry.ruleId ?? `orb/${entry.id}`) : `orb/${entry.id}`,
+  hard: "hard" in entry && entry.hard === true,
   processPrivate: entry.processPrivate === true,
   declarationPackage: "declarationPackage" in entry ? entry.declarationPackage : undefined,
   dependencyScope: "dependencyScope" in entry ? entry.dependencyScope : ["."],
   homes: [],
-  notUnder: [...(entry.notUnder ?? []), "tests/legacy/**"],
+  notUnder: [...("notUnder" in entry ? (entry.notUnder ?? []) : []), "tests/legacy/**"],
 }));
 
 /** This family has no observed parser dependency closure; its existing child lifetime supplies no persistent reuse authority. */
@@ -333,12 +336,10 @@ export function typedNativeDependencyInputs(
 ): { readonly paths: readonly string[]; readonly roots: readonly string[]; readonly unknownCompiler: boolean } {
   const base = [...entry.inputs, ...compilerConfigRoster(authoredPaths)];
   if (entry.processPrivate) {
-    if (root === undefined) {
+    if (root === undefined || !statSync(root).isDirectory()) {
       throw new Error(`native process-private dependency owner is missing for ${entry.id}`);
     }
-    const manifests = readPolicyWorkspacePackages(readPolicyRepositoryInventory(root)).map((owner) =>
-      owner.path === "." ? "package.json" : `${owner.path}/package.json`,
-    );
+    const manifests = authoredPaths.filter(packageManifestPath);
     return { paths: [...new Set([...base, ...manifests])], roots: authoredInputRoots, unknownCompiler: true };
   }
   if (entry.declarationPackage === undefined) {
@@ -398,9 +399,14 @@ export function validateTypedCompilerInputs(root: string, paths: readonly string
   return true;
 }
 
-function typedDependencyChanged(data: ReturnType<typeof typedNativeDependencyInputs>, path: string): boolean {
+function packageManifestPath(path: string): boolean {
+  return path === "package.json" || path.endsWith("/package.json");
+}
+
+function typedDependencyChanged(data: ReturnType<typeof typedNativeDependencyInputs>, path: string, processPrivate: boolean): boolean {
   const prefix = path.replace(/\/$/u, "");
   return (
+    (processPrivate && packageManifestPath(path)) ||
     (data.unknownCompiler && path.endsWith(".d.ts")) ||
     data.paths.includes(path) ||
     data.roots.some((root) => path.startsWith(root) || root.startsWith(`${prefix}/`))
@@ -416,7 +422,7 @@ export function typedNativeDependencySignal(
 ): boolean {
   if (entry.processPrivate) {
     const inputs = typedNativeDependencyInputs(entry, authoredPaths, root);
-    return paths.some((path) => typedDependencyChanged(inputs, path));
+    return paths.some((path) => typedDependencyChanged(inputs, path, true));
   }
   if (entry.declarationPackage === undefined) {
     return false;
@@ -426,7 +432,7 @@ export function typedNativeDependencySignal(
     return true;
   }
   const data = typedNativeDependencyInputs(entry, authoredPaths, root);
-  return paths.some((path) => typedDependencyChanged(data, path));
+  return paths.some((path) => typedDependencyChanged(data, path, entry.processPrivate));
 }
 
 /** Actual native admission retains the family and its original owner route after invalidation. */
@@ -436,7 +442,7 @@ export function typedNativeMetadataSelection(
   { paths, direct }: { readonly paths: readonly string[]; readonly direct: boolean },
   data: ReturnType<typeof typedNativeDependencyInputs>,
 ): readonly EslintNativeMetadataFamily[] {
-  return direct || paths.some((path) => typedDependencyChanged(data, path))
+  return direct || paths.some((path) => typedDependencyChanged(data, path, entry.processPrivate))
     ? [{ ...family, inputs: data.paths, patterns: direct ? ["."] : entry.dependencyScope }]
     : [];
 }

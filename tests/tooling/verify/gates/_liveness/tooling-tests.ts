@@ -27,8 +27,6 @@ import { gate as routeTrpcLifoOrder } from "../../../../../tooling/src/verify/ga
 import { gate as routeTrpcNoBroadSpread } from "../../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as testDeterminism } from "../../../../../tooling/src/verify/gates/test-determinism.ts";
 import { gate as testWorldBrowserContracts } from "../../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
-import { gate as toolingCliEntry } from "../../../../../tooling/src/verify/gates/tooling-cli-entry.ts";
-import { gate as toolingOpsDirectInvocation } from "../../../../../tooling/src/verify/gates/tooling-ops-direct-invocation.ts";
 
 const GATES = "tooling/src/verify/gates";
 /** Assembled so this arm file never spells the banned call literally — only the planted overlay's own
@@ -212,15 +210,5 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: testWorldBrowserContracts,
     overlays: [add("tests/ui/liveness-input.test-d.ts", 'import type { ButtonProps } from "@orb/ui/button";\nexport type LivenessSubject = ButtonProps;\n')],
     messageIncludes: "browser-only contract",
-  },
-  {
-    policy: toolingCliEntry,
-    overlays: [add("tooling/src/livenessbadcli/cli.ts", "export const livenessCli = 1;\n")],
-    messageIncludes: "must enter through runTool",
-  },
-  {
-    policy: toolingOpsDirectInvocation,
-    overlays: [add("tooling/src/snap/ops/liveness-ops.ts", "export const livenessOps = 1;\n")],
-    messageIncludes: "LIBRARY module with no module-scope `refuseDirectInvocation",
   },
 ];
