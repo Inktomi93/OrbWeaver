@@ -506,7 +506,7 @@ for (const expression of ["target", "(target)", "(target as typeof target)"]) {
   });
 }
 
-test("settled captured indexes classify unchanged references only after a new call-array revision", () => {
+test("settled captured indexes reuse lexical classification across a new call-array revision", () => {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
   const source = project.createSourceFile(
     "/consumer.ts",
@@ -514,13 +514,21 @@ test("settled captured indexes classify unchanged references only after a new ca
   );
   const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
   const references = source.getDescendants();
-  const sentinel = source.getVariableDeclarationOrThrow("sentinel").getNameNode();
-  const classification = vi.spyOn(sentinel, "getAncestors");
+  const classifications = new Map<ts.Node, number>();
+  const probes = references.map((reference) => {
+    const ancestors = reference.getAncestors.bind(reference);
+    return vi.spyOn(reference, "getAncestors").mockImplementation(() => {
+      if (new Error("lexical classification observation").stack?.includes("at referenceCandidate") === true) {
+        const node = reference.compilerNode;
+        classifications.set(node, (classifications.get(node) ?? 0) + 1);
+      }
+      return ancestors();
+    });
+  });
   try {
     const observations = observeCallReturns(calls, references, { suppliedCallableTargets: true });
-    const initial = classification.mock.calls.length;
+    const initial = [...classifications.values()].reduce((sum, count) => sum + count, 0);
     expect(initial).toBeGreaterThan(0);
-    classification.mockClear();
     const program = observations.programs[0];
     const owner = source.getDescendantsOfKind(SyntaxKind.ArrowFunction)[0];
     if (program === undefined || owner === undefined) {
@@ -530,9 +538,98 @@ test("settled captured indexes classify unchanged references only after a new ca
     const consumers = readObservedCallableConsumers(owner, program);
     expect(consumers.kind === "resolved" ? consumers.value.map(({ call }) => call.getText()) : []).toEqual(["actions.run(1)"]);
     expect(program.byCall === prior).toBe(false);
-    expect(classification.mock.calls.length).toBe(initial);
+    const after = [...classifications.values()].reduce((sum, count) => sum + count, 0);
+    console.info("native lexical classification work", { initial, after, distinct: classifications.size });
+    expect(after).toBe(initial);
   } finally {
-    classification.mockRestore();
+    for (const probe of probes) {
+      probe.mockRestore();
+    }
+  }
+});
+
+test("lexical classification preserves changed call admission with unchanged reference inputs", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/admission.ts", "function marker(){return 0;}marker();function target(){return 1;}const output=target();");
+  const root = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
+  const call = source.getVariableDeclarationOrThrow("output").getInitializerOrThrow().asKindOrThrow(SyntaxKind.CallExpression);
+  const target = source.getFunctionOrThrow("target");
+  beginReferencePass();
+  try {
+    const observations = observeCallReturns([root], source.getDescendants(), { suppliedCallableTargets: true });
+    const program = observations.programs[0];
+    if (program?.demandValueCall === undefined) {
+      throw new Error("the native admission control is missing");
+    }
+    const before = program.escapingReferences;
+    const revision = program.callableContext?.referenceRevision;
+    expect(before.get(target.compilerNode)?.map((fact) => fact.node)).toEqual([call.getExpression()]);
+    expect(program.byCall.has(call.compilerNode)).toBe(false);
+    expect(program.demandValueCall(call).kind).toBe("resolved");
+    expect(program.callableContext?.referenceRevision).toBe(revision);
+    expect(program.escapingReferences.has(target.compilerNode)).toBe(false);
+    expect(readObservedCallableConsumers(target, program).kind).toBe("resolved");
+    expect(before.get(target.compilerNode)?.map((fact) => fact.node)).toEqual([call.getExpression()]);
+  } finally {
+    endReferencePass();
+  }
+});
+
+test("lexical classification does not cover references admitted during its escape rebuild", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile(
+    "/reentrant-reference.ts",
+    "function marker(){return 0;}marker();function selected(){return 2;}const actions={run:()=>1};actions.run();declare function escape(value:object):void;escape(selected);",
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const root = calls[0];
+  const escaped = calls[2]?.getArguments()[0];
+  if (root === undefined || escaped === undefined) {
+    throw new Error("the native reference re-entry fixture is incomplete");
+  }
+  const owner = source.getFirstDescendantByKindOrThrow(SyntaxKind.ArrowFunction);
+  const selected = source.getFunctionOrThrow("selected");
+  beginReferencePass();
+  try {
+    const roots = calls.slice(0, 2);
+    const observed = observeCallReturns(
+      roots,
+      roots.map((call) => call.getExpression()),
+      { suppliedCallableTargets: true },
+    );
+    const program = observed.programs[0];
+    if (program?.demandReferenceSource === undefined) {
+      throw new Error("the public reference demand owner is missing");
+    }
+    const before = program.escapingReferences;
+    const revision = program.callableContext?.referenceRevision;
+    const reference = root.getExpression();
+    const parent = reference.getParent.bind(reference);
+    let requested = false;
+    let result: ReferenceFact<true> | undefined;
+    const priorLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 100;
+    const admission = vi.spyOn(reference, "getParent").mockImplementation(() => {
+      if (!requested && new Error("reference admission re-entry").stack?.includes("at admittedReference") === true) {
+        requested = true;
+        result = program.demandReferenceSource?.(escaped, selected.getNameNodeOrThrow());
+      }
+      return parent();
+    });
+    try {
+      expect(readObservedCallableConsumers(owner, program).kind).toBe("resolved");
+    } finally {
+      admission.mockRestore();
+      Error.stackTraceLimit = priorLimit;
+    }
+    expect(requested).toBe(true);
+    expect(result?.kind).toBe("resolved");
+    expect(program.callableContext?.referenceRevision).toBe((revision ?? 0) + 1);
+    expect(program.escapingReferences.get(selected.compilerNode)?.map((fact) => fact.node)).toEqual([escaped]);
+    expect(readObservedCallableConsumers(selected, program).kind).toBe("unresolved");
+    expect(before.has(selected.compilerNode)).toBe(false);
+  } finally {
+    endReferencePass();
   }
 });
 
