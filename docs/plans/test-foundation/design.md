@@ -6,7 +6,7 @@ updated: 2026-10-18
 
 # Tests on one harness and one code-facts engine
 
-**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. The orchestrator skill owns rigorous briefs and official inbox monitoring.
+**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. Follow the orchestrator skill and `~/.claude/bridge/SESSIONS.md`. Monitor `to-codex/` with one watcher; reply through `to-primary/`.
 
 ## Goal
 
@@ -68,7 +68,7 @@ Legacy isolation, native lint, explicit exports, native integers and domain-owne
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts remain work. Canonical row builders and output suppliers meet their declared contracts. Wire-output boundary accounting and allocated native supplier qualification are established. The committed corpus serves each test layer. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
-Corpus and builders qualify; selected consumers use production entries. Item 898 owns provider, auth, style, width and flow acceptance. Local evidence composes passing cases; hosted and owner-copy acceptance stay open. Migrate a disposable owner-data clone through production before seeding and capture. Keep its source and personal artifacts outside Git, publication and CI. Recipes, timing and snapshots remain unqualified; 977 owns UI findings. Shared readers block general ports, not smoke.
+Corpus and builders qualify; selected consumers use production entries. Item 898 owns provider, auth, style, width and flow acceptance. Local evidence composes passing cases. Private intake qualifies on a disposable owner-data clone. Browser, snapshot and hosted acceptance remain open. Migrate the clone before seeding and capture. Keep source and personal artifacts outside Git, publication and CI. Item 977 owns UI findings. Shared readers block general ports, not smoke.
 
 SDK execution joins native Query and observed direct-child completion, not arbitrary executable sandboxing or universal descendant containment.
 

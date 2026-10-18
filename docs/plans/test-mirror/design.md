@@ -6,7 +6,7 @@ updated: 2026-10-18
 
 # Tests run the product
 
-**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. The orchestrator skill owns rigorous briefs and official inbox monitoring.
+**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. Follow the orchestrator skill and `~/.claude/bridge/SESSIONS.md`. Monitor `to-codex/` with one watcher; reply through `to-primary/`.
 
 ## Goal
 

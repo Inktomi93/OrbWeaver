@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
+lane: codex/prototype-exposure-census-1002
 plan: test-foundation
 ---
 
@@ -31,12 +32,14 @@ Reference storage and native lifetimes pass review. Evidence: `reports/review/na
 
 The native-generation prototype census passes independent review and is integrated. The original driver completes with a non-prototype refusal at `packages/server/src/domain/chat/service.ts:93`, `ctx.backgroundSignal`. Stop helper-specific repairs. Complete selected-policy qualification remains open after coherent executing-input delivery. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
-Native source admission, wrapper invalidation and captured census reuse preserve the importing world. Evidence: `reports/review/1002-native-source-currentness-ordinary.md`. Sparse-env remains unqualified; no retained demand justifies another execution-analysis expansion. Evidence: `reports/review/1002-retained-env-failure-purpose.md`.
+Native source admission and captured reuse preserve world identity. Sparse-env remains unqualified; no retained demand justifies expansion. Evidence: `reports/review/1002-native-source-currentness-ordinary.md` and `reports/review/1002-retained-env-failure-purpose.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
 Executing-input currentness, sealed consumer adoption and the reviewed ABI correction are integrated. Coherent tooling types pass; Node remains red. Native child execution and historical borrowers retain distinct scopes. Evidence: `reports/review/1002-coherent-abi-integration.md`.
 
-Replay batching and dependency overlays preserve independent reads, fresh validation, projected bytes and separate authored membership. Public membership controls pass. Reviewed coalescing preserves expectations within each unchanged validation boundary. Shape and public codemod deadlines still fail. Cold acquisition and executing-input replay dominate codemod cost, not query evaluation. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
+Replay batching, overlays and intra-boundary coalescing preserve independent current reads, projected bytes and authored membership. Shape and public codemod deadlines fail in acquisition/replay, not queries. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
+
+Complete-policy profiling locates costly escaping-reference classification. Measure native-epoch reuse while preserving dynamic admission. Evidence: `reports/review/1016-complete-policy-refinement-causal-map.md`.
 
 The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.

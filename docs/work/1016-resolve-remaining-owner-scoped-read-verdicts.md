@@ -30,7 +30,7 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 
 Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
 
-Native registration preserves disposal and parameter effects. D323's original driver completes with a non-prototype `ctx.backgroundSignal` refusal. Stop helper-specific repair. Run the complete selected policy after coherent currentness delivery; bounded results do not qualify it. Evidence: `reports/review/1002-d323-original-census-result.md`.
+D323's original driver terminates with a non-prototype signal refusal; stop helper-specific repair. Complete owner-policy qualification is in flight on its frozen checkout. Recover its existing process and observations before acting. Evidence: `reports/review/1016-current-policy-inflight-handoff.md`.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
