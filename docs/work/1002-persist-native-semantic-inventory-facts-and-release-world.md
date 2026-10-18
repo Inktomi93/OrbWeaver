@@ -25,7 +25,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Frozen complete-DOM default publication on the reviewed SDK validates currentness, lazy reads and physical release at measured cost. Native equivalence, other worlds, warm reuse and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`.
+DOM publication and bounded same-process warm reuse qualify. Native equivalence, other worlds, cross-process reuse and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-current-tests-dom-warm-reuse.md`.
 
 Reference storage and native lifetimes pass review. Evidence: `reports/review/native-reference-string-integration.md`, `reports/review/shape-binding-integrated.md` and `reports/review/native-resource-integrated.md`.
 
