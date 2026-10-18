@@ -16,6 +16,7 @@ import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole
 import { validateReviewedGrants } from "../../../../tooling/src/verify/lib/gate-authority-validation.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 // Importing every gate module once is the whole cost of this file; memoized so both roster tests pay it once.
@@ -81,7 +82,15 @@ function passFor(policy: GatePolicy, files: Readonly<Record<string, string>>, gr
   for (const [path, source] of Object.entries(files)) {
     project.createSourceFile(`${root}/${path}`, source);
   }
-  return runPolicyPass({ root, project, knownPolicies: [policy], policies: [policy], reviewedGrants: grants, failOnWarnings: false });
+  return runPolicyPass({
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    knownPolicies: [policy],
+    policies: [policy],
+    reviewedGrants: grants,
+    failOnWarnings: false,
+  });
 }
 
 test("the four actual non-row execution identities license only their exact column, never an unclassified row reference", () => {
