@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tests
+lane: wt/agent-a71b6b694a9b67df6
 plan: test-mirror
 ---
 
@@ -28,8 +29,6 @@ Partial source is saved at `151bcda9b6` for driver transfer. Qualification remai
 Corpus flows, provider modes and CI admission are integrated. Hosted and owner-copy execution remain open; collection is not execution.
 
 Navigation, canon and persona freshness have scoped production evidence. Preserve source epochs and failures. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
-
-The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
 Private intake qualifies on an unchanged disposable, schedule-quarantined copy. The matrix fails with confirmed retirement. Keep personal data outside Git, publication and CI. Evidence: `reports/review/898-private-matrix-current-qualification.md` and `reports/review/898-private-current-intake-verdict.md`.
 
