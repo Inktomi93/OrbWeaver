@@ -6,14 +6,14 @@ import { spawn } from "node:child_process";
 import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { setTimeout as sleep } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { pidAlive } from "../../../../tooling/src/floor/artifacts/run-retention.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { listProcesses } from "../../../../tooling/src/floor/host/platform.ts";
-import { spawnNicedTranscript } from "../../../../tooling/src/floor/process/proc.ts";
+import { listProcesses, processGroupId } from "../../../../tooling/src/floor/host/platform.ts";
+import { killPidGroup, spawnNicedTranscript } from "../../../../tooling/src/floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
-import { TERM_GRACE_BASE_MS } from "../../../../tooling/src/floor/process/stop-escalation.ts";
+import { settle, TERM_GRACE_BASE_MS } from "../../../../tooling/src/floor/process/stop-escalation.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { copyNativeInventoryImplementation } from "./native-inventory-tree.ts";
 
@@ -21,10 +21,10 @@ const NODE_OPTIONS = "NODE_OPTIONS";
 const WORKER_ENTRY = "semantic-inventory-worker.ts";
 const LAUNCHER_ENTRY = "niced-exec.ts";
 const CONTROLLER_LINE = /^controller (\d+)$/mu;
-const POLL_MS = 50;
+const WORKER_START_BASE_MS = 60_000;
 const timeout = scaledBudget(180_000);
 // TERM, the TERM grace, then KILL: a frozen worker is gone only after the whole escalation.
-const escalationBound = scaledBudget(TERM_GRACE_BASE_MS * 3);
+const ESCALATION_BASE_MS = TERM_GRACE_BASE_MS * 3;
 
 interface Controller {
   readonly bootstrap: string;
@@ -69,32 +69,28 @@ function descendantsOf(root: number): number[] {
 
 /** Wait for the real worker under `controller`, freeze it, and return every process the controller started. */
 async function freezeWorker(controller: number): Promise<readonly number[]> {
-  // @orb-waive test-determinism(Date.now): the subject is a real OS process tree; its spawn has no injectable clock.
-  const deadline = Date.now() + scaledBudget(60_000);
-  // @orb-waive test-determinism(Date.now): see the waiver above; the same real-time polling loop.
-  while (Date.now() < deadline) {
-    const tree = descendantsOf(controller);
+  let started: readonly number[] = [];
+  const frozen = await settle(() => {
     const table = new Map(listProcesses().map((entry) => [entry.pid, entry.cmdline]));
-    const worker = tree.find((pid) => {
+    const worker = descendantsOf(controller).find((pid) => {
       const cmdline = table.get(pid) ?? "";
       return cmdline.includes(WORKER_ENTRY) && !cmdline.includes(LAUNCHER_ENTRY);
     });
-    if (worker !== undefined) {
-      process.kill(worker, "SIGSTOP");
-      return descendantsOf(controller);
+    if (worker === undefined) {
+      return false;
     }
-    await sleep(POLL_MS);
+    process.kill(worker, "SIGSTOP");
+    started = descendantsOf(controller);
+    return true;
+  }, WORKER_START_BASE_MS);
+  if (!frozen) {
+    throw new Error(`controller ${String(controller)} never started a native inventory worker`);
   }
-  throw new Error(`controller ${String(controller)} never started a native inventory worker`);
+  return started;
 }
 
-async function survivorsAfter(pids: readonly number[], budgetMs: number): Promise<readonly number[]> {
-  // @orb-waive test-determinism(Date.now): liveness after a real signal is real wall-clock time.
-  const deadline = Date.now() + budgetMs;
-  // @orb-waive test-determinism(Date.now): see the waiver above; the same real-time polling loop.
-  while (pids.some(pidAlive) && Date.now() < deadline) {
-    await sleep(POLL_MS);
-  }
+async function survivorsAfter(pids: readonly number[]): Promise<readonly number[]> {
+  await settle(() => !pids.some(pidAlive), ESCALATION_BASE_MS);
   return pids.filter(pidAlive);
 }
 
@@ -102,6 +98,12 @@ function reap(pids: readonly number[]): void {
   for (const pid of pids.filter(pidAlive)) {
     process.kill(pid, "SIGKILL");
   }
+}
+
+function groupMembers(group: number): readonly number[] {
+  return listProcesses()
+    .map((entry) => entry.pid)
+    .filter((pid) => processGroupId(pid) === group);
 }
 
 test("SIGTERM to the controller ends and joins a worker that ignores TERM", { timeout }, async ({ scratch, repoRoot }) => {
@@ -120,7 +122,7 @@ test("SIGTERM to the controller ends and joins a worker that ignores TERM", { ti
   try {
     started = await freezeWorker(pid);
     controller.kill("SIGTERM");
-    expect(await survivorsAfter(started, escalationBound), "every process the stopped controller started").toEqual([]);
+    expect(await survivorsAfter(started), "every process the stopped controller started").toEqual([]);
   } finally {
     reap([pid, ...started]);
   }
@@ -145,8 +147,36 @@ test("the verify stage timeout ends a controller mid-extraction with no survivin
   try {
     expect(result.code, result.transcript).toBeNull();
     expect(started.length, "the timeout must land after the worker started").toBeGreaterThan(0);
-    expect(await survivorsAfter(started, escalationBound), "every process the timed-out controller started").toEqual([]);
+    expect(await survivorsAfter(started), "every process the timed-out controller started").toEqual([]);
   } finally {
     reap(started);
+  }
+});
+
+// A caller that dies inside the launcher's boot leaves it already reparented when its module graph loads.
+test("a supervised child never outlives a caller that dies while the launcher boots", { timeout }, async ({ scratch, repoRoot }) => {
+  const caller = join(scratch, "caller.mjs");
+  const proc = pathToFileURL(join(repoRoot, "tooling/src/floor/process/proc.ts")).href;
+  // The watcher thread kills the caller the instant its sync child is forked; the blocked main thread cannot.
+  writeFileSync(
+    caller,
+    `import {Worker} from 'node:worker_threads';
+const {runNicedSync}=await import(${JSON.stringify(proc)});
+const watcher=new Worker("const {readFileSync}=require('node:fs');const path='/proc/'+process.pid+'/task/'+process.pid+'/children';for(;;){if(readFileSync(path,'utf8').trim()!==''){process.kill(process.pid,'SIGKILL');}}",{eval:true});
+await new Promise((resolve)=>watcher.once('online',resolve));
+runNicedSync('sleep',['60'],{supervised:true});`,
+  );
+  const parent = spawn(process.execPath, [caller], { cwd: repoRoot, stdio: "ignore", detached: true });
+  const group = parent.pid;
+  if (group === undefined) {
+    throw new Error("the caller never started");
+  }
+  try {
+    const exit = await new Promise<NodeJS.Signals | null>((resolve) => parent.once("exit", (_code, signal) => resolve(signal)));
+    expect(exit, "the caller must die after forking its sync child").toBe("SIGKILL");
+    await settle(() => groupMembers(group).length === 0, ESCALATION_BASE_MS);
+    expect(groupMembers(group), "every process the dead caller started").toEqual([]);
+  } finally {
+    killPidGroup(group, "SIGKILL");
   }
 });

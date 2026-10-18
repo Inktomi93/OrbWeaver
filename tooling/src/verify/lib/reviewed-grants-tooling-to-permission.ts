@@ -66,7 +66,8 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     subject: "tooling/src/floor/process/niced-exec.ts",
     operation: "full-priority-spawn",
     why: 'this file IS the `nice` replacement: it lowers its own priority first, so calling `spawnFullPriorityChild` here means only "no further wrapping" — the real command still inherits the lowered priority, exactly as it would under `nice`.',
-    endsWhen: "niced-exec.ts stops being the launcher for package.json scripts and the win32 sync doors — the row is then consumed zero times and reds.",
+    endsWhen:
+      "niced-exec.ts stops being the launcher for package.json scripts, the win32 sync doors and the supervised sync doors — the row is then consumed zero times and reds.",
   },
   {
     id: "tooling-child-process-door:snap-session-client",

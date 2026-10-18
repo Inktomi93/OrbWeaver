@@ -1,36 +1,13 @@
-// The portable replacement for the `nice` binary, which does not exist on Windows: lowers ITS OWN
-// priority, then runs the real command, so the child inherits it. A package.json script invokes this
-// directly for a third-party binary with no tooling CLI entry of ours; on win32, `proc.ts`'s sync niced
-// doors spawn it too (`nicedCommand` in ./process-priority.ts), because win32 has no `nice`.
-//
-// Spawns through `spawnFullPriorityChild` rather than `node:child_process` directly (reviewed grant
-// `tooling-child-process-door:niced-exec`, docs/law/Core-Tooling-Law.md §4.4) — this file has already
-// lowered ITS OWN priority, so the "full priority" door here means only "no further wrapping": the real
-// command inherits the lowered priority exactly as it would under `nice`. Its `process.argv` read is a
-// censused entry (`tooling-argv-front-door:niced-exec`): it has no cli.ts shape, since ITS whole job is
-// passing through whatever argv it is invoked with. It never calls `process.exit` — `run-tool.ts` is the
-// one exit home, and this file is not a `runTool` program — so it sets `process.exitCode` and lets the
-// event loop drain; a registered `process.on(signal, …)` listener does not itself keep node alive.
-//
-// NOT `detached`: the real child shares THIS process's own group (a package.json script's, or a niced
-// door's synthetic detached group). A caller that kills the launcher's GROUP — the wedge watchdog and
-// Ctrl-C in scripts/vitest-supervised.ts — must reach the real command too, and a detached child would be
-// orphaned by exactly that kill. SIGINT/SIGQUIT/SIGHUP are what the terminal (or a group kill) already
-// delivers to EVERY member of that shared group directly — the real child gets its own copy without any
-// relay, so this launcher only ignores them (a no-op handler, so it does not die first and orphan the
-// child by exiting). SIGTERM is typically aimed at ONE pid, this launcher's — that one IS relayed, direct
-// to the child, never as a group signal (the child is not its own group leader here to relay one to).
-//
-// THE LAUNCHER OWNS ITS CHILD'S LIFETIME. A sync door's caller is blocked inside `spawnSync` and cannot run a
-// signal handler, so a SIGTERM to that caller kills it and would orphan the child. This launcher stays
-// responsive: when its parent dies, or when it is told to stop, it escalates TERM then KILL on the child
-// and exits only after the child has.
+// The portable `nice`: lowers its own priority, then runs argv as its child. Package.json scripts, win32 sync
+// doors and supervised sync doors (`LAUNCHER_PARENT_ENV` set) launch it. A supervised launcher guards its
+// caller's pid and stops and joins the child if that caller dies, since a caller blocked in spawnSync cannot.
 import process from "node:process";
 import { pidAlive } from "../artifacts/run-retention.ts";
 import { EXIT } from "../cli/exit-contract.ts";
 import { spawnFullPriorityChild } from "./proc.ts";
 import { childExitCode } from "./proc-signals.ts";
-import { lowerToolingPriority } from "./process-priority.ts";
+import { inheritedProcessEnv, processEnvValue } from "./process-env.ts";
+import { LAUNCHER_PARENT_ENV, lowerToolingPriority } from "./process-priority.ts";
 import { escalateStop } from "./stop-escalation.ts";
 
 const PARENT_POLL_MS = 500;
@@ -38,13 +15,14 @@ const IGNORED_SIGNALS = ["SIGINT", "SIGQUIT", "SIGHUP"] as const;
 
 lowerToolingPriority();
 
-// POSIX reparents an orphan, so a changed ppid is the death notice; win32 never reparents, so ask for the pid.
+// The caller names its own pid: a caller that died before this module loaded has already reparented us,
+// so `process.ppid` read here could name the subreaper. POSIX reparents an orphan; win32 never does.
 function parentGone(parent: number): boolean {
   return process.ppid !== parent || (process.platform === "win32" && !pidAlive(parent));
 }
 
-// Die of the child's own signal so a sync door reads `signal`, not a 128+N code it would have to decode.
-// win32 has no such death; the exit code mirror stands there.
+// Die of the child's own signal so a supervised sync door reads `signal`, not a 128+N code. win32 has no
+// such death; the exit code mirror stands there.
 function mirrorSignal(signal: NodeJS.Signals | null): void {
   if (signal === null || process.platform === "win32") {
     return;
@@ -55,6 +33,11 @@ function mirrorSignal(signal: NodeJS.Signals | null): void {
   process.kill(process.pid, signal);
 }
 
+function supervisedParent(): number | undefined {
+  const value = processEnvValue(LAUNCHER_PARENT_ENV);
+  return value === undefined ? undefined : Number(value);
+}
+
 function run(argv: readonly string[]): void {
   const [cmd, ...args] = argv;
   if (cmd === undefined) {
@@ -62,39 +45,54 @@ function run(argv: readonly string[]): void {
     process.exitCode = EXIT.misuse;
     return;
   }
+  const parent = supervisedParent();
+  if (parent !== undefined && parentGone(parent)) {
+    process.stderr.write(`niced-exec: caller ${String(parent)} exited before ${cmd} started\n`);
+    process.exitCode = EXIT.toolError;
+    return;
+  }
 
-  const parent = process.ppid;
-  const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit" });
-  let stopping = false;
-  const stop = (): void => {
-    if (stopping) {
-      return;
-    }
-    stopping = true;
-    escalateStop({ signal: (signal) => child.kill(signal), gone: child.hasExited })
-      .then((gone) => {
-        if (!gone) {
-          process.stderr.write(`niced-exec: ${cmd} outlived TERM and KILL\n`);
-        }
-      })
-      .catch((error: unknown) => {
-        process.stderr.write(`niced-exec: stopping ${cmd} failed: ${String(error)}\n`);
-        process.exitCode = EXIT.toolError;
-      });
-  };
+  // A nested launcher in the child's tree must not guard this launcher's caller.
+  const env = inheritedProcessEnv();
+  delete env[LAUNCHER_PARENT_ENV];
+  // Not detached: a group kill aimed at this launcher (Ctrl-C, a stage timeout) must reach the child too.
+  const child = spawnFullPriorityChild(cmd, args, { stdio: "inherit", env });
 
-  // Never dying from these is the whole point — they already reached the real child directly.
+  // The terminal and group kills deliver these to the child directly; dying first would orphan it.
   const ignore = (): void => undefined;
   for (const signal of IGNORED_SIGNALS) {
     process.on(signal, ignore);
   }
-  process.on("SIGTERM", stop);
-  const watch = setInterval(() => {
-    if (parentGone(parent)) {
-      stop();
-    }
-  }, PARENT_POLL_MS);
-  watch.unref();
+  let watch: ReturnType<typeof setInterval> | undefined;
+  if (parent === undefined) {
+    // Script mode relays a TERM aimed at this pid and leaves the child's own shutdown unbounded.
+    process.on("SIGTERM", () => child.kill("SIGTERM"));
+  } else {
+    let stopping = false;
+    const stop = (): void => {
+      if (stopping) {
+        return;
+      }
+      stopping = true;
+      escalateStop({ signal: (signal) => child.kill(signal), gone: child.hasExited })
+        .then((gone) => {
+          if (!gone) {
+            process.stderr.write(`niced-exec: ${cmd} outlived TERM and KILL\n`);
+          }
+        })
+        .catch((error: unknown) => {
+          process.stderr.write(`niced-exec: stopping ${cmd} failed: ${String(error)}\n`);
+          process.exitCode = EXIT.toolError;
+        });
+    };
+    process.on("SIGTERM", stop);
+    watch = setInterval(() => {
+      if (parentGone(parent)) {
+        stop();
+      }
+    }, PARENT_POLL_MS);
+    watch.unref();
+  }
 
   child
     .wait()
@@ -106,7 +104,9 @@ function run(argv: readonly string[]): void {
         return;
       }
       process.exitCode = childExitCode(exit);
-      mirrorSignal(exit.signal);
+      if (parent !== undefined) {
+        mirrorSignal(exit.signal);
+      }
     })
     .catch((error: unknown) => {
       // `wait()` never rejects (a spawn failure resolves as `exit.error`, above) — this is a pure

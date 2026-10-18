@@ -1,6 +1,6 @@
 // The ONE subprocess home (policy `tooling-child-process-door`): every niced spawn lowers the child's
 // priority (owner-endorsed 2026-08-21 — the box co-hosts the homelab), never THIS process's own. The sync
-// doors spawn through `nicedCommand` (`nice` on POSIX, the `niced-exec.ts` launcher on win32); the async doors spawn `cmd` directly and
+// doors spawn through `nicedCommand` (`nice` on POSIX, the `niced-exec.ts` launcher on win32 or when supervised); the async doors spawn `cmd` directly and
 // call `lowerChildPriority` (measured cheaper — see that export's header). A full-priority door's child
 // stays at this process's own priority either way.
 //
@@ -28,7 +28,7 @@ import type {
   TranscriptResult,
 } from "./proc-contract.ts";
 import { inheritedProcessEnv } from "./process-env.ts";
-import { launcherCommand, lowerChildPriority, nicedCommand } from "./process-priority.ts";
+import { launcherCommand, lowerChildPriority, nicedCommand, supervisedEnv } from "./process-priority.ts";
 
 /** The doors' option + result shapes live in ./proc-contract.ts (split at the 450-line cap, #2242) and
  *  are re-exported here for the same reason `PrunedRun` is re-exported from ./artifacts.ts: this module is
@@ -103,17 +103,18 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
  *  load) because a long-lived process spawns children across changing load. */
 const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
-/** Sync spawn at the lowered priority (`nicedCommand`) — never throws on a non-zero status (the caller
- *  judges). IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why `errorCode` exists (#2284): `spawnSync`
- *  puts that failure on `res.error` and leaves `status` null, so a door that returns only
- *  `{status, stdout, stderr}` hands the caller a null it cannot interpret; see the field's own note in
- *  ./proc-contract.ts for the four causes it separates. */
+/** Sync spawn at the lowered priority (`nicedCommand`, or the supervising launcher when `supervised`) — never
+ *  throws on a non-zero status (the caller judges). IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why
+ *  `errorCode` exists (#2284): `spawnSync` puts that failure on `res.error` and leaves `status` null; see the
+ *  field's own note in ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
-  const niced = opts.supervised === true ? launcherCommand(cmd, args) : nicedCommand(cmd, args);
+  const supervised = opts.supervised === true;
+  const niced = supervised ? launcherCommand(cmd, args) : nicedCommand(cmd, args);
+  const env = supervised ? supervisedEnv(opts.env) : opts.env;
   const res = DOORS.spawnSync(niced.command, niced.args, {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
-    ...(opts.env === undefined ? {} : { env: opts.env }),
+    ...(env === undefined ? {} : { env }),
     ...(opts.input === undefined ? {} : { input: opts.input }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     ...(opts.timeout === undefined ? {} : { timeout: opts.timeout }),

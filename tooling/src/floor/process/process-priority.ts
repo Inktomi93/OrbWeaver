@@ -1,10 +1,11 @@
 // The tooling priority and how a child reaches it on every OS: `nice` on POSIX, the `niced-exec.ts` launcher
-// on win32. Nothing here lowers the CALLER's own priority — a full-priority child spawned by the same
+// on win32 or when supervised. Nothing here lowers the CALLER's own priority — a full-priority child spawned by the same
 // process must stay at that process's real priority, not a niced door's leftover.
 import { constants, getPriority, setPriority } from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import type { NicedCommand } from "./proc-contract.ts";
+import { inheritedProcessEnv } from "./process-env.ts";
 
 /** Below-normal, not `PRIORITY_LOW` (19): on Windows 19 maps to the IDLE priority class, which can starve
  *  a run behind a busy desktop. `PRIORITY_BELOW_NORMAL` (10) is below-normal on every OS. */
@@ -27,9 +28,17 @@ export function lowerToolingPriority(): void {
 
 const NICED_EXEC_ENTRY = fileURLToPath(new URL("./niced-exec.ts", import.meta.url));
 
-/** The `niced-exec.ts` launcher form: it lowers its own priority, then supervises `cmd` until it exits. */
+/** The `niced-exec.ts` launcher form: it lowers its own priority, then runs `cmd` as its child. */
 export function launcherCommand(cmd: string, args: readonly string[]): NicedCommand {
   return { command: process.execPath, args: [NICED_EXEC_ENTRY, cmd, ...args] };
+}
+
+/** Names the pid a supervised launcher guards; set only by {@link supervisedEnv}. */
+export const LAUNCHER_PARENT_ENV = "ORB_LAUNCHER_PARENT";
+
+/** The environment for a supervised launcher: `env` (or the ambient one) plus this caller's pid. */
+export function supervisedEnv(env: NodeJS.ProcessEnv | undefined): NodeJS.ProcessEnv {
+  return { ...(env ?? inheritedProcessEnv()), [LAUNCHER_PARENT_ENV]: String(process.pid) };
 }
 
 /** The command a SYNC door spawns to run `cmd args…` at {@link TOOLING_PRIORITY}: a sync spawn returns no pid
