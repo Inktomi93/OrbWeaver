@@ -174,7 +174,7 @@ without a path are in that folder.
 
 - Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Codex does not: before you change a file, read each rule below whose globs match it.
 - In Codex outside a generated `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
-- Codex's native edit hook calls the shared checker. Use its feedback and the lane skill's command spellings. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
+- Codex edit feedback is owner-disabled; use explicit scoped checks from the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
 - In Codex, spawn `verifier`, `side-eye` or `stickler` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
 
 `pnpm check:agents` checks that this list matches the rule files.

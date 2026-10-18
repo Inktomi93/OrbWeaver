@@ -1,9 +1,8 @@
 // Settings writes use the shipped controls and HTTP owners; About is intentionally read-only.
 
-import { readFile } from "node:fs/promises";
 import { testId } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
-import { importStartedSchema } from "@orb/contracts/import";
+import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
@@ -102,9 +101,10 @@ test.describe("committed corpus settings", () => {
     expect(checks).toEqual([]);
   });
 
-  test("Backup exports a real library and imports the downloaded bundle", { tag: "@smoke" }, async ({ page, baseURL }) => {
+  test("Backup exports a real library and imports the downloaded bundle", { tag: "@smoke" }, async ({ page, baseURL }, testInfo) => {
     test.setTimeout(120_000);
     const host = ownerActor(baseURL ?? "");
+    const owner = await host.trpc.sessions.me.query(undefined);
     const scriptId = SELECTED_CORPUS_FIXTURE?.wire.regexLibrary?.ids.scriptId;
     if (scriptId === undefined) {
       throw new Error("Backup restore requires the captured regex library");
@@ -118,22 +118,36 @@ test.describe("committed corpus settings", () => {
     await page.getByRole("button", { name: "Download my library", exact: true }).click();
     const download = await downloaded;
     expect(await download.failure()).toBeNull();
-    const path = await download.path();
+    const filename = download.suggestedFilename();
+    expect(filename).toMatch(/\.zip$/iu);
+    const path = testInfo.outputPath(filename);
+    await download.saveAs(path);
     await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
     expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
-    const accepted = page.waitForResponse((candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === "/api/import/bundle");
-    await page
-      .getByLabel("Import a backup or card file", { exact: true })
-      .setInputFiles({ name: download.suggestedFilename(), mimeType: "application/zip", buffer: await readFile(path) });
-    await page
-      .getByRole("group", { name: /^Import “/u })
-      .getByRole("button", { name: "Import", exact: true })
-      .click();
-    const response = await accepted;
-    expect(response.ok()).toBe(true);
-    const { workloadId } = importStartedSchema.parse(await response.json());
+    await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);
+    // The native list has no cursor, so a full capped page cannot prove a complete identity snapshot.
+    const beforeImports = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+    expect(beforeImports.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+    const beforeImportIds = new Set(beforeImports.map((row) => row.id));
+    const [response] = await Promise.all([
+      page.waitForResponse((candidate) => candidate.request().method() === "POST" && new URL(candidate.url()).pathname === "/api/import/bundle"),
+      page
+        .getByRole("group", { name: /^Import “/u })
+        .getByRole("button", { name: "Import", exact: true })
+        .click(),
+    ]);
+    expect(response.status()).toBe(202);
     await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: 60_000 });
-    const workload = await host.trpc.workloads.get.query({ id: workloadId });
+    const afterImports = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
+    expect(afterImports.length).toBeLessThan(WORKLOAD_LIST_MAX_LIMIT);
+    const createdImports = afterImports.filter((row) => !beforeImportIds.has(row.id));
+    expect(createdImports).toHaveLength(1);
+    const createdImport = createdImports[0];
+    if (createdImport === undefined) {
+      throw new Error("Backup import did not create its native workload");
+    }
+    const workload = await host.trpc.workloads.get.query({ id: createdImport.id });
+    expect(workload.ownerId).toBe(owner.userId);
     expect(workload.status).toBe("succeeded");
     if (workload.poison || workload.kind !== "import-bundle" || workload.result === null) {
       throw new Error("Backup import has no canonical bundle result");

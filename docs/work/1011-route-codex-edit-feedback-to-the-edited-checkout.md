@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-16
+status: doing
+updated: 2026-10-18
 priority: P2
 area: tooling
+lane: wt/agent-a86bb1a8ff46c7295
 plan: test-foundation
 ---
 
@@ -23,4 +24,4 @@ Bounded hook controls cover main, linked checkout, multi-checkout edits, moves, 
 
 ## Evidence
 
-Automatic Codex edit feedback is disabled by owner ruling in `.codex/hooks.json`. Retained session commands do not invoke the checker. Required manual scoped checks supply source verdicts. Routing repair remains deferred; this item does not authorize re-enabling automatic feedback.
+Automatic Codex edit feedback is disabled by owner ruling in `.codex/hooks.json`. Retained session commands do not invoke the checker. Required manual scoped checks supply source verdicts. Routing repair is active; this item does not authorize re-enabling automatic feedback. Independent review rejects first-edit baseline authority, symlink escape and incomplete compiler output. Preserve explicit refusals and linked-checkout controls. Evidence: `reports/review/1011-hook-checkout-independent.md`.

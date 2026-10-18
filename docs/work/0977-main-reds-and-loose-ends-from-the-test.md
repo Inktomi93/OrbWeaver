@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-18
 priority: P2
+lane: wt/agent-ae3eafbaa82f66d57
 ---
 
 # Main reds and loose ends from the test-mirror lanes
@@ -37,9 +38,9 @@ Each listed check is green on main or has a recorded cause and owner.
 
 Remaining findings: legacy disposal/typed lint, maintained classes, client formatting/imports and caught-failure census. The dev bridge receives its data reader through composition. Evidence: `reports/review/977-agent-bridge-composition.md`.
 
-D161 cites a removed health module; immutable ADR lifecycle law blocks a direct edit. Citation grants also exceed their budget. Add no allowance or placeholder. Evidence: `reports/review/1042-boundary-home-independent-review.md`.
+D161 enforcement metadata names its retained consumer. Citation policies complete; granted findings exceed their unchanged budget. Add no allowance or placeholder. Evidence: `reports/review/965-citation-resource-current-acceptance.md`.
 
-Optional RPG, profile and tag export-floor cases remain replacement inputs, not fixture retrofits.
+RPG, profile and tag export-floor cases await replacement, not fixture retrofits.
 
 Compose census is preserved; reindex/auth classifications remain unproven.
 
@@ -47,7 +48,7 @@ The staged-selection release-promotion cases fail on current qualification gener
 
 Modal/panel focus return and owned-provider native preview controls pass. Separate provider recipes, cancellation reporting and software snapshots remain unqualified. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-corpus-provider-stage-independent-review.md`.
 
-JSON and wire parsing allowances are zero; whole-application qualification remains open.
+Parsing allowances are zero; application qualification remains open.
 
 Inference SDK hook types share a leaf contract. Worker dependencies use direct contract imports. Scoped inference imports, inference/server types and independent review pass. Evidence: `reports/review/inference-contract-leaves-independent-review.md`.
 
