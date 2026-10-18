@@ -11,7 +11,7 @@
 // @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
-import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedTrackers } from "@orb/contracts/rpg";
+import { actorRefKey, carriesTracker, RPG_PROFILE_D20, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -28,6 +28,7 @@ import { ctSnapPath } from "@orb/testkit/node/snap-out.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-labels.ts";
+import { RPG_SEED_HP_MAX } from "#contracts/rpg/profile.ts";
 import { deriveEffectiveDelivery } from "#server/domain/rpg/index.ts";
 import { revealActionName } from "#ui/lib/action-names.ts";
 import { makeMessageView } from "../../chat/fixtures.ts";

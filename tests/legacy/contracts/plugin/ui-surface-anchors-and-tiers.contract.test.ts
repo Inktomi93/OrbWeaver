@@ -2,8 +2,6 @@
 
 import {
   PLUGIN_ANCHOR_TIERS,
-  PLUGIN_FRAME_CSS_MAX_CHARS,
-  PLUGIN_FRAME_HTML_MAX_CHARS,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TIER_REGISTRAR,
@@ -14,6 +12,7 @@ import {
   pluginSurfaceSpecSchema,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_FRAME_CSS_MAX_CHARS, PLUGIN_FRAME_HTML_MAX_CHARS } from "#contracts/plugin/ui.ts";
 
 test("a host-owned lore picker is one option source, never combined with guest options", () => {
   const node = { kind: "select", name: "book", label: "Lore book", optionsFromHost: "owned-lore-books", actionId: "configure" };

@@ -10,10 +10,11 @@
 // @orb-waive-file no-test-fabrication({ actorRef: { kind: string }; volatile: { status: string; inventory: unknown[] } }[]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ identity?: { name: string }; volatile: { trackerValues: Record<string, unknown> } }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgSnapshotState, RpgToolCall, RpgTrackerDef } from "@orb/contracts/rpg";
-import { RPG_RULESET_PROFILE, RPG_SEED_HP_MAX, rpgSeedTrackers, toolCallsToExtraction } from "@orb/contracts/rpg";
+import { RPG_RULESET_PROFILE, rpgSeedTrackers, toolCallsToExtraction } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { RPG_SEED_HP_MAX } from "#contracts/rpg/profile.ts";
 import {
   applySetTracker,
   applyUpdateInventory,

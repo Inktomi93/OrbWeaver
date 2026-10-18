@@ -3,14 +3,13 @@
 import {
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_ICON_NAMES,
-  PLUGIN_ROWS_MAX,
-  PLUGIN_TABS_OPTIONS_MAX,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   resolvePluginBoundSelectOptions,
   resolvePluginBoundTabOptions,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_ROWS_MAX, PLUGIN_TABS_OPTIONS_MAX } from "#contracts/plugin/ui.ts";
 
 // ── #799 — the VOCABULARY-REACH additions (icon / tabs / grid.loading) ────────────────────────────────────────
 

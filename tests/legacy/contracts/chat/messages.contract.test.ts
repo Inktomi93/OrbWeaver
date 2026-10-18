@@ -1,7 +1,6 @@
 import type { MessageView, UserMacroDraws } from "@orb/contracts/chat";
 import {
   CONNECTION_ATTRIBUTION_PROVENANCES,
-  connectionAttributionProvenanceSchema,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
   messageViewSchema,
@@ -11,11 +10,11 @@ import {
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
-  variantMetadataSchema,
 } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { connectionAttributionProvenanceSchema, variantMetadataSchema } from "#contracts/chat/messages.ts";
 
 test("wire tool calls reject widening while the stored parser still strips private provider fields", () => {
   const record = {

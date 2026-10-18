@@ -38,7 +38,6 @@ import { RPG_PROSE_SLOTS } from "#rpg";
 export type { ProseHome, ProseMacroMode, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 export {
   isProseSlotId,
-  LEGACY_PROSE_BASE_VERSION,
   PROSE_COUNTER_AT,
   PROSE_HOMES,
   PROSE_MACRO_MODES,
@@ -46,7 +45,6 @@ export {
   PROSE_SLOT_IDS,
   proseOverBy,
   proseOverrideFromLegacy,
-  proseOverrideSchema,
   proseOverridesSchema,
   proseOverridesViewSchema,
   proseSlotIdSchema,

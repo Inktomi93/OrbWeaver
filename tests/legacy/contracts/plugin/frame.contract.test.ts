@@ -10,7 +10,6 @@
 import type { PluginFrameCall } from "@orb/contracts/plugin";
 import {
   PLUGIN_FRAME_DOC_PREFIX,
-  PLUGIN_FRAME_RESULT_KEY,
   PLUGIN_FRAME_ROUTE,
   parsePluginFrameCall,
   pluginFrameAssetUrl,
@@ -19,6 +18,7 @@ import {
   pluginFrameUrl,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_FRAME_RESULT_KEY } from "#contracts/plugin/frame.ts";
 
 const PLUGIN = "plugin_01h455vb4pex5vsknk084sn02q";
 

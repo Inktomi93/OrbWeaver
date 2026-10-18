@@ -151,9 +151,9 @@ export interface RpgTrackerCarrier {
   readonly revokes: readonly string[];
 }
 
-/** Does a carrier CLASS (or explicit key list) cover this carrier, BEFORE grants/revokes? An explicit list
- *  matches by the ONE `actorRefKey` projection (never by name — a rename must not orphan a carrier). */
-export function trackerAppliesToCarrier(appliesTo: RpgTrackerAppliesTo, carrier: RpgTrackerCarrier): boolean {
+// Does a carrier CLASS (or explicit key list) cover this carrier, BEFORE grants/revokes? An explicit list
+// matches by the ONE `actorRefKey` projection (never by name — a rename must not orphan a carrier).
+function trackerAppliesToCarrier(appliesTo: RpgTrackerAppliesTo, carrier: RpgTrackerCarrier): boolean {
   if (Array.isArray(appliesTo)) {
     return appliesTo.includes(carrier.actorKey);
   }

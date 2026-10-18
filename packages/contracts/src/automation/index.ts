@@ -1014,10 +1014,7 @@ export {
   rulePresetKnobBagsEqual,
   rulePresetKnobBagToInputs,
   rulePresetKnobOutputValuesSchema,
-  rulePresetKnobValueSchema,
   rulePresetKnobValuesSchema,
-  rulePresetKnobViewSchema,
-  rulePresetScopeSchema,
   rulePresetViewSchema,
 } from "./presets.ts";
 

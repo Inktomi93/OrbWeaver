@@ -9,7 +9,6 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
-import { PLUGIN_TOOL_WIRE_NAME_MAX } from "@orb/contracts/plugin";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
@@ -18,6 +17,7 @@ import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
+import { PLUGIN_TOOL_WIRE_NAME_MAX } from "#contracts/plugin/manifest.ts";
 import { can as realCan } from "#server/domain/admin/index.ts";
 import { TOOL_NAME_RE } from "#server/domain/tool-use/contract/params.ts";
 import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "#server/domain/tool-use/index.ts";
