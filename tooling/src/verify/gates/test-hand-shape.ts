@@ -1,12 +1,12 @@
 // Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns (D328).
 // Shared floor association uses canonical native declarations, not structural similarity or copy intent.
-// Unassociated mirrors and indirect/generic/union boundaries are outside this finite claim.
+// Unassociated mirrors are outside this finite claim; an erased, union or indirect identity reports UNKNOWN, never a finding.
 // Singleton: direct boundary ownership is not the structural-copy family's field-fit judgment.
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
-import type { ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
+import type { ShapeAssociation, ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -18,7 +18,7 @@ const E2E = "tests/e2e/";
 const LAW = "(docs/law/Spine-Testing.md §10)";
 const MESSAGE = `a test support or e2e module hand-declares a production boundary type instead of deriving it ${LAW}.`;
 const FIX =
-  "import the production type, or derive it (`TrpcWireOutput`, `inferOutput`, `z.infer`, `Pick<…>`, an indexed access). A shape with no contract home gets one first. Existing shapes are reviewed-grant rows naming their burn-down item; a new shape derives, never a row.";
+  "import the production type, or derive it (`TrpcWireOutput`, `inferOutput`, `z.infer`, `Pick<…>`, an indexed access). A shape with no contract home gets one first. A hand shape derives; it never takes a grant row.";
 
 const WIRE_CAPTURE_HOME = "packages/server/src/foundation/observability/debug/wire-capture.ts";
 const MESSAGES_HOME = "packages/contracts/src/chat/message-pages.ts";
@@ -54,6 +54,32 @@ export const gate = defineGate({
       throw new Error("native shape context is unavailable");
     }
     const native = ctx.nativeTypes;
+    const isHand = (node: ShapeAssociation["hand"]): boolean => {
+      const home = declarationHome(ctx, node.getSourceFile());
+      return ctx.includesSubject(home) && isJudged(home);
+    };
+    const isProduction = (node: ShapeAssociation["production"]): boolean =>
+      !(node.getSourceFile().isDeclarationFile() || node.getSourceFile().isInNodeModules()) &&
+      declarationHome(ctx, node.getSourceFile()).startsWith("packages/");
+    const reported = new Set<string>();
+    const reportAssociation = ({ hand, production }: ShapeAssociation): void => {
+      const name = hand.getName();
+      const file = declarationHome(ctx, hand.getSourceFile());
+      const home = declarationHome(ctx, production.getSourceFile());
+      const operation = `boundary:${name}=${home}#${production.getName()}`;
+      const key = `${file}#${operation}`;
+      if (reported.has(key)) {
+        return;
+      }
+      reported.add(key);
+      ctx.report.node(hand.getNameNode(), {
+        token: name,
+        offset: 0,
+        message: `\`${name}\` hand-declares the production boundary \`${production.getName()}\` (${home}). ${MESSAGE}`,
+        subject: file,
+        operation,
+      });
+    };
     return {
       visitors: [
         {
@@ -79,41 +105,19 @@ export const gate = defineGate({
           return;
         }
         const readers = typeObservationReaders(native.invocationEvidence(sources, plan));
-        const reported = new Set<string>();
         for (const site of sites) {
           const reader = readers.get(site.boundary.getSourceFile());
           if (reader === undefined) {
             throw new Error("test-hand-shape native boundary reader is unavailable");
           }
-          const verdict = readShapeAssociation(
-            site,
-            reader,
-            (node) => {
-              const home = declarationHome(ctx, node.getSourceFile());
-              return ctx.includesSubject(home) && isJudged(home);
-            },
-            (node) =>
-              !(node.getSourceFile().isDeclarationFile() || node.getSourceFile().isInNodeModules()) &&
-              declarationHome(ctx, node.getSourceFile()).startsWith("packages/"),
-          );
+          const verdict = readShapeAssociation(site, reader, isHand, isProduction);
+          if (verdict.kind === "unknown") {
+            ctx.report.analysis(site.value, verdict);
+            continue;
+          }
+          ctx.report.analysis(site.value, { kind: "supported" });
           if (verdict.kind === "associated") {
-            const { hand, production } = verdict.value;
-            const name = hand.getName();
-            const file = declarationHome(ctx, hand.getSourceFile());
-            const home = declarationHome(ctx, production.getSourceFile());
-            const operation = `boundary:${name}=${home}#${production.getName()}`;
-            const key = `${file}#${operation}`;
-            if (reported.has(key)) {
-              continue;
-            }
-            reported.add(key);
-            ctx.report.node(hand.getNameNode(), {
-              token: name,
-              offset: 0,
-              message: `\`${name}\` hand-declares the production boundary \`${production.getName()}\` (${home}). ${MESSAGE}`,
-              subject: file,
-              operation,
-            });
+            reportAssociation(verdict.value);
           }
         }
       },

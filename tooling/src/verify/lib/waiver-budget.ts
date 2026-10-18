@@ -58,7 +58,6 @@ const APPLICATION = Object.freeze({
   "sub-floor-disclosure": 2,
   suppressions: 57,
   "surface-a11y-focus": 5,
-  "test-hand-shape": 2,
   "test-reach": 112,
   "tooling-argv-front-door": 1,
   "tooling-artifact-path-home": 1,

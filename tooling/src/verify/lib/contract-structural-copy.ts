@@ -1,4 +1,4 @@
-// The structural-copy reader for `contract-structural-copy` and `test-hand-shape`: a contract-export field-name index
+// The structural-copy reader for `contract-structural-copy`: a contract-export field-name index
 // and the subset match. A candidate copies a contract shape when its own data field names are a subset of (or equal
 // to) one contract export's and most shared fields agree on their TYPE. The checker judges agreement, never type
 // text, in `floor/code-facts/assignability.ts`: two shapes that agree today by accident are the same drift risk as a
@@ -64,37 +64,6 @@ export function bestCopyMatch(
       continue;
     }
     const match = { contract, shared, agreeing, exact: shared === contract.fields.size };
-    if (best === undefined || rank(match) > rank(best)) {
-      best = match;
-    }
-  }
-  return best;
-}
-
-/** The share of a candidate's own field names one shape must carry for the candidate to be a drifted copy of it. */
-const OVERLAP_FLOOR = 0.8;
-/** How many shared fields a drifted copy may have retyped; more and the shared names are a coincidence of vocabulary. */
-const DRIFTED_TYPE_ALLOWANCE = 1;
-
-/** The shape a candidate copied before it drifted: at least `MIN_COPY_FIELDS` of the candidate's field names, and
- *  `OVERLAP_FLOOR` of them, are that shape's, and all but `DRIFTED_TYPE_ALLOWANCE` of those agree on type. The widest
- *  overlap wins. A copy that renamed or retyped a field slips `bestCopyMatch` and is still the same copy. */
-export function bestOverlapMatch(
-  candidate: ShapeCopyCandidate,
-  index: ReadonlyMap<string, readonly ShapeCopySource[]>,
-  agree: ShapeFieldAgreement,
-): ShapeCopyComparison | undefined {
-  const tally = sharedFieldCounts(candidate.fields, index);
-  let best: ShapeCopyComparison | undefined;
-  for (const [contract, shared] of tally) {
-    if (shared < MIN_COPY_FIELDS || shared < OVERLAP_FLOOR * candidate.fields.size) {
-      continue;
-    }
-    const agreeing = agreeingCount(candidate, contract, agree);
-    if (agreeing < shared - DRIFTED_TYPE_ALLOWANCE) {
-      continue;
-    }
-    const match = { contract, shared, agreeing, exact: false };
     if (best === undefined || rank(match) > rank(best)) {
       best = match;
     }

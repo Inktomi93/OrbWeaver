@@ -20,7 +20,7 @@
 //     settled, never because of an error's NAME: engine.ts `abortReasonFor`). Assert with
 //     the `toThrowProviderError(kind)` matcher (support/node/matchers.ts).
 
-import type { ProviderErrorKind } from "@orb/inference";
+import type { ProviderErrorInit } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { RunChatTurnOp, TurnEconomics, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import { testModelId } from "../../iso/inference-identities.ts";
@@ -39,12 +39,7 @@ export interface ReplyOptions {
 }
 
 /** Per-`error` overrides: the `ProviderError` shape a failed turn throws at the seam. */
-export interface ErrorOptions {
-  readonly kind?: ProviderErrorKind;
-  readonly message?: string;
-  readonly retryable?: boolean;
-  readonly apiErrorStatus?: number;
-}
+export type ErrorOptions = Partial<Pick<ProviderErrorInit, "kind" | "message" | "retryable" | "apiErrorStatus">>;
 
 /** Per-`rateLimit` overrides. Fixed `kind:"rate_limit"`, `retryable:true` (see the file header divergence). */
 export interface RateLimitOptions {

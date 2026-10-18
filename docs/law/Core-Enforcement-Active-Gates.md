@@ -260,7 +260,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
-| `test-hand-shape` | contract-derives-not-respells | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
+| `test-hand-shape` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
 | `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |

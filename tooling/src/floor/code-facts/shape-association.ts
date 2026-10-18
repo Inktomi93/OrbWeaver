@@ -2,12 +2,15 @@
 import type { InterfaceDeclaration, Node as MorphNode, TypeAliasDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
-import type { ShapeAssociationRead, ShapeAssociationSite } from "./shape-association-contract.ts";
+import type { ShapeAssociationRead, ShapeAssociationSite, ShapeAssociationUnknown } from "./shape-association-contract.ts";
+import { SHAPE_ASSOCIATION_UNKNOWN } from "./shape-association-contract.ts";
 import { isHandWrittenShape } from "./shape-declaration.ts";
 import { observedSymbolDeclarations, observedUltimateSymbol } from "./symbol-identity.ts";
-import type { TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
+import type { ObservedTypeData, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
+
+type ShapeDeclaration = InterfaceDeclaration | TypeAliasDeclaration;
 
 /** Finite syntax only: explicit initializer/assignment, direct argument, or explicitly annotated own return. */
 export function shapeAssociationSites(node: MorphNode): readonly ShapeAssociationSite[] {
@@ -62,7 +65,7 @@ function annotationName(node: MorphNode): MorphNode | undefined {
   return Node.isQualifiedName(name) ? name.getRight() : name;
 }
 
-function shapeDeclaration(node: MorphNode): InterfaceDeclaration | TypeAliasDeclaration | undefined {
+function shapeDeclaration(node: MorphNode): ShapeDeclaration | undefined {
   if (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) {
     return node;
   }
@@ -70,46 +73,61 @@ function shapeDeclaration(node: MorphNode): InterfaceDeclaration | TypeAliasDecl
   return parent !== undefined && Node.isTypeAliasDeclaration(parent) ? parent : undefined;
 }
 
-function declarations(selector: NativeTypeSelector, readers: TypeObservationReader): readonly (InterfaceDeclaration | TypeAliasDeclaration)[] | undefined {
-  const reference = readers.select(selector);
-  if (reference === null) {
-    return;
-  }
-  const type = readers.type(reference);
-  if (type.any || type.unknown || type.typeParameter || type.unionCount > 0) {
-    return;
-  }
+function erased(type: ObservedTypeData): boolean {
+  return type.any || type.unknown || type.typeParameter;
+}
+
+function namedDeclarations(types: readonly ObservedTypeData[], readers: TypeObservationReader): readonly ShapeDeclaration[] {
   return [
     ...new Map(
-      [type.aliasSymbol, type.symbol].flatMap((symbol) =>
-        observedSymbolDeclarations(observedUltimateSymbol(symbol, readers), readers).flatMap((node) => {
-          const declaration = shapeDeclaration(node);
-          return declaration === undefined ? [] : [[inventoryDeclarationKey(declaration), declaration] as const];
-        }),
+      types.flatMap((type) =>
+        [type.aliasSymbol, type.symbol].flatMap((symbol) =>
+          observedSymbolDeclarations(observedUltimateSymbol(symbol, readers), readers).flatMap((node) => {
+            const declaration = shapeDeclaration(node);
+            return declaration === undefined ? [] : [[inventoryDeclarationKey(declaration), declaration] as const];
+          }),
+        ),
       ),
     ).values(),
   ];
 }
 
-/** Missing registered observations throw; unsupported identities remain explicit unknowns, not acquittals. */
-export function readShapeAssociation(
-  site: ShapeAssociationSite,
+/** A whole named boundary type; erased and union boundaries have no single owner. */
+function boundaryDeclarations(selector: NativeTypeSelector, readers: TypeObservationReader): readonly ShapeDeclaration[] | undefined {
+  const reference = readers.select(selector);
+  if (reference === null) {
+    return;
+  }
+  const type = readers.type(reference);
+  return erased(type) || type.unionCount > 0 ? undefined : namedDeclarations([type], readers);
+}
+
+// A value union carries every constituent's declarations; one erased constituent erases the value.
+function valueDeclarations(
+  selector: NativeTypeSelector,
   readers: TypeObservationReader,
-  isHand: (node: InterfaceDeclaration | TypeAliasDeclaration) => boolean,
-  isProduction: (node: InterfaceDeclaration | TypeAliasDeclaration) => boolean,
-): ShapeAssociationRead {
-  const unknown = (reason: string): ShapeAssociationRead => ({ kind: "unknown", boundary: site.boundary, reason });
-  const values = declarations(nodeTypeSelector(site.value), readers);
-  if (values === undefined) {
-    return unknown("the direct value has no supported whole named type");
+): { readonly declarations: readonly ShapeDeclaration[]; readonly union: boolean } | undefined {
+  const reference = readers.select(selector);
+  if (reference === null) {
+    return;
   }
-  const hands = values.filter((node) => isHand(node) && isHandWrittenShape(node));
-  if (hands.length === 0) {
-    return { kind: "unassociated" };
+  const type = readers.type(reference);
+  if (erased(type)) {
+    return;
   }
-  if (hands.length !== 1) {
-    return unknown("the direct value has multiple handwritten declarations");
+  if (type.unionCount === 0) {
+    return { declarations: namedDeclarations([type], readers), union: false };
   }
+  const parts = readers.unions(selector).map((part) => {
+    const selected = readers.select(part);
+    return selected === null ? undefined : readers.type(selected);
+  });
+  return parts.every((part): part is ObservedTypeData => part !== undefined && !erased(part))
+    ? { declarations: namedDeclarations(parts, readers), union: true }
+    : undefined;
+}
+
+function boundaryOwners(site: ShapeAssociationSite, readers: TypeObservationReader): readonly ShapeDeclaration[] | ShapeAssociationUnknown {
   if (site.assignment === true) {
     const targets = observedSymbolDeclarations(observedUltimateSymbol(readers.symbol(site.target), readers), readers);
     if (
@@ -119,28 +137,54 @@ export function readShapeAssociation(
           node.getTypeNode() !== undefined,
       )
     ) {
-      return unknown("the assignment target has no direct explicit type annotation");
+      return SHAPE_ASSOCIATION_UNKNOWN.unannotatedAssignment;
     }
   }
   const target = site.argument === undefined ? nodeTypeSelector(site.target) : readers.callParameters(site.target)?.[site.argument];
   if (target === undefined) {
-    return unknown("the direct call has no resolved parameter for this argument");
+    return SHAPE_ASSOCIATION_UNKNOWN.unresolvedParameter;
   }
   const annotation = site.argument === undefined ? annotationName(site.target) : undefined;
   const owners =
     annotation === undefined
-      ? declarations(target, readers)
+      ? boundaryDeclarations(target, readers)
       : observedSymbolDeclarations(observedUltimateSymbol(readers.symbol(annotation), readers), readers).flatMap((node) => shapeDeclaration(node) ?? []);
-  if (owners === undefined || owners.length === 0) {
-    return unknown("the boundary has no supported whole named production type");
+  return owners === undefined || owners.length === 0 ? SHAPE_ASSOCIATION_UNKNOWN.unsupportedBoundary : owners;
+}
+
+/** Missing registered observations throw; unsupported identities remain explicit unknowns, not acquittals. */
+export function readShapeAssociation(
+  site: ShapeAssociationSite,
+  readers: TypeObservationReader,
+  isHand: (node: ShapeDeclaration) => boolean,
+  isProduction: (node: ShapeDeclaration) => boolean,
+): ShapeAssociationRead {
+  const unassociated: ShapeAssociationRead = { kind: "unassociated" };
+  const unknown = (reason: ShapeAssociationUnknown): ShapeAssociationRead => ({ kind: "unknown", reason });
+  const value = valueDeclarations(nodeTypeSelector(site.value), readers);
+  const hands = value?.declarations.filter((node) => isHand(node) && isHandWrittenShape(node));
+  if (hands !== undefined && hands.length === 0) {
+    return unassociated;
+  }
+  if (value?.union === true) {
+    return unknown(SHAPE_ASSOCIATION_UNKNOWN.unionHand);
+  }
+  if (hands !== undefined && hands.length > 1) {
+    return unknown(SHAPE_ASSOCIATION_UNKNOWN.manyHands);
+  }
+  const owners = boundaryOwners(site, readers);
+  if (hands === undefined) {
+    // An erased value can only matter at a boundary that a production declaration could own.
+    return typeof owners !== "string" && !owners.some(isProduction) ? unassociated : unknown(SHAPE_ASSOCIATION_UNKNOWN.erasedValue);
+  }
+  if (typeof owners === "string") {
+    return unknown(owners);
   }
   const production = owners.filter(isProduction);
-  const hand = hands[0];
-  const owner = production[0];
   if (production.length > 1) {
-    return unknown("the boundary has multiple canonical production declarations");
+    return unknown(SHAPE_ASSOCIATION_UNKNOWN.manyOwners);
   }
-  return hand === undefined || owner === undefined
-    ? { kind: "unassociated" }
-    : { kind: "associated", value: { hand, production: owner, boundary: site.boundary } };
+  const [hand] = hands;
+  const [owner] = production;
+  return hand === undefined || owner === undefined ? unassociated : { kind: "associated", value: { hand, production: owner, boundary: site.boundary } };
 }

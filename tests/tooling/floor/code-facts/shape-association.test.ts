@@ -3,6 +3,7 @@ import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../../../tooling/src/floor/code-facts/shape-association.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
+import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
 import { encodeTypeObservations, replayTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -148,6 +149,42 @@ missing(hand);
     expect.objectContaining({ kind: "unknown", reason: "the boundary has no supported whole named production type" }),
     expect.objectContaining({ kind: "unknown", reason: "the boundary has no supported whole named production type" }),
     expect.objectContaining({ kind: "unknown", reason: "the direct call has no resolved parameter for this argument" }),
+  ]);
+});
+
+test("a union value is judged by its constituents and an erased value only where a production owner could exist", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  project.createSourceFile("/production/owner.ts", "export interface Owner { value: string }");
+  project.createSourceFile("/other/local.ts", "export interface Other { value: string }");
+  const source = project.createSourceFile(
+    "/tests/support.ts",
+    `
+import type { Owner } from "../production/owner";
+import type { Other } from "../other/local";
+interface Hand { value: string }
+declare const flag: boolean;
+declare const label: string | undefined;
+declare const owner: Owner | null;
+declare const maybe: Hand | undefined;
+declare const loose: any;
+declare function take(value: boolean): void;
+take(flag);
+const named: string | undefined = label;
+const nullable: Owner | null = owner;
+const carried: Owner | undefined = maybe;
+const local: Other = loose;
+const erased: Owner = loose;
+`,
+  );
+  expect(project.getPreEmitDiagnostics()).toEqual([]);
+  const answers = read(source, source.getDescendants().flatMap(shapeAssociationSites));
+  expect(answers).toEqual([
+    { kind: "unassociated" },
+    { kind: "unassociated" },
+    { kind: "unassociated" },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.unionHand },
+    { kind: "unassociated" },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.erasedValue },
   ]);
 });
 
