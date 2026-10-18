@@ -116,6 +116,33 @@ test("occurrence coverage distinguishes native alias and property fallback from 
   }
 });
 
+test.each([
+  ["direct", "return this.x;"],
+  ["arrow-captured", "return () => this.x;"],
+])("%s receiver parameters retain full native special-this groups", (_kind, body) => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+  const source = project.createSourceFile("/receiver.ts", `export function receiver(this:{x:number}){${body}}`);
+  const receiver = source.getFunctionOrThrow("receiver").getParameters()[0];
+  if (receiver === undefined) {
+    throw new Error("native receiver parameter missing");
+  }
+  const query = { fileName: source.getFilePath(), position: receiver.getNameNode().getStart() };
+  const service = project.getLanguageService().compilerObject;
+  const expected = service.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [];
+  const pass = service.createReadonlyReferencePass();
+  try {
+    const answer = pass.findReferencesFromOccurrences([query])[0];
+    const actual =
+      answer?.kind === "indexed" ? answer.references : (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+    expect(expected.flatMap((group) => group.references)).toHaveLength(2);
+    expect(actual).toEqual(expected);
+    expect(answer).toEqual({ kind: "native" });
+  } finally {
+    pass.dispose();
+    service.dispose();
+  }
+});
+
 test("occurrence batches detach repeated answers and retry cancellation without partial coverage", () => {
   const project = fixture();
   const source = project.getSourceFileOrThrow("/base.tsx");

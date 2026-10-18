@@ -19,7 +19,7 @@ index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7a
          realpath: languageServiceHost.realpath,
      };
 diff --git a/dist/typescript.js b/dist/typescript.js
-index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..d515bf4400abf49c6273de1b3e32c747ec99a20c 100644
+index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11cacc2b411 100644
 --- a/dist/typescript.js
 +++ b/dist/typescript.js
 @@ -153369,6 +153369,7 @@ var invalidOperationsInSyntacticMode = [
@@ -369,7 +369,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..d515bf4400abf49c6273de1b3e32c747
 +      if (isInJSFile(source)) return void 0;
 +      const node = getReferenceLocation(source, query.position);
 +      const declaration = getDeclarationFromName(node);
-+      if (!isIdentifier(node) || !declaration || !(isVariableDeclaration(declaration) || isParameter(declaration) || isTypeParameterDeclaration(declaration)) || declaration.name !== node) return void 0;
++      if (isThis(node) || !isIdentifier(node) || !declaration || !(isVariableDeclaration(declaration) || isParameter(declaration) || isTypeParameterDeclaration(declaration)) || declaration.name !== node) return void 0;
 +      const symbol = checker.getSymbolAtLocation(node);
 +      if (!symbol || symbol.flags & ~(3 /* Variable */ | 262144 /* TypeParameter */) || !symbol.declarations || !symbol.declarations.every((decl) => (isVariableDeclaration(decl) || isParameter(decl) || isTypeParameterDeclaration(decl)) && isIdentifier(decl.name))) return void 0;
 +      const scope = getSymbolScope(symbol);
