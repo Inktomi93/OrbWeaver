@@ -25,6 +25,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Hono } from "hono";
 import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
+import { createBundlePaths } from "#domain/export";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
 import type { PrincipalEnv } from "./blob.ts";
@@ -83,15 +84,16 @@ function parseKinds(raw: string | undefined): ParsedKinds {
   return { kinds: requested, invalid: null };
 }
 
-/** Stream every requested entity's files as zip entries. Owner-scoped: `ownerId` is the only owner each
- *  `exportAll` sees. */
+/** Stream every requested entity's files as zip entries under distinct paths, so the archive also restores as a
+ *  folder. Owner-scoped: `ownerId` is the only owner each `exportAll` sees. */
 async function* libraryEntries(registry: PortabilityRegistry, kinds: ReadonlySet<PortableKind> | null, ownerId: Principal["userId"]): AsyncGenerator<ZipEntry> {
+  const bundlePath = createBundlePaths();
   for (const entity of registry) {
     if (kinds !== null && !kinds.has(entity.kind)) {
       continue;
     }
     for await (const file of entity.exportAll(ownerId)) {
-      yield { path: `${entity.dir}${file.filename}`, bytes: file.bytes };
+      yield { path: bundlePath(`${entity.dir}${file.filename}`), bytes: file.bytes };
     }
   }
 }

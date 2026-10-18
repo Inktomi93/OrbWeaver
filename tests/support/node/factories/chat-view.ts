@@ -17,8 +17,8 @@ import {
   TALKATIVENESS_DEFAULT,
 } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
-import type { UserId } from "@orb/kit/ids";
-import { ID_PREFIX, newId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import type { TrpcWireOutput } from "../route-trpc.ts";
@@ -34,12 +34,17 @@ type RedeemInviteWire = TrpcWireOutput<"invites.redeemInvite">;
 type CreateInviteWire = TrpcWireOutput<"invites.createInvite">;
 type ShapeTraceWire = TrpcWireOutput<"chat.getShapeTrace">;
 
+/** A room id from the sequence the builders below mint from, so a caller's room never collides with theirs. */
+export function makeChatId(): ChatId {
+  return mintTypeId(ID_PREFIX.chat, ids.next);
+}
+
 /** One roster seat: a character seat by default, at the shipped talkativeness. */
 export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): ParticipantWire {
   return {
     ...participantViewSchema.parse({
       id: ids.next(ID_PREFIX.chatParticipant),
-      chatId: ids.next(ID_PREFIX.chat),
+      chatId: makeChatId(),
       kind: "character",
       userId: null,
       characterId: ids.next(ID_PREFIX.character),
@@ -62,7 +67,7 @@ export function makeParticipantView(overrides: Partial<ParticipantWire> = {}): P
 
 /** The full read carries the default host's human seat; explicit rosters remain caller-owned. */
 export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDetailWire {
-  const chatId = overrides.id ?? ids.next(ID_PREFIX.chat);
+  const chatId = overrides.id ?? makeChatId();
   const userId = overrides.viewerUserId ?? newId<UserId>(ids.next);
   const handle = viewerViewSchema.shape.handle.parse("chat-host");
   const participant = makeParticipantView({
@@ -118,7 +123,7 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
 export function makeChatSummaryView(overrides: Partial<ChatSummaryWire> = {}): ChatSummaryWire {
   return {
     ...chatSummarySchema.parse({
-      id: ids.next(ID_PREFIX.chat),
+      id: makeChatId(),
       title: null,
       starred: false,
       archived: false,
@@ -184,7 +189,7 @@ export function makeCreateInviteResult(overrides: Partial<CreateInviteWire> = {}
     ...createInviteResultSchema.parse({
       invite: {
         id: ids.next(ID_PREFIX.chatInvite),
-        chatId: ids.next(ID_PREFIX.chat),
+        chatId: makeChatId(),
         status: "pending",
         maxUses: null,
         remainingUses: null,

@@ -15,7 +15,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { makeChatDetail, makeParticipantView, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeParticipantView, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { OrbSocketRecorder } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -36,6 +36,8 @@ import {
   NotificationPhonePluginDestinationStory,
 } from "../_ct-stories.tsx";
 
+const TARGET_CHAT_ID = makeChatId();
+const SECOND_CHAT_ID = makeChatId();
 const AFFINITY_PLUGIN = mintTypeId(ID_PREFIX.plugin);
 const POLISH_PLUGIN = mintTypeId(ID_PREFIX.plugin);
 
@@ -53,7 +55,7 @@ function inviteRow(overrides: Partial<InboxRowOf<"invite">> = {}): InboxRowOf<"i
     payload: {
       type: "invite",
       recipientUserId: "user_ct_invitee",
-      chatId: "chat_ct_target",
+      chatId: TARGET_CHAT_ID,
       inviteId: "chatinvite_ct_1",
       invitedByHandle: "alex",
     },
@@ -128,7 +130,7 @@ function kickedRow(): InboxRowOf<"kicked"> {
   return {
     id: "ntf_ct_notice",
     type: "kicked",
-    payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
+    payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: TARGET_CHAT_ID },
     seq: 2,
     readAt: null,
     dismissedAt: null,
@@ -198,7 +200,7 @@ function handoffAcceptedRow(): InboxRowOf<"handoff-accepted"> {
   return {
     id: "ntf_ct_handoff_accepted",
     type: "handoff-accepted",
-    payload: { type: "handoff-accepted", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target", newHostHandle: "mira" },
+    payload: { type: "handoff-accepted", recipientUserId: "user_ct_invitee", chatId: TARGET_CHAT_ID, newHostHandle: "mira" },
     seq: 3,
     readAt: null,
     dismissedAt: null,
@@ -270,7 +272,7 @@ test("Accept fires acceptInvite with the notification's inviteId, then dismisses
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => dismissedRow(inviteRow()),
     "invites.acceptInvite": () =>
-      makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
+      makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
   });
   await routeInboxStream(page, []);
 
@@ -293,7 +295,7 @@ test("each inbox row owns its pending action: double-click is singular while a s
     payload: {
       type: "invite",
       recipientUserId: "user_ct_invitee",
-      chatId: "chat_ct_second",
+      chatId: SECOND_CHAT_ID,
       inviteId: "chatinvite_ct_2",
       invitedByHandle: "mira",
     },
@@ -307,7 +309,7 @@ test("each inbox row owns its pending action: double-click is singular while a s
     "invites.acceptInvite": (input) =>
       input.inviteId === "chatinvite_ct_1"
         ? held
-        : makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_second" }), participant: makeParticipantView({ id: "participant_ct_second" }) }),
+        : makeRedeemInviteResult({ chat: makeChatDetail({ id: SECOND_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_second" }) }),
   });
   await routeInboxStream(page, []);
 
@@ -328,7 +330,7 @@ test("each inbox row owns its pending action: double-click is singular while a s
 
   await miraAccept.click();
   await expect.poll(() => trpc.count("invites.acceptInvite")).toBe(2);
-  held.release(makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }));
+  held.release(makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }));
 });
 
 test("Decline fires declineInvite + dismisses; the row leaves the inbox on refetch", async ({ mount, page }) => {
@@ -536,7 +538,7 @@ function handoffRow(
     payload: {
       type: "handoff-nominated",
       recipientUserId: "user_ct_nominee",
-      chatId: "chat_ct_target",
+      chatId: TARGET_CHAT_ID,
       offer,
     },
     seq: 2,
@@ -578,7 +580,7 @@ test("Accept opens a confirm that reads out what the offer copies — and fires 
   await dialog.getByRole("button", { name: "Accept", exact: true }).click();
 
   await expect.poll(() => trpc.count("invites.acceptHostHandoff"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  await expect.poll(async () => trpc.requireLastInput("invites.acceptHostHandoff").chatId).toBe("chat_ct_target");
+  await expect.poll(async () => trpc.requireLastInput("invites.acceptHostHandoff").chatId).toBe(TARGET_CHAT_ID);
   // Acting on the nomination clears its inbox row.
   await expect.poll(() => trpc.count("notifications.dismiss"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
@@ -655,7 +657,7 @@ test("an accepted invite navigates even when the follow-up dismiss FAILS (#1501)
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => trpcError({ message: "dismiss failed" }),
     "invites.acceptInvite": () =>
-      makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
+      makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
   });
   await routeInboxStream(page, []);
 
@@ -679,7 +681,7 @@ test("after the join lands, the row stops offering Accept and offers the failed 
     "notifications.markAllRead": () => ({ markedCount: 1 }),
     "notifications.dismiss": () => trpcError({ message: "dismiss failed" }),
     "invites.acceptInvite": () =>
-      makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
+      makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
   });
   await routeInboxStream(page, []);
 
@@ -1085,7 +1087,7 @@ test.describe("pending rows are marked, not merely painted (#1799)", () => {
     return {
       id: "ntf_ct_notice",
       type: "kicked",
-      payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: "chat_ct_target" },
+      payload: { type: "kicked", recipientUserId: "user_ct_invitee", chatId: TARGET_CHAT_ID },
       seq: 2,
       readAt: null,
       dismissedAt: null,
@@ -1157,7 +1159,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
       "notifications.markAllRead": () => ({ markedCount: 1 }),
       "notifications.dismiss": () => dismissedRow(inviteRow()),
       "invites.acceptInvite": () =>
-        makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
+        makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
     });
     await routeInboxStream(page, []);
 
@@ -1208,7 +1210,7 @@ test.describe("navigating out of the inbox closes it (#1795 class)", () => {
       "notifications.markAllRead": () => ({ markedCount: 1 }),
       "notifications.dismiss": () => dismissedRow(inviteRow()),
       "invites.acceptInvite": () =>
-        makeRedeemInviteResult({ chat: makeChatDetail({ id: "chat_ct_target" }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
+        makeRedeemInviteResult({ chat: makeChatDetail({ id: TARGET_CHAT_ID }), participant: makeParticipantView({ id: "participant_ct_new" }) }),
     });
     await routeInboxStream(page, []);
 

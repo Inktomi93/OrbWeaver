@@ -39,4 +39,4 @@ Reviewed kit cleanup narrows internal exports and moves meaningful cases to publ
 
 Reviewed client state doors preserve evaluation, public contracts and legacy cases. Retained decisions and compiler reds stay explicit. Only exact stale keys leave. Evidence: `reports/review/peer-state-population-independent.md`.
 
-Reviewed feature-door cleanup preserves emitted module requests, binding targets and legacy assertions. Retained APIs and header decisions remain explicit. Only exact stale baseline keys leave. Evidence: `reports/review/989-feature-door-independent.md`.
+Reviewed feature doors preserve emitted requests, bindings and legacy assertions. Header-described doors are narrowed; explicit test APIs and state decisions remain retained. Only exact stale keys leave. Evidence: `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.

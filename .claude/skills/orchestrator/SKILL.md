@@ -280,7 +280,7 @@ the primary merges.
 Cross-account messages go through `~/.claude/bridge/`. `~/.claude/bridge/PROTOCOL.md` owns the
 format, numbering, and message kinds. Read it before you write a note.
 
-For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing inbox watcher; do not start a duplicate. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
+For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing native inbox watcher; do not start a duplicate. Use a process, not a dedicated model lane, for inbox polling. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
 
 - Write each note in one shot. The bridge plugin delivers a `bridge: new note N` event for every write to your inbox.
 - Send with `claude-bridge send` (the bridge skill). It numbers the note under the lock.

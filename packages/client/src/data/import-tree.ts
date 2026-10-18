@@ -6,7 +6,7 @@
 // `secrets.json` is dropped here too, whatever the caller planned.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { ImportStarted, PersonaCollision, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportStarted, PersonaCollision, PersonaCollisionChoices, TreeLayoutDeclaration } from "@orb/contracts/import";
 import {
   encodePersonaCollisionChoices,
   importStartedSchema,
@@ -14,11 +14,12 @@ import {
   PERSONA_COLLISION_FIELD,
   personaCollisionReviewSchema,
   ST_SETTINGS_FILE,
+  TREE_FILE_FIELD,
+  TREE_LAYOUT_FIELD,
 } from "@orb/contracts/import";
 import { throwHttpError } from "./http-error.ts";
 
 const TREE_URL = "/api/import/tree";
-const TREE_FIELD = "file";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
 export type TreeImportStarted = ImportStarted;
@@ -40,8 +41,13 @@ export function relativePathOf(file: File): string {
 /** POST one upload's files (each carrying its `webkitRelativePath`) to the tree-import route; resolve the
  *  enqueued workload id. Throws on a non-OK response (400 = unrecognized/invalid layout or a rejected path;
  *  409 = an import is already running; 413 = too large; 401/403 = auth/CSRF) with the server's `{ error }`.
- *  A `secrets.json` is dropped here whatever the caller planned — API keys never leave the browser. */
-export async function importTree(files: readonly File[], personaCollisions: PersonaCollisionChoices = {}): Promise<TreeImportStarted> {
+ *  A `secrets.json` is dropped here whatever the caller planned — API keys never leave the browser. `layout`
+ *  is the plan's declaration for one upload of a split native folder. */
+export async function importTree(
+  files: readonly File[],
+  personaCollisions: PersonaCollisionChoices = {},
+  layout: TreeLayoutDeclaration | null = null,
+): Promise<TreeImportStarted> {
   const form = new FormData();
   for (const file of files) {
     const relPath = relativePathOf(file);
@@ -49,10 +55,13 @@ export async function importTree(files: readonly File[], personaCollisions: Pers
       continue;
     }
     // The 3rd arg overrides the part filename with the browser's relative path (`characters/Aria.png`).
-    form.append(TREE_FIELD, file, relPath);
+    form.append(TREE_FILE_FIELD, file, relPath);
   }
   for (const choice of encodePersonaCollisionChoices(personaCollisions)) {
     form.append(PERSONA_COLLISION_FIELD, choice);
+  }
+  if (layout !== null) {
+    form.append(TREE_LAYOUT_FIELD, layout);
   }
   const response = await fetch(TREE_URL, {
     method: "POST",
@@ -83,7 +92,7 @@ export async function reviewTreePersonas(files: readonly File[]): Promise<readon
   }
   const form = new FormData();
   for (const file of reviewed) {
-    form.append(TREE_FIELD, file, relativePathOf(file));
+    form.append(TREE_FILE_FIELD, file, relativePathOf(file));
   }
   const response = await fetch(REVIEW_URL, { method: "POST", body: form, headers: { [CSRF_HEADER]: "1" } });
   if (!response.ok) {

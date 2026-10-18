@@ -70,7 +70,7 @@ function completed(
   completedPolicyIds = [ORDINARY],
 ): CompletedResult {
   const match = engine.match(findings);
-  return { match, alarms: engine.reconcile({ completedPolicyIds, match }) };
+  return { match, alarms: engine.reconcile({ completedPolicyIds, match }).alarms };
 }
 
 test("CONTROL — an unmarked exact finding stays effective", () => {
@@ -232,7 +232,7 @@ test("unknown, hard, and reviewed-grant policy markers alarm and suppress nothin
     finding(source, "forbidden", { nth: 6, policyId: "reviewed-policy" }),
   ];
   const match = engine.match(findings);
-  const alarms = engine.reconcile({ completedPolicyIds: [], match });
+  const { alarms } = engine.reconcile({ completedPolicyIds: [], match });
 
   expect(match.waiverIds).toEqual([null, null, null]);
   expect(match.markers.map(({ outcome }) => outcome)).toEqual(["unknown-policy", "wrong-authority", "wrong-authority"]);
@@ -245,8 +245,8 @@ test("dead-position and stale markers are distinct and wait for completed owners
   const match = engine.match([finding(source, "forbidden")]);
 
   expect(match.markers.map(({ outcome }) => outcome)).toEqual(["dead-position", "stale"]);
-  expect(engine.reconcile({ completedPolicyIds: [], match })).toEqual([]);
-  expect(engine.reconcile({ completedPolicyIds: [ORDINARY], match }).map(({ message }) => message)).toEqual([
+  expect(engine.reconcile({ completedPolicyIds: [], match }).alarms).toEqual([]);
+  expect(engine.reconcile({ completedPolicyIds: [ORDINARY], match }).alarms.map(({ message }) => message)).toEqual([
     expect.stringContaining("dead position"),
     expect.stringContaining("stale ordinary waiver"),
   ]);

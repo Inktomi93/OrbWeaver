@@ -11,6 +11,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { CharacterGalleryDialogStory, CharacterGalleryDialogToastStory } from "../_ct-stories.tsx";
 import { GALLERY_CELL, ITEM, OWNED_CELL, ownedItem, PAGE_SIZE, pagedItem, TOAST_ROOT } from "../_gallery-fixtures.ts";
+import { CHAT_ID } from "../fixtures.ts";
 
 const OWNED = [ownedItem(0), ownedItem(1)] satisfies TrpcWireOutput<"assets.listOwned">;
 
@@ -314,12 +315,10 @@ test("a PARTIAL add prunes the selection to what did not land (#1501)", async ({
 // cross-tenant refusal is pinned in `list-gallery.int.test.ts`); these pin that the client sends it only for
 // "This chat", keeps the character scope, and reads an empty or failed room scope honestly.
 
-/** The chat `CharacterGalleryDialogStory` opens the dialog from (`fixtures.ts` `CHAT_ID`). */
-const STORY_CHAT_ID = "chat_ct_keystone";
 const ROOM_ITEM = { ...ITEM, galleryItemId: "galleryitem_ct_room", assetId: "asset_ct_room", hash: "d".repeat(64) };
 
 function galleryFor(input: TrpcInput<"assets.listGallery">): TrpcWireOutput<"assets.listGallery"> {
-  return input?.chatId === STORY_CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
+  return input?.chatId === CHAT_ID ? [ROOM_ITEM] : [ITEM, ROOM_ITEM];
 }
 
 // A screen reader walks the grid by name, so two images must never share one.
@@ -347,7 +346,7 @@ test("the scope strip starts on Everywhere and 'This chat' re-reads the gallery 
   await expect(strip.getByRole("radio", { name: "This chat" })).toHaveAttribute("aria-checked", "true");
   await expect
     .poll(() => trpc.lastInput("assets.listGallery"))
-    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: STORY_CHAT_ID, limit: 100, sort: "newest", direction: "forward" });
+    .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: CHAT_ID, limit: 100, sort: "newest", direction: "forward" });
   await expect(page.getByRole("gridcell", { name: GALLERY_CELL })).toHaveCount(1);
 });
 

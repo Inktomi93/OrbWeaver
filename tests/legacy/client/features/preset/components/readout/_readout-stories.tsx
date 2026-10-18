@@ -12,7 +12,6 @@
 // PROMPT pair (D121-G), where the same binding decides whether the rack's bars carry the bound chat's REAL
 // materialized costs or the chat-free `~—` floor.
 
-import { PresetReadout } from "@orb/client/features/preset";
 import {
   goToLanding,
   selectChat,
@@ -26,12 +25,14 @@ import {
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { makeCachePolicy, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { PresetReadout } from "#client/features/preset/components/readout/preset-readout.tsx";
 import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";
@@ -39,7 +40,7 @@ import { __resetPresetSelection } from "#client/state/preset-selection-store.ts"
 import { __resetPresetTemplate } from "#client/state/preset-template-selection-store.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
-const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
+const STORY_CHAT = mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next);
 
 /** The rack row the PROMPT stories select — the conversation CARRIER, the row whose whole point is that the
  *  editor cannot price it chat-free (`DEFAULT_PROMPT_CONFIG`'s own pivot id). */

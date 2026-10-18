@@ -71,13 +71,10 @@ export {
   type WorkloadRunnableRow,
   type WorkloadScheduleRef,
   type WorkloadScheduleView,
-  workloadPoisonRowSchema,
-  workloadProgressSchema,
   workloadRefSchema,
   workloadResultSchemaOf,
   workloadRowAnyKindSchema,
   workloadRowBaseSchema,
-  workloadRunnableRowSchema,
   workloadScheduleRefSchema,
   workloadScheduleViewSchema,
 } from "./views.ts";

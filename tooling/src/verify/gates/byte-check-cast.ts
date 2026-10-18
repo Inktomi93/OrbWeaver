@@ -350,6 +350,20 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/vendor-tag.ts":
+          "export declare function sql(strings: TemplateStringsArray, ...params: number[]): string;\nexport declare namespace sql {\n  function raw(text: string): string;\n}\n",
+        "packages/db/src/schema/vendored-tag.ts":
+          'import { sql } from "./vendor-tag.ts";\n' +
+          `import { ${CHECK_EXPORT}, sqliteTable, text } from "${DRIZZLE_SQLITE}";\n` +
+          BYTE_CONST +
+          'export const t = sqliteTable("t", { value: text("value") });\n' +
+          `export const note = ${CHECK_EXPORT}("t_value_check", sql${TICK}${sqlText("value", BYTE_HOLE)}${TICK});\n`,
+      },
+      why: "THE MERGED-TAG COUNTERFACTUAL — a sibling module whose own `sql` is a function merged with a namespace, the shape drizzle's `sql` has, tagging a byte-named cap with no cast. The merge reads as one origin, and its module is not `drizzle-orm`, so only the module comparison rejects it",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/wrong-export.ts":
           `import { sql } from "${DRIZZLE_ORM}";\n` +
           `import { sqliteTable, text, unique } from "${DRIZZLE_SQLITE}";\n` +

@@ -5,7 +5,8 @@ import type { Issue, IssueType, Preprocessor, ReporterOptions } from "knip";
 
 export const KNIP_BASELINE = "knip-production.baseline.json";
 export const KNIP_FINDINGS = "reports/knip-production-findings.json";
-const BASELINED_TYPES = ["files", "exports", "types", "nsExports", "nsTypes", "enumMembers", "namespaceMembers"] as const satisfies readonly IssueType[];
+/** The symbol and file issue types the production run judges and its baseline may admit. */
+export const BASELINED_TYPES = ["files", "exports", "types", "nsExports", "nsTypes", "enumMembers", "namespaceMembers"] as const satisfies readonly IssueType[];
 
 function keyOf(cwd: string, issue: Issue): string {
   return JSON.stringify([issue.type, relative(cwd, issue.filePath).replaceAll("\\", "/"), issue.parentSymbol ?? "", issue.symbol]);

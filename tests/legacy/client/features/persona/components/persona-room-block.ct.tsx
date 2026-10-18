@@ -4,16 +4,14 @@
 // only the anchor. The room block names a pin whose player left, and never offers a member the host's verbs.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { PersonaYouSheetStory } from "../_ct-stories.tsx";
 
-const CHAT_ID = castId<ChatId>("chat_persona_ct");
+const CHAT_ID = makeChatId();
 const NOVA = "persona_nova";
 const ORION = "persona_orion";
 const ZARA = "persona_zara"; // a MEMBER's persona — never in the viewer's own persona.list

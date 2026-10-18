@@ -1,6 +1,6 @@
 // Chat message-list CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
-// The surface/anchor come through the feature front door; the leaf components come via relative path
-// into the package (stories legitimately compose feature INTERNALS the front door doesn't re-export).
+// MessageListSurface retains its feature door; the legacy thread anchor, room and composer use the
+// root raw-reach map, like the other internal components these stories compose.
 // Fixtures are plain `MessageView`/`ChatBusEvent` literals (the support/factories are DB-row builders
 // for a different layer). Data-layer stories wrap in <CtDataProviders> (Query + real tRPC over the
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
@@ -11,8 +11,6 @@ import { QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import {
   CharacterGalleryAnchor,
-  ChatRoomSurface,
-  Composer,
   chatAlsoOpenTile,
   chatMastheadTile,
   chatQuickPicksTile,
@@ -20,7 +18,6 @@ import {
   chatTempChatTile,
   JoinInviteDialog,
   MessageListSurface,
-  MessageThreadAnchor,
   makeChatControlsContribution,
 } from "@orb/client/features/chat";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
@@ -131,6 +128,7 @@ import { SectionContextHeader, SectionContextHost } from "#client/features/app-s
 import { shellContentWidth } from "#client/features/app-shell/lib/shell-content-width.ts";
 import { CharacterGalleryDialog } from "#client/features/chat/anchors/character-gallery-dialog.tsx";
 import { ChatListAnchor } from "#client/features/chat/anchors/chat-list-anchor.tsx";
+import { MessageThreadAnchor } from "#client/features/chat/anchors/message-thread-anchor.tsx";
 import { AddChatBookDialog } from "#client/features/chat/components/add-chat-book-dialog.tsx";
 import { AddChatDocumentDialog } from "#client/features/chat/components/add-chat-document-dialog.tsx";
 import { AppearanceAvatarsSection } from "#client/features/chat/components/appearance-avatars-section.tsx";
@@ -152,6 +150,7 @@ import { ChatsTopbarHeader } from "#client/features/chat/components/chats-topbar
 import { ChoiceSendProvider } from "#client/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "#client/features/chat/components/committed-members-tab.tsx";
 import { CompactSummaryPeek } from "#client/features/chat/components/compact-summary-peek.tsx";
+import { Composer } from "#client/features/chat/components/composer.tsx";
 import { ComposerArgHintStrip } from "#client/features/chat/components/composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "#client/features/chat/components/composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "#client/features/chat/components/composer-chat-options.tsx";
@@ -196,6 +195,7 @@ import { SWIPE_FOOT_INSIDE } from "#client/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "#client/features/chat/surfaces/chat-landing-surface.tsx";
 import { ChatListSurface } from "#client/features/chat/surfaces/chat-list-surface.tsx";
+import { ChatRoomSurface } from "#client/features/chat/surfaces/chat-room-surface.tsx";
 import type { GoToSection } from "#client/features/chat/surfaces/command-palette-surface.tsx";
 import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
 import { NewChatPicker } from "#client/features/chat/surfaces/new-chat-picker-surface.tsx";
@@ -209,7 +209,7 @@ import { toNotice } from "#client/lib/notify.ts";
 import { committedChat } from "#client/state/chat-handle.ts";
 import { requestChatMoment } from "#client/state/chat-moment-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
+import { CHAT_ID, COMPOSER_CHAT_ID, CT_ATTACH_ASSET_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -3472,9 +3472,6 @@ export function JoinInviteDialogStory({ token }: { readonly token: string }): Re
 }
 
 // ── Attachment media render story (#67) — the asset arm of `MessageMediaBlock` over the resolver context ──
-
-/** A stable asset id the render CT keys its provided url on. */
-const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
 
 /** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
  *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */

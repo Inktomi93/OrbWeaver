@@ -12,7 +12,6 @@ import {
   chatDetailSchema,
   chatIdentitySchema,
   chatReasoningPartSchema,
-  connectionAttributionProvenanceSchema,
   macroFreezeRecordSchema,
   messageKindSchema,
   messageRoleSchema,
@@ -21,7 +20,6 @@ import {
   toolCallRecordSchema,
   userMacroDrawsSchema,
   variableDeltaSchema,
-  variantMetadataSchema,
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { normalizedFinishReasonSchema } from "@orb/contracts/inference";
@@ -73,6 +71,7 @@ import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, vi } from "vitest";
 import { z } from "zod";
 import { cardFaceFields } from "#contracts/card-face/index.ts";
+import { connectionAttributionProvenanceSchema, variantMetadataSchema } from "#contracts/chat/messages.ts";
 
 // A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
 beforeAll(async () => {

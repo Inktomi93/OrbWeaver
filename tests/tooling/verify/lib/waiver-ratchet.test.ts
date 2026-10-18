@@ -204,3 +204,67 @@ test("only a requested-path subset reports a policy unjudged, and never passes i
   expect(ratchet(result)).toEqual([]);
   expect(result.authority.waiverBudget).toEqual({ population: "repository", judged: [], unjudged: ALL_JUDGED });
 });
+
+// A marker an analysis gap defers excuses nothing but keeps its budget slot, so excused plus deferred must equal the budget.
+const GAPPED = defineGate({
+  id: "gapped-fixture",
+  family: "gapped-fixture",
+  authority: "ordinary",
+  severity: "error",
+  population: "@server",
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: "gapped-fixture message",
+  fix: "waive with @orb-waive gapped-fixture(position): reason",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.VariableDeclaration],
+        visit: (node) =>
+          node.isKind(SyntaxKind.VariableDeclaration) && node.getName().startsWith("opaque")
+            ? ctx.report.analysis(node.getNameNode(), { kind: "unknown", reason: "outside the direct shape" })
+            : ctx.report.node(node),
+      },
+    ],
+  }),
+  mustFlag: [{ mode: "source", files: { [SERVER]: "export const planted = true;\n" }, why: "every direct declaration is a finding" }],
+  mustPass: [{ mode: "source", files: { [SERVER]: "export const opaque = true;\n" }, why: "an opaque declaration is only an analysis gap" }],
+});
+
+/** `excuses` waive concrete findings; `held` puts a marker on an UNKNOWN declaration, which defers its liveness. */
+function gappedPass(excuses: readonly string[], held: readonly string[] = []): PolicyPassResult {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/${SERVER}`, `${waived(GAPPED.id, excuses)}${waived(GAPPED.id, held)}export const opaque = 1;\n`);
+  return runPolicyPass({
+    knownPolicies: [GAPPED],
+    policies: [GAPPED],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    waiverBudget: { application: { [GAPPED.id]: 1 }, implementation: {} },
+    failOnWarnings: false,
+  });
+}
+
+test("an analysis gap keeps the budget judged: a deferred marker holds a slot, and a rise or a fall each red", () => {
+  const judged = { population: "repository", judged: [GAPPED.id], unjudged: [] };
+  const atBudget = gappedPass(["gappedExcuse"]);
+  expect(atBudget.toolErrors).toEqual([]);
+  expect(ratchet(atBudget)).toEqual([]);
+  expect(atBudget.authority.waiverBudget).toEqual(judged);
+  const heldAtBudget = gappedPass([], ["opaqueHeld"]);
+  expect(heldAtBudget.authority.waivedFindings).toEqual([]);
+  expect(heldAtBudget.authority.authorityAlarms).toEqual([]);
+  expect(heldAtBudget.authority.waiverBudget).toEqual(judged);
+  expect(ratchet(gappedPass(["gappedExcuse", "newGappedExcuse"]))).toMatchObject([
+    { policyId: GAPPED.id, population: "repository", budget: 1, count: 2, message: expect.stringContaining("fix the new finding") },
+  ]);
+  expect(ratchet(gappedPass(["gappedExcuse"], ["opaqueHeld"]))).toMatchObject([
+    { policyId: GAPPED.id, budget: 1, count: 2, message: expect.stringContaining("including 1 marker(s) whose liveness an analysis gap defers") },
+  ]);
+  expect(ratchet(gappedPass([]))).toMatchObject([
+    { policyId: GAPPED.id, budget: 1, count: 0, message: expect.stringContaining("application plus implementation equals 0") },
+  ]);
+});

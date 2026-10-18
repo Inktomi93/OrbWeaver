@@ -168,7 +168,7 @@ test("fork fires forkChat with this message's seq as throughSeq", async ({ mount
   const trpc = await routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
     ...CHAT_ROOM_ROUTES,
-    "chat.forkChat": () => ({ chat: makeChatDetail({ id: "chat_forked_ct" }) }),
+    "chat.forkChat": () => ({ chat: makeChatDetail() }),
   });
   const message = makeMessageView({ seq: 7 });
   const component = await mount(<MessageActionsRowStory message={message} />);

@@ -28,7 +28,7 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeBrowseCharactersPage, makeHomeView } from "@orb/testkit/node/factories/discovery-view.ts";
 import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";
 import { makePluginRow } from "@orb/testkit/node/factories/plugin-view.ts";
@@ -42,6 +42,7 @@ import { testId } from "#client/lib/test-ids.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
+import { stubAuthConfig } from "../features/user-admin/auth-config-fixtures.ts";
 import { HomePagePendingStory, HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
@@ -166,7 +167,7 @@ const IDENTITY_STUB: TrpcRoutes<"persona.listConnectedToCharacter"> = {
 // journeys needs the room's own reads stubbed: the response row (which `useStartChat` also SEEDS into
 // `getChat`), that same row on the read, the seeded greeting as REAL CANON, and the divider's fit preview
 // (an unlisted-proc `null` is out-of-contract there and crashes the transcript).
-const CREATED_CHAT_ID = "chat_home_created";
+const CREATED_CHAT_ID = makeChatId();
 
 function createdChat(temporary: boolean): TrpcWireOutput<"chat.getChat"> {
   return makeChatDetail({
@@ -532,13 +533,7 @@ const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHan
 
 /** A multi-human deployment and a join token the signed-out visit stashed, both in place before the app boots. */
 async function arriveWithInvite(page: Page): Promise<void> {
-  await page.route("**/api/auth/config", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ mode: "local", multiHumanCapable: true, share: { state: "off", url: null } }),
-    }),
-  );
+  await stubAuthConfig(page, "local");
   await page.addInitScript((token) => sessionStorage.setItem("orb:join-token", token), JOIN_TOKEN);
   await page.reload();
 }
@@ -742,7 +737,7 @@ const CENSUS_DOCS = [
 ] satisfies TrpcWireOutput<"databank.list">["items"];
 const CENSUS_BANK_HEALTH = { ...EMPTY_BANK_HEALTH, ready: 2, chunks: 51, passages: 51, total: CENSUS_DOCS.length };
 /** Two registered extension pages, joined to their plugin's display name by `usePluginPages`. */
-const CENSUS_PLUGIN = makePluginRow({ id: "plugin_census", slug: "census-kit", name: "Census Kit" });
+const CENSUS_PLUGIN = makePluginRow({ slug: "census-kit", name: "Census Kit" });
 const CENSUS_SURFACES = [
   { pluginId: CENSUS_PLUGIN.id, id: "board_page", anchor: "page", title: "The Board", tier: "frame" },
   { pluginId: CENSUS_PLUGIN.id, id: "ledger_page", anchor: "page", title: "The Ledger", tier: "frame" },

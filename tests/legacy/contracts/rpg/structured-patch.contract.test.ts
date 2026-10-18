@@ -14,7 +14,6 @@ import {
   patchChangesToToolCalls,
   patchFieldPaths,
   patchToolsOnlyFields,
-  RPG_PATCH_INDEX_MAX,
   recordToolCalls,
   rpgGameConfigSchema,
   salvagedToolCallFields,
@@ -25,6 +24,7 @@ import {
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
+import { RPG_PATCH_INDEX_MAX } from "#contracts/rpg/structured-patch.ts";
 
 const REFS: ExtractionRefs = {
   actorRefs: ["Mira", "Corvin"],

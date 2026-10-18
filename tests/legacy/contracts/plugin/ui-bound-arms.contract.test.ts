@@ -2,10 +2,6 @@
 
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
 import {
-  PLUGIN_GRID_TILES_MAX,
-  PLUGIN_ROWS_MAX,
-  PLUGIN_TILE_TAGS_MAX,
-  pluginBoundGridTileSchema,
   pluginSurfaceSpecSchema,
   resolvePluginBoundAssetId,
   resolvePluginBoundKeyValueRows,
@@ -13,6 +9,7 @@ import {
   resolvePluginBoundTiles,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_GRID_TILES_MAX, PLUGIN_ROWS_MAX, PLUGIN_TILE_TAGS_MAX, pluginBoundGridTileSchema } from "#contracts/plugin/ui.ts";
 
 // ── #774 ARM C — the BOUND-collection arms (`grid.tilesFrom` + `tileAction`, `image.assetFrom`) ─────────────
 

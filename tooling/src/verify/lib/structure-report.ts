@@ -120,6 +120,7 @@ function row(owner: PolicyOwnerResult, policy: GatePolicy, t: Tallies): FinalPol
     withheld,
     population: populationCounts(owner.population),
     receipts: owner.receipts,
+    ...(owner.analysis === undefined ? {} : { analysis: owner.analysis }),
     violations: findings.map((finding) => violationOf(finding, policy)),
     waived: t.waived.get(owner.id) ?? 0,
     granted: t.granted.get(owner.id) ?? 0,

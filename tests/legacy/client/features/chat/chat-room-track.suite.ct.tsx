@@ -35,7 +35,7 @@ import type { Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME, VARIANT_NEXT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { makeCharacterDetail } from "../character/fixtures.ts";
 import { ChatRoomTrackStory } from "./_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, makeMessagesPage, makeMessageView } from "./fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "./fixtures.ts";
 
 const CONTENT_COLUMN = '[data-slot="message-content-column"]';
 const MESSAGE_ROW = '[data-slot="message-row"]';
@@ -96,7 +96,7 @@ const AZAREAL_ID = castId<CharacterId>("char_track_azareal");
 function seat(): ParticipantView {
   return {
     id: castId("participant_track"),
-    chatId: castId("chat_ct_keystone"),
+    chatId: CHAT_ID,
     kind: "character",
     userId: null,
     characterId: AZAREAL_ID,

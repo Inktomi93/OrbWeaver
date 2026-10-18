@@ -11,6 +11,7 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { seedActiveChat } from "@orb/testkit/node/seed-active-chat.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AttachmentMediaStory, RoomImageDetailStory } from "../_ct-stories.tsx";
+import { CT_ATTACH_ASSET_ID } from "../fixtures.ts";
 
 const MEDIA_IMG = '[data-slot="message-media"]';
 const PNG_DATA_SRC = /^data:image\/png/u;
@@ -64,11 +65,11 @@ test("#618: clicking a room image with an ACTIVE chat opens the detail modal BOU
   const trpc = await routeTrpc(page, {
     // The provenance strip's read — absent is a legal render (the strip says so), it just must not throw.
     "imagery.readProvenance": () => null,
-    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: "asset_ct_attach", hash: "deadbeef" })],
+    "assets.resolveBlobRefs": () => [makeAssetBlobRef({ assetId: CT_ATTACH_ASSET_ID, hash: "deadbeef" })],
     "chat.setChatBackground": () => ({
       kind: "asset",
       externalUrl: "",
-      assetId: "asset_ct_attach",
+      assetId: CT_ATTACH_ASSET_ID,
       assetHash: "deadbeef",
       mime: "image/png",
       provenanceUrl: "",
@@ -91,7 +92,7 @@ test("#618: clicking a room image with an ACTIVE chat opens the detail modal BOU
   await expect.poll(() => trpc.count("chat.setChatBackground")).toBe(1);
   await expect
     .poll(() => trpc.lastInput("chat.setChatBackground"))
-    .toMatchObject({ chatId: ACTIVE_CHAT, background: { kind: "asset", assetId: "asset_ct_attach" } });
+    .toMatchObject({ chatId: ACTIVE_CHAT, background: { kind: "asset", assetId: CT_ATTACH_ASSET_ID } });
 });
 
 // #625 — the RESERVATION arm: the row's resolved asset now carries the STORED dims, so the box is the

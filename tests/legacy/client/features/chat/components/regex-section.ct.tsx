@@ -105,7 +105,6 @@ function board01(): EffectiveRegexFixture {
 }
 
 const CHAT_DETAIL = makeChatDetail({
-  id: "chat_ct",
   viewerIsHost: true,
   hostDisplayScripts: false,
   roomOverrides: {},

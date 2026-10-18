@@ -19,6 +19,9 @@ interface Reported {
 
 function sinkOf(reported: Reported[]): GatePolicyReportSink {
   return {
+    analysis: (): never => {
+      throw new Error("grant grouping does not make partial-analysis claims");
+    },
     node: (node, details): void => {
       reported.push({ node, details });
     },
@@ -110,6 +113,9 @@ interface FileReported {
 
 function fileSinkOf(reported: FileReported[]): GatePolicyReportSink {
   return {
+    analysis: (): never => {
+      throw new Error("grant grouping does not make partial-analysis claims");
+    },
     node: (): never => {
       throw new Error("this reader reports file findings only");
     },

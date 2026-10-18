@@ -1,5 +1,5 @@
 // Final ordinary-waiver acquisition and reconciliation contract.
-import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "./gate-authority.ts";
+import type { CoordinatedGateFinding, GateOwnerResult, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "./gate-authority.ts";
 import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 
 export interface OrdinaryWaiverEngineInput {
@@ -47,9 +47,8 @@ export interface OrdinaryWaiverMatchResult {
   readonly bindingFailures: readonly OrdinaryWaiverBindingFailure[];
 }
 
-/** @public knip type-face false positive — a structural field (`reconcile`) of the exported `OrdinaryWaiverEngine` shape (line
- *  55), never referenced by its own name at any call site. */
 export interface OrdinaryWaiverReconciliationInput {
+  readonly analysisGaps?: ReadonlyMap<string, NonNullable<GateOwnerResult["analysisGaps"]>>;
   readonly completedPolicyIds: readonly string[];
   /** Effective population of each completed owner that covered only a subset; its markers outside it are not judged. */
   readonly subsetPopulations?: ReadonlyMap<string, ReadonlySet<string>>;
@@ -60,7 +59,13 @@ export interface OrdinaryWaiverEngine {
   /** Match one complete coordinated batch; cardinality is decided before anything is suppressed. */
   readonly match: (findings: readonly CoordinatedGateFinding[]) => OrdinaryWaiverMatchResult;
   /** Emit liveness/cardinality alarms only for completed ordinary owners. */
-  readonly reconcile: (input: OrdinaryWaiverReconciliationInput) => readonly OrdinaryAuthorityAlarm[];
+  readonly reconcile: (input: OrdinaryWaiverReconciliationInput) => OrdinaryWaiverReconciliation;
+}
+
+export interface OrdinaryWaiverReconciliation {
+  readonly alarms: readonly OrdinaryAuthorityAlarm[];
+  /** Per completed policy, markers whose liveness an analysis gap deferred; each still holds a budget slot. */
+  readonly deferred: ReadonlyMap<string, number>;
 }
 
 /** @public knip type-face false positive — the declared signature of the engine's factory door, `lib/ordinary-waiver.ts#createOrdinaryWaiverEngine`.

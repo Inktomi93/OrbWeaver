@@ -6,11 +6,7 @@ import {
   PLUGIN_ANCHOR_TIERS,
   PLUGIN_COMMAND_ARG_TYPES,
   PLUGIN_COMMAND_ARGS_DECLARED_MAX,
-  PLUGIN_COMMAND_DESCRIBE_MAX,
-  PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
-  PLUGIN_GRID_TILES_MAX,
   PLUGIN_SPEC_MAX_DEPTH,
-  PLUGIN_SPEC_MAX_NODES,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
   PLUGIN_TEXT_MAX_CHARS,
@@ -18,12 +14,18 @@ import {
   pluginCommandArgsSchema,
   pluginCommandRegistrationMetaSchema,
   pluginComposerDraftSchema,
-  pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   resolvePluginBoundBoolean,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import {
+  PLUGIN_COMMAND_DESCRIBE_MAX,
+  PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
+  PLUGIN_GRID_TILES_MAX,
+  PLUGIN_SPEC_MAX_NODES,
+  pluginSurfaceNodeSchema,
+} from "#contracts/plugin/ui.ts";
 
 // ── U5: the BROWSE-GENRE vocabulary + the host-mediated affordance grammar (§4.5a/§4.5b, seam 16) ──────────
 

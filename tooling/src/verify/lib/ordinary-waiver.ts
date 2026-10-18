@@ -1,10 +1,7 @@
-// Parser-backed acquisition and exact-occurrence reconciliation for final ordinary policy waivers. The
-// CARRIER half — where a comment sits and what authored region it can bind to, in TypeScript and in resource
-// text, and where a finding's token sits — is `ordinary-waiver-carrier.ts` (split out at the size cap
-// 2026-09-18). The marker GRAMMAR, the binding verdicts and the engine stay HERE, in the module
-// `policy-legacy-imports` fences gates from; the carrier module holds no parser and no outcome.
+// Exact-occurrence ordinary waiver reconciliation; carrier geometry has its own shared reader.
 import type { SourceFile } from "ts-morph";
 import { ts } from "ts-morph";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "../contract/gate-authority.ts";
 import type {
@@ -13,6 +10,7 @@ import type {
   OrdinaryWaiverMarkerMatch,
   OrdinaryWaiverMarkerOutcome,
   OrdinaryWaiverMatchResult,
+  OrdinaryWaiverReconciliation,
 } from "../contract/ordinary-waiver.ts";
 import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import { commentSpansInText, forEachCommentRange } from "./comment-spans.ts";
@@ -124,9 +122,7 @@ function parseMarker(comment: string): ParsedMarker | undefined {
   return position === "" || reason === "" ? { policyId, malformed: true, scope: "line" } : { policyId, position, reason, malformed: false, scope: "line" };
 }
 
-// Every pass re-acquires markers from the whole corpus, and one process can run many passes over mostly
-// unchanged files. Keyed on the parsed ts.SourceFile: its text and nodes never change, and an edited file
-// gets a new one.
+// Compiler source identity changes with its bytes, so cached marker coordinates cannot survive an edit.
 const markersBySource = new WeakMap<ts.SourceFile, readonly MutableMarker[]>();
 
 function collectMarkers(sourceFile: SourceFile): readonly MutableMarker[] {
@@ -322,30 +318,7 @@ function evaluateMarker(marker: AcquiredMarker, findings: readonly LocatedFindin
   return { marker, candidates, reachable, outcome: reachable.length > 0 ? "unbound-trivia" : "stale" };
 }
 
-/** RELOCATION MUST BE AN AVAILABLE REMEDY FOR `unbound-trivia` TO BE THE HONEST LABEL (#2205).
- *
- *  `unbound-trivia` tells its reader to move the marker onto the occurrence it names. That advice is only
- *  true while some reachable finding is still UNCLAIMED. If every same-token finding in the file already
- *  has its own matched marker, relocating this one cannot bind it — the pair would report
- *  `duplicate-target` instead — so the marker is not mis-aimed: it waives nothing and belongs deleted.
- *  That is `stale`, whose message ("no live finding is bound to its comment carrier") is the true one.
- *
- *  MEASURED, and it is why this exists: `lib/biome-rule-liveness.ts:303` carried a waiver over a `catch`
- *  that `{ cause }` chaining already owns, so the site was never in the policy's population at all. Its
- *  `error` position collided with the genuinely-waived EPERM absorb 140 lines up, the engine reported
- *  `unbound-trivia`, and the repair it advertised would have produced a duplicate.
- *
- *  THE NARROW SUBSET IS THE POINT. "Reserve `unbound-trivia` for the case it actually names" was the first
- *  proposal and it over-fixes: the wrong-statement case is REAL, is pinned
- *  (`tests/tooling/verify/lib/ordinary-waiver.test.ts`, the unbound marker whose target is unclaimed), and
- *  its remedy really is relocation. Only "relocation is impossible" moves.
- *
- *  DECLARED LIMIT, seen and priced rather than missed: a marker on a non-site whose same-token sibling
- *  elsewhere in the file is UNCLAIMED still reports `unbound-trivia`, and for that author the true remedy
- *  is delete. It is left alone on purpose. No position-data discriminator separates it from a genuine
- *  wrong-statement marker — both are "carrier empty, unclaimed same-token finding present" — and unlike
- *  the claimed case, "relocate onto it" stays a coherent suggestion, because that finding needs a waiver
- *  or a fix either way. Narrowing further would need author intent, which this engine does not have. */
+// An unbound marker is relocatable only while its intended finding remains unclaimed.
 function downgradeUnreachableUnbound(evaluated: readonly EvaluatedMarker[], claimed: ReadonlySet<number>): void {
   for (const entry of evaluated) {
     if (entry.outcome === "unbound-trivia" && entry.reachable.length > 0 && entry.reachable.every((index) => claimed.has(index))) {
@@ -439,12 +412,35 @@ function reconcileMatch(
   );
 }
 
+function bindsAnalysisGap(marker: AcquiredMarker, source: OrdinaryWaiverSource | undefined, gaps: StructureAnalysisCoverage["unknown"] | undefined): boolean {
+  if (source?.kind !== "typescript") {
+    return false;
+  }
+  const root = source.sourceFile.compilerNode;
+  return (gaps ?? []).some(
+    (gap) =>
+      gap.file === marker.file && gap.token === marker.position && markerBinds(marker, root.getPositionOfLineAndCharacter(gap.line - 1, gap.column - 1), root),
+  );
+}
+
 export function createOrdinaryWaiverEngine(input: OrdinaryWaiverEngineInput): OrdinaryWaiverEngine {
   const policies = policyTable(input.knownPolicies);
   const sources = sourceTable(input.sources);
   const markers = acquireMarkers(input, policies);
   return {
     match: (findings) => matchBatch(markers, sources, findings),
-    reconcile: ({ completedPolicyIds, match, subsetPopulations }) => reconcileMatch(completedPolicyIds, match, subsetPopulations ?? new Map()),
+    reconcile: ({ completedPolicyIds, match, subsetPopulations, analysisGaps }): OrdinaryWaiverReconciliation => {
+      // A marker whose exact carrier binds an analysis gap has its liveness deferred; it still holds a budget slot.
+      const bound = new Set(
+        markers.filter((marker) => bindsAnalysisGap(marker, sources.get(marker.file), analysisGaps?.get(marker.policyId))).map(({ id }) => id),
+      );
+      const held = match.markers.filter((marker) => (marker.outcome === "stale" || marker.outcome === "unbound-trivia") && bound.has(marker.id));
+      const deferred = new Map<string, number>();
+      for (const marker of held.filter(({ policyId }) => completedPolicyIds.includes(policyId))) {
+        deferred.set(marker.policyId, (deferred.get(marker.policyId) ?? 0) + 1);
+      }
+      const judged = { ...match, markers: match.markers.filter((marker) => !held.includes(marker)) };
+      return { alarms: reconcileMatch(completedPolicyIds, judged, subsetPopulations ?? new Map()), deferred };
+    },
   };
 }

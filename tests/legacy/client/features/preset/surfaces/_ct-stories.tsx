@@ -10,7 +10,7 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation } from "@orb/client/data";
-import { PresetEditorSurface, PresetLibrarySurface, PresetLibraryWelcome } from "@orb/client/features/preset";
+import { PresetEditorSurface } from "@orb/client/features/preset";
 import { selectPreset, setNarrowViewport, setPresetSearchQuery, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,6 +18,8 @@ import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { PresetLibraryWelcome } from "#client/features/preset/components/preset-library-welcome.tsx";
+import { PresetLibrarySurface } from "#client/features/preset/surfaces/preset-library-surface.tsx";
 import { __resetPresetSelection } from "#client/state/preset-selection-store.ts";
 import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 
