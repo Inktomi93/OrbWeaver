@@ -85,17 +85,6 @@ function dummyVector(dims: number): Float32Array {
   return new Float32Array(dims);
 }
 
-/** Every scope of the owner's memory space completes through the sweeps that record it (the card sweep, the memory
- *  and document reclaims), so search reads it as ready. */
-export async function completeMemorySpace(db: Db, ownerId: UserId): Promise<void> {
-  const generation = await memoryGeneration(db, ownerId);
-  const receipt = { id: generation.id, task: "embed", via: "embed", epoch: generation.epoch, space: generation.space } as const;
-  const embeddings = createEmbeddingsService(makeStoreHarness(db).ctx);
-  await embeddings.embedCorpus({ ownerId, force: false, signal: new AbortController().signal });
-  await embeddings.purgeMemoryVectors({ ownerId, generation: receipt });
-  await embeddings.purgeDocumentVectors({ ownerId, generation: receipt });
-}
-
 async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<MemorySpace> {
   const ownerId = knownOwnerId ?? (await loadPresentHostUserId(db, chatId));
   if (ownerId === null) {
