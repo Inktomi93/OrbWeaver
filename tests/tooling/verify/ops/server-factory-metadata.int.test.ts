@@ -18,10 +18,15 @@ import { runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
 const PROVIDER = "packages/server/src/infra/adapter.ts";
 const CONSUMER = "packages/server/src/entry/consumer.ts";
 const RULE = "server-factory-tier-reference";
+const PUBLIC_BOUNDARY_GRAMMAR = "tooling/src/floor/code-facts/server-public-boundary-grammar.ts";
 const PROVIDER_SOURCE = `export interface Handle {readonly close:()=>void}
 export function handle():Handle{return {close(){}}}
-export function read(){return {stamp:1}}
+export function read():{readonly stamp:number}{return {stamp:1}}
 `;
+const EXPOSED_PROVIDER_SOURCE = PROVIDER_SOURCE.replace(
+  "export function read():{readonly stamp:number}{return {stamp:1}}",
+  "export function read():Handle{return handle()}",
+);
 
 function put(root: string, path: string, text: string): void {
   mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -33,7 +38,7 @@ function fixture(root: string, repoRoot: string): void {
   if (entry === undefined) {
     throw new Error("native factory metadata missing");
   }
-  for (const path of entry.inputs) {
+  for (const path of new Set([...entry.inputs, PUBLIC_BOUNDARY_GRAMMAR])) {
     if (["eslint.config.js", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml"].includes(path)) {
       continue;
     }
@@ -89,7 +94,7 @@ export default [{ignores:["node_modules/**",".cache/**","reports/**","tooling/**
   execFixtureGit(root, ["add", "."]);
 }
 
-test("provider-only signature exposure invalidates warm native cache and reselects unchanged consumers without selecting unrelated UI", async ({
+test("public boundary implementation and provider signatures invalidate warm native cache and reselect unchanged consumers without unrelated UI", async ({
   scratch,
   repoRoot,
 }) => {
@@ -109,10 +114,32 @@ test("provider-only signature exposure invalidates warm native cache and reselec
     return run(executable, args, options);
   });
   try {
-    expect(await runScopedEslint(scratch, [PROVIDER])).toBe(0);
+    expect(await runScopedEslint(scratch, [PUBLIC_BOUNDARY_GRAMMAR])).toBe(0);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
+    const cacheFiles = seen
+      .filter((args) => args.includes(CONSUMER))
+      .flatMap((args) => {
+        const index = args.indexOf("--cache-location");
+        return index < 0 ? [] : args.slice(index + 1, index + 2);
+      });
+    expect(cacheFiles).toHaveLength(1);
+    const cacheFile = cacheFiles[0];
+    if (cacheFile === undefined) {
+      throw new Error("native consumer cache identity missing");
+    }
+    const cached = readFileSync(cacheFile, "utf8");
     seen.length = 0;
-    put(scratch, PROVIDER, PROVIDER_SOURCE.replace("return {stamp:1}", "return handle()"));
+    put(
+      scratch,
+      PUBLIC_BOUNDARY_GRAMMAR,
+      `${readFileSync(join(scratch, PUBLIC_BOUNDARY_GRAMMAR), "utf8")}\n// Changed implementation input invalidates the unchanged consumer's native config identity.\n`,
+    );
+    expect(await runScopedEslint(scratch, [PUBLIC_BOUNDARY_GRAMMAR])).toBe(0);
+    expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
+    expect(readFileSync(cacheFile, "utf8")).not.toBe(cached);
+    expect(await readEslintFileAdmissions(scratch, "eslint.config.js", [CONSUMER])).toMatchObject([{ path: CONSUMER, compilerConfigs: ["tsconfig.json"] }]);
+    seen.length = 0;
+    put(scratch, PROVIDER, EXPOSED_PROVIDER_SOURCE);
     expect(await runScopedEslint(scratch, [PROVIDER])).toBe(1);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
     seen.length = 0;
@@ -155,7 +182,7 @@ test("provider directory edits invalidate a warm native cache and reselect uncha
     expect(await runScopedEslint(scratch, [PROVIDER])).toBe(0);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
     seen.length = 0;
-    put(scratch, PROVIDER, PROVIDER_SOURCE.replace("return {stamp:1}", "return handle()"));
+    put(scratch, PROVIDER, EXPOSED_PROVIDER_SOURCE);
     expect(await runScopedEslint(scratch, ["packages/server/src/infra/"])).toBe(1);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
     expect(affectsTypedNativeLint("packages/server/src/infra")).toBe(true);

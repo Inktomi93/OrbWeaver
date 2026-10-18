@@ -45,7 +45,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 22;
+export const INVENTORY_FORMAT = 23;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -676,6 +676,8 @@ export const partitionSchema = z.object({
   ),
   bindings: z.array(z.object({ node: spanSchema, symbols: symbolSchema })),
   references: z.array(z.object({ declaration: spanSchema, reference: spanSchema, consumerClass: z.enum(INVENTORY_CONSUMER_CLASSES) })),
+  /** Extractor-recorded name spans whose reference rows repeat their declaration's rows; storage keeps one copy. */
+  referenceNames: z.array(z.object({ name: spanSchema, declaration: spanSchema })).optional(),
   witnesses: z.array(z.object({ node: spanSchema, name: z.string(), declarations: z.array(spanSchema) })),
 });
 
@@ -703,6 +705,7 @@ export const partitionMetadataSchema = partitionSchema.omit({
   modules: true,
   bindings: true,
   references: true,
+  referenceNames: true,
   witnesses: true,
 });
 export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string(), referenceMode: z.enum(INVENTORY_REFERENCE_MODES) });
@@ -744,6 +747,7 @@ export const INVENTORY_RECORD_TABLES = [
   "fact",
   "declaration",
   "reference",
+  "referenceName",
   "referenceQuery",
   "referenceQueryNode",
   "brand",

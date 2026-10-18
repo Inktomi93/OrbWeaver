@@ -1,5 +1,6 @@
 // Advance logical scheduling phases only after the native graph has joined its active work.
 import { addAbortListener } from "node:events";
+import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { getLog } from "@orb/server/foundation/observability";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -14,6 +15,32 @@ function ownsDeadlineFailure(deadline: AbortSignal, error: unknown): boolean {
   return deadline.aborted && error === deadline.reason;
 }
 
+// The event-time replay window can expire; absence never establishes that a workload did not start.
+function snapshotWorkloadReplay(
+  root: Pick<ServerTestHarness, "app">,
+  started: Parameters<typeof settleCorpusWorkloads>[2],
+): readonly {
+  readonly observation: "unobserved" | "graph-replay";
+  readonly kind: WorkloadEvent["kind"] | null;
+  readonly lastType: WorkloadEvent["type"] | null;
+  readonly startedPresent: boolean;
+  readonly progressCount: number;
+  readonly eventCount: number;
+}[] {
+  return started.map(({ id }) => {
+    const events = root.app.workloadEvents.getRecentWorkloadEvents(id);
+    const last = events.at(-1);
+    return {
+      observation: events.length === 0 ? "unobserved" : "graph-replay",
+      kind: last?.kind ?? null,
+      lastType: last?.type ?? null,
+      startedPresent: events.some((event) => event.type === "started"),
+      progressCount: events.reduce((count, event) => (event.type === "progress" ? count + 1 : count), 0),
+      eventCount: events.length,
+    };
+  });
+}
+
 function workloadSettlementFailure(
   message: string,
   requested: number,
@@ -23,6 +50,7 @@ function workloadSettlementFailure(
     readonly phase: (typeof WORKLOAD_SETTLEMENT_PHASES)[number];
     readonly index: number | null;
     readonly admitted: Parameters<typeof settleCorpusWorkloads>[2];
+    readonly replay: ReturnType<typeof snapshotWorkloadReplay>;
   },
 ): Error {
   const observation =
@@ -37,7 +65,7 @@ function workloadSettlementFailure(
     `${message}: ${JSON.stringify({
       requested,
       ...observation,
-      ...(diagnostic === undefined ? {} : { phase: diagnostic.phase, index: diagnostic.index }),
+      ...(diagnostic === undefined ? {} : { phase: diagnostic.phase, index: diagnostic.index, replay: diagnostic.replay }),
     })}`,
     { cause: diagnostic === undefined ? jobs : { ...diagnostic, lastObserved: jobs } },
   );
@@ -45,7 +73,7 @@ function workloadSettlementFailure(
 
 /** Settle the actual admitted IDs; failed or cancelled jobs never become successful corpus data. */
 export async function settleCorpusWorkloads(
-  root: Pick<ServerTestHarness, "timers" | "settleBackground" | "runAdmittedWorkload">,
+  root: Pick<ServerTestHarness, "app" | "timers" | "settleBackground" | "runAdmittedWorkload">,
   caller: Pick<CorpusCaller, "workloads">,
   started: readonly Awaited<ReturnType<CorpusCaller["workloads"]["start"]>>[],
 ): Promise<CorpusWorkloadRows> {
@@ -96,6 +124,7 @@ export async function settleCorpusWorkloads(
       phase,
       index,
       admitted: started,
+      replay: snapshotWorkloadReplay(root, started),
     });
   }
 }

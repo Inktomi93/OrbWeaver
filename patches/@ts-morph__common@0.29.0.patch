@@ -19,7 +19,7 @@ index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7a
          realpath: languageServiceHost.realpath,
      };
 diff --git a/dist/typescript.js b/dist/typescript.js
-index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc59e9714d2 100644
+index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..58ae8753ae36303aa37d9a9745b9eec7f96321b8 100644
 --- a/dist/typescript.js
 +++ b/dist/typescript.js
 @@ -153369,6 +153369,7 @@ var invalidOperationsInSyntacticMode = [
@@ -30,7 +30,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    "getDocumentHighlights",
    "getNavigateToItems",
    "getRenameInfo",
-@@ -153376,6 +153377,41 @@ var invalidOperationsInSyntacticMode = [
+@@ -153376,6 +153377,49 @@ var invalidOperationsInSyntacticMode = [
    "getApplicableRefactors",
    "preparePasteEditsForFile"
  ];
@@ -41,9 +41,12 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
 +const maximumReadonlyReferenceResults = 4096;
 +const maximumReadonlyReferenceResultObjects = 32768;
 +const maximumReadonlyReferenceResultUnits = 1048576;
++const maximumReadonlyReferenceRelationEntries = 1048576;
++const maximumReadonlyReferenceRelationCandidates = 2097152;
 +class ReadonlyReferencePass {
-+  constructor(query, validate, release, occurrences) {
++  constructor(query, validate, release, occurrences, statistics) {
 +    this.occurrences = occurrences;
++    this.statistics = statistics;
 +    this.query = query;
 +    this.validateSource = validate;
 +    this.release = release;
@@ -60,9 +63,14 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
 +    if (!this.occurrences) throw new Error("Readonly reference pass is disposed");
 +    return this.occurrences(queries);
 +  }
++  getOccurrenceStatistics() {
++    if (!this.statistics) throw new Error("Readonly reference pass is disposed");
++    return { ...this.statistics };
++  }
 +  dispose() {
 +    const release = this.release;
 +    this.occurrences = void 0;
++    this.statistics = void 0;
 +    this.query = void 0;
 +    this.validateSource = void 0;
 +    this.release = void 0;
@@ -72,7 +80,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
  function createLanguageService(host, documentRegistry = createDocumentRegistry(host.useCaseSensitiveFileNames && host.useCaseSensitiveFileNames(), host.getCurrentDirectory(), host.jsDocParsingMode), syntaxOnlyOrLanguageServiceMode) {
    var _a;
    let languageServiceMode;
-@@ -153387,6 +153423,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -153387,6 +153431,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      languageServiceMode = syntaxOnlyOrLanguageServiceMode;
    }
    const syntaxTreeCache = new SyntaxTreeCache(host);
@@ -80,7 +88,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    let program;
    let lastProjectVersion;
    let lastTypesRootVersion = 0;
-@@ -153661,6 +153698,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -153661,6 +153706,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      }
    }
    function cleanupSemanticCache() {
@@ -88,14 +96,16 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
      if (program) {
        const key = documentRegistry.getKeyForCompilationSettings(program.getCompilerOptions());
        forEach(program.getSourceFiles(), (f) => documentRegistry.releaseDocumentWithKey(f.resolvedPath, key, f.scriptKind, f.impliedNodeFormat));
-@@ -154001,9 +154039,166 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -154001,9 +154047,168 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      const sourceFiles = options && options.use === ts_FindAllReferences_exports.FindReferencesUse.Rename ? program.getSourceFiles().filter((sourceFile) => !program.isSourceFileDefaultLibrary(sourceFile)) : program.getSourceFiles();
      return ts_FindAllReferences_exports.findReferenceOrRenameEntries(program, cancellationToken, sourceFiles, node, position, options, cb);
    }
 -  function findReferences(fileName, position) {
-+  function createReadonlyReferencePass() {
++  function createReadonlyReferencePass(passOptions) {
      synchronizeHostData();
 -    return ts_FindAllReferences_exports.findReferencedSymbols(program, cancellationToken, program.getSourceFiles(), getValidSourceFile(fileName), position);
++    const occurrenceRelation = (passOptions == null ? void 0 : passOptions.occurrenceRelation) !== false;
++    const statistics = { batches: 0, queries: 0, indexed: 0, computedNative: 0, computedMixed: 0, native: 0, nullRosters: 0, relationBuilds: 0, relationEntries: 0, relationCandidates: 0, relationSaturated: 0, relationHits: 0, relationNativeEntries: 0 };
 +    const snapshotProgram = program;
 +    const checker = program.getTypeChecker();
 +    const sourceFiles = program.getSourceFiles();
@@ -243,11 +253,11 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
 +    }, (queries) => {
 +      validateSnapshot();
 +      for (const query of queries) validateSource(query.fileName);
-+      const answers = Core.getReferenceOccurrencesForQueries(queries, snapshotProgram, cancellationToken, getReferenceLocation, getDirectImports);
++      const answers = Core.getReferenceOccurrencesForQueries(queries, snapshotProgram, cancellationToken, getReferenceLocation, getDirectImports, getReferencePositions, occurrenceRelation, statistics);
 +      for (const query of queries) validateSource(query.fileName);
 +      validateSnapshot();
 +      return answers;
-+    });
++    }, statistics);
 +    readonlyReferencePasses.add(pass);
 +    return pass;
 +  }
@@ -257,7 +267,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    }
    function getFileReferences(fileName) {
      synchronizeHostData();
-@@ -154652,6 +154847,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
+@@ -154652,6 +154857,7 @@ function createLanguageService(host, documentRegistry = createDocumentRegistry(h
      getTypeDefinitionAtPosition: getTypeDefinitionAtPosition2,
      getReferencesAtPosition,
      findReferences,
@@ -265,7 +275,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
      getFileReferences,
      getDocumentHighlights,
      getNameOrDottedNameSpan,
-@@ -172590,8 +172786,7 @@ __export(ts_FindAllReferences_exports, {
+@@ -172590,8 +172796,7 @@ __export(ts_FindAllReferences_exports, {
  });
  
  // src/services/importTracker.ts
@@ -275,21 +285,22 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    return (exportSymbol, exportInfo, isForRename) => {
      const { directImports, indirectUsers } = getImportersForExport(sourceFiles, sourceFilesSet, allDirectImports, exportInfo, checker, cancellationToken);
      return { indirectUsers, ...getSearchesFromDirectImports(directImports, exportSymbol, exportInfo.exportKind, checker, isForRename) };
-@@ -173237,9 +173432,12 @@ var FindReferencesUse = /* @__PURE__ */ ((FindReferencesUse2) => {
+@@ -173237,9 +173442,13 @@ var FindReferencesUse = /* @__PURE__ */ ((FindReferencesUse2) => {
    FindReferencesUse2[FindReferencesUse2["Rename"] = 2] = "Rename";
    return FindReferencesUse2;
  })(FindReferencesUse || {});
 -function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position) {
-+function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position, includeDefinitionDisplay = true, getDirectImports, getReferenceLocation, getReferencePositions) {
++function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFile, position, includeDefinitionDisplay = true, getDirectImports, getReferenceLocation, getReferencePositions, getReferenceRelation) {
    const node = getTouchingPropertyName(sourceFile, position);
    const options = { use: 1 /* References */ };
 +  if (getDirectImports) options.getDirectImports = getDirectImports;
 +  if (getReferenceLocation) options.getReferenceLocation = getReferenceLocation;
 +  if (getReferencePositions) options.getReferencePositions = getReferencePositions;
++  if (getReferenceRelation) options.getReferenceRelation = getReferenceRelation;
    const referencedSymbols = Core.getReferencedSymbolsForNode(position, node, program, sourceFiles, cancellationToken, options);
    const checker = program.getTypeChecker();
    const adjustedNode = Core.getAdjustedNode(node, options);
-@@ -173247,7 +173445,7 @@ function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFi
+@@ -173247,7 +173456,7 @@ function findReferencedSymbols(program, cancellationToken, sourceFiles, sourceFi
    return !referencedSymbols || !referencedSymbols.length ? void 0 : mapDefined(referencedSymbols, ({ definition, references }) => (
      // Only include referenced symbols that have a valid definition.
      definition && {
@@ -298,7 +309,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
        references: references.map((r) => toReferencedSymbolEntry(r, symbol))
      }
    ));
-@@ -173304,12 +173502,12 @@ function getReferenceEntriesForNode(position, node, program, sourceFiles, cancel
+@@ -173304,12 +173513,12 @@ function getReferenceEntriesForNode(position, node, program, sourceFiles, cancel
  function flattenEntries(referenceSymbols) {
    return referenceSymbols && flatMap(referenceSymbols, (r) => r.references);
  }
@@ -313,7 +324,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          const name2 = displayParts2.map((p) => p.text).join("");
          const declaration = symbol.declarations && firstOrUndefined(symbol.declarations);
          const node = declaration ? getNameOfDeclaration(declaration) || declaration : originalNode;
-@@ -173333,13 +173531,13 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+@@ -173333,13 +173542,13 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
        case 3 /* This */: {
          const { node } = def;
          const symbol = checker.getSymbolAtLocation(node);
@@ -329,7 +340,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          return { ...getFileAndTextSpanFromNode(node), name: "this", kind: "var" /* variableElement */, displayParts: displayParts2 };
        }
        case 4 /* String */: {
-@@ -173370,9 +173568,9 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
+@@ -173370,9 +173579,9 @@ function definitionToReferencedSymbolDefinitionInfo(def, checker, originalNode)
      containerName: "",
      fileName: sourceFile.fileName,
      kind,
@@ -341,7 +352,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
      ...toContextSpan(textSpan, sourceFile, context)
    };
  }
-@@ -173383,10 +173581,10 @@ function getFileAndTextSpanFromNode(node) {
+@@ -173383,10 +173592,10 @@ function getFileAndTextSpanFromNode(node) {
      textSpan: getTextSpan(isComputedPropertyName(node) ? node.expression : node, sourceFile)
    };
  }
@@ -354,24 +365,27 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    return { displayParts, kind: symbolKind };
  }
  function toRenameLocation(entry, originalNode, checker, providePrefixAndSuffixText, quotePreference) {
-@@ -173590,6 +173788,87 @@ function declarationIsWriteAccess(decl) {
+@@ -173590,6 +173799,114 @@ function declarationIsWriteAccess(decl) {
  }
  var Core;
  ((Core2) => {
-+  function getReferenceOccurrencesForQueries(queries, program, cancellationToken, getReferenceLocation, getDirectImports) {
++  function getReferenceOccurrencesForQueries(queries, program, cancellationToken, getReferenceLocation, getDirectImports, getReferencePositions, occurrenceRelation = false, statistics = void 0) {
 +    const sources = program.getSourceFiles();
 +    const admitted = new Set(sources);
 +    const rosters = /* @__PURE__ */ new Map();
 +    let nameCount = 0;
 +    let positionCount = 0;
 +    let nameUnits = 0;
-+    let indexed = false;
-+    let used = false;
++    // Per-query provider ledger: which candidate providers produced this native answer's positions.
++    let rosterUsed = false;
++    let nativeUsed = false;
++    const nativePositions = (source, name, container, compute) => {
++      nativeUsed = true;
++      return getReferencePositions ? getReferencePositions(source, name, container, compute) : compute(source, name, container);
++    };
++    const nativeProvider = (source, name) => !name || !admitted.has(source) || isInJSFile(source) || rosters.get(source) === null;
 +    const getPositions = (source, name, container, compute) => {
-+      const native = () => {
-+        indexed = false;
-+        return compute(source, name, container);
-+      };
++      const native = () => nativePositions(source, name, container, compute);
 +      if (!name || !admitted.has(source) || isInJSFile(source)) return native();
 +      let roster = rosters.get(source);
 +      if (roster === void 0) {
@@ -421,28 +435,52 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
 +          nameUnits += pendingUnits;
 +        }
 +        if (rosters.size < maximumReadonlyReferenceNames) rosters.set(source, roster);
++        if (roster === null && statistics) statistics.nullRosters++;
 +      }
 +      if (roster === null) return native();
-+      used = true;
++      rosterUsed = true;
 +      const positions = roster.get(name) || emptyArray;
 +      return container === source ? positions : positions.filter((position) => position >= container.pos && position <= container.end);
 +    };
++    const relation = occurrenceRelation ? createReferenceRelation(program.getTypeChecker(), cancellationToken, getReferenceLocation, statistics) : void 0;
++    const getRelation = relation && ((source, name, compute) => {
++      if (!name || !admitted.has(source) || isInJSFile(source)) return void 0;
++      const entries = relation.get(source, name, () => {
++        const positions = getPositions(source, name, source, compute);
++        return { positions, roster: !nativeProvider(source, name) };
++      });
++      if (entries === void 0) return void 0;
++      if (entries.roster) rosterUsed = true;
++      else nativeUsed = true;
++      return entries.entries;
++    });
++    if (statistics) statistics.batches++;
 +    return queries.map((query) => {
 +      cancellationToken.throwIfCancellationRequested();
 +      const source = program.getSourceFile(query.fileName);
 +      const node = getReferenceLocation(source, query.position);
-+      if (isInJSFile(source) || isThis(node) || !isDefinitionForReference(node)) return { kind: "native" };
-+      indexed = true;
-+      used = false;
-+      const references = findReferencedSymbols(program, cancellationToken, sources, source, query.position, false, getDirectImports, getReferenceLocation, getPositions) || emptyArray;
-+      return indexed && used ? { kind: "indexed", references } : { kind: "native" };
++      if (statistics) statistics.queries++;
++      if (isInJSFile(source) || isThis(node) || !isDefinitionForReference(node)) {
++        if (statistics) statistics.native++;
++        return { kind: "native" };
++      }
++      rosterUsed = false;
++      nativeUsed = false;
++      const references = findReferencedSymbols(program, cancellationToken, sources, source, query.position, false, getDirectImports, getReferenceLocation, getPositions, getRelation) || emptyArray;
++      // Every computed answer is native findReferencedSymbols output; the ledger only records its candidate providers.
++      if (rosterUsed && !nativeUsed) {
++        if (statistics) statistics.indexed++;
++        return { kind: "indexed", references };
++      }
++      if (statistics) rosterUsed ? statistics.computedMixed++ : statistics.computedNative++;
++      return { kind: "computed", provider: rosterUsed ? "mixed" : "native", references };
 +    });
 +  }
 +  Core2.getReferenceOccurrencesForQueries = getReferenceOccurrencesForQueries;
    function getReferencedSymbolsForNode(position, node, program, sourceFiles, cancellationToken, options = {}, sourceFilesSet = new Set(sourceFiles.map((f) => f.fileName))) {
      var _a, _b;
      node = getAdjustedNode2(node, options);
-@@ -174008,7 +174287,7 @@ var Core;
+@@ -174008,7 +174325,7 @@ var Core;
      }
      /** Gets every place to look for references of an exported symbols. See `ImportsResult` in `importTracker.ts` for more documentation. */
      getImportSearches(exportSymbol, exportInfo) {
@@ -451,26 +489,150 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
        return this.importTracker(exportSymbol, exportInfo, this.options.use === 2 /* Rename */);
      }
      /** @param allSearchSymbols set of additional symbols for use by `includes`. */
-@@ -174317,7 +174596,8 @@ var Core;
+@@ -174317,15 +174634,140 @@ var Core;
      if (!state.markSearchedSymbols(sourceFile, search.allSearchSymbols)) {
        return;
      }
 -    for (const position of getPossibleSymbolReferencePositions(sourceFile, search.text, container)) {
++    const relation = state.options.getReferenceRelation && state.options.use === 1 /* References */ && !state.options.implementations && !state.options.findInStrings && !state.options.findInComments ? state.options.getReferenceRelation(sourceFile, search.text, getPossibleSymbolReferencePositions) : void 0;
++    if (relation) {
++      for (const entry of relation) {
++        if (entry.position < container.pos || entry.position > container.end) continue;
++        getReferencesAtRelationEntry(sourceFile, entry, search, state, addReferencesHere);
++      }
++      return;
++    }
 +    const positions = state.options.getReferencePositions ? state.options.getReferencePositions(sourceFile, search.text, container, getPossibleSymbolReferencePositions) : getPossibleSymbolReferencePositions(sourceFile, search.text, container);
 +    for (const position of positions) {
        getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere);
      }
    }
-@@ -174325,7 +174605,7 @@ var Core;
+   function hasMatchingMeaning(referenceLocation, state) {
      return !!(getMeaningFromLocation(referenceLocation) & state.searchMeaning);
    }
++  // The References-use judgment at a location, resolved once. Only search membership selects among the
++  // ordered candidates, so the native first match is the first listed candidate whose test symbol is searched.
++  function createReferenceRelation(checker, cancellationToken, getReferenceLocation, statistics) {
++    const relations = /* @__PURE__ */ new Map();
++    let entryCount = 0;
++    let candidateCount = 0;
++    let saturated = false;
++    const entryFor = (sourceFile, position, name) => {
++      cancellationToken.throwIfCancellationRequested();
++      const location = getReferenceLocation(sourceFile, position);
++      if (!isValidReferencePosition(location, name)) return { position, valid: false };
++      const meaning = getMeaningFromLocation(location);
++      const parent2 = location.parent;
++      if (isExportSpecifier(parent2) || isJSDocPropertyLikeTag(parent2) && parent2.isNameFirst && parent2.typeExpression && isJSDocTypeLiteral(parent2.typeExpression.type) && parent2.typeExpression.type.jsDocPropertyTags && length(parent2.typeExpression.type.jsDocPropertyTags)) {
++        return { position, valid: true, meaning, native: true };
++      }
++      try {
++        const symbol = checker.getSymbolAtLocation(location);
++        if (!symbol) return { position, valid: true, meaning, symbol: void 0 };
++        if (isImportSpecifier(parent2) && parent2.propertyName === location) return { position, valid: true, meaning, symbol, skip: true };
++        const candidates = [];
++        forEachRelatedSymbol(
++          symbol,
++          location,
++          checker,
++          /*isForRenamePopulateSearchSymbolSet*/
++          false,
++          /*onlyIncludeBindingElementAtReferenceLocation*/
++          true,
++          (sym, rootSymbol, baseSymbol, kind) => {
++            if (baseSymbol && isStaticSymbol(symbol) !== isStaticSymbol(baseSymbol)) baseSymbol = void 0;
++            candidates.push({ test: baseSymbol || rootSymbol || sym, group: rootSymbol && !(getCheckFlags(sym) & 6 /* Synthetic */) ? rootSymbol : sym, kind });
++            return void 0;
++          },
++          /*allowBaseTypes*/
++          () => true
++        );
++        const { flags, valueDeclaration } = symbol;
++        const shorthandSymbol = checker.getShorthandAssignmentValueSymbol(valueDeclaration);
++        const shorthandName = valueDeclaration && getNameOfDeclaration(valueDeclaration);
++        const shorthand = !(flags & 33554432 /* Transient */) && shorthandName && shorthandSymbol ? { symbol: shorthandSymbol, name: shorthandName } : void 0;
++        return { position, valid: true, meaning, symbol, location, candidates, shorthand };
++      } catch (error) {
++        if (error instanceof OperationCanceledException) throw error;
++        // Exhaustive enumeration can reach a judgment the native first match never evaluates; that location stays native.
++        return { position, valid: true, meaning, native: true };
++      }
++    };
++    return {
++      get(sourceFile, name, positionsOf) {
++        let names = relations.get(sourceFile);
++        const cached = names && names.get(name);
++        if (cached !== void 0) {
++          if (cached !== null && statistics) statistics.relationHits++;
++          return cached === null ? void 0 : cached;
++        }
++        if (saturated) return void 0;
++        const { positions, roster } = positionsOf();
++        const entries = [];
++        let entryCandidates = 0;
++        for (const position of positions) {
++          const entry = entryFor(sourceFile, position, name);
++          entries.push(entry);
++          entryCandidates += entry.candidates ? entry.candidates.length : 0;
++        }
++        if (!names) relations.set(sourceFile, names = /* @__PURE__ */ new Map());
++        if (entryCount + entries.length > maximumReadonlyReferenceRelationEntries || candidateCount + entryCandidates > maximumReadonlyReferenceRelationCandidates) {
++          // Saturation retains native per-location search for every later name; it never removes a candidate.
++          saturated = true;
++          names.set(name, null);
++          if (statistics) statistics.relationSaturated++;
++          return void 0;
++        }
++        const record = { entries, roster };
++        names.set(name, record);
++        entryCount += entries.length;
++        candidateCount += entryCandidates;
++        if (statistics) {
++          statistics.relationBuilds++;
++          statistics.relationEntries += entries.length;
++          statistics.relationCandidates += entryCandidates;
++          for (const entry of entries) if (entry.native) statistics.relationNativeEntries++;
++        }
++        return record;
++      }
++    };
++  }
++  function getReferencesAtRelationEntry(sourceFile, entry, search, state, addReferencesHere) {
++    if (entry.native) return getReferencesAtLocation(sourceFile, entry.position, search, state, addReferencesHere);
++    if (!entry.valid || !(entry.meaning & state.searchMeaning) || !entry.symbol || entry.skip) return;
++    let relatedSymbol;
++    for (const candidate of entry.candidates) {
++      if (search.includes(candidate.test)) {
++        relatedSymbol = { symbol: candidate.group, kind: candidate.kind };
++        break;
++      }
++    }
++    if (!relatedSymbol) {
++      if (entry.shorthand && search.includes(entry.shorthand.symbol)) addReference(entry.shorthand.name, entry.shorthand.symbol, state);
++      return;
++    }
++    switch (state.specialSearchKind) {
++      case 0 /* None */:
++        if (addReferencesHere) addReference(entry.location, relatedSymbol, state);
++        break;
++      case 1 /* Constructor */:
++        addConstructorReferences(entry.location, sourceFile, search, state);
++        break;
++      case 2 /* Class */:
++        addClassStaticThisReferences(entry.location, search, state);
++        break;
++      default:
++        Debug.assertNever(state.specialSearchKind);
++    }
++    getImportOrExportReferences(entry.location, entry.symbol, search, state);
++  }
    function getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere) {
 -    const referenceLocation = getTouchingPropertyName(sourceFile, position);
 +    const referenceLocation = state.options.getReferenceLocation ? state.options.getReferenceLocation(sourceFile, position) : getTouchingPropertyName(sourceFile, position);
      if (!isValidReferencePosition(referenceLocation, search.text)) {
        if (!state.options.implementations && (state.options.findInStrings && isInString(sourceFile, position) || state.options.findInComments && isInNonReferenceComment(sourceFile, position))) {
          state.addStringOrCommentReference(sourceFile.fileName, createTextSpan(position, search.text.length));
-@@ -179062,9 +179342,13 @@ function getSymbolModifiers(typeChecker, symbol) {
+@@ -179062,9 +179504,13 @@ function getSymbolModifiers(typeChecker, symbol) {
    }
    return modifiers.size > 0 ? arrayFrom(modifiers.values()).join(",") : "" /* none */;
  }
@@ -485,7 +647,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    let documentation = [];
    let tags = [];
    const symbolFlags = getCombinedLocalAndExportSymbolFlags(symbol);
-@@ -179077,7 +179361,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179077,7 +179523,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
    const typeWriterOut = { canIncreaseExpansionDepth: false, truncated: false };
    let symbolWasExpanded = false;
    if (location.kind === 110 /* ThisKeyword */ && !isThisExpression) {
@@ -494,7 +656,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    }
    if (symbolKind !== "" /* unknown */ || symbolFlags & 32 /* Class */ || symbolFlags & 2097152 /* Alias */) {
      if (symbolKind === "getter" /* memberGetAccessorElement */ || symbolKind === "setter" /* memberSetAccessorElement */) {
-@@ -179157,7 +179441,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179157,7 +179603,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
              displayParts.push(punctuationPart(59 /* ColonToken */));
              displayParts.push(spacePart());
              if (!(getObjectFlags(type) & 16 /* Anonymous */) && type.symbol) {
@@ -503,7 +665,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
                  typeChecker,
                  type.symbol,
                  enclosingDeclaration,
-@@ -179247,7 +179531,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179247,7 +179693,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      displayParts.push(spacePart());
      addRange(
        displayParts,
@@ -512,7 +674,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          typeChecker,
          location.parent && isConstTypeReference(location.parent) ? typeChecker.getTypeAtLocation(location.parent) : typeChecker.getDeclaredTypeOfSymbol(symbol),
          enclosingDeclaration,
-@@ -179309,7 +179593,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179309,7 +179755,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else if (declaration.kind !== 180 /* CallSignature */ && declaration.name) {
              addFullSymbolName(declaration.symbol);
            }
@@ -521,7 +683,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          } else if (isTypeAliasDeclaration(declaration)) {
            addInPrefix();
            displayParts.push(keywordPart(156 /* TypeKeyword */));
-@@ -179334,7 +179618,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179334,7 +179780,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        }
      }
    }
@@ -530,7 +692,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
      prefixNextMeaning();
      if (!hasAddedSymbolInfo || documentation.length === 0 && tags.length === 0) {
        const resolvedSymbol = typeChecker.getAliasedSymbol(symbol);
-@@ -179427,7 +179711,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179427,7 +179873,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            displayParts.push(punctuationPart(59 /* ColonToken */));
            displayParts.push(spacePart());
            if (type.symbol && type.symbol.flags & 262144 /* TypeParameter */ && symbolKind !== "index" /* indexSignatureElement */) {
@@ -539,7 +701,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
                const param = typeChecker.typeParameterToDeclaration(
                  type,
                  enclosingDeclaration,
-@@ -179446,7 +179730,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179446,7 +179892,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else {
              addRange(
                displayParts,
@@ -548,7 +710,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
                  typeChecker,
                  type,
                  enclosingDeclaration,
-@@ -179478,6 +179762,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179478,6 +179924,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        symbolKind = getSymbolKind(typeChecker, symbol, location);
      }
    }
@@ -558,7 +720,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    if (documentation.length === 0 && !hasMultipleSignatures) {
      documentation = symbol.getContextualDocumentationComment(enclosingDeclaration, typeChecker);
    }
-@@ -179584,7 +179871,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179584,7 +180033,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
      if (canExpandSymbol(symbol2, typeWriterOut)) {
        const symbolMeaning = semanticToSymbolMeaning(meaning);
@@ -567,7 +729,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          const nodes = typeChecker.getEmitResolver().symbolToDeclarations(
            symbol2,
            symbolMeaning,
-@@ -179617,11 +179904,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179617,11 +180066,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      let fullSymbolDisplayParts = [];
      if (symbolToDisplay.flags & 131072 /* Signature */ && indexInfos) {
        if (symbolToDisplay.parent) {
@@ -581,7 +743,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          if (i !== indexInfos.length - 1) {
            fullSymbolDisplayParts.push(spacePart());
            fullSymbolDisplayParts.push(punctuationPart(52 /* BarToken */));
-@@ -179630,7 +179917,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179630,7 +180079,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        });
        fullSymbolDisplayParts.push(punctuationPart(24 /* CloseBracketToken */));
      } else {
@@ -590,7 +752,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
          typeChecker,
          symbolToDisplay,
          enclosingDeclaration2 || sourceFile,
-@@ -179673,7 +179960,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179673,7 +180122,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function addSignatureDisplayParts(signature, allSignatures, flags = 0 /* None */) {
@@ -600,7 +762,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
      if (allSignatures.length > 1) {
        displayParts.push(spacePart());
        displayParts.push(punctuationPart(21 /* OpenParenToken */));
-@@ -179691,14 +179979,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179691,14 +180141,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function writeTypeParametersOfSymbol(symbol2, enclosingDeclaration2) {
@@ -617,7 +779,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc5
    return getSymbolDisplayPartsDocumentationAndSymbolKindWorker(
      typeChecker,
      symbol,
-@@ -179710,7 +179998,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
+@@ -179710,7 +180160,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
      semanticMeaning,
      alias,
      maximumLength,
@@ -640,7 +802,7 @@ index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a
      getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
      resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
 diff --git a/lib/typescript.d.ts b/lib/typescript.d.ts
-index 05326adf9d574e7b1ca54f5839471cb17dfd3559..2abe9d67f33b611967e984b6b9b1e4ca83f6720e 100644
+index 05326adf9d574e7b1ca54f5839471cb17dfd3559..19fc397c1019e5d1137b1877e398691c426b48be 100644
 --- a/lib/typescript.d.ts
 +++ b/lib/typescript.d.ts
 @@ -10234,7 +10234,9 @@ declare namespace ts {
@@ -650,11 +812,11 @@ index 05326adf9d574e7b1ca54f5839471cb17dfd3559..2abe9d67f33b611967e984b6b9b1e4ca
 -        findReferences(fileName: string, position: number): ReferencedSymbol[] | undefined;
 +        findReferences(fileName: string, position: number, options?: FindReferencesOptions): ReferencedSymbol[] | undefined;
 +        /** A read-only reference lifetime pinned to the current native Program; dispose after the last query. */
-+        createReadonlyReferencePass(): ReadonlyReferencePass;
++        createReadonlyReferencePass(options?: ReadonlyReferencePassOptions): ReadonlyReferencePass;
          getDocumentHighlights(fileName: string, position: number, filesToSearch: string[]): DocumentHighlights[] | undefined;
          getFileReferences(fileName: string): ReferenceEntry[];
          getNavigateToItems(searchValue: string, maxResultCount?: number, fileName?: string, excludeDtsFiles?: boolean, excludeLibFiles?: boolean): NavigateToItem[];
-@@ -10745,6 +10747,28 @@ declare namespace ts {
+@@ -10745,6 +10747,53 @@ declare namespace ts {
          definitions?: readonly DefinitionInfo[];
          textSpan: TextSpan;
      }
@@ -665,6 +827,8 @@ index 05326adf9d574e7b1ca54f5839471cb17dfd3559..2abe9d67f33b611967e984b6b9b1e4ca
 +        findReferences(fileName: string, position: number, options?: FindReferencesOptions): ReferencedSymbol[] | undefined;
 +        /** Batch native symbol occurrences using canonical reference selection and travel; unsupported position coverage retains native search. Lean groups preserve native order and multiplicity. */
 +        findReferencesFromOccurrences(queries: readonly ReferenceOccurrenceQuery[]): readonly ReferenceOccurrenceAnswer[];
++        /** Diagnostic counters accumulated by this pass's occurrence batches. They measure work; they certify nothing. */
++        getOccurrenceStatistics(): ReferenceOccurrenceStatistics;
 +        /** Releases this pass's native import map, bounded syntax/result memos, detached string pool, and owner references. Idempotent. */
 +        dispose(): void;
 +    }
@@ -672,7 +836,30 @@ index 05326adf9d574e7b1ca54f5839471cb17dfd3559..2abe9d67f33b611967e984b6b9b1e4ca
 +        readonly fileName: string;
 +        readonly position: number;
 +    }
-+    type ReferenceOccurrenceAnswer = { readonly kind: "indexed"; readonly references: readonly ReferencedSymbol[] } | { readonly kind: "native" };
++    /**
++     * `indexed`: every candidate provider was a complete roster. `computed`: native search ran with at least one native
++     * candidate provider (`mixed` also used rosters). `native`: never computed; the caller performs the native query.
++     */
++    type ReferenceOccurrenceAnswer = { readonly kind: "indexed"; readonly references: readonly ReferencedSymbol[] } | { readonly kind: "computed"; readonly provider: "native" | "mixed"; readonly references: readonly ReferencedSymbol[] } | { readonly kind: "native" };
++    interface ReadonlyReferencePassOptions {
++        /** Resolve each candidate location's related-symbol judgment once per batch. Defaults to true; false keeps per-query location judgments. */
++        occurrenceRelation?: boolean;
++    }
++    interface ReferenceOccurrenceStatistics {
++        readonly batches: number;
++        readonly queries: number;
++        readonly indexed: number;
++        readonly computedNative: number;
++        readonly computedMixed: number;
++        readonly native: number;
++        readonly nullRosters: number;
++        readonly relationBuilds: number;
++        readonly relationEntries: number;
++        readonly relationCandidates: number;
++        readonly relationSaturated: number;
++        readonly relationHits: number;
++        readonly relationNativeEntries: number;
++    }
 +    interface FindReferencesOptions {
 +        /**
 +         * Include human-readable definition names and display parts. Defaults to true.

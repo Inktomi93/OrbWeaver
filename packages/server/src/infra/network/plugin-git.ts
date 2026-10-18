@@ -294,4 +294,4 @@ export function createNetworkPluginGitSource(fetchImpl: ScopedEgress["safeFetch"
   });
 }
 
-export const pluginGitSource = createNetworkPluginGitSource();
+export const pluginGitSource: PluginGitSource = createNetworkPluginGitSource();

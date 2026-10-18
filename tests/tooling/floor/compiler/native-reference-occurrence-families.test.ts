@@ -95,7 +95,9 @@ test("native member and module occurrences preserve contextual roots and import 
     for (const [index, query] of queries.entries()) {
       const answer = answers[index];
       const actual =
-        answer?.kind === "indexed" ? answer.references : (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+        answer === undefined || answer.kind === "native"
+          ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [])
+          : answer.references;
       expect(actual, `${query.fileName}:${String(query.position)} ${nodes[index]?.getText()}`).toEqual(expected[index]);
     }
     console.log(
@@ -103,6 +105,7 @@ test("native member and module occurrences preserve contextual roots and import 
         event: "native-member-module-parity",
         requested: queries.length,
         indexed: answers.filter((answer) => answer.kind === "indexed").length,
+        computed: answers.filter((answer) => answer.kind === "computed").length,
         native: answers.filter((answer) => answer.kind === "native").length,
         required: required.map((node) => [node?.getText(), node?.getParent().getKindName()]),
       }),
@@ -189,19 +192,24 @@ test.each([
     expect(answers).toHaveLength(queries.length);
     for (const [index, query] of queries.entries()) {
       const answer = answers[index];
-      const actual =
-        answer?.kind === "indexed" ? answer.references : (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
       expect(expected[index]).toEqual([]);
+      // A declaration with an empty name still runs native search once and keeps its explicit zero; a use is never computed.
+      const actual =
+        answer === undefined || answer.kind === "native"
+          ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [])
+          : answer.references;
       expect(actual).toEqual(expected[index]);
-      expect(answer).toEqual({ kind: "native" });
+      expect(answer?.kind === "native" || (answer?.kind === "computed" && answer.provider === "native")).toBe(true);
     }
+    expect(answers.at(-1)).toEqual({ kind: "native" });
+    expect(answers.slice(0, -1).every((answer) => answer.kind === "computed")).toBe(true);
   } finally {
     pass.dispose();
     service.dispose();
   }
 });
 
-test("unsupported raw spellings and a saturated source retain complete native fallback", () => {
+test("unsupported raw spellings and a saturated source keep their computed native answer", () => {
   for (const padding of ["const escaped='\\u0061';", Array.from({ length: 65_537 }, (_, index) => `p${String(index)}:1`).join(",")]) {
     const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
     const source = project.createSourceFile(
@@ -220,8 +228,8 @@ test("unsupported raw spellings and a saturated source retain complete native fa
     const pass = service.createReadonlyReferencePass();
     try {
       expect(expected.flatMap((group) => group.references)).toHaveLength(2);
-      expect(pass.findReferencesFromOccurrences([query])).toEqual([{ kind: "native" }]);
-      expect(pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false })).toEqual(expected);
+      expect(pass.findReferencesFromOccurrences([query])).toEqual([{ kind: "computed", provider: "native", references: expected }]);
+      expect(pass.getOccurrenceStatistics()).toMatchObject({ queries: 1, computedNative: 1, nullRosters: 1 });
     } finally {
       pass.dispose();
       service.dispose();

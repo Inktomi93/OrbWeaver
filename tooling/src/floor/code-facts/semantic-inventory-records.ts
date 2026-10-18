@@ -251,6 +251,11 @@ export const inventoryRecordTables = {
     columns: "ordinal,declaration,node,consumerClass",
     definition: `${PARTITION},${ORDINAL},declaration INTEGER NOT NULL,node INTEGER NOT NULL,${CONSUMER},PRIMARY KEY(partition,ordinal),FOREIGN KEY(partition,declaration) REFERENCES inventory_span(partition,ordinal),${SPAN_REFERENCE}`,
   },
+  referenceName: {
+    name: "inventory_reference_name",
+    columns: "ordinal,name,declaration",
+    definition: `${PARTITION},${ORDINAL},name INTEGER NOT NULL,declaration INTEGER NOT NULL,PRIMARY KEY(partition,ordinal),UNIQUE(partition,name,declaration),FOREIGN KEY(partition,name) REFERENCES inventory_span(partition,ordinal),FOREIGN KEY(partition,declaration) REFERENCES inventory_span(partition,ordinal)`,
+  },
 } satisfies Record<InventoryRecordTable, { readonly name: string; readonly columns: string; readonly definition: string }>;
 
 /** SQLite TEXT is UTF-8; scalar JSON escapes preserve native lone UTF-16 surrogates. */
@@ -668,10 +673,87 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     );
   });
   writeReferenceQueries(partition, emit, spanId);
-  partition.references.forEach((entry, ordinal) => {
+  const stored = storedReferences(partition);
+  stored.rows.forEach((entry, ordinal) => {
     const fact = referenceRecordSchema.parse(entry);
     emit("reference", ordinal, spanId(entry.declaration), spanId(entry.reference), fact.consumerClass);
   });
+  stored.names.forEach(({ name, declaration }, ordinal) => {
+    emit("referenceName", ordinal, spanId(name), spanId(declaration));
+  });
+}
+
+type ReferenceRow = InventoryPartition["references"][number];
+
+const referenceSpanKey = (span: InventorySpan): string => `${span.file}\0${String(span.start)}\0${String(span.end)}\0${String(span.kind)}`;
+
+function referenceNameLinks(names: NonNullable<InventoryPartition["referenceNames"]>): ReadonlyMap<string, readonly string[]> {
+  const namesOf = new Map<string, string[]>();
+  for (const { name, declaration } of names) {
+    const existing = namesOf.get(referenceSpanKey(declaration)) ?? [];
+    if (existing.includes(referenceSpanKey(name))) {
+      throw new Error("native reference name link is repeated");
+    }
+    existing.push(referenceSpanKey(name));
+    namesOf.set(referenceSpanKey(declaration), existing);
+  }
+  return namesOf;
+}
+
+function referenceGroups(references: InventoryPartition["references"]): readonly { readonly key: string; readonly rows: readonly ReferenceRow[] }[] {
+  const groups: { readonly key: string; readonly rows: ReferenceRow[] }[] = [];
+  for (const row of references) {
+    const key = referenceSpanKey(row.declaration);
+    const last = groups.at(-1);
+    if (last?.key === key) {
+      last.rows.push(row);
+    } else {
+      groups.push({ key, rows: [row] });
+    }
+  }
+  return groups;
+}
+
+function sameReferenceRows(copy: readonly ReferenceRow[], original: readonly ReferenceRow[]): boolean {
+  return (
+    copy.length === original.length &&
+    copy.every((row, index) => {
+      const source = original[index];
+      return source !== undefined && referenceSpanKey(row.reference) === referenceSpanKey(source.reference) && row.consumerClass === source.consumerClass;
+    })
+  );
+}
+
+/** Drop each recorded name copy after proving it repeats the rows just written for its declaration. Readers
+ *  expand the links back into the logical stream, so repeats, order and consumer classes are unchanged. */
+function storedReferences(partition: InventoryPartition): {
+  readonly rows: InventoryPartition["references"];
+  readonly names: NonNullable<InventoryPartition["referenceNames"]>;
+} {
+  const names = partition.referenceNames ?? [];
+  const namesOf = referenceNameLinks(names);
+  const rows: ReferenceRow[] = [];
+  let owner: readonly ReferenceRow[] = [];
+  let pending: readonly string[] = [];
+  for (const group of referenceGroups(partition.references)) {
+    if (pending[0] === group.key) {
+      if (!sameReferenceRows(group.rows, owner)) {
+        throw new Error("native reference name rows differ from their declaration rows");
+      }
+      pending = pending.slice(1);
+      continue;
+    }
+    if (pending.length > 0) {
+      throw new Error("native reference name copy is missing after its declaration rows");
+    }
+    owner = group.rows;
+    pending = namesOf.get(group.key) ?? [];
+    rows.push(...group.rows);
+  }
+  if (pending.length > 0) {
+    throw new Error("native reference name copy is missing after its declaration rows");
+  }
+  return { rows, names };
 }
 
 function referenceMode(partition: Pick<InventoryPartition, "referenceMode">): import("./semantic-inventory-contract.ts").InventoryReferenceMode {
@@ -684,6 +766,9 @@ function assertReferenceOwnership(partition: InventoryPartition): void {
   }
   if (partition.referenceMode === "closed" && (partition.references.length > 0 || !partition.families.includes("references"))) {
     throw new Error("native closed reference demand cannot advertise complete declaration facts");
+  }
+  if ((partition.referenceNames?.length ?? 0) > 0 && (!partition.families.includes("references") || partition.referenceMode === "closed")) {
+    throw new Error("native reference name links have no complete reference-family owner");
   }
 }
 

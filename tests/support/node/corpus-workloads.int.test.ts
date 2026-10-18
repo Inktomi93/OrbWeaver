@@ -1,7 +1,7 @@
 // @subject tests/support/node/corpus-workloads.ts
 // @subject packages/server/src/transport/jobs/workloads-worker.ts
 import "./composed-real.ts";
-import { setTimeout as physicalDelay } from "node:timers/promises";
+import { setTimeout as physicalDelay, setImmediate as physicalTurn } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
@@ -87,8 +87,25 @@ test(
     const caller = await root.internalCallerFor(root.ownerId);
     const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
     const started = [admitted];
-    const pending = held.hold(/update "workloads" set "status" = \?/u);
-    const result = settleCorpusWorkloads(root, caller, started).catch((error: unknown) => error);
+    const runAdmitted = root.runAdmittedWorkload;
+    if (runAdmitted === undefined) {
+      throw new Error("The manual native workload driver is missing");
+    }
+    let driver: ReturnType<typeof runAdmitted> | undefined;
+    let joined = false;
+    let settlement: Promise<void> | undefined;
+    const pending = held.hold(WORKLOAD_BY_ID_READ);
+    const result = settleCorpusWorkloads(
+      {
+        ...root,
+        runAdmittedWorkload: (...args: Parameters<typeof runAdmitted>) => {
+          driver = runAdmitted(...args);
+          return driver;
+        },
+      },
+      caller,
+      started,
+    ).catch((error: unknown) => error);
     try {
       await pending.reached;
       expect(await result).toMatchObject({
@@ -99,13 +116,19 @@ test(
           index: 0,
           admitted: started,
           lastObserved: undefined,
+          replay: [{ observation: "unobserved", kind: null, lastType: null, startedPresent: false, progressCount: 0, eventCount: 0 }],
         },
       });
+      settlement = root.settleBackground().then(() => {
+        joined = true;
+      });
+      await physicalTurn();
+      expect(joined).toBe(false);
     } finally {
       pending.release();
-      await root.settleBackground();
-      await result;
+      await Promise.all([driver, settlement, result, root.settleBackground()]);
     }
+    expect(joined).toBe(true);
   },
   DEADLINE_OBSERVATION_TIMEOUT_MS,
 );
@@ -139,6 +162,8 @@ test(
       const observation = await gate.promise;
       await observation.reached;
       const failure = await result;
+      const events = root.app.workloadEvents.getRecentWorkloadEvents(admitted.id);
+      expect(events.some((event) => event.type === "progress")).toBe(true);
       expect(failure).toMatchObject({
         message: expect.stringContaining('"phase":"scheduled-worker-loop","index":null'),
         cause: {
@@ -147,6 +172,16 @@ test(
           index: null,
           admitted: started,
           lastObserved: [before],
+          replay: [
+            {
+              observation: "graph-replay",
+              kind: "compute-cooccurrence",
+              lastType: "succeeded",
+              startedPresent: true,
+              progressCount: events.filter((event) => event.type === "progress").length,
+              eventCount: events.length,
+            },
+          ],
         },
       });
       expect(failure).toMatchObject({ message: expect.stringContaining('"observation":"last-observed"') });
