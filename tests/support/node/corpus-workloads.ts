@@ -1,5 +1,6 @@
 // Advance logical scheduling phases only after the native graph has joined its active work.
 import { addAbortListener } from "node:events";
+import { getLog } from "@orb/server/foundation/observability";
 import type { ServerTestHarness } from "./server.ts";
 
 type CorpusCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -55,11 +56,13 @@ export async function settleCorpusWorkloads(
   let index: number | null = null;
   let lastObserved: CorpusWorkloadRows | undefined;
   try {
+    getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads initial background entry");
     await Promise.race([root.settleBackground(), timeout.promise]);
     if (root.runAdmittedWorkload !== undefined) {
       for (const [selectedIndex, workload] of started.entries()) {
         phase = WORKLOAD_SETTLEMENT_PHASES[1];
         index = selectedIndex;
+        getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads admitted entry");
         await Promise.race([root.runAdmittedWorkload(workload.id, deadline), timeout.promise]);
       }
       const jobs = await Promise.all(started.map(({ id }) => caller.workloads.get({ id })));

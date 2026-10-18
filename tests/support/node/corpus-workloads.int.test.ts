@@ -18,7 +18,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 vi.hoisted(() => {
-  vi.stubEnv("LOG_LEVEL", "error");
+  vi.stubEnv("LOG_LEVEL", "info");
 });
 afterAll(() => vi.unstubAllEnvs());
 
