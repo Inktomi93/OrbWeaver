@@ -3,7 +3,7 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { modelIdSchema } from "../inference/model-schema.ts";
-import { providerIdSchema } from "../inference/provider-schema.ts";
+import { providerIdSchema } from "../inference/provider-id.ts";
 import { generationUsageDetailsSchema } from "../inference/usage.ts";
 import { promptTemplateModeSchema } from "./modes.ts";
 

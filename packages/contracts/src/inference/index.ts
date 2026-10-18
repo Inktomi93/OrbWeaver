@@ -23,6 +23,7 @@ export * from "./model-schema.ts";
 export type { BoundConnectionView, GetBoundConnectionParams, ResolveTaskParams } from "./owner-ops.ts";
 export * from "./policy.ts";
 export * from "./prompt-cache.ts";
+export * from "./provider-id.ts";
 export * from "./provider-schema.ts";
 export * from "./providers.ts";
 export * from "./resolved.ts";

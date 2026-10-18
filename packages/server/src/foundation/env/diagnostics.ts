@@ -132,5 +132,3 @@ export function diagnosticsPostureWarnings(posture: DiagnosticsPosture): readonl
 }
 
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./contract.ts";
-// biome-ignore lint/performance/noBarrelFile: D326 preserves this policy module's supported tuple export from its canonical contract owner.
-export { DIAGNOSTICS_EXPOSURES } from "./contract.ts";

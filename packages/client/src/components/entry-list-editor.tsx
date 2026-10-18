@@ -124,7 +124,6 @@ export function EntryListEditor<TItem>({
                 </Row>
               }
               clickable={true}
-              // biome-ignore lint/suspicious/noArrayIndexKey: draft owners supply stable keys; the fallback is for positional displays without row identity.
               key={getKey === undefined ? index : getKey(item, index)}
               onClick={(): void => onEdit(index)}
               subtitle={getSubtitle(item, index)}

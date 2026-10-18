@@ -205,12 +205,12 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
         label="Folder type"
         name="tag-folder-type"
       >
-        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- #579 source-verified: the label
+        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the label
             lives on the wrapping `<Field label="Folder type">`, not on this `<Select>`, and Select associates
             it at RENDER time through Base UI's FieldRootContext (`BaseField.Control` injects
             `aria-labelledby` — packages/ui/src/primitives/select/select.tsx), never as a literal JSX prop
             here. No `control-has-associated-label` option (labelAttributes/controlComponents/depth) sees a
-            context injection — same reason `select-field.tsx`/`switch-field.tsx` stay suppressed. */}
+            context injection — the same reason `select-field.tsx` stays suppressed. */}
         <Select
           items={FOLDER_TYPE_ITEMS}
           onValueChange={(value): void => {

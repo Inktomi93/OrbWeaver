@@ -112,15 +112,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/complexity/noExcessiveCognitiveComplexity` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-complexity-no-useless-constructor",
-    policyId: "suppressions",
-    subject: "lint/complexity/noUselessConstructor",
-    operation: "source",
-    why: "RULING — the narrowing constructor IS the point — it pins the error subclass's argument type (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/complexity/noUselessConstructor` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-complexity-no-useless-return",
     policyId: "suppressions",
     subject: "lint/complexity/noUselessReturn",

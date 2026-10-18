@@ -12,8 +12,8 @@
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { TokenProvenance } from "../chat/messages.ts";
-import { tokenProvenanceSchema } from "../chat/messages.ts";
+import type { TokenProvenance } from "../chat/token-provenance.ts";
+import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
 import type { CorpusDigestSource } from "../search/source.ts";
 import { corpusDigestSourceSchema } from "../search/source.ts";
 import type { ArchetypeMember, ThemeRow } from "./artifacts.ts";

@@ -50,13 +50,17 @@ export async function readLatency(db: Db, ownerId: string, scope: LatencyScope):
   // Narrowing predicate per scope (owner = no extra filter). Exhaustive over `LatencyScope` — a new scope
   // kind fails tsc until its arm exists.
   let narrow = sql``;
-  if (scope.kind === "character") {
-    narrow = sql`AND m.character_id = ${scope.characterId}`;
-  } else if (scope.kind === "model") {
-    narrow = sql`AND v.model = ${scope.model} AND COALESCE(v.provider, ${UNKNOWN_PROVIDER}) = ${scope.provider ?? UNKNOWN_PROVIDER}`;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exhaustiveness guard: tautological once narrowed, kept so a future LatencyScope member fails tsc here instead of silently falling through to owner-scope.
-  } else if (scope.kind !== "owner") {
-    assertNever(scope);
+  switch (scope.kind) {
+    case "owner":
+      break;
+    case "character":
+      narrow = sql`AND m.character_id = ${scope.characterId}`;
+      break;
+    case "model":
+      narrow = sql`AND v.model = ${scope.model} AND COALESCE(v.provider, ${UNKNOWN_PROVIDER}) = ${scope.provider ?? UNKNOWN_PROVIDER}`;
+      break;
+    default:
+      assertNever(scope);
   }
   const rows = await db.all<{
     ttft: number | null;

@@ -14,7 +14,8 @@ import { declaredCapabilitySchema } from "./capability/override.ts";
 import { bindingActorKindSchema } from "./connection-ref.ts";
 import { modelIdSchema } from "./model-schema.ts";
 import { promptCacheSettingsSchema } from "./prompt-cache.ts";
-import { providerDisplayLabel, providerIdSchema } from "./provider-schema.ts";
+import { providerIdSchema } from "./provider-id.ts";
+import { providerDisplayLabel } from "./provider-schema.ts";
 import { routableTaskSchema } from "./tasks.ts";
 
 /** A custom endpoint's REQUEST/RESPONSE transforms — a CLOSED object (four fields), one owner, never queried

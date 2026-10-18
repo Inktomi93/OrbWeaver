@@ -352,7 +352,7 @@ module.exports = {
       severity: "error",
       from: {
         path: CLIENT,
-        pathNot: [`${CLIENT}lib/index\\.ts$`, `${CLIENT}lib/view-transition\\.ts$`, `${CLIENT}state/shell-store\\.ts$`],
+        pathNot: [`${CLIENT}lib/index\\.ts$`, `${CLIENT}state/shell-store\\.ts$`],
       },
       to: { path: `${CLIENT}lib/view-transition\\.ts$` },
     },

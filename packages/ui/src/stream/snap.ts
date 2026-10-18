@@ -39,8 +39,7 @@ export function snapToWordBoundary(text: string, from: number): number {
   }
   const limit = Math.min(text.length, from + WORD_SNAP_LOOKAHEAD);
   for (let i = from; i < limit; i++) {
-    // biome-ignore lint/style/noNonNullAssertion: i < text.length by the limit bound
-    if (WHITESPACE_RE.test(text[i]!)) {
+    if (WHITESPACE_RE.test(text.charAt(i))) {
       return i;
     }
   }
@@ -48,8 +47,7 @@ export function snapToWordBoundary(text: string, from: number): number {
   // the last whitespace boundary in the prefix; otherwise it's a legitimately long unbroken run.
   if (limit >= text.length) {
     for (let i = from - 1; i >= 0; i--) {
-      // biome-ignore lint/style/noNonNullAssertion: i >= 0 and i < text.length
-      if (WHITESPACE_RE.test(text[i]!)) {
+      if (WHITESPACE_RE.test(text.charAt(i))) {
         return i + 1;
       }
     }

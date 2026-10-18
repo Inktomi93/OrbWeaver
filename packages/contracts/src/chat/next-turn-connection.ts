@@ -4,8 +4,8 @@
 import type { ModelId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { ProviderId } from "../inference/provider-schema.ts";
-import { providerIdSchema } from "../inference/provider-schema.ts";
+import type { ProviderId } from "../inference/provider-id.ts";
+import { providerIdSchema } from "../inference/provider-id.ts";
 
 export type NextTurnConnectionView =
   | { readonly state: "unset" }

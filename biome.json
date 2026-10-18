@@ -557,15 +557,6 @@
       }
     },
     {
-      "includes": [
-        "packages/db/src/schema/**",
-        "packages/server/src/transport/trpc/routers/**",
-        "packages/server/src/domain/chat/contract/metadata.ts",
-        "packages/server/src/primitives/serde/persona/index.ts"
-      ],
-      "plugins": []
-    },
-    {
       "includes": ["packages/client/src/features/app-shell/surfaces/shell.css", "packages/client/src/styles/globals.css"],
       "linter": {
         "rules": {
@@ -748,7 +739,7 @@
       }
     },
     {
-      "includes": ["packages/server/src/foundation/env/**"],
+      "includes": ["packages/server/src/foundation/env/index.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -1308,7 +1299,21 @@
         "packages/inference/src/backends/wire/provider-metadata.ts",
         "packages/inference/src/catalog/detect.ts",
         "packages/inference/src/catalog/endpoint.ts",
-        "packages/inference/src/catalog/openrouter.ts"
+        "packages/inference/src/catalog/openrouter.ts",
+        "packages/contracts/src/character/index.ts",
+        "packages/contracts/src/imagery/index.ts",
+        "packages/contracts/src/preset/index.ts",
+        "packages/contracts/src/settings/index.ts",
+        "packages/kit/src/macro/builtin-metadata.ts",
+        "packages/server/src/primitives/serde/chat/index.ts",
+        "packages/server/src/domain/imagery/substrate/mode.ts",
+        "packages/server/src/domain/imagery/substrate/size.ts",
+        "packages/server/src/domain/imagery/substrate/templates.ts",
+        "packages/server/src/domain/chat/assembly/macros.ts",
+        "packages/server/src/entry/http/auth-routes.ts",
+        "packages/client/src/features/chat/lib/imagery-templates-model.ts",
+        "packages/client/src/features/workloads/lib/workloads-model.ts",
+        "packages/client/src/features/refinery/lib/reason-copy.ts"
       ],
       "linter": {
         "rules": {
@@ -1640,7 +1645,8 @@
         "packages/inference/src/backends/agent-sdk/session/frames.ts",
         "packages/inference/src/backends/local-light/model-cache.ts",
         "packages/inference/src/backends/openai-compat/image-embed.ts",
-        "packages/inference/src/backends/openai-compat/rerank.ts"
+        "packages/inference/src/backends/openai-compat/rerank.ts",
+        "packages/server/src/primitives/serde/card/index.ts"
       ],
       "linter": {
         "rules": {
@@ -1809,7 +1815,12 @@
       }
     },
     {
-      "includes": ["packages/inference/src/backends/agent-sdk/env.ts"],
+      "includes": [
+        "packages/inference/src/backends/agent-sdk/env.ts",
+        "packages/client/src/features/refinery/lib/builtin-hints.ts",
+        "packages/client/src/features/refinery/components/context-tabs.tsx",
+        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -2906,9 +2917,6 @@
       "includes": ["packages/client/src/lib/create-registry-context.tsx"],
       "linter": {
         "rules": {
-          "nursery": {
-            "noComponentHookFactories": "off"
-          },
           "style": {
             "useNamingConvention": {
               "level": "error",
@@ -3069,16 +3077,6 @@
                 ]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/client/src/forms/editor/create-autosave-entity-form.tsx"],
-      "linter": {
-        "rules": {
-          "nursery": {
-            "noComponentHookFactories": "off"
           }
         }
       }
@@ -3296,24 +3294,6 @@
     },
     {
       "includes": [
-        "packages/contracts/src/character/index.ts",
-        "packages/contracts/src/imagery/index.ts",
-        "packages/contracts/src/preset/index.ts",
-        "packages/contracts/src/settings/index.ts",
-        "packages/kit/src/macro/builtin-metadata.ts",
-        "packages/server/src/primitives/serde/card/index.ts",
-        "packages/server/src/primitives/serde/chat/index.ts",
-        "packages/server/src/domain/imagery/substrate/mode.ts",
-        "packages/server/src/domain/imagery/substrate/size.ts",
-        "packages/server/src/domain/imagery/substrate/templates.ts",
-        "packages/server/src/domain/chat/assembly/macros.ts",
-        "packages/server/src/entry/http/auth-routes.ts",
-        "packages/client/src/features/chat/lib/imagery-templates-model.ts",
-        "packages/client/src/features/workloads/lib/workloads-model.ts",
-        "packages/client/src/features/refinery/lib/reason-copy.ts",
-        "packages/client/src/features/refinery/lib/builtin-hints.ts",
-        "packages/client/src/features/refinery/components/context-tabs.tsx",
-        "packages/client/src/features/refinery/surfaces/refinery-list-surface.tsx",
         "tests/legacy/contracts/preset/st-preset-import.contract.test.ts",
         "tests/legacy/contracts/preset/user-intent-and-guided-actions.contract.test.ts",
         "tests/legacy/server/domain/import/substrate/appearance.test.ts",

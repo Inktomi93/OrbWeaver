@@ -15,7 +15,7 @@ import { chatApiSchema } from "../apis.ts";
 import { evidenceTierSchema } from "../evidence.ts";
 import { endpointFeaturesSchema, NATIVE_CHAT_APIS } from "../features.ts";
 import { modelKindSchema } from "../kinds.ts";
-import { providerIdSchema } from "../provider-schema.ts";
+import { providerIdSchema } from "../provider-id.ts";
 import { WIRES } from "../wires.ts";
 import { embeddingCapabilitySchema } from "./embedding.ts";
 import { generationCapabilitySchema } from "./generation.ts";

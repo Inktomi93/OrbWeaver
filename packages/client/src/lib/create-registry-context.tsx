@@ -4,8 +4,7 @@
 // this mint IS that trio, so a new registry is a one-line call instead of a hand-rolled trio that drifts.
 // Sealed by G26 `registry-context-via-mint`: a `createContext` typed over a `*Registry` OUTSIDE this file
 // is RED (the raw-path door D72 closes in the same wave). This is the SANCTIONED registry-context factory
-// home — biome.json exempts it from `noComponentHookFactories` (the hook + Provider are minted here on
-// purpose, the create-gated-store precedent for a footgun's single blessed home).
+// home; the hook and Provider are minted here on purpose, with reasoned `noComponentHookFactories` directives.
 
 import type { Context, ReactElement, ReactNode } from "react";
 import { createContext, use } from "react";
@@ -28,6 +27,7 @@ export interface RegistryContext<R> {
  *  registry view type (`Registry<Id, Def>` or `ContributorRegistry<Def>`). */
 export function createRegistryContext<R>(name: string): RegistryContext<R> {
   const RegistryCtx = createContext<R | null>(null);
+  // biome-ignore lint/nursery/noComponentHookFactories: callers mint each trio at MODULE scope (export const modalRegistryContext = createRegistryContext(...)), so the hook keeps one identity.
   function useRegistry(): R {
     const registry = use(RegistryCtx);
     if (registry === null) {
@@ -35,6 +35,7 @@ export function createRegistryContext<R>(name: string): RegistryContext<R> {
     }
     return registry;
   }
+  // biome-ignore lint/nursery/noComponentHookFactories: the same module-scope mint gives Provider one identity.
   function Provider({ value, children }: { readonly value: R; readonly children: ReactNode }): ReactElement {
     return <RegistryCtx value={value}>{children}</RegistryCtx>;
   }
