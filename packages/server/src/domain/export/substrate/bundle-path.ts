@@ -1,7 +1,7 @@
 // domain/export/substrate/bundle-path — one archive path per library-bundle entry. Producers name files
 // independently (a card by its display name), so two rows can share a path that a restored folder cannot
 // hold; a case-insensitive disk also folds case variants together. A colliding path gets the first free
-// numeric suffix before its extension; a path that is already unique is never renamed.
+// numeric suffix before its extension; a path no earlier entry took is never renamed.
 
 const FIRST_SUFFIX = 2;
 

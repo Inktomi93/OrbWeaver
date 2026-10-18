@@ -29,8 +29,8 @@ test("same-named library rows export to distinct archive paths and the whole bac
     throw new Error("the harness did not expose manual workload execution");
   }
   const caller = await root.internalCallerFor(root.ownerId);
-  // Same display name under distinct handles, a case variant a case-insensitive disk folds together, and a
-  // name that already spells the first suffixed variant.
+  // Allocation is first-come in export order: a repeated name, a case variant a case-insensitive disk folds
+  // together, and a real name an earlier collision already took as its suffixed variant are all moved on.
   for (const [handle, name] of [
     ["twin-one", "Twin"],
     ["twin-two", "Twin"],
@@ -45,7 +45,9 @@ test("same-named library rows export to distinct archive paths and the whole bac
   const staged = await extractZip(archiveBytes);
   const paths = staged.entries.map((entry) => entry.path);
   await staged.dispose();
-  expect(paths.filter((path) => path.startsWith(PORTABLE_DIRECTORIES.character))).toHaveLength(4);
+  expect(paths.filter((path) => path.startsWith(PORTABLE_DIRECTORIES.character))).toEqual(
+    ["Twin.png", "Twin-2.png", "twin-3.png", "Twin-2-2.png"].map((name) => `${PORTABLE_DIRECTORIES.character}${name}`),
+  );
   expect(new Set(paths.map((path) => path.toLowerCase())).size).toBe(paths.length);
 
   const owner = await mkdtemp(join(tmpdir(), "orb-export-paths-"));

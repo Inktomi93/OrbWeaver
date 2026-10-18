@@ -41,7 +41,7 @@ Severity: high for folder restore. Found by the first public browser run.
 - Not a cause: the corpus-provider `ProviderError` lines (background summarize jobs refused as off-origin by the corpus harness) and the onnxruntime provider-library error both come before the test starts, and neither touches import or export.
 - Fix: `createBundlePaths` (`packages/server/src/domain/export/substrate/bundle-path.ts`) allocates one path per bundle entry. Paths are compared case-insensitively, because a restored folder can land on a case-insensitive disk.
   - A colliding path takes the first free `-N` suffix before its extension.
-  - A unique path is never renamed. Asset and chat paths are unique by construction.
+  - Allocation is first-come in export order: a path no earlier entry took is never renamed. A real name that an earlier collision already took as its suffixed variant moves on (`Twin`, `Twin`, `twin`, `Twin-2` export as `Twin.png`, `Twin-2.png`, `twin-3.png`, `Twin-2-2.png`). Asset and chat paths are unique by construction, so they are never renamed.
   - The importer reads a character filename only as a display-name fallback and as `importedFrom` provenance. Identity stays `cardImportHash`.
 - Red first: `tests/server/entry/http/export-library-paths.int.test.ts` covers `Twin`, `Twin`, `twin` and a real `Twin-2`.
   - On the original export it failed: 8 entries, 6 distinct case-folded paths.
