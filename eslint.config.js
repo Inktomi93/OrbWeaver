@@ -78,14 +78,13 @@
 //   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { join, matchesGlob, relative } from "node:path";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
   nativeFactoryTypeHomePopulation,
   SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
   serverTypeTier,
-  TYPE_HOME_NATIVE_CONTRACT_GLOBS,
   TYPE_HOME_NATIVE_POLICY_ID,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
@@ -121,11 +120,10 @@ import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TO
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
 import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { readParserSignatureTypeExposures } from "./tooling/src/floor/code-facts/shape-derivation.ts";
+import { readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
   declaredByPackage,
-  readParserTransparentAliasOrigin,
   resolveTypeIdentityChain,
   resolveTypeIdentityOrigin,
   resolveTypeMemberOrigin,
@@ -133,7 +131,6 @@ import {
 import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
 import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
 import { moduleScopeCalls } from "./tooling/src/floor/compiler/module-entry.ts";
-import { canonicalCompilerPath } from "./tooling/src/floor/compiler/ts-workspace.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -2752,7 +2749,7 @@ const typeHomeDeclarationRule = {
   },
 };
 
-const serverFactoryTierReferenceRule = {
+const serverFactoryPublicBoundaryRule = {
   meta: {
     type: "problem",
     schema: [],
@@ -2766,56 +2763,8 @@ const serverFactoryTierReferenceRule = {
     const native = nativeDeclarationContext(context);
     verifyNativeCompilerContext(context, native);
     const consumer = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const tier = serverTypeTier(consumer);
-    const ownership = new Map();
-    const canonicalAlias = (declaration) => {
-      if (!ts.isTypeAliasDeclaration(declaration)) {
-        return false;
-      }
-      const origin = readParserTransparentAliasOrigin(declaration, {
-        kind: "parser",
-        program: native.program,
-        checker: native.checker,
-        source: declaration.getSourceFile(),
-      });
-      const terminals = origin.kind === "resolved" ? (origin.value.at(-1)?.declarations ?? []) : [];
-      return (
-        terminals.length > 0 &&
-        terminals.every((node) => {
-          const physical = canonicalCompilerPath(context.cwd, node.getSourceFile().fileName).replaceAll("\\", "/");
-          const path = relative(context.cwd, physical).replaceAll("\\", "/");
-          return physical.includes("/node_modules/") || TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern));
-        })
-      );
-    };
-    const subject = (declaration) => {
-      if (!(ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration))) {
-        return false;
-      }
-      const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-      if (!nativeFactoryTypeHomePopulation(owner) || serverTypeTier(owner) === tier || canonicalAlias(declaration)) {
-        return false;
-      }
-      if (!ownership.has(declaration)) {
-        ownership.set(
-          declaration,
-          serverFactoryTypeHome(declaration, owner, {
-            kind: "parser",
-            program: native.program,
-            checker: native.checker,
-            source: declaration.getSourceFile(),
-          }),
-        );
-      }
-      return ownership.get(declaration);
-    };
     const reportSubjects = (declarations, reported, seen) => {
-      let accused = false;
       for (const declaration of declarations) {
-        if (!subject(declaration)) {
-          continue;
-        }
-        accused = true;
         if (seen.has(declaration)) {
           continue;
         }
@@ -2823,38 +2772,46 @@ const serverFactoryTierReferenceRule = {
         context.report({
           node: reported,
           messageId: "crossTierFactoryType",
-          data: { name: declaration.name?.text ?? "default", owner: relative(context.cwd, declaration.getSourceFile().fileName), consumer },
+          data: {
+            name: declaration.name?.text ?? "default",
+            owner: relative(context.cwd, declaration.getSourceFile().fileName),
+            consumer,
+          },
         });
       }
-      return accused;
-    };
-    const crossesTier = (declaration) => {
-      const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-      const ownerTier = serverTypeTier(owner);
-      return ownerTier !== undefined && ownerTier !== tier;
     };
     const inspect = (raw, reported, seen, projectDoor) => {
-      const type = native.checker.getTypeAtLocation(raw);
-      const symbol = native.checker.getSymbolAtLocation(raw) ?? native.checker.getAwaitedType(type)?.getSymbol() ?? type.getSymbol();
+      const symbol = native.checker.getSymbolAtLocation(raw);
       const target = symbol !== undefined && nativeAliasFlag(symbol) ? native.checker.getAliasedSymbol(symbol) : symbol;
-      const roots = target?.declarations ?? [];
-      if (roots.length === 0) {
+      const declarations = target?.declarations ?? [];
+      if (declarations.length === 0) {
         if (projectDoor) {
-          context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native project reference has no declaration" } });
+          context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native public reference has no declaration" } });
         }
         return;
       }
-      if (!roots.some(crossesTier)) {
+      if (
+        !declarations.some((declaration) => {
+          const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
+          return serverTypeTier(owner) !== undefined && serverTypeTier(owner) !== serverTypeTier(consumer);
+        })
+      ) {
         return;
       }
-      const graph = readParserSignatureTypeExposures({
-        node: raw,
-        rootType: type,
-        parser: { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
-      });
-      const accused = reportSubjects([...roots, ...graph.trace.declarations], reported, seen);
-      if (!accused && graph.kind === "unresolved") {
-        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: graph.detail } });
+      const boundary = readServerPublicBoundary(
+        raw,
+        {
+          kind: "parser",
+          program: native.program,
+          checker: native.checker,
+          source: raw.getSourceFile(),
+        },
+        context.cwd,
+        consumer,
+      );
+      reportSubjects(boundary.trace.declarations, reported, seen);
+      if (boundary.kind === "unresolved") {
+        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
       }
     };
     const moduleExports = (literal, reported, seen) => {
@@ -2891,7 +2848,12 @@ const serverFactoryTierReferenceRule = {
       moduleExports(native.esTreeNodeToTSNodeMap.get(node).moduleSpecifier, node.source, new Set());
     };
     const importExpression = (node) => {
-      inspect(native.esTreeNodeToTSNodeMap.get(node), node, new Set(), true);
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      if (ts.isCallExpression(raw) && raw.arguments[0] !== undefined && ts.isStringLiteral(raw.arguments[0])) {
+        moduleExports(raw.arguments[0], node, new Set());
+      } else {
+        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: "a computed dynamic import has no explicit public boundary" } });
+      }
     };
     const importType = (node) => {
       const raw = native.esTreeNodeToTSNodeMap.get(node);
@@ -3851,7 +3813,7 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
-    [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryTierReferenceRule,
+    [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
     "client-cache-surgery-only-in-data": nativePackageCallRule(
       ["invalidateQueries", "setQueryData", "cancelQueries", "getQueryData", "removeQueries", "resetQueries"],

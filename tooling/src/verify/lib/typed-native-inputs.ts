@@ -121,7 +121,7 @@ export const TYPED_NATIVE_POLICIES = [
     dependencyScope: POPULATION_ROOTS["@server"].map((root) => `${root}**/*.{ts,tsx}`),
     scope: POPULATION_ROOTS["@server"].map((root) => `${root}**/*.{ts,tsx}`),
     notUnder: TYPE_HOME_NATIVE_UNADMITTED_GLOBS,
-    inputs: TYPE_HOME_INPUTS,
+    inputs: [...TYPE_HOME_INPUTS, "tooling/src/floor/code-facts/server-public-boundary.ts", "tooling/src/floor/code-facts/server-public-boundary-grammar.ts"],
   },
   { id: "list-row-adoption", scope: ["packages/client/src/**/*.tsx"], inputs: SCALAR_INPUTS },
   {
