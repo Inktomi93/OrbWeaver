@@ -28,6 +28,35 @@ Severity: high for the item's purpose (complete folder restore). Low for securit
   - Every cap (HTTP, per-file, count, the local 1 GiB / 64 MiB / 50,000 / 10 GiB bounds).
   - Counts: native dedupe `created=false` still counts as imported.
 
+## Second defect: duplicate archive paths in the library export
+
+Severity: high for folder restore. Found by the first public browser run.
+
+- Symptom: the Backup case failed in `prepareBackupFolder` with `EEXIST` on `backup-folder/library/characters/Lifecycle_witness.png`. The output owner was fresh: its non-recursive `mkdir` succeeded.
+- Root cause: the downloaded archive held 160 entries but only 154 distinct names.
+  - `characters/Lifecycle_witness.png` appeared 6 times and `characters/Corpus_round_keeper.png` 2 times, each copy with identical size and CRC.
+  - The character entry reuses the single-card download name, `slug(name).png`, so same-named characters share a path.
+  - `libraryEntries` (`packages/server/src/entry/http/export.ts`) joined `dir + filename` without making the joined path unique.
+  - A ZIP import survives this, because the codec stages by entry index. A folder cannot hold two files at one path, so the helper's exclusive write correctly refused.
+- Not a cause: the corpus-provider `ProviderError` lines (background summarize jobs refused as off-origin by the corpus harness) and the onnxruntime provider-library error both come before the test starts, and neither touches import or export.
+- Fix: `createBundlePaths` (`packages/server/src/domain/export/substrate/bundle-path.ts`) allocates one path per bundle entry. Paths are compared case-insensitively, because a restored folder can land on a case-insensitive disk.
+  - A colliding path takes the first free `-N` suffix before its extension.
+  - A unique path is never renamed. Asset and chat paths are unique by construction.
+  - The importer reads a character filename only as a display-name fallback and as `importedFrom` provenance. Identity stays `cardImportHash`.
+- Red first: `tests/server/entry/http/export-library-paths.int.test.ts` covers `Twin`, `Twin`, `twin` and a real `Twin-2`.
+  - On the original export it failed: 8 entries, 6 distinct case-folded paths.
+  - With the fix it passes: unique paths, a folder materialized through the helper, and a single-upload `/api/import/tree` restore with `imported == entries`, zero skipped, zero failed.
+- The helper keeps exclusive writes and its fresh-owner guarantee unchanged.
+
+## Independent review findings folded in
+
+- `tests/legacy/server/entry/import/sniff-tree-layout.test.ts` now runs every case against the default full native set instead of a pre-filtered set, and its stale `orbOnlyDirNames` comment is replaced.
+  - Mutation check: narrowing the exclusion to `characters` and `chats` turns "real ST profile: settings.json + colliding themes/ AND assets/ dirs" red. The source was then restored byte for byte.
+- `tests/server/entry/http/import-tree-batches.int.test.ts` gains two rows:
+  - A file-typed `TREE_LAYOUT_FIELD` value is refused with nothing staged.
+  - `secrets.json` at the top of a declared batch, and under `characters/`, is dropped before admission and never staged.
+  - Mutation check: disabling the `collectParts` secrets filter turns the second row red (400 instead of 202). The source was then restored.
+
 ## Remaining items from the brief
 
 1. The 51 ordinary lint findings.
@@ -62,6 +91,10 @@ Severity: high for the item's purpose (complete folder restore). Low for securit
 | exact HARD ESLint, all changed files | clean |
 | native depcruise, helper and new tests | 4 inherited, identical to main |
 | scoped Biome, all changed files | clean |
+| `test:scoped` export-library-paths, import-tree-batches (4 rows), bundle-body-limit, contracts, planner | all pass |
+| `test:scoped --legacy` export route | 8/8 |
+| `test:scoped --legacy` portability-routes, chat-accounting-bundle, imagery-bundle | 5 fail; the same 5 fail on main's bytes (unregistered DB wiring handle, workload id, undefined CAS root) |
+| exact ordinary ESLint, export files | one `server-factory-tier-reference` site on the unchanged `#infra/storage` import, identical on main |
 
 ## Security self-review
 
@@ -81,7 +114,11 @@ Decisions and why they hold:
   - A codec directory entry (`name/`) would fail closed on `ENOTDIR`, and the production packer never emits one.
 
 Residual, not fixed here:
-- A SillyTavern profile with no `settings.json`, `User Avatars` or `worlds` that is split across uploads can produce a batch the lone sniff refuses. That is the same per-batch shape on the SillyTavern path. It is unreported in practice, because real profiles carry `settings.json`.
+- The SillyTavern markers are `settings.json`, `User Avatars`, `characters` and `chats`; `worlds` is not one.
+- A SillyTavern profile split across uploads can therefore produce a batch with none of those markers, which the lone sniff refuses.
+- That gap already exists on main and never misroutes: the batch is refused, not sent to the wrong importer. No code change.
+
+The independent review confirmed `7ef38a9fef` with no critical, high or medium findings. Its two Low findings are folded in above.
 
 ## Browser qualification request (not started)
 

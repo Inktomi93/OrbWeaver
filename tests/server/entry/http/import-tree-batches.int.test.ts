@@ -2,10 +2,10 @@
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { importStartedSchema, ST_SETTINGS_FILE, TREE_FILE_FIELD, TREE_LAYOUT_FIELD } from "@orb/contracts/import";
+import { importStartedSchema, ST_SECRETS_FILE, ST_SETTINGS_FILE, TREE_FILE_FIELD, TREE_LAYOUT_FIELD } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
@@ -84,7 +84,7 @@ function inDir(entries: readonly BackupEntry[], kinds: readonly PortableKind[]):
   return entries.filter((entry) => kinds.some((kind) => entry.path.startsWith(PORTABLE_DIRECTORIES[kind])));
 }
 
-async function postBatch(root: ServerTestHarness, entries: readonly BackupEntry[], declarations: readonly string[]): Promise<Response> {
+async function postBatch(root: ServerTestHarness, entries: readonly BackupEntry[], declarations: readonly (string | File)[]): Promise<Response> {
   const form = new FormData();
   for (const entry of entries) {
     const relPath = `${WRAPPER}/${entry.path}`;
@@ -166,8 +166,27 @@ test("a declared native upload that is not wholly native, or a malformed declara
     { entries: [...cards, stray("README.txt")], declarations: ["orb"] },
     { entries: cards, declarations: ["st"] },
     { entries: cards, declarations: ["orb", "orb"] },
+    { entries: cards, declarations: [new File(["orb"], "layout")] },
   ];
   for (const { entries, declarations } of refusals) {
     expect(await uploadEffects(root, await postBatch(root, entries, declarations))).toEqual(REFUSED);
   }
+});
+
+test("credential files in a declared native upload are dropped before admission and never staged", async () => {
+  await using root = await harness();
+  const backup = await exportedBackup(root);
+  const cards = inDir(backup, ["character"]);
+  expect(cards.length).toBeGreaterThan(0);
+  const secret = (path: string): BackupEntry => ({ path, bytes: new TextEncoder().encode('{"api_key_openai":"planted"}') });
+  // A top-level file would refuse the declaration and a card-plane file would be staged, if either survived.
+  const response = await postBatch(root, [...cards, secret(ST_SECRETS_FILE), secret(`${PORTABLE_DIRECTORIES.character}${ST_SECRETS_FILE}`)], ["orb"]);
+  expect(response.status).toBe(202);
+  const { workloadId } = importStartedSchema.parse(await response.json());
+  const workload = await root.services.workloads.get({ id: workloadId, caller: await root.principalFor(root.ownerId) });
+  expect(workload).toMatchObject({ kind: "import-bundle", params: { source: "dir" } });
+  const staged = await readdir(root.importStagingDir, { recursive: true, withFileTypes: true });
+  const files = staged.filter((entry) => entry.isFile()).map((entry) => entry.name);
+  const byName = (a: string, b: string): number => a.localeCompare(b);
+  expect(files.toSorted(byName)).toEqual(cards.map((card) => basename(card.path)).toSorted(byName));
 });
