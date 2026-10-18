@@ -1,7 +1,8 @@
-import type { ContextTabsSpec, ListPaneHeaderView } from "@orb/client/lib";
+import type { ListPaneHeaderView } from "@orb/client/lib";
 import type { SectionDefinition } from "@orb/client/state";
 import type { ReactNode } from "react";
 import { expectTypeOf, test } from "vitest";
+import type { ContextTabsSpec } from "#client/lib/registry-contracts.ts";
 
 type ListSection = Extract<SectionDefinition, { readonly list: () => ReactNode }>;
 

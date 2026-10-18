@@ -51,7 +51,7 @@ import type {
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, notify, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
+import { bindNotify, notify, resolveRowRenderPolicy } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import {
   CommandPaletteSourceRegistryProvider,
@@ -207,6 +207,7 @@ import { createWarningSurface } from "#client/features/chat/lib/turn-warning-sur
 import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "#client/features/rpg/index.ts";
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
+import { toNotice } from "#client/lib/notify.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 

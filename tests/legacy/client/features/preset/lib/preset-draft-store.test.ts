@@ -3,10 +3,10 @@
 // per-editor store, driven by the same `mirrorDraft`/`readDraftSeed` vocabulary the autosave factory's
 // driver calls. DOM-free (no localStorage in node — the store degrades to an in-memory-only mirror).
 
-import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { presetDraftStore } from "#client/features/preset/lib/preset-draft-store.ts";
+import { mirrorDraft, readDraftSeed } from "#client/forms/entity-form-base.ts";
 
 test("preset draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(presetDraftStore, "preset_1")).toBeUndefined();

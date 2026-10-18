@@ -4,10 +4,10 @@
 // factory's driver calls. DOM-free (no localStorage in node — the store degrades to an in-memory-only
 // mirror).
 
-import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { entryDraftStore } from "#client/features/world-info/lib/entry-draft-store.ts";
 import { NEW_ENTRY_FORM } from "#client/features/world-info/lib/entry-editor-model.ts";
+import { mirrorDraft, readDraftSeed } from "#client/forms/entity-form-base.ts";
 
 test("entry draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(entryDraftStore, "entry_1")).toBeUndefined();

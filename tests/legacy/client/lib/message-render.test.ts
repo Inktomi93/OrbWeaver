@@ -4,13 +4,14 @@
 // per-row `{{char}}`/`{{user}}` re-targeting via the row's OWN stamps; frozen clock injected
 // (determinism).
 
-import { isDisplayRegexTooComplex, renderMessageForDisplay } from "@orb/client/lib";
+import { renderMessageForDisplay } from "@orb/client/lib";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { isDisplayRegexTooComplex } from "#client/lib/message-render.ts";
 
 const KORA = castId<CharacterId>("char_testrenderaaaa");
 const ALEX = castId<PersonaId>("persona_testrenderaaaa");

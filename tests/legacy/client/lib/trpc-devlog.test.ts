@@ -3,10 +3,10 @@
 // neo V9-5: a dev logger once printed credentials.add's plaintext key), input truncation, and the
 // result summaries. Console is spied (restoreMocks resets between tests).
 
-import type { TrpcOpLogEntry } from "@orb/client/lib";
 import { formatTrpcOp } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { TrpcOpLogEntry } from "#client/lib/trpc-devlog.ts";
 
 function upEntry(input: unknown, path = "character.get"): TrpcOpLogEntry {
   return { direction: "up", type: "query", path, input };

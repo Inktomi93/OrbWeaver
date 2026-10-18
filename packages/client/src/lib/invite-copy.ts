@@ -6,8 +6,8 @@ import type { SignedOutInvitePreview } from "@orb/contracts/chat";
 /** What every door says when a link names no invite that still admits anyone. */
 export const DEAD_INVITE_SENTENCE = "This invite link has expired or is used up. Ask the host for a new one.";
 
-/** A room's people, counted in one word everywhere an invite shows them. */
-export function memberCountPhrase(count: number): string {
+// A room's people, counted in one word everywhere an invite shows them.
+function memberCountPhrase(count: number): string {
   return `${count} ${count === 1 ? "member" : "members"}`;
 }
 

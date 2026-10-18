@@ -15,7 +15,6 @@
 // @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication({ readonly queryKey?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
-import { __resetBusDupBursts } from "@orb/client/lib";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
@@ -28,6 +27,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { createInvalidation } from "#client/data/invalidation.ts";
+import { __resetBusDupBursts } from "#client/lib/bus-devlog.ts";
 import { __resetViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 

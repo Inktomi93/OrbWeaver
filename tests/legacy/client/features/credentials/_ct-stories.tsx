@@ -11,7 +11,7 @@ import { connectionsListSection } from "@orb/client/features/credentials";
 import { pluginsInstalledSection } from "@orb/client/features/plugin";
 import { SaveStatusHostContext } from "@orb/client/forms";
 import type { ContributorRegistry, NotifyInput } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { bindNotify } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { requestConnectionEditor, useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
@@ -26,6 +26,7 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
+import { toNotice } from "#client/lib/notify.ts";
 
 // The plugin lifecycle story watches one plugins row beside one connections row; the door's other sections at those anchors stay out of it.
 const providerLifecycleConnectionSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(

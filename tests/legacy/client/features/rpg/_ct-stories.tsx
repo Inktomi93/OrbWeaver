@@ -13,7 +13,7 @@
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { bindNotify } from "@orb/client/lib";
 import { selectChat, useRequestedConnectionEditor, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
@@ -38,6 +38,7 @@ import { RpgVeiledSection } from "#client/features/rpg/components/rpg-veiled-sec
 import { useUpdateConfig } from "#client/features/rpg/hooks/use-rpg-mutations.ts";
 import { rpgTurnToolCallsSurface } from "#client/features/rpg/index.ts";
 import type { ArchivedCard } from "#client/features/rpg/lib/archived-cards.ts";
+import { toNotice } from "#client/lib/notify.ts";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 
 /** Five live conditions — the measured shape, and enough to WRAP at 430, which is where the vertical floor
