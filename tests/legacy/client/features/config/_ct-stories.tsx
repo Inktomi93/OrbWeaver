@@ -18,7 +18,6 @@
 // across a directory; here it is a local function.
 
 import { AppShell } from "@orb/client/features/app-shell";
-import { CommandPaletteSurface } from "@orb/client/features/chat";
 import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/features/config";
 import type { CommandPaletteSource } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
@@ -41,6 +40,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
 import { AppearanceLooksSection } from "#client/features/config/components/appearance-looks-section.tsx";
 import { createAnchorFlasher } from "#client/features/config/lib/config-scroll-spy.ts";
 import { makeConfigSection } from "#client/features/config/lib/config-section.tsx";

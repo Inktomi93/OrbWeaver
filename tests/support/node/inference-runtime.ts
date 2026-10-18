@@ -5,7 +5,7 @@
 import type { Capability, DeclaredCapability, UserConnection } from "@orb/contracts/inference";
 import type { ResolvedTaskView, RoleClients } from "@orb/contracts/role-clients";
 import type { InferenceDeps } from "@orb/inference";
-import { createInferenceRuntime, resolveEmbed } from "@orb/inference";
+import { createInferenceRuntime, embeddingExecution, resolveEmbed } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
@@ -119,7 +119,11 @@ function scriptedTaskRuntime(
     scriptedDeps({
       resolveCredential: roleClients.resolveCredential,
       connections: {
-        get: (id) => Promise.resolve(rows.get(id) ?? null),
+        // Scripted rows hold no stored bytes, so the decode the resolver runs after its owner comparison is the row.
+        get: (id) => {
+          const row = rows.get(id);
+          return Promise.resolve(row === undefined ? null : { ownerId: row.ownerId, parse: () => row });
+        },
         listForOwner: (ownerId) => Promise.resolve([...rows.values()].filter((row) => row.ownerId === ownerId)),
       },
       bindings: {
@@ -176,6 +180,7 @@ export function makeEmbeddingRuntime(
       return runtime(args);
     },
     funnel: { embed: resolveEmbed },
+    embeddingExecution,
     executor: {
       embed: (req): ReturnType<EmbeddingRuntime["executor"]["embed"]> =>
         roleClients.embed(req.input, {

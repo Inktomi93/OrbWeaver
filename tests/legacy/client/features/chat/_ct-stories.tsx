@@ -1,6 +1,6 @@
 // Chat message-list CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
-// The surface/anchor come through the feature front door; the leaf components come via relative path
-// into the package (stories legitimately compose feature INTERNALS the front door doesn't re-export).
+// MessageListSurface retains its feature door; the legacy thread anchor, room and composer use the
+// root raw-reach map, like the other internal components these stories compose.
 // Fixtures are plain `MessageView`/`ChatBusEvent` literals (the support/factories are DB-row builders
 // for a different layer). Data-layer stories wrap in <CtDataProviders> (Query + real tRPC over the
 // stubbed network); pure-render stories rely on the beforeMount toast/tooltip chrome.
@@ -8,17 +8,9 @@
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
 import { QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
-import { shellContentWidth } from "@orb/client/features/app-shell";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
-import type { GoToSection } from "@orb/client/features/chat";
 import {
   CharacterGalleryAnchor,
-  ChatLandingSurface,
-  ChatListAnchor,
-  ChatListSurface,
-  ChatRoomSurface,
-  CommandPaletteSurface,
-  Composer,
   chatAlsoOpenTile,
   chatMastheadTile,
   chatQuickPicksTile,
@@ -26,11 +18,8 @@ import {
   chatTempChatTile,
   JoinInviteDialog,
   MessageListSurface,
-  MessageThreadAnchor,
   makeChatControlsContribution,
-  NewChatPicker,
 } from "@orb/client/features/chat";
-import { HomeSurface } from "@orb/client/features/home";
 // #618 — the shell-level detail modal the room-image click opens; imported through the SAME front door the
 // providers use, never a relative path (a relative import gets a different React context instance).
 import { ImageDetailBody, ImageEditBody } from "@orb/client/features/imagery";
@@ -136,7 +125,10 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { applyChatBusEvent } from "#client/data/bus/apply-chat-bus-event.ts";
 import { createInvalidation } from "#client/data/invalidation.ts";
 import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { shellContentWidth } from "#client/features/app-shell/lib/shell-content-width.ts";
 import { CharacterGalleryDialog } from "#client/features/chat/anchors/character-gallery-dialog.tsx";
+import { ChatListAnchor } from "#client/features/chat/anchors/chat-list-anchor.tsx";
+import { MessageThreadAnchor } from "#client/features/chat/anchors/message-thread-anchor.tsx";
 import { AddChatBookDialog } from "#client/features/chat/components/add-chat-book-dialog.tsx";
 import { AddChatDocumentDialog } from "#client/features/chat/components/add-chat-document-dialog.tsx";
 import { AppearanceAvatarsSection } from "#client/features/chat/components/appearance-avatars-section.tsx";
@@ -158,6 +150,7 @@ import { ChatsTopbarHeader } from "#client/features/chat/components/chats-topbar
 import { ChoiceSendProvider } from "#client/features/chat/components/choice-send-provider.tsx";
 import { CommittedMembersTab } from "#client/features/chat/components/committed-members-tab.tsx";
 import { CompactSummaryPeek } from "#client/features/chat/components/compact-summary-peek.tsx";
+import { Composer } from "#client/features/chat/components/composer.tsx";
 import { ComposerArgHintStrip } from "#client/features/chat/components/composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "#client/features/chat/components/composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "#client/features/chat/components/composer-chat-options.tsx";
@@ -200,6 +193,13 @@ import { useChatsSelectionTitle } from "#client/features/chat/lib/chats-selectio
 import type { MemberCharacterRow, MemberPersonRow } from "#client/features/chat/lib/member-rows.ts";
 import { SWIPE_FOOT_INSIDE } from "#client/features/chat/lib/pager-chrome.ts";
 import { createWarningSurface } from "#client/features/chat/lib/turn-warning-surface.ts";
+import { ChatLandingSurface } from "#client/features/chat/surfaces/chat-landing-surface.tsx";
+import { ChatListSurface } from "#client/features/chat/surfaces/chat-list-surface.tsx";
+import { ChatRoomSurface } from "#client/features/chat/surfaces/chat-room-surface.tsx";
+import type { GoToSection } from "#client/features/chat/surfaces/command-palette-surface.tsx";
+import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
+import { NewChatPicker } from "#client/features/chat/surfaces/new-chat-picker-surface.tsx";
+import { HomeSurface } from "#client/features/home/surfaces/home-surface.tsx";
 // B8/D269: the REAL rpg dice composer contribution + in-thread RESULT renderer, through the
 // same front door the providers use (a relative import gets a different React context instance).
 import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "#client/features/rpg/index.ts";

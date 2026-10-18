@@ -1,5 +1,5 @@
 // Notifications feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
-// The bell comes through the feature front door and wraps in the real client data layer
+// The legacy bell import uses the root raw-reach map and wraps in the real client data layer
 // (<CtDataProviders> — Query + real tRPC over the routeTrpc-stubbed network + a scripted body for the ONE
 // multiplexed socket, registered per-test in the `.ct.tsx` via routeOrbSocket).
 //
@@ -15,7 +15,8 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
-import { NotificationBell, notificationsChrome } from "#client/features/notifications/index.ts";
+import { NotificationBell } from "#client/features/notifications/components/notification-bell.tsx";
+import { notificationsChrome } from "#client/features/notifications/index.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */

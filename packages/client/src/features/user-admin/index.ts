@@ -7,7 +7,7 @@ export { aboutSection, aboutUpdatesSection } from "./lib/about-section.tsx";
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
 export { adminGroup } from "./lib/admin-group.tsx";
 export { adminLinkSsoSection } from "./lib/admin-link-sso-section.tsx";
-export { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "./lib/admin-model.ts";
+export {} from "./lib/admin-model.ts";
 export { adminCatalogSection, adminEmbeddingsSection } from "./lib/admin-ops-sections.tsx";
 export { adminUsersSection } from "./lib/admin-users-section.tsx";
 export { memoryTuningSection } from "./lib/memory-tuning-section.tsx";

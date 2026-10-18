@@ -4,7 +4,7 @@
 // module MUST enter via the `@orb/client/*` alias — a relative import into packages/client/src hands the
 // story a DIFFERENT React context instance and mounts blank).
 
-export { AcceptReview } from "./components/accept-review.tsx";
+export {} from "./components/accept-review.tsx";
 /** @public exported for the CT that carries the lane's RUNNING affordance contract — the indeterminate
  *  hairline whose reduced-motion arm REMOVES the travelling segment rather than parking it (migrated from
  *  the deleted stage stepper's CT) — plus the fit-line/verb geometry at a rail width. The lanes receive it
@@ -17,7 +17,7 @@ export { LaneRunControl } from "./components/lane-run-control.tsx";
  *  when the workbench (program #102, mockup C) stopped rendering one stage at a time. */
 export type { PayloadLaneProps } from "./components/payload-lane.tsx";
 export { PayloadLane } from "./components/payload-lane.tsx";
-export { PayloadView } from "./components/payload-view.tsx";
+export {} from "./components/payload-view.tsx";
 /** @public exported for the CT that proves the Setup tab reaches BOTH schema verbs the live drive found
  *  UI-unreachable — authoring a custom ANALYZE schema and EDITING a saved one (2026-08-14). `refinerySection`
  *  mounts it relatively in the CONTEXT panel; a story importing it relatively would mount against a different
@@ -42,22 +42,16 @@ export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
  *  import it relatively, and a story importing it relatively would mount against a different React
  *  context instance (this door's own header). */
 export { ScopeEditorDialog } from "./components/scope-editor-dialog.tsx";
-export { TeachingState } from "./components/teaching-state.tsx";
-export { useRefineryListHeader } from "./hooks/use-refinery-list-header.tsx";
-export {
-  useApplyRefineryFields,
-  useDeleteRefinerySession,
-  useIterateRefinery,
-  useRunRefineryStage,
-  useUpdateRefinerySession,
-} from "./hooks/use-refinery-mutations.ts";
+export {} from "./components/teaching-state.tsx";
+export {} from "./hooks/use-refinery-list-header.tsx";
+export {} from "./hooks/use-refinery-mutations.ts";
 
 export {} from "./hooks/use-refinery-schemas.ts";
 
-export { useRefineryRuns, useRefinerySession, useRefinerySessions } from "./hooks/use-refinery-sessions.ts";
-export { BUILTIN_STAGE_HINTS } from "./lib/builtin-hints.ts";
+export {} from "./hooks/use-refinery-sessions.ts";
+export {} from "./lib/builtin-hints.ts";
 export { refinerySection } from "./lib/refinery-section.tsx";
-export { buildRenderPlan } from "./lib/render-plan.ts";
+export {} from "./lib/render-plan.ts";
 export type { ReviewEntry } from "./lib/review-entries.ts";
 
 export {} from "./lib/review-entries.ts";
@@ -66,4 +60,4 @@ export {} from "./lib/review-entries.ts";
  *  per-block rewrite decision → apply → the terminal outcome) — `refinerySection` imports it relatively,
  *  and a story importing it relatively would mount against a different React context instance (header). */
 export { RefineryContentSurface } from "./surfaces/refinery-content-surface.tsx";
-export { RefineryListSurface } from "./surfaces/refinery-list-surface.tsx";
+export {} from "./surfaces/refinery-list-surface.tsx";

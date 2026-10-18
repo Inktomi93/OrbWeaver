@@ -13,8 +13,6 @@
 // directly assertable — see the socket-budget test at the bottom, which is the S5 claim: N watched runs,
 // ONE connection. The story mounts the socket above the section, as `routes/app-root.tsx` does.
 
-// @orb-waive-file no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
-import { WORKLOAD_KIND_LABELS } from "@orb/client/features/workloads";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -26,6 +24,8 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+// @orb-waive-file no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
+import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's

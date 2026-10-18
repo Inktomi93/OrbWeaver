@@ -31,7 +31,7 @@ Reference storage and native lifetimes pass review. Evidence: `reports/review/na
 
 The generation prototype census is integrated. Its driver retains a non-prototype signal refusal. D328 ends general callable qualification and helper-specific repair. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
-Native source admission and captured reuse preserve world identity. Sparse-env remains unqualified; no retained demand justifies expansion. Evidence: `reports/review/1002-native-source-currentness-ordinary.md` and `reports/review/1002-retained-env-failure-purpose.md`.
+Source admission preserves world identity. Repeated full schema decoding blocks owner-policy cost qualification; pinned-reader reuse must preserve currentness and disposal. Evidence: `reports/review/1016-schema-decode-cost.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
@@ -39,6 +39,8 @@ Executing-input currentness, sealed consumer adoption and the reviewed ABI corre
 
 Replay batching, overlays and intra-boundary coalescing preserve independent current reads, projected bytes and authored membership. Shape and public codemod deadlines fail in acquisition/replay, not queries. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
 
-Capture validation and lexical reuse are integrated. D328 stops the unbounded campaign; its isolated diagnostic stays unlaunched. Evidence: `reports/review/1002-current-predicate-cost-next-step.md`.
+Capture validation and lexical reuse are integrated. D328 ends unbounded diagnosis. Evidence: `reports/review/1002-current-predicate-cost-next-step.md`.
 
 The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
+
+The public codemod integration control completes with unchanged assertions and composition-scaled timing. Independent review passes. Historical timeouts stay failed; acquisition latency remains open. Evidence: `reports/review/1002-public-codemod-integration-independent.md`.

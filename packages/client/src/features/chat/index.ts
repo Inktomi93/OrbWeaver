@@ -1,16 +1,13 @@
-// chat/ front door (UI-Arch §2.1) — the ONLY entry into the chat slice (dep-cruiser
-// client-feature-front-door). The message-list keystone: the containment anchor + the surface it
-// wraps, PLUS the composer + the composed chat-room surface (task #18) that combines them into one
-// pane. The composition root mounts `<ChatRoomSurface initialHandle busDeps/>` (or the anchor+surface
-// pair directly if it needs the transcript alone); the reducer deps (`busDeps`) are assembled at that
-// root (a feature may not import the write store).
+// chat/ front door (UI-Arch §2.1) — the ONLY entry into the chat slice (dep-cruiser client-feature-front-door).
+// The composition root enters through `makeChatsSection`; its CONTENT body reads the bus deps from `#data` and
+// mounts the chat-room surface (thread anchor, message list, composer) inside the slice.
 
 export { CharacterGalleryAnchor } from "./anchors/character-gallery-anchor.tsx";
-export { ChatListAnchor } from "./anchors/chat-list-anchor.tsx";
+export {} from "./anchors/chat-list-anchor.tsx";
 export { JoinInviteDialog } from "./anchors/join-invite-dialog.tsx";
-export { MessageThreadAnchor } from "./anchors/message-thread-anchor.tsx";
+export {} from "./anchors/message-thread-anchor.tsx";
 export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.tsx";
-export { Composer } from "./components/composer.tsx";
+export {} from "./components/composer.tsx";
 /** @public exported for the reaction CT story, which mounts the picker the way the message row does. */
 export { RowReactionPicker } from "./components/row-reaction-picker.tsx";
 
@@ -25,7 +22,7 @@ export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
-export { chatContextTabs, makeChatsSection } from "./lib/chats-section.tsx";
+export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
 
 export {} from "./lib/continue-on-empty.ts";
@@ -42,10 +39,9 @@ export { memorySettingsSection } from "./lib/memory-settings-section.tsx";
 export { chatMessageReactionsSurface } from "./lib/message-reactions-surface.tsx";
 export { newChatModal } from "./lib/new-chat-modal.tsx";
 export { proseSettingsSection } from "./lib/prose-settings-section.tsx";
-export { ChatLandingSurface } from "./surfaces/chat-landing-surface.tsx";
-export { ChatListSurface } from "./surfaces/chat-list-surface.tsx";
-export { ChatRoomSurface } from "./surfaces/chat-room-surface.tsx";
-export type { GoToSection } from "./surfaces/command-palette-surface.tsx";
-export { CommandPaletteSurface } from "./surfaces/command-palette-surface.tsx";
+export {} from "./surfaces/chat-landing-surface.tsx";
+export {} from "./surfaces/chat-list-surface.tsx";
+export {} from "./surfaces/chat-room-surface.tsx";
+export {} from "./surfaces/command-palette-surface.tsx";
 export { MessageListSurface } from "./surfaces/message-list-surface.tsx";
-export { NewChatPicker } from "./surfaces/new-chat-picker-surface.tsx";
+export {} from "./surfaces/new-chat-picker-surface.tsx";

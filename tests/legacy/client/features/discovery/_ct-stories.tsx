@@ -1,25 +1,10 @@
 // Discovery (Corpus section) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
-// module). Surfaces come through the feature front door, wrapped in the real client data layer
+// module). Legacy surfaces use the root raw-reach map, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import { CommandPaletteSurface } from "@orb/client/features/chat";
-import {
-  CorpusArchetypesTab,
-  CorpusCompareTab,
-  CorpusContent,
-  CorpusContextHeader,
-  CorpusDossierSurface,
-  CorpusHomeSurface,
-  CorpusListSurface,
-  CorpusMapTab,
-  CorpusSimilarityTab,
-  CorpusUnderstandingInvitation,
-  CorpusVisualsTab,
-  corpusModePaletteSource,
-  useCorpusListHeader,
-} from "@orb/client/features/discovery";
+import { corpusModePaletteSource } from "@orb/client/features/discovery";
 import type { CommandPaletteSource, CorpusDestination } from "@orb/client/lib";
 import { corpusDestinationIdentity } from "@orb/client/lib";
 import {
@@ -43,11 +28,24 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 // Reach the shell's internal host, rather than restamping its registry-derived inset in a story.
 import { SectionContent } from "#client/features/app-shell/components/section-content.tsx";
+import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
+import { CorpusArchetypesTab } from "#client/features/discovery/components/corpus-archetypes-tab.tsx";
 import { CorpusArtifactContext } from "#client/features/discovery/components/corpus-artifact-context.tsx";
+import { CorpusCompareTab } from "#client/features/discovery/components/corpus-compare-tab.tsx";
+import { CorpusContent } from "#client/features/discovery/components/corpus-content.tsx";
+import { CorpusContextHeader } from "#client/features/discovery/components/corpus-context-header.tsx";
+import { CorpusMapTab } from "#client/features/discovery/components/corpus-map-tab.tsx";
 import { CorpusSearchDisclosure } from "#client/features/discovery/components/corpus-search-disclosure.tsx";
 import { CorpusSearchResults } from "#client/features/discovery/components/corpus-search-results.tsx";
+import { CorpusSimilarityTab } from "#client/features/discovery/components/corpus-similarity-tab.tsx";
 import { CorpusThemeSection } from "#client/features/discovery/components/corpus-theme-section.tsx";
+import { CorpusUnderstandingInvitation } from "#client/features/discovery/components/corpus-understanding-invitation.tsx";
+import { CorpusVisualsTab } from "#client/features/discovery/components/corpus-visuals-tab.tsx";
+import { useCorpusListHeader } from "#client/features/discovery/hooks/use-corpus-list-header.tsx";
 import { CorpusArtifactSurface } from "#client/features/discovery/surfaces/corpus-artifact-surface.tsx";
+import { CorpusDossierSurface } from "#client/features/discovery/surfaces/corpus-dossier-surface.tsx";
+import { CorpusHomeSurface } from "#client/features/discovery/surfaces/corpus-home-surface.tsx";
+import { CorpusListSurface } from "#client/features/discovery/surfaces/corpus-list-surface.tsx";
 
 // The theme rows the overview hands the section, spelled at the REAL prop type so a field added to
 // `discovery.home`'s theme projection breaks this module at compile time rather than surviving as a hole.

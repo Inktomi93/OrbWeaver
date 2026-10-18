@@ -1,9 +1,9 @@
 ---
 kind: work
 status: blocked
-updated: 2026-10-12
+updated: 2026-10-18
 priority: P2
-blocked: on 954
+blocked: on 1016
 plan: test-foundation
 ---
 
@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Replace test-hand-shape's field-overlap threshold with the shared shape-relation fact from item 954: a test-side shape that copies, narrows or diverges from a production type its own test can reach is a finding, and a coincidental fit is not. An earlier attempt with its own relation flagged coincidental option shapes and cost several minutes per run; it did not land.
+Replace field-overlap thresholds with shared native relations at witnessed production-type boundaries under D328. Judge direct annotated initializers, native-resolved call arguments and explicitly typed returns. Handwritten boundary shapes derive from their canonical owner. Unassociated resemblance and unsupported provenance remain explicit analysis coverage, not copy violations.
 
 ## Why
 
@@ -19,8 +19,10 @@ Owner ruling: judge by type and declaration; a calibrated overlap threshold only
 
 ## Done when
 
-test-hand-shape calls the floor shape-relation fact; real copies flag; a coincidental fit and an unreachable type pass; the overlap threshold is gone.
+The qualified floor reader supplies direct boundary associations and canonical declaration identity without a second resolver. Handwritten owned boundary declarations have discriminating controls. Native types judge assignability. Derived types pass; unrelated or unreachable shapes produce no hard copy finding. Unsupported coverage remains visible. The calibrated overlap threshold is gone.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Partial source is saved at `affa11ba8d` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
+
+D328 bounds static assurance; native relation alone cannot distinguish copied intent from independent identical declarations. The consumed shape-reader subset qualifies before this gate changes. General shape equivalence remains with item 954. Implementation and qualification remain open.

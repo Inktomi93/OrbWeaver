@@ -1,19 +1,10 @@
 // Corpus Insights (stats domain) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
-// module). Surfaces come through the feature front door, wrapped in the real client data layer
+// module). Legacy surfaces use the root raw-reach map, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network). The N4/P4 CONTEXT-band and
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) with Corpus in its
 // Insights mode — the shell's own consumers of the `header`/`useListHeader` slots.
 
 import { ListPaneHeaderHost } from "@orb/client/components";
-import {
-  AnalyticsCharacterSurface,
-  AnalyticsListAnchor,
-  AnalyticsListSurface,
-  AnalyticsModelsTab,
-  AnalyticsOverviewSurface,
-  AnalyticsPersonasTab,
-  AnalyticsTimeTab,
-} from "@orb/client/features/stats";
 import {
   clearAnalyticsSelection,
   selectAnalyticsCharacterFromList,
@@ -30,6 +21,13 @@ import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { AnalyticsListAnchor } from "#client/features/stats/anchors/analytics-list-anchor.tsx";
+import { AnalyticsModelsTab } from "#client/features/stats/components/analytics-models-tab.tsx";
+import { AnalyticsPersonasTab } from "#client/features/stats/components/analytics-personas-tab.tsx";
+import { AnalyticsTimeTab } from "#client/features/stats/components/analytics-time-tab.tsx";
+import { AnalyticsCharacterSurface } from "#client/features/stats/surfaces/analytics-character-surface.tsx";
+import { AnalyticsListSurface } from "#client/features/stats/surfaces/analytics-list-surface.tsx";
+import { AnalyticsOverviewSurface } from "#client/features/stats/surfaces/analytics-overview-surface.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */
 export function AnalyticsListSurfaceStory(): ReactElement {

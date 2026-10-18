@@ -7,7 +7,7 @@
 // is — the WRITE-TIER probe. Audit finding `client-preset-refinery-02`.)
 //
 // `RefineryDataProbe` keeps its own job: the R2 hooks driven bare, so a mutation's toast/refusal channel is
-// observable without the surface's chrome in the way. It mounts the REAL hooks from the feature front door,
+// observable without the surface's chrome in the way. Legacy hooks use the root raw-reach map,
 // through the REAL app QueryClient (`CtAppDataProviders` — the one whose MutationCache `meta.errorToast` IS
 // the `notify` channel) and the real toast surface, over a network stubbed at `page.route`. Every observable
 // the CTs assert is either rendered text the hooks produced or a wire call `routeTrpc` counted — never a
@@ -23,30 +23,15 @@ import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOpenRefinery, useTRPC } from "@orb/client/data";
 import type { PayloadLaneProps, ReviewEntry, RewriteLaneProps } from "@orb/client/features/refinery";
 import {
-  AcceptReview,
-  BUILTIN_STAGE_HINTS,
-  buildRenderPlan,
   LaneRunControl,
   PayloadLane,
-  PayloadView,
   RefineryContentSurface,
-  RefineryListSurface,
   RewriteLane,
   RunControlsCard,
   RunsTabBody,
   SchemaEditorDialog,
   ScopeEditorDialog,
   SetupTabBody,
-  TeachingState,
-  useApplyRefineryFields,
-  useDeleteRefinerySession,
-  useIterateRefinery,
-  useRefineryListHeader,
-  useRefineryRuns,
-  useRefinerySession,
-  useRefinerySessions,
-  useRunRefineryStage,
-  useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
 import { refinerySectionSelection, selectRefinerySession, setMobileViewport, setRefineryViewedRun } from "@orb/client/state";
 import type { CharacterCard } from "@orb/contracts/character";
@@ -62,7 +47,22 @@ import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
+import { AcceptReview } from "#client/features/refinery/components/accept-review.tsx";
+import { PayloadView } from "#client/features/refinery/components/payload-view.tsx";
 import { VersionsTabBody } from "#client/features/refinery/components/refinery-context-tabs.tsx";
+import { TeachingState } from "#client/features/refinery/components/teaching-state.tsx";
+import { useRefineryListHeader } from "#client/features/refinery/hooks/use-refinery-list-header.tsx";
+import {
+  useApplyRefineryFields,
+  useDeleteRefinerySession,
+  useIterateRefinery,
+  useRunRefineryStage,
+  useUpdateRefinerySession,
+} from "#client/features/refinery/hooks/use-refinery-mutations.ts";
+import { useRefineryRuns, useRefinerySession, useRefinerySessions } from "#client/features/refinery/hooks/use-refinery-sessions.ts";
+import { BUILTIN_STAGE_HINTS } from "#client/features/refinery/lib/builtin-hints.ts";
+import { buildRenderPlan } from "#client/features/refinery/lib/render-plan.ts";
+import { RefineryListSurface } from "#client/features/refinery/surfaces/refinery-list-surface.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 export interface RefineryDataStoryProps {

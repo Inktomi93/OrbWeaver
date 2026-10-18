@@ -1,7 +1,7 @@
 // The child owns native execution; this process borrows only the exact published SQLite generation for verdict assertions.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -17,8 +17,80 @@ import { SemanticInventoryError } from "../../../../tooling/src/floor/code-facts
 import { openInventoryDatabase, readInventoryGeneration } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { acquireInventoryReadLease } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import type { NativeInventoryFault } from "./native-inventory-stage-fault.ts";
+
+/** Keep shared native-world setup and additional fixture writes on the same authored-byte path. */
+export function writeNativeInventoryFixtureFile(root: string, path: string, text: string): void {
+  const absolute = join(root, path);
+  mkdirSync(dirname(absolute), { recursive: true });
+  writeFileSync(absolute, text);
+}
+
+/** Standalone and transaction controls consume the same complete native-world fixture. */
+export function initializeNativeInventoryFixture(root: string): void {
+  writeNativeInventoryFixtureFile(root, ".gitignore", ".cache/\nnode_modules/\n");
+  writeNativeInventoryFixtureFile(
+    root,
+    "tsconfig.base.json",
+    JSON.stringify({
+      files: [],
+      compilerOptions: {
+        strict: true,
+        target: "ES2022",
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        types: [],
+        paths: { "@fixture/barrel": ["./packages/kit/src/barrel.ts"] },
+      },
+    }),
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "packages/kit/tsconfig.json",
+    JSON.stringify({ extends: "../../tsconfig.base.json", compilerOptions: { lib: ["ES2022"] }, include: ["src/*.ts"] }),
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "packages/client/tsconfig.json",
+    JSON.stringify({ extends: "../../tsconfig.base.json", compilerOptions: { lib: ["ES2022", "DOM"], customConditions: ["browser"] }, include: ["src/*.ts"] }),
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "tsconfig.tools.json",
+    JSON.stringify({ extends: "./tsconfig.base.json", compilerOptions: { lib: ["ES2022"] }, include: ["scripts/*.ts", "tests/*.ts"] }),
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "packages/kit/src/base.ts",
+    "export const alive=1; export const lazy=2; export const held=3; export const unused=4; export const onlyTest=5; export const bridge=6; export const schema={value: 1}; export interface Shape { value: number };\n",
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "packages/kit/src/barrel.ts",
+    "export { alive as renamed, lazy, held, schema, type Shape } from './base'; export {platform as native} from 'fixture-platform';\n",
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "packages/client/src/browser.ts",
+    "import { renamed, type Shape, schema, native as platformDoor } from '@fixture/barrel'; import * as ns from '@fixture/barrel'; export const read=renamed; export const viaDoor=platformDoor; export type View=typeof schema; export const held=ns.held; export function shadow(ns: {lazy:number}) { return ns.lazy }; export const later=import('@fixture/barrel').then(m=>m.lazy); export const button=document.createElement('button'); import { platform } from 'fixture-platform'; export const selected=platform;\n",
+  );
+  writeNativeInventoryFixtureFile(
+    root,
+    "scripts/tool.ts",
+    "import { bridge } from '../packages/kit/src/base'; export const tool=bridge; const witness='alive' satisfies keyof typeof import('../packages/kit/src/base'); export const checked=witness; import { platform } from 'fixture-platform'; export const selected=platform;\n",
+  );
+  writeNativeInventoryFixtureFile(root, "tests/consumer.ts", "import { onlyTest } from '../packages/kit/src/base'; export const testValue=onlyTest;\n");
+  writeNativeInventoryFixtureFile(
+    root,
+    "node_modules/fixture-platform/package.json",
+    JSON.stringify({ name: "fixture-platform", exports: { ".": { browser: "./browser.ts", default: "./node.ts" } } }),
+  );
+  writeNativeInventoryFixtureFile(root, "node_modules/fixture-platform/browser.ts", "export const platform='browser';\n");
+  writeNativeInventoryFixtureFile(root, "node_modules/fixture-platform/node.ts", "export const platform='node';\n");
+  execFixtureGit(root, ["init", "-q"]);
+}
 
 const lifetimeSchema = z.object({ transaction: z.boolean(), queryOnly: z.literal(1), existed: z.boolean(), closed: z.boolean(), removed: z.boolean() });
 const coverageSchema = z.object({ enumerations: z.number(), declarationPreparations: z.number(), closureLookups: z.number(), closureKeys: z.number() });

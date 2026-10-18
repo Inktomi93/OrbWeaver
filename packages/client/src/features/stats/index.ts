@@ -1,11 +1,11 @@
 // stats/ front door — the client feature for the STATS server domain, presented as the Corpus "Insights"
 // mode (the folder mirrors the domain per the client-structure gate; the surfaces keep their Analytics*
 // names). The door composes `insightsCorpusMode` and `insightsContextTabs` into the Corpus section.
-export { AnalyticsListAnchor } from "./anchors/analytics-list-anchor.tsx";
-export { AnalyticsModelsTab } from "./components/analytics-models-tab.tsx";
-export { AnalyticsPersonasTab } from "./components/analytics-personas-tab.tsx";
-export { AnalyticsTimeTab } from "./components/analytics-time-tab.tsx";
+export {} from "./anchors/analytics-list-anchor.tsx";
+export {} from "./components/analytics-models-tab.tsx";
+export {} from "./components/analytics-personas-tab.tsx";
+export {} from "./components/analytics-time-tab.tsx";
 export { insightsContextTabs, insightsCorpusMode } from "./lib/insights-mode.tsx";
-export { AnalyticsCharacterSurface } from "./surfaces/analytics-character-surface.tsx";
-export { AnalyticsListSurface } from "./surfaces/analytics-list-surface.tsx";
-export { AnalyticsOverviewSurface } from "./surfaces/analytics-overview-surface.tsx";
+export {} from "./surfaces/analytics-character-surface.tsx";
+export {} from "./surfaces/analytics-list-surface.tsx";
+export {} from "./surfaces/analytics-overview-surface.tsx";
