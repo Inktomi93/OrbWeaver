@@ -105,7 +105,6 @@ test("exact native reference use-site queries retain separate importing worlds a
       queries: expected.flatMap((world) => world.queries.map((node) => ({ program: world.program, root: world.root, node }))),
     },
   });
-  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const corpus = inventory.sourceCorpus();
   const source = required(corpus.getSourceFile("shared.ts"));
   const use = source.getVariableDeclarationOrThrow("use").getInitializerOrThrow();

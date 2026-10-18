@@ -315,7 +315,6 @@ test("binding analyses reject foreign sources and release through their existing
   expect(workspace.bindingUsage(nativeFile)).not.toBe(usage);
   using stored = nativeInventoryFixture({ root: scratch });
   const file = source(stored, "packages/kit/src/base.ts");
-  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const storedUsage = stored.bindingUsage(file);
   expect(storedUsage.parents().size).toBeGreaterThan(0);
   expect(sourceBindingUsage(file)).toBe(storedUsage);
@@ -346,7 +345,6 @@ export function consumer(): void { called(); }
   write(scratch, "packages/kit/src/documented-barrel.ts", "export { unused as renamedUnused } from './documented';\n");
   const native = createSemanticWorkspace({ root: scratch });
   using stored = nativeInventoryFixture({ root: scratch });
-  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const corpus = stored.sourceCorpus();
   const file = source(stored, "packages/kit/src/documented.ts");
   const live = buildLiveness(corpus);
@@ -421,7 +419,6 @@ test.for(["comparison", "live-origin", "empty-origin", "dead-evidence"] as const
       "export function unused(): void {} export function consumer(): void { unused(); } export function isolated(): void {}\n",
     );
     using stored = nativeInventoryFixture({ root: scratch });
-    // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
     const corpus = stored.sourceCorpus();
     const file = source(stored, "packages/kit/src/shifted.ts");
     const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
@@ -674,7 +671,6 @@ test("stored dead evidence refuses unindexed dependency barrel origins instead o
   expect(deadEvidenceFor(nativeCorpus, nativeOrigin, "native", buildLiveness(nativeCorpus))).toMatchObject({ verdict: "ALIVE" });
 
   using stored = nativeInventoryFixture({ root: scratch });
-  // biome-ignore lint/nursery/useDisposables: the owning inventory releases this borrowed corpus.
   const corpus = stored.sourceCorpus();
   const live = buildLiveness(corpus);
   const origins = declarationsNamed(corpus.getSourceFiles(), "native");

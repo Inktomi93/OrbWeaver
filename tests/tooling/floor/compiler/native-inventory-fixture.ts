@@ -107,7 +107,6 @@ export function nativeInventoryFixture(
     const db = openInventoryDatabase(result.databasePath);
     try {
       const partitions = readInventoryGeneration(db, result.generation);
-      // biome-ignore lint/nursery/useDisposables: ownedInventoryReader owns the accepted lease; the refusal path releases it here.
       const lease = acquireInventoryReadLease(db, result.generation, partitions);
       const shape = result.shapeCohort;
       if (
