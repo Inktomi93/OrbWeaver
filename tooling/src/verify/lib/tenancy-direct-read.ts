@@ -119,15 +119,42 @@ function bindingSource(site: Node | undefined): Node | undefined {
   return source === undefined ? undefined : unwrapTarget(source);
 }
 
-// Awaited rows and non-Drizzle call results are data; a Drizzle alias is a table and a builder chain is a subquery.
+function queryBuilder(call: CallExpression): boolean {
+  return callsAround(call).some((step) => QUERY_ROOTS.has(literalMemberAccess(step.getExpression())?.name ?? ""));
+}
+
+// An import-bound table or column, a member chain rooted in one, or a literal array, call or await that carries one.
+function carriesSchema(node: Node): boolean {
+  const value = unwrapTarget(node);
+  if (N.isAwaitExpression(value)) {
+    return carriesSchema(value.getExpression());
+  }
+  if (N.isArrayLiteralExpression(value)) {
+    return value.getElements().some(carriesSchema);
+  }
+  if (N.isCallExpression(value)) {
+    const callee = literalMemberAccess(value.getExpression());
+    return (callee !== undefined && carriesSchema(callee.receiver)) || value.getArguments().some(carriesSchema);
+  }
+  for (let current: Node | undefined = value; current !== undefined; current = literalMemberAccess(current)?.receiver) {
+    if (imported(unwrapTarget(current))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Awaited builder rows and calls handed no table are data; a Drizzle alias is a table, and a builder or a call or
+// await handed a table may yield it, so its result is unknown.
 function callValue(source: Node): OwnerValue {
-  if (N.isAwaitExpression(source)) {
-    return "plain";
+  const operand = N.isAwaitExpression(source) ? unwrapTarget(source.getExpression()) : undefined;
+  if (operand !== undefined) {
+    return (N.isCallExpression(operand) && queryBuilder(operand)) || !carriesSchema(operand) ? "plain" : "opaque";
   }
   if (!N.isCallExpression(source) || drizzleExportOf(source.getExpression()) !== undefined) {
     return "column";
   }
-  return callsAround(source).some((call) => QUERY_ROOTS.has(literalMemberAccess(call.getExpression())?.name ?? "")) ? "opaque" : "plain";
+  return queryBuilder(source) || carriesSchema(source) ? "opaque" : "plain";
 }
 
 // One further hop only: a local root is data as a parameter or as a const holder of fetched data.

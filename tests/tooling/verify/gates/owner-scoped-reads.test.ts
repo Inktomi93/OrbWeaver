@@ -135,7 +135,9 @@ export async function indirect(id:string){return db.select().from(source.table).
 const COLUMN_VALUED = "owner term is valued by a column";
 const OPAQUE_FILTER = "filter contains a helper, SQL carrier, alias or unsupported predicate";
 
-function unknownOnly(repoRoot: string, body: string): NonNullable<ReturnType<typeof runPolicyPass>["policies"][number]["analysis"]> {
+type OwnerAnalysis = NonNullable<ReturnType<typeof runPolicyPass>["policies"][number]["analysis"]>;
+
+function unknownOnly(repoRoot: string, body: string): OwnerAnalysis {
   const result = read(repoRoot, body);
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
@@ -219,11 +221,24 @@ export async function fromRow(id:string){const[seat]=await db.select({userId:cha
 });
 
 // Each shape reads owner_id = owner_id through a binding; only a parameter or fetched data is a plain owner value.
-test("table destructuring and object, array, loop or conditional table holders are UNKNOWN owner values", ({ repoRoot }) => {
-  const shapes = [
+function unknownShapes(
+  repoRoot: string,
+  shapes: readonly { readonly body: string; readonly reason: string }[],
+): { readonly actual: readonly OwnerAnalysis[]; readonly expected: readonly OwnerAnalysis[] } {
+  return {
+    actual: shapes.map(({ body }) => unknownOnly(repoRoot, `\n${body}`)),
+    expected: shapes.map(({ reason }) => ({
+      supported: 0,
+      unknown: [expect.objectContaining({ line: 2, token: "personas", reason: expect.stringContaining(reason) })],
+    })),
+  };
+}
+
+test("table destructuring, a destructured array and a destructured loop element are UNKNOWN owner values", ({ repoRoot }) => {
+  const { actual, expected } = unknownShapes(repoRoot, [
     {
       body: "export async function pattern(id:string){const{ownerId:own}=personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}",
-      reason: expect.stringContaining(COLUMN_VALUED),
+      reason: COLUMN_VALUED,
     },
     {
       body: "export async function element(id:string){const[t]=[personas];return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
@@ -233,6 +248,12 @@ test("table destructuring and object, array, loop or conditional table holders a
       body: "export async function loop(id:string){for(const{ownerId:own}of[personas]){return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}return undefined;}",
       reason: OPAQUE_FILTER,
     },
+  ]);
+  expect(actual).toEqual(expected);
+});
+
+test("object and conditional table holders are UNKNOWN owner values", ({ repoRoot }) => {
+  const { actual, expected } = unknownShapes(repoRoot, [
     {
       body: "export async function holder(id:string){const t={ownerId:personas.ownerId};return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
       reason: OPAQUE_FILTER,
@@ -241,8 +262,29 @@ test("table destructuring and object, array, loop or conditional table holders a
       body: "export async function choose(id:string,flag:boolean){const t=flag?personas:personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
       reason: OPAQUE_FILTER,
     },
+  ]);
+  expect(actual).toEqual(expected);
+});
+
+// A call or await handed a table may return it; only an awaited query builder yields data rows.
+const PICK = "function pick<T>(value:T):T{return value;}";
+const launderedVerdict = { supported: 0, unknown: [expect.objectContaining({ line: 2, token: "personas", reason: OPAQUE_FILTER })] };
+
+test("an awaited table or an awaited table carrier is an UNKNOWN owner holder", ({ repoRoot }) => {
+  const shapes = [
+    "export async function awaited(id:string){const t=await personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
+    "export async function awaitedPattern(id:string){const{ownerId:own}=await personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}",
+    "export async function settled(id:string){const[t]=await Promise.all([personas]);return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
   ];
-  expect(shapes.map(({ body }) => unknownOnly(repoRoot, `\n${body}`))).toEqual(
-    shapes.map(({ reason }) => ({ supported: 0, unknown: [expect.objectContaining({ line: 2, token: "personas", reason })] })),
-  );
+  expect(shapes.map((body) => unknownOnly(repoRoot, `\n${body}`))).toEqual(shapes.map(() => launderedVerdict));
+});
+
+test("a call handed a table as receiver or argument is an UNKNOWN owner holder", ({ repoRoot }) => {
+  const shapes = [
+    `${PICK}export async function picked(id:string){const t=pick(personas);return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}`,
+    `${PICK}export async function pickedPattern(id:string){const{ownerId:own}=pick(personas);return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}`,
+    "export async function element(id:string){const t=[personas].at(0)!;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
+    `${PICK}export async function iterated(id:string){for(const t of pick([personas])){return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}return undefined;}`,
+  ];
+  expect(shapes.map((body) => unknownOnly(repoRoot, `\n${body}`))).toEqual(shapes.map(() => launderedVerdict));
 });

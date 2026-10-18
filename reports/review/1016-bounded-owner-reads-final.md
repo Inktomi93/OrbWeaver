@@ -124,6 +124,17 @@ Findings:
    - Each now asserts its exact token and UNKNOWN reason. All five failed on `e46d7478cd` (each read as a clean supported read).
    - A positive control keeps parameter destructuring, data destructured from a parameter and a fetched row's member supported.
    - Stated limit under D328 (ruled): a parameter typed as a column, such as `own: typeof personas.ownerId`, is a plain value, because the gate does not check an owner term's type.
+   - Final review round (Low): `callValue` treated every `await` and every non-Drizzle, non-builder call as data, so wrapping a table laundered its columns. Seven shapes read as clean:
+     - `const t = await personas`
+     - `const {ownerId: own} = await personas`
+     - `const [t] = await Promise.all([personas])`
+     - `const t = pick(personas)`
+     - `const {ownerId: own} = pick(personas)`
+     - `const t = [personas].at(0)!`
+     - `for (const t of pick([personas]))`
+   - Fix: `carriesSchema` checks the awaited operand and every call receiver and argument. It finds an import-bound table or column, a member chain rooted in one, or an array literal holding one. Any hit makes the result unknown. An awaited query-builder chain yields rows, so it stays data.
+   - All seven controls assert token and UNKNOWN, and all failed on `3e5d4f0aaa`. The parameter and fetched-row positive controls stay green.
+   - Law (ruled): Spine §2b now also says the gate treats a value bound from a call or an `await` as data and does not inspect what the call returns. That covers a call that gets the table from elsewhere, the same class as the typed-parameter limit.
 3. Medium, fixed: 12 false positives on main's product code.
    - 11 are post-fetch owner compares main accepted. `directOwnerRead` now calls the existing `hasPostFetchFilter` (one function body) before reporting a naked read.
    - Control: a rejecting compare scopes the read, and a logging-only compare stays a finding. It failed before the fix.
@@ -157,6 +168,16 @@ The source is frozen at this lane's commit. Admission:
 - The review round fixes those 12 effective findings (11 post-fetch, 1 column-valued UNKNOWN) and the unjudged budget. The rerun needs the same command on the new commit.
 
 ## Review-round floor
+
+Final review round:
+- Red-first: the seven laundering controls fail on `3e5d4f0aaa` and pass now. The five-shape binding test is split in two so each test stays inside the default timeout on a loaded box.
+- Gate family floor:
+  - In the four-file batch, both native owner delivery integrations passed 15 of 15 and 38 of 40 cases passed. The two proof-row conformance cases timed out at their 14 s budget while load was 17 to 18 on 24 cores.
+  - Rerun alone, both passed in 7.7 and 8.0 s, so the batch timeouts were contention.
+  - A clean full rerun of `owner-scoped-reads.test.ts` and `tenancy-scope-family.suite.test.ts` passed 25 of 25 (`reports/runs/test/agent-a5b507cf43168bf04-72337-2026-10-18T20-29-30-177Z/test-report.json`).
+- Biome and direct HARD and ordinary ESLint are clean on the changed files. `tenancy-direct-read.ts` is 405 lines.
+- Typecheck: tooling passes. Root keeps exactly main's 39 diagnostics.
+- `pnpm check:docs` passes. `pnpm check:agents` shows only the three gitignored `design.md` report links a worktree lacks.
 
 Second review round:
 - Red-first: the five binding-shape controls fail on `e46d7478cd` and pass now.
