@@ -12,7 +12,8 @@ import { CSS_PSEUDO_TYPE, splitPseudoSelector } from "../browser/css-pseudo-sele
 import { REMOTE_DEBUGGING_PORT_ARG, readDebuggingPort } from "../browser/debugging-endpoint.ts";
 import { budget } from "../host/load-budget.ts";
 import type { DevToolsAssetPin, DevToolsAssetServer } from "./devtools-assets.ts";
-import { startDevToolsAssetServer, verifyDevToolsAssets } from "./devtools-assets.ts";
+import { verifyDevToolsAssets } from "./devtools-assets.ts";
+import { startDevToolsAssetServer } from "./devtools-assets-server.ts";
 
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base. The DevTools
 // frontend is a large first-party bundle served off a local revision pin — on a contended box its first

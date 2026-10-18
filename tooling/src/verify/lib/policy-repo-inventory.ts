@@ -3,7 +3,7 @@
 import { lstatSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
-import { runGit } from "@orb/tooling/floor/git/git";
+import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { assertRepoPath, readAuthoredRepositoryInventory } from "../../floor/compiler/authored-repository.ts";
 import type {
@@ -13,7 +13,7 @@ import type {
   PolicySemanticPath,
   PolicyWorkspacePackage,
 } from "../contract/policy-scope.ts";
-import { GIT_READ_PREFIX, resolveMergeBase } from "./repo-paths.ts";
+import { resolveMergeBase } from "./repo-paths.ts";
 
 const TRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "-z"] as const;
 const UNTRACKED_ARGS = [...GIT_READ_PREFIX, "ls-files", "--others", "--exclude-standard", "-z"] as const;

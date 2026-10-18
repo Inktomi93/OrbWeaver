@@ -10,14 +10,6 @@ import {
 import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs-contract.ts";
 import type { PolicyPathOwnership, PolicyProgramMembership, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
 
-// biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the neutral reader extraction.
-export {
-  compilerConfigRoster,
-  readCompilerConfigEntries,
-  readCompilerPrograms,
-  readCompilerProgramsFromInventory,
-} from "../../floor/compiler/compiler-programs.ts";
-
 export function readPolicyProgramGraph(inventory: PolicyRepositoryInventory, rootConfigs: readonly string[]): readonly PolicyProgramMembership[] {
   return readCompilerProgramGraph(inventory, rootConfigs);
 }

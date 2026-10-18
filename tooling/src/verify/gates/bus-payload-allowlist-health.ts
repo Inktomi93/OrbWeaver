@@ -66,7 +66,8 @@
 // both.
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
-import { BUS_DECL_NAMES, BUS_FILES, busPayloadFact, NOTIFICATION_SCHEMA_NAME, REAL_CORPUS_MIN } from "../lib/bus-payload-fact.ts";
+import { BUS_DECL_NAMES, BUS_FILES, busPayloadFact, REAL_CORPUS_MIN } from "../lib/bus-payload-fact.ts";
+import { NOTIFICATION_SCHEMA_NAME } from "../lib/bus-payload-fact-resolve.ts";
 
 const CHAT_BUS = "packages/contracts/src/chat/bus.ts";
 const USER_BUS = "packages/contracts/src/user-bus/index.ts";

@@ -10,14 +10,12 @@ import { execFileSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { repoGitEnvironment } from "@orb/tooling/floor/git/git";
+import { execFixtureGit, FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "@orb/tooling/floor/git/git-fixture";
 import { VERIFY_BASE_ENV, VERIFY_HEAD_ENV } from "../../../../tooling/src/verify/contract/selection.ts";
 import {
   branchChangedPaths,
-  FIXTURE_GIT_CONFIG_ARGS,
-  fixtureGitEnvironment,
   publishChangedPaths,
-  repoGitEnvironment,
   resolveMeasurementBoundary,
   resolveMergeBase,
   resolvePublishBase,

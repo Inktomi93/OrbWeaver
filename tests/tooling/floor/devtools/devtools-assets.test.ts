@@ -8,12 +8,8 @@ import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { DevToolsAssetManifest, DevToolsAssetPin, DevToolsClosureFile, DevToolsClosureInput } from "@orb/tooling/floor/devtools/devtools-assets";
-import {
-  adjudicateDevToolsClosure,
-  readChromiumBrowserVersion,
-  startDevToolsAssetServer,
-  verifyDevToolsAssets,
-} from "@orb/tooling/floor/devtools/devtools-assets";
+import { adjudicateDevToolsClosure, readChromiumBrowserVersion, verifyDevToolsAssets } from "@orb/tooling/floor/devtools/devtools-assets";
+import { startDevToolsAssetServer } from "@orb/tooling/floor/devtools/devtools-assets-server";
 import { afterEach } from "vitest";
 
 const REAL_PIN = fileURLToPath(new URL("../../../../tooling/src/snap/lib/devtools-frontend/pin.json", import.meta.url));

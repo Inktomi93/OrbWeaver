@@ -105,7 +105,6 @@ function readChainTipSnapshot(root: string, tipIndex: number): Record<string, un
  *  import would drag the whole db schema graph + drizzle-kit into every gate-conformance run that never
  *  touches the baseline. */
 export async function compareSchemaBaseline(root: string): Promise<SchemaBaselineComparison> {
-  // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
   const schema = await import("@orb/db/schema");
   const { generateSQLiteDrizzleJson, generateSQLiteMigration } = await import("drizzle-kit/api");
   const journal = readJournal(root);

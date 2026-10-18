@@ -26,8 +26,8 @@ import {
   discriminatorValues,
   EVENT_TYPES_SUFFIX,
   NAMED_BUS_UNIONS,
-  typeDiscriminators,
 } from "./bus-fact-read.ts";
+import { typeDiscriminators } from "./bus-fact-read-discriminators.ts";
 import { busNativeRead, busReadAt, busScalar } from "./bus-native-read.ts";
 
 interface QueryState {

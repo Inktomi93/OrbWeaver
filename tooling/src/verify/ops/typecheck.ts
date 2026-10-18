@@ -12,12 +12,12 @@ import type { SpawnNicedResult } from "@orb/tooling/floor/process/proc";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { descriptorVersion } from "../../floor/code-facts/semantic-inventory-inputs.ts";
+import { readCompilerPrograms } from "../../floor/compiler/compiler-programs.ts";
 import type { ObservedRouterDeclarationPreparation, RouterDeclarationInputs } from "../../floor/compiler/router-declarations-contract.ts";
 import { packageConfigPath } from "../../floor/compiler/type-config-intent.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "../contract/typecheck.ts";
 import { withApplicationPrograms } from "../lib/application-programs.ts";
-import { readCompilerPrograms } from "../lib/policy-program-membership.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm typecheck [--config <repo-relative-tsconfig>]...");
 
