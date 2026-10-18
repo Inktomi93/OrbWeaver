@@ -39,3 +39,5 @@ Immutable router publication, observed emission and the output-watch correction 
 The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
 Bulk reference extraction calls the patched native reference pass per declaration only when that family is demanded. The pass caches candidates and results. The abandoned owner-policy worker did not demand that family; it supplies no bulk-reference cost attribution. Item 1045 owns occurrence delivery and matched measurement. Preserve native types and attribute invocation cost separately.
+
+Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.

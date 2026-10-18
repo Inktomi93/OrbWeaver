@@ -55,10 +55,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
   const vectors = corpus.vectors.filter((row) => ids.includes(row.characterId));
   expect(vectors.map((row) => row.characterId).toSorted()).toEqual(ids.toSorted());
   expect(vectors.map((row) => row.generationId)).toEqual([generation.generation.id, generation.generation.id]);
-  expect(vectors.map((row) => Array.from(row.embedding))).toEqual([
-    [1, 0, 0],
-    [1, 0, 0],
-  ]);
+  expect(vectors.map((row) => Array.from(row.embedding))).toEqual([[...CORPUS_EMBEDDING_VECTOR], [...CORPUS_EMBEDDING_VECTOR]]);
   expect(new Set(vectors.map((row) => row.contentHash)).size).toBe(2);
   expect(corpus.calls.filter((row) => row.connectionId === embed.id && row.outcome === "completed").length).toBeGreaterThan(0);
   for (const id of ids) {

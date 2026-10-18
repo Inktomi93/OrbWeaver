@@ -1,4 +1,5 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
+import { createHash } from "node:crypto";
 import { getLog } from "@orb/server/foundation/observability";
 import { drainHttpServer, serveHttpServer } from "@orb/server/infra/network";
 import { z } from "zod";
@@ -6,9 +7,19 @@ import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 
 export const CORPUS_PROVIDER_ENDPOINT = "http://127.0.0.1:8704/v1";
-export const CORPUS_EMBED_MODEL = "corpus-embed-v1";
+export const CORPUS_EMBED_MODEL = "corpus-embed-v2";
 export const CORPUS_TEXT_MODEL = "corpus-text-v1";
-export const CORPUS_EMBEDDING_VECTOR = [1, 0, 0] as const;
+const EMBEDDING_DIGEST = "sha512";
+const BYTE_MIDPOINT = 0xff / 2;
+export const CORPUS_EMBEDDING_VECTOR: readonly number[] = Object.freeze(
+  Array.from({ length: createHash(EMBEDDING_DIGEST).digest().length }, (_, index) => Number(index === 0)),
+);
+
+/** Stable synthetic geometry retains controlled case/whitespace neighbors without collapsing unrelated inputs. */
+export function corpusEmbeddingForText(text: string): readonly number[] {
+  const normalized = text.normalize("NFKC").toLowerCase().replace(/\s+/gu, " ").trim();
+  return Array.from(createHash(EMBEDDING_DIGEST).update(normalized).digest(), (byte) => (byte - BYTE_MIDPOINT) / BYTE_MIDPOINT);
+}
 export const CORPUS_REFINERY_SCHEMA_NAME = "corpus_refinery_score";
 export const CORPUS_REFINERY_SCHEMA_REVISION = "corpus_refinery_score_revision";
 
@@ -114,7 +125,7 @@ export const CORPUS_STRUCTURED_REPLIES: ReadonlyMap<string, string> = new Map([
 interface CorpusProviderScript {
   readonly baseUrl?: string;
   readonly modelIds: readonly string[];
-  readonly embedding: readonly number[];
+  readonly embedding: readonly number[] | ((input: string) => readonly number[]);
   readonly chatText: string | ((requestBody: string) => string);
   readonly structuredReplies: ReadonlyMap<string, string>;
   readonly images: Uint8Array[];
@@ -166,19 +177,23 @@ const imageEmbeddingRequestSchema = z.object({
 });
 
 function embeddingReply(script: CorpusProviderScript, fields: ProviderRequest, requestBody: string): Response {
-  const count = embeddingInputCount(fields, requestBody);
-  const data = Array.from({ length: count }, (_, index) => `{"object":"embedding","index":${index},"embedding":${JSON.stringify(script.embedding)}}`).join(",");
-  return new Response(`{"object":"list","model":${JSON.stringify(fields.model)},"data":[${data}]}`, {
-    headers: { "content-type": "application/json" },
+  const { inputs, dimensions } = embeddingInputs(fields, requestBody);
+  const data = inputs.map((input, index) => {
+    const embedding = typeof script.embedding === "function" ? script.embedding(input) : script.embedding;
+    if (dimensions !== undefined && embedding.length !== dimensions) {
+      throw new Error("corpus image embedding request width does not match its scripted model");
+    }
+    return { object: "embedding", index, embedding };
   });
+  return Response.json({ object: "list", model: fields.model, data });
 }
 
-function embeddingInputCount(fields: ProviderRequest, requestBody: string): number {
+function embeddingInputs(fields: ProviderRequest, requestBody: string): { readonly inputs: readonly string[]; readonly dimensions: number | undefined } {
   if (fields.input === undefined) {
-    imageEmbeddingRequestSchema.parse(JSON.parse(requestBody));
-    return 1;
+    const conversation = imageEmbeddingRequestSchema.parse(JSON.parse(requestBody));
+    return { inputs: [JSON.stringify(conversation.messages)], dimensions: conversation.dimensions };
   }
-  return typeof fields.input === "string" ? 1 : fields.input.length;
+  return { inputs: typeof fields.input === "string" ? [fields.input] : fields.input, dimensions: undefined };
 }
 
 function imageReply(script: CorpusProviderScript, fields: ProviderRequest): Response {
