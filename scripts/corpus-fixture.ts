@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { appendFileSync, realpathSync } from "node:fs";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -11,6 +11,8 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { exportProcessEnv, inheritedProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
+
+import { privateCorpusExecutionEnv, privateCorpusExecutionSignal, privateCorpusTranscriptTeardown } from "./corpus-fixture-lifetime.ts";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
 const LOCAL_PASSWORD_BYTES = 32;
@@ -45,32 +47,38 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
     assertPrivateCorpusOutput(parent, inherited);
     return;
   }
+  const timeoutMs = budget(
+    command === "matrix" ? CONSUMER_TIMEOUT_MS * (await import("../tests/e2e/support/modes.ts")).CORPUS_PROJECT_CELLS.length : CONSUMER_TIMEOUT_MS,
+  );
+  const executionEnv = command === "private" ? privateCorpusExecutionEnv(timeoutMs) : inheritedProcessEnv();
   process.umask(PRIVATE_OUTPUT_UMASK);
   const runRoot = await mkdtemp(join(parent, "owner-corpus-run-"));
   const temporary = join(runRoot, "tmp");
   await mkdir(temporary);
   const log = join(runRoot, "runtime.log");
   const marker = mintRunMarker();
-  const timeoutMs =
-    command === "matrix" ? CONSUMER_TIMEOUT_MS * (await import("../tests/e2e/support/modes.ts")).CORPUS_PROJECT_CELLS.length : CONSUMER_TIMEOUT_MS;
   const result = await spawnNicedTranscript(
     "pnpm",
     ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", command, directory, ...args],
     {
       cwd: process.cwd(),
-      env: inheritedProcessEnv({
+      env: {
+        ...executionEnv,
         ...runMarkerEnv(marker),
         CORPUS_PRIVATE_RUN_ROOT: runRoot,
         TMPDIR: temporary,
         TMP: temporary,
         TEMP: temporary,
         E2E_CORPUS_REPORT_PREFIX: join(runRoot, "browser"),
-      }),
-      timeoutMs: budget(timeoutMs),
-      teardown: runMarkerTranscriptTeardown(marker),
+      },
+      timeoutMs,
+      teardown: command === "private" ? privateCorpusTranscriptTeardown(marker) : runMarkerTranscriptTeardown(marker),
       onChunk: (chunk) => appendFileSync(log, chunk, { mode: 0o600 }),
     },
   );
+  if (command === "private") {
+    await writeFile(log, result.transcript, { mode: 0o600 });
+  }
   process.stdout.write(`Private corpus artifacts: ${runRoot}\n`);
   if (command === "private" && result.code === 0) {
     process.stdout.write(`Private corpus fixture: ${join(runRoot, "fixture")}\n`);
@@ -258,9 +266,31 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
   const { createCorpusCapsule, writePrivateCorpusFixture, rethrowPrivateCorpusFailure } = await import("@orb/testkit/node/corpus.ts");
   const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
   try {
+    const workloadExecutionSignal = privateCorpusExecutionSignal();
+    workloadExecutionSignal.throwIfAborted();
     const { options } = await createCorpusRecipe(parent);
-    await using capsule = await createCorpusCapsule({ ...options, privateSourceDirectory: resolve(directory), directory: join(parent, "working") });
-    const fixture = await writePrivateCorpusFixture(capsule, join(parent, "fixture"));
+    workloadExecutionSignal.throwIfAborted();
+    let retainFixture = false;
+    await using rejectionCleanup = new AsyncDisposableStack();
+    let fixture: Awaited<ReturnType<typeof writePrivateCorpusFixture>>;
+    {
+      await using capsule = await createCorpusCapsule({
+        ...options,
+        server: { ...options.server, workloadExecutionSignal },
+        privateSourceDirectory: resolve(directory),
+        directory: join(parent, "working"),
+      });
+      workloadExecutionSignal.throwIfAborted();
+      fixture = await writePrivateCorpusFixture(capsule, join(parent, "fixture"), workloadExecutionSignal);
+      rejectionCleanup.defer(async (): Promise<void> => {
+        if (!retainFixture) {
+          await rm(fixture.layout.root, { recursive: true, force: true });
+        }
+      });
+      workloadExecutionSignal.throwIfAborted();
+    }
+    workloadExecutionSignal.throwIfAborted();
+    retainFixture = true;
     process.stdout.write(`Private corpus fixture: ${fixture.layout.root}\n`);
     return 0;
   } catch (error) {

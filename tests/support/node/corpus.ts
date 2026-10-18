@@ -348,8 +348,10 @@ async function copyCorpusFixture(
   source: Pick<CorpusFixture, "layout" | "replay" | "privateParent">,
   published: string,
   directory: string,
-  options: CloneOptions = {},
+  options: CloneOptions & Pick<ServerHarnessOptions, "workloadExecutionSignal"> = {},
 ): Promise<CorpusFixture> {
+  const { workloadExecutionSignal: executionSignal, ...cloneOptions } = options;
+  executionSignal?.throwIfAborted();
   const root = resolve(directory);
   if (source.privateParent !== undefined) {
     if (options.publication !== undefined) {
@@ -360,17 +362,24 @@ async function copyCorpusFixture(
   await mkdir(root);
   let completed = false;
   try {
+    executionSignal?.throwIfAborted();
     const layout = resolveDataLayout({ ["DATA_DIR"]: root });
     const { cloneMigratedStageDb } = await import("@orb/tooling/snap");
-    await cloneMigratedStageDb(corpusDatabaseFile(source.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
+    executionSignal?.throwIfAborted();
+    await cloneMigratedStageDb(corpusDatabaseFile(source.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, cloneOptions);
+    executionSignal?.throwIfAborted();
     if (source.privateParent !== undefined) {
       await writeFile(join(root, CORPUS_PRIVATE_FILE), JSON.stringify({ parent: source.privateParent }), { flag: "wx", mode: 0o600 });
     }
+    executionSignal?.throwIfAborted();
     await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
+    executionSignal?.throwIfAborted();
     if (source.replay !== undefined) {
       await writeFile(join(root, CORPUS_REPLAY_FILE), JSON.stringify(corpusReplaySchema.parse(source.replay)), { encoding: "utf8", flag: "wx" });
     }
+    executionSignal?.throwIfAborted();
     const fixture = loadCorpusFixture(root);
+    executionSignal?.throwIfAborted();
     completed = true;
     return fixture;
   } finally {
@@ -391,8 +400,18 @@ export async function prepareCorpusFixture(capsule: CorpusCapsule | PrivateCorpu
 }
 
 /** Retain a local-only fixture for later owner drives without portable publication or automatic deletion. */
-export async function writePrivateCorpusFixture(capsule: PrivateCorpusCapsule, directory: string): Promise<CorpusFixture> {
-  return await copyCorpusFixture(capsule, encodeCorpusWire(capsule.wire), directory);
+export async function writePrivateCorpusFixture(
+  capsule: Pick<PrivateCorpusCapsule, "layout" | "wire" | "replay" | "privateParent">,
+  directory: string,
+  executionSignal?: ServerHarnessOptions["workloadExecutionSignal"],
+): Promise<CorpusFixture> {
+  executionSignal?.throwIfAborted();
+  return await copyCorpusFixture(
+    capsule,
+    encodeCorpusWire(capsule.wire),
+    directory,
+    executionSignal === undefined ? {} : { workloadExecutionSignal: executionSignal },
+  );
 }
 
 /** Publish a durable, completed DB/CAS and portable envelope; source runtime identities and known echoes cannot leave. */
@@ -432,6 +451,8 @@ export function createCorpusCapsule(options: CorpusCapsuleOptions): Promise<Corp
 export async function createCorpusCapsule(
   options: CorpusCapsuleOptions & { readonly privateSourceDirectory?: string },
 ): Promise<CorpusCapsule | PrivateCorpusCapsule> {
+  const signal = options.server.workloadExecutionSignal;
+  signal?.throwIfAborted();
   const directory = resolve(options.directory);
   const sourceDirectory = options.privateSourceDirectory === undefined ? undefined : realpathSync(options.privateSourceDirectory);
   const privateParent = sourceDirectory === undefined ? undefined : realpathSync(dirname(directory));
@@ -447,14 +468,19 @@ export async function createCorpusCapsule(
   await mkdir(directory);
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(directory, { recursive: true, force: true }));
+  signal?.throwIfAborted();
   const layout = resolveDataLayout({ ["DATA_DIR"]: directory });
   if (options.privateSourceDirectory !== undefined) {
     const source = resolveDataLayout({ ["DATA_DIR"]: resolve(options.privateSourceDirectory) });
     const { cloneMigratedStageDb } = await import("@orb/tooling/snap");
+    signal?.throwIfAborted();
     await cloneMigratedStageDb(corpusDatabaseFile(source), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
+    signal?.throwIfAborted();
     await writeFile(join(directory, CORPUS_PRIVATE_FILE), JSON.stringify({ parent: privateParent }), { flag: "wx", mode: 0o600 });
   }
+  signal?.throwIfAborted();
   const { snapshotReplay, ...captured } = await captureCapsule(options, layout, privateParent !== undefined);
+  signal?.throwIfAborted();
   const replay = corpusReplaySchema.parse(snapshotReplay());
   if (privateParent !== undefined) {
     const lifetime = ownership.move();
@@ -540,6 +566,8 @@ async function initializeCorpusOwner(
 
 async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout, privateSource = false): Promise<CapturedCapsule> {
   const server = corpusServerOptions(options.server);
+  const signal = server.workloadExecutionSignal;
+  signal?.throwIfAborted();
   const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
   const { SHIPPED_MIGRATIONS, createDbStatementHold } = await import("./db.ts");
   const { createCorpusChatWire } = await import("./corpus-chat-wire.ts");
@@ -576,13 +604,17 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   const { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } =
     await import("./corpus-seed.ts");
   const { seedCorpusAccount } = await import("./corpus-auth.ts");
+  signal?.throwIfAborted();
   await using lifetimes = new AsyncDisposableStack();
   const dbHold = createDbStatementHold();
   const chatWire = createCorpusChatWire();
   const db = await createDb(layout.databaseUrl, dbHold.wrap);
   lifetimes.defer(() => preCloseHousekeeping(db));
+  signal?.throwIfAborted();
   await runMigrations(db, SHIPPED_MIGRATIONS);
+  signal?.throwIfAborted();
   await assertReferentialIntegrity(db);
+  signal?.throwIfAborted();
   const clock = options.server.clock ?? createFrozenClock();
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
   const rpgFlightWire = createRpgFlightWire();
@@ -596,7 +628,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   if (privateSource) {
     await assertPrivateCorpusIdle(db);
   }
+  signal?.throwIfAborted();
   const { ownerId, ownerHandle, oidc } = await initializeCorpusOwner(options, layout, { db, clock, ids }, privateSource);
+  signal?.throwIfAborted();
   const root = lifetimes.use(
     await createServerHarness({
       ...server,
@@ -624,56 +658,89 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
       importStagingDir: layout.importStaging,
     }),
   );
+  signal?.throwIfAborted();
   const actors = await seedCorpusActors(root, privateSource);
+  signal?.throwIfAborted();
   const credential = await seedUserCredential(db, root.services.credentials.add, { ...options.privateCredential, principal: actors.owner });
+  signal?.throwIfAborted();
   const baseline = await seedSyntheticCorpus(root, { ...options.seed, secondUserId: actors.secondUserId });
+  signal?.throwIfAborted();
   const libraries = await seedCorpusLibraries(root);
+  signal?.throwIfAborted();
   const caller = await root.internalCallerFor(root.ownerId);
+  signal?.throwIfAborted();
   await caller.settings.updateUserSettingsSection({
     section: "seeds",
     patch: { currentPersonaId: libraries.persona.id, defaultPersonaId: libraries.persona.id },
   });
+  signal?.throwIfAborted();
   const recall = await seedRecallCorpus(root, {
     chatConnectionId: actors.connections.text.id,
     embedConnectionId: actors.connections.embed.id,
     summarizeConnectionId: actors.connections.text.id,
   });
+  signal?.throwIfAborted();
   const knowledge = await seedCorpusKnowledge(root, recall);
+  signal?.throwIfAborted();
   const automation = await seedCorpusAutomation(root, libraries.room.chat.id);
+  signal?.throwIfAborted();
   const plugins = await seedCorpusPlugins(root, oidc?.joiner.id ?? (await seedCorpusAccount(root)).userId);
+  signal?.throwIfAborted();
   const rpg = await seedCorpusRpg(root);
+  signal?.throwIfAborted();
   const rpgProvider = await seedCorpusRpgProvider(root, actors.connections.text.id);
+  signal?.throwIfAborted();
   const knowledgeVariants = await seedCorpusKnowledgeVariants(root);
+  signal?.throwIfAborted();
   const chatLifecycle = await seedCorpusChatLifecycle(root, chatWire, actors.secondUserId, dbHold);
+  signal?.throwIfAborted();
   const imagery = await seedCorpusImagery(root, actors.secondUserId);
+  signal?.throwIfAborted();
   const rpgRecursion = await seedCorpusRpgRecursion(root);
+  signal?.throwIfAborted();
   const rpgMembers = await seedCorpusRpgMembers(root, rpgRecursion, actors.secondUserId);
+  signal?.throwIfAborted();
   const rpgRounds = await seedCorpusRpgRounds(root, rpgFlightWire, rpgFlightTimers, actors.secondUserId);
+  signal?.throwIfAborted();
   const search = await seedCorpusSearch(root, { actors, libraries, recall, images: knowledgeVariants.images });
+  signal?.throwIfAborted();
   const connection = await seedCorpusConnection(root, actors, connectionWire);
   if (connectionWire.remaining() !== 0) {
     throw new Error("completed native connection corpus left unspent physical recipes");
   }
+  signal?.throwIfAborted();
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
+  signal?.throwIfAborted();
   const imageVariants = await seedCorpusImageVariants(root, imageWire, options.seed.ownerPassword);
+  signal?.throwIfAborted();
   const sharedMemberAuthentication = await captureCookieAuth(root, await root.principalFor(actors.secondUserId), SHARED_MEMBER_PASSWORD);
+  signal?.throwIfAborted();
   const statsSettings = await seedCorpusStatsSettings(root, {
     characterId: knowledgeVariants.character.id,
     personaId: libraries.persona.id,
     foreignUserId: actors.secondUserId,
   });
+  signal?.throwIfAborted();
   const sdkSessions = await seedCorpusSdkSessions(root, sdkExecution);
+  signal?.throwIfAborted();
   const notifications = await seedCorpusNotifications(root);
+  signal?.throwIfAborted();
   await root.settleBackground();
+  signal?.throwIfAborted();
   const searchImageJobs = await settleSearchImages(root);
+  signal?.throwIfAborted();
   const searchFinal = await searchWire.capture(() => captureCorpusSearchPublication(root, search));
+  signal?.throwIfAborted();
   const postSearchStats = await seedStats(db, root.services.stats.reconcile, root.ownerId);
+  signal?.throwIfAborted();
   await assertReferentialIntegrity(db);
+  signal?.throwIfAborted();
   const response = await root.http.request("/healthz");
   if (!response.ok) {
     throw new Error(`synthetic capsule health request failed (${response.status})`);
   }
   const health = healthResponseSchema.parse(await response.json());
+  signal?.throwIfAborted();
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   const wire = hydrateCorpusWire({
     auth: baseline.auth,
@@ -689,6 +756,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
     libraryRelations: libraryViews.publication.relations,
     memberIdentities: { notificationReader: notifications.admission.identity, sharedMember: sharedMemberAuthentication.identity },
   });
+  signal?.throwIfAborted();
   const secrets = [
     options.privateCredential.key,
     options.seed.ownerPassword,

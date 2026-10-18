@@ -45,6 +45,7 @@ export interface ServerHarnessOptions
   readonly pluginSpawn?: NonNullable<ServicesDeps["pluginExecution"]>["spawn"];
   readonly db?: Db;
   readonly startJobs?: boolean;
+  readonly workloadExecutionSignal?: AbortSignal;
   readonly clock?: Clock;
   /** Ownership transfers to this root; the supplied scheduler is disposed even when construction fails. */
   readonly timers?: ControlledTimers;
@@ -94,6 +95,7 @@ export interface ServerTestHarness extends AsyncDisposable {
   readonly secretsDir: string;
   readonly ownerClaimFile?: string;
   readonly settleBackground: ServicesResult["settleBackground"];
+  readonly workloadExecutionSignal?: ServerHarnessOptions["workloadExecutionSignal"];
   readonly runAdmittedWorkload?: (id: WorkloadId, signal: AbortSignal) => Promise<void>;
   readonly tickWorkloadSchedules?: () => Promise<void>;
   readonly settleSharing: ShareGraph["settle"];
@@ -487,6 +489,7 @@ export async function createServerHarness(
     secretsDir,
     settleBackground: app.settleBackground,
     ...workloadDriver,
+    workloadExecutionSignal: options.workloadExecutionSignal,
     settleSharing: sharing.settle,
     async [Symbol.asyncDispose](): Promise<void> {
       closing = true;
