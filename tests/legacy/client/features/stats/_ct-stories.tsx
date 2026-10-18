@@ -1,5 +1,5 @@
 // Corpus Insights (stats domain) CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test
-// module). Surfaces come through the feature front door, wrapped in the real client data layer
+// module). Legacy surfaces use the root raw-reach map, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network). The N4/P4 CONTEXT-band and
 // the N1/N2 LIST band mount through the REAL section registry (CtRealSectionRegistry) with Corpus in its
 // Insights mode — the shell's own consumers of the `header`/`useListHeader` slots.

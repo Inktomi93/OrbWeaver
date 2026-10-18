@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-18
 priority: P2
-lane: wt/agent-aa30b4f0866837c09
 ---
 
 # Main reds and loose ends from the test-mirror lanes
@@ -56,6 +55,6 @@ The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-
 
 Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
 
-Maintained-support types and native prototype instrumentation remain open. Preserve production edges and bounded controls. Evidence: `reports/review/1002-coherent-abi-integration.md`.
+The inference helper uses the canonical deferred connection read and embedding policy. Security review passes; legacy Principal adoption remains open. Native diagnostic reduction remains report-derived. Evidence: `reports/review/977-inference-support-security-independent.md`.
 
-Inherited source size and adoption-test timeout findings remain open without budget or suppression changes. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
+Inherited source-size and adoption failures retain their frozen scope. Item 1002 owns current integration qualification. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.

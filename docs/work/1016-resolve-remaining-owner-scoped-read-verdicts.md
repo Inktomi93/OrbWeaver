@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tenancy
+lane: codex/partial-owner-reads-1016
 plan: test-foundation
 ---
 

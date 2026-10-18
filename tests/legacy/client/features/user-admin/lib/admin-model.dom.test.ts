@@ -4,10 +4,6 @@
 // error — and also what makes those pins blind to a COPY change (`name: userRoleFieldName("kes")` against a
 // component rendering `userRoleFieldName(handle)` passes under any wording). The wording is therefore pinned
 // ONCE, here, at the builders' own home.
-//
-// A `.dom.test.ts` rather than a `.test.ts` because the reach is through the FEATURE FRONT DOOR: the node
-// compiler world has no DOM lib, and `@orb/client/features/user-admin` re-exports section `.tsx` that pull
-// `@orb/ui` browser primitives behind them. The browser world is where a pin behind a feature barrel lives.
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

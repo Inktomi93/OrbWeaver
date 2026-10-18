@@ -25,9 +25,9 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 Native production Knip completes; raw inventory is `reports/knip-production-findings.json`. Reviewed server barrel removals preserve declarations and evaluation. Affected programs and lint qualify with inherited Node diagnostics. Only proven stale baseline keys are removed; other findings remain. Evidence: `reports/review/989-server-door-adjudication-ordinary.md`.
 
-The reviewed client, DB and kit re-export batch is merged at `f2101d2246`, including the evaluation-preserving codemod correction at `dba31a7efc`. Independent review confirms the complete batch. The emitted-ESM controls, scoped lint and affected native compiler programs pass. Declarations, implementations, same-package callers and uncertain consumers remain unchanged. The plan records the retained macro API vocabulary.
+Reviewed client, DB and kit re-exports preserve module evaluation, implementations and uncertain consumers. Scoped lint and affected native programs pass. Evidence: `f2101d2246` and `dba31a7efc`. The plan retains macro API vocabulary.
 
-The grouped native projection completes across its full world roster. Its work set and affected-program results remain in the production-export worktree's `reports/` directory. Native inventory reconciliation is merged at `d9b30cc9d3`: the baseline removes only proven stale keys. Unbaselined file, export and type findings remain visible. This partial batch does not complete symbol adjudication.
+The grouped native projection covers its full world roster. Reconciliation at `d9b30cc9d3` removes only proven stale baseline keys. Unbaselined findings stay visible; symbol adjudication remains open.
 
 Reviewed UI removals at `526b6a207f` and `66170cac0a` preserve primitive parts, API vocabulary and module requests. CLI controls reject traversal and wrong dependency, containment or native origins. Affected programs pass; legacy-node retains fixture diagnostics. Named test routes are not production callers. This partial batch does not complete adjudication.
 
@@ -38,3 +38,5 @@ Reviewed non-macro kit cleanup removes obsolete exports and dead implementations
 Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
 
 Reviewed client state doors preserve evaluation, public contracts and legacy cases. Retained decisions and compiler reds stay explicit. Only exact stale keys leave. Evidence: `reports/review/peer-state-population-independent.md`.
+
+Reviewed feature-door cleanup preserves emitted module requests, binding targets and legacy assertions. Retained APIs and header decisions remain explicit. Only exact stale baseline keys leave. Evidence: `reports/review/989-feature-door-independent.md`.

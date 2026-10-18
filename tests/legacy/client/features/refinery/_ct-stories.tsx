@@ -7,7 +7,7 @@
 // is — the WRITE-TIER probe. Audit finding `client-preset-refinery-02`.)
 //
 // `RefineryDataProbe` keeps its own job: the R2 hooks driven bare, so a mutation's toast/refusal channel is
-// observable without the surface's chrome in the way. It mounts the REAL hooks from the feature front door,
+// observable without the surface's chrome in the way. Legacy hooks use the root raw-reach map,
 // through the REAL app QueryClient (`CtAppDataProviders` — the one whose MutationCache `meta.errorToast` IS
 // the `notify` channel) and the real toast surface, over a network stubbed at `page.route`. Every observable
 // the CTs assert is either rendered text the hooks produced or a wire call `routeTrpc` counted — never a
