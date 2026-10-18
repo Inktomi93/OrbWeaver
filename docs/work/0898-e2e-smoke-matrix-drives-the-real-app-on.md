@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tests
-lane: codex/corpus-smoke-matrix-898
 plan: test-mirror
 ---
 
@@ -23,6 +22,8 @@ Owner: tests must follow product changes without edits; peers such as SillyTaver
 The smoke specs pass headless in CI on the seeded corpus, and locally on an owner-data copy, at desktop and phone width for every chat style; no personal data is committed; a planted product change (a renamed menu item, a removed home tile) turns the matching spec red; the suite runs in a named pnpm script and is documented in Spine-Testing section 1.
 
 ## Evidence
+
+Partial source is saved at `151bcda9b6` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
 
 Corpus flows, provider modes and CI admission are integrated. Hosted and owner-copy execution remain open; collection is not execution.
 
