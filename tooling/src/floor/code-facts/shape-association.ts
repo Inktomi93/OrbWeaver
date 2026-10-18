@@ -1,0 +1,146 @@
+// A direct authored boundary associates declarations; structural resemblance never nominates an owner.
+import type { InterfaceDeclaration, Node as MorphNode, TypeAliasDeclaration } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
+import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
+import type { ShapeAssociationRead, ShapeAssociationSite } from "./shape-association-contract.ts";
+import { isHandWrittenShape } from "./shape-declaration.ts";
+import { observedSymbolDeclarations, observedUltimateSymbol } from "./symbol-identity.ts";
+import type { TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
+import type { NativeTypeSelector } from "./type-projection-contract.ts";
+import { nodeTypeSelector } from "./type-projection-contract.ts";
+
+/** Finite syntax only: explicit initializer/assignment, direct argument, or explicitly annotated own return. */
+export function shapeAssociationSites(node: MorphNode): readonly ShapeAssociationSite[] {
+  if (Node.isVariableDeclaration(node)) {
+    const value = node.getInitializer();
+    const target = node.getTypeNode();
+    return value === undefined || target === undefined ? [] : [{ boundary: node, value, target }];
+  }
+  if (Node.isBinaryExpression(node) && node.getOperatorToken().isKind(SyntaxKind.EqualsToken)) {
+    return [{ boundary: node, value: node.getRight(), target: node.getLeft(), assignment: true }];
+  }
+  if (Node.isCallExpression(node)) {
+    return node.getArguments().flatMap((value, argument) => (Node.isExpression(value) ? [{ boundary: node, value, target: node, argument }] : []));
+  }
+  if (Node.isReturnStatement(node)) {
+    const value = node.getExpression();
+    const owner = node.getFirstAncestor(Node.isFunctionLikeDeclaration);
+    const target = owner?.getReturnTypeNode();
+    return value === undefined || target === undefined ? [] : [{ boundary: node, value, target }];
+  }
+  if (Node.isArrowFunction(node)) {
+    const value = node.getBody();
+    const target = node.getReturnTypeNode();
+    return !Node.isExpression(value) || target === undefined ? [] : [{ boundary: node, value, target }];
+  }
+  return [];
+}
+
+/** Existing raw questions capture only nominated slots in the importing world's native program. */
+export function shapeAssociationQuestions(sites: readonly ShapeAssociationSite[]): readonly TypeObservationQuestion[] {
+  return [
+    {
+      kind: "node-types",
+      nodes: [
+        ...new Set(
+          sites.flatMap((site) => {
+            const annotation = site.argument === undefined ? annotationName(site.target) : undefined;
+            return [site.value, ...(site.argument === undefined ? [site.target] : []), ...(annotation === undefined ? [] : [annotation])];
+          }),
+        ),
+      ],
+    },
+    { kind: "call-parameters", nodes: [...new Set(sites.filter((site) => site.argument !== undefined).map((site) => site.target))] },
+  ];
+}
+
+function annotationName(node: MorphNode): MorphNode | undefined {
+  if (!Node.isTypeReference(node)) {
+    return;
+  }
+  const name = node.getTypeName();
+  return Node.isQualifiedName(name) ? name.getRight() : name;
+}
+
+function shapeDeclaration(node: MorphNode): InterfaceDeclaration | TypeAliasDeclaration | undefined {
+  if (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) {
+    return node;
+  }
+  const parent = Node.isTypeLiteral(node) ? node.getParent() : undefined;
+  return parent !== undefined && Node.isTypeAliasDeclaration(parent) ? parent : undefined;
+}
+
+function declarations(selector: NativeTypeSelector, readers: TypeObservationReader): readonly (InterfaceDeclaration | TypeAliasDeclaration)[] | undefined {
+  const reference = readers.select(selector);
+  if (reference === null) {
+    return;
+  }
+  const type = readers.type(reference);
+  if (type.any || type.unknown || type.typeParameter || type.unionCount > 0) {
+    return;
+  }
+  return [
+    ...new Map(
+      [type.aliasSymbol, type.symbol].flatMap((symbol) =>
+        observedSymbolDeclarations(observedUltimateSymbol(symbol, readers), readers).flatMap((node) => {
+          const declaration = shapeDeclaration(node);
+          return declaration === undefined ? [] : [[inventoryDeclarationKey(declaration), declaration] as const];
+        }),
+      ),
+    ).values(),
+  ];
+}
+
+/** Missing registered observations throw; unsupported identities remain explicit unknowns, not acquittals. */
+export function readShapeAssociation(
+  site: ShapeAssociationSite,
+  readers: TypeObservationReader,
+  isHand: (node: InterfaceDeclaration | TypeAliasDeclaration) => boolean,
+  isProduction: (node: InterfaceDeclaration | TypeAliasDeclaration) => boolean,
+): ShapeAssociationRead {
+  const unknown = (reason: string): ShapeAssociationRead => ({ kind: "unknown", boundary: site.boundary, reason });
+  const values = declarations(nodeTypeSelector(site.value), readers);
+  if (values === undefined) {
+    return unknown("the direct value has no supported whole named type");
+  }
+  const hands = values.filter((node) => isHand(node) && isHandWrittenShape(node));
+  if (hands.length === 0) {
+    return { kind: "unassociated" };
+  }
+  if (hands.length !== 1) {
+    return unknown("the direct value has multiple handwritten declarations");
+  }
+  if (site.assignment === true) {
+    const targets = observedSymbolDeclarations(observedUltimateSymbol(readers.symbol(site.target), readers), readers);
+    if (
+      !targets.some(
+        (node) =>
+          (Node.isVariableDeclaration(node) || Node.isParameterDeclaration(node) || Node.isPropertyDeclaration(node) || Node.isPropertySignature(node)) &&
+          node.getTypeNode() !== undefined,
+      )
+    ) {
+      return unknown("the assignment target has no direct explicit type annotation");
+    }
+  }
+  const target = site.argument === undefined ? nodeTypeSelector(site.target) : readers.callParameters(site.target)?.[site.argument];
+  if (target === undefined) {
+    return unknown("the direct call has no resolved parameter for this argument");
+  }
+  const annotation = site.argument === undefined ? annotationName(site.target) : undefined;
+  const owners =
+    annotation === undefined
+      ? declarations(target, readers)
+      : observedSymbolDeclarations(observedUltimateSymbol(readers.symbol(annotation), readers), readers).flatMap((node) => shapeDeclaration(node) ?? []);
+  if (owners === undefined || owners.length === 0) {
+    return unknown("the boundary has no supported whole named production type");
+  }
+  const production = owners.filter(isProduction);
+  const hand = hands[0];
+  const owner = production[0];
+  if (production.length > 1) {
+    return unknown("the boundary has multiple canonical production declarations");
+  }
+  return hand === undefined || owner === undefined
+    ? { kind: "unassociated" }
+    : { kind: "associated", value: { hand, production: owner, boundary: site.boundary } };
+}
