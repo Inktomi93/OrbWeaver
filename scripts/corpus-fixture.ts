@@ -255,13 +255,17 @@ async function writePrivateIntake(directory: string | undefined, nativeArgs: rea
   if (parent === undefined) {
     throw new UsageError("Private corpus intake requires its owned private output root");
   }
-  const { createCorpusCapsule, writePrivateCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
+  const { createCorpusCapsule, writePrivateCorpusFixture, rethrowPrivateCorpusFailure } = await import("@orb/testkit/node/corpus.ts");
   const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
-  const { options } = await createCorpusRecipe(parent);
-  await using capsule = await createCorpusCapsule({ ...options, privateSourceDirectory: resolve(directory), directory: join(parent, "working") });
-  const fixture = await writePrivateCorpusFixture(capsule, join(parent, "fixture"));
-  process.stdout.write(`Private corpus fixture: ${fixture.layout.root}\n`);
-  return 0;
+  try {
+    const { options } = await createCorpusRecipe(parent);
+    await using capsule = await createCorpusCapsule({ ...options, privateSourceDirectory: resolve(directory), directory: join(parent, "working") });
+    const fixture = await writePrivateCorpusFixture(capsule, join(parent, "fixture"));
+    process.stdout.write(`Private corpus fixture: ${fixture.layout.root}\n`);
+    return 0;
+  } catch (error) {
+    return await rethrowPrivateCorpusFailure(parent, error);
+  }
 }
 
 async function runCorpusFixture(command: string, directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {

@@ -1,10 +1,11 @@
 // Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
 // only fresh synthetic captures may enter portable publication.
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inspect } from "node:util";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { localPath, pendingTurns, workloads } from "@orb/db";
@@ -59,6 +60,7 @@ import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 const CORPUS_WIRE_FILE = "corpus.json";
 const CORPUS_REPLAY_FILE = "replay.json";
 const CORPUS_PRIVATE_FILE = ".private-corpus.json";
+const CORPUS_PRIVATE_FAILURE_FILE = "failure.txt";
 const PRIVATE_PERMISSION_MODULUS = 0o100;
 const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
 
@@ -259,6 +261,35 @@ export function assertPrivateCorpusOutputArguments(args: readonly string[]): voi
   if (args.some((argument) => /^(?:--(?:output|reporter|last-failed-file|update-snapshots|update-source-method)(?:=|$)|-u)/u.test(argument))) {
     throw new Error("Private corpus artifacts cannot override native output ownership");
   }
+}
+
+/** Durably retain private diagnostic causes, then reject with the original intake failure. */
+export async function rethrowPrivateCorpusFailure(directory: string, error: unknown): Promise<never> {
+  try {
+    const artifact = join(directory, CORPUS_PRIVATE_FAILURE_FILE);
+    assertPrivateCorpusOutput(directory, artifact);
+    await using file = await open(artifact, "wx", 0o600);
+    // Trusted native Errors may materialize stack/cause; decoded row getters and custom inspectors stay disabled.
+    await file.writeFile(
+      inspect(error, {
+        depth: null,
+        maxArrayLength: null,
+        maxStringLength: null,
+        customInspect: false,
+        getters: false,
+        showHidden: true,
+        colors: false,
+        compact: false,
+        breakLength: Number.POSITIVE_INFINITY,
+      }),
+      "utf8",
+    );
+    await file.sync();
+  } catch (captureError) {
+    // biome-ignore lint/style/useErrorCause: Native SuppressedError retains the capture failure in .error and the original in .suppressed; it has no ErrorOptions cause parameter.
+    throw new SuppressedError(captureError, error, "Private corpus intake failed and its failure evidence could not be retained");
+  }
+  throw error;
 }
 
 /** Private descendants must remain beneath their original inaccessible, non-repository output owner. */
