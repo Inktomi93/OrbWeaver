@@ -162,6 +162,8 @@ export function readNativeTypeSelectionStep(type: Type, step: NativeTypeSelector
       return type.getNumberIndexType();
     case "type-argument":
       return type.getTypeArguments()[step.index];
+    case "alias-type-argument":
+      return type.getAliasTypeArguments()[step.index];
     case "call-return":
       return type.getCallSignatures()[step.index]?.getReturnType();
     case "tuple-member":

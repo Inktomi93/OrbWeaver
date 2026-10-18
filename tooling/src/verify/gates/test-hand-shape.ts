@@ -1,26 +1,25 @@
-// Policy: test-hand-shape (docs/law/Spine-Testing.md §10, "Derive types") — e2e code and test support modules may not
-// hand-declare an object shape production owns: an interface or type-literal alias whose fields copy one exported
-// shape, or that kept most of its field names after drifting. Judged by fields, never by name. DECLARED LIMIT: the
-// drift test (4 shared names, 80 %, one retype) is calibrated, and a row of generic field names can trip it. FAMILY
-// `contract-derives-not-respells` (`lib/contract-structural-copy.ts`). Debt: `lib/reviewed-grants-test-hand-shape.ts`.
-import type { InterfaceDeclaration, SourceFile, TypeAliasDeclaration } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
-import { indexByField } from "../../floor/code-facts/shape-copy.ts";
-import type { ShapeCopySource as ContractFieldShape, ShapeCopyComparison as StructuralCopyMatch } from "../../floor/code-facts/shape-copy-contract.ts";
-import { exportedShapeDeclarations, isHandWrittenShape } from "../../floor/code-facts/shape-declaration.ts";
-import { planShapeQueries } from "../../floor/code-facts/shape-facts.ts";
+// Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns, judged by canonical native declarations (D328).
+// Boundaries resolve through aliases and a bounded walk of wrappers, containers, unions and intersections; function values and generic production parameters are UNKNOWN.
+// No-owner is clean only when no production declaration can own the site; an unseen identity is UNKNOWN, never a finding.
+// Limits: object literals and their properties, test classes, and workspace production .d.ts types are never judged or owners.
+// Singleton: direct boundary ownership is not the structural-copy family's field-fit judgment.
+import type { Node, SourceFile } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
+import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
+import type { ShapeAssociation, ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
+import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";
-import { bestCopyMatch, bestOverlapMatch, candidateFields, contractFields, createFieldAgreement } from "../lib/contract-structural-copy.ts";
+import { declarationHome } from "../lib/declaration-home.ts";
+import { typeObservationPlan, typeObservationReaders } from "../lib/type-observation-context.ts";
 
 const TESTS = "tests/";
 const E2E = "tests/e2e/";
-const OVERLAP_OPERATION = "overlaps";
-const COPY_OPERATION = "copies";
 const LAW = "(docs/law/Spine-Testing.md §10)";
-const MESSAGE = `a test support or e2e module hand-declares a shape production owns, so a renamed or retyped field still compiles here and drifts silently ${LAW}.`;
+const MESSAGE = `a test support or e2e module hand-declares a production boundary type instead of deriving it ${LAW}.`;
 const FIX =
-  "import the production type, or derive it (`TrpcWireOutput`, `inferOutput`, `z.infer`, `Pick<…>`, an indexed access). A shape with no contract home gets one first. Existing shapes are reviewed-grant rows naming their burn-down item; a new shape derives, never a row.";
+  "import the production type, or derive it (`TrpcWireOutput`, `inferOutput`, `z.infer`, `Pick<…>`, an indexed access). A shape with no contract home gets one first. A hand shape derives; it never takes a grant row.";
 
 const WIRE_CAPTURE_HOME = "packages/server/src/foundation/observability/debug/wire-capture.ts";
 const MESSAGES_HOME = "packages/contracts/src/chat/message-pages.ts";
@@ -30,54 +29,17 @@ const WIRE_CAPTURE = (provider: string, extra: string): string =>
 const MESSAGES_PAGE = (name: string): string =>
   `export interface ${name} {\n  readonly chatId: string;\n  readonly items: readonly string[];\n  readonly nextCursor: string | null;\n  readonly total: number;\n}\n`;
 
-type HandShape = InterfaceDeclaration | TypeAliasDeclaration;
-type FieldAgreement = ReturnType<typeof createFieldAgreement>;
-
 /** e2e specs and helpers, and every test-tree module that is not itself a test: stories, fixtures, harnesses. */
 function isJudged(path: string): boolean {
-  return path.startsWith(E2E) || (path.startsWith(TESTS) && classifyTestFilename(path) === undefined);
-}
-
-interface HandShapeVerdict {
-  readonly match: StructuralCopyMatch;
-  readonly relation: string;
-  readonly operation: string;
-}
-
-/** A whole-field copy first; failing that, a drifted copy that kept most of an export's field names. */
-function handShapeVerdict(node: HandShape, index: ReadonlyMap<string, readonly ContractFieldShape[]>, agree: FieldAgreement): HandShapeVerdict | undefined {
-  const fields = candidateFields(N.isInterfaceDeclaration(node) ? node : node.getTypeNodeOrThrow().asKindOrThrow(SyntaxKind.TypeLiteral));
-  if (fields === undefined) {
-    return;
-  }
-  const own = { decl: node, fields };
-  const copy = bestCopyMatch(own, index, agree);
-  if (copy !== undefined) {
-    return { match: copy, relation: `declares ${String(copy.shared)} of the fields of`, operation: COPY_OPERATION };
-  }
-  const overlap = bestOverlapMatch(own, index, agree);
-  return overlap === undefined
-    ? undefined
-    : { match: overlap, relation: `shares ${String(overlap.shared)} of its ${String(fields.size)} field names with`, operation: OVERLAP_OPERATION };
-}
-
-function productionFieldShapes(files: readonly SourceFile[], relativePath: (source: SourceFile) => string): ContractFieldShape[] {
-  return files
-    .filter((source) => !relativePath(source).startsWith(TESTS))
-    .flatMap((source) =>
-      exportedShapeDeclarations(source).flatMap(([name, declaration]) => {
-        const shape = contractFields(declaration);
-        return shape === undefined ? [] : [{ name, file: relativePath(source), decl: declaration, fields: shape }];
-      }),
-    );
+  return !isLegacyTestPath(path) && (path.startsWith(E2E) || (path.startsWith(TESTS) && classifyTestFilename(path) === undefined));
 }
 
 export const gate = defineGate({
   id: "test-hand-shape",
-  family: "contract-derives-not-respells",
+  family: "test-hand-shape",
   authority: "reviewed-grant",
   severity: "error",
-  // Production roots are read for the index of exported shapes and never judged.
+  // Production declarations supply boundary ownership and are never judged.
   population: ["@tests", "@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@showcase", "@plugin-toolchain", "@default-content"],
   analysis: "types",
   execution: "entire-population",
@@ -86,53 +48,77 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const fields: ContractFieldShape[] = [];
-    const candidates: { readonly node: HandShape; readonly file: string }[] = [];
+    const sites: ShapeAssociationSite[] = [];
+    let sources: readonly SourceFile[] = [];
+    let plan: InventoryInvocationPlan | undefined;
     if (ctx.nativeTypes === undefined) {
       throw new Error("native shape context is unavailable");
     }
-    ctx.nativeTypes.request({
-      kind: "shape-relations",
-      nodes: ctx.files,
-      prepare: () =>
-        planShapeQueries(ctx.files, () => {
-          const catalog = productionFieldShapes(ctx.files, ctx.relativePath);
-          const index = indexByField(catalog);
-          const agree = createFieldAgreement("test-hand-shape", ctx.checker);
-          for (const { node } of candidates) {
-            handShapeVerdict(node, index, agree);
-          }
-        }),
-    });
+    const native = ctx.nativeTypes;
+    const isHand = (node: ShapeAssociation["hand"]): boolean => {
+      const home = declarationHome(ctx, node.getSourceFile());
+      return ctx.includesSubject(home) && isJudged(home);
+    };
+    const isProduction = (node: Node): boolean =>
+      !(node.getSourceFile().isDeclarationFile() || node.getSourceFile().isInNodeModules()) &&
+      declarationHome(ctx, node.getSourceFile()).startsWith("packages/");
+    const reported = new Set<string>();
+    const reportAssociation = ({ hand, production }: ShapeAssociation): void => {
+      const name = hand.getName();
+      const file = declarationHome(ctx, hand.getSourceFile());
+      const home = declarationHome(ctx, production.getSourceFile());
+      const operation = `boundary:${name}=${home}#${production.getName()}`;
+      const key = `${file}#${operation}`;
+      if (reported.has(key)) {
+        return;
+      }
+      reported.add(key);
+      ctx.report.node(hand.getNameNode(), {
+        token: name,
+        offset: 0,
+        message: `\`${name}\` hand-declares the production boundary \`${production.getName()}\` (${home}). ${MESSAGE}`,
+        subject: file,
+        operation,
+      });
+    };
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.InterfaceDeclaration, SyntaxKind.TypeAliasDeclaration],
+          kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression, SyntaxKind.ReturnStatement, SyntaxKind.ArrowFunction],
           visit: (node, sourceFile) => {
             const file = ctx.relativePath(sourceFile);
-            if ((N.isInterfaceDeclaration(node) || N.isTypeAliasDeclaration(node)) && isJudged(file) && isHandWrittenShape(node)) {
-              candidates.push({ node, file });
+            if (file.startsWith(TESTS)) {
+              sites.push(...shapeAssociationSites(node));
             }
           },
         },
       ],
+      prepare: () => {
+        sources = [...new Set(sites.map((site) => site.boundary.getSourceFile()))];
+        if (sources.length > 0) {
+          plan = typeObservationPlan(sources, [], shapeAssociationQuestions(sites));
+          native.request({ kind: "invocation-evidence", nodes: sources, plan });
+        }
+      },
       evaluate: () => {
-        ctx.nativeTypes?.prepareShapes(ctx.files);
-        fields.push(...productionFieldShapes(ctx.files, ctx.relativePath));
-        ctx.receipt({ kind: "population", source: "production-exported-shapes", members: fields.length });
-        const index = indexByField(fields);
-        const agree = createFieldAgreement("test-hand-shape", ctx.checker);
-        for (const { node, file } of candidates) {
-          const verdict = handShapeVerdict(node, index, agree);
-          if (verdict !== undefined) {
-            const name = node.getName();
-            ctx.report.node(node.getNameNode(), {
-              token: name,
-              offset: 0,
-              message: `\`${name}\` ${verdict.relation} \`${verdict.match.contract.name}\` (${verdict.match.contract.file}). ${MESSAGE}`,
-              subject: file,
-              operation: `${verdict.operation}:${name}=${verdict.match.contract.file}#${verdict.match.contract.name}`,
-            });
+        ctx.receipt({ kind: "population", source: "shape-boundary-syntax-population", members: ctx.files.length });
+        if (plan === undefined) {
+          return;
+        }
+        const readers = typeObservationReaders(native.invocationEvidence(sources, plan));
+        for (const site of sites) {
+          const reader = readers.get(site.boundary.getSourceFile());
+          if (reader === undefined) {
+            throw new Error("test-hand-shape native boundary reader is unavailable");
+          }
+          const verdict = readShapeAssociation(site, reader, isHand, isProduction);
+          if (verdict.kind === "unknown") {
+            ctx.report.analysis(site.value, verdict);
+            continue;
+          }
+          ctx.report.analysis(site.value, { kind: "supported" });
+          if (verdict.kind === "associated") {
+            reportAssociation(verdict.value);
           }
         }
       },
@@ -142,21 +128,60 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
-        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", "readonly at: number;\n"),
-        [E2E_HELPER]: WIRE_CAPTURE("backend", ""),
+        [MESSAGES_HOME]: MESSAGES_PAGE("MessagesPage"),
+        [E2E_HELPER]: `import type { MessagesPage } from "../../../${MESSAGES_HOME}";\ninterface Head { readonly chatId: string; readonly total: number; }\ndeclare const head: Head;\nexport const page: MessagesPage = head;`,
       },
-      expect: { count: 1, token: "WireCapture", messageIncludes: "shares 4 of its 5 field names with `WireCapture`" },
-      grant: { subject: E2E_HELPER, operation: `overlaps:WireCapture=${WIRE_CAPTURE_HOME}#WireCapture` },
-      why: "THE FOUNDING DRIFT: the e2e mirror of the server's capture says `backend` where the server sends `providerId`, so the subset match misses it. Four of its five field names are the export's, and that overlap, not the shared name, is the evidence",
+      expect: { count: 1, token: "Head", messageIncludes: "production boundary" },
+      why: "a direct explicit production annotation witnesses a handwritten declaration even below the former field-count floor",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", "readonly at: number;\n"),
+        [E2E_HELPER]: `${WIRE_CAPTURE("backend", "")}import type { WireCapture as ServerCapture } from "../../../${WIRE_CAPTURE_HOME}";\ndeclare const capture: WireCapture;\nexport const seen: ServerCapture = capture;`,
+      },
+      expect: { count: 1, token: "WireCapture", messageIncludes: "production boundary `WireCapture`" },
+      grant: { subject: E2E_HELPER, operation: `boundary:WireCapture=${WIRE_CAPTURE_HOME}#WireCapture` },
+      why: "the founding backend/providerId drift retains its original fields and gains a direct explicit production boundary",
     },
     {
       mode: "types",
       files: {
         [MESSAGES_HOME]: MESSAGES_PAGE("MessagesPage"),
-        "tests/client/features/chat/_ct-stories.tsx": MESSAGES_PAGE("PageRows"),
+        "tests/client/features/chat/_ct-stories.tsx": `${MESSAGES_PAGE("PageRows")}import type { MessagesPage as Page } from "../../../../${MESSAGES_HOME}";\ndeclare const rows: PageRows;\nexport function page(): Page { return rows; }`,
       },
-      expect: { count: 1, token: "PageRows", messageIncludes: "of the fields of `MessagesPage`" },
-      why: "THE RENAMED COPY: a story module declares a contract's fields under a name production never exports",
+      expect: { count: 1, token: "PageRows", messageIncludes: "production boundary `MessagesPage`" },
+      why: "a renamed copy crosses an explicitly annotated production return boundary through an import alias",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_CAPTURE_HOME]: `${WIRE_CAPTURE("providerId", "")}export function take(capture: WireCapture): void { void capture; }`,
+        "tests/e2e/rpg-lite-loop.spec.ts": `type Capture = { readonly chatId: string; readonly api: string; readonly backend: string; readonly model: string; readonly body: string };\nexport const read = (capture: Capture): string => capture.backend;\nimport { take as accept } from "../../${WIRE_CAPTURE_HOME}";\ndeclare const capture: Capture;\naccept(capture);`,
+      },
+      expect: { count: 1, token: "Capture", messageIncludes: "production boundary `WireCapture`" },
+      why: "the original e2e type-literal drift crosses the actual resolved production parameter through an import alias",
+    },
+  ],
+  mustPass: [
+    {
+      mode: "types",
+      files: {
+        [MESSAGES_HOME]: MESSAGES_PAGE("MessagesPage"),
+        "tests/legacy/support/hand.ts": `${MESSAGES_PAGE("LegacyHand")}export declare const hand: LegacyHand;`,
+        [E2E_HELPER]: `import type { MessagesPage } from "../../../${MESSAGES_HOME}";\nimport { hand } from "../../legacy/support/hand.ts";\nexport const seen: MessagesPage = hand;`,
+      },
+      why: "D320 excludes a legacy handwritten origin from judgment even when it remains in the native dependency closure",
+    },
+    {
+      mode: "types",
+      files: { [WIRE_CAPTURE_HOME]: WIRE_CAPTURE("providerId", "readonly at: number;\n"), [E2E_HELPER]: WIRE_CAPTURE("backend", "") },
+      why: "the historical unconnected founding drift has no witnessed boundary; untyped transport mirrors are no longer statically certified",
+    },
+    {
+      mode: "types",
+      files: { [MESSAGES_HOME]: MESSAGES_PAGE("MessagesPage"), "tests/client/features/chat/_ct-stories.tsx": MESSAGES_PAGE("PageRows") },
+      why: "the historical renamed declaration alone supplies no production association, even when structurally identical",
     },
     {
       mode: "types",
@@ -165,11 +190,16 @@ export const gate = defineGate({
         "tests/e2e/rpg-lite-loop.spec.ts":
           "type Capture = { readonly chatId: string; readonly api: string; readonly backend: string; readonly model: string; readonly body: string };\nexport const read = (capture: Capture): string => capture.backend;\n",
       },
-      expect: { count: 1, token: "Capture", messageIncludes: "shares 4 of its 5 field names" },
-      why: "a local type-literal alias inside an e2e spec is the same hand shape as an interface in its helper, whatever it is called",
+      why: "the historical local alias and reader retain their source, but no production boundary witnesses ownership",
     },
-  ],
-  mustPass: [
+    {
+      mode: "types",
+      files: {
+        [MESSAGES_HOME]: `${MESSAGES_PAGE("MessagesPage")}export const unrelated = (): number => 1;`,
+        [E2E_HELPER]: `import { unrelated as other } from "../../../${MESSAGES_HOME}";\n${MESSAGES_PAGE("Options")}export const n = other();`,
+      },
+      why: "importing another production value does not associate an independently declared options shape with a production boundary",
+    },
     {
       mode: "types",
       files: {

@@ -1,15 +1,9 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { indexByField } from "@orb/tooling/floor/code-facts/shape-copy";
 import { Project } from "ts-morph";
-import {
-  bestCopyMatch,
-  bestOverlapMatch,
-  candidateFields,
-  contractFields,
-  createFieldAgreement,
-} from "../../../../tooling/src/verify/lib/contract-structural-copy.ts";
+import { bestCopyMatch, candidateFields, contractFields, createFieldAgreement } from "../../../../tooling/src/verify/lib/contract-structural-copy.ts";
 
-test("the copy consumers preserve exact, subset, drift and rank decisions on a bounded corpus", () => {
+test("the copy consumer preserves exact, subset, drift and rank decisions on a bounded corpus", () => {
   const project = new Project({ useInMemoryFileSystem: true });
   const file = project.createSourceFile(
     "/shape-copy/corpus.ts",
@@ -38,23 +32,17 @@ interface TooFew { a: string; b: number; c: boolean; }
     const decl = file.getInterfaceOrThrow(name);
     const fields = candidateFields(decl);
     if (fields === undefined) {
-      return [name, null, null];
+      return [name, null];
     }
-    const own = { decl, fields };
-    const copy = bestCopyMatch(own, index, agree);
-    const overlap = bestOverlapMatch(own, index, agree);
-    return [
-      name,
-      copy === undefined ? null : [copy.contract.name, copy.shared, copy.agreeing, copy.exact],
-      overlap === undefined ? null : [overlap.contract.name, overlap.shared, overlap.agreeing, overlap.exact],
-    ];
+    const copy = bestCopyMatch({ decl, fields }, index, agree);
+    return [name, copy === undefined ? null : [copy.contract.name, copy.shared, copy.agreeing, copy.exact]];
   });
   expect(answers).toEqual([
-    ["Exact", ["Owner", 5, 5, true], ["Owner", 5, 5, false]],
-    ["Subset", ["Small", 4, 4, true], ["Owner", 4, 4, false]],
-    ["Drift", null, ["Owner", 4, 4, false]],
-    ["Retyped", ["Owner", 5, 4, true], ["Owner", 5, 4, false]],
-    ["NoMatch", null, null],
-    ["TooFew", null, null],
+    ["Exact", ["Owner", 5, 5, true]],
+    ["Subset", ["Small", 4, 4, true]],
+    ["Drift", null],
+    ["Retyped", ["Owner", 5, 4, true]],
+    ["NoMatch", null],
+    ["TooFew", null],
   ]);
 });

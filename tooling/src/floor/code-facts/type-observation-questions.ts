@@ -3,6 +3,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices } from "./reference-fact.ts";
 import { rootIdentifier } from "./reference-fact-alias.ts";
+import { observeShapeConstituents } from "./shape-constituents.ts";
 import { uncastReceiver } from "./type-member-origin-core.ts";
 import type {
   SelectedPropertyGraph,
@@ -805,6 +806,7 @@ const questions: Record<
   },
   "type-properties": properties,
   "type-constituents": observeTypeConstituents,
+  "shape-constituents": observeShapeConstituents,
   "definition-nodes": (question, readers): void => {
     for (const node of question.nodes) {
       readers.definitions(node);

@@ -33,6 +33,7 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "declaration-closure",
   "type-properties",
   "type-constituents",
+  "shape-constituents",
   "definition-nodes",
   "definition-closure",
   "call-parameters",
@@ -254,6 +255,20 @@ export interface ObservedTypeData {
   readonly tupleCount: number;
   readonly symbol: ObservedReference<"symbol"> | null;
   readonly aliasSymbol: ObservedReference<"symbol"> | null;
+}
+/** One bounded `shape-constituents` walk node; `truncated` marks a depth or cycle stop whose children were not read. */
+export interface ShapeConstituent {
+  readonly type: ObservedTypeData;
+  readonly primitive: boolean;
+  readonly unions: readonly ShapeConstituent[];
+  readonly intersections: readonly ShapeConstituent[];
+  readonly typeArguments: readonly ShapeConstituent[];
+  readonly truncated: boolean;
+}
+/** A callee's declaration and, per declared parameter, whether its type is an unresolved type parameter. */
+export interface ShapeDeclaredSignature {
+  readonly declaration: Node;
+  readonly generic: readonly boolean[];
 }
 export interface ObservedProperty {
   readonly name: string;
