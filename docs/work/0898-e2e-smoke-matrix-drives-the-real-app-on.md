@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tests
-lane: wt/agent-a71b6b694a9b67df6
 plan: test-mirror
 ---
 
@@ -24,7 +23,7 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Partial source is saved at `151bcda9b6` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
+Native folder classification, split-folder restore and unique backup entry paths are integrated at `f462cdcd01` after independent security review; the public Backup case passes. The private full-size path remains open. Evidence: `reports/review/898-native-folder-restore-final.md`.
 
 Corpus flows, provider modes and CI admission are integrated. Hosted and owner-copy execution remain open; collection is not execution.
 
