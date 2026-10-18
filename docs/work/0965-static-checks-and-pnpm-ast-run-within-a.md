@@ -3,7 +3,7 @@ kind: bug
 status: doing
 updated: 2026-10-18
 priority: P1
-lane: wt/claude-fabrication-1041
+lane: codex/citation-native-ignore-965
 plan: test-foundation
 ---
 
