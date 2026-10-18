@@ -16,19 +16,13 @@ import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
+import { restoreAllowanceMs } from "./support/timeouts.ts";
 
 const BUNDLE_IMPORT_ROUTE = "/api/import/bundle";
 const IMPORT_GROUP_NAME = /^Import /u;
 // Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
 const BACKUP_CASE_BASE_MS = 120_000;
 const IMPORT_SETTLE_BASE_MS = 60_000;
-// A backup at the local folder bound (export, both restore legs and their import workloads) earns half an hour.
-const FULL_BOUND_RESTORE_MS = 1_800_000;
-
-/** The size-derived share of the restore allowance, bounded because the folder helper refuses a larger archive. */
-function restoreAllowanceMs(archiveBytes: number): number {
-  return Math.ceil((Math.min(archiveBytes, IMPORT_TREE_MAX_TOTAL_BYTES) / IMPORT_TREE_MAX_TOTAL_BYTES) * FULL_BOUND_RESTORE_MS);
-}
 
 async function toggleAndReload(page: Page, group: ConfigGroupId, label: string): Promise<boolean> {
   await openGroup(page, group);
@@ -244,8 +238,8 @@ test.describe("committed corpus settings", () => {
   });
 
   test("Backup exports a real library and imports the downloaded bundle", { tag: "@smoke" }, async ({ page, baseURL }, testInfo) => {
-    // The export size is unknown until the download lands, so the case starts with the bound's allowance.
-    test.setTimeout(budget(BACKUP_CASE_BASE_MS + FULL_BOUND_RESTORE_MS));
+    // The export size is unknown until the download lands, so the case starts with the folder bound's allowance.
+    test.setTimeout(budget(BACKUP_CASE_BASE_MS + restoreAllowanceMs(IMPORT_TREE_MAX_TOTAL_BYTES)));
     const host = ownerActor(baseURL ?? "");
     const scriptId = SELECTED_CORPUS_FIXTURE?.wire.regexLibrary?.ids.scriptId;
     if (scriptId === undefined) {

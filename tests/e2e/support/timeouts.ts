@@ -1,6 +1,16 @@
 // The e2e wait ladder, in ms. A spec names the rung that matches what it waits for, so a rung that proves too
 // tight or too loose moves for every spec at once. Playwright's own expect default (5 s) is the shortest rung.
 
+import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+
+// One folder upload's worth of bytes (export, upload and its import workload) earns half an hour.
+const RESTORE_MS_PER_UPLOAD_BOUND = 1_800_000;
+
+/** A library restore's size-derived allowance: proportional to its bytes, at one rate for archives and folders. */
+export function restoreAllowanceMs(bytes: number): number {
+  return Math.ceil((bytes / IMPORT_TREE_MAX_TOTAL_BYTES) * RESTORE_MS_PER_UPLOAD_BOUND);
+}
+
 /** A request or event that must land almost at once. */
 export const WAIT_INSTANT_MS = 3000;
 /** A settled DOM assertion that needs no round trip. */
