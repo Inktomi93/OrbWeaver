@@ -35,10 +35,10 @@ A literal wiring of the candidate reader reports almost every `boolean` or `stri
 | Reader | Files sampled | Sites | UNKNOWN |
 | - | - | - | - |
 | candidate | 74 | 12,006 | 924 (473 primitive unions, 318 object unions, 128 `any`/`unknown`, 3 boundary, 2 union carrying a hand) |
-| final | 74 | 12,006 | 130 |
-| final | 222 | 34,462 | 335 (110 live, 225 legacy) |
+| first delivery | 74 | 12,006 | 130 |
+| first delivery | 222 | 34,462 | 335 (110 live, 225 legacy) |
 
-Projected over the tree's tests (sites per file held constant), the candidate would emit about 55,000 UNKNOWN lines and the final reader about 6,700. Each refinement only converts an UNKNOWN to supported where no handwritten declaration can cross, so no finding is lost and no erased identity is called clean. The remaining UNKNOWNs are mostly `any`/`unknown` values at production-typed or opaque boundaries; about two thirds sit in `tests/legacy/`.
+Projected over the tree's tests (sites per file held constant), the candidate would emit about 55,000 UNKNOWN lines and the first delivery about 6,700; the verifier round below corrects that delivery. That delivery's claim that each refinement was fail-closed was wrong for aliases, wrappers and containers (verifier F1 to F3).
 
 ## Grants and budget
 
@@ -59,6 +59,40 @@ Both rows are obsolete under the direct-boundary claim (source adjudication in t
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.tests-dom.json --config tsconfig.tests-iso.json --config tsconfig.json` | tooling, tests-dom, tests-iso pass; root fails only on the inherited `scripts/probes/**` and `tests/legacy/**/_support.ts` set the merge hook saw on main-identical bytes |
 | `pnpm check:docs` on the two docs | pass |
 | `pnpm check:agents` | inherited red: three gitignored `reports/review` links in `docs/plans/test-foundation/design.md` |
+
+## Verifier round: fail-open boundary and container identity
+
+The verifier refuted `923036b272` (F1 to F4). The fix commit sits on a merge of main `0c00df426d`.
+
+- F1/F2: boundary ownership came from the annotation's own symbol, so `type Page = Owner` and `Readonly<Owner>` lost the production owner. Ownership now comes from the resolved boundary type; an annotation still adds a production alias the resolution erased.
+- F3: a union constituent counted as clean whenever it was not itself a named hand. Every union, intersection and type-argument constituent is now walked; clean means primitive, literal, `null`, `undefined` or a named shape that is not a judged hand.
+- The existing `node-types` and `call-parameters` answers carry no type arguments or nested flags; judging with them alone made 20% of sampled sites UNKNOWN (6,990 of 34,351). With the coordinator's approval one bounded question kind, `shape-constituents`, joins the shared vocabulary (`type-observation-questions.ts`, `SHAPE_CONSTITUENT_DEPTH` and `SHAPE_ALIAS_ARGUMENT_LIMIT`, plus a seen-set), with one selector step, `alias-type-argument`, for library alias arguments. A depth or cycle stop reads UNKNOWN, never no-shape.
+- Library origin is decided by the declaration's source file (`isInNodeModules`, which covers TypeScript `lib.*.d.ts`). A named library type with no type arguments is no-shape; a generic one is judged by its arguments; a library alias at a boundary, or an anonymous library structure at a boundary, stays UNKNOWN.
+- Demand gating: the question runs only when the demand names it; the gate test spies the shared dispatcher and shows `message-kind-policy-coverage` never asks it while this gate does.
+- Currentness: answers ride the same capture, demand schema and replay as every other question. The native fixture changes `rows: Hand[]` to `Derived[]` and the UNKNOWN for that site disappears.
+- Expected extra capture cost: one walk of at most `SHAPE_CONSTITUENT_DEPTH` levels per value and target slot, plus up to `SHAPE_ALIAS_ARGUMENT_LIMIT + 1` alias-argument probes per aliased type, and call-parameter rows for calls that are themselves values. Not measured on the whole population.
+
+Sample (same 222 files, 34,351 sites):
+
+| Reader | UNKNOWN | Rate |
+| - | - | - |
+| `923036b272` (refuted) | 335 | 1.0% |
+| existing observations only, strict | 6,990 | 20.3% |
+| fix with `shape-constituents` | 634 | 1.8% |
+
+Fix-round evidence:
+
+| Command | Result |
+| - | - |
+| gate, reader and native tests with the source fix reverse-applied | red-first: 17 of 34 fail, covering every F1 to F3 shape, the wrapper, container and depth probes, demand gating and the native invalidation control |
+| `pnpm test:scoped` gate, reader, native fixture, family suite, shared observation suites, shape consumers, shape copy, grants, ratchet | all pass, except load-only timeouts below |
+| `native-type-projection.test.ts` alone | 4/4 pass (134.7 s); it timed out only beside 13 other files |
+| `browser-mount-native.test.ts` and `test-mock-doctrine` proofs on exact parent bytes | same timeouts as on the fix, so inherited |
+| `native-shape-delivery.int.test.ts` opposing-worlds case | inherited 60 s timeout, unchanged |
+| Biome, HARD ESLint, ordinary ESLint on the changed files | pass, except `type-observation-questions.ts` `max-lines`: 851 lines on the parent and 853 now (one import and one registry row); the walk lives in `shape-constituents.ts` |
+| `pnpm typecheck` tooling, tests-dom, tests-iso | pass; root keeps the inherited `tests/legacy/**/_support.ts` errors |
+
+Known limit: a generic production parameter (`takeAll<T extends Owner>(owner: T)`) is judged at its instantiation, so a hand passed there is unassociated; seeing the declared constraint needs the signature-parameter observation on the callee, which this fix does not add.
 
 ## Owed
 

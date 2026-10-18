@@ -154,7 +154,7 @@ export type NativeTypeSelectionBase<Anchor> =
   | { readonly kind: "schema-column"; readonly column: string };
 export type NativeTypeSelectionStep<Anchor> =
   | { readonly kind: "constraint" | "nonnullable" | "array-element-or-self" | "array-element" | "string-index" | "number-index" }
-  | { readonly kind: "type-argument" | "call-return" | "tuple-member" | "union-part" | "intersection-part"; readonly index: number }
+  | { readonly kind: "type-argument" | "alias-type-argument" | "call-return" | "tuple-member" | "union-part" | "intersection-part"; readonly index: number }
   | { readonly kind: "property"; readonly name: string; readonly at: Anchor }
   | { readonly kind: "signature-parameter"; readonly signature: number; readonly index: number; readonly at: Anchor };
 export interface NativeTypeSelector<Anchor = Node> {

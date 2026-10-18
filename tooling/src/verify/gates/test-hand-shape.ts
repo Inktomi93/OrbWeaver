@@ -1,8 +1,9 @@
 // Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns (D328).
 // Shared floor association uses canonical native declarations, not structural similarity or copy intent.
-// Unassociated mirrors are outside this finite claim; an erased, union or indirect identity reports UNKNOWN, never a finding.
+// Boundaries resolve through aliases and a bounded walk of wrappers, containers, unions and intersections.
+// A site judged no-owner is clean only when no production declaration can own it; an unseen identity is UNKNOWN, never a finding.
 // Singleton: direct boundary ownership is not the structural-copy family's field-fit judgment.
-import type { SourceFile } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
@@ -58,7 +59,7 @@ export const gate = defineGate({
       const home = declarationHome(ctx, node.getSourceFile());
       return ctx.includesSubject(home) && isJudged(home);
     };
-    const isProduction = (node: ShapeAssociation["production"]): boolean =>
+    const isProduction = (node: Node): boolean =>
       !(node.getSourceFile().isDeclarationFile() || node.getSourceFile().isInNodeModules()) &&
       declarationHome(ctx, node.getSourceFile()).startsWith("packages/");
     const reported = new Set<string>();

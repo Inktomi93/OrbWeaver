@@ -17,6 +17,7 @@ export interface ShapeAssociation {
 /** Each unsupported direct-boundary identity; none is a clean verdict or a finding. */
 export const SHAPE_ASSOCIATION_UNKNOWN = {
   erasedValue: "the direct value has no supported whole named type",
+  opaqueValue: "the direct value has a container, wrapper or intersection type that may carry a handwritten declaration",
   unionHand: "the direct value is a union carrying a handwritten declaration",
   manyHands: "the direct value has multiple handwritten declarations",
   unannotatedAssignment: "the assignment target has no direct explicit type annotation",

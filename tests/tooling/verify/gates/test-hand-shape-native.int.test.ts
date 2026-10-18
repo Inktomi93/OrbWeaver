@@ -1,8 +1,9 @@
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node } from "ts-morph";
 import { vi } from "vitest";
+import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -10,6 +11,8 @@ import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verif
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
 import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
+
+const SHAPE = "tests/support/node/shape.ts";
 
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const put = (path: string, text: string): void => {
@@ -32,7 +35,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
     );
   }
   put(
-    "tests/support/node/shape.ts",
+    SHAPE,
     `
 import type { Owner as Output } from "#owner";
 import { schema } from "#owner";
@@ -48,11 +51,13 @@ declare const derived: Derived;
 declare const picked: Picked;
 declare const inferred: Inferred;
 declare const indexed: Indexed;
+declare const rows: Hand[];
 export const seen: Output = hand;
 export const first: Output = derived;
 export const second: Output = picked;
 export const third: Output = inferred;
 export const fourth: Output = indexed;
+export const fifth: Output[] = rows;
 `,
   );
   const options = {
@@ -113,10 +118,28 @@ test(
             },
           ]);
           expect(result.policies[0]?.findings).toHaveLength(1);
+          expect(result.policies[0]?.analysis?.unknown).toContainEqual(
+            expect.objectContaining({ file: SHAPE, token: "rows", reason: SHAPE_ASSOCIATION_UNKNOWN.opaqueValue }),
+          );
         } finally {
           poison.mockRestore();
         }
       }
+      const native = join(scratch, "native");
+      // A changed constituent invalidates the captured walk: the array no longer carries a hand.
+      writeFileSync(join(native, SHAPE), readFileSync(join(native, SHAPE), "utf8").replace("declare const rows: Hand[];", "declare const rows: Derived[];"));
+      const changed = projectCtx(native);
+      const rerun = runPolicyPass({
+        root: native,
+        project: changed.project,
+        ...nativeTypeFactOptions(changed),
+        policies: [gate],
+        knownPolicies: [gate],
+        reviewedGrants: [],
+        failOnWarnings: false,
+      });
+      expect(rerun.toolErrors).toEqual([]);
+      expect(rerun.policies[0]?.analysis?.unknown.filter((gap) => gap.token === "rows")).toEqual([]);
     } finally {
       producer.mockRestore();
     }

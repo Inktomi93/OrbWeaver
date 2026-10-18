@@ -133,10 +133,12 @@ declare const hand: Hand;
 declare const derived: Derived;
 declare const picked: Picked;
 declare const indexed: Indexed;
+declare const direct: Pick<Owner, "value">;
 const local: Hand = hand;
 const first: Owner = derived;
 const second: Owner = picked;
 const third: Owner = indexed;
+const fourth: Owner = direct;
 const ambiguous: Owner | null = hand;
 declare function opaque(value: unknown): void;
 opaque(hand);
@@ -144,11 +146,16 @@ missing(hand);
 `,
   );
   const answers = read(source, source.getDescendants().flatMap(shapeAssociationSites));
-  expect(answers.map((answer) => answer.kind)).toEqual(["unassociated", "unassociated", "unassociated", "unassociated", "unknown", "unknown", "unknown"]);
-  expect(answers.slice(4)).toEqual([
-    expect.objectContaining({ kind: "unknown", reason: "the boundary has no supported whole named production type" }),
-    expect.objectContaining({ kind: "unknown", reason: "the boundary has no supported whole named production type" }),
-    expect.objectContaining({ kind: "unknown", reason: "the direct call has no resolved parameter for this argument" }),
+  // A wrapper is walked through its own alias arguments; a local alias over it hides them and stays UNKNOWN.
+  expect(answers).toEqual([
+    { kind: "unassociated" },
+    { kind: "unassociated" },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.opaqueValue },
+    { kind: "unassociated" },
+    { kind: "unassociated" },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.unsupportedBoundary },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.unsupportedBoundary },
+    { kind: "unknown", reason: SHAPE_ASSOCIATION_UNKNOWN.unresolvedParameter },
   ]);
 });
 
