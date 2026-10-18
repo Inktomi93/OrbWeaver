@@ -224,5 +224,3 @@ export function scopeParentsOfDerivedTables(model: SchemaProjectedModel): Readon
   }
   return parents;
 }
-
-export { reportBlindWhenEmpty } from "./tenancy-scope-blind.ts";

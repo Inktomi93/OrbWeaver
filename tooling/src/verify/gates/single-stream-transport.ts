@@ -39,10 +39,10 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { classifyOriginRefusalDeclarations } from "../lib/origin-verdict.ts";
-import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { rpcLookalikeProof, trpcServerProof } from "./_proof/server-vendors.ts";
 
 const SUBSCRIPTION_MEMBER = "subscription";

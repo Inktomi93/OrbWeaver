@@ -13,10 +13,10 @@
 // raised through an op whose callee is not `emit*` reads as no fan unless it is an awaited
 // member originating in DatabankOps.fanDatabankRoomsForDocument. Same-spelled foreign members and
 // unawaited calls do not certify delivery.
-// FAMILY: `tenancy-scope` — the shared canonical declarations are `lib/tenancy-scope.ts`'s
-// `schemaTableIndex` / `reportBlindWhenEmpty` and `lib/tenancy-read.ts`'s `tableTargetOf`, all three of
-// which `owner-scoped-writes` also reaches from its production hooks. The (b)-class half of the registry
-// (`membershipScopedTableIdents`) landed with this policy beside the (a)-class half it mirrors.
+// FAMILY: `tenancy-scope` — the shared class registry is `lib/tenancy-scope.ts`'s `schemaTableIndex`, and
+// `membershipScopedTableIdents` lives beside the (a)-class half it mirrors. The zero-derivation refusal is
+// `lib/tenancy-scope-blind.ts`'s `reportBlindWhenEmpty`; `lib/tenancy-read.ts` owns `tableTargetOf`. The
+// owner-scoped-writes sibling reaches each shared reader from its production hooks.
 // POPULATION: NEW policy, no legacy predecessor and therefore no port. `@server` under `domain/**` MINUS
 // `domain/chat/**`: inside chat the stronger `membership-fan-guard` bans the identifier outright, and both
 // policies reporting one site would be two findings for one predicate.
@@ -37,7 +37,8 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { isDrizzleWriteStatement, tableTargetOf } from "../lib/tenancy-read.ts";
-import { membershipScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { membershipScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 /** The drizzle write verbs whose first argument is the table. `insert` is IN (unlike `owner-scoped-writes`,
  *  whose question is a WHERE predicate `insert` cannot carry): attaching a row to a room is precisely the

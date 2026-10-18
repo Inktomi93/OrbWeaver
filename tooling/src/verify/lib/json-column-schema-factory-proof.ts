@@ -2,10 +2,10 @@
 // exact Zod failure channel. Function names and output annotations never establish that fact.
 import type { CallExpression, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { JsonColumnSchemaReaders } from "../contract/json-column-origin.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { nativeJsonColumnSchemaReaders } from "./json-column-native-readers.ts";
-import { declaredByPackage } from "./type-member-origin.ts";
 import { declaredByZod } from "./zod-origin.ts";
 
 const TYPE_ID_PACKAGE = "typeid-js";

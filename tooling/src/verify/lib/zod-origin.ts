@@ -1,7 +1,7 @@
 // Zod ownership policy; call provenance is a canonical floor fact.
 import type { Node as MorphNode } from "ts-morph";
+import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import { isFactoryCallFromPackage, ZOD_PACKAGE } from "../../floor/code-facts/zod-origin.ts";
-import { declaredByPackage } from "./type-member-origin.ts";
 
 const ZOD_POLICY_PACKAGE = ZOD_PACKAGE;
 

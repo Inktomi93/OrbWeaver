@@ -1,14 +1,22 @@
 import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint } from "eslint";
+import { beforeAll } from "vitest";
 import { discoverEslintFiles } from "../../../../tooling/src/verify/ops/eslint-discovery.ts";
 
 const PARSER_CALLS = "parser-calls.txt";
 const PROCESSOR_CALLS = "processor-calls.txt";
 const RULE_CALLS = "rule-calls.txt";
 const RULE = "no-debugger";
+
+beforeAll(async () => {
+  const root = join(import.meta.dirname, "../../../..");
+  await import(pathToFileURL(join(root, "eslint.config.js")).href);
+  await new ESLint({ cwd: root }).calculateConfigForFile(join(root, "packages/client/src/a-first.ts"));
+});
 
 async function fixture(plantedTree: ToolFixtures["plantedTree"], repoRoot: string): Promise<string> {
   const root = await plantedTree({
@@ -120,4 +128,47 @@ for (const [label, processor] of [
     await expect(new ESLint({ cwd: root }).calculateConfigForFile(join(root, "subject.ts"))).rejects.toThrow();
     await expect(discoverEslintFiles(root, ["subject.ts"])).rejects.toThrow();
   });
+}
+
+for (const profile of ["default", "hardConfig"] as const) {
+  for (const [label, invalid] of [
+    ["unknown processor", 'processor:"missing/processor"'],
+    ["malformed processor", 'processor:{preprocess:"invalid",postprocess(){return [];}}'],
+    ["unknown rule", 'rules:{"missing-rule":"error"}'],
+    ["invalid rule options", 'rules:{"no-restricted-syntax":["error",{selector:42}]}'],
+  ] as const) {
+    test(`discovery preserves ${profile} ${label} refusal on a non-first file`, async ({ plantedTree, repoRoot }) => {
+      const first = "packages/client/src/a-first.ts";
+      const second = "packages/client/src/z-second.ts";
+      const config = pathToFileURL(join(repoRoot, "eslint.config.js")).href;
+      const root = await plantedTree({
+        "package.json": '{"type":"module"}',
+        [first]: "export const first=1;",
+        [second]: "export const second=2;",
+        "eslint.config.js": `import {${profile} as rows} from ${JSON.stringify(config)};export default [...rows,{files:[${JSON.stringify(second)}],${invalid}}];`,
+      });
+      const eslint = new ESLint({ cwd: root });
+      expect(await eslint.calculateConfigForFile(join(root, first))).toBeDefined();
+      let nativeMessage = "";
+      try {
+        await eslint.calculateConfigForFile(join(root, second));
+      } catch (error) {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+        nativeMessage = error.message;
+      }
+      expect(nativeMessage).not.toBe("");
+      let discoveryMessage = "";
+      try {
+        await discoverEslintFiles(root, [first, second]);
+      } catch (error) {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+        discoveryMessage = error.message;
+      }
+      expect(discoveryMessage).toBe(nativeMessage);
+    });
+  }
 }

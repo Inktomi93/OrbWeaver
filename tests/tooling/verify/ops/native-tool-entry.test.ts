@@ -7,6 +7,7 @@ import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { vi } from "vitest";
 import {
+  affectsTypedNativePolicy,
   TYPED_NATIVE_COMPILER_CONTEXT_ENV,
   TYPED_NATIVE_POLICIES,
   typedNativeDependencyInputs,
@@ -160,11 +161,47 @@ test("native entry distinguishes actual module scope, aliases, computed namespac
 
 test("private native metadata watches authored manifest additions and deletions without workspace discovery", ({ scratch }) => {
   const entry = TYPED_NATIVE_POLICIES.find(({ id }) => id === "tooling-cli-entry");
+  const noRawIntl = TYPED_NATIVE_POLICIES.find(({ id }) => id === "no-raw-intl-time");
   if (entry === undefined) {
     throw new Error("tool entry metadata missing");
   }
+  if (noRawIntl === undefined) {
+    throw new Error("no-raw-intl-time metadata missing");
+  }
   const authored = ["package.json", "standalone/plugin/package.json", "tooling/src/demo/cli.ts"];
   const inputs = typedNativeDependencyInputs(entry, authored, scratch);
+  const noRawInputs = typedNativeDependencyInputs(noRawIntl, authored);
+  const originOwners = ["tooling/src/floor/code-facts/type-member-origin.ts", "tooling/src/floor/code-facts/type-member-origin-core.ts"];
+  for (const path of originOwners) {
+    expect(inputs.paths).toContain(path);
+    expect(noRawInputs.paths).toContain(path);
+    expect(typedNativeDependencySignal(entry, [path], authored, scratch)).toBe(true);
+    expect(affectsTypedNativePolicy(noRawIntl, path)).toBe(true);
+    expect(
+      typedNativeMetadataSelection(
+        { hard: true, requiresTypeInformation: true, patterns: ["."], rules: [entry.ruleId], label: entry.id },
+        entry,
+        { paths: [path], direct: false },
+        inputs,
+      ),
+    ).toHaveLength(1);
+    expect(
+      typedNativeMetadataSelection(
+        {
+          hard: noRawIntl.hard,
+          requiresTypeInformation: true,
+          patterns: noRawIntl.dependencyScope,
+          rules: [noRawIntl.ruleId],
+          label: noRawIntl.id,
+        },
+        noRawIntl,
+        { paths: [path], direct: false },
+        noRawInputs,
+      ),
+    ).toHaveLength(1);
+  }
+  expect(inputs.paths).not.toContain("tooling/src/verify/lib/type-member-origin.ts");
+  expect(noRawInputs.paths).not.toContain("tooling/src/verify/lib/type-member-origin.ts");
   expect(inputs.paths).toContain("standalone/plugin/package.json");
   expect(inputs.paths).toContain("package.json");
   expect(inputs.roots).toContain("tooling/src/");

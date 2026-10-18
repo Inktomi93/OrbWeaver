@@ -127,13 +127,7 @@ export const TYPED_NATIVE_POLICIES = [
   {
     id: "no-raw-intl-time",
     scope: authored,
-    inputs: [
-      ...AMBIENT_INPUTS,
-      ...MEMBER_INPUTS,
-      "tooling/src/verify/lib/project-home-origin.ts",
-      "tooling/src/verify/lib/type-member-origin.ts",
-      "tooling/src/floor/code-facts/type-member-origin.ts",
-    ],
+    inputs: [...AMBIENT_INPUTS, ...MEMBER_INPUTS, "tooling/src/verify/lib/project-home-origin.ts", "tooling/src/floor/code-facts/type-member-origin.ts"],
   },
   {
     id: "test-fixture-imports",

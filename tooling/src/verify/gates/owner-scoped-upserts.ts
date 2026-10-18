@@ -22,9 +22,9 @@
 // as its own GateDescriptor 2026-08-02, distinct from the `owner-scoped-writes`/`-reads` twins named above
 // — ran this same check before this conversion.
 //
-// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
-// `schemaTableIndex` for the every-declared-table denominator, `reportBlindWhenEmpty` for the
-// zero-derivation refusal), plus `lib/tenancy-read.ts` for the call shapes. The denominator matters here
+// FAMILY `tenancy-scope` — the class registry is `lib/tenancy-scope.ts` (`ownerScopedTableIdents` and
+// `schemaTableIndex` for the every-declared-table denominator); `lib/tenancy-scope-blind.ts` owns the
+// zero-derivation refusal `reportBlindWhenEmpty`. `lib/tenancy-read.ts` owns the call shapes. The denominator matters here
 // in particular: without it an UNREADABLE table target is indistinguishable from a non-owner-scoped one,
 // and this member would go quietly silent on exactly the rows it exists to judge.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
@@ -47,7 +47,8 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 const OWNER_COL = "ownerId";
 const INSERT_VERB = "insert";

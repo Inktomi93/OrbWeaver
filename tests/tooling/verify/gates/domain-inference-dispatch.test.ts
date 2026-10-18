@@ -6,10 +6,10 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Project, SourceFile } from "ts-morph";
+import { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "../../../../tooling/src/floor/code-facts/type-member-origin-graph.ts";
 import { gate } from "../../../../tooling/src/verify/gates/domain-inference-dispatch.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { resolveScalarTypeOrigins, resolveTypeValueOrigins } from "../../../../tooling/src/verify/lib/type-member-origin.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 

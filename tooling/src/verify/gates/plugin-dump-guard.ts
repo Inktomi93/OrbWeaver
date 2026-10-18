@@ -34,16 +34,16 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 //
 // FAMILY: a declared SINGLETON under its own id. `floor/code-facts/reference-fact-call.ts#resolveCallableDeclaration`,
-// `floor/code-facts/reference-fact.ts` and `lib/type-member-origin.ts` are corpus-wide primitives; no sibling judges the QuickJS
+// `floor/code-facts/reference-fact.ts` and `floor/code-facts/type-member-origin.ts` are corpus-wide primitives; no sibling judges the QuickJS
 // dump guard.
 import type { CallExpression, FunctionDeclaration, Node as MorphNode, SourceFile, Statement } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
+import { declaredByPackage } from "../../floor/code-facts/type-member-origin.ts";
 import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { NativeTypeContext } from "../contract/project-context.ts";
-import { declaredByPackage } from "../lib/type-member-origin.ts";
 import { quickjsLookalikeProof, quickjsProof } from "./_proof/quickjs.ts";
 
 const PLUGIN_HOST_DIR = "packages/server/src/infra/plugin-host/";

@@ -15,9 +15,9 @@
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion, and treated
 // `onConflictDoUpdate` as out of scope entirely.
 //
-// FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
-// `schemaTableIndex`, `reportBlindWhenEmpty`), plus `lib/tenancy-read.ts` for the write-statement fence
-// and the predicate readers. Reading the (a)-class set from the same registry as `owner-scoped-reads` is
+// FAMILY `tenancy-scope` — the class registry is `lib/tenancy-scope.ts` (`ownerScopedTableIdents`,
+// `schemaTableIndex`); `lib/tenancy-scope-blind.ts` owns `reportBlindWhenEmpty`. `lib/tenancy-read.ts` owns
+// the write-statement fence and predicate readers. Reading the (a)-class set from the same registry as `owner-scoped-reads` is
 // what makes the read/write split a DECLARED LIMIT rather than a coverage gap: the two halves cannot
 // disagree about which tables are in scope, only about which statement shape each judges.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
@@ -40,7 +40,8 @@ import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
 import { isDrizzleWriteStatement, predicatesOwnId, predicatesTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
-import { ownerScopedTableIdents, reportBlindWhenEmpty, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
+import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 const OWNER_COL = "ownerId";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is

@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
+import { beforeAll } from "vitest";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "../../../../tooling/src/verify/contract/manual-memo.ts";
 import { REACT_TYPES_HOME, reactProofModule } from "../../../../tooling/src/verify/gates/_proof/react.ts";
 import { gate as memo } from "../../../../tooling/src/verify/gates/no-manual-memo.ts";
@@ -14,6 +15,10 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 const ROOT = join(import.meta.dirname, "../../../..");
 const eslint = new ESLint({ cwd: ROOT });
 const CLIENT = "packages/client/src/features/probe.tsx";
+
+beforeAll(async () => {
+  await eslint.calculateConfigForFile(join(ROOT, CLIENT));
+});
 
 async function nativeFindings(path: string, source: string): Promise<readonly string[]> {
   const config = await eslint.calculateConfigForFile(join(ROOT, path));
@@ -49,6 +54,48 @@ function customPass(files: Readonly<Record<string, string>>, grants = false): Re
     failOnWarnings: false,
   });
 }
+
+test("native compound populations preserve caller, group and memo rule layers without a compiler Program", async () => {
+  const source = 'const callerUserId=1;const isGroup=true;import {memo} from "react";';
+  const labels = new Map([
+    ["D19: use triggeredBy, funderUserId or runAsUserId for turn identity; the authenticated caller is Principal.userId.", "caller"],
+    ["D16: group chat is data, never a branch. Gate on the roster's character count and no-op at one.", "group"],
+    ["React Compiler owns memoization; remove the manual useMemo/useCallback/memo import.", "memo"],
+  ]);
+  for (const [path, rejected] of [
+    ["packages/client/src/features/probe.tsx", ["caller", "group", "memo"]],
+    ["packages/ui/src/probe.ts", ["caller", "group", "memo"]],
+    ["packages/kit/src/probe.ts", ["caller", "group"]],
+    ["packages/contracts/src/probe.tsx", ["caller", "group"]],
+    ["packages/db/src/probe.ts", ["caller", "group"]],
+    ["packages/server/src/probe.ts", ["caller", "group"]],
+    ["packages/inference/src/probe.ts", ["caller", "group"]],
+    ["tooling/src/floor/probe.ts", ["caller", "group"]],
+    ["packages/showcase-plugins/src/probe.ts", ["group"]],
+    ["packages/plugin-toolchain/src/probe.ts", ["group"]],
+    ["packages/default-content/src/probe.ts", ["group"]],
+    ["packages/ui/bundles/probe.ts", ["group"]],
+    ["tests/support/iso/probe.ts", ["caller", "memo"]],
+    ["tests/client/probe.ct.tsx", ["caller", "memo"]],
+    ["tests/tooling/probe.test.ts", ["caller", "memo"]],
+    ["scripts/research/probe.ts", ["caller"]],
+    ["packages/client/src/probe.gen.ts", ["caller", "group", "memo"]],
+    ["packages/client/src/deep/tests/probe.ts", ["caller", "memo"]],
+    ["packages/client/src/bracket[name].ts", ["caller", "group", "memo"]],
+    ["packages/client/src/brace{name}.tsx", ["caller", "group", "memo"]],
+    ["packages/client/src/comma,name.ts", ["caller", "group", "memo"]],
+    ["tests/legacy/client/probe.ct.tsx", []],
+    ["tests/support/node/probe.mjs", []],
+    ["packages/client/src/probe.js", []],
+    ["packages/ui/build.ts", ["group"]],
+    ["root.ts", []],
+  ] as const) {
+    expect(
+      (await nativeFindings(path, source)).map((message) => labels.get(message)),
+      path,
+    ).toEqual(rejected);
+  }
+});
 
 const boundary = (count: string, fallback = `<SkeletonRows count={${count}} />`, attributes = ""): string =>
   `export const G = <QueryBoundary fallback={${fallback}} ${attributes}>child</QueryBoundary>;`;

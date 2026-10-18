@@ -39,7 +39,7 @@
 //
 // BOTH ARMS NOW ASK A SHARED READER (#2097, closed here with #2194's second half): the member arm through
 // `resolveTypeMemberOrigin` and the destructure arm through `resolveTypePropertyOrigin` — the binding-pattern
-// twin added to `lib/type-member-origin.ts` in the same commit, because a `BindingElement` has no
+// twin in `floor/code-facts/type-member-origin-core.ts`, because a `BindingElement` has no
 // member-access node to hand over and this module was finishing `type.getProperty(name)?.getDeclarations()`
 // itself. The audit row that named the site (the policing-surface audit) is closed with it.
 //
@@ -59,10 +59,11 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";
+import { resolveTypeMemberOrigin } from "../../floor/code-facts/type-member-origin.ts";
+import { resolveTypePropertyOrigin } from "../../floor/code-facts/type-member-origin-core.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { ReviewedGrantCandidate } from "../lib/reviewed-grant-findings.ts";
 import { reportReviewedGrantCandidates } from "../lib/reviewed-grant-findings.ts";
-import { resolveTypeMemberOrigin, resolveTypePropertyOrigin } from "../lib/type-member-origin.ts";
 import { declaredByZod } from "../lib/zod-origin.ts";
 
 const ISSUES = "issues";
