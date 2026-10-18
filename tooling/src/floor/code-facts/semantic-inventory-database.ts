@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 14;
+const STORAGE_SCHEMA_VERSION = 15;
+const RUNTIME_SCHEMA_VERSION = 14;
 const REFERENCE_SCHEMA_VERSION = 13;
 const SOURCE_INDEX_SCHEMA_VERSION = 12;
 const EXPORT_SCHEMA_VERSION = 11;
@@ -74,6 +75,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== EXPORT_SCHEMA_VERSION &&
     version !== SOURCE_INDEX_SCHEMA_VERSION &&
     version !== REFERENCE_SCHEMA_VERSION &&
+    version !== RUNTIME_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -90,7 +92,7 @@ function storageSchemaReady(db: DatabaseSync): boolean {
 }
 
 function upgradeRuntimeStorage(db: DatabaseSync, version: number): void {
-  if (version < STORAGE_SCHEMA_VERSION) {
+  if (version < RUNTIME_SCHEMA_VERSION) {
     for (const table of ["runtimeHeader", "runtimeSource", "runtimeResolution"] as const) {
       db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables[table].name}(${inventoryRecordTables[table].definition}) STRICT;`);
     }
@@ -168,6 +170,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
     }
     upgradeReferenceStorage(db, version);
     upgradeRuntimeStorage(db, version);
+    upgradeReferenceNameStorage(db, version);
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
@@ -197,6 +200,14 @@ function upgradeReferenceStorage(db: DatabaseSync, version: number): void {
     ) {
       db.exec("ALTER TABLE inventory_descriptor ADD COLUMN referenceMode TEXT NOT NULL DEFAULT 'complete' CHECK(referenceMode IN ('complete','closed'));");
     }
+  }
+}
+
+function upgradeReferenceNameStorage(db: DatabaseSync, version: number): void {
+  if (version < STORAGE_SCHEMA_VERSION) {
+    db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables.referenceName.name}(${inventoryRecordTables.referenceName.definition}) STRICT;`);
+    // Name lookups replay a declaration's rows; the declaration side is reached through inventory_reference_origin.
+    db.exec("CREATE INDEX IF NOT EXISTS inventory_reference_name_lookup ON inventory_reference_name(partition,name);");
   }
 }
 

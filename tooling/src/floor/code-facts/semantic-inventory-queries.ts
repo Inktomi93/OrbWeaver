@@ -729,23 +729,88 @@ export function* readInventoryWitnesses(db: DatabaseSync, id: string, node?: Inv
   }
 }
 
-/** Preserve native repeated rows and ordering; consumer-level union policy remains in inventoryReader. */
+/** Preserve native repeated rows and ordering; consumer-level union policy remains in inventoryReader.
+ *  Storage keeps one row group per declaration plus name links; each link replays its declaration's group
+ *  directly after that group, which is exactly where the extractor emitted the name's copy. */
 export function* readInventoryReferences(db: DatabaseSync, id: string, origin?: InventorySpan): Iterable<InventoryPartition["references"][number]> {
   requireInventoryFamily(db, id, "references");
-  const values: SQLInputValue[] = [id];
-  const filter =
-    origin === undefined ? "" : " AND r.declaration=(SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?)";
-  if (origin !== undefined) {
-    values.push(id, inventoryString(origin.file), origin.start, origin.end, origin.kind);
+  if (origin === undefined) {
+    yield* readAllInventoryReferences(db, id);
+    return;
+  }
+  const ordinal = db
+    .prepare("SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?")
+    .get(id, inventoryString(origin.file), origin.start, origin.end, origin.kind);
+  if (ordinal === undefined) {
+    return;
+  }
+  const originId = z.object({ ordinal: z.number() }).parse(ordinal).ordinal;
+  // Logical order of every group keyed by this span: its own rows, then each declaration it names.
+  const groups: { readonly owner: number; readonly first: number; readonly link: number }[] = [];
+  const own = db.prepare("SELECT MIN(ordinal) AS first FROM inventory_reference WHERE partition=? AND declaration=?").get(id, originId);
+  const ownFirst = z.object({ first: z.number().nullable() }).parse(own).first;
+  if (ownFirst !== null) {
+    groups.push({ owner: originId, first: ownFirst, link: -1 });
+  }
+  for (const row of db
+    .prepare(
+      "SELECT n.ordinal AS link,n.declaration AS owner,(SELECT MIN(r.ordinal) FROM inventory_reference r WHERE r.partition=n.partition AND r.declaration=n.declaration) AS first FROM inventory_reference_name n WHERE n.partition=? AND n.name=?",
+    )
+    .iterate(id, originId)) {
+    const link = z.object({ link: z.number(), owner: z.number(), first: z.number().nullable() }).parse(row);
+    if (link.first !== null) {
+      groups.push({ owner: link.owner, first: link.first, link: link.link });
+    }
+  }
+  groups.sort((left, right) => left.first - right.first || left.link - right.link);
+  const rows = db.prepare(
+    `SELECT s.file,s.start,s.end,s.kind,r.consumerClass FROM inventory_reference r
+    JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node WHERE r.partition=? AND r.declaration=? ORDER BY r.ordinal`,
+  );
+  const declaration = spanSchema.parse(origin);
+  for (const group of groups) {
+    for (const row of rows.iterate(id, group.owner)) {
+      yield partitionSchema.shape.references.element.parse({ declaration, reference: spanRow.parse(row), consumerClass: row["consumerClass"] });
+    }
+  }
+}
+
+function* readAllInventoryReferences(db: DatabaseSync, id: string): Iterable<InventoryPartition["references"][number]> {
+  const linkRow = z.object({ declaration: z.number(), file: z.unknown(), start: z.number(), end: z.number(), kind: z.number() });
+  const links = new Map<number, InventorySpan[]>();
+  for (const row of db
+    .prepare(
+      "SELECT n.declaration,s.file,s.start,s.end,s.kind FROM inventory_reference_name n JOIN inventory_span s ON s.partition=n.partition AND s.ordinal=n.name WHERE n.partition=? ORDER BY n.ordinal",
+    )
+    .iterate(id)) {
+    const link = linkRow.parse(row);
+    const names = links.get(link.declaration) ?? [];
+    names.push(spanRow.parse(row));
+    links.set(link.declaration, names);
   }
   const rows = db
-    .prepare(`SELECT d.file AS declarationFile,d.start AS declarationStart,d.end AS declarationEnd,d.kind AS declarationKind,
+    .prepare(`SELECT r.declaration AS owner,d.file AS declarationFile,d.start AS declarationStart,d.end AS declarationEnd,d.kind AS declarationKind,
     s.file,s.start,s.end,s.kind,r.consumerClass FROM inventory_reference r
     JOIN inventory_span d ON d.partition=r.partition AND d.ordinal=r.declaration
-    JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node WHERE r.partition=?${filter} ORDER BY r.ordinal`)
-    .iterate(...values);
+    JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node WHERE r.partition=? ORDER BY r.ordinal`)
+    .iterate(id);
+  let owner: number | undefined;
+  let group: InventoryPartition["references"][number][] = [];
+  const replay = function* (): Iterable<InventoryPartition["references"][number]> {
+    for (const name of owner === undefined ? [] : (links.get(owner) ?? [])) {
+      for (const row of group) {
+        yield { ...row, declaration: name };
+      }
+    }
+  };
   for (const row of rows) {
-    yield partitionSchema.shape.references.element.parse({
+    const rowOwner = z.number().parse(row["owner"]);
+    if (rowOwner !== owner) {
+      yield* replay();
+      owner = rowOwner;
+      group = [];
+    }
+    const entry = partitionSchema.shape.references.element.parse({
       declaration: {
         file: inventoryStringSchema.parse(row["declarationFile"]),
         start: row["declarationStart"],
@@ -755,7 +820,10 @@ export function* readInventoryReferences(db: DatabaseSync, id: string, origin?: 
       reference: spanRow.parse(row),
       consumerClass: row["consumerClass"],
     });
+    group.push(entry);
+    yield entry;
   }
+  yield* replay();
 }
 
 /** Exact native queries preserve zero answers, ordering and repetitions independently of declaration liveness. */

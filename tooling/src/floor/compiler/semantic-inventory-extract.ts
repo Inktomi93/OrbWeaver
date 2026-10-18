@@ -458,7 +458,7 @@ function extractTypedFacts(
       ...drizzle,
       pairs: families.includes("shape-pairs") ? extractShapePairs(program, queries) : [],
       ...(families.includes("references")
-        ? { references: extractReferenceFacts(referencePass, program, referenceDeclarations, spans), referenceQueries }
+        ? { ...extractReferenceFacts(referencePass, program, referenceDeclarations, spans), referenceQueries }
         : { references: [], referenceQueries: [] }),
     };
     // A later LS-owned family must not silently replace the Project owner whose invocation bytes were captured.
@@ -1007,11 +1007,12 @@ function extractReferenceFacts(
   program: ts.Program,
   referenceDeclarations: ReadonlyMap<InventorySpan, ReferenceDeclaration>,
   spans: InventorySpans,
-): InventoryPartition["references"] {
+): Pick<InventoryPartition, "references" | "referenceNames"> {
   if (pass === undefined) {
     throw new Error("native inventory reference pass is unavailable");
   }
   const references: InventoryPartition["references"] = [];
+  const referenceNames: NonNullable<InventoryPartition["referenceNames"]> = [];
   const declarations = [...referenceDeclarations.values()];
   const occurrences =
     typeof pass.findReferencesFromOccurrences === "function"
@@ -1029,12 +1030,13 @@ function extractReferenceFacts(
       references.push({ declaration: declaration.declaration, ...reference });
     }
     if (declaration.name !== undefined) {
+      referenceNames.push({ name: declaration.name, declaration: declaration.declaration });
       for (const reference of nativeReferences) {
         references.push({ declaration: declaration.name, ...reference });
       }
     }
   }
-  return references;
+  return { references, referenceNames };
 }
 
 function captureStrictReferenceQueries(
