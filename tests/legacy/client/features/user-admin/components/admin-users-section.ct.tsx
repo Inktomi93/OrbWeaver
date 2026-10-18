@@ -5,13 +5,13 @@
 // DISABLED for a delegated admin; the self/owner affordances mirror the server guards; the create /
 // reset-password / sessions dialogs submit the real wire inputs.
 
-import { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "@orb/client/features/user-admin";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { TrpcInput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { revokeSessionName, userActionsName, userEnabledFieldName, userRoleFieldName } from "#client/features/user-admin/lib/admin-model.ts";
 import { AdminUsersSectionStory } from "../_ct-stories.tsx";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;

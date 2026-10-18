@@ -2,14 +2,14 @@
 // anchor + the browse surface it wraps, plus the leaf card. CONTENT shows `CharacterEditorSurface` when a
 // character is selected, else `CharacterLibraryWelcome`.
 export { CharacterLibraryAnchor } from "./anchors/character-library-anchor.tsx";
-export { CharacterActionsMenu } from "./components/character-actions-menu.tsx";
-export { CharacterLookTab } from "./components/character-appearance-tab.tsx";
-export { CharacterBulkBar } from "./components/character-bulk-bar.tsx";
+export {} from "./components/character-actions-menu.tsx";
+export {} from "./components/character-appearance-tab.tsx";
+export {} from "./components/character-bulk-bar.tsx";
 export { CharacterCardTile } from "./components/character-card.tsx";
 
 export {} from "./components/character-facet-editor.tsx";
 
-export { CharacterFacetInspector } from "./components/character-facet-inspector.tsx";
+export {} from "./components/character-facet-inspector.tsx";
 
 export {} from "./components/character-hero-band.tsx";
 
@@ -17,7 +17,7 @@ export { CharacterLibraryWelcome } from "./components/character-library-welcome.
 
 export {} from "./components/character-relations-tab.tsx";
 
-export { CharacterTrustTab } from "./components/character-trust-tab.tsx";
+export {} from "./components/character-trust-tab.tsx";
 export { characterCreateChrome } from "./lib/character-create-chrome.tsx";
 
 export {} from "./lib/character-list-view.ts";

@@ -10,16 +10,11 @@
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
 import {
-  CharacterActionsMenu,
-  CharacterBulkBar,
   CharacterCardTile,
   CharacterEditorSurface,
-  CharacterFacetInspector,
   CharacterLibraryAnchor,
   CharacterLibrarySurface,
   CharacterLibraryWelcome,
-  CharacterLookTab,
-  CharacterTrustTab,
 } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import {
@@ -44,11 +39,16 @@ import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { CharacterActionsMenu } from "#client/features/character/components/character-actions-menu.tsx";
+import { CharacterLookTab } from "#client/features/character/components/character-appearance-tab.tsx";
+import { CharacterBulkBar } from "#client/features/character/components/character-bulk-bar.tsx";
+import { CharacterFacetInspector } from "#client/features/character/components/character-facet-inspector.tsx";
 import { CharacterHistoryTab } from "#client/features/character/components/character-history-tab.tsx";
 import { CharacterOverviewCard } from "#client/features/character/components/character-overview-card.tsx";
 import { CharacterRelationsTab } from "#client/features/character/components/character-relations-tab.tsx";
 import { CharacterRestoreBookAction } from "#client/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "#client/features/character/components/character-tags-row.tsx";
+import { CharacterTrustTab } from "#client/features/character/components/character-trust-tab.tsx";
 import { LabelsLibrarySurface } from "#client/features/tag/surfaces/labels-library-surface.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 

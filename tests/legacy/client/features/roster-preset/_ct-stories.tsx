@@ -22,7 +22,6 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
-import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
@@ -36,6 +35,7 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { HomeSurface } from "#client/features/home/surfaces/home-surface.tsx";
 import { RosterCollectionRows } from "#client/features/roster-preset/components/roster-collection-rows.tsx";
 import { RosterPicker } from "#client/features/roster-preset/components/roster-picker.tsx";
 import { rosterPresetHomeTile } from "#client/features/roster-preset/lib/home-rosters-tile.tsx";

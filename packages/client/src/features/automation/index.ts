@@ -14,8 +14,8 @@
 // It also owns the Automation CONFIG GROUP, moved here from `features/settings` with A4 for two reasons
 // that agree: the `feature-owns-definition` gate requires a feature dir to own a registered definition, and
 // the group IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
-export { ClockMeter } from "./components/clock-meter.tsx";
-export { NeedleMeter } from "./components/needle-meter.tsx";
+export {} from "./components/clock-meter.tsx";
+export {} from "./components/needle-meter.tsx";
 export { RulesSection } from "./components/rules-section.tsx";
 export { automationActivityTab } from "./lib/activity-context-tab.tsx";
 

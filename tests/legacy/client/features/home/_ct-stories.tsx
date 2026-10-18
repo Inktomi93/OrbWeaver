@@ -5,7 +5,7 @@
 
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatQuickPicksTile } from "@orb/client/features/chat";
-import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
+import { makeSectionJumpTile } from "@orb/client/features/home";
 import type { HomeTileContribution, HomeTileRegion } from "@orb/client/state";
 import { rememberHomeRegion, rememberSurfaceBox, useActiveSection } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
@@ -17,6 +17,7 @@ import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { use, useState } from "react";
+import { HomeSurface } from "#client/features/home/surfaces/home-surface.tsx";
 import { __readSurfaceBoxForTest } from "#client/state/surface-box-store.ts";
 import { FIRST_BOOT_SKELETON_ROWS, RESERVED_TILE_PX } from "./_reserve-box.ts";
 

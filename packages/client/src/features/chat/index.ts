@@ -6,7 +6,7 @@
 // root (a feature may not import the write store).
 
 export { CharacterGalleryAnchor } from "./anchors/character-gallery-anchor.tsx";
-export { ChatListAnchor } from "./anchors/chat-list-anchor.tsx";
+export {} from "./anchors/chat-list-anchor.tsx";
 export { JoinInviteDialog } from "./anchors/join-invite-dialog.tsx";
 export { MessageThreadAnchor } from "./anchors/message-thread-anchor.tsx";
 export { ChatsWithCharacterPane } from "./components/chats-with-character-pane.tsx";
@@ -25,7 +25,7 @@ export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { makeChatControlsContribution } from "./lib/chat-controls-contribution.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
-export { chatContextTabs, makeChatsSection } from "./lib/chats-section.tsx";
+export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
 
 export {} from "./lib/continue-on-empty.ts";
@@ -42,10 +42,9 @@ export { memorySettingsSection } from "./lib/memory-settings-section.tsx";
 export { chatMessageReactionsSurface } from "./lib/message-reactions-surface.tsx";
 export { newChatModal } from "./lib/new-chat-modal.tsx";
 export { proseSettingsSection } from "./lib/prose-settings-section.tsx";
-export { ChatLandingSurface } from "./surfaces/chat-landing-surface.tsx";
-export { ChatListSurface } from "./surfaces/chat-list-surface.tsx";
+export {} from "./surfaces/chat-landing-surface.tsx";
+export {} from "./surfaces/chat-list-surface.tsx";
 export { ChatRoomSurface } from "./surfaces/chat-room-surface.tsx";
-export type { GoToSection } from "./surfaces/command-palette-surface.tsx";
-export { CommandPaletteSurface } from "./surfaces/command-palette-surface.tsx";
+export {} from "./surfaces/command-palette-surface.tsx";
 export { MessageListSurface } from "./surfaces/message-list-surface.tsx";
-export { NewChatPicker } from "./surfaces/new-chat-picker-surface.tsx";
+export {} from "./surfaces/new-chat-picker-surface.tsx";

@@ -6,15 +6,6 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import {
-  AnalyticsCharacterSurface,
-  AnalyticsListAnchor,
-  AnalyticsListSurface,
-  AnalyticsModelsTab,
-  AnalyticsOverviewSurface,
-  AnalyticsPersonasTab,
-  AnalyticsTimeTab,
-} from "@orb/client/features/stats";
-import {
   clearAnalyticsSelection,
   selectAnalyticsCharacterFromList,
   setActiveSection,
@@ -30,6 +21,13 @@ import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { AnalyticsListAnchor } from "#client/features/stats/anchors/analytics-list-anchor.tsx";
+import { AnalyticsModelsTab } from "#client/features/stats/components/analytics-models-tab.tsx";
+import { AnalyticsPersonasTab } from "#client/features/stats/components/analytics-personas-tab.tsx";
+import { AnalyticsTimeTab } from "#client/features/stats/components/analytics-time-tab.tsx";
+import { AnalyticsCharacterSurface } from "#client/features/stats/surfaces/analytics-character-surface.tsx";
+import { AnalyticsListSurface } from "#client/features/stats/surfaces/analytics-list-surface.tsx";
+import { AnalyticsOverviewSurface } from "#client/features/stats/surfaces/analytics-overview-surface.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */
 export function AnalyticsListSurfaceStory(): ReactElement {

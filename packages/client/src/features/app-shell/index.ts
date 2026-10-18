@@ -6,7 +6,7 @@
 
 export { AppToaster } from "./components/app-toaster.tsx";
 export { BootVeil } from "./components/boot-veil.tsx";
-export { YouSheet } from "./components/you-sheet.tsx";
+export {} from "./components/you-sheet.tsx";
 
 export {} from "./hooks/use-shell-layout.ts";
 
@@ -20,6 +20,6 @@ export { appearanceSizingSection } from "./lib/appearance-sizing-section.tsx";
 // "Report a bug" — a `topbar.trail` widget in every build; its developer capture is dev-gated inside the form.
 export { bugReportChrome } from "./lib/bug-report-chrome.tsx";
 export { contextToggleChrome } from "./lib/context-toggle-chrome.tsx";
-export { shellContentWidth } from "./lib/shell-content-width.ts";
+export {} from "./lib/shell-content-width.ts";
 export { youModal } from "./lib/you-modal.tsx";
 export { AppShell } from "./surfaces/app-shell.tsx";

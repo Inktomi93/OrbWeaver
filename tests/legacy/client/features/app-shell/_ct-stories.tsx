@@ -19,8 +19,7 @@
 // icon column shows, matching production.
 
 import { useTRPC } from "@orb/client/data";
-import { AppShell, YouSheet } from "@orb/client/features/app-shell";
-import { chatContextTabs } from "@orb/client/features/chat";
+import { AppShell } from "@orb/client/features/app-shell";
 import type { ChatSurfaceContribution, ContextRegionDef, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { defineContextRegion, defineContextTabs, notify, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, ModalDefinition, SectionDefinition, SectionId } from "@orb/client/state";
@@ -70,6 +69,7 @@ import { CustomThemeStyle } from "#client/features/app-shell/components/custom-t
 import { Rail } from "#client/features/app-shell/components/rail.tsx";
 import { SectionContent } from "#client/features/app-shell/components/section-content.tsx";
 import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { YouSheet } from "#client/features/app-shell/components/you-sheet.tsx";
 import { useShellLayout } from "#client/features/app-shell/hooks/use-shell-layout.ts";
 // The chats topbar identity passenger, reached the same way the Rail leaf is (a story may reach a feature
 // internal the front door does not re-export). Same absolute file the app resolves, so the React/provider
@@ -81,6 +81,7 @@ import { useMessageAppearance } from "#client/features/chat/hooks/use-message-ap
 // way `ChatHeaderSurface` is: the shell's centred-child FLIP counter is keyed on the `.orb-chat-track`
 // marker this const carries, so a story that re-spelled the class would prove the spelling, not the rule.
 import { CHAT_TRACK } from "#client/features/chat/lib/chat-track.ts";
+import { chatContextTabs } from "#client/features/chat/lib/chats-section.tsx";
 import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, setPanelMode, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";

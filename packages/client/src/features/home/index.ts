@@ -8,4 +8,4 @@ export { makeHomeSection } from "./lib/home-section.tsx";
 export {} from "./lib/order-home-tiles.ts";
 
 export { makeSectionJumpTile } from "./lib/section-jump-tile.tsx";
-export { HomeSurface } from "./surfaces/home-surface.tsx";
+export {} from "./surfaces/home-surface.tsx";

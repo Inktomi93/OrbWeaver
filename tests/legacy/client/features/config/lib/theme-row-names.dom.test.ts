@@ -10,8 +10,8 @@
 // `role=radio, name="Mocha"`, so a locator for "Mocha" resolved to the kebab and opened a backdrop that ate
 // every later click. Changing this string is changing that ruling.
 
-import { themeActionsName } from "@orb/client/features/config";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { themeActionsName } from "#client/features/config/lib/theme-row-names.ts";
 
 test("the theme kebab is named `Theme actions: <name>` — NOT the house `Actions for <name>`", () => {
   expect(themeActionsName("Mocha")).toBe("Theme actions: Mocha");

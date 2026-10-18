@@ -24,7 +24,7 @@ import { useDatabankListHeader } from "#client/features/databank/hooks/use-datab
 import { databankDocumentsTile } from "#client/features/databank/lib/home-documents-tile.tsx";
 import { DatabankDetailSurface } from "#client/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "#client/features/databank/surfaces/databank-library-surface.tsx";
-import { HomeSurface } from "#client/features/home/index.ts";
+import { HomeSurface } from "#client/features/home/surfaces/home-surface.tsx";
 import type { HomeTileContribution } from "#client/state/index.ts";
 import {
   closeModal,

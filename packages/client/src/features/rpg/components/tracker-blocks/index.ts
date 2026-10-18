@@ -14,8 +14,8 @@ export { MeterRow } from "./meter-row.tsx";
 // the arrangement of those slots, and they have no other consumer.
 export type { NpcCardProps, NpcField } from "./npc-card-slots.tsx";
 export { NpcCard } from "./npc-card-slots.tsx";
-export { RelationshipBadge } from "./relationship-badge.tsx";
-export type { BeatLineProps, GoalLineProps, StatCellProps, TrackerChipProps } from "./tracker-blocks.tsx";
-export { BeatLine, GoalLine, StatCell, TrackerChip } from "./tracker-blocks.tsx";
+export {} from "./relationship-badge.tsx";
+export type { BeatLineProps, GoalLineProps, StatCellProps } from "./tracker-blocks.tsx";
+export { BeatLine, GoalLine, StatCell } from "./tracker-blocks.tsx";
 export type { TrackerValueProps } from "./tracker-value.tsx";
 export { TrackerValue } from "./tracker-value.tsx";

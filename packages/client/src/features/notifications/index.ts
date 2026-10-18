@@ -5,5 +5,5 @@
 // mounts for every authed principal (#1627; the entry file states the whole ruling). The hooks stay
 // internal (the bell IS the inbox surface).
 
-export { NotificationBell } from "./components/notification-bell.tsx";
+export {} from "./components/notification-bell.tsx";
 export { notificationsChrome } from "./lib/notifications-chrome.tsx";

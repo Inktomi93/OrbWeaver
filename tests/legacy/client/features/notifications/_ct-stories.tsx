@@ -15,7 +15,8 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
-import { NotificationBell, notificationsChrome } from "#client/features/notifications/index.ts";
+import { NotificationBell } from "#client/features/notifications/components/notification-bell.tsx";
+import { notificationsChrome } from "#client/features/notifications/index.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */

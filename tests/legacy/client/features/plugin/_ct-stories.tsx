@@ -11,7 +11,6 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
-import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
   pluginChatSettingsSection,
@@ -64,6 +63,7 @@ import { MessageToolCalls } from "#client/features/chat/components/message-tool-
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
 // module takes for it (a story legitimately composes feature internals the front door does not re-export).
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
+import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
 import { PluginCommandArgsBody } from "#client/features/plugin/components/plugin-command-args-body.tsx";
 import { PluginCommandsMenu } from "#client/features/plugin/components/plugin-commands-menu.tsx";
 import { PluginComposerActions, PluginComposerMediaItems } from "#client/features/plugin/components/plugin-composer-placements.tsx";

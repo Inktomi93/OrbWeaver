@@ -4,11 +4,11 @@
 
 import { createAppQueryClient, createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { automationActivityTab } from "@orb/client/features/automation";
-import { chatContextTabs } from "@orb/client/features/chat";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { chatContextTabs } from "#client/features/chat/lib/chats-section.tsx";
 import { makeRpgContextTabs } from "#client/features/rpg/index.ts";
 import type { ContextTabsSpec } from "#client/lib/registry-contracts.ts";
 import { resolveContextTabs } from "#client/lib/registry-contracts.ts";

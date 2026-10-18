@@ -12,7 +12,7 @@
 
 import { QueryBoundary } from "@orb/client/components";
 import { QueryErrorState } from "@orb/client/data";
-import { automationRulesSection, ClockMeter, NeedleMeter, RulesSection } from "@orb/client/features/automation";
+import { automationRulesSection, RulesSection } from "@orb/client/features/automation";
 import type { ChatSettingsSectionContribution } from "@orb/client/lib";
 import { setMobileViewport } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
@@ -22,6 +22,8 @@ import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { ClockMeter } from "#client/features/automation/components/clock-meter.tsx";
+import { NeedleMeter } from "#client/features/automation/components/needle-meter.tsx";
 import { RoomActivityLog } from "#client/features/automation/components/room-activity-log.tsx";
 import { CommittedSettingsTab } from "#client/features/chat/components/settings-context-tab.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
