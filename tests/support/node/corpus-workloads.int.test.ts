@@ -22,6 +22,185 @@ vi.hoisted(() => {
 });
 afterAll(() => vi.unstubAllEnvs());
 
+const DEADLINE_OBSERVATION_TIMEOUT_MS = 10_000;
+const TIMEOUT_DELIVERY_OBSERVATION_MS = 6000;
+const WORKLOAD_BY_ID_READ = /from "workloads" where "workloads"\."id" = \?/u;
+
+test(
+  "an owned corpus deadline reaches its owner before blocked native reads are released",
+  async () => {
+    await using database = new AsyncDisposableStack();
+    const held = await freshHeldDb();
+    database.defer(() => closeDb(held.db));
+    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+    const before = await caller.workloads.get({ id: admitted.id });
+    const started = [admitted];
+    const pending = held.hold(WORKLOAD_BY_ID_READ);
+    let completed = false;
+    let result: Promise<unknown> | undefined;
+    try {
+      root.app.supervise("corpus-timeout-control", "corpus.control", {}, async () => {
+        await caller.workloads.get({ id: admitted.id });
+      });
+      await pending.reached;
+      result = settleCorpusWorkloads(root, caller, started)
+        .catch((error: unknown) => error)
+        .finally(() => {
+          completed = true;
+        });
+      await physicalDelay(TIMEOUT_DELIVERY_OBSERVATION_MS);
+      expect(completed).toBe(true);
+      const failure = await result;
+      expect(failure).toMatchObject({
+        message: expect.stringContaining('"phase":"initial-background"'),
+        cause: {
+          timeout: expect.any(DOMException),
+          admitted: started,
+          lastObserved: undefined,
+        },
+      });
+      if (!(failure instanceof Error) || typeof failure.cause !== "object" || failure.cause === null || !("timeout" in failure.cause)) {
+        throw new Error("The owned deadline lost its native cause");
+      }
+      expect(failure.cause.timeout).toMatchObject({ name: "TimeoutError" });
+      expect(failure.cause.timeout).not.toBe(failure);
+      expect(failure.message).toContain('"observation":"none"');
+      expect(failure.message).not.toContain('"matched"');
+    } finally {
+      pending.release();
+      await Promise.all([result, root.settleBackground()]);
+    }
+    expect(await caller.workloads.get({ id: admitted.id })).toEqual(before);
+  },
+  DEADLINE_OBSERVATION_TIMEOUT_MS,
+);
+
+test(
+  "an owned corpus deadline retains the selected admitted index without fabricating a terminal row",
+  async () => {
+    await using database = new AsyncDisposableStack();
+    const held = await freshHeldDb();
+    database.defer(() => closeDb(held.db));
+    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+    const started = [admitted];
+    const pending = held.hold(/update "workloads" set "status" = \?/u);
+    const result = settleCorpusWorkloads(root, caller, started).catch((error: unknown) => error);
+    try {
+      await pending.reached;
+      expect(await result).toMatchObject({
+        message: expect.stringContaining('"phase":"admitted-job","index":0'),
+        cause: {
+          timeout: expect.any(DOMException),
+          phase: "admitted-job",
+          index: 0,
+          admitted: started,
+          lastObserved: undefined,
+        },
+      });
+    } finally {
+      pending.release();
+      await root.settleBackground();
+      await result;
+    }
+  },
+  DEADLINE_OBSERVATION_TIMEOUT_MS,
+);
+
+test(
+  "an owned corpus deadline labels only the scheduled worker snapshot already read before timeout",
+  async () => {
+    await using database = new AsyncDisposableStack();
+    const held = await freshHeldDb();
+    database.defer(() => closeDb(held.db));
+    await using root = await createServerHarness({ db: held.db });
+    await root.settleBackground();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const admitted = await caller.workloads.start({
+      input: { kind: "compute-cooccurrence", params: {} },
+      mode: "bulk",
+      scheduledAt: root.clock.now() + 3000,
+    });
+    const before = await caller.workloads.get({ id: admitted.id });
+    const started = [admitted];
+    const gate = Promise.withResolvers<ReturnType<typeof held.hold>>();
+    let pending: ReturnType<typeof held.hold> | undefined;
+    const unsubscribe = root.app.workloadEvents.subscribeWorkloadWake(() => {
+      if (pending === undefined && root.app.workloadEvents.getRecentWorkloadEvents(admitted.id).at(-1)?.type === "succeeded") {
+        pending = held.hold(WORKLOAD_BY_ID_READ);
+        gate.resolve(pending);
+      }
+    });
+    const result = settleCorpusWorkloads(root, caller, started).catch((error: unknown) => error);
+    try {
+      const observation = await gate.promise;
+      await observation.reached;
+      const failure = await result;
+      expect(failure).toMatchObject({
+        message: expect.stringContaining('"phase":"scheduled-worker-loop","index":null'),
+        cause: {
+          timeout: expect.any(DOMException),
+          phase: "scheduled-worker-loop",
+          index: null,
+          admitted: started,
+          lastObserved: [before],
+        },
+      });
+      expect(failure).toMatchObject({ message: expect.stringContaining('"observation":"last-observed"') });
+    } finally {
+      pending?.release();
+      unsubscribe();
+      await root.settleBackground();
+      await result;
+    }
+    expect(await caller.workloads.get({ id: admitted.id })).toMatchObject({ status: "succeeded" });
+  },
+  DEADLINE_OBSERVATION_TIMEOUT_MS,
+);
+
+test(
+  "an owned corpus deadline does not replace missing observations with a foreign read refusal",
+  async () => {
+    await using database = new AsyncDisposableStack();
+    const held = await freshHeldDb();
+    database.defer(() => closeDb(held.db));
+    await using root = await createServerHarness({ db: held.db, startJobs: false });
+    const owner = await root.internalCallerFor(root.ownerId);
+    const foreign = await seedCorpusAccount(root);
+    const observer = await root.internalCallerFor(foreign.userId);
+    const admitted = await owner.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+    const before = await owner.workloads.get({ id: admitted.id });
+    const started = [admitted];
+    await expect(observer.workloads.get({ id: admitted.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    const pending = held.hold(WORKLOAD_BY_ID_READ);
+    try {
+      root.app.supervise("corpus-refused-observation", "corpus.control", {}, async () => {
+        await owner.workloads.get({ id: admitted.id });
+      });
+      await pending.reached;
+      const failure = await settleCorpusWorkloads(root, observer, started).catch((error: unknown) => error);
+      expect(failure).toMatchObject({
+        message: expect.stringContaining('"requested":1,"observation":"none"'),
+        cause: {
+          timeout: expect.any(DOMException),
+          phase: "initial-background",
+          index: null,
+          admitted: started,
+          lastObserved: undefined,
+        },
+      });
+    } finally {
+      pending.release();
+      await root.settleBackground();
+    }
+    expect(await owner.workloads.get({ id: admitted.id })).toEqual(before);
+  },
+  DEADLINE_OBSERVATION_TIMEOUT_MS,
+);
+
 test("physical provider completion cannot advance persisted corpus workload time", async () => {
   const run = async (
     delayMs: number,
@@ -82,7 +261,7 @@ test("native background settlement joins the worker post-run read before certify
   let postRun: ReturnType<typeof held.hold> | undefined;
   const unsubscribe = root.app.workloadEvents.subscribeWorkloadWake(() => {
     if (postRun === undefined && root.app.workloadEvents.getRecentWorkloadEvents(admitted.id).at(-1)?.type === "succeeded") {
-      postRun = held.hold(/from "workloads" where "workloads"\."id" = \?/u);
+      postRun = held.hold(WORKLOAD_BY_ID_READ);
       gate.resolve(postRun);
     }
   });
