@@ -1,6 +1,5 @@
-// Character library CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
-// anchor + surface come through the feature front door; `CharacterCardTile` too (a leaf, but its own props
-// type is exported from the front door so a story can drive it directly without a network layer).
+// Character library CT stories (docs/law/Spine-Testing.md §7). Legacy library anchors and surfaces use
+// the root raw-reach map; card and editor components retain their declared feature door.
 //
 // `CharacterCardTileStoryProps.tags` takes PLAIN string ids (CT-serializable — the branded `TagId`/
 // `CharacterId` types are compile-time only, so `castId` is a zero-cost cast run HERE, inside the story
@@ -9,13 +8,7 @@
 
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import { useTRPC } from "@orb/client/data";
-import {
-  CharacterCardTile,
-  CharacterEditorSurface,
-  CharacterLibraryAnchor,
-  CharacterLibrarySurface,
-  CharacterLibraryWelcome,
-} from "@orb/client/features/character";
+import { CharacterCardTile, CharacterEditorSurface } from "@orb/client/features/character";
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import {
   clearCharacterSelection,
@@ -39,16 +32,19 @@ import { useEffect, useState } from "react";
 // The shell's own CONTEXT-panel consumer, by its internal path: a story is the one place allowed to reach a
 // feature's internals to mount the REAL production host (the app-shell stories do the same).
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
+import { CharacterLibraryAnchor } from "#client/features/character/anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "#client/features/character/components/character-actions-menu.tsx";
 import { CharacterLookTab } from "#client/features/character/components/character-appearance-tab.tsx";
 import { CharacterBulkBar } from "#client/features/character/components/character-bulk-bar.tsx";
 import { CharacterFacetInspector } from "#client/features/character/components/character-facet-inspector.tsx";
 import { CharacterHistoryTab } from "#client/features/character/components/character-history-tab.tsx";
+import { CharacterLibraryWelcome } from "#client/features/character/components/character-library-welcome.tsx";
 import { CharacterOverviewCard } from "#client/features/character/components/character-overview-card.tsx";
 import { CharacterRelationsTab } from "#client/features/character/components/character-relations-tab.tsx";
 import { CharacterRestoreBookAction } from "#client/features/character/components/character-restore-book-action.tsx";
 import { CharacterTagsRow } from "#client/features/character/components/character-tags-row.tsx";
 import { CharacterTrustTab } from "#client/features/character/components/character-trust-tab.tsx";
+import { CharacterLibrarySurface } from "#client/features/character/surfaces/character-library-surface.tsx";
 import { LabelsLibrarySurface } from "#client/features/tag/surfaces/labels-library-surface.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 

@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tenancy
-lane: codex/partial-owner-reads-1016
 plan: test-foundation
 ---
 
@@ -24,6 +23,8 @@ Every retained finding has an evidence-backed disposition and owner. Corrected q
 
 ## Evidence
 
+Partial source is saved at `d0d0bd8135` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
+
 Reviewed source `dce5c00ec5` adds generation-owner predicates in LEFT JOIN ON, preserves native global rule ordering and seals the card loader as rows. Genuine producer and handoff controls pass; old predicates fail without deleting publication state. Authorized retained rows remain present with foreign fingerprints withheld. Fingerprints are compatibility metadata, not credentials.
 
 Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, parent pins, correlated current-member scope and stable browse predicates through shared native facts. Composed SQL containment and containing-alias mutation controls pass. The typed conformance constructor resolves installed Drizzle declarations; retained owner controls remain intact.
@@ -38,7 +39,7 @@ Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate author
 
 Reviewed source `702430c3d9` adds stable native observations and compact predicate presence. Owner and FK proofs preserve absent operands and unsafe alternatives without Cartesian expansion. Native and retained policy controls pass.
 
-Reviewed `cb26ce442e` preserves supplied formals, actual callees, physical uses and native returned/imported lifetimes. Runtime defaults retain every executed alternative. Native refusal controls pass. Containment supplies no authority. Generic table enumeration, destructured CTE lifetimes and INNER JOIN ON correlation remain unqualified.
+Generic callable and containment evidence retains its frozen scope under D328. It grants no production authority or complete successor qualification.
 
 Reviewed source `a2356621ba` shares retained-owner projections and captures raw economic contributions with their signed deltas. The first atomic write refuses stale selected and nonselected usage. Native paid-race refusal, unchanged accounting and current-state retries pass. Reader qualification remains open.
 
