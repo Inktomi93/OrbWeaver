@@ -38,6 +38,7 @@ import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/se
 import { extractTrailingSystemRows, splitAgentHistory } from "../../packages/inference/src/backends/agent-sdk/turn-input.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/assembly/injections.ts";
 import type { DeliveredCue } from "../../packages/server/src/domain/chat/contract/results.ts";
+import { buildCommittedMessageView } from "../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { makeResolved } from "../../tests/legacy/inference/_support.ts";
 
 const BASE_REF = "9b99ac912d";
@@ -89,47 +90,16 @@ const rowTokens = (text: string): number => estimateTokens(text) + PER_ROW_OVERH
 function canonRow(seq: number): MessageView {
   const role = seq % 2 === 1 ? "user" : "assistant";
   const speaker = role === "user" ? "Alex" : "Aria";
-  return {
-    id: mintTypeId(ID_PREFIX.message),
-    toolCalls: [],
+  return buildCommittedMessageView({
+    messageId: mintTypeId(ID_PREFIX.message),
+    variantId: mintTypeId(ID_PREFIX.messageVariant),
     chatId: CHAT_ID,
     seq,
     role,
-    kind: "standard",
     authorUserId: role === "user" ? HUMAN : null,
-    characterId: null,
-    personaId: null,
-    excludedFromPrompt: false,
-    outputCapReached: false,
-    createdAt: 0,
-    editedAt: null,
-    selectedVariantId: mintTypeId(ID_PREFIX.messageVariant),
-    selectedVariantIdx: 0,
-    variantCount: 1,
-    hasContinuation: false,
-    content: `${speaker}, line ${seq}: the lantern flickers over the old map while the rain keeps falling.`,
-    reasoning: null,
-    model: null,
-    provider: null,
-    finishReason: null,
-    stopReason: null,
-    terminalReason: null,
-    tokensIn: null,
-    tokensOut: null,
-    tokenProvenance: "unrecorded",
-    costProvenance: "unrecorded",
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    contextWindow: null,
-    costUsd: null,
-    ttftMs: null,
-    genStartedAt: null,
-    genFinishedAt: null,
-    generationId: null,
-    connectionAttributionProvenance: "unrecorded",
-    connectionId: null,
-    contextBoundaryMessageId: null,
-  };
+    now: 0,
+    variant: { content: `${speaker}, line ${seq}: the lantern flickers over the old map while the rain keeps falling.` },
+  });
 }
 
 const CHAT_ID = castId<ChatId>("chat_f4proof");

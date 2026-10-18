@@ -24,7 +24,6 @@ import type { CharacterId, ChatId, ConnectionBindingId, Handle, UserConnectionId
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { and, eq } from "drizzle-orm";
 import type { ConnectionContext, ConnectionService } from "#server/domain/connection/index.ts";
 import { createConnectionPorts, createConnectionService } from "#server/domain/connection/index.ts";
@@ -55,6 +54,7 @@ import {
   seedUser,
   vec,
 } from "../../../tests/legacy/server/domain/search/_support.ts";
+import { rowPrincipalResolver } from "../row-principal.ts";
 import { ROOMS } from "../speaker-pick/fixtures.ts";
 import type { LongItem } from "./corpus.ts";
 import { ARC_CREDITS, ARC_TEXTS, CAPTIONS, GAZETTEER_CHUNKS, PERSONA_TEXTS, QUERIES, reachSweep } from "./corpus.ts";
@@ -131,6 +131,7 @@ interface Stack {
   readonly db: Db;
   readonly runtime: InferenceRuntime;
   readonly svc: ConnectionService;
+  readonly principalFor: ReturnType<typeof rowPrincipalResolver>;
   readonly close: () => Promise<void>;
 }
 
@@ -182,7 +183,7 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     countOwnedVectors: (ownerId) => countOwnedVectors(db, ownerId),
     emitUserEvent: () => undefined,
   };
-  return { db, runtime, svc: createConnectionService(ctx), close: () => runtime.localLight.close() };
+  return { db, runtime, svc: createConnectionService(ctx), principalFor: rowPrincipalResolver(db), close: () => runtime.localLight.close() };
 }
 
 /** The boot seed path, exactly as `entry/lifecycle` runs it over every account alive at boot. */
@@ -570,7 +571,7 @@ async function bindModel(stack: Stack, ownerIds: readonly UserId[], model: strin
     return;
   }
   for (const ownerId of ownerIds) {
-    await stack.svc.update({ principal: principal(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model } });
+    await stack.svc.update({ principal: await stack.principalFor(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model } });
   }
 }
 
@@ -600,8 +601,8 @@ async function consumers(): Promise<void> {
   const textOwner = await seedUser(stack.db, { id: "user_text", handle: castId<Handle>("text") });
   const needleOwner = await seedUser(stack.db, { id: "user_needle", handle: castId<Handle>("needle") });
   await bindModel(stack, [textOwner, needleOwner], model);
-  const rcOf = (ownerId: UserId): RoleClientsWithSignal => stack.runtime.roleClientsFor(principal(ownerId));
-  const rc = rcOf(textOwner);
+  const rcOf = async (ownerId: UserId): Promise<RoleClientsWithSignal> => stack.runtime.roleClientsFor(await stack.principalFor(ownerId));
+  const rc = await rcOf(textOwner);
   const view = await rc.resolved("rerank");
   const worlds = [await seedWorld(stack.db, textOwner, "text"), await seedWorld(stack.db, needleOwner, "needle")];
   const calls: CallRecord[] = [];
@@ -613,7 +614,7 @@ async function consumers(): Promise<void> {
   const started = performance.now();
   const cells: CellResult[] = [];
   for (const world of worlds) {
-    const roles = rcOf(world.ownerId);
+    const roles = await rcOf(world.ownerId);
     cells.push(await runRecall(world, searchFor("recall", roles)));
     cells.push(await runSmart(world, roles, consumer("smart", roles)));
     cells.push(await runDatabank(world, searchFor("databank", roles)));
@@ -727,7 +728,7 @@ async function stateOf(stack: Stack, ownerId: UserId): Promise<UserState> {
     .select({ connectionId: connectionBindings.connectionId })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.userId, ownerId), eq(connectionBindings.task, "rerank")));
-  const rc = stack.runtime.roleClientsFor(principal(ownerId));
+  const rc = stack.runtime.roleClientsFor(await stack.principalFor(ownerId));
   const view = await rc.resolved("rerank");
   const result = await rc.rerank(SANITY_QUERY, SANITY_DOCS);
   const top = result.hits.toSorted((a, b) => b.score - a.score)[0]?.id;
@@ -766,7 +767,7 @@ async function seed(): Promise<void> {
   const preSlotRow = await insertEarlierRow(stack.db, preSlot, { label: PRE_SLOT_LABEL, seedSlot: null, model: MINILM }, "rerank");
   // A user who made their own MiniLM row through the connection door and bound it.
   const ownRow = await stack.svc.create({
-    principal: principal(own),
+    principal: await stack.principalFor(own),
     providerId: "local-light",
     credentialId: null,
     baseUrl: null,
@@ -774,7 +775,7 @@ async function seed(): Promise<void> {
     label: "My reranker",
     allowBackground: true,
   });
-  await stack.svc.setBinding({ principal: principal(own), task: "rerank", connectionId: ownRow.id });
+  await stack.svc.setBinding({ principal: await stack.principalFor(own), task: "rerank", connectionId: ownRow.id });
 
   const firstInserted = await bootSeed(stack);
   const checks: SeedCheck[] = [];
@@ -830,7 +831,7 @@ async function seed(): Promise<void> {
 
   // The user later picks MiniLM on the seeded row; the next boot must leave that choice alone.
   for (const ownerId of [fresh, slotted]) {
-    await stack.svc.update({ principal: principal(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model: MINILM } });
+    await stack.svc.update({ principal: await stack.principalFor(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model: MINILM } });
   }
   const secondInserted = await bootSeed(stack);
   for (const [scenario, ownerId] of [
@@ -875,9 +876,9 @@ async function cold(): Promise<void> {
   const ownerId = await seedUser(stack.db, { id: "user_cold", handle: castId<Handle>("cold") });
   await bootSeed(stack);
   if (model !== SEED_RERANK_MODEL) {
-    await stack.svc.update({ principal: principal(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model } });
+    await stack.svc.update({ principal: await stack.principalFor(ownerId), connectionId: await seededRerankRow(stack.db, ownerId), patch: { model } });
   }
-  const rc = stack.runtime.roleClientsFor(principal(ownerId));
+  const rc = stack.runtime.roleClientsFor(await stack.principalFor(ownerId));
   const t0 = performance.now();
   const first = await rc.rerank(SANITY_QUERY, SANITY_DOCS);
   const firstMs = Math.round(performance.now() - t0);

@@ -20,12 +20,14 @@ import { createInferenceRuntime } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
 import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps } from "../../../tests/legacy/inference/_support.ts";
+import { rowPrincipalResolver } from "../row-principal.ts";
 import { http, jsonl, waitFor } from "./_kit.ts";
 
 const BASE_URL = "http://127.0.0.1:28111/v1";
@@ -129,7 +131,9 @@ const deps = fakeDeps({
 });
 const runtime = await createInferenceRuntime(deps);
 const runChatTurn = createRunChatTurnBridge({ runChatTurn: runtime.executor.runChatTurn });
-const owner = principal(OWNER);
+const identityDb = await freshDb();
+await seedUser(identityDb, { id: OWNER });
+const owner = await rowPrincipalResolver(identityDb)(OWNER);
 
 function windowOf(capability: Capability): { readonly window: number; readonly assumed: boolean } {
   if (capability.kind !== "generation") {
