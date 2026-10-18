@@ -6,7 +6,7 @@
 // The seeded local users (global-setup → multi-user-seed): `owner` (role=owner, via the login form) and
 // `member` (role=user). The HOST/owner also resolves un-credentialed via the 127.0.0.1 fallback seam.
 
-// @orb-waive-file no-test-fabrication({ readonly reason?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
+import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
@@ -78,9 +78,10 @@ test("a logged-in NON-ADMIN is refused /api/_debug, and the refusal NAMES the ar
   // The #1193 message half, proven at the wire: an owner staring at "HTTP 401" needs to know WHICH arm said
   // no. The token clause is asserted too — this stack HAS a DEBUG_TOKEN configured, so a 404 here would mean
   // the surface was off and the 401 above proved nothing.
-  const body = (await refused.json()) as { readonly reason?: unknown };
-  expect(typeof body.reason === "string" ? body.reason : "").toContain("the admin-session arm refused this request");
-  expect(typeof body.reason === "string" ? body.reason : "").toContain("no x-debug-token header was sent");
+  const body: unknown = await refused.json();
+  const reason = isPlainObject(body) ? body["reason"] : undefined;
+  expect(typeof reason === "string" ? reason : "").toContain("the admin-session arm refused this request");
+  expect(typeof reason === "string" ? reason : "").toContain("no x-debug-token header was sent");
 
   // POSITIVE CONTROL on the same stack, same route: the operator token still opens it, so the 401 above is
   // the ROLE gate biting and not a dead route.
