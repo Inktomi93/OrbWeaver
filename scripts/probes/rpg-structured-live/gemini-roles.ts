@@ -8,7 +8,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import type { Principal } from "@orb/contracts/identity";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -18,6 +17,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { createHostPrincipalResolver } from "../../../packages/server/src/entry/auth/index.ts";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { createImageAdapter } from "../../../packages/server/src/infra/image/index.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
@@ -41,7 +41,7 @@ const WIDTH = 768;
 const EMBEDDING_MODEL = "gemini-embedding-2";
 const IMAGE_MODELS = ["gemini-3.1-flash-image", "gemini-3-pro-image"] as const;
 const ROOT = mkdtempSync(path.join(tmpdir(), "h-gemini-roles-"));
-const principal: Principal = { userId: OWNER, role: "owner", handle: castId<Handle>("gemini_roles_owner"), externalId: null, via: "header" };
+const OWNER_HANDLE = castId<Handle>("gemini_roles_owner");
 const usageSchema = z.object({
   promptTokenCount: z.number().optional(),
   candidatesTokenCount: z.number().optional(),
@@ -139,7 +139,8 @@ const app = await createServices({
   share: NO_SHARE_RELAY,
   providerSeams: { sdkFetch: observedFetch },
 });
-await seedUser(db, { id: OWNER, handle: principal.handle, role: "owner" });
+await seedUser(db, { id: OWNER, handle: OWNER_HANDLE, role: "owner" });
+const principal = await createHostPrincipalResolver(app.sessions)(OWNER);
 const credential = await app.services.credentials.add({ principal, provider: "google", key: KEY });
 const imageAdapter = createImageAdapter();
 let imageBytes: Uint8Array | null = null;

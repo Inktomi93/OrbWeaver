@@ -6,7 +6,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import type { Principal } from "@orb/contracts/identity";
 import { clampRoleHandling, responseCacheSchema, turnsLevelFor } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -37,6 +36,7 @@ if (readEnvKey("ORB_ENV_NO_FILE") !== "1") {
   throw new Error("The probe requires ORB_ENV_NO_FILE=1 so the headless app cannot load production configuration");
 }
 const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
+const { createHostPrincipalResolver } = await import("@orb/server/entry/auth");
 const SSE_DATA_PREFIX = "data: ";
 const REQUEST_TIMEOUT_MS = 120_000;
 const SECRET_BOX_BYTES = 32;
@@ -443,9 +443,6 @@ async function runScenario(scenario: Scenario): Promise<void> {
     dir = await mkdtemp(join(tmpdir(), "orb-k-cache-probe-"));
     const host = await seedUser(db, { handle: castId("cacheprobehost") });
     const member = await seedUser(db, { handle: castId("cacheprobemember") });
-    const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
-    const hostPrincipal = principal(host);
-    const memberPrincipal = principal(member);
     const frozenNow = Date.now();
     const app = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
@@ -461,6 +458,9 @@ async function runScenario(scenario: Scenario): Promise<void> {
       providerSeams: { sdkFetch: capturedFetch(capture) },
     });
     const { services } = app;
+    const principalFor = createHostPrincipalResolver(app.sessions);
+    const hostPrincipal = await principalFor(host.id);
+    const memberPrincipal = await principalFor(member.id);
     app.presence.connect(host.id, live.signal);
     await services.settings.updateUserSettingsSection({ principal: hostPrincipal, input: { section: "memory", patch: { enabled: false } } });
     const credential = await services.credentials.add({ principal: hostPrincipal, provider: scenario.provider, key });

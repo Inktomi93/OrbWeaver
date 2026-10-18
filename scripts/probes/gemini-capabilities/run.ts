@@ -5,10 +5,12 @@ import { isDeepStrictEqual } from "node:util";
 import type { ChatHistoryMessage, ChatRequest, ChatResult, Resolved, ToolChoice } from "@orb/inference";
 import { createInferenceRuntime, planStructuredFor } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { z } from "zod";
-import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId, wireSchema } from "../../../tests/legacy/inference/_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, wireSchema } from "../../../tests/legacy/inference/_support.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
+import { rowPrincipalResolver } from "../row-principal.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "./scenario.ts";
 
 const ROUTES = [
@@ -26,7 +28,8 @@ const STRICT_ROUTE_CAP = 1;
 const TOTAL_CAP = routingStrict ? STRICT_REQUEST_CAP : MATRIX_REQUEST_CAP;
 const ROUTE_CAP = routingStrict ? STRICT_ROUTE_CAP : MATRIX_ROUTE_CAP;
 const RESULTS = fileURLToPath(new URL("./results.jsonl", import.meta.url));
-const owner = principal(newUserId());
+const identityDb = await freshDb();
+const owner = await rowPrincipalResolver(identityDb)((await seedUser(identityDb)).id);
 const tools = registryFor(owner);
 const object = z.record(z.string(), z.unknown());
 const shape = wireSchema({

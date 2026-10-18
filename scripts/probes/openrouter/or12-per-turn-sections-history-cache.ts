@@ -8,25 +8,15 @@ import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView } f
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
-import type { WireCaptureSink } from "@orb/inference";
-import type { AssetId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { createAnthropicBackend } from "../../../packages/inference/src/backends/anthropic-messages/index.ts";
-import { createOpenAiCompatBackend } from "../../../packages/inference/src/backends/openai-compat/index.ts";
-import { detectModelFamily } from "../../../packages/inference/src/capability/families.ts";
-import { applyEndpointPosture } from "../../../packages/inference/src/capability/floor.ts";
-import { curatedRows } from "../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { measuredRows } from "../../../packages/inference/src/capability/sources/measured/loader.ts";
-import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
-import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../packages/server/src/domain/chat/assembly/injections.ts";
 import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { resolveGuidedActionText } from "../../../packages/server/src/domain/chat/assembly/macros.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
-import { makeApiKeySecret, makeResolved } from "../../../tests/legacy/inference/_support.ts";
+import { composeChatFunding } from "../composed-chat-funding.ts";
 import { filler, jsonl, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or12";
@@ -264,48 +254,24 @@ function estimateUsd(prices: Prices, call: Pick<CallRecord, "promptTokens" | "re
   return (uncached * prices.input + read * prices.cacheRead + write * prices.cacheWrite + (call.outputTokens ?? 0) * prices.output) / PER_MILLION;
 }
 
-const silentLog = { debug: (): void => undefined, info: (): void => undefined, warn: (): void => undefined, error: (): void => undefined };
-
-function capabilityFor(spec: WireSpec, provider: ReturnType<typeof makeResolved>["provider"]) {
-  const query = { model: spec.model, providerId: provider.id, wire: provider.wire, api: provider.apis[0] ?? null };
-  const declared = spec.declaredWindow === null ? undefined : { generation: { context: { window: spec.declaredWindow } } };
-  const synthesized = synthesizeCapability("generation", detectModelFamily(spec.model), { declared, measured: measuredRows(query), curated: curatedRows(query) });
-  return applyEndpointPosture(provider, synthesized.capability, false);
-}
-
-// The probe tokenizes nothing, so the token cache's store holds nothing.
-const NO_SNAPSHOTS = { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() };
-
-/** The wire's real backend behind the real executor and the compose-tier turn bridge, capturing each request. */
-function wireFor(spec: WireSpec, key: string, capture: Capture) {
-  const sink: WireCaptureSink = (entry) => {
-    capture.body = entry.body;
-    capture.headers = entry.responseHeaders ?? {};
-  };
-  const shared = { now: Date.now, log: silentLog, fetch: globalThis.fetch, captureWire: sink };
-  const registry = new Map([
-    ["anthropic-messages" as const, createAnthropicBackend(shared)],
-    [
-      "openai-compat" as const,
-      createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, snapshotStore: NO_SNAPSHOTS }).backend,
-    ],
-  ]);
-  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()), beginEmbeddingAccounting: () => {
-    throw new Error("or12 is a chat-only probe; unexpected embedding execution");
-  } });
-  const base = makeResolved({ providerId: spec.providerId });
-  const connection = makeResolved({
+/** The wire's real backend behind the composed executor and the compose-tier turn bridge, capturing each request. */
+function wireFor(spec: WireSpec, key: string, capture: Capture): ReturnType<typeof composeChatFunding> {
+  return composeChatFunding({
+    ownerId: OWNER,
     providerId: spec.providerId,
-    model: castId<ModelId>(spec.model),
-    factsModel: castId<ModelId>(spec.model),
-    capability: capabilityFor(spec, base.provider),
-    credential: makeApiKeySecret(key),
+    model: spec.model,
+    key,
+    declared: spec.declaredWindow === null ? null : { generation: { context: { window: spec.declaredWindow } } },
+    fetch: globalThis.fetch,
+    captureWire: (entry): void => {
+      capture.body = entry.body;
+      capture.headers = entry.responseHeaders ?? {};
+    },
   });
-  return { connection, runChatTurn: createRunChatTurnBridge({ runChatTurn: executor.runChatTurn }) };
 }
 
 async function runOne(args: {
-  readonly wire: ReturnType<typeof wireFor>;
+  readonly wire: Awaited<ReturnType<typeof wireFor>>;
   readonly spec: WireSpec;
   readonly capture: Capture;
   readonly chatId: ChatId;
@@ -413,7 +379,7 @@ export async function run(): Promise<object> {
       continue;
     }
     const capture: Capture = { body: null, headers: {} };
-    const wire = wireFor(spec, key, capture);
+    await using wire = await wireFor(spec, key, capture);
     for (const arm of arms) {
       const chatId = castId<ChatId>(`chat_or12${runId}${wireName}${arm}`);
       const nonce = `${runId}-${wireName}-${arm}`;
