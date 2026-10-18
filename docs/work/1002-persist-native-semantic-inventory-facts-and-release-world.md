@@ -43,4 +43,4 @@ Capture validation and lexical reuse are integrated. D328 ends unbounded diagnos
 
 The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
 
-The public codemod timeout is a test completion limit, not a command latency contract. Preserve assertions when correcting integration timing. Acquisition latency stays open. Evidence: `reports/review/1002-current-acquisition-remaining-scope.md`.
+The public codemod integration control completes with unchanged assertions and composition-scaled timing. Independent review passes. Historical timeouts stay failed; acquisition latency remains open. Evidence: `reports/review/1002-public-codemod-integration-independent.md`.
