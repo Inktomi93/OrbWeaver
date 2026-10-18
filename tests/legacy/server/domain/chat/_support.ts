@@ -525,7 +525,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // PROSE-1 — no host override by default, so every assembled/side-gen prompt is the shipped default.
     resolveChatProse: () => Promise.resolve({}),
     resolveChat: notStubbed,
-    maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
     // The host-handoff COPY ops (stickler 2026-08-03 §5). Defaults are the NO-OFFER shape — copy nothing, own
     // no statements — so every pre-offer handoff test stays byte-identical; an offer test overrides them with

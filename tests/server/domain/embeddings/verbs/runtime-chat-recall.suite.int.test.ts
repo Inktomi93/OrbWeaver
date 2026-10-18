@@ -80,7 +80,13 @@ for (const failedRole of ["embed", "chat"] as const) {
     }
     expect(failure).toBeInstanceOf(ProviderError);
     expect(failure).toMatchObject({ kind: "auth_failed", apiErrorStatus: 401 });
-    expect(failure?.message).toContain(failedRole === "embed" ? "embed" : "the scripted provider rejected this request");
+    const rejection = fundingProvider.errors.at(-1);
+    if (rejection === undefined) {
+      throw new Error("the scripted provider recorded no rejection");
+    }
+    // The provider's own message already names its task, so only the text a re-frame adds may name the failing role.
+    expect(failedRole === "embed" ? failure?.cause : failure).toBe(rejection);
+    expect(failure?.message.replace(rejection.message, "")).toMatch(failedRole === "embed" ? new RegExp(`\\b${failedRole}\\b`, "u") : /^$/u);
     expect(fundingProvider.calls.slice(beforeFailure)).toEqual(failedRole === "embed" ? [queryPath, queryPath] : [queryPath, queryPath, generationPath]);
     const keys = await ownerCaller.credentials.list();
     const rejectedKey = failedRole === "embed" ? embedKey : chatKey;
