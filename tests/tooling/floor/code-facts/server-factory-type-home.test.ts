@@ -178,7 +178,9 @@ test("native factory placement uses the parser Program and retains direct/export
         { filename: join(scratch, path) },
       );
       expect(
-        messages.map((message) => SOURCE.split("\n")[message.line - 1]?.slice(message.column - 1, (message.endColumn ?? message.column) - 1)).toSorted(),
+        messages
+          .map((message) => SOURCE.split("\n")[message.line - 1]?.slice(message.column - 1, (message.endColumn ?? message.column) - 1))
+          .toSorted((left, right) => String(left).localeCompare(String(right))),
         path,
       ).toEqual([
         "AmbientOptions",
@@ -341,7 +343,7 @@ test("the qualified native population preserves founding tier findings, nonserve
     );
     names.push(...messages.map((message) => text.split("\n")[message.line - 1]?.slice(message.column - 1, (message.endColumn ?? message.column) - 1)));
   }
-  expect(names.toSorted()).toEqual([
+  expect(names.toSorted((left, right) => String(left).localeCompare(String(right)))).toEqual([
     "BindPosture",
     "ChatComposeResult",
     "Direct",
@@ -425,7 +427,9 @@ test("custom declaration owners delegate only covered server alias/interface pop
     const policies = [aliases, interfaces];
     const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
     expect(result.toolErrors).toEqual([]);
-    expect(result.authority.effectiveFindings.map((finding) => [finding.policyId, finding.token]).toSorted()).toEqual([
+    expect(
+      result.authority.effectiveFindings.map((finding) => [finding.policyId, finding.token]).toSorted((left, right) => left.join().localeCompare(right.join())),
+    ).toEqual([
       ["no-inline-package-interface", "Local"],
       ["no-inline-package-interface", "Retained"],
     ]);
