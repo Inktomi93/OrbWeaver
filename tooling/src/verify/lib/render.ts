@@ -10,6 +10,7 @@
 import type { Violation } from "../contract/harness.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { FinalPolicyRow, StructurePolicyReport } from "../contract/structure-report.ts";
+import { analysisCoverageText } from "./show-policy.ts";
 
 /** THE PER-FINDING MESSAGE IS PRINTED WHEN IT DIFFERS FROM THE POLICY'S (#2002, owner arm A).
  *  `lib/structure-report.ts` already puts `finding.message ?? policy.message` on every violation, and the
@@ -43,6 +44,9 @@ function policySuffix(row: FinalPolicyRow): string {
   }
   if (row.granted > 0) {
     parts.push(`granted ${row.granted}`);
+  }
+  if (row.analysis !== undefined) {
+    parts.push(analysisCoverageText(row.analysis));
   }
   return `  ·  ${parts.join(" · ")}`;
 }
@@ -117,6 +121,9 @@ export function renderPolicyPass(rows: readonly FinalPolicyRow[], report: Struct
   const out: string[] = [];
   for (const row of rows) {
     out.push(...renderPolicyRow(row, byId.get(row.name)));
+    for (const gap of row.analysis?.unknown ?? []) {
+      out.push(`      UNKNOWN ${gap.file}:${gap.line}:${gap.column} — ${gap.reason}`);
+    }
   }
   out.push(...renderPolicyBlock(report));
   const waived = rows.reduce((n, row) => n + row.waived, 0);

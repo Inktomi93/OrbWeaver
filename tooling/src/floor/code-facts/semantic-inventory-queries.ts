@@ -442,7 +442,7 @@ function readDrizzleGraph(db: DatabaseSync, id: string, key: string, family: Inv
   const atoms = db
     .prepare("SELECT ordinal,parent,key,kind,text,number,size FROM inventory_drizzle_atom WHERE partition=? AND owner=? ORDER BY ordinal")
     .all(id, integer.parse(row["ordinal"]))
-    .map((value) => invocationAtomSchema.extend({ key: inventoryStringSchema }).parse(value));
+    .map((value) => invocationAtomRow.parse(value));
   if (atoms.length !== integer.parse(row["atomCount"])) {
     throw new SemanticInventoryError("native Drizzle fact graph is incomplete");
   }
@@ -521,10 +521,13 @@ export function acquireInventoryReadLease(db: DatabaseSync, generation: number, 
   }
   let open = true;
   const snapshots = new Map<string, InvocationReadSnapshot>();
-  const selected = (id: string): InvocationReadSnapshot => {
+  const assertOpen = (): void => {
     if (!(open && db.isOpen && db.isTransaction)) {
       throw new SemanticInventoryError("owned inventory read lease has been released");
     }
+  };
+  const selected = (id: string): InvocationReadSnapshot => {
+    assertOpen();
     if (!partitions.some((partition) => partition.id === id)) {
       throw new SemanticInventoryError("owned inventory native partition is unavailable");
     }
@@ -536,6 +539,7 @@ export function acquireInventoryReadLease(db: DatabaseSync, generation: number, 
     return snapshot;
   };
   return {
+    assertOpen,
     partitions,
     invocationEvidence: (id, query) => invocationEvidence(db, id, query, selected(id)),
     bindings: (id, file) => invocationSourceBindings(db, id, file, selected(id)),

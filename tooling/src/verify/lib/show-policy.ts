@@ -3,8 +3,14 @@
 // line cap. Same voice as the legacy lines there: the artifact reader prints what the artifact SAYS, never a
 // re-derivation. Colour functions arrive from the caller so this file owns no TTY detection.
 import { formatSplit } from "@orb/tooling/floor/verdict/ratchet-rows";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import type { Violation } from "../contract/harness.ts";
 import type { FinalPolicyRow, StructurePolicyReport } from "../contract/structure-report.ts";
+
+/** One wording for partial analysis in both the live and saved views; judged counts are not proven-safe reads. */
+export function analysisCoverageText(analysis: StructureAnalysisCoverage): string {
+  return `${analysis.supported} judged (finding or out of scope) · ${analysis.unknown.length} UNKNOWN (advisory)`;
+}
 
 export interface ShowInk {
   readonly bold: (s: string) => string;
@@ -29,6 +35,9 @@ function finalRowNote(row: FinalPolicyRow, ink: ShowInk): string {
   }
   if (row.granted > 0) {
     parts.push(`granted ${row.granted}`);
+  }
+  if (row.analysis !== undefined) {
+    parts.push(analysisCoverageText(row.analysis));
   }
   if (row.owner.status !== "success") {
     parts.push(`owner ${row.owner.status}${"reason" in row.owner ? `: ${row.owner.reason}` : ""}`);

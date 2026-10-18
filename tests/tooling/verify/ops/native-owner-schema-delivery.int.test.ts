@@ -124,6 +124,7 @@ export const globalBooks=sqliteTable("global_books",{bookId:text("book_id").refe
       ]);
       expect(result.authority.waivedFindings.map(({ finding: { token, line } }) => ({ token, line }))).toEqual([{ token: "personas", line: 10 }]);
       expect(result.authority.authorityAlarms).toEqual([]);
+      expect(requests.filter(({ kind }) => kind === "invocation-evidence")).toEqual([]);
       expect(unsealedErrors.map(({ message }) => message)).toEqual(["native type requests must be sealed before reading"]);
       if (disposedRead === undefined) {
         throw new Error("native schema read lifetime was not exercised");

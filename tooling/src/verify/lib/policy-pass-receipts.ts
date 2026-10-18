@@ -141,7 +141,9 @@ export function evaluateRuns(runs: readonly PolicyRun[], errors: PolicyToolError
 }
 
 export function ownerResult(run: PolicyRun): PolicyOwnerResult {
+  const analysis = run.finishAnalysis?.();
   return {
+    ...(analysis === undefined ? {} : { analysis }),
     id: run.policy.id,
     owner: run.owner,
     population: run.population,
@@ -152,10 +154,17 @@ export function ownerResult(run: PolicyRun): PolicyOwnerResult {
 }
 
 /** The one mapping from a dispatched owner to the central authority's input; re-coordinating callers reuse it. */
-export function authorityOwnerResult({ id, population, owner, findings }: PolicyOwnerResult): GateOwnerResult {
+export function authorityOwnerResult({ id, population, owner, findings, analysis }: PolicyOwnerResult): GateOwnerResult {
   const effective = new Set([...population.effectiveSourcePaths, ...population.effectiveResourcePaths]);
   const whole = [...population.declaredSourcePaths, ...population.declaredResourcePaths].every((path) => effective.has(path));
-  return { policyId: id, populationFiles: [...effective].toSorted(), coverage: whole ? "whole" : "subset", owner, findings };
+  return {
+    policyId: id,
+    populationFiles: [...effective].toSorted(),
+    coverage: whole ? "whole" : "subset",
+    owner,
+    findings,
+    ...(analysis === undefined ? {} : { analysisGaps: analysis.unknown }),
+  };
 }
 
 export function factResult(run: FactRun): GateFactOwnerResult {

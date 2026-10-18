@@ -8,8 +8,16 @@ export interface StructureArtifactFinding {
   readonly token?: string;
 }
 
+/** Partial analysis is advisory evidence, never a severity-bearing finding. */
+export interface StructureAnalysisCoverage {
+  /** Anchors the policy judged, including ones it found outside its question; never a count of proven-safe reads. */
+  readonly supported: number;
+  readonly unknown: readonly { readonly file: string; readonly line: number; readonly column: number; readonly token: string; readonly reason: string }[];
+}
+
 /** One final policy's outcome. */
 export interface StructureArtifactGate {
+  readonly analysis?: StructureAnalysisCoverage;
   readonly name: string;
   readonly withheld: boolean;
   readonly violations: readonly StructureArtifactFinding[];

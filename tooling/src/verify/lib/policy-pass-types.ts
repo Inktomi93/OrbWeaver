@@ -3,6 +3,7 @@
 // tool-error status without aborting the pass.
 import { performance } from "node:perf_hooks";
 import type { SourceFile } from "ts-morph";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import type { GateFact, GateFactHooks } from "../contract/fact.ts";
 import type { GateOwnerCompletion, RawGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy, GatePolicyHooks } from "../contract/policy.ts";
@@ -29,6 +30,7 @@ export interface MutableFactTiming {
 }
 
 export interface PolicyRun {
+  finishAnalysis?: () => StructureAnalysisCoverage | undefined;
   readonly policy: GatePolicy;
   readonly timing: MutableTiming;
   readonly findings: RawGateFinding[];

@@ -1,5 +1,6 @@
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { Project } from "ts-morph";
+import { Project, ts } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as membershipWriteFan } from "../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as ownerScopedReads } from "../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
@@ -24,15 +25,38 @@ function passOf(
   policy: GatePolicy,
   files: Readonly<Record<string, string>>,
   reviewedGrants: Parameters<typeof runPolicyPass>[0]["reviewedGrants"] = [],
+  nativeRoot?: string,
 ): ReturnType<typeof runPolicyPass> {
-  const project = new Project({ useInMemoryFileSystem: true });
+  const root = nativeRoot === undefined ? ROOT : join(nativeRoot, ".orb-tenancy-identity-control");
+  const project = new Project(
+    nativeRoot === undefined
+      ? { useInMemoryFileSystem: true }
+      : {
+          skipAddingFilesFromTsConfig: true,
+          compilerOptions: {
+            strict: true,
+            skipLibCheck: true,
+            target: ts.ScriptTarget.ES2022,
+            module: ts.ModuleKind.NodeNext,
+            moduleResolution: ts.ModuleResolutionKind.NodeNext,
+            paths: { "@orb/db": [join(root, "packages/db/src/index.ts")] },
+          },
+        },
+  );
   for (const [path, source] of Object.entries(files)) {
-    project.createSourceFile(`${ROOT}/${path}`, source);
+    project.createSourceFile(`${root}/${path}`, source);
+  }
+  if (nativeRoot !== undefined) {
+    project.createSourceFile(
+      join(root, "packages/db/src/index.ts"),
+      'export*from"./schema/character.ts";import*as schema from"./schema/character.ts";import type{LibSQLDatabase}from"drizzle-orm/libsql";export type Db=LibSQLDatabase<typeof schema>;',
+    );
+    project.createSourceFile(join(root, "fixture-db.d.ts"), 'type Db=import("@orb/db").Db;');
   }
   return runPolicyPass({
     knownPolicies: [policy],
     policies: [policy],
-    root: ROOT,
+    root,
     project,
     nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants,
@@ -48,13 +72,18 @@ function passOf(
 // per-gate negative arm here duplicated that proof and, with only the tested policy in `knownPolicies`,
 // was vacuous — owner ruling 2026-09-11, #1935.)
 // ---------------------------------------------------------------------------------------------------
-test("owner-scoped-reads: a marker naming its own policy at this position suppresses the finding", () => {
-  const waived = passOf(ownerScopedReads, {
-    "packages/db/src/schema/character.ts":
-      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
-    "packages/server/src/domain/character/persistence/queries.ts":
-      'import { characters } from "@orb/db";\n// @orb-waive owner-scoped-reads(characters): the proof stand-in reason and its end condition.\nexport async function loadById(db: Db, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
-  });
+test("owner-scoped-reads: a marker naming its own policy at this position suppresses the finding", ({ repoRoot }) => {
+  const waived = passOf(
+    ownerScopedReads,
+    {
+      "packages/db/src/schema/character.ts":
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { id:text("id").primaryKey(), ownerId: text("owner_id") });\n',
+      "packages/server/src/domain/character/persistence/queries.ts":
+        'import{eq}from"drizzle-orm";import { characters } from "@orb/db";\n// @orb-waive owner-scoped-reads(characters): the proof stand-in reason and its end condition.\nexport async function loadById(db: Db, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
+    },
+    [],
+    repoRoot,
+  );
 
   expect(waived.authority.effectiveFindings).toEqual([]);
   expect(waived.authority.waivedFindings).toHaveLength(1);

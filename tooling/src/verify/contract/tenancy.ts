@@ -6,6 +6,7 @@ import type { Node } from "ts-morph";
 import type { DrizzleValueSourceEvidence } from "../../floor/code-facts/drizzle-query-contract.ts";
 import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { GatePolicyAnalysisDetails } from "./policy.ts";
 
 /** What a drizzle statement's table argument resolved to. The three verdicts a tenancy gate must judge
  *  differently — the fourth state (the argument is a literal) is `undefined`: a literal names no table. */
@@ -109,4 +110,21 @@ export interface ValueSources {
 export interface ConjunctLeaves {
   readonly leaves: readonly Node[];
   readonly opaque: boolean;
+}
+
+/** A local observation, not runtime authorization or SQL-carrier containment. */
+export type DirectOwnerRead = GatePolicyAnalysisDetails & { readonly finding?: string };
+
+export interface DirectOwnerReadScope {
+  readonly calls: ReadonlyMap<Node, import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleCallEvidence>;
+  readonly columns: ReadonlyMap<Node, import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleCallEvidence>;
+  readonly index: SchemaTableIndex;
+  readonly ownerTables: ReadonlySet<string>;
+  readonly fkEdges: ReadonlySet<string>;
+  readonly derivedParents: ReadonlyMap<string, ReadonlySet<string>>;
+}
+
+export interface DirectOwnerReadInputs {
+  readonly calls: readonly Node[];
+  readonly columns: readonly Node[];
 }

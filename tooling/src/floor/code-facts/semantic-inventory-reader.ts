@@ -6,6 +6,7 @@ import { Project, Node as TsNode } from "ts-morph";
 import { predictedProgram } from "../compiler/project-worlds.ts";
 import { createSourceBindingUsage } from "./binding-usage.ts";
 import type { DeclarationBindingKeys, SourceBindingUsage } from "./binding-usage-contract.ts";
+import type { DrizzleCallEvidence } from "./drizzle-evidence-contract.ts";
 import { replayDrizzleCallEvidence, replaySchemaIdentityCatalog } from "./drizzle-evidence-replay.ts";
 import type { InventorySchemaIdentityCatalog } from "./drizzle-inventory-contract.ts";
 import { schemaCatalogColumns } from "./drizzle-inventory-contract.ts";
@@ -72,11 +73,19 @@ function columnCatalog(
   identity: InventorySchemaIdentityCatalog,
   full: InventorySchemaProjectedCatalog | undefined,
   local: boolean,
+  captured?: readonly SchemaColumnIdentity[],
 ): readonly SchemaColumnIdentity[] | undefined {
   if (local && (identity.fact.status !== "ready" || full?.fact.status !== "ready")) {
     throw new SemanticInventoryError("native local column basis has no ready paired catalog");
   }
-  return full === undefined ? undefined : schemaCatalogColumns(identity, full);
+  return full === undefined ? undefined : (captured ?? schemaCatalogColumns(identity, full));
+}
+
+/** A selected scalar identity must not expose the pinned reader's raw column catalog. */
+function isolatedColumn(evidence: DrizzleCallEvidence): DrizzleCallEvidence {
+  return evidence.mode === "column" && evidence.column.kind === "resolved"
+    ? { ...evidence, column: { ...evidence.column, value: structuredClone(evidence.column.value) } }
+    : evidence;
 }
 
 const inventories = new WeakMap<object, SemanticInventory>();
@@ -161,6 +170,7 @@ function createInventoryReader(
   storage: InventoryReaderStorage & { readonly lease?: InventoryReadLease },
 ): SemanticInventory {
   const { db, dispose, shapeCohort, lease } = storage;
+  lease?.assertOpen();
   const shapeOwners = new Map(storage.shapeOwners);
   let indexes = [...partitions];
   let open = true;
@@ -168,6 +178,7 @@ function createInventoryReader(
     if (!open) {
       throw new SemanticInventoryError("native semantic inventory has been disposed");
     }
+    lease?.assertOpen();
     storage.assertImplementation?.();
   };
   // Captured library text owns these paths; implicit virtual libs would collide before lazy source creation.
@@ -183,6 +194,9 @@ function createInventoryReader(
   const materializedSources = new Map<Project, Map<string, SourceFile>>();
   const projections = new Map<SourceFile, { readonly epoch: SourceFile["compilerNode"]; readonly nodes: Map<string, Node> }>();
   const bindingUses = new Map<string, SourceBindingUsage>();
+  const identityCatalogs = new Map<StoredInventoryPartition, InventorySchemaIdentityCatalog>();
+  const fullCatalogs = new Map<StoredInventoryPartition, InventorySchemaProjectedCatalog>();
+  const columnCatalogs = new Map<StoredInventoryPartition, readonly SchemaColumnIdentity[]>();
   const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
   const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
@@ -345,6 +359,43 @@ function createInventoryReader(
       }
       return nodeOf(value, [program], original ?? captured);
     };
+  // Only the owned query-only transaction makes raw wire reuse immutable; borrowed connections remain live reads.
+  const identityCatalog = (partition: StoredInventoryPartition): InventorySchemaIdentityCatalog => {
+    const captured = identityCatalogs.get(partition);
+    if (captured !== undefined) {
+      return captured;
+    }
+    const wire = readInventorySchemaIdentity(db, partition.id);
+    if (lease !== undefined) {
+      identityCatalogs.set(partition, wire);
+    }
+    return wire;
+  };
+  const fullCatalog = (partition: StoredInventoryPartition, replay: (span: InventorySpan) => Node): InventorySchemaProjectedCatalog => {
+    const captured = fullCatalogs.get(partition);
+    if (captured !== undefined) {
+      return captured;
+    }
+    const wire = readInventorySchemaData(db, partition.id);
+    if (lease !== undefined) {
+      // Admit nested spans before retaining raw wire, never the mutable consumer projection returned by replay.
+      replaySchemaDataCatalog(wire, replay, {});
+      fullCatalogs.set(partition, wire);
+    }
+    return wire;
+  };
+  const catalogColumns = (
+    partition: StoredInventoryPartition,
+    identity: InventorySchemaIdentityCatalog,
+    full: InventorySchemaProjectedCatalog | undefined,
+    local: boolean,
+  ): readonly SchemaColumnIdentity[] | undefined => {
+    const columns = columnCatalog(identity, full, local, columnCatalogs.get(partition));
+    if (lease !== undefined && columns !== undefined) {
+      columnCatalogs.set(partition, columns);
+    }
+    return columns;
+  };
   const nativeModuleTarget = (node: Node, program: string, importer?: SourceFile): SourceFile | undefined => {
     const { partition, span } = importer === undefined ? nativeSpan(node, program, "modules") : contextualModuleSpan(node, program, importer);
     if (!(TsNode.isImportDeclaration(node) || (TsNode.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined))) {
@@ -452,7 +503,7 @@ function createInventoryReader(
       for (const source of sources) {
         nativeSpan(source, program, "drizzle-identities");
       }
-      const catalog = readInventorySchemaIdentity(db, partition.id);
+      const catalog = identityCatalog(partition);
       const expected = sources.map((source) => JSON.stringify(capturedSpan(source))).toSorted();
       if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
         throw new SemanticInventoryError("native schema identity source demand is incomplete or foreign");
@@ -462,9 +513,9 @@ function createInventoryReader(
         if (catalog.fact.status !== "missing") {
           throw new SemanticInventoryError("native empty schema demand has nonmissing evidence");
         }
-        return catalog.fact;
+        return structuredClone(catalog.fact);
       }
-      return replaySchemaIdentityCatalog(catalog, replayFor(first, program, partition, "schema identity"));
+      return replaySchemaIdentityCatalog(structuredClone(catalog), replayFor(first, program, partition, "schema identity"));
     },
     schemaData: (sources, program, projection = {}) => {
       assertOpen();
@@ -477,13 +528,14 @@ function createInventoryReader(
       for (const source of sources) {
         nativeSpan(source, program, "schema-data");
       }
-      const catalog = readInventorySchemaData(db, partition.id);
+      const first = sources[0];
+      const catalog =
+        first === undefined ? readInventorySchemaData(db, partition.id) : fullCatalog(partition, replayFor(first, program, partition, "full schema data"));
       const expected = sources.map((source) => JSON.stringify(capturedSpan(source))).toSorted();
       if (JSON.stringify(catalog.sources.map(({ node }) => JSON.stringify(node)).toSorted()) !== JSON.stringify(expected)) {
         throw new SemanticInventoryError("native full schema data source demand is incomplete or foreign");
       }
       assertSchemaProjection(catalog.projection ?? {}, projection);
-      const first = sources[0];
       if (first === undefined) {
         if (catalog.fact.status !== "missing") {
           throw new SemanticInventoryError("native empty schema demand has nonmissing evidence");
@@ -507,14 +559,16 @@ function createInventoryReader(
       if (basis === null) {
         requireFamily([partition], "schema-data");
       }
-      const identity = readInventorySchemaIdentity(db, catalogPartition.id);
-      const catalog = replaySchemaIdentityCatalog(identity, replayFor(node, catalogPartition.program, catalogPartition, "schema identity"));
-      const full = mode === "column" ? readInventorySchemaData(db, catalogPartition.id) : undefined;
-      const columns = columnCatalog(identity, full, basis === null);
-      if (full !== undefined) {
+      const identity = identityCatalog(catalogPartition);
+      // Source/epoch admission is repeated even when the pinned raw catalog was already parsed.
+      const catalog = replaySchemaIdentityCatalog(structuredClone(identity), replayFor(node, catalogPartition.program, catalogPartition, "schema identity"));
+      const full = mode === "column" ? fullCatalog(catalogPartition, replayFor(node, catalogPartition.program, catalogPartition, "schema data")) : undefined;
+      const columns = catalogColumns(catalogPartition, identity, full, basis === null);
+      if (full !== undefined && lease === undefined) {
         replaySchemaDataCatalog(full, replayFor(node, catalogPartition.program, catalogPartition, "schema data"), {});
       }
-      return replayDrizzleCallEvidence(fact.evidence, catalog, replayFor(node, program, partition, "Drizzle call"), { node, columns });
+      const evidence = replayDrizzleCallEvidence(fact.evidence, catalog, replayFor(node, program, partition, "Drizzle call"), { node, columns });
+      return isolatedColumn(evidence);
     },
     invocationEvidence: (node, program, plan) => {
       const { partition, span } = nativeSpan(node, program, "invocation-evidence");
@@ -852,6 +906,9 @@ function createInventoryReader(
         usage[Symbol.dispose]();
       }
       bindingUses.clear();
+      identityCatalogs.clear();
+      fullCatalogs.clear();
+      columnCatalogs.clear();
       for (const source of project.getSourceFiles()) {
         source.forget();
       }

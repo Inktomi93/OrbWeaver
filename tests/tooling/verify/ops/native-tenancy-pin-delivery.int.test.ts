@@ -1,11 +1,11 @@
-// The pin leaf must retain its supplied operand's native type, not the ordinary carrier's options.
+// Generic native-service contracts remain independent of the D328 partial owner-read diagnostic.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ENTRY, nativeOwnerReadFixture as fixture, HELPER } from "@orb/testkit/node/native-owner-read-fixture.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { CallExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { beforeEach, vi } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 import { readPredicateArgument } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../../../tooling/src/floor/code-facts/drizzle-predicate-contract.ts";
 import { readAnchorOf } from "../../../../tooling/src/floor/code-facts/drizzle-query.ts";
@@ -22,6 +22,7 @@ import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semant
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { readInventoryRuntime } from "../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
+import type { GatePolicy, GatePolicyHooks } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import { recordReadySchemaFact } from "../../../../tooling/src/verify/contract/schema-fact.ts";
@@ -88,13 +89,50 @@ function capturedOwnerRead(root: string): {
   }
 }
 
-function predicateBindings(predicate: DrizzlePredicate): readonly (readonly [string, string])[] {
-  if (predicate.kind === "and" || predicate.kind === "or" || predicate.kind === "choice") {
-    return predicate.terms.flatMap(predicateBindings);
-  }
-  return predicate.kind === "leaf" ? [...predicate.bindings].map(([parameter, value]) => [parameter.getText(), value.getText()] as const) : [];
+function nativeStorageControl(): GatePolicy {
+  return defineGate({
+    ...gate,
+    id: "native-pin-storage-control",
+    fix: "use the registered native pin service, or @orb-waive native-pin-storage-control(position): reason",
+    create: (ctx): GatePolicyHooks => {
+      const anchors: ReadAnchor[] = [];
+      const calls: CallExpression[] = [];
+      const references: Node[] = [];
+      const pins = nativeTenancyPins(ctx, anchors, calls, references);
+      return {
+        visitors: [
+          {
+            kinds: [SyntaxKind.CallExpression, SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+            visit: (node) => {
+              if (!Node.isCallExpression(node)) {
+                references.push(node);
+                return;
+              }
+              calls.push(node);
+              const anchor = readAnchorOf(node);
+              if (anchor !== undefined) {
+                anchors.push(anchor);
+              }
+            },
+          },
+        ],
+        prepare: pins.prepare,
+        evaluate: () => {
+          const schema = ctx.fact(drizzleSchemaDataFact);
+          recordReadySchemaFact(ctx, schema);
+          pins.assertSchema(schemaTableIndex(schema.value));
+          const anchor = anchors[0];
+          if (anchor === undefined) {
+            throw new Error("native storage control has no anchor");
+          }
+          pins.sql.statement(anchor.call);
+        },
+      };
+    },
+  });
 }
 
+// Independent native predicate and pin service contracts.
 test("native canonical predicate bindings retain the imported helper's actual caller operand", ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
   const workspace = createSemanticWorkspace({ root: scratch });
@@ -121,418 +159,6 @@ test("native canonical predicate bindings retain the imported helper's actual ca
   ]);
   expect(values.map((node) => isPlainValue(node, { idents: new Set(["personas"]), identBySqlName: new Map([["personas", "personas"]]) }))).toEqual([true]);
 });
-
-test(
-  "native owner delivery keeps async arrow and actual relational scope while rejecting raw OR and row-id-only callbacks",
-  ({ scratch, repoRoot }) => {
-    fixture(
-      scratch,
-      repoRoot,
-      `import type{LibSQLDatabase}from"drizzle-orm/libsql";
-import{and,eq,sql}from"drizzle-orm";
-import*as schema from"../../../../../db/src/schema/persona.ts";
-const{personas}=schema;declare const db:LibSQLDatabase<typeof schema>;
-export const safe=async(id:string,owner:string)=>{const owned=eq(personas.ownerId,owner);return db.select().from(personas).where(and(eq(personas.id,id),owned));};
-export const unsafe=async(id:string,owner:string)=>db.select().from(personas).where(and(eq(personas.ownerId,owner),sql\`1 OR \${personas.id}=\${id}\`));
-export async function scoped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
-export async function idOnly(id:string){return db.query.personas.findFirst({where:(p,{eq})=>eq(p.id,id)});}
-`,
-    );
-    const { result, predicates } = capturedOwnerRead(scratch);
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([]);
-    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
-      { token: "personas", line: 6 },
-      { token: "personas", line: 8 },
-    ]);
-    const scoped = predicates.get(7);
-    const idOnly = predicates.get(8);
-    if (scoped === undefined || idOnly === undefined) {
-      throw new Error("native relational controls were not captured");
-    }
-    expect(scoped.contained).toBe(true);
-    expect(predicateBindings(scoped)).toEqual([
-      ["p", "personas"],
-      ["p", "personas"],
-    ]);
-    expect(idOnly.contained).toBe(true);
-    expect(predicateBindings(idOnly)).toEqual([["p", "personas"]]);
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "native relational bindings refuse row and renamed operator mutation, alias escape and borrowed foreign signatures",
-  ({ scratch, repoRoot }) => {
-    fixture(
-      scratch,
-      repoRoot,
-      `import type{LibSQLDatabase}from"drizzle-orm/libsql";import{eq as nativeEq,type SQL}from"drizzle-orm";import*as schema from"../../../../../db/src/schema/persona.ts";
-declare const db:LibSQLDatabase<typeof schema>;
-declare function leak(operator:typeof nativeEq):SQL;
-export async function renamed(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and:both,eq:same})=>both(same(p.id,id),same(p.ownerId,owner))});}
-export async function rowWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(Object.assign(p.ownerId,{name:"id"}),and(eq(p.id,id),eq(p.ownerId,owner)))});}
-export async function operatorWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(eq=nativeEq,and(eq(p.id,id),eq(p.ownerId,owner)))});}
-export async function renamedWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>(op=nativeEq,and(op(p.id,id),op(p.ownerId,owner)))});}
-export async function escaped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>and(op(p.id,id),op(p.ownerId,owner),leak(op))});}
-declare const foreign:{query:{personas:{findFirst:typeof db.query.personas.findFirst}}};
-export async function borrowed(id:string,owner:string){return foreign.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
-`,
-    );
-    const { result, predicates } = capturedOwnerRead(scratch);
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([]);
-    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
-      { token: "personas", line: 5 },
-      { token: "personas", line: 6 },
-      { token: "personas", line: 7 },
-      { token: "personas", line: 8 },
-    ]);
-    const renamed = predicates.get(4);
-    if (renamed === undefined) {
-      throw new Error("native renamed-operator context was not captured");
-    }
-    expect(renamed.contained).toBe(true);
-    expect(predicateBindings(renamed)).toEqual([
-      ["p", "personas"],
-      ["p", "personas"],
-    ]);
-    for (const line of [5, 6, 7, 8, 10]) {
-      const predicate = predicates.get(line);
-      if (predicate === undefined) {
-        throw new Error(`native relational refusal at line ${String(line)} was not captured`);
-      }
-      expect(predicate.contained, String(line)).toBe(false);
-      expect(predicateBindings(predicate), String(line)).toEqual([]);
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "an ambiguous relational catalog withholds authority before publishing predicate bindings",
-  ({ scratch, repoRoot }) => {
-    fixture(
-      scratch,
-      repoRoot,
-      `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";import{personas as otherPersonas}from"../../../../../db/src/schema/other.ts";void otherPersonas;
-declare const db:LibSQLDatabase<typeof schema>;
-export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
-`,
-    );
-    writeFileSync(
-      join(scratch, "packages/db/src/schema/other.ts"),
-      'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("other_personas",{id:text("id").primaryKey(),ownerId:text("owner_id").notNull()});',
-    );
-    writeFileSync(
-      join(scratch, "packages/db/tsconfig.json"),
-      JSON.stringify({ extends: "../../tsconfig.json", files: ["src/schema/persona.ts", "src/schema/other.ts"] }),
-    );
-    const { result, predicates } = capturedOwnerRead(scratch);
-    expect(result.toolErrors).toEqual([{ policyId: gate.id, phase: "evaluate", message: "native tenancy pin schema and consumer table index disagree" }]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
-    expect(result.authority.effectiveFindings).toEqual([]);
-    expect(predicates.size).toBe(0);
-  },
-  scaledBudget(60_000),
-);
-
-test("a relational owner predicate without a native importing context withholds the policy", ({ scratch, repoRoot }) => {
-  fixture(
-    scratch,
-    repoRoot,
-    `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";
-declare const db:LibSQLDatabase<typeof schema>;
-export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
-`,
-  );
-  const context = projectCtx(scratch);
-  const result = runPolicyPass({ root: scratch, project: context.project, policies: [gate], knownPolicies: [gate], reviewedGrants: [], failOnWarnings: false });
-  expect(result.factErrors).toEqual([
-    { factId: "drizzle-schema-data", phase: "create", message: "native type fact context is unavailable" },
-    { factId: "drizzle-schema-identities", phase: "create", message: "native type fact context is unavailable" },
-  ]);
-  expect(result.toolErrors).toEqual([
-    { policyId: gate.id, phase: "evaluate", message: "declared fact failed: drizzle-schema-data: create: native type fact context is unavailable" },
-  ]);
-  expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-});
-
-test(
-  "native SQL containment does not consult ordinary Types or Symbols through predicates and statements",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    const readType = Node.prototype.getType;
-    const readSymbol = Node.prototype.getSymbol;
-    const previousLimit = Error.stackTraceLimit;
-    Error.stackTraceLimit = 100;
-    const sqlFrame = (): boolean => /\/drizzle-(?:sql[^/]*|predicate|statement)\.ts:/u.test(new Error("SQL frame").stack ?? "");
-    const typePoison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
-      if (this.getProject() === context.project && sqlFrame()) {
-        throw new Error("ordinary SQL containment Type read");
-      }
-      return readType.call(this);
-    });
-    const symbolPoison = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
-      if (this.getProject() === context.project && sqlFrame()) {
-        throw new Error("ordinary SQL containment Symbol read");
-      }
-      return readSymbol.call(this);
-    });
-    try {
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        policies: [gate],
-        knownPolicies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.factErrors).toEqual([]);
-      expect(result.authority.withheldPolicyIds).toEqual([]);
-      expect(result.authority.effectiveFindings).toEqual([]);
-    } finally {
-      symbolPoison.mockRestore();
-      typePoison.mockRestore();
-      Error.stackTraceLimit = previousLimit;
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "missing native SQL facts withhold the real owner judgment without ordinary fallback",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    let restore: (() => void) | undefined;
-    try {
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        policies: [gate],
-        knownPolicies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-        nativeTypeFacts: () => {
-          const session = context.nativeTypeFacts?.();
-          if (session === undefined) {
-            throw new Error("fixture has no native owner session");
-          }
-          const read = session.invocationEvidence;
-          const spy = vi
-            .spyOn(session, "invocationEvidence")
-            .mockImplementation(
-              (owner, nodes, plan) => new Map([...read(owner, nodes, plan)].map(([node, fact]) => [node, { ...fact, drizzleSql: undefined }])),
-            );
-          restore = () => spy.mockRestore();
-          return session;
-        },
-      });
-      expect(result.factErrors).toEqual([]);
-      expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: "native tenancy SQL facts are unavailable" }]);
-      expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
-    } finally {
-      restore?.();
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "native SQL facts preserve supplied alternatives, optional absence and mutable aliases",
-  ({ scratch, repoRoot }) => {
-    fixture(
-      scratch,
-      repoRoot,
-      `
-import type {BaseSQLiteDatabase} from "drizzle-orm/sqlite-core";
-import {and, eq, sql, type SQL} from "drizzle-orm";
-import {personas} from "../../../../../db/src/schema/persona.ts";
-import {owned} from "./predicate.ts";
-declare const db: BaseSQLiteDatabase<"async", void>;
-function identity(value: SQL | undefined) { return value; }
-export async function safe(id: string, owner: string) {
-  return db.select().from(personas).where(and(eq(personas.id, id), owned(owner)));
-}
-export async function optional(id: string, owner: string, flag: boolean) {
-  return db.select().from(personas).where(and(eq(personas.id, id), identity(flag ? eq(personas.ownerId, owner) : undefined)));
-}
-export async function aliased(id: string, owner: string) {
-  const held = owner;
-  return db.select().from(personas).where(and(eq(personas.id, id), owned(held)));
-}
-export async function opaque(id: string, owner: string, emitted: SQL) {
-  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), emitted));
-}
-export async function mutated(id: string, owner: string) {
-  const child = sql\`1\`;
-  child.append(sql.raw(id));
-  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), child));
-}
-`,
-    );
-    const context = projectCtx(scratch);
-    const result = runPolicyPass({
-      root: scratch,
-      project: context.project,
-      ...nativeTypeFactOptions(context),
-      policies: [gate],
-      knownPolicies: [gate],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([]);
-    expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([
-      { token: "personas", line: 12 },
-      { token: "personas", line: 19 },
-      { token: "personas", line: 24 },
-    ]);
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "the maintained pin route does not ask the ordinary carrier for the supplied owner Type",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    const readType = Node.prototype.getType;
-    const poison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
-      if (this.getProject() === context.project && this.getText() === "principal.userId") {
-        throw new Error(`ordinary supplied tenancy-pin Type read\n${new Error("ordinary pin caller").stack ?? "stack unavailable"}`);
-      }
-      return readType.call(this);
-    });
-    try {
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        policies: [gate],
-        knownPolicies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.factErrors).toEqual([]);
-      expect(result.authority.withheldPolicyIds).toEqual([]);
-      expect(result.authority.effectiveFindings).toEqual([]);
-    } finally {
-      poison.mockRestore();
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "pin-scoped source and Type delivery preserve the real helper call without ordinary pin semantics",
-  async ({ scratch, repoRoot }) => {
-    const tenancyPin = await import("../../../../tooling/src/verify/lib/tenancy-pin.ts");
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    const readType = Node.prototype.getType;
-    const readSymbol = Node.prototype.getSymbol;
-    const plain = vi.spyOn(tenancyPin, "isPlainValue");
-    const previousLimit = Error.stackTraceLimit;
-    Error.stackTraceLimit = 100;
-    const pinFrame = (): boolean => new Error("pin frame").stack?.includes("/tooling/src/verify/lib/tenancy-pin.ts:") === true;
-    const typePoison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
-      if (this.getProject() === context.project && pinFrame()) {
-        throw new Error("ordinary pin-scoped Type read");
-      }
-      return readType.call(this);
-    });
-    const symbolPoison = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
-      if (this.getProject() === context.project && pinFrame()) {
-        throw new Error("ordinary pin-scoped Symbol read");
-      }
-      return readSymbol.call(this);
-    });
-    try {
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        policies: [gate],
-        knownPolicies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.factErrors).toEqual([]);
-      expect(result.authority.withheldPolicyIds).toEqual([]);
-      expect(result.authority.effectiveFindings).toEqual([]);
-      expect(plain.mock.calls.some(([value, , services]) => value.getText() === "principal.userId" && services !== undefined)).toBe(true);
-    } finally {
-      symbolPoison.mockRestore();
-      typePoison.mockRestore();
-      plain.mockRestore();
-      Error.stackTraceLimit = previousLimit;
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "missing native pin evidence withholds the maintained owner judgment instead of falling back",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    let restore: (() => void) | undefined;
-    try {
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        policies: [gate],
-        knownPolicies: [gate],
-        reviewedGrants: [],
-        failOnWarnings: false,
-        nativeTypeFacts: () => {
-          const session = context.nativeTypeFacts?.();
-          if (session === undefined) {
-            throw new Error("fixture has no native owner session");
-          }
-          const read = session.invocationEvidence;
-          const spy = vi.spyOn(session, "invocationEvidence").mockImplementation((owner, nodes, plan) => {
-            const delivered = read(owner, nodes, plan);
-            const stripped = [...new Set(delivered.values())].map((fact) => {
-              const { drizzleValueSources: _sources, ...rest } = fact;
-              return [fact, rest] as const;
-            });
-            const replacements = new Map(stripped);
-            return new Map(
-              [...delivered].map(([node, fact]) => {
-                const replacement = replacements.get(fact);
-                if (replacement === undefined) {
-                  throw new Error("fixture lost a delivered native fact");
-                }
-                return [node, replacement];
-              }),
-            );
-          });
-          restore = () => spy.mockRestore();
-          return session;
-        },
-      });
-      expect(result.factErrors).toEqual([]);
-      expect(result.toolErrors).toMatchObject([{ policyId: gate.id, phase: "evaluate", message: "native tenancy pin value-source facts are unavailable" }]);
-      expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
-    } finally {
-      restore?.();
-    }
-  },
-  scaledBudget(60_000),
-);
 
 test(
   "native pin service preserves source rejection, plain Type semantics and lifecycle refusals",
@@ -575,7 +201,7 @@ return db.select().from(personas).where(and(${expected.map(([text]) => `${text =
       ...gate,
       id: controlId,
       fix: `repair the native pin control, or waive with @orb-waive ${controlId}(position): reason`,
-      create: (ctx: Parameters<typeof gate.create>[0]): ReturnType<typeof gate.create> => {
+      create: (ctx: Parameters<typeof gate.create>[0]): GatePolicyHooks => {
         const anchors: ReadAnchor[] = [];
         const calls: CallExpression[] = [];
         const references: Node[] = [];
@@ -692,14 +318,15 @@ test(
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     const context = projectCtx(scratch);
+    const control = nativeStorageControl();
     const requests: NativeTypeRequest[] = [];
     let restore: (() => void) | undefined;
     try {
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
-        policies: [gate],
-        knownPolicies: [gate],
+        policies: [control],
+        knownPolicies: [control],
         reviewedGrants: [],
         failOnWarnings: false,
         nativeTypeFacts: () => {
@@ -824,3 +451,439 @@ test(
   },
   scaledBudget(60_000),
 );
+
+describe("canonical schema prerequisites remain hard failures", () => {
+  test(
+    "an ambiguous relational catalog withholds authority before publishing predicate bindings",
+    ({ scratch, repoRoot }) => {
+      fixture(
+        scratch,
+        repoRoot,
+        `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";import{personas as otherPersonas}from"../../../../../db/src/schema/other.ts";void otherPersonas;
+declare const db:LibSQLDatabase<typeof schema>;
+export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+      );
+      writeFileSync(
+        join(scratch, "packages/db/src/schema/other.ts"),
+        'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("other_personas",{id:text("id").primaryKey(),ownerId:text("owner_id").notNull()});',
+      );
+      writeFileSync(
+        join(scratch, "packages/db/tsconfig.json"),
+        JSON.stringify({ extends: "../../tsconfig.json", files: ["src/schema/persona.ts", "src/schema/other.ts"] }),
+      );
+      const { result, predicates } = capturedOwnerRead(scratch);
+      expect(result.toolErrors).toEqual([
+        { policyId: gate.id, phase: "evaluate", message: "direct owner-read schema identity disagrees with its full schema" },
+      ]);
+      expect(result.factErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+      expect(predicates.size).toBe(0);
+    },
+    scaledBudget(60_000),
+  );
+
+  test("a relational owner predicate without a native importing context withholds the policy", ({ scratch, repoRoot }) => {
+    fixture(
+      scratch,
+      repoRoot,
+      `import type{LibSQLDatabase}from"drizzle-orm/libsql";import*as schema from"../../../../../db/src/schema/persona.ts";
+declare const db:LibSQLDatabase<typeof schema>;
+export async function read(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+    );
+    const context = projectCtx(scratch);
+    const result = runPolicyPass({
+      root: scratch,
+      project: context.project,
+      policies: [gate],
+      knownPolicies: [gate],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
+    expect(result.factErrors).toEqual([
+      { factId: "drizzle-schema-data", phase: "create", message: "native type fact context is unavailable" },
+      { factId: "drizzle-schema-identities", phase: "create", message: "native type fact context is unavailable" },
+    ]);
+    expect(result.toolErrors).toEqual([
+      { policyId: gate.id, phase: "evaluate", message: "declared fact failed: drizzle-schema-data: create: native type fact context is unavailable" },
+    ]);
+    expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+  });
+});
+
+describe("D328 unsupported owner-consumer flows are explicit UNKNOWN coverage", () => {
+  test(
+    "relational callbacks, local table aliases and raw OR remain explicit owner-consumer unknowns",
+    ({ scratch, repoRoot }) => {
+      fixture(
+        scratch,
+        repoRoot,
+        `import type{LibSQLDatabase}from"drizzle-orm/libsql";
+import{and,eq,sql}from"drizzle-orm";
+import*as schema from"../../../../../db/src/schema/persona.ts";
+const{personas}=schema;declare const db:LibSQLDatabase<typeof schema>;
+export const safe=async(id:string,owner:string)=>{const owned=eq(personas.ownerId,owner);return db.select().from(personas).where(and(eq(personas.id,id),owned));};
+export const unsafe=async(id:string,owner:string)=>db.select().from(personas).where(and(eq(personas.ownerId,owner),sql\`1 OR \${personas.id}=\${id}\`));
+export async function scoped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+export async function idOnly(id:string){return db.query.personas.findFirst({where:(p,{eq})=>eq(p.id,id)});}
+`,
+      );
+      const { result, predicates } = capturedOwnerRead(scratch);
+      expect(result.toolErrors).toEqual([]);
+      expect(result.factErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 5, token: "personas", reason: "table is not a directly imported schema binding" }),
+          expect.objectContaining({ line: 6, token: "personas", reason: "table is not a directly imported schema binding" }),
+          expect.objectContaining({ line: 6, token: "sql`1 OR ${personas.id}=${id}`", reason: "raw SQL is outside the direct owned-ID diagnostic" }),
+          expect.objectContaining({ line: 7, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 8, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+        ],
+      });
+      expect(predicates.size).toBe(0);
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "relational mutation, renamed operators and borrowed signatures are not certified by partial owner analysis",
+    ({ scratch, repoRoot }) => {
+      fixture(
+        scratch,
+        repoRoot,
+        `import type{LibSQLDatabase}from"drizzle-orm/libsql";import{eq as nativeEq,type SQL}from"drizzle-orm";import*as schema from"../../../../../db/src/schema/persona.ts";
+declare const db:LibSQLDatabase<typeof schema>;
+declare function leak(operator:typeof nativeEq):SQL;
+export async function renamed(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and:both,eq:same})=>both(same(p.id,id),same(p.ownerId,owner))});}
+export async function rowWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(Object.assign(p.ownerId,{name:"id"}),and(eq(p.id,id),eq(p.ownerId,owner)))});}
+export async function operatorWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq})=>(eq=nativeEq,and(eq(p.id,id),eq(p.ownerId,owner)))});}
+export async function renamedWrite(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>(op=nativeEq,and(op(p.id,id),op(p.ownerId,owner)))});}
+export async function escaped(id:string,owner:string){return db.query.personas.findFirst({where:(p,{and,eq:op})=>and(op(p.id,id),op(p.ownerId,owner),leak(op))});}
+declare const foreign:{query:{personas:{findFirst:typeof db.query.personas.findFirst}}};
+export async function borrowed(id:string,owner:string){return foreign.query.personas.findFirst({where:(p,{and,eq})=>and(eq(p.id,id),eq(p.ownerId,owner))});}
+`,
+      );
+      const { result, predicates } = capturedOwnerRead(scratch);
+      expect(result.toolErrors).toEqual([]);
+      expect(result.factErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 4, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 5, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 6, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 7, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 8, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 10, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+        ],
+      });
+      expect(predicates.size).toBe(0);
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "an unsupported helper is unknown without consulting SQL containment or ordinary carrier semantics",
+    ({ scratch, repoRoot }) => {
+      fixture(scratch, repoRoot);
+      const context = projectCtx(scratch);
+      const readType = Node.prototype.getType;
+      const readSymbol = Node.prototype.getSymbol;
+      const previousLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = 100;
+      const sqlFrame = (): boolean => /\/drizzle-(?:sql[^/]*|predicate|statement)\.ts:/u.test(new Error("SQL frame").stack ?? "");
+      const typePoison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+        if (this.getProject() === context.project && sqlFrame()) {
+          throw new Error("ordinary SQL containment Type read");
+        }
+        return readType.call(this);
+      });
+      const symbolPoison = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
+        if (this.getProject() === context.project && sqlFrame()) {
+          throw new Error("ordinary SQL containment Symbol read");
+        }
+        return readSymbol.call(this);
+      });
+      try {
+        const result = runPolicyPass({
+          root: scratch,
+          project: context.project,
+          ...nativeTypeFactOptions(context),
+          policies: [gate],
+          knownPolicies: [gate],
+          reviewedGrants: [],
+          failOnWarnings: false,
+        });
+        expect(result.toolErrors).toEqual([]);
+        expect(result.factErrors).toEqual([]);
+        expect(result.authority.withheldPolicyIds).toEqual([]);
+        expect(result.authority.effectiveFindings).toEqual([]);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
+      } finally {
+        symbolPoison.mockRestore();
+        typePoison.mockRestore();
+        Error.stackTraceLimit = previousLimit;
+      }
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "unknown helpers do not request native SQL invocation facts",
+    ({ scratch, repoRoot }) => {
+      fixture(scratch, repoRoot);
+      const context = projectCtx(scratch);
+      let restore: (() => void) | undefined;
+      try {
+        const result = runPolicyPass({
+          root: scratch,
+          project: context.project,
+          policies: [gate],
+          knownPolicies: [gate],
+          reviewedGrants: [],
+          failOnWarnings: false,
+          nativeTypeFacts: () => {
+            const session = context.nativeTypeFacts?.();
+            if (session === undefined) {
+              throw new Error("fixture has no native owner session");
+            }
+            const read = session.invocationEvidence;
+            const spy = vi
+              .spyOn(session, "invocationEvidence")
+              .mockImplementation(
+                (owner, nodes, plan) => new Map([...read(owner, nodes, plan)].map(([node, fact]) => [node, { ...fact, drizzleSql: undefined }])),
+              );
+            restore = () => spy.mockRestore();
+            return session;
+          },
+        });
+        expect(result.factErrors).toEqual([]);
+        expect(result.toolErrors).toEqual([]);
+        expect(result.factErrors).toEqual([]);
+        expect(result.authority.withheldPolicyIds).toEqual([]);
+        expect(result.authority.effectiveFindings).toEqual([]);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
+      } finally {
+        restore?.();
+      }
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "helper alternatives, optional SQL, scalar aliases and mutable SQL carriers remain unknown",
+    ({ scratch, repoRoot }) => {
+      fixture(
+        scratch,
+        repoRoot,
+        `
+import type {BaseSQLiteDatabase} from "drizzle-orm/sqlite-core";
+import {and, eq, sql, type SQL} from "drizzle-orm";
+import {personas} from "../../../../../db/src/schema/persona.ts";
+import {owned} from "./predicate.ts";
+declare const db: BaseSQLiteDatabase<"async", void>;
+function identity(value: SQL | undefined) { return value; }
+export async function safe(id: string, owner: string) {
+  return db.select().from(personas).where(and(eq(personas.id, id), owned(owner)));
+}
+export async function optional(id: string, owner: string, flag: boolean) {
+  return db.select().from(personas).where(and(eq(personas.id, id), identity(flag ? eq(personas.ownerId, owner) : undefined)));
+}
+export async function aliased(id: string, owner: string) {
+  const held = owner;
+  return db.select().from(personas).where(and(eq(personas.id, id), owned(held)));
+}
+export async function opaque(id: string, owner: string, emitted: SQL) {
+  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), emitted));
+}
+export async function mutated(id: string, owner: string) {
+  const child = sql\`1\`;
+  child.append(sql.raw(id));
+  return db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, owner), child));
+}
+`,
+      );
+      const context = projectCtx(scratch);
+      const result = runPolicyPass({
+        root: scratch,
+        project: context.project,
+        ...nativeTypeFactOptions(context),
+        policies: [gate],
+        knownPolicies: [gate],
+        reviewedGrants: [],
+        failOnWarnings: false,
+      });
+      expect(result.toolErrors).toEqual([]);
+      expect(result.factErrors).toEqual([]);
+      expect(result.authority.withheldPolicyIds).toEqual([]);
+      expect(result.authority.effectiveFindings).toEqual([]);
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 9, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 12, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 16, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 19, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 22, token: "sql`1`", reason: "raw SQL is outside the direct owned-ID diagnostic" }),
+          expect.objectContaining({ line: 24, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+        ],
+      });
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "unsupported helper parameters are unknown rather than classified through ordinary carrier Types",
+    ({ scratch, repoRoot }) => {
+      fixture(scratch, repoRoot);
+      const context = projectCtx(scratch);
+      const readType = Node.prototype.getType;
+      const poison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+        if (this.getProject() === context.project && this.getText() === "principal.userId") {
+          throw new Error(`ordinary supplied tenancy-pin Type read\n${new Error("ordinary pin caller").stack ?? "stack unavailable"}`);
+        }
+        return readType.call(this);
+      });
+      try {
+        const result = runPolicyPass({
+          root: scratch,
+          project: context.project,
+          ...nativeTypeFactOptions(context),
+          policies: [gate],
+          knownPolicies: [gate],
+          reviewedGrants: [],
+          failOnWarnings: false,
+        });
+        expect(result.toolErrors).toEqual([]);
+        expect(result.factErrors).toEqual([]);
+        expect(result.authority.withheldPolicyIds).toEqual([]);
+        expect(result.authority.effectiveFindings).toEqual([]);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
+      } finally {
+        poison.mockRestore();
+      }
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "the partial owner consumer does not enter generic pin classification for helper operands",
+    async ({ scratch, repoRoot }) => {
+      const tenancyPin = await import("../../../../tooling/src/verify/lib/tenancy-pin.ts");
+      fixture(scratch, repoRoot);
+      const context = projectCtx(scratch);
+      const readType = Node.prototype.getType;
+      const readSymbol = Node.prototype.getSymbol;
+      const plain = vi.spyOn(tenancyPin, "isPlainValue");
+      const previousLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = 100;
+      const pinFrame = (): boolean => new Error("pin frame").stack?.includes("/tooling/src/verify/lib/tenancy-pin.ts:") === true;
+      const typePoison = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
+        if (this.getProject() === context.project && pinFrame()) {
+          throw new Error("ordinary pin-scoped Type read");
+        }
+        return readType.call(this);
+      });
+      const symbolPoison = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
+        if (this.getProject() === context.project && pinFrame()) {
+          throw new Error("ordinary pin-scoped Symbol read");
+        }
+        return readSymbol.call(this);
+      });
+      try {
+        const result = runPolicyPass({
+          root: scratch,
+          project: context.project,
+          ...nativeTypeFactOptions(context),
+          policies: [gate],
+          knownPolicies: [gate],
+          reviewedGrants: [],
+          failOnWarnings: false,
+        });
+        expect(result.toolErrors).toEqual([]);
+        expect(result.factErrors).toEqual([]);
+        expect(result.authority.withheldPolicyIds).toEqual([]);
+        expect(result.authority.effectiveFindings).toEqual([]);
+        expect(plain).not.toHaveBeenCalled();
+        expect(result.policies[0]?.analysis?.unknown.length).toBeGreaterThan(0);
+      } finally {
+        symbolPoison.mockRestore();
+        typePoison.mockRestore();
+        plain.mockRestore();
+        Error.stackTraceLimit = previousLimit;
+      }
+    },
+    scaledBudget(60_000),
+  );
+
+  test(
+    "unsupported helpers require no native value-source invocation evidence",
+    ({ scratch, repoRoot }) => {
+      fixture(scratch, repoRoot);
+      const context = projectCtx(scratch);
+      let restore: (() => void) | undefined;
+      try {
+        const result = runPolicyPass({
+          root: scratch,
+          project: context.project,
+          policies: [gate],
+          knownPolicies: [gate],
+          reviewedGrants: [],
+          failOnWarnings: false,
+          nativeTypeFacts: () => {
+            const session = context.nativeTypeFacts?.();
+            if (session === undefined) {
+              throw new Error("fixture has no native owner session");
+            }
+            const read = session.invocationEvidence;
+            const spy = vi.spyOn(session, "invocationEvidence").mockImplementation((owner, nodes, plan) => {
+              const delivered = read(owner, nodes, plan);
+              const stripped = [...new Set(delivered.values())].map((fact) => {
+                const { drizzleValueSources: _sources, ...rest } = fact;
+                return [fact, rest] as const;
+              });
+              const replacements = new Map(stripped);
+              return new Map(
+                [...delivered].map(([node, fact]) => {
+                  const replacement = replacements.get(fact);
+                  if (replacement === undefined) {
+                    throw new Error("fixture lost a delivered native fact");
+                  }
+                  return [node, replacement];
+                }),
+              );
+            });
+            restore = () => spy.mockRestore();
+            return session;
+          },
+        });
+        expect(result.factErrors).toEqual([]);
+        expect(result.toolErrors).toEqual([]);
+        expect(result.factErrors).toEqual([]);
+        expect(result.authority.withheldPolicyIds).toEqual([]);
+        expect(result.authority.effectiveFindings).toEqual([]);
+        expect(result.policies[0]?.analysis?.unknown.length).toBeGreaterThan(0);
+      } finally {
+        restore?.();
+      }
+    },
+    scaledBudget(60_000),
+  );
+});

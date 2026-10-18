@@ -58,6 +58,7 @@ export function createRuns({ runs, paths, resources, checker, nativeTypes, error
       ...narrowedRequest(run, applicationPaths),
     });
     run.finishReceipts = runtime.finishReceipts;
+    run.finishAnalysis = runtime.finishAnalysis;
     run.unconsumedFacts = runtime.unconsumedFacts;
     run.unconsumedResources = runtime.unconsumedResources;
     run.unconsumedResourceRequests = runtime.unconsumedResourceRequests;
