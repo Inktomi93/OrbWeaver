@@ -8,7 +8,7 @@ import { resolved } from "../../floor/code-facts/type-member-origin-core.ts";
 import { captureTypeSelections } from "../../floor/code-facts/type-projection.ts";
 import { selectedTypeRelation } from "../../floor/code-facts/type-projection-contract.ts";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
-import type { SchemaModel } from "../contract/schema-fact.ts";
+import type { SchemaColumn, SchemaModel } from "../contract/schema-fact.ts";
 import { nativeJsonColumnSchemaReaders } from "./json-column-native-readers.ts";
 import { readJsonColumnNormalizer } from "./json-column-normalizer.ts";
 import type { jsonColumnObservedReaders } from "./json-column-observed-readers.ts";
@@ -16,7 +16,7 @@ import type { jsonColumnObservedReaders } from "./json-column-observed-readers.t
 function normalization(call: CallExpression, proof: DrizzleNormalization["proof"], schema: SchemaModel): DrizzleNormalization {
   const output = proof.schema.getType().getProperty("_output")?.getTypeAtLocation(proof.schema);
   const input = call.getArguments()[0] ?? call;
-  const matches = new Map<import("../contract/schema-fact.ts").SchemaColumn, DrizzleNormalizationMatch>();
+  const matches = new Map<SchemaColumn, DrizzleNormalizationMatch>();
   for (const column of schema.tables.flatMap((table) => table.columns)) {
     const shape = column.typeOverride?.type;
     if (shape === undefined || column.json === null) {

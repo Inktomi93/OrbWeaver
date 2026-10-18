@@ -93,11 +93,6 @@ export function gitLsFiles(root: string, args: readonly string[]): readonly stri
   return result.stdout.split("\0").filter((path) => path.length > 0);
 }
 
-/** Compatibility read for the structure-scoped door: deletions remain in this all-path view. */
-export function gitChangedPaths(root: string = ROOT): readonly string[] {
-  return gitChangedPathClassification(root).paths;
-}
-
 // THE BRANCH-DIFF READ WENT WITH ITS CALLER AT #1842 AND IS BACK WITH A NEW ONE (#1967, 2026-09-19).
 // `branchChangedPaths` existed for #1523's `tests:tooling` push-tier precondition; the owner took the
 // instrument battery off `--push` on 2026-09-06 and the read went with the rung it served, with that

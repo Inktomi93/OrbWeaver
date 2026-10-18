@@ -12,9 +12,9 @@ import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
 import { ownDataFieldNames } from "../../floor/code-facts/shape-fields.ts";
 
 /** A candidate needs this many own data fields; three-field overlaps are mostly coincidence. */
-export const MIN_COPY_FIELDS = 4;
+const MIN_COPY_FIELDS = 4;
 /** The share of shared fields whose types must agree. */
-export const TYPE_AGREEMENT_FLOOR = 0.8;
+const TYPE_AGREEMENT_FLOOR = 0.8;
 
 const REFUSALS: Readonly<Record<AssignabilityRefusalKind, string>> = {
   "primitive-absent":

@@ -138,16 +138,8 @@ function jsonTableOf(
   return table === undefined || cols === undefined ? undefined : { table, cols };
 }
 
-/** Every `<table>.<column>` a domain `.set()` writes → its classified writers. */
-export function collectJsonWritersByColumn(
-  calls: readonly CallExpression[],
-  jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
-  context: JsonColumnOriginContext,
-): Map<string, JsonColumnWriter[]> {
-  return collectJsonWritersByColumnWith(calls, jsonColumns, () => context);
-}
-
-/** Each native importing world supplies its own sealed questions while the writer population/order stays unchanged. */
+/** Every `<table>.<column>` a domain `.set()` writes → its classified writers. Each native importing world supplies
+ *  its own sealed questions while the writer population/order stays unchanged. */
 export function collectJsonWritersByColumnWith(
   calls: readonly CallExpression[],
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,

@@ -43,7 +43,7 @@ const MS_PER_MINUTE = 60_000;
 const POLL_MS = 2000;
 const TICKET_ID_BYTES = 6;
 
-export const PROD_STAGE_WAIT_DEPS: StageWaitDeps = {
+const PROD_STAGE_WAIT_DEPS: StageWaitDeps = {
   now: (): number => Date.now(),
   sleep: async (ms): Promise<void> => {
     await sleep(ms);

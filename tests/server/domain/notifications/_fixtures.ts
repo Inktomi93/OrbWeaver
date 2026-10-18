@@ -52,7 +52,7 @@ interface NotificationDecisions {
   readonly room: NotificationActors["room"];
 }
 
-export async function clearInbox(harness: ServerTestHarness, principal: Principal): Promise<void> {
+async function clearInbox(harness: ServerTestHarness, principal: Principal): Promise<void> {
   await harness.services.notifications.markAllRead({ principal });
   const page = await harness.services.notifications.list({ principal });
   for (const view of page.items) {

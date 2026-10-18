@@ -59,7 +59,6 @@ export type {
   NewConnection,
   TrackerDefInput,
   TrpcInput,
-  TrpcPath,
 } from "@orb/testkit/browser/trpc-wire.ts";
 
 /** The first batch entry's `result.data`, or `undefined` when that entry carries an error or no result. tRPC

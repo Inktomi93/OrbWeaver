@@ -23,7 +23,7 @@ export const TESTID_FN = "testId";
 /** The story-side registry's home: ids a CT story stamps that no production component mints. */
 export const STORY_TESTID_REGISTRY_HOME = "tests/support/browser/story-test-ids.ts";
 /** The story registry's exported const, matched BY NAME like the production one. */
-export const STORY_TESTID_REGISTRY_CONST = "STORY_TEST_IDS";
+const STORY_TESTID_REGISTRY_CONST = "STORY_TEST_IDS";
 /** The story accessor: `storyTestId("key")` stamps a story registry row. */
 export const STORY_TESTID_FN = "storyTestId";
 

@@ -14,7 +14,6 @@ import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess 
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
-import { readPredicateArgument } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
@@ -128,17 +127,6 @@ export function sameReadReceiver(left: Node, right: Node | string): boolean {
   const a = identity(left);
   const b = identity(right);
   return a !== undefined && b !== undefined && a.node.compilerNode === b.node.compilerNode && a.member === b.member;
-}
-
-/** Only a column on the actual receiver counts, including after an imported builder return. */
-export function predicatesReadColumn(predicate: Node, receiver: Node, column: string, bindings: ReadonlyMap<Node, Node> = new Map()): boolean {
-  return readMemberUses(predicate).some((fact) => {
-    if (fact.kind === "unresolved" || fact.value.name !== column) {
-      return false;
-    }
-    const actual = readPredicateArgument(fact.value.receiver, bindings);
-    return actual.kind === "resolved" && sameReadReceiver(actual.value, receiver);
-  });
 }
 
 /** Does this predicate name the exact local table binding's column? Text elsewhere in the expression is not

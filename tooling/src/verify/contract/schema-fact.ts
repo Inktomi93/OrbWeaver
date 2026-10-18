@@ -6,22 +6,13 @@ import type { GatePolicyContext } from "./policy.ts";
 export type {
   ReadySchemaFact,
   SchemaColumn,
-  SchemaColumnBuilder,
   SchemaColumnIdentity,
-  SchemaColumnTypeOverride,
   SchemaFact,
-  SchemaFactReceipt,
   SchemaFactStatus,
   SchemaForeignKey,
-  SchemaIndex,
-  SchemaJsonColumn,
-  SchemaJsonShape,
   SchemaModel,
   SchemaQuery,
-  SchemaQueryOptions,
   SchemaTable,
-  SchemaTableForeignKey,
-  SchemaTableIdentity,
 } from "../../floor/code-facts/schema-model-contract.ts";
 
 /** Consumer-side proof that the shared schema denominator was complete before a policy judged it. */

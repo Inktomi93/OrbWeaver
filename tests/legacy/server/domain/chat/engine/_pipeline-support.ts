@@ -155,7 +155,7 @@ type PipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;
 
 /** The history rows a prompt cache writes on this turn: every row up to the deepest breakpoint the runner places.
  *  The runner pins depth d and d+2 (`computeCacheBreakpointPlacements`); the deeper one drops off a short history. */
-export function cachedHead(result: PipelineResult): TurnRequest["history"] {
+function cachedHead(result: PipelineResult): TurnRequest["history"] {
   const depth = result.request.cacheBreakpointFromEnd;
   if (depth === null) {
     return [];
