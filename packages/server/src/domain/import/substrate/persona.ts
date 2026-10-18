@@ -5,6 +5,7 @@
 
 import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
+import { z } from "zod";
 import type { ParsedPersona, ParsedPersonas } from "../contract/views.ts";
 
 function str(v: unknown): string {
@@ -26,6 +27,8 @@ const ST_TOP_AN = 2;
 const ST_BOTTOM_AN = 3;
 const ST_AT_DEPTH = 4;
 const ST_NONE = 9;
+// Numeric JSON arrays remain accepted; uncoercible descriptors use the existing absent-value fallback.
+const descriptorNumberSchema = z.coerce.number().catch(Number.NaN);
 
 /** null = unknown/absent → caller treats as the in_prompt default. */
 function stPositionToPlacement(rawPos: number): PersonaDescriptionPosition | null {
@@ -46,7 +49,7 @@ function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Rec
   if (descriptor === null) {
     return null;
   }
-  const rawPos = Number(descriptor["position"]);
+  const rawPos = descriptorNumberSchema.parse(descriptor["position"]);
   const position = stPositionToPlacement(rawPos);
   if (position === null || position === "in_prompt") {
     return null;
@@ -57,7 +60,7 @@ function metadataFromDescriptor(descriptor: Record<string, unknown> | null): Rec
   // Only ST's real AT_DEPTH carries depth/role; TOP_AN/BOTTOM_AN take the at-depth defaults.
   const meta: Record<string, unknown> = { descriptionPosition: "at_depth" };
   if (rawPos === ST_AT_DEPTH) {
-    const depth = Number(descriptor["depth"]);
+    const depth = descriptorNumberSchema.parse(descriptor["depth"]);
     const role = messageRoleFromSt(descriptor["role"]);
     if (Number.isInteger(depth) && depth >= 0) {
       meta["inject"] = { depth, ...(role !== null ? { role } : {}) };
