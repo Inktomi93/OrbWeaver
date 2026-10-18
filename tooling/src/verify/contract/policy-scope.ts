@@ -3,7 +3,6 @@
 import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs-contract.ts";
 
 export type {
-  CompilerConfigEntries,
   CompilerProgram,
   CompilerSourceOverlay,
 } from "../../floor/compiler/compiler-programs-contract.ts";

@@ -1,7 +1,7 @@
 import type { StringLiteral } from "ts-morph";
 import type { PackageFileReach } from "../../floor/code-facts/module-reach-contract.ts";
 
-export const TEST_IMPORT_DOOR_KINDS = ["relative-package", "relative-testkit", "raw-package"] as const;
+const TEST_IMPORT_DOOR_KINDS = ["relative-package", "relative-testkit", "raw-package"] as const;
 
 interface TestImportDoorFields {
   readonly "relative-package": PackageFileReach;

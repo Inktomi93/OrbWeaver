@@ -47,7 +47,7 @@ export interface OrdinaryWaiverMatchResult {
   readonly bindingFailures: readonly OrdinaryWaiverBindingFailure[];
 }
 
-export interface OrdinaryWaiverReconciliationInput {
+interface OrdinaryWaiverReconciliationInput {
   readonly analysisGaps?: ReadonlyMap<string, NonNullable<GateOwnerResult["analysisGaps"]>>;
   readonly completedPolicyIds: readonly string[];
   /** Effective population of each completed owner that covered only a subset; its markers outside it are not judged. */

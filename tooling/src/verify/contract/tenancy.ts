@@ -4,7 +4,6 @@
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
 import type { Node } from "ts-morph";
 import type { DrizzleValueSourceEvidence } from "../../floor/code-facts/drizzle-query-contract.ts";
-import type { CallReturnObservations } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import type { GatePolicyAnalysisDetails } from "./policy.ts";
 
@@ -40,42 +39,6 @@ export type TableRef =
   | { readonly kind: "no-table" }
   | { readonly kind: "unresolved" };
 
-export type { ReadStatement } from "../../floor/code-facts/drizzle-query-contract.ts";
-
-/** One FK-chain term binding a joined table: the bound table's declared identifier, its receiver as written
- *  (`chats`, or an alias), and the bound column as written (`chats.anchorPersonaId`), which a by-id term must
- *  not select on. */
-export interface ChainTerm {
-  readonly boundTable: string;
-  readonly boundReceiver: string;
-  readonly boundColumn: string;
-  readonly boundRead: Node;
-}
-
-/** One declared foreign key from a child table to a parent table, by column property name. */
-export interface ForeignKeyColumns {
-  readonly childColumn: string;
-  readonly parentColumn: string;
-}
-
-export interface ValuePinTarget {
-  readonly receiver: string | Node;
-  readonly column?: string;
-}
-
-export interface ForeignKeyParentRead {
-  readonly receiver: string | Node;
-  readonly fk: ForeignKeyColumns;
-  readonly parent: string;
-}
-
-export interface TenancySchema {
-  readonly index: SchemaTableIndex;
-  readonly fkEdges: ReadonlySet<string>;
-  readonly observations?: CallReturnObservations;
-  readonly pins?: TenancyPinServices;
-}
-
 /** Native facts retain source rejection and type classification as separate consumer judgments. */
 export interface TenancyPinServices {
   readonly sourceEvidence: (node: Node) => DrizzleValueSourceEvidence;
@@ -102,14 +65,6 @@ export interface ValueSources {
   readonly unresolved: boolean;
   readonly receivers: readonly ValueReceiver[];
   readonly subselects: readonly Node[];
-}
-
-/** What a predicate's conjuncts are, read through `and(…)`, `const` bindings, array spreads and one helper hop:
- *  the leaf terms, and whether some conjunct could not be read (a parameter, a `let`, a destructured binding,
- *  a spread of a non-literal array, or a helper whose returns no reader resolves). */
-export interface ConjunctLeaves {
-  readonly leaves: readonly Node[];
-  readonly opaque: boolean;
 }
 
 /** A local observation, not runtime authorization or SQL-carrier containment. */

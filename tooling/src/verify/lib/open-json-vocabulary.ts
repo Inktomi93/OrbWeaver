@@ -6,7 +6,7 @@
 // the SQL reader there because they share its templates. One-way: this module imports nothing from it.
 
 import type { BinaryExpression, PropertyAssignment, Node as TsNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import type { SchemaProjectedColumn, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { NativeTypeVocabulary } from "../../floor/code-facts/type-projection-contract.ts";
 import type {
@@ -107,18 +107,6 @@ function typeKeys(t: NativeTypeVocabulary): ReadonlySet<string> | undefined {
 export interface Vocab {
   readonly keys: Set<string>;
   opaque: boolean; // at least one writer's value shape is unknowable
-}
-
-/** Strip the wrappers that never change a value's shape. */
-export function unwrap(node: TsNode): TsNode {
-  let cur = node;
-  for (;;) {
-    if (Node.isParenthesizedExpression(cur) || Node.isAsExpression(cur) || Node.isNonNullExpression(cur) || Node.isSatisfiesExpression(cur)) {
-      cur = cur.getExpression();
-    } else {
-      return cur;
-    }
-  }
 }
 
 const MAX_HOP = 2;

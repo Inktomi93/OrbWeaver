@@ -167,14 +167,6 @@ export function codeTextForScan(sf: SourceFile, couldMatch: (raw: string) => boo
   return couldMatch(raw) ? blankTsComments(sf) : raw;
 }
 
-/** Does this needle occur in the file's CODE? The presence-check door: a needle named only in a comment is
- *  prose, and reading prose as code has now cost two gates (issue #117 hex colors, #132 determinism calls) —
- *  in the PERMISSIVE direction it is worse, because a comment mentioning the thing SATISFIES the check and
- *  the gate goes silently green. Fenced: the raw `includes` runs first, so a non-candidate never parses. */
-export function codeIncludes(sf: SourceFile, needle: string): boolean {
-  return sf.getFullText().includes(needle) && blankTsComments(sf).includes(needle);
-}
-
 /** Index just past the quoted string literal starting at `i` (an unterminated one runs to EOF). Shared
  *  by the CSS and the JSON-with-comments lexers below — both quote with `"`/`'` and escape with `\`. */
 function endOfQuotedString(text: string, i: number): number {

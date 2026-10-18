@@ -69,7 +69,7 @@ export function classAuthored(
   return requiredInvocationFact(read.evidence.authoredValues, node).value;
 }
 
-export function classMeaningfulTypes(
+function classMeaningfulTypes(
   node: Node,
   read: StaticClassNativeContext,
 ): readonly import("../../floor/code-facts/type-projection-contract.ts").NativeTypeSelector[] {

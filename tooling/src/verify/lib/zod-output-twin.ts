@@ -1,8 +1,8 @@
 // Canonical ZodType declaration identity and exact output parity; input is not this contract.
 import type { Expression, Node as MorphNode, PropertyDeclaration, SourceFile, TypeNode, VariableDeclaration } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import { Node } from "ts-morph";
 import { createTypeObservationCapture } from "../../floor/code-facts/type-observations.ts";
-import type { ObservedReference, TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { ZOD_OUTPUT_PROPERTY } from "../../floor/code-facts/type-observations-contract.ts";
 import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { nodeTypeSelector, typeArgumentSelector } from "../../floor/code-facts/type-projection-contract.ts";
@@ -43,9 +43,6 @@ function canonicalZodType(selector: NativeTypeSelector, readers: TypeObservation
   );
 }
 
-export function zodTypeReferenceIdentity(node: TypeNode): "canonical" | "none" | "unresolved" {
-  return zodTypeReferenceIdentityWith(node, nativeZodTypeReaders(node));
-}
 export function zodTypeReferenceIdentityWith(node: TypeNode, readers: TypeObservationReader): "canonical" | "none" | "unresolved" {
   if (!Node.isTypeReference(node) || node.getTypeArguments().length === 0) {
     return "none";
@@ -167,18 +164,12 @@ function annotationOwnsInitializer(declaration: VariableDeclaration | PropertyDe
   return annotation !== undefined && zodTypeReferenceIdentityWith(annotation, readers) !== "none";
 }
 /** A declaration with a value makes one independently checkable authored output promise. */
-export function readAnnotatedZodOutputTwin(declaration: VariableDeclaration | PropertyDeclaration): ZodOutputTwinRead {
-  return readAnnotatedZodOutputTwinWith(declaration, nativeZodTypeReaders(declaration));
-}
 export function readAnnotatedZodOutputTwinWith(declaration: VariableDeclaration | PropertyDeclaration, readers: TypeObservationReader): ZodOutputTwinRead {
   const target = declaration.getTypeNode();
   const initializer = declaration.getInitializer();
   return target === undefined || initializer === undefined ? { kind: "none" } : pair(target, initializer, declaration.getNameNode(), readers);
 }
 /** Preserve annotation ownership and nested transparent expression suppression. */
-export function readExpressionZodOutputTwin(node: MorphNode): ZodOutputTwinRead {
-  return readExpressionZodOutputTwinWith(node, nativeZodTypeReaders(node));
-}
 export function readExpressionZodOutputTwinWith(node: MorphNode, readers: TypeObservationReader): ZodOutputTwinRead {
   if (!(Node.isSatisfiesExpression(node) || Node.isAsExpression(node) || Node.isTypeAssertion(node))) {
     return { kind: "none" };
@@ -260,12 +251,4 @@ export function readContextualZodOutputTwinWith(expression: Expression, carrier:
     return { kind: "none" };
   }
   return pairWithTarget(contextual, expression, carrier, { readers, schema: schemaSelector });
-}
-
-/** Raw symbol observations preserve every identifier binding in an authored type node. */
-export function typeNodeIdentifierSymbols(typeNode: TypeNode, readers: TypeObservationReader): readonly ObservedReference<"symbol">[] {
-  return typeNode.getDescendantsOfKind(SyntaxKind.Identifier).flatMap((identifier) => {
-    const symbol = readers.symbol(identifier);
-    return symbol === null ? [] : [symbol];
-  });
 }

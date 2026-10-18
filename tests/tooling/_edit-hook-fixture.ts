@@ -10,7 +10,7 @@ import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 export const HOOK_REL = ".claude/hooks/biome-check.mjs";
-export const CODEX_HOOK_REL = ".claude/hooks/codex-edit-advisory.mjs";
+const CODEX_HOOK_REL = ".claude/hooks/codex-edit-advisory.mjs";
 
 export function git(cwd: string, ...args: string[]): void {
   execFixtureGit(cwd, ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args]);

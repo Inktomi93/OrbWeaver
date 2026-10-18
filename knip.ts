@@ -70,8 +70,6 @@ export const config = {
       // knip's Stryker plugin only globs `.js`/`.mjs`/`.cjs`/`.json` configs; naming the `.ts` configs is
       // what lets it read `testRunner`/`checkers` and credit the runner and checker packages.
       stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
-      // These imports execute inside the captured browser runtime, not against repository-relative modules.
-      ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
     // @orb/testkit: every world module is a package subpath export, so each one is an entry.
     "tests/support": {

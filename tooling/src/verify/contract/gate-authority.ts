@@ -185,7 +185,7 @@ export type WaiverBudget = Readonly<Record<WaiverBudgetPart, Readonly<Record<str
 
 /** The population a run judges the budget over, fixed by its selection: an application run walks the application
  *  part of every policy; every other run walks a policy's whole declared population, both parts. */
-export const WAIVER_BUDGET_POPULATIONS = ["application", "repository"] as const;
+const WAIVER_BUDGET_POPULATIONS = ["application", "repository"] as const;
 export type WaiverBudgetPopulation = (typeof WAIVER_BUDGET_POPULATIONS)[number];
 
 export interface WaiverBudgetJudgement {

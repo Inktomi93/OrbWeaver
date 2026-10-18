@@ -33,7 +33,7 @@ export interface GateFact<Value = unknown> {
   readonly create: (context: GateFactContext) => GateFactHooks<Value>;
 }
 
-export interface GateFactInput {
+interface GateFactInput {
   readonly provider: GateFact;
   readonly input: readonly string[];
 }

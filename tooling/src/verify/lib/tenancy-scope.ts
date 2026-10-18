@@ -62,7 +62,7 @@
 //   are deliberately not merged.
 import type { SchemaProjectedModel, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { SchemaForeignKey } from "../contract/schema-fact.ts";
-import type { ForeignKeyColumns, SchemaTableIndex } from "../contract/tenancy.ts";
+import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import type { ScopingRow, TableShape } from "../contract/tenancy-scope.ts";
 import { TABLE_SCOPING_ROWS } from "./tenancy-scope-rows.ts";
 
@@ -194,18 +194,6 @@ export function foreignKeyEdges(model: SchemaProjectedModel): ReadonlySet<string
       (pair) => `${foreignKeyColumnKey(pair.childTable, pair.childColumn)}${EDGE_ARROW}${foreignKeyColumnKey(pair.parentTable, pair.parentColumn)}`,
     ),
   );
-}
-
-/** The declared foreign keys from `child` to `parent`, read back out of {@link foreignKeyEdges}. */
-export function foreignKeysBetween(fkEdges: ReadonlySet<string>, child: string, parent: string): readonly ForeignKeyColumns[] {
-  const childPrefix = foreignKeyColumnKey(child, "");
-  const parentPrefix = foreignKeyColumnKey(parent, "");
-  return [...fkEdges].flatMap((edge) => {
-    const [from, to] = edge.split(EDGE_ARROW);
-    return from?.startsWith(childPrefix) === true && to?.startsWith(parentPrefix) === true
-      ? [{ childColumn: from.slice(childPrefix.length), parentColumn: to.slice(parentPrefix.length) }]
-      : [];
-  });
 }
 
 /** The scope-bearing parents of every DERIVED table (class `parent` or `junction`, D23): the ownerId- or

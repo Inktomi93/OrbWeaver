@@ -89,7 +89,7 @@ export interface BusReadyFact extends BusFactBase {
   readonly status: "ready";
 }
 
-export interface BusNonReadyFact extends BusFactBase {
+interface BusNonReadyFact extends BusFactBase {
   readonly status: Exclude<BusFactStatus, "ready">;
 }
 
@@ -103,7 +103,7 @@ export function recordReadyBusFact(context: GatePolicyContext, fact: BusFact): a
   context.receipt({ kind: "population", source: fact.receipt.source, members: fact.receipt.members });
 }
 
-export function describeBusFactFailure(fact: BusNonReadyFact): string {
+function describeBusFactFailure(fact: BusNonReadyFact): string {
   const details = fact.unresolved.map(({ stage, reason, detail }) => `${stage}/${reason}: ${detail}`).join("; ");
   return `bus fact ${fact.status}: ${details || "no readable bus identities"}`;
 }
@@ -118,7 +118,7 @@ export type BusTypedDiscriminators =
 /** Which proven sink an emitter call reaches: the one bus-channel publisher, or an injected callable. */
 export type EmitterSinkKind = "channel" | "injected";
 
-export const BUS_PROVIDER_KINDS = ["producer", "definition", "payload"] as const;
+const BUS_PROVIDER_KINDS = ["producer", "definition", "payload"] as const;
 export type BusProviderKind = (typeof BUS_PROVIDER_KINDS)[number];
 export interface BusNativeRead {
   readonly context: BusReadContext;
