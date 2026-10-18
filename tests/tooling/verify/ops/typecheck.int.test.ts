@@ -1,5 +1,5 @@
 // Unified native typecheck execution discovers programs, expands references, and never bails early.
-import { copyFileSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -413,4 +413,34 @@ test("program concurrency obeys the supplied profile cap and the compiler argv s
   expect(argv).toEqual(expect.arrayContaining(["--noEmit", "--pretty", "false", "-p", "a/tsconfig.json"]));
   expect(argv).not.toContain("--incremental");
   expect(argv).not.toContain("--tsBuildInfoFile");
+});
+
+test("application source eligibility is retained while its actual client child consumes the declaration view", { timeout: TIMEOUT }, async ({
+  runCli,
+  scratch,
+  repoRoot,
+}) => {
+  plantApplicationRepo(scratch, repoRoot);
+  plant(scratch, {
+    ".gitignore": "node_modules\ntest-results\n.cache\npackages/server/dist\n",
+    "packages/server/package.json": JSON.stringify({
+      type: "module",
+      exports: { ".": "./src/index.ts", "./router-types": { types: "./dist/router-types/index.d.ts" } },
+    }),
+    "packages/server/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src", "../../reset.d.ts", "../../platform.d.ts"] }),
+    "packages/server/src/index.ts": 'export interface AppRouter { readonly mode: "first" }',
+    "packages/client/tsconfig.json": JSON.stringify({ extends: "../../tsconfig.base.json", include: ["src", "../../reset.d.ts", "../../platform.d.ts"] }),
+    "packages/client/src/data/trpc.ts": 'import type { AppRouter } from "@orb/server"; export const mode: AppRouter["mode"] = "first";',
+    "packages/client/src/styles/vite-env.d.ts": "export {};",
+  });
+  const localPackages = join(scratch, "packages/client/node_modules/@orb");
+  mkdirSync(localPackages, { recursive: true });
+  symlinkSync(join(scratch, "packages/server"), join(localPackages, "server"), "dir");
+  const authored = readPolicyRepositoryInventory(scratch).paths;
+  const result = await runCli("verify", ["typecheck", "--application"], { cwd: scratch, timeoutMs: TIMEOUT });
+  await expect(result).toExitWith(0);
+  expect(result.stdout).toContain("PASS packages/client/tsconfig.json");
+  expect(existsSync(join(scratch, "packages/server/dist/router-types/index.d.ts"))).toBe(true);
+  expect(readdirSync(join(scratch, ".cache/typecheck-router"))).toEqual([]);
+  expect(readPolicyRepositoryInventory(scratch).paths).toEqual(authored);
 });
