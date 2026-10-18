@@ -195,9 +195,9 @@ Callable provenance retains allocation, bindings and live premises. The generati
 | `tooling/src/floor/code-facts/reference-fact.ts` | Stored export origins through the existing public reader |
 | `tooling/src/ast/index.ts`, `tooling/src/ast/lib/emit.ts`, `tooling/src/ast/cli.ts` | Explicit store-backed inventory routing; unported typed verbs keep native views |
 
-`dead` and `typeonly` keep their existing judgments and read references through the floor. Codemod overlays use the same store contract without publishing transaction facts. Other typed readers remain native until their family moves.
+AST verbs share native references without changing judgments. Liveness retains checked witnesses; `typeonly-alive` omits unused families. Bounded controls pass review; world cost stays open. Evidence: `reports/review/965-ast-demand-routing.md`. Codemod overlays never publish transaction facts. Unported typed readers remain native.
 
-Prove native world differences, alias and dynamic-import identity, complete population and separated consumer classes through bounded controls. Prove change invalidation, atomic publication, worker release and reuse by concurrent readers. Change inputs during extraction and prove publication refuses them. Read during a cross-world update and prove readers never receive a mixed generation. Compare existing collector output on the same controls. Replay the frozen inventory only after these controls and the consumer migration pass review. Record peak memory during that replay; a heap limit is not a measurement.
+Prove native world differences, alias and dynamic-import identity, complete populations and separate consumer classes. Test invalidation, atomic publication, worker release and concurrent reuse. Changed extraction inputs must refuse publication; cross-world readers must never receive mixed generations. Compare collector output on matching controls. Replay the frozen inventory after controls and migration pass review. Measure peak memory; heap limits are not measurements.
 
 ### Gates move to native enforcement
 

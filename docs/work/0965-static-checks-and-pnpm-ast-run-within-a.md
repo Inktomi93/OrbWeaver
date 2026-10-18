@@ -16,7 +16,7 @@ Keep TS6 analysis and park TS7 benchmarks and adapter work. Follow the [native o
 
 ## Why
 
-Public checks must fit hosted runners and contributor machines, not only a large workstation.
+Public checks must fit hosted runners and contributor machines.
 
 ## Done when
 
@@ -28,7 +28,7 @@ The supported `pnpm ast apisurface --in /src/ --public --json --max 1000000` com
 
 Bounded native UI projection completes with worker release: elapsed 1:58.62, maximum RSS 2,501,396 KiB, no swaps. This is not aggregate concurrent memory or a full apisurface measurement.
 
-The composite diagnostic reaches API-surface entry and exhausts V8 heap. No complete verdict exists. This locates the custom sequence's abort, not its allocation cause or a shipped-command defect.
+The composite diagnostic exhausts V8 heap at API-surface entry; cause unqualified.
 
 Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB, without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
 
@@ -41,3 +41,5 @@ The profiled TS7 prototype is slower, larger and fails reference parity. Further
 Bulk reference extraction calls the patched native reference pass per declaration only when that family is demanded. The pass caches candidates and results. The abandoned owner-policy worker did not demand that family; it supplies no bulk-reference cost attribution. Item 1045 owns occurrence delivery and matched measurement. Preserve native types and attribute invocation cost separately.
 
 Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.
+
+AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.
