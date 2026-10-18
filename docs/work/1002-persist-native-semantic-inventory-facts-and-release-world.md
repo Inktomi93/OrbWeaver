@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/inventory-implementation-inputs-1002-types
 plan: test-foundation
 ---
 

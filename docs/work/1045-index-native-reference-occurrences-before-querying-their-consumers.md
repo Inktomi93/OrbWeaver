@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/inventory-implementation-inputs-1002-types
 plan: native-occurrence-index
 ---
 
@@ -27,3 +26,5 @@ Complete native reference controls preserve aliases, declarations, contextual an
 Reference-family attribution identifies separate bulk, exact and invocation query owners. The existing SQLite relation indexes declaration references. Evidence: `reports/review/1045-reference-family-attribution.md`.
 
 Reviewed occurrence production indexes eligible function-local declarations and retains explicit native fallback for unsupported relationships. Ordinary SDK delivery preserves reference projections, dependency invalidation, overlays and reader lifetimes. Broad occurrence coverage and complete-world cost remain open. Evidence: `reports/review/1045-native-occurrence-ordinary.md` and `reports/review/1045-native-occurrence-independent.md`.
+
+Member and module occurrence production passes bounded parity controls and independent review. Empty search names retain native fallback. Source and derived lockfile are integrated; installed SDK delivery waits for frozen readers to finish. Prior SQLite controls retain their original compiler identity. Complete-world cost remains open. Evidence: `reports/review/1045-native-family-occurrences-delivery.md` and `reports/review/1045-native-family-occurrences-independent.md`.

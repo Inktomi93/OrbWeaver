@@ -19,10 +19,12 @@ await test("native indexed occurrence delivery", async () => {
     "../../../tooling/src/floor/code-facts/semantic-inventory-database.ts"
   );
   const { readInventoryReferences } = await import("../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts");
+  const { inventoryReader } = await import("../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts");
+  const { inventoryString } = await import("../../../tooling/src/floor/code-facts/semantic-inventory-records.ts");
   const options = { root, families: ["references", "bindings", "exports"] };
   const dependency = join(root, "vendor/index.ts");
   const original = readFileSync(dependency, "utf8");
-  const changed = "export {Item} from './b';\n";
+  const changed = "export {Item} from './b';export type {Extra} from './missing';\n";
   function observe(inventory) {
     const source = inventory.sourceCorpus().getSourceFile(join(root, "consumer.ts"));
     if (source === undefined) {
@@ -37,15 +39,31 @@ await test("native indexed occurrence delivery", async () => {
       .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
       .find((node) => node.getName() === "unused");
     const type = local?.getTypeNode()?.getFirstDescendantByKind(SyntaxKind.Identifier);
-    if (local === undefined || unused === undefined || type === undefined) {
+    const extra = source.getTypeAliasOrThrow("ExtraAlias").getTypeNode().getFirstDescendantByKind(SyntaxKind.Identifier);
+    if (local === undefined || unused === undefined || type === undefined || extra === undefined) {
       throw new Error("native occurrence reader subjects missing");
+    }
+    const property = inventory.sourceCorpus().getSourceFile(join(root, "contracts.ts"))?.getInterfaceOrThrow("Local").getPropertyOrThrow("value");
+    if (property === undefined) {
+      throw new Error("native member occurrence subject missing");
+    }
+    const aliasOrigin = inventory.sourceCorpus().getSourceFile(join(root, "packages/kit/src/a.ts"))?.getVariableDeclarationOrThrow("shaped");
+    if (aliasOrigin === undefined) {
+      throw new Error("native alias occurrence subject missing");
     }
     return {
       references: inventory
         .references(local.getNameNode())
         .map((node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() })),
       zero: inventory.references(unused.getNameNode()),
+      members: inventory
+        .references(property.getNameNode())
+        .map((node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() })),
       origins: inventory.symbols(type).origins.map((span) => span.file),
+      extraOrigins: inventory.symbols(extra).origins.map((span) => span.file),
+      aliases: inventory
+        .references(aliasOrigin)
+        .map((node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind(), text: node.getText() })),
       dependency: inventory.sourceCorpus().getSourceFile(dependency)?.getFullText(),
     };
   }
@@ -60,6 +78,21 @@ await test("native indexed occurrence delivery", async () => {
     [shorthandStart, returnStart].map((start) => ({ file: sourcePath, start, end: start + "local".length, kind: SyntaxKind.Identifier })),
   );
   assert.deepEqual(before.zero, []);
+  assert.ok(
+    before.aliases.some(
+      (node) =>
+        node.file === join(root, "packages/client/src/use.ts") &&
+        node.start === 8 &&
+        node.end === 23 &&
+        node.kind === SyntaxKind.SyntaxList &&
+        node.text === "Renamed,runtime",
+    ),
+  );
+  const memberStarts = [sourceText.indexOf("{value:seed") + 1, sourceText.indexOf("record.value") + "record.".length];
+  assert.deepEqual(
+    before.members,
+    memberStarts.map((start) => ({ file: sourcePath, start, end: start + "value".length, kind: SyntaxKind.Identifier })),
+  );
   using facts = openInventoryDatabase(join(root, ".cache/semantic-inventory.sqlite"));
   const partition = readInventoryGeneration(facts, previous.generation)[0];
   assert.ok(partition);
@@ -94,6 +127,16 @@ await test("native indexed occurrence delivery", async () => {
   assert.deepEqual(observe(previous), before);
   projected[Symbol.dispose]();
   assert.throws(() => observe(projected), /disposed/u);
+  const missing = join(root, "vendor/missing.ts");
+  writeFileSync(missing, "export interface Extra {added:true}\n");
+  using resolved = createSemanticInventory(options);
+  assert.notEqual(resolved.generation, current.generation);
+  const afterNegative = observe(resolved);
+  assert.deepEqual(afterNegative.extraOrigins, [missing]);
+  assert.notDeepEqual(afterNegative.extraOrigins, now.extraOrigins);
+  assert.deepEqual(observe(previous), before);
+  assert.deepEqual(observe(current), now);
+  assert.equal(readFileSync(dependency, "utf8"), changed);
   const compilerPath = ts.sys.getExecutingFilePath();
   assert.ok(compilerPath.startsWith(join(fileURLToPath(new URL("../../../", import.meta.url)), "native-modules/")));
   const compilerBytes = readFileSync(compilerPath);
@@ -116,14 +159,49 @@ await test("native indexed occurrence delivery", async () => {
   assert.equal(accepted, -1);
   assert.match(refusal, /implementation.*stale|implementation.*changed/u);
   using db = openInventoryDatabase(join(root, ".cache/semantic-inventory.sqlite"));
-  assert.equal(latestInventoryGeneration(db), current.generation);
+  assert.equal(latestInventoryGeneration(db), resolved.generation);
   assert.deepEqual(observe(previous), before);
   assert.deepEqual(observe(current), now);
   const coverage = readFileSync(join(root, ".cache/occurrence-coverage.jsonl"), "utf8")
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  assert.equal(coverage.length, 3);
+  assert.deepEqual(observe(resolved), afterNegative);
+  assert.equal(coverage.length, 4);
+  using corruption = openInventoryDatabase(join(root, ".cache/semantic-inventory.sqlite"));
+  const captured = readInventoryGeneration(corruption, resolved.generation);
+  const owner = captured[0];
+  assert.ok(owner);
+  const aliasFile = join(root, "packages/client/src/use.ts");
+  const aliasSpan = corruption
+    .prepare("SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=8 AND end=23 AND kind=?")
+    .get(owner.id, inventoryString(aliasFile), SyntaxKind.SyntaxList);
+  assert.ok(aliasSpan);
+  for (const fault of [
+    { statement: "UPDATE inventory_span SET kind=? WHERE partition=? AND ordinal=?", value: SyntaxKind.Identifier },
+    { statement: "UPDATE inventory_span SET end=? WHERE partition=? AND ordinal=?", value: 24 },
+    { statement: "UPDATE inventory_span SET file=? WHERE partition=? AND ordinal=?", value: inventoryString(join(root, "absent.ts")) },
+  ]) {
+    try {
+      assert.equal(corruption.prepare(fault.statement).run(fault.value, owner.id, aliasSpan["ordinal"]).changes, 1);
+      assert.deepEqual(observe(resolved), afterNegative);
+      using fresh = inventoryReader(root, resolved.generation, captured, { db: corruption, dispose: () => undefined });
+      const origin = fresh.sourceCorpus().getSourceFile(join(root, "packages/kit/src/a.ts"))?.getVariableDeclarationOrThrow("shaped");
+      assert.ok(origin);
+      assert.throws(() => fresh.references(origin), /cannot materialize span/u);
+    } finally {
+      corruption
+        .prepare("UPDATE inventory_span SET kind=?,end=23,file=? WHERE partition=? AND ordinal=?")
+        .run(SyntaxKind.SyntaxList, inventoryString(aliasFile), owner.id, aliasSpan["ordinal"]);
+    }
+  }
+  using stale = inventoryReader(root, resolved.generation, captured, { db: corruption, dispose: () => undefined });
+  const staleSource = stale.sourceCorpus().getSourceFile(join(root, "packages/kit/src/a.ts"));
+  assert.ok(staleSource);
+  const staleOrigin = staleSource.getVariableDeclarationOrThrow("shaped");
+  staleSource.insertText(0, "/* changed */");
+  assert.throws(() => stale.references(staleOrigin), /source\/epoch/u);
+  assert.deepEqual(observe(resolved), afterNegative);
   writeFileSync(
     resultPath,
     JSON.stringify({
@@ -132,6 +210,7 @@ await test("native indexed occurrence delivery", async () => {
       transaction,
       warmReused: warm.generation === previous.generation,
       dependencyInvalidated: current.generation !== previous.generation,
+      negativeInvalidated: resolved.generation !== current.generation,
       historicalPinsUnchanged: true,
       physicalDependency: readFileSync(dependency, "utf8"),
       disposed: true,
