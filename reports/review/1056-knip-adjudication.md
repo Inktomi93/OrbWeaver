@@ -18,10 +18,10 @@ Search method for every symbol row: `rg -w` over the repo excluding node_modules
 | - | - | - |
 | root devDependency drizzle-kit | removed | importers: tooling/src/verify/ops/db-baseline-parity.ts:109, tests/support/node/db.ts:17, packages/db/drizzle.config.ts:10, each workspace declares it (tooling/package.json:262, tests/support/package.json:220, packages/db/package.json:30); `check:drizzle-kit` runs `--filter @orb/db exec` |
 | root devDependency postcss-value-parser | removed | sole importer tooling/src/verify/lib/stylelint-css-rules.ts:3; tooling/package.json:246 |
-| root devDependency typeid-js | removed | importers packages/kit/src/ids/index.ts:8 (packages/kit/package.json:79) and tests/support/iso/ids.ts:9 (tests/support/package.json:226) |
+| root devDependency typeid-js | kept-with-reason | importers packages/kit/src/ids/index.ts:8 and tests/support/iso/ids.ts:9, but tests/tooling/verify/gates/testkit-enforcement.test.ts (nativeProgram fixture, symlinks only the root node_modules) copies packages/kit/src/ids and needs the root copy; scoped root `ignoreDependencies` entry in knip.ts |
 | root devDependency @anthropic-ai/sdk and tests/support dependency | escalate | no import anywhere (comment only, packages/inference/src/backends/wire/anth-image-block.ts:4), but pnpm-workspace.yaml:223-226 pins it as the peer of @anthropic-ai/claude-agent-sdk (pnpm-lock.yaml peer `>=0.93.0`); removing it and its catalog row changes peer resolution to an unpinned version. Needs an owner decision: remove all three and accept the float, or keep with a scoped `ignoreDependencies` |
 
-pnpm-lock.yaml importer rows for the three removed devDependencies were rewritten by pnpm itself; no `pnpm install` was run.
+I edited only package.json. The next ordinary `pnpm` command (`pnpm exec biome` / `pnpm typecheck`) rewrote the root importer rows in pnpm-lock.yaml on its own; I never ran `pnpm install` for that. The only install I ran is the proof `pnpm install --frozen-lockfile --offline`, which succeeded and left the lockfile unchanged.
 
 ## Exports and types
 

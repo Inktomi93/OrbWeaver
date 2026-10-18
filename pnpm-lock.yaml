@@ -812,6 +812,9 @@ importers:
       ts7:
         specifier: 'catalog:'
         version: typescript@7.0.2
+      typeid-js:
+        specifier: 'catalog:'
+        version: 1.2.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
