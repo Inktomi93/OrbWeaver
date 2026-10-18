@@ -20,7 +20,6 @@
 // harness's rendering context is not the app's, and a literal both fails correct fixes and survives a token
 // retune.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import type { Locator, Page } from "@playwright/test";
 import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
 
@@ -142,9 +141,16 @@ export function hitBoxes(controls: Locator, count: number): Promise<readonly Hit
  *  animation settles (a false negative by construction — it cost a lane a round). */
 export function measurePitch(controls: Locator): Promise<HitBox> {
   return controls.first().evaluate((el: HTMLElement): HitBox => {
-    const cells = Array.from((el.parentElement as HTMLElement).children).map((node) => node.getBoundingClientRect());
+    const parent = el.parentElement;
+    if (parent === null) {
+      throw new TypeError("measurePitch: the control has no parent element");
+    }
+    const cells = Array.from(parent.children).map((node) => node.getBoundingClientRect());
     const centres = cells.map((box) => ({ x: box.left + box.width / 2, y: box.top + box.height / 2 }));
-    const first = centres[0] as HitBox;
+    const first = centres[0];
+    if (first === undefined) {
+      return { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY };
+    }
     const dx = centres.map((c) => c.x - first.x).filter((d) => d > 1);
     const dy = centres.map((c) => c.y - first.y).filter((d) => d > 1);
     return { x: Math.min(...dx), y: Math.min(...dy) };

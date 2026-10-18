@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
-
 // Framebuffer readout for the ECharts canvas family (@orb/ui/charts). A canvas chart exposes NOTHING to
 // the DOM — no element per bar, no computed style per label — so every geometry claim about a chart
 // (a clipped value label, a squeezed plot, two series that are the same colour) has to be read out of the
@@ -32,7 +30,10 @@ export interface CanvasBandInk {
 export function readCanvasBandInk(canvas: Locator, topFraction: number, bottomFraction: number): Promise<CanvasBandInk> {
   return canvas.evaluate(
     (element, [top, bottom]: readonly [number, number]): CanvasBandInk => {
-      const node = element as HTMLCanvasElement;
+      if (!(element instanceof HTMLCanvasElement)) {
+        throw new TypeError("readCanvasBandInk: expected a canvas element");
+      }
+      const node = element;
       const context = node.getContext("2d");
       if (context === null) {
         throw new Error("readCanvasBandInk: the canvas has no 2d context");

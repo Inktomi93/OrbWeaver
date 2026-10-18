@@ -38,8 +38,10 @@ export async function touchDrag(page: Page, from: WeavePoint, to: WeavePoint, st
 /** A coarse whole-frame color fingerprint of a weave canvas — any recolor or deformation shifts it. */
 export function frameFingerprint(canvas: Locator): Promise<string> {
   return canvas.evaluate((el) => {
-    // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
-    const c = el as HTMLCanvasElement;
+    if (!(el instanceof HTMLCanvasElement)) {
+      throw new TypeError("frameFingerprint: expected a canvas element");
+    }
+    const c = el;
     const ctx = c.getContext("2d");
     if (ctx === null) {
       return "no-ctx";
@@ -48,10 +50,18 @@ export function frameFingerprint(canvas: Locator): Promise<string> {
     let r = 0;
     let g = 0;
     let b = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      r += data[i] as number;
-      g += data[i + 1] as number;
-      b += data[i + 2] as number;
+    for (const [index, value] of data.entries()) {
+      switch (index % 4) {
+        case 0:
+          r += value;
+          break;
+        case 1:
+          g += value;
+          break;
+        case 2:
+          b += value;
+          break;
+      }
     }
     return `${r}:${g}:${b}`;
   });
@@ -62,8 +72,10 @@ export function frameFingerprint(canvas: Locator): Promise<string> {
 export async function frameFingerprintPair(canvases: Locator): Promise<readonly [string, string]> {
   const frames = await canvases.evaluateAll((elements) =>
     elements.map((el) => {
-      // @orb-waive no-test-fabrication(HTMLCanvasElement): baselined when the gate widened to value casts; burn-down item 906.
-      const c = el as HTMLCanvasElement;
+      if (!(el instanceof HTMLCanvasElement)) {
+        throw new TypeError("frameFingerprintPair: expected canvas elements");
+      }
+      const c = el;
       const ctx = c.getContext("2d");
       if (ctx === null) {
         return "no-ctx";
@@ -72,10 +84,18 @@ export async function frameFingerprintPair(canvases: Locator): Promise<readonly 
       let r = 0;
       let g = 0;
       let b = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        r += data[i] as number;
-        g += data[i + 1] as number;
-        b += data[i + 2] as number;
+      for (const [index, value] of data.entries()) {
+        switch (index % 4) {
+          case 0:
+            r += value;
+            break;
+          case 1:
+            g += value;
+            break;
+          case 2:
+            b += value;
+            break;
+        }
       }
       return `${r}:${g}:${b}`;
     }),

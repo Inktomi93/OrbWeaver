@@ -21,7 +21,7 @@
 // is sized on it, and a fix that only lands on one pointer is half a fix — the fine arm is also where the
 // pseudo is SMALLEST, i.e. where an over-crediting predicate is easiest to mistake for a correct one.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { hitExtent, touchFloorPx } from "./touch-floor.ts";
+import { hitExtent, measurePitch, touchFloorPx } from "./touch-floor.ts";
 import {
   TouchFloorBoxCarriedIsolatedStory,
   TouchFloorCtaGlyphIsolatedStory,
@@ -104,3 +104,12 @@ for (const pointer of [
     });
   });
 }
+
+test("maintained browser boundaries: pitch retains first-sibling origin and unconstrained axes", async ({ page }) => {
+  await page.setContent(
+    '<div id="grid" style="position:relative"><span style="position:absolute;left:20px;top:10px;width:20px;height:10px"></span><button type="button" style="position:absolute;left:70px;top:10px;width:20px;height:10px;padding:0;border:0">Second</button><button type="button" style="position:absolute;left:20px;top:70px;width:20px;height:10px;padding:0;border:0">Third</button></div><div id="single"><button type="button">Only</button></div>',
+  );
+  expect(await measurePitch(page.locator("#grid button"))).toEqual({ x: 50, y: 60 });
+  expect(await measurePitch(page.locator("#single button"))).toEqual({ x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY });
+  await expect(measurePitch(page.locator("html"))).rejects.toThrow();
+});

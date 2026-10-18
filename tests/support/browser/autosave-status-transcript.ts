@@ -34,12 +34,11 @@ export async function beginAutosaveStatusTranscript(page: Page): Promise<void> {
       const sink = document.createElement("script");
       sink.type = "application/json";
       sink.id = sinkId;
-      sink.textContent = "[]";
+      const log: string[] = [];
+      sink.textContent = JSON.stringify(log);
       document.head.append(sink);
       const record = (): void => {
         const next = document.querySelector(selector)?.textContent.trim() ?? "";
-        // @orb-waive no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
-        const log = JSON.parse(sink.textContent) as string[];
         // Consecutive duplicates are the same render observed through several mutations, not a transition.
         if (next.length > 0 && next !== log.at(-1)) {
           log.push(next);
@@ -54,8 +53,7 @@ export async function beginAutosaveStatusTranscript(page: Page): Promise<void> {
   );
 }
 
-/** The distinct readouts the status went through, in order, since the recorder started. */
-export function readAutosaveStatusTranscript(page: Page): Promise<readonly string[]> {
-  // @orb-waive no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
-  return page.evaluate((sinkId: string): readonly string[] => JSON.parse(document.getElementById(sinkId)?.textContent ?? "[]") as string[], SINK_ID);
+/** The raw JSON transcript; a missing sink reads as an empty array and malformed JSON refuses. */
+export function readAutosaveStatusTranscript(page: Page): Promise<unknown> {
+  return page.evaluate((sinkId: string): unknown => JSON.parse(document.getElementById(sinkId)?.textContent ?? "[]"), SINK_ID);
 }
