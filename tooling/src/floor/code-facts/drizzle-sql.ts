@@ -28,8 +28,10 @@ import { CONTAINED_OPERATORS, sqlBindingStable, sqlSelectionCallbackUsesStable }
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
-import { readMemberReference, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
-import type { CallReturnObservations, CallReturnProgram, ReturnedValueSource } from "./reference-fact-contract.ts";
+import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
+import type { CallReturnObservations, CallReturnProgram, ModuleMemberOrigin, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
+import { sameFileMergedCallableValueOrigin } from "./reference-fact-same-file-merge.ts";
+import { moduleState } from "./reference-fact-state.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
 import { sqliteFragmentContained } from "./sqlite-lexical.ts";
@@ -39,11 +41,21 @@ export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<objec
   return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active, program);
 }
 
+/** A tag is a callee, so a function merged with a namespace of its own name (drizzle's `sql`) is one origin
+ *  there, though the module-origin reader refuses it as two declarations. */
+function taggedOrigin(tag: MorphNode): ReferenceFact<ModuleMemberOrigin> {
+  const origin = resolveModuleMemberOrigin(tag);
+  if (origin.kind === "resolved" || origin.reason !== "ambiguous") {
+    return origin;
+  }
+  return sameFileMergedCallableValueOrigin(tag, moduleState(referenceResolutionServices)) ?? origin;
+}
+
 /** Template carrier provenance; consumers choose the accepted constructor exports and the SQL obligation. */
 export function readSqlTemplateCarrier(node: MorphNode): SqlTemplateCarrier | undefined {
   if (Node.isTaggedTemplateExpression(node)) {
     const callee = node.getTag();
-    return { kind: "tagged", template: node.getTemplate(), callee, origin: resolveModuleMemberOrigin(callee) };
+    return { kind: "tagged", template: node.getTemplate(), callee, origin: taggedOrigin(callee) };
   }
   if (Node.isCallExpression(node)) {
     const template = node.getArguments()[0];
