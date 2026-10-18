@@ -235,7 +235,7 @@ Move law tables into their production owners and type total registries against c
 
 Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Reviewed exceptions preserve actual transferred lifetimes, derived replacements and native compatibility boundaries. Item 1006 owns broader disposition. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
 
-D325 native assertion rules replace custom cast facts. Review and scoped controls pass; complete qualification stays open. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.
+D325 native assertion rules replace custom cast facts. Bounded observation and lifecycle controls pass; complete qualification stays open. Evidence: `reports/review/1041-maintained-boundary-delivery.md`.
 
 Preserve D1/D40 request and turn construction boundaries and D118 subscription placement, not only runtime procedure names. Native prose restrictions and real delivery tests preserve D132's slot invariant. A typed reservation-key object does not prove unique mount use; qualify the actual successor before dropping that claim.
 

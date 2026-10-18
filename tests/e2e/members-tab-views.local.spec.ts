@@ -64,12 +64,12 @@ const CAST_B = {
 const CAST = [CAST_A, CAST_B];
 
 async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): Promise<CharacterId> {
-  const prior = await host.query("character.list", {});
+  const prior = await host.trpc.character.list.query({});
   const stale = prior.items.find((c) => c.handle === card.handle);
   if (stale !== undefined) {
-    await host.mutation("character.remove", { characterId: stale.id });
+    await host.trpc.character.remove.mutate({ characterId: stale.id });
   }
-  const created = await host.mutation("character.create", { input: card });
+  const created = await host.trpc.character.create.mutate({ input: card });
   return created.id;
 }
 
@@ -83,13 +83,13 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   }
 
   try {
-    const started = await api.mutation("chat.startChat", { characterIds });
+    const started = await api.trpc.chat.startChat.mutate({ characterIds });
     const chatId = started.chat.id;
     const memberApi = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);
     // A committed room (the Members tab's `phase === "committed"` arm) — the greeting alone leaves the chat
     // in its founding state on some paths, so plant one durable user row.
-    await api.mutation("chat.commitMessage", { chatId, timeZone: UTC_TIME_ZONE, content: "Both of you, on me." });
+    await api.trpc.chat.commitMessage.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "Both of you, on me." });
 
     const hostView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_OWNER.handle), LOCAL_OWNER.password);
     const memberView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
@@ -141,7 +141,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
     }
   } finally {
     for (const characterId of characterIds) {
-      await api.mutation("character.remove", { characterId });
+      await api.trpc.character.remove.mutate({ characterId });
     }
   }
 });

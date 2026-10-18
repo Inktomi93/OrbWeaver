@@ -4,7 +4,6 @@ import { createInferenceRuntime } from "@orb/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
@@ -17,7 +16,7 @@ import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts"
 import type { PortableChat } from "#server/primitives/serde/chat-bundle/index.ts";
 import { buildChatBundleFile, parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "../../../../../../scripts/probes/gemini-capabilities/scenario.ts";
-import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId } from "../../../../inference/_support.ts";
+import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId, wireSchema } from "../../../../inference/_support.ts";
 
 const GOOGLE_DETAIL = { type: "reasoning.encrypted", data: "fixture-google-opaque-proof", id: "call-alpha", format: "google-gemini-v1", index: 0 };
 const record = z.record(z.string(), z.unknown());

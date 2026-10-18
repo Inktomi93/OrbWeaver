@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
-import { listCanon, listCharacters, sendTurn, startChat, trpcMutation } from "./support/trpc.ts";
+import { listCanon, listCharacters, sendTurn, startChat, trpc } from "./support/trpc.ts";
 import { assertVirtualListMatchesCanon, collectVirtualRows } from "./support/virtualizer.ts";
 
 const TURN_COUNT = 12;
@@ -45,7 +45,7 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   // the sweep would then faithfully collect the WRONG chat. An authored unique title makes the target row
   // addressable regardless of updatedAt ordering.
   const chatTitle = `sweep-parity-${Date.now()}`;
-  await trpcMutation("chat.updateTitle", { chatId, title: chatTitle });
+  await trpc.chat.updateTitle.mutate({ chatId, title: chatTitle });
 
   await gotoChatsList(page);
   const targetRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: new RegExp(chatTitle, "u") });

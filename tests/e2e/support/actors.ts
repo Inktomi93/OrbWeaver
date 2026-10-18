@@ -1,25 +1,4 @@
-// Actor-aware tRPC clients — the harness's ONE way to drive the app's API as a SPECIFIC authenticated
-// principal (not just the ambient owner the bare `trpc.ts` helpers resolve to). A thin wrapper over the
-// SAME batch-wire shape `trpc.ts` speaks (httpBatchLink contract), plus a per-actor header jar so a spec can
-// hold two live principals at once (host + member) and prove per-viewer behavior at the WIRE — the P3
-// member-strip, permission refusals, sharing flows. Additive: the 60+ single-user helpers in `trpc.ts` are
-// untouched (an un-credentialed call still auto-resolves to the owner via the fallback seam).
-//
-// The three auth modes this harness boots (Playwright-project axis, playwright.config.ts) each mint an actor
-// differently — but they all produce the SAME `ActorClient` shape, so a spec is mode-agnostic once it holds
-// one:
-//   • single-user / local HOST  → the OWNER via the un-credentialed 127.0.0.1 fallback seam (no cookie, no
-//     CSRF header; `via:"fallback"` so a mutation needs no CSRF). `ownerActor()`.
-//   • local MEMBER               → `POST /api/auth/login` (form) → the session cookie → a cookie
-//     principal (`via:"cookie"`). Cookie MUTATIONS carry the `x-orb-csrf` header or the transport 403s
-//     (transport/trpc/trpc.ts — the CSRF gate keys on `via==="cookie"` + the header). `loginLocal(...)`.
-//   • forward-header             → a signed RS256 JWT (minted in-test with `jose`, the jwks.test.ts precedent;
-//     NO external IdP) attached as the trusted-proxy `x-authentik-jwt` + its public JWKS as
-//     `x-authentik-meta-jwks`. No login, no cookie. `actorViaHeader(...)`.
-//   • oidc                       → DEFERRED (owner decision). See the stub in playwright.config.ts.
-//
-// Procedure results are typed by the router through `trpc.ts`'s `TrpcOutput`, so no wire shape is declared here.
-
+// Actor identity headers bind the native transport; raw probes preserve HTTP status and body evidence.
 import type { AuthMe } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
@@ -37,14 +16,10 @@ import { createTrpcClient } from "./trpc.ts";
 // so a login mints the http transport's cookie.
 export const SESSION_COOKIE = "orb_session_insecure";
 
-/** One authenticated principal's wire client — `query`/`mutation` over the tRPC batch shape, carrying this
- *  actor's own headers (a session cookie, a signed-JWT proxy header, or nothing for the fallback owner). The
- *  SAME shape for every mode, so a spec that holds one is mode-agnostic. */
+/** One authenticated actor's native client, identity headers and raw HTTP observations. */
 export interface ActorClient {
-  /** A batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly query: TrpcClient["query"];
-  /** A batch mutation — returns the single procedure's `result.data`. Throws on a non-2xx / error env. */
-  readonly mutation: TrpcClient["mutation"];
+  /** Native procedure members preserve query/mutation kinds and serialized response types. */
+  readonly trpc: TrpcClient;
   /** The `expect(...).rejects` twin: run a call and RESOLVE with the error envelope's HTTP status + message
    *  instead of throwing — the "a member is refused an owner-only proc" assertion instrument. */
   readonly expectError: (procedure: string, input: unknown, kind: "query" | "mutation") => Promise<{ readonly status: number; readonly body: string }>;
@@ -61,7 +36,7 @@ const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringif
 /** Build an actor client bound to a stack `baseUrl` + a fixed header set (the actor's session/identity).
  *  Mutations merge the actor's headers with the JSON content-type; queries ride the actor's headers on the GET. */
 function makeActorClient(baseUrl: string, headers: Readonly<Record<string, string>>): ActorClient {
-  const { query, mutation } = createTrpcClient(baseUrl, headers);
+  const trpc = createTrpcClient(baseUrl, headers);
 
   async function expectError(procedure: string, input: unknown, kind: "query" | "mutation"): Promise<{ readonly status: number; readonly body: string }> {
     const url = kind === "query" ? `${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}` : `${baseUrl}/api/trpc/${procedure}?batch=1`;
@@ -80,7 +55,7 @@ function makeActorClient(baseUrl: string, headers: Readonly<Record<string, strin
     return authMeSchema.parse(await res.json());
   }
 
-  return { query, mutation, expectError, whoami, headers };
+  return { trpc, expectError, whoami, headers };
 }
 
 // ── OWNER (single-user + the local/forward-header HOST) ─────────────────────────────────────────────────
@@ -179,8 +154,8 @@ export async function actorViaHeader(baseUrl: string, claims: ForwardClaims): Pr
  *  present participant and every member-gated read (`listMessages`/`replayChatEvents`) resolves for them.
  *  The `member` client must already be logged in (`loginLocal`). */
 export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: ChatId, memberHandle: string): Promise<void> {
-  const invite = await host.mutation("invites.createInvite", { chatId, input: { invitedHandle: memberHandle } });
-  await member.mutation("invites.redeemInvite", { token: invite.token });
+  const invite = await host.trpc.invites.createInvite.mutate({ chatId, input: { invitedHandle: memberHandle } });
+  await member.trpc.invites.redeemInvite.mutate({ token: invite.token });
 }
 
 // ── CUSTOM PROVIDER — point the chat role at a BYO OpenAI-compatible endpoint (the fixture provider) ───────
@@ -203,7 +178,7 @@ export async function addMemberToChat(host: ActorClient, member: ActorClient, ch
  * label here, exactly as before (the openai-compat runner reads capabilities, not a baked model).
  */
 export async function configureCustomProvider(host: ActorClient, baseUrl: string, model: string): Promise<() => Promise<void>> {
-  const previous = (await host.query("connection.listBindings", undefined)).filter((binding) => binding.task === "chat" || binding.task === "summarize");
+  const previous = (await host.trpc.connection.listBindings.query(undefined)).filter((binding) => binding.task === "chat" || binding.task === "summarize");
   const input: NewConnection = {
     label: `e2e-fixture-provider-${model}`,
     providerId: "custom-openai",
@@ -212,14 +187,14 @@ export async function configureCustomProvider(host: ActorClient, baseUrl: string
     model,
     allowBackground: true,
   };
-  const connection = await host.mutation("connection.create", input);
+  const connection = await host.trpc.connection.create.mutate(input);
   for (const task of ["chat", "summarize"] as const) {
-    await host.mutation("connection.setBinding", { task, connectionId: connection.id });
+    await host.trpc.connection.setBinding.mutate({ task, connectionId: connection.id });
   }
   return async (): Promise<void> => {
     for (const binding of previous) {
-      await host.mutation("connection.setBinding", { task: binding.task, connectionId: binding.binding?.connectionId ?? null });
+      await host.trpc.connection.setBinding.mutate({ task: binding.task, connectionId: binding.binding?.connectionId ?? null });
     }
-    await host.mutation("connection.remove", { connectionId: connection.id });
+    await host.trpc.connection.remove.mutate({ connectionId: connection.id });
   };
 }

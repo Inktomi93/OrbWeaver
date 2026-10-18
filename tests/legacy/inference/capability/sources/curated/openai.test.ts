@@ -1,7 +1,6 @@
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { detectModelFamily } from "#inference/capability/families.ts";
@@ -9,7 +8,7 @@ import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { OpenAiCompatChatRequest } from "#inference/contract/chat.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
-import { fakeResolved, memoryTokenLexicon } from "../../../_support.ts";
+import { fakeResolved, memoryTokenLexicon, wireSchema } from "../../../_support.ts";
 import type { RecordedRequest } from "../../../backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../backends/_hosted-support.ts";
 

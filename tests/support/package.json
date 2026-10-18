@@ -50,7 +50,6 @@
     "./iso/timers.ts": "./iso/timers.ts",
     "./iso/inference-identities.ts": "./iso/inference-identities.ts",
     "./iso/oklab-reference.ts": "./iso/oklab-reference.ts",
-    "./iso/wire-ready.ts": "./iso/wire-ready.ts",
     "./iso/zod-leaf-paths.ts": "./iso/zod-leaf-paths.ts",
     "./iso/bus-payload-policy.ts": "./iso/bus-payload-policy.ts",
     "./node/app-blocking-receipt.test.ts": "./node/app-blocking-receipt.test.ts",

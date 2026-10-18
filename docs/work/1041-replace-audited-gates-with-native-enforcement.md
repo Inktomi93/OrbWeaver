@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/native-type-home-migration-981
 plan: test-foundation
 ---
 
@@ -34,4 +33,6 @@ Security review qualifies scrubber and chat-viewer health deletion while preserv
 
 HARD bulk-ledger isolation is integrated after independent review and scoped native controls. Ordinary max-lines debt remains real and unchanged. Root owns coherent types, complete metadata admission, catalog and allowance reconciliation. Complete application, frontend, retained-reader and hosted qualification remain open.
 
-Native fabrication enforcement and cast-fact removal are integrated after independent review. Coherent declaration, SQLite, browser and native controls pass. Node compilation retains its existing diagnostic population. Owner-directed boundary repairs, ordinary lint, shared dependency installation and resource qualification remain open. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.
+Native fabrication enforcement and cast-fact removal are integrated after independent review. Coherent declaration, SQLite, browser and native controls pass. Node compilation retains its existing diagnostic population. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.
+
+Raw observations, auth-fixture lifetimes, native tRPC and legacy-brand quarantine pass independent review and scoped runtime controls. Coherent DOM and iso compilation pass; Node retains its existing diagnostics. Ordinary lint, shared dependency installation, current browser preparation and resource qualification remain open. Evidence: `reports/review/1041-maintained-boundary-delivery.md`.

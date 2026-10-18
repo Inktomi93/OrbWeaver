@@ -4,7 +4,7 @@ import { castId } from "@orb/kit/ids";
 import { gotoChatsList, renameFirstChatViaRowKebab } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
-import { deleteChat, mintFreshCharacter, removeCharacter, startGroupChat, trpcQuery } from "./support/trpc.ts";
+import { deleteChat, mintFreshCharacter, removeCharacter, startGroupChat, trpc } from "./support/trpc.ts";
 
 test("rename in tab A propagates live to tab B's list via the user-bus", { tag: "@smoke" }, async ({ page, context }) => {
   const characterId = await mintFreshCharacter(castId<CharacterHandle>("e2e-passive-sync"), "Passive Sync", "A known sync greeting.");
@@ -31,7 +31,7 @@ test("rename in tab A propagates live to tab B's list via the user-bus", { tag: 
 
     // THE load-bearing assertion: tab B's LIST updates via the user-bus with NO manual reload.
     await expect(listRowB).toContainText(newTitle, { timeout: WAIT_UI_MS });
-    expect((await trpcQuery("chat.getChat", { chatId })).title).toBe(newTitle);
+    expect((await trpc.chat.getChat.query({ chatId })).title).toBe(newTitle);
   } finally {
     await deleteChat(chatId);
     await removeCharacter(characterId);

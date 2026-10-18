@@ -20,7 +20,7 @@ import { corpusReadInput } from "@orb/testkit/iso/corpus.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_CORPUS_FIXTURE, SINGLE_USER } from "./support/modes.ts";
 import { WAIT_SETTLE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
-import { trpcQuery } from "./support/trpc.ts";
+import { trpc } from "./support/trpc.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
@@ -133,7 +133,7 @@ test("the selected corpus clone serves the captured room identity, content and v
     throw new Error("Selected corpus has no captured titled room");
   }
   const expected = chatDetailSchema.parse(capture.output);
-  const actual = chatDetailSchema.parse(await trpcQuery("chat.getChat", corpusReadInput.chat(expected)));
+  const actual = chatDetailSchema.parse(await trpc.chat.getChat.query(corpusReadInput.chat(expected)));
   expect(actual).toEqual(expected);
   const documentCapture = SELECTED_CORPUS_FIXTURE?.wire.reads["databank.get"][0];
   if (documentCapture === undefined) {
@@ -141,7 +141,7 @@ test("the selected corpus clone serves the captured room identity, content and v
   }
   const expectedDocument = documentDetailViewSchema.parse(documentCapture.output);
   expect(expectedDocument.extractedText).toBeTruthy();
-  const actualDocument = documentDetailViewSchema.parse(await trpcQuery("databank.get", corpusReadInput.document(expectedDocument)));
+  const actualDocument = documentDetailViewSchema.parse(await trpc.databank.get.query(corpusReadInput.document(expectedDocument)));
   expect(actualDocument).toEqual(expectedDocument);
   const title = expected.title;
   if (title === null) {

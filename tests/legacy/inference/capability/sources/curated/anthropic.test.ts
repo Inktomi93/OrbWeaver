@@ -15,7 +15,6 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
@@ -31,7 +30,7 @@ import type { ResolverContext } from "#inference/resolve/resolve-task.ts";
 import { createRoleClientsFor } from "#inference/roles/role-clients.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
 import { openRouterCatalogFetch } from "../../../_openrouter-catalog.ts";
-import { fakeConnection, fakeDeps, newUserId } from "../../../_support.ts";
+import { fakeConnection, fakeDeps, newUserId, wireSchema } from "../../../_support.ts";
 
 const DIRECT = { providerId: castId<ProviderId>("anthropic"), wire: "anthropic-messages", api: "anthropic-messages" } as const;
 

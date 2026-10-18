@@ -7,11 +7,11 @@ import type { ChatToolExecution, Resolved, ToolCallInput } from "@orb/inference"
 import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
+import { wireSchema } from "../../../../inference/_support.ts";
 import type { ChatToolOps, RunChatTurnOp, TurnMessage, TurnRequest, TurnStreamChunk } from "./_pipeline-support.ts";
 import {
   assertConvertedToolNames,

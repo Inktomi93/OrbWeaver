@@ -18,7 +18,7 @@ import {
   waitForAppReady,
 } from "./support/chat-room.ts";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
-import { createLiteGame, mintFreshCharacter, removeCharacter, trpcMutation } from "./support/trpc.ts";
+import { createLiteGame, mintFreshCharacter, removeCharacter, trpc } from "./support/trpc.ts";
 
 // The spec-owned character is re-minted chatless for every run, so its Chat CTA must create a fresh husk
 // rather than resume an existing room.
@@ -87,7 +87,7 @@ test("turning game mode on in an unsent room claims it into the Chats list", asy
   const gameTitle = `e2e-game-claimed-${Date.now()}`;
   try {
     // A title given at creation does not claim, so the row is hidden until the game is created.
-    const started = await trpcMutation("chat.startChat", { characterIds: [characterId], title: gameTitle });
+    const started = await trpc.chat.startChat.mutate({ characterIds: [characterId], title: gameTitle });
     const gameRow = page.getByRole("list", { name: "Chats list" }).getByRole("button", { name: gameTitle });
     await gotoChatsList(page);
     await expect(gameRow).toHaveCount(0);

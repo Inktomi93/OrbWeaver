@@ -19,6 +19,7 @@ import type { AgentSdkQuery } from "@orb/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { WireReady } from "@orb/kit/json-schema";
 import type { MakeResolvedOverrides } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeResolved as makeProducedResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
@@ -27,6 +28,11 @@ import type { ConnectionTransport, Resolved } from "#inference/contract/resolved
 import type { BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderSnapshot, ProviderStore, SnapshotStore } from "#inference/deps.ts";
 import type { LOCAL_SERVER_FIXTURES } from "./catalog/_local-servers-fixtures.ts";
 import type { LOCAL_SERVER_TRANSCRIPTS } from "./catalog/_local-servers-transcripts.ts";
+
+/** Legacy hand-authored wire fixtures bypass projection; maintained builders must use the actual projector. */
+export function wireSchema(schema: Record<string, unknown>): WireReady {
+  return schema as WireReady;
+}
 
 /** A token lexicon over its own in-memory store. With no server given, every lookup fails, so a turn that
  *  tokenized anything would carry a dropped-bias warning. */

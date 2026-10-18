@@ -70,7 +70,7 @@ const SEED_CHAT_TITLE = "E2E seed chat";
 
 /** Ensure ≥1 character exists; return the id of a usable one (prefer the anchor, else the first present). */
 async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
-  const page = await createTrpcClient(baseUrl).query("character.list", {});
+  const page = await createTrpcClient(baseUrl).character.list.query({});
   const anchor = page.items.find((c) => c.handle === ANCHOR_HANDLE);
   if (anchor !== undefined) {
     return anchor.id;
@@ -79,7 +79,7 @@ async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
   if (first !== undefined) {
     return first.id;
   }
-  const created = await createTrpcClient(baseUrl).mutation("character.create", { input: ANCHOR });
+  const created = await createTrpcClient(baseUrl).character.create.mutate({ input: ANCHOR });
   return created.id;
 }
 
@@ -87,12 +87,12 @@ async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
  *  `chat.startChat` mints a husk, which every Chats list hides; the title write claims it. `totalCount`
  *  counts the same husk-free scope the list renders. */
 async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<void> {
-  const listed = await createTrpcClient(baseUrl).query("chat.listChats", {});
+  const listed = await createTrpcClient(baseUrl).chat.listChats.query({});
   if (listed.totalCount > 0) {
     return;
   }
-  const started = await createTrpcClient(baseUrl).mutation("chat.startChat", { characterIds: [characterId] });
-  await createTrpcClient(baseUrl).mutation("chat.updateTitle", { chatId: started.chat.id, title: SEED_CHAT_TITLE });
+  const started = await createTrpcClient(baseUrl).chat.startChat.mutate({ characterIds: [characterId] });
+  await createTrpcClient(baseUrl).chat.updateTitle.mutate({ chatId: started.chat.id, title: SEED_CHAT_TITLE });
 }
 
 /** The row to author, with its model resolved the way the PANE resolves one (§7.4): ask the endpoint's own
@@ -104,7 +104,7 @@ async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<vo
 async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
   // `connection.draftCatalogModels` NEVER throws for a failed dial (it comes back `listed: false` + a reason), so
   // the seed branches on it instead of guarding it.
-  const listing = await createTrpcClient(baseUrl).mutation("connection.draftCatalogModels", {
+  const listing = await createTrpcClient(baseUrl).connection.draftCatalogModels.mutate({
     providerId: E2E_LOCAL_ENGINE_PROVIDER,
     baseUrl: E2E_LOCAL_ENGINE_BASE_URL,
   });
@@ -149,7 +149,7 @@ async function engineConnectionInput(baseUrl: string): Promise<NewConnection> {
  */
 async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Promise<void> {
   if (fixtureBaseUrl !== undefined) {
-    const row = await createTrpcClient(baseUrl).mutation("connection.create", {
+    const row = await createTrpcClient(baseUrl).connection.create.mutate({
       label: "e2e scripted default",
       providerId: "custom-openai",
       credentialId: null,
@@ -158,14 +158,14 @@ async function pinChatConnection(baseUrl: string, fixtureBaseUrl?: string): Prom
       allowBackground: true,
     });
     for (const task of ["chat", "summarize"] as const) {
-      await createTrpcClient(baseUrl).mutation("connection.setBinding", { task, connectionId: row.id });
+      await createTrpcClient(baseUrl).connection.setBinding.mutate({ task, connectionId: row.id });
     }
     return;
   }
-  const existing = (await createTrpcClient(baseUrl).query("connection.list")).find((connection) => connection.label === E2E_LOCAL_ENGINE_LABEL);
-  const row = existing ?? (await createTrpcClient(baseUrl).mutation("connection.create", await engineConnectionInput(baseUrl)));
+  const existing = (await createTrpcClient(baseUrl).connection.list.query()).find((connection) => connection.label === E2E_LOCAL_ENGINE_LABEL);
+  const row = existing ?? (await createTrpcClient(baseUrl).connection.create.mutate(await engineConnectionInput(baseUrl)));
   for (const task of ["chat", "summarize"] as const) {
-    await createTrpcClient(baseUrl).mutation("connection.setBinding", { task, connectionId: row.id });
+    await createTrpcClient(baseUrl).connection.setBinding.mutate({ task, connectionId: row.id });
   }
 }
 
@@ -382,14 +382,14 @@ async function seedCorpusLocal(mode: ModeProject): Promise<void> {
     throw new Error("Corpus local admission requires its cloned humans and run-owned credentials");
   }
   const client = createTrpcClient(mode.backendUrl);
-  await client.mutation("settings.updateAppSettings", { partial: { localMultiUser: true } });
+  await client.settings.updateAppSettings.mutate({ partial: { localMultiUser: true } });
   for (const [viewer, password] of [
     [owner, ownerPassword],
     [member, memberPassword],
   ] as const) {
-    await client.mutation("admin.resetPassword", { userId: viewer.userId, password });
+    await client.admin.resetPassword.mutate({ userId: viewer.userId, password });
     const actor = await loginLocal(mode.backendUrl, viewer.handle, password);
-    const session = await createTrpcClient(mode.backendUrl, { ...actor.headers, forwarded: "" }).query("sessions.me", undefined);
+    const session = await createTrpcClient(mode.backendUrl, { ...actor.headers, forwarded: "" }).sessions.me.query(undefined);
     const response = await fetch(`${mode.backendUrl}/api/auth/me`, { headers: { ...actor.headers, forwarded: "" } });
     const identity = authMeSchema.parse(await response.json());
     if (

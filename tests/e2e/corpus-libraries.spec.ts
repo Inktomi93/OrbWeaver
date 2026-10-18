@@ -20,7 +20,7 @@ test.describe("committed corpus collection settings", () => {
   test("Regex scripts edit a captured member and persist it through reload", { tag: "@smoke" }, async ({ page, baseURL }) => {
     const host = ownerActor(baseURL ?? "");
     const id = corpus().regexLibrary?.ids.scriptId;
-    const before = (await host.query("regex.listScripts", undefined)).find((item) => item.id === id);
+    const before = (await host.trpc.regex.listScripts.query(undefined)).find((item) => item.id === id);
     if (before === undefined) {
       throw new Error("Corpus regex member is absent");
     }
@@ -31,7 +31,7 @@ test.describe("committed corpus collection settings", () => {
     const next = `${original} corpus smoke`;
     await field.fill(next);
     await field.press("Tab");
-    await expect.poll(async () => (await host.query("regex.listScripts", undefined)).find((item) => item.id === id)?.replaceString).toBe(next);
+    await expect.poll(async () => (await host.trpc.regex.listScripts.query(undefined)).find((item) => item.id === id)?.replaceString).toBe(next);
     await page.reload();
     await openConfigGroup(page, "regex");
     await page.getByRole("button", { name: before.name, exact: true }).click();
@@ -48,7 +48,7 @@ test.describe("committed corpus collection settings", () => {
     if (bookId === undefined) {
       throw new Error("Corpus world book is absent");
     }
-    const before = await host.query("worldInfo.getBook", { bookId });
+    const before = await host.trpc.worldInfo.getBook.query({ bookId });
     await openConfigGroup(page, "worldInfo");
     await page.getByRole("button", { name: before.name, exact: true }).click();
     await page.getByRole("button", { name: "Edit details", exact: true }).click();
@@ -56,7 +56,7 @@ test.describe("committed corpus collection settings", () => {
     const description = `${before.description ?? ""} corpus smoke`;
     await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(description);
     await dialog.getByRole("button", { name: "Save", exact: true }).click();
-    await expect.poll(async () => (await host.query("worldInfo.getBook", { bookId })).description).toBe(description.trim());
+    await expect.poll(async () => (await host.trpc.worldInfo.getBook.query({ bookId })).description).toBe(description.trim());
     await page.reload();
     await openConfigGroup(page, "worldInfo");
     await page.getByRole("button", { name: before.name, exact: true }).click();
@@ -74,15 +74,15 @@ test.describe("committed corpus collection settings", () => {
     if (presetId === undefined) {
       throw new Error("Corpus roster is absent");
     }
-    const before = await host.query("rosterPreset.get", { presetId });
+    const before = await host.trpc.rosterPreset.get.query({ presetId });
     await openConfigGroup(page, "rosterPreset");
     await page.getByRole("button", { name: before.name, exact: true }).click();
     const input = page.getByRole("textbox", { name: "Description", exact: true });
     const next = `${before.description} corpus smoke`;
     await input.fill(next);
     await page.getByRole("button", { name: "Save", exact: true }).click();
-    await expect.poll(async () => (await host.query("rosterPreset.get", { presetId })).description).toBe(next);
-    const after = await host.query("rosterPreset.get", { presetId });
+    await expect.poll(async () => (await host.trpc.rosterPreset.get.query({ presetId })).description).toBe(next);
+    const after = await host.trpc.rosterPreset.get.query({ presetId });
     expect(after.members).toEqual(before.members);
     expect(after.rules).toEqual(before.rules);
     await page.reload();
@@ -98,31 +98,31 @@ test.describe("committed corpus collection settings", () => {
   test("Connections edit an owned endpoint label without changing its transport", { tag: "@smoke" }, async ({ page, baseURL }) => {
     const host = ownerActor(baseURL ?? "");
     const id = corpus().libraryRelations?.ids.connectionId;
-    const before = (await host.query("connection.list", undefined)).find((connection) => connection.id === id);
+    const before = (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id);
     if (before === undefined) {
       throw new Error("Corpus endpoint is absent");
     }
     await openConfigGroup(page, "connections");
     await page.getByRole("button", { name: connectionSummary(before), exact: true }).click();
-    await expect.poll(async () => (await host.query("connection.list", undefined)).find((connection) => connection.id === id)?.modelCheck).toBe("listed");
+    await expect.poll(async () => (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id)?.modelCheck).toBe("listed");
     const field = page.getByRole("textbox", { name: "Name", exact: true });
     const next = `${before.label} smoke`;
     await field.fill(next);
     await field.press("Tab");
-    await expect.poll(async () => (await host.query("connection.list", undefined)).find((connection) => connection.id === id)?.label).toBe(next);
+    await expect.poll(async () => (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id)?.label).toBe(next);
     await page.reload();
     await openConfigGroup(page, "connections");
     await page.getByRole("button", { name: connectionSummary({ ...before, label: next }), exact: true }).click();
     await expect(field).toHaveValue(next);
-    const after = (await host.query("connection.list", undefined)).find((connection) => connection.id === id);
+    const after = (await host.trpc.connection.list.query(undefined)).find((connection) => connection.id === id);
     expect(after?.baseUrl).toBe(before.baseUrl);
-    await host.mutation("connection.update", { connectionId: before.id, patch: { label: before.label } });
+    await host.trpc.connection.update.mutate({ connectionId: before.id, patch: { label: before.label } });
   });
 
   test("Plugins toggle the actual installed corpus plugin and persist its activation", { tag: "@smoke" }, async ({ page, baseURL }) => {
     const host = ownerActor(baseURL ?? "");
     const id = corpus().pluginLibrary?.ownerActive.ids.pluginId;
-    const before = (await host.query("plugin.list", undefined)).find((plugin) => plugin.id === id);
+    const before = (await host.trpc.plugin.list.query(undefined)).find((plugin) => plugin.id === id);
     if (before === undefined) {
       throw new Error("Corpus plugin is absent");
     }
@@ -130,13 +130,13 @@ test.describe("committed corpus collection settings", () => {
     const enabled = before.status === "enabled";
     await page.getByRole("switch", { name: `Turn ${before.name} ${enabled ? "off" : "on"}`, exact: true }).click();
     await expect
-      .poll(async () => (await host.query("plugin.list", undefined)).find((plugin) => plugin.id === id)?.status)
+      .poll(async () => (await host.trpc.plugin.list.query(undefined)).find((plugin) => plugin.id === id)?.status)
       .toBe(enabled ? "disabled" : "enabled");
     await page.reload();
     await openConfigGroup(page, "plugins");
     const restore = page.getByRole("switch", { name: `Turn ${before.name} ${enabled ? "on" : "off"}`, exact: true });
     await expect(restore).toBeVisible();
     await restore.click();
-    await expect.poll(async () => (await host.query("plugin.list", undefined)).find((plugin) => plugin.id === id)?.status).toBe(before.status);
+    await expect.poll(async () => (await host.trpc.plugin.list.query(undefined)).find((plugin) => plugin.id === id)?.status).toBe(before.status);
   });
 });

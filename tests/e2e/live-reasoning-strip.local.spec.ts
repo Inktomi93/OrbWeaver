@@ -25,16 +25,18 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import type { MessageView } from "@orb/contracts/chat";
+import { messageViewSchema } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/floor/host/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider.ts";
 import { LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
+import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-reasoning-strip";
 const STREAM_TIMEOUT_MS = 60_000;
@@ -42,15 +44,27 @@ const STREAM_TIMEOUT_MS = 60_000;
 /** Did any collected stream value carry a reasoning byte — a `reasoning`-kind delta OR a non-null
  *  `view.reasoning`? The member's stream must have NONE on a deception game. */
 function hasReasoning(values: readonly StreamValue[]): boolean {
-  return values.some(
-    (v) =>
-      (v.event.type === "delta" && v.event.delta.kind === "reasoning" && v.event.delta.text.length > 0) ||
-      ("view" in v.event && (v.event.view.reasoning ?? null) !== null),
-  );
+  return values.some((value) => {
+    const event = readStreamEvent(value);
+    if (event["type"] === "delta") {
+      const delta = pageObject(event["delta"], "SSE reasoning delta");
+      if (pageString(delta["kind"], "SSE reasoning delta kind") === "reasoning" && pageString(delta["text"], "SSE reasoning delta text").length > 0) {
+        return true;
+      }
+    }
+    if (!("view" in event)) {
+      return false;
+    }
+    const view = pageObject(event["view"], "SSE reasoning view");
+    if (view["reasoning"] === null) {
+      return false;
+    }
+    pageString(view["reasoning"], "SSE view reasoning");
+    return true;
+  });
 }
 
-/** The serialized stream — the exact bytes a devtools-open viewer would see. The lie truth must be absent for
- *  the member across the WHOLE payload (body span stripped + reasoning channel withheld). */
+/** Serialize the unnormalized parsed frames, including unknown fields, for whole-payload leak checks. */
 function streamBytes(values: readonly StreamValue[]): string {
   return JSON.stringify(values);
 }
@@ -59,12 +73,23 @@ function streamBytes(values: readonly StreamValue[]): string {
  *  it), or undefined. The stop-collecting signal: the fixture streams reasoning THEN the cover-prose body, so
  *  once the reply commit lands both channels have flowed past this viewer. */
 function replyCommit(values: readonly StreamValue[]): StreamValue | undefined {
-  return values.find((v) => v.event.type === "messageCommitted" && (v.event.view?.content ?? "").includes(FIXTURE_COVER_MARKER));
+  return values.find((value) => {
+    const event = readStreamEvent(value);
+    if (event["type"] !== "messageCommitted" || event["view"] === undefined) {
+      return false;
+    }
+    const view = pageObject(event["view"], "committed SSE view");
+    return pageString(view["content"], "committed SSE view content").includes(FIXTURE_COVER_MARKER);
+  });
 }
 
 /** The message view a `messageCommitted` value carries. */
 function committedView(value: StreamValue | undefined): MessageView | undefined {
-  return value?.event.type === "messageCommitted" ? value.event.view : undefined;
+  if (value === undefined) {
+    return undefined;
+  }
+  const event = readStreamEvent(value);
+  return event["type"] === "messageCommitted" && event["view"] !== undefined ? messageViewSchema.parse(event["view"]) : undefined;
 }
 
 /** Stop once the turn's reply commit has landed for this viewer (its content carries the cover marker). */
@@ -83,12 +108,12 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   let restoreProvider: (() => Promise<void>) | undefined;
 
   // Fresh spec-owned character (idempotent across crashed runs).
-  const priorList = await host.query("character.list", {});
+  const priorList = await host.trpc.character.list.query({});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
-    await host.mutation("character.remove", { characterId: prior.id });
+    await host.trpc.character.remove.mutate({ characterId: prior.id });
   }
-  const character = await host.mutation("character.create", {
+  const character = await host.trpc.character.create.mutate({
     input: { handle: CARD_HANDLE, name: "Baron", description: "e2e reasoning-strip probe", greetings: [{ text: "Welcome to the keep." }] },
   });
 
@@ -96,10 +121,10 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     // HOST: point the chat Model role at the scripted fixture (a real `custom-openai` connection), a lite game with
     // deception active, and seat the member.
     restoreProvider = await configureCustomProvider(host, fixture.baseUrl, "fixture-model");
-    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
+    const started = await host.trpc.chat.startChat.mutate({ characterIds: [character.id] });
     const chatId = started.chat.id;
-    await host.mutation("rpg.createGame", { chatId, mode: "lite" });
-    await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
+    await host.trpc.rpg.createGame.mutate({ chatId, mode: "lite" });
+    await host.trpc.rpg.updateConfig.mutate({ chatId, patch: { deception: true, hiddenContentReveal: true } });
 
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
@@ -110,7 +135,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     // Give both sockets a beat to go live before the turn (the room's live listener attaches on connect).
     await sleep(1500);
-    await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
+    await host.trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
 
     // Both collections must have SEEN the reply commit: the member's arm below is all absence assertions, which a
     // timed-out empty stream would pass without delivering a byte.
@@ -169,7 +194,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     const hostReplyCommit = committedView(replyCommit(hostReplay));
     expect(hostReplyCommit?.reasoning ?? "").toContain(FIXTURE_LIE_TRUTH);
   } finally {
-    await host.mutation("character.remove", { characterId: character.id });
+    await host.trpc.character.remove.mutate({ characterId: character.id });
     await restoreProvider?.();
     await fixture.close();
   }

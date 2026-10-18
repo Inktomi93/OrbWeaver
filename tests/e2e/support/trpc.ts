@@ -1,44 +1,27 @@
-// Shared e2e tRPC fetch helpers — the ONE way both globalSetup (support/global-setup.ts) and the specs
-// talk to the app's API directly, without a browser. Hand-rolls the tRPC batch wire shape (the same
-// contract the client's httpBatchLink speaks) against the SAME running stack the specs hit (the vite
-// front door proxies `/api` to Hono; single-user AUTH_MODE → no login). Typechecked by the tests-dom
-// program (tsconfig.tests-dom.json): node's global `fetch`, and imports nothing from the browser client trees.
-//
-// EVERY tRPC WIRE SHAPE IS DERIVED, NEVER DECLARED: a procedure's output and input come from the `AppRouter`
-// type (the same type-only bridge the client uses), keyed by the dotted procedure path. A field added,
-// renamed or retyped on the server changes these types and turns the specs that read it red. Only the
-// `/api/_debug/*` routes below are hand-declared, because they are Hono routes with no procedure to derive from.
-//
-// WHY specs need this (not just globalSetup): the honesty specs assert DOM-vs-DB PARITY and
-// settings-are-what's-used — they must read canon (chat.listMessages) and settings (getUserSettings)
-// straight from the server as ground truth, and some drive a turn via chat.send with an explicit
-// `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
-
+// Native tRPC owns successful request encoding and response types. Debug routes retain their canonical parsers.
 import process from "node:process";
-import type { ContextFitPreview } from "@orb/contracts/chat";
 import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
+import { TRPC_BATCH_MAX_ITEMS } from "@orb/contracts/rpc";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { AppRouter } from "@orb/server";
 import type {
   ActorRefInput,
-  CanonMessage,
   CompactionIntent,
   DistributiveOmit,
   GroupConfigInput,
   GuidedSteerInput,
-  RosterSeat,
+  ProcedureAt,
   RpgConfigPatch,
-  TaskBinding,
-  TrackerView,
   TrpcInput,
-  TrpcOutput,
   TrpcPath,
 } from "@orb/testkit/browser/trpc-wire.ts";
+import type { TRPCClient } from "@trpc/client";
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USER } from "./modes.ts";
 
-/** The trailing arguments a procedure takes: none for a void input, optional when the input may be omitted. */
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // this is always SINGLE_USER.baseUrl — the actor clients target their stack via the spec's per-project
 // Playwright `baseURL`, not an env (playwright.config.ts:45-46), and no mode sets `E2E_BASE_URL`. A
@@ -46,8 +29,6 @@ import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, E2E_LOCAL_ENGINE_LABEL, SINGLE_USE
 // dev-target drive silently pointed this support client at a DIFFERENT stack than the browser specs drove,
 // producing DOM-vs-DB "parity failures" that were really two stacks disagreeing, not a product defect.
 const BASE_URL = SINGLE_USER.baseUrl;
-
-const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
 
 /**
  * The `/api/_debug/*` credential — the ONE header helper for every debug witness below, so a route added
@@ -72,22 +53,14 @@ const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOK
 
 export type {
   ActorRefInput,
-  CanonMessage,
   CompactionIntent,
   GroupConfigInput,
   GuidedSteerInput,
   NewConnection,
-  RosterSeat,
-  TaskBinding,
-  TrackerActor,
   TrackerDefInput,
-  TrackerView,
   TrpcInput,
-  TrpcOutput,
   TrpcPath,
 } from "@orb/testkit/browser/trpc-wire.ts";
-
-type InputArgs<TInput> = [TInput] extends [undefined] ? [] : undefined extends TInput ? [input?: TInput] : [input: TInput];
 
 /** The first batch entry's `result.data`, or `undefined` when that entry carries an error or no result. tRPC
  *  publishes no schema for the envelope, so it stays raw and only the envelope's own fields are read. */
@@ -100,54 +73,61 @@ export function batchResultData(body: unknown): { readonly data: unknown } | und
   return isPlainObject(result) ? { data: result["data"] } : undefined;
 }
 
-/** A tRPC batch client bound to one stack and one header set (a session cookie, a signed-JWT proxy header, or none).
- *  Inputs and results are typed per procedure by the router; a call throws on a non-2xx status or an error envelope. */
-export interface TrpcClient {
-  readonly query: <TPath extends TrpcPath>(procedure: TPath, ...input: InputArgs<TrpcInput<TPath>>) => Promise<TrpcOutput<TPath>>;
-  readonly mutation: <TPath extends TrpcPath>(procedure: TPath, ...input: InputArgs<TrpcInput<TPath>>) => Promise<TrpcOutput<TPath>>;
-}
+/** The public native client for this router, including its serialized output types. */
+export type TrpcClient = TRPCClient<AppRouter>;
 
-/** Build a {@link TrpcClient} against `baseUrl`. The ONE implementation of the batch wire shape: the default
- *  single-user client below, every actor client and globalSetup's per-mode seed all ride it. */
+type ClientProcedure<TPath extends TrpcPath> = ProcedureAt<TrpcClient, TPath>;
+
+/** A query or mutation result with the installed client's serialization semantics. */
+export type TrpcClientOutput<TPath extends TrpcPath> = Awaited<
+  ReturnType<Extract<ClientProcedure<TPath>[keyof ClientProcedure<TPath>], (...args: never[]) => Promise<unknown>>>
+>;
+
+/** A message as received by the native client, rather than its server-side producer. */
+export type CanonMessage = TrpcClientOutput<"chat.listMessages">["messages"][number];
+
+/** A present seat as received by the native room read. */
+export type RosterSeat = TrpcClientOutput<"chat.getChat">["participants"][number];
+
+/** A native model-role binding result. */
+export type TaskBinding = TrpcClientOutput<"connection.listBindings">[number];
+
+/** The native client's persisted tracker projection. */
+export type TrackerView = TrpcClientOutput<"rpg.getTrackerView">;
+
+/** One actor in the native tracker projection. */
+export type TrackerActor = TrackerView["actors"][number];
+
+/** Bind the native batch transport to one stack and the caller's exact identifying headers. */
 export function createTrpcClient(baseUrl: string, headers: Readonly<Record<string, string>> = {}): TrpcClient {
-  async function call<TPath extends TrpcPath>(kind: "query" | "mutation", procedure: TPath, input: unknown): Promise<TrpcOutput<TPath>> {
-    const res =
-      kind === "query"
-        ? await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}`, { headers })
-        : await fetch(`${baseUrl}/api/trpc/${procedure}?batch=1`, {
-            method: "POST",
-            headers: { ...headers, "content-type": "application/json" },
-            body: JSON.stringify({ 0: input }),
-          });
-    const body: unknown = await res.json();
-    const result = batchResultData(body);
-    if (!res.ok || result === undefined) {
-      throw new Error(`e2e trpc: ${procedure} ${kind} failed (${res.status}): ${JSON.stringify(body)}`);
-    }
-    // @orb-waive no-test-fabrication(TrpcOutput<TPath>): the router's output type is the only description of the payload; the harness does not re-parse it.
-    return result.data as TrpcOutput<TPath>;
-  }
-  return {
-    query: (procedure, ...input) => call("query", procedure, input[0]),
-    mutation: (procedure, ...input) => call("mutation", procedure, input[0]),
-  };
+  return createTRPCClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: `${baseUrl}/api/trpc`,
+        maxItems: TRPC_BATCH_MAX_ITEMS,
+        headers: ({ opList }) => (opList[0].type === "mutation" ? { ...headers, "content-type": "application/json" } : headers),
+        fetch: async (url, init) => {
+          const response = await fetch(url, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
+          if (!response.ok) {
+            throw new Error(`e2e trpc: ${String(url)} ${init?.method ?? "GET"} failed (${String(response.status)}): ${await response.text()}`);
+          }
+          return response;
+        },
+      }),
+    ],
+  });
 }
 
-const singleUser = createTrpcClient(BASE_URL);
-
-/** A tRPC batch GET query against the single-user stack — returns the single procedure's `result.data`. */
-export const trpcQuery: TrpcClient["query"] = singleUser.query;
-
-/** A tRPC batch mutation against the single-user stack — returns the single procedure's `result.data`. */
-export const trpcMutation: TrpcClient["mutation"] = singleUser.mutation;
+/** The single-user stack's native client; actors and per-mode setup bind their own origin. */
+export const trpc = createTrpcClient(BASE_URL);
 
 // ── The canon/settings reads the specs assert against: ground truth straight from the server, typed by the
 // router. The `@orb/kit/ids` brands ride through, so an id position can never be a bare string. ──
 
 /** Read the chat's present-tense fit preview (the divider's server source). The procedure answers
  *  `{ unbound: true }` when the host has no chat connection; every spec that calls this binds one first. */
-export async function previewContextFit(chatId: ChatId): Promise<ContextFitPreview> {
-  const answer = await trpcQuery("chat.previewContextFit", { chatId });
+export async function previewContextFit(chatId: ChatId): Promise<Exclude<TrpcClientOutput<"chat.previewContextFit">, { readonly unbound: true }>> {
+  const answer = await trpc.chat.previewContextFit.query({ chatId });
   if ("unbound" in answer) {
     throw new Error(`e2e: chat ${chatId} has no bound chat connection — previewContextFit has no window to fit`);
   }
@@ -156,18 +136,18 @@ export async function previewContextFit(chatId: ChatId): Promise<ContextFitPrevi
 
 /** Read a chat's canon rows, chronological (seq ascending) — the DB ground truth the specs assert against. */
 export async function listCanon(chatId: ChatId): Promise<readonly CanonMessage[]> {
-  const page = await trpcQuery("chat.listMessages", { chatId });
+  const page = await trpc.chat.listMessages.query({ chatId });
   return page.messages;
 }
 
 /** Read the current user settings — the ground truth for "what the seeds tier ACTUALLY holds". There is no
  *  `routing` tier: a per-task model pick is a `connection_bindings` ROW, read through `listBindings` below. */
-export function getUserSettings(): Promise<TrpcOutput<"settings.getUserSettings">> {
-  return trpcQuery("settings.getUserSettings");
+export function getUserSettings(): Promise<TrpcClientOutput<"settings.getUserSettings">> {
+  return trpc.settings.getUserSettings.query();
 }
 
 /** Read the appearance + theme slice — the DB ground truth the render-truth spec pins visibility against. */
-export function getAppearanceTheme(): Promise<TrpcOutput<"settings.getUserSettings">> {
+export function getAppearanceTheme(): Promise<TrpcClientOutput<"settings.getUserSettings">> {
   return getUserSettings();
 }
 
@@ -177,20 +157,20 @@ export function updateSettingsSection(
   section: TrpcInput<"settings.updateUserSettingsSection">["section"],
   patch: TrpcInput<"settings.updateUserSettingsSection">["patch"],
 ): Promise<unknown> {
-  return trpcMutation("settings.updateUserSettingsSection", { section, patch });
+  return trpc.settings.updateUserSettingsSection.mutate({ section, patch });
 }
 
 /** List owned ∪ seed themes — the spec finds a seed theme (e.g. "Mocha") to select. */
-export function listThemes(): Promise<TrpcOutput<"settings.listThemes">> {
-  return trpcQuery("settings.listThemes");
+export function listThemes(): Promise<TrpcClientOutput<"settings.listThemes">> {
+  return trpc.settings.listThemes.query();
 }
 
 /** Start a fresh CLAIMED chat with the given character(s) (model-free — seeds the greeting row).
  *  `chat.startChat` alone mints a husk that every Chats list hides, so `openNewestChat` would open another
  *  chat. Rewriting the untitled chat's `null` title claims it without changing what the list shows. */
 export async function startChat(characterIds: readonly CharacterId[]): Promise<ChatId> {
-  const started = await trpcMutation("chat.startChat", { characterIds: [...characterIds] });
-  await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: null });
+  const started = await trpc.chat.startChat.mutate({ characterIds: [...characterIds] });
+  await trpc.chat.updateTitle.mutate({ chatId: started.chat.id, title: null });
   return started.chat.id;
 }
 
@@ -207,12 +187,12 @@ export async function sendTurn(chatId: ChatId, content: string, maxContextTokens
   if (compaction !== undefined) {
     intent["compaction"] = compaction;
   }
-  await trpcMutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content, ...(Object.keys(intent).length === 0 ? {} : { intent }) });
+  await trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content, ...(Object.keys(intent).length === 0 ? {} : { intent }) });
 }
 
 /** The character catalog (globalSetup guarantees ≥1). */
-export async function listCharacters(): Promise<TrpcOutput<"character.list">["items"]> {
-  const page = await trpcQuery("character.list", {});
+export async function listCharacters(): Promise<TrpcClientOutput<"character.list">["items"]> {
+  const page = await trpc.character.list.query({});
   return page.items;
 }
 
@@ -225,9 +205,9 @@ export async function listCharacters(): Promise<TrpcOutput<"character.list">["it
 export async function mintFreshCharacter(handle: CharacterHandle, name: string, greeting: string): Promise<CharacterId> {
   const existing = (await listCharacters()).find((c) => c.handle === handle);
   if (existing !== undefined) {
-    await trpcMutation("character.remove", { characterId: existing.id });
+    await trpc.character.remove.mutate({ characterId: existing.id });
   }
-  const created = await trpcMutation("character.create", {
+  const created = await trpc.character.create.mutate({
     input: { handle, name, description: "e2e spec-owned probe character", greetings: [{ text: greeting }] },
   });
   return created.id;
@@ -235,7 +215,7 @@ export async function mintFreshCharacter(handle: CharacterHandle, name: string, 
 
 /** Remove a spec-owned character (see `mintFreshCharacter`). */
 export function removeCharacter(characterId: CharacterId): Promise<unknown> {
-  return trpcMutation("character.remove", { characterId });
+  return trpc.character.remove.mutate({ characterId });
 }
 
 // ── TASK-24: the four-layer round-trip fidelity harness support. Reads each of the four layers as WIRE
@@ -256,8 +236,8 @@ export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promi
 
 /** Read the content-free SHAPE trace (chat.getShapeTrace — host-gated): per-stage ROW COUNTS, never content.
  *  The ASSEMBLE-layer shaping stages; the harness asserts the counts move with the config. */
-export function getShapeTrace(chatId: ChatId): Promise<TrpcOutput<"chat.getShapeTrace">> {
-  return trpcQuery("chat.getShapeTrace", { chatId });
+export function getShapeTrace(chatId: ChatId): Promise<TrpcClientOutput<"chat.getShapeTrace">> {
+  return trpc.chat.getShapeTrace.query({ chatId });
 }
 
 // ── CONNECTIONS + MODEL ROLES — the harness's half of the inference program's two tables ───────────────
@@ -276,16 +256,16 @@ export function getShapeTrace(chatId: ChatId): Promise<TrpcOutput<"chat.getShape
 // in a finally, because the rows are the single-user owner's and are shared across serial specs.
 
 /** One of the caller's `user_connections` rows. */
-type ConnectionRow = TrpcOutput<"connection.list">[number];
+type ConnectionRow = TrpcClientOutput<"connection.list">[number];
 
 /** Every connection row the caller owns (`connection.list`). */
 function listConnections(): Promise<readonly ConnectionRow[]> {
-  return trpcQuery("connection.list");
+  return trpc.connection.list.query();
 }
 
 /** The caller's own (`user` actor) Model-roles readout. */
 function listBindings(): Promise<readonly TaskBinding[]> {
-  return trpcQuery("connection.listBindings");
+  return trpc.connection.listBindings.query();
 }
 
 /** The `chat` Model-roles row, always present (a slot with no binding reads `binding: null`). */
@@ -307,7 +287,7 @@ export async function getChatBinding(): Promise<{ readonly connectionId: UserCon
 /** Point the `chat` Model role at a connection, or CLEAR it. `null` is the product's one way to have no chat
  *  write path (`no-connection`) now that the retired incoherent `(api, source)` pair no longer exists. */
 export function setChatBinding(connectionId: UserConnectionId | null): Promise<unknown> {
-  return trpcMutation("connection.setBinding", { task: "chat", connectionId });
+  return trpc.connection.setBinding.mutate({ task: "chat", connectionId });
 }
 
 /** Restore a snapshot taken by {@link getChatBinding} — a no-op-safe finally step (an unset slot restores to
@@ -343,35 +323,35 @@ export async function claudeSubConnection(): Promise<ConnectionRow | undefined> 
 }
 
 /** Resolve the active default preset (settings.seeds.defaultPresetId → preset.get). Undefined when unset. */
-export async function getActivePreset(): Promise<TrpcOutput<"preset.get"> | undefined> {
+export async function getActivePreset(): Promise<TrpcClientOutput<"preset.get"> | undefined> {
   const settings = await getUserSettings();
   const id = settings.config.seeds.defaultPresetId;
   if (id === null) {
     return;
   }
-  return await trpcQuery("preset.get", { id });
+  return await trpc.preset.get.query({ id });
 }
 
 /** Patch the active preset's config (preset.update). The harness sends the WHOLE merged config back (the
  *  update replaces `config` wholesale) and restores the original in a finally. */
 export function updatePresetConfig(id: TrpcInput<"preset.update">["id"], config: TrpcInput<"preset.update">["config"]): Promise<unknown> {
-  return trpcMutation("preset.update", { id, config });
+  return trpc.preset.update.mutate({ id, config });
 }
 
 /** Create a throwaway chat preset (`preset.create`). The caller removes it in a finally via `removePreset`. */
-export function createPreset(name: string): Promise<TrpcOutput<"preset.create">> {
-  return trpcMutation("preset.create", { name, kind: "chat" });
+export function createPreset(name: string): Promise<TrpcClientOutput<"preset.create">> {
+  return trpc.preset.create.mutate({ name, kind: "chat" });
 }
 
 /** Remove a spec-owned preset (`preset.remove`). */
 export function removePreset(id: TrpcInput<"preset.remove">["id"]): Promise<unknown> {
-  return trpcMutation("preset.remove", { id });
+  return trpc.preset.remove.mutate({ id });
 }
 
 /** Set a preset's `params.maxContextTokens`. `preset.update` takes the FULL config (a `patch` key is silently
  *  stripped), so this reads the config, merges the one knob and writes the whole thing back. */
 export async function setPresetMaxContextTokens(id: TrpcInput<"preset.get">["id"], maxContextTokens: number): Promise<void> {
-  const preset = await trpcQuery("preset.get", { id });
+  const preset = await trpc.preset.get.query({ id });
   await updatePresetConfig(id, { ...preset.config, params: { ...preset.config.params, maxContextTokens } });
 }
 
@@ -380,7 +360,7 @@ export async function setPresetMaxContextTokens(id: TrpcInput<"preset.get">["id"
 // reads server truth through these — the DOM is only ever the second witness. ──
 
 /** The `chat.startChat` / `chat.getChat` room detail. */
-type ChatDetail = TrpcOutput<"chat.getChat">;
+type ChatDetail = TrpcClientOutput<"chat.getChat">;
 
 /** Self-seed a claimed chat with a KNOWN founding cast. `startChat` deliberately mints a list-hidden husk;
  *  the same-title row write claims it without adding canon. `opening: "none"` therefore leaves the transcript
@@ -391,18 +371,18 @@ export async function startGroupChat(args: {
   readonly title: string;
   readonly groupConfig?: GroupConfigInput;
 }): Promise<ChatDetail> {
-  const started = await trpcMutation("chat.startChat", { characterIds: [...args.characterIds], title: args.title, opening: "none" });
-  await trpcMutation("chat.updateTitle", { chatId: started.chat.id, title: args.title });
+  const started = await trpc.chat.startChat.mutate({ characterIds: [...args.characterIds], title: args.title, opening: "none" });
+  await trpc.chat.updateTitle.mutate({ chatId: started.chat.id, title: args.title });
   // `chat.startChat` takes no group config (a `groupConfig` key is silently stripped), so the knobs ride the setter.
   if (args.groupConfig !== undefined) {
-    await trpcMutation("chat.setGroupConfig", { chatId: started.chat.id, config: args.groupConfig });
+    await trpc.chat.setGroupConfig.mutate({ chatId: started.chat.id, config: args.groupConfig });
   }
   return started.chat;
 }
 
 /** The room detail (`chat.getChat`) — the roster ground truth after a membership mutation. */
 export function getChatDetail(chatId: ChatId): Promise<ChatDetail> {
-  return trpcQuery("chat.getChat", { chatId });
+  return trpc.chat.getChat.query({ chatId });
 }
 
 /** The PRESENT character seats of a room, in roster (join) order — the order `list`/`pooled` arbitration
@@ -412,13 +392,13 @@ export async function characterSeats(chatId: ChatId): Promise<readonly RosterSea
 }
 
 /** The effective group config (`chat.getGroupConfig`) — the "is the setting real?" read. */
-export function getGroupConfig(chatId: ChatId): Promise<TrpcOutput<"chat.getGroupConfig">> {
-  return trpcQuery("chat.getGroupConfig", { chatId });
+export function getGroupConfig(chatId: ChatId): Promise<TrpcClientOutput<"chat.getGroupConfig">> {
+  return trpc.chat.getGroupConfig.query({ chatId });
 }
 
 /** Seat one more character (`chat.addCharacterToChat`) — idempotent on an already-present character. */
-export function addCharacterToChat(chatId: ChatId, characterId: CharacterId): Promise<TrpcOutput<"chat.addCharacterToChat">> {
-  return trpcMutation("chat.addCharacterToChat", { chatId, characterId });
+export function addCharacterToChat(chatId: ChatId, characterId: CharacterId): Promise<TrpcClientOutput<"chat.addCharacterToChat">> {
+  return trpc.chat.addCharacterToChat.mutate({ chatId, characterId });
 }
 
 /** Patch ONE AI seat's arbitration knobs (`chat.setSeatKnobs`, D80) — keyed by the PARTICIPANT row id. */
@@ -426,13 +406,13 @@ export function setSeatKnobs(
   chatId: ChatId,
   participantId: TrpcInput<"chat.setSeatKnobs">["participantId"],
   patch: TrpcInput<"chat.setSeatKnobs">["patch"],
-): Promise<TrpcOutput<"chat.setSeatKnobs">> {
-  return trpcMutation("chat.setSeatKnobs", { chatId, participantId, patch });
+): Promise<TrpcClientOutput<"chat.setSeatKnobs">> {
+  return trpc.chat.setSeatKnobs.mutate({ chatId, participantId, patch });
 }
 
 /** Delete a spec-owned chat (`chat.delete`) — the cleanup half of `startGroupChat`. */
 export function deleteChat(chatId: ChatId): Promise<unknown> {
-  return trpcMutation("chat.delete", { chatId });
+  return trpc.chat.delete.mutate({ chatId });
 }
 
 /** The per-send output ceiling every `@live` group turn rides. Small on purpose: the group specs assert WHO
@@ -445,29 +425,29 @@ const GROUP_TURN_MAX_OUTPUT_TOKENS = 32;
  *  spec's knob leaks into the other. Resolves after the WHOLE round commits — including every extra speaker
  *  a multi-speaker round drove and any auto-mode chain. */
 export function sendGroupTurn(chatId: ChatId, content: string): Promise<unknown> {
-  return trpcMutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** Host-summon one present character to speak next (`chat.forceCharacterTurn`) — the hard override that
  *  bypasses the policy entirely (and still reaches a MUTED seat: mute is passive arbitration exclusion). */
 export function forceCharacterTurn(chatId: ChatId, characterId: CharacterId): Promise<unknown> {
-  return trpcMutation("chat.forceCharacterTurn", { chatId, timeZone: UTC_TIME_ZONE, characterId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpc.chat.forceCharacterTurn.mutate({ chatId, timeZone: UTC_TIME_ZONE, characterId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** Regenerate ONE message slot (`chat.swipe`) — the per-speaker "individually swipeable" prover. */
 export function swipeMessage(chatId: ChatId, messageId: MessageId): Promise<unknown> {
-  return trpcMutation("chat.swipe", { chatId, timeZone: UTC_TIME_ZONE, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
+  return trpc.chat.swipe.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId, intent: { maxOutputTokens: GROUP_TURN_MAX_OUTPUT_TOKENS } });
 }
 
 /** How many variants one message slot carries (`chat.listMessageVariants`) — a swiped slot grows, its
  *  round-mates do not. */
 export async function countMessageVariants(chatId: ChatId, messageId: MessageId): Promise<number> {
-  return (await trpcQuery("chat.listMessageVariants", { chatId, messageId })).length;
+  return (await trpc.chat.listMessageVariants.query({ chatId, messageId })).length;
 }
 
 /** All variant summaries for a slot, idx-ascending (`chat.listMessageVariants`). */
-function listMessageVariants(chatId: ChatId, messageId: MessageId): Promise<TrpcOutput<"chat.listMessageVariants">> {
-  return trpcQuery("chat.listMessageVariants", { chatId, messageId });
+function listMessageVariants(chatId: ChatId, messageId: MessageId): Promise<TrpcClientOutput<"chat.listMessageVariants">> {
+  return trpc.chat.listMessageVariants.query({ chatId, messageId });
 }
 
 /** The FIRST (idx 0, original) variant id of a slot — the "original intact" comparand for the rewrite leg. */
@@ -483,7 +463,7 @@ export async function firstVariantId(chatId: ChatId, messageId: MessageId): Prom
 /** Move a slot's SELECTED-variant pointer (`chat.selectVariant`) — a pure pointer move (no generation),
  *  so stepping back to idx 0 proves the original variant survived a rewrite intact. */
 export function selectVariant(chatId: ChatId, messageId: MessageId, variantId: string): Promise<unknown> {
-  return trpcMutation("chat.selectVariant", { chatId, timeZone: UTC_TIME_ZONE, messageId, variantId });
+  return trpc.chat.selectVariant.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId, variantId });
 }
 
 /** The chat's ASSISTANT canon rows in seq order — the arbitration transcript every mode assertion reads
@@ -509,14 +489,14 @@ export async function speakerSequence(chatId: ChatId): Promise<readonly (string 
 /** Build the assembled prompt for a hypothetical turn, optionally with a guided steer routed through the
  *  SAME gather→build a real turn runs (`chat.previewAssembly` — host-only; single-user AUTH_MODE is host).
  *  The pre-turn "did the steer shape the assembly" instrument (no generation, nothing persists). */
-export function previewAssembly(chatId: ChatId, guided?: GuidedSteerInput): Promise<TrpcOutput<"chat.previewAssembly">> {
-  return trpcQuery("chat.previewAssembly", { chatId, timeZone: UTC_TIME_ZONE, ...(guided === undefined ? {} : { guided }) });
+export function previewAssembly(chatId: ChatId, guided?: GuidedSteerInput): Promise<TrpcClientOutput<"chat.previewAssembly">> {
+  return trpc.chat.previewAssembly.query({ chatId, timeZone: UTC_TIME_ZONE, ...(guided === undefined ? {} : { guided }) });
 }
 
 /** The whole assembled prompt text (static + dynamic + every in-chat injection's content) as ONE string —
  *  the steer can land in the dynamic suffix OR an in-chat injection depending on the preset's placement, so
  *  a containment assertion over the union is the placement-agnostic instrument. */
-export function assembledPromptText(preview: TrpcOutput<"chat.previewAssembly">): string {
+export function assembledPromptText(preview: TrpcClientOutput<"chat.previewAssembly">): string {
   return [preview.prompt.static, preview.prompt.dynamic, ...preview.prompt.afterHistory.map((i) => i.content)].join("\n");
 }
 
@@ -542,7 +522,7 @@ export async function tailAssistant(chatId: ChatId): Promise<CanonMessage | unde
  *  Writes the `chats.metadata.rpg` pointer that flips the client's CP-4 takeover on. Freeform ⇒ the snapshot
  *  starts empty (no born row) and the first state-changing turn writes the first snapshot. */
 export async function createLiteGame(chatId: ChatId): Promise<string> {
-  const created = await trpcMutation("rpg.createGame", { chatId, mode: "lite" });
+  const created = await trpc.rpg.createGame.mutate({ chatId, mode: "lite" });
   return created.gameId;
 }
 
@@ -550,12 +530,12 @@ export async function createLiteGame(chatId: ChatId): Promise<string> {
  *  The SERVER-truth cross-check for the CP-4 panel: what the flush/snapshot actually wrote AND the persisted
  *  snapshot DB read (the projection reads the snapshot rows live). */
 export function getTrackerView(chatId: ChatId): Promise<TrackerView> {
-  return trpcQuery("rpg.getTrackerView", { chatId });
+  return trpc.rpg.getTrackerView.query({ chatId });
 }
 
 /** Read the member game view (`rpg.getGame`). The takeover's mode read + the extraction-mode/read-only pills. */
-export function getGame(chatId: ChatId): Promise<TrpcOutput<"rpg.getGame">> {
-  return trpcQuery("rpg.getGame", { chatId });
+export function getGame(chatId: ChatId): Promise<TrpcClientOutput<"rpg.getGame">> {
+  return trpc.rpg.getGame.query({ chatId });
 }
 
 /** Set the game's delivery model (`rpg.updateConfig` — host). `folded` (default) = the character turn records
@@ -563,18 +543,18 @@ export function getGame(chatId: ChatId): Promise<TrpcOutput<"rpg.getGame">> {
  *  no-inline-union-redecl gate bans re-spelling the homed RPG_EXTRACTION_MODES tuple here; the spec passes the
  *  literal). */
 export function setExtractionMode(chatId: ChatId, mode: NonNullable<TrpcInput<"rpg.updateConfig">["extractionMode"]>): Promise<unknown> {
-  return trpcMutation("rpg.updateConfig", { chatId, extractionMode: mode });
+  return trpc.rpg.updateConfig.mutate({ chatId, extractionMode: mode });
 }
 
 /** Define the host-owned TRACKERS + custom-relationship hints (`rpg.updateConfig` — host). A passed array
  *  REPLACES the current list (whole-list edit). */
 export function setGameFeatures(chatId: ChatId, features: Pick<RpgConfigPatch, "trackers" | "relationshipHints">): Promise<unknown> {
-  return trpcMutation("rpg.updateConfig", { chatId, patch: features });
+  return trpc.rpg.updateConfig.mutate({ chatId, patch: features });
 }
 
 /** Read the host config-editor view (`rpg.getConfigView`). The "is the host setting real?" read. */
-export function getConfigView(chatId: ChatId): Promise<TrpcOutput<"rpg.getConfigView">> {
-  return trpcQuery("rpg.getConfigView", { chatId });
+export function getConfigView(chatId: ChatId): Promise<TrpcClientOutput<"rpg.getConfigView">> {
+  return trpc.rpg.getConfigView.query({ chatId });
 }
 
 /** Patch the P3/P4/P5 feature knobs (`rpg.updateConfig.patch` — host). The capstone drives deception/cyoa/
@@ -584,7 +564,7 @@ export function setFeatureKnobs(
   chatId: ChatId,
   knobs: Pick<RpgConfigPatch, "deception" | "omniscience" | "hiddenContentReveal" | "immersiveHtml" | "cyoa" | "plotProgression">,
 ): Promise<unknown> {
-  return trpcMutation("rpg.updateConfig", { chatId, patch: knobs });
+  return trpc.rpg.updateConfig.mutate({ chatId, patch: knobs });
 }
 
 // ── HAND-PLANE writes (the model-independent backbone). Every rpg plane has a HAND door; the exhaustive spec
@@ -597,7 +577,7 @@ export function setFeatureKnobs(
  *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
  *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
 export function patchSheet(chatId: ChatId, actorRef: ActorRefInput, patch: TrpcInput<"rpg.patchSheet">["patch"]): Promise<unknown> {
-  return trpcMutation("rpg.patchSheet", { chatId, actorRef, patch });
+  return trpc.rpg.patchSheet.mutate({ chatId, actorRef, patch });
 }
 
 /** The ERRORS-AS-DATA guard the three hand doors share (`editSnapshot`/`patchActor`/`dismissActor`): each
@@ -617,7 +597,7 @@ function assertHandWrote(path: string, result: unknown): unknown {
  *  trackerValues, plot. The per-ACTOR plane is NOT one of them (R1) — it rides `patchActor` below, and an
  *  `actorState` patch here is refused by design. */
 export async function editSnapshot(chatId: ChatId, patch: TrpcInput<"rpg.editSnapshot">["patch"]): Promise<unknown> {
-  return assertHandWrote("rpg.editSnapshot", await trpcMutation("rpg.editSnapshot", { chatId, patch }));
+  return assertHandWrote("rpg.editSnapshot", await trpc.rpg.editSnapshot.mutate({ chatId, patch }));
 }
 
 /** The op-shaped per-ACTOR hand door (`rpg.patchActor` — HOST-only). The ops apply IN ORDER against the true
@@ -629,43 +609,43 @@ export async function patchActor(
   ops: TrpcInput<"rpg.patchActor">["ops"],
   opts: Pick<TrpcInput<"rpg.patchActor">, "autoLock"> = {},
 ): Promise<unknown> {
-  return assertHandWrote("rpg.patchActor", await trpcMutation("rpg.patchActor", { chatId, targetRef, ops, ...opts }));
+  return assertHandWrote("rpg.patchActor", await trpc.rpg.patchActor.mutate({ chatId, targetRef, ops, ...opts }));
 }
 
 /** Upsert a quest (`rpg.upsertQuest` — HOST-only). `questId` absent ⇒ create. The quest-plane HAND door. */
 export function upsertQuest(chatId: ChatId, quest: DistributiveOmit<TrpcInput<"rpg.upsertQuest">, "chatId">): Promise<unknown> {
-  return trpcMutation("rpg.upsertQuest", { chatId, ...quest });
+  return trpc.rpg.upsertQuest.mutate({ chatId, ...quest });
 }
 
 /** Define the game's TRACKERS (`rpg.updateConfig.patch.trackers` — host). ONE def home since the tracked-field
  *  unification, so this one call replaces the retired createWidget + cast-field + orb-pin surfaces. */
 export function setTrackers(chatId: ChatId, trackers: NonNullable<RpgConfigPatch["trackers"]>): Promise<unknown> {
-  return trpcMutation("rpg.updateConfig", { chatId, patch: { trackers } });
+  return trpc.rpg.updateConfig.mutate({ chatId, patch: { trackers } });
 }
 
 /** Add a hand journal entry (`rpg.addJournalEntry` — host). */
 export function addJournalEntry(chatId: ChatId, entry: Omit<TrpcInput<"rpg.addJournalEntry">, "chatId">): Promise<unknown> {
-  return trpcMutation("rpg.addJournalEntry", { chatId, ...entry });
+  return trpc.rpg.addJournalEntry.mutate({ chatId, ...entry });
 }
 
 /** Read a game's journal archive (`rpg.listJournal`, member — lineage-projected). The journal-plane DB read. */
-export async function listJournal(chatId: ChatId): Promise<TrpcOutput<"rpg.listJournal">> {
-  return await trpcQuery("rpg.listJournal", { chatId });
+export async function listJournal(chatId: ChatId): Promise<TrpcClientOutput<"rpg.listJournal">> {
+  return await trpc.rpg.listJournal.query({ chatId });
 }
 
 /** Label the current resolved snapshot (`rpg.createCheckpoint` — host). Returns the minted checkpoint id. */
-export function createCheckpoint(chatId: ChatId, label: string): Promise<TrpcOutput<"rpg.createCheckpoint">> {
-  return trpcMutation("rpg.createCheckpoint", { chatId, label });
+export function createCheckpoint(chatId: ChatId, label: string): Promise<TrpcClientOutput<"rpg.createCheckpoint">> {
+  return trpc.rpg.createCheckpoint.mutate({ chatId, label });
 }
 
 /** Clone a checkpointed snapshot forward BORN-COMMITTED (`rpg.restoreCheckpoint` — host). The rewind door. */
 export function restoreCheckpoint(chatId: ChatId, checkpointId: string): Promise<unknown> {
-  return trpcMutation("rpg.restoreCheckpoint", { chatId, checkpointId });
+  return trpc.rpg.restoreCheckpoint.mutate({ chatId, checkpointId });
 }
 
 /** List a game's checkpoints (`rpg.listCheckpoints`). */
-export async function listCheckpoints(chatId: ChatId): Promise<TrpcOutput<"rpg.listCheckpoints">> {
-  return await trpcQuery("rpg.listCheckpoints", { chatId });
+export async function listCheckpoints(chatId: ChatId): Promise<TrpcClientOutput<"rpg.listCheckpoints">> {
+  return await trpc.rpg.listCheckpoints.query({ chatId });
 }
 
 // ── P3 host-reveal (parity-plus §3.6). `revealHidden` is the HOST-gated eye: it derives the parsed `<lie>`/
@@ -674,8 +654,8 @@ export async function listCheckpoints(chatId: ChatId): Promise<TrpcOutput<"rpg.l
 // then asserts the host reads it here + the standing-lie inventory groups it (FE=BE for the Veiled ledger). ──
 
 /** Read the host-reveal eye (`rpg.revealHidden`). The BE truth for the P3 Veiled ledger. */
-export function revealHidden(chatId: ChatId): Promise<TrpcOutput<"rpg.revealHidden">> {
-  return trpcQuery("rpg.revealHidden", { chatId });
+export function revealHidden(chatId: ChatId): Promise<TrpcClientOutput<"rpg.revealHidden">> {
+  return trpc.rpg.revealHidden.query({ chatId });
 }
 
 /** Overwrite an assistant message's stored body (`chat.editMessage` — author-or-host; single-user is host).
@@ -683,7 +663,7 @@ export function revealHidden(chatId: ChatId): Promise<TrpcOutput<"rpg.revealHidd
  *  in a real canon row so the render + reveal + strip seams are exercised without depending on the 8B emitting
  *  the exact grammar. The message stays a real durable row (reveal derives from stored bodies). */
 export function editMessage(chatId: ChatId, messageId: MessageId, content: string): Promise<unknown> {
-  return trpcMutation("chat.editMessage", { chatId, timeZone: UTC_TIME_ZONE, messageId, content });
+  return trpc.chat.editMessage.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId, content });
 }
 
 // ── P5 wand steer (parity-plus §6.2). The composer wand fires a game steer by KIND (`guided.gameSteer=<kind>`);
@@ -699,7 +679,7 @@ export function editMessage(chatId: ChatId, messageId: MessageId, content: strin
  *  HISTORY, so it lands in the vLLM `messages` array — NOT the previewAssembly prefix fields (which is why the
  *  wire capture, not previewAssembly, is the honest instrument for the steer's live-state resolution). */
 export function sendGameSteerTurn(chatId: ChatId, kind: NonNullable<NonNullable<TrpcInput<"chat.send">["guided"]>["gameSteer"]>): Promise<unknown> {
-  return trpcMutation("chat.send", {
+  return trpc.chat.send.mutate({
     chatId,
     timeZone: UTC_TIME_ZONE,
     content: "Continue.",
@@ -760,10 +740,10 @@ export async function fetchRpgTraces(chatId: ChatId): Promise<RpgTracesResponse[
 
 /** Delete message slots (`chat.deleteMessages`) — the sad-path "deleted turn" driver. */
 export function deleteMessages(chatId: ChatId, messageIds: Readonly<TrpcInput<"chat.deleteMessages">["messageIds"]>): Promise<unknown> {
-  return trpcMutation("chat.deleteMessages", { chatId, messageIds: [...messageIds] });
+  return trpc.chat.deleteMessages.mutate({ chatId, messageIds: [...messageIds] });
 }
 
 /** Abort the in-flight turn on a chat (`chat.abort`) — the sad-path "cancel mid-turn" driver. */
 export function abortTurn(chatId: ChatId): Promise<unknown> {
-  return trpcMutation("chat.abort", { chatId });
+  return trpc.chat.abort.mutate({ chatId });
 }

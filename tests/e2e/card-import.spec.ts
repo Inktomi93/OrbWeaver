@@ -5,7 +5,7 @@ import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
-import type { TrpcOutput } from "./support/trpc.ts";
+import type { TrpcClientOutput } from "./support/trpc.ts";
 
 const NAME = "Smoke Imported Archivist";
 const DESCRIPTION = "A synthetic archivist carrying a tiny smoke lorebook.";
@@ -46,9 +46,9 @@ test("importing a card preserves its fields and primary book, re-import deduplic
   baseURL,
 }) => {
   const host = ownerActor(baseURL ?? "");
-  const prior = await host.query("character.list", { search: NAME });
+  const prior = await host.trpc.character.list.query({ search: NAME });
   for (const character of prior.items.filter((item) => item.name === NAME)) {
-    await host.mutation("character.remove", { characterId: character.id });
+    await host.trpc.character.remove.mutate({ characterId: character.id });
   }
   await page.goto("/");
   await waitForAppReady(page);
@@ -58,25 +58,25 @@ test("importing a card preserves its fields and primary book, re-import deduplic
   if (imported === undefined) {
     throw new Error("card import returned no character");
   }
-  let books: TrpcOutput<"worldInfo.listForCharacter"> = [];
+  let books: TrpcClientOutput<"worldInfo.listForCharacter"> = [];
   try {
-    const fields = await host.query("character.get", { characterId: imported.characterId });
+    const fields = await host.trpc.character.get.query({ characterId: imported.characterId });
     expect({ name: fields.name, description: fields.description, greetings: fields.greetings.map((greeting) => greeting.text) }).toEqual({
       name: NAME,
       description: DESCRIPTION,
       greetings: [GREETING],
     });
-    books = await host.query("worldInfo.listForCharacter", { characterId: imported.characterId });
+    books = await host.trpc.worldInfo.listForCharacter.query({ characterId: imported.characterId });
     expect(books.map((book) => book.role)).toEqual(["primary"]);
     const [primary] = books;
     expect(primary).toBeDefined();
-    const entries = primary === undefined ? [] : await host.query("worldInfo.listEntries", { bookId: primary.id });
+    const entries = primary === undefined ? [] : await host.trpc.worldInfo.listEntries.query({ bookId: primary.id });
     expect(entries.map((entry) => entry.content)).toEqual([BOOK_CONTENT]);
     const again = await importCard(page);
     expect(again.imported).toMatchObject([{ characterId: imported.characterId, created: false, importHash: imported.importHash }]);
-    const listed = await host.query("character.list", { search: NAME });
+    const listed = await host.trpc.character.list.query({ search: NAME });
     expect(listed.items.filter((item) => item.name === NAME).map((item) => item.id)).toEqual([imported.characterId]);
-    expect(await host.query("worldInfo.listForCharacter", { characterId: imported.characterId })).toEqual(books);
+    expect(await host.trpc.worldInfo.listForCharacter.query({ characterId: imported.characterId })).toEqual(books);
     await page.reload();
     await waitForAppReady(page);
     await openCharactersList(page);
@@ -89,9 +89,9 @@ test("importing a card preserves its fields and primary book, re-import deduplic
     await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
     await expect(page.locator('[data-slot="message-row"]').getByRole("paragraph")).toHaveText(GREETING);
   } finally {
-    await host.mutation("character.remove", { characterId: imported.characterId });
+    await host.trpc.character.remove.mutate({ characterId: imported.characterId });
     for (const book of books) {
-      await host.mutation("worldInfo.removeBook", { bookId: book.id });
+      await host.trpc.worldInfo.removeBook.mutate({ bookId: book.id });
     }
   }
 });
