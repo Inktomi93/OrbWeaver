@@ -53,6 +53,7 @@ export async function createConfiguredOidc(deps: ConfiguredOidcDeps): Promise<Oi
   );
   const lifetime = construction.move();
   return {
+    rolePolicy: deps.built.sessions.rolePolicy,
     exchange: createOidcExchange(authorizationCodeGrant),
     redirectAllowlist: oidcRedirectAllowlist(settings.OIDC_REDIRECT_URIS),
     scope: settings.OIDC_SCOPES,

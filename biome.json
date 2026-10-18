@@ -909,7 +909,6 @@
     },
     {
       "includes": [
-        "packages/server/src/domain/sessions/substrate/role-policy.ts",
         "tests/legacy/server/foundation/env/_support.ts",
         "tests/legacy/server/foundation/env/env-file-load.test.ts",
         "tests/legacy/server/foundation/env/floor-defaults.test.ts",

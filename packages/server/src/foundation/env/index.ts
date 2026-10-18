@@ -494,6 +494,8 @@ const envSchema = z
     // an authenticated user in none of these groups is denied login. Unset ⇒ all users allowed.
     OIDC_ADMIN_GROUPS: z.string().optional(),
     OIDC_ALLOWED_GROUPS: z.string().optional(),
+    // Legacy role rederivation accepts trimmed true/1/yes, case-insensitively; sessions owns that normalization.
+    RE_DERIVE_ROLE_ON_LOGIN: z.string().optional(),
 
     // Verify the signed JWT against its JWKS. Falls back to network-isolation trust if the JWT is absent.
     FORWARD_AUTH_VERIFY_JWT: envBool(true),

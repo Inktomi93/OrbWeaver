@@ -5,6 +5,13 @@
 // `ensureUser`/`revoke`/`list` take bare branded ids/strings — no wrapper needed.
 
 import type { UserId } from "@orb/kit/ids";
+import type { SessionsRolePolicy } from "./role-policy.ts";
+
+/** The live owner read and immutable configuration used by the pure provisioning decision. */
+export interface ProvisionDecisionContext {
+  readonly ownerId: UserId | undefined;
+  readonly rolePolicy: SessionsRolePolicy;
+}
 
 /** `create` input: the resolved owner of the new session + the UA captured at mint (null when absent). */
 export interface CreateSessionParams {

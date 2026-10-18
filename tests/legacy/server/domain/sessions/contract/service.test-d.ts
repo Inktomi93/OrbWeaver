@@ -8,6 +8,7 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionToken } from "@orb/kit/ids";
+import type { SessionsRolePolicy } from "@orb/server/domain/sessions";
 import { expectTypeOf, test } from "vitest";
 import type { ProvisionIdentityOptions } from "#server/domain/sessions/contract/params.ts";
 import type { CreateSessionResult } from "#server/domain/sessions/contract/results.ts";
@@ -44,13 +45,18 @@ test("the peppered hasher is bound to session tokens inside the sessions context
 test("provisionIdentity and decideProvision refuse a call that omits the owner-claim proof", () => {
   expectTypeOf<ProvisionIdentityOptions["ownerClaimProven"]>().toEqualTypeOf<boolean>();
   expectTypeOf<SessionsService["provisionIdentity"]>().parameter(1).toEqualTypeOf<ProvisionIdentityOptions>();
-  const omissions = async (provision: SessionsService["provisionIdentity"], decide: typeof decideProvision, identity: ResolvedIdentity): Promise<void> => {
+  const omissions = async (
+    provision: SessionsService["provisionIdentity"],
+    decide: typeof decideProvision,
+    identity: ResolvedIdentity,
+    policy: SessionsRolePolicy,
+  ): Promise<void> => {
     // @ts-expect-error the options argument, which carries the proof, is required
     await provision(identity);
     // @ts-expect-error an options object without the proof is refused
     await provision(identity, { allowJitProvision: true });
     // @ts-expect-error the pure decision takes the same required proof
-    void decide(undefined, identity, undefined, {});
+    void decide(undefined, identity, { ownerId: undefined, rolePolicy: policy }, {});
   };
   expectTypeOf(omissions).toBeFunction();
 });

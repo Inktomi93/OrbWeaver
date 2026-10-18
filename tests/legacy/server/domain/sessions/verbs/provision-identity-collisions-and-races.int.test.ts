@@ -6,7 +6,8 @@ import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -17,6 +18,8 @@ import { asProvisioned, EXTERNAL, identity, PROVEN, rowCountOn } from "./_provis
 
 let db: Db;
 let svc: SessionsService;
+let policyConfig: SessionsRolePolicyConfig;
+let clock: ReturnType<typeof makeService>["clock"];
 
 async function rowCount(): Promise<number> {
   return await rowCountOn(db);
@@ -24,7 +27,8 @@ async function rowCount(): Promise<number> {
 
 beforeEach(async () => {
   db = await freshDb();
-  ({ svc } = makeService(db));
+  policyConfig = { ...env };
+  ({ svc, clock } = makeService(db, policyConfig));
 });
 
 afterEach(() => {
@@ -37,7 +41,8 @@ afterEach(() => {
 // still binds/mints as the proxy is the authority.
 describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch orphan guard)", () => {
   test("HANDLE collision (unbound non-owner row, signup ON) ⇒ DENIED with reason account-exists, no bind", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), {
       ownerClaimProven: true,
@@ -49,7 +54,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("a LOOK-ALIKE of a held handle at the mint path (signup ON) ⇒ DENIED account-exists, NO look-alike row", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }), PROVEN));
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|spoof"), handle: castId<Handle>("h0st") }), {
@@ -61,7 +67,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("a MIXED-SCRIPT handle at the mint path (signup ON) ⇒ DENIED, no row", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mixed"), handle: castId<Handle>("гoot") }), {
       ownerClaimProven: true,
@@ -72,7 +79,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("EMAIL collision at the mint path (new handle, signup ON) ⇒ DENIED account-exists, NO duplicate row", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     // An existing account carries alice@corp.com (created via a prior login).
     asProvisioned(
       await svc.provisionIdentity(
@@ -91,7 +99,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("a genuinely-new NON-colliding identity still JITs under signup ON", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     const result = asProvisioned(
       await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), email: "bob@corp.com" }), {
@@ -104,7 +113,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("the collision deny reason is DISTINCT from the plain signup-off deny", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     // signup-off deny for a brand-new identity carries NO account-exists reason: it is the JIT gate's own
     // `jit-closed`, the one reason the OIDC callback may answer with a pending join (D259).
     const signupOff = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|new"), handle: castId<Handle>("new") }), {
@@ -115,7 +125,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
   });
 
   test("forward-header (NULL subject) still binds an unbound row by handle — the proxy is the authority (not a collision)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") }), PROVEN));
     const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") }), PROVEN));
     expect(again.userId).toBe(local.userId);
@@ -132,7 +143,8 @@ describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch 
 // is the normal shape.
 describe("sessions.provisionIdentity — a null-subject login onto a BOUND row is operator-visible (#34)", () => {
   test("WARNS naming the row, and the login still succeeds onto the same row (no behavior change)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const bound = asProvisioned(await svc.provisionIdentity(identity({ externalId: EXTERNAL, handle: castId<Handle>("alice") }), PROVEN));
     const spy = vi.spyOn(logger, "warn");
     // The same handle arrives with NO subject — the guard that would have refused an IMPOSTOR here can't run.
@@ -154,7 +166,8 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
   // every login is subject-less by construction and the rows it provisions are UNBOUND — the proxy is the
   // identity authority. That shape must stay silent or the signal is a per-login siren nobody reads.
   test("a null-subject login onto an UNBOUND row is SILENT (the normal forward-header / single-user shape)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") }), PROVEN));
     const spy = vi.spyOn(logger, "warn");
     const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") }), PROVEN));
@@ -164,7 +177,8 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
 
   // And the subject-BEARING path is silent too — that is the login the guard actually protects.
   test("a subject-bearing login onto its own bound row is SILENT", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     await svc.provisionIdentity(identity(), PROVEN);
     const spy = vi.spyOn(logger, "warn");
     await svc.provisionIdentity(identity(), PROVEN);
@@ -174,7 +188,8 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
 
 describe("sessions.provisionIdentity — rename stability (externalId is the key)", () => {
   test("a handle rename updates the SAME row (no duplicate tenant)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
     const second = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }), PROVEN));
     expect(second.userId).toBe(first.userId);
@@ -184,7 +199,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
   });
 
   test("an IdP rename onto a look-alike of another row's handle keeps the current handle", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|host"), handle: castId<Handle>("host") }), PROVEN);
     const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
     const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("h0st") }), PROVEN));
@@ -195,7 +211,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
   });
 
   test("an IdP rename onto a mixed-script handle keeps the current handle", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
     const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("hσst") }), PROVEN));
     expect(renamed.userId).toBe(first.userId);
@@ -204,7 +221,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
   });
 
   test("externalId null keys on handle (single-user / non-SSO path)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") }), PROVEN));
     const second = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("solo") }), PROVEN));
     expect(second.userId).toBe(first.userId);
@@ -219,7 +237,8 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
 // per-request storm on the plane W8 exists to keep quiet; too shy and a demotion is invisible.
 describe("sessions.provisionIdentity — identityChanged (W7b: what the entry callers fan on)", () => {
   test("a handle RENAME reports identityChanged; the idempotent re-login right after does NOT", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") }), PROVEN));
     expect(first.identityChanged).toBe(false); // the INSERT — no other device holds a read of a row that did not exist
     const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }), PROVEN));
@@ -230,8 +249,9 @@ describe("sessions.provisionIdentity — identityChanged (W7b: what the entry ca
   });
 
   test("a login-time role DEMOTION reports identityChanged (the security-relevant half)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(promoted.role).toBe("admin");
     const demoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
@@ -240,7 +260,8 @@ describe("sessions.provisionIdentity — identityChanged (W7b: what the entry ca
   });
 
   test("an EMAIL-only refresh does NOT report identityChanged — no identity read projects email", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     await svc.provisionIdentity(identity({ email: "old@example.com" }), PROVEN);
     const refreshed = asProvisioned(await svc.provisionIdentity(identity({ email: "new@example.com" }), PROVEN));
     // The row DID change (see the email describe below) — the flag is about what `sessions.me` projects
@@ -251,14 +272,16 @@ describe("sessions.provisionIdentity — identityChanged (W7b: what the entry ca
 
 describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)", () => {
   test("persists the email claim on INSERT", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ email: "alice@example.com" }), PROVEN));
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
     expect(row?.email).toBe("alice@example.com");
   });
 
   test("refreshes a CHANGED email on UPDATE", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ email: "old@example.com" }), PROVEN));
     await svc.provisionIdentity(identity({ email: "new@example.com" }), PROVEN);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
@@ -266,7 +289,8 @@ describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)
   });
 
   test("keep-on-null: a login carrying NO email never wipes a stored one", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ email: "keep@example.com" }), PROVEN));
     await svc.provisionIdentity(identity({ email: null }), PROVEN);
     const row = (await db.select().from(users).where(eq(users.id, first.userId)))[0];
@@ -287,9 +311,10 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
                                values ('user_winner', 'alice', '${handleKey("alice")}', 'authentik|someone-else', 'user', 1, 1, 1)`;
 
   test("a concurrent writer taking the HANDLE ⇒ denied account-exists; the winner's row is untouched", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const held = await freshHeldDb();
-    const service = makeService(held.db).svc;
+    const service = makeService(held.db, policyConfig, clock).svc;
     const warn = vi.spyOn(logger, "warn");
     const parked = held.hold(/insert into "users"/i);
 
@@ -316,9 +341,10 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
   });
 
   test("a concurrent writer taking only the handle's KEY ⇒ denied; the line says key-only and never advises a link", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const held = await freshHeldDb();
-    const service = makeService(held.db).svc;
+    const service = makeService(held.db, policyConfig, clock).svc;
     const warn = vi.spyOn(logger, "warn");
     const parked = held.hold(/insert into "users"/i);
 
@@ -341,9 +367,10 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
   });
 
   test("the SAME-subject race still resolves onto the winner's row (the shape the insert absorbs by design)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const held = await freshHeldDb();
-    const service = makeService(held.db).svc;
+    const service = makeService(held.db, policyConfig, clock).svc;
     const parked = held.hold(/insert into "users"/i);
 
     const pending = service.provisionIdentity(identity(), PROVEN);

@@ -19,7 +19,6 @@ import {
   updateUser,
 } from "../persistence/users.ts";
 import { decideProvision } from "../substrate/decide-provision.ts";
-import { isOwnerSeedHandle, isReservedSignupHandle, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
 // same row), falling back to `handle` — a fallback that may BIND an unbound row and may NEVER REBIND a bound
@@ -103,7 +102,7 @@ async function updateExisting(
   // and implemented nowhere: the restart after the env edit died in `ensureUser` on that same single-owner
   // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
   // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
-  const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
+  const handleIsPolicyOwned = policy.isBootstrapOwner && ctx.rolePolicy.isOwnerSeedHandle(existing.handle);
   if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity, policy.isBootstrapOwner))) {
     changes.handle = identity.handle;
   }
@@ -111,7 +110,7 @@ async function updateExisting(
     changes.email = identity.email;
   }
   let effectiveRole = existing.role;
-  if (!policy.isBootstrapOwner && reDeriveRoleOnLogin() && policy.resolvedRole !== existing.role) {
+  if (!policy.isBootstrapOwner && ctx.rolePolicy.reDeriveRoleOnLogin() && policy.resolvedRole !== existing.role) {
     changes.role = policy.resolvedRole;
     effectiveRole = policy.resolvedRole;
   }
@@ -147,7 +146,7 @@ async function renameIsFree(ctx: SessionsContext, existing: ProvisionCandidate, 
   // SECURITY (D258): boot's seedOwner resolves the owner row by the OWNER_HANDLES seed key, so a member row holding
   // that key (or a look-alike) becomes the owner at the next mode flip. Only the owner row may move onto a seed key,
   // which is the operator's key migration. Do not narrow this to "while an owner row exists": the unclaimed box is the case.
-  if (!isBootstrapOwner && isReservedSignupHandle(identity.handle)) {
+  if (!isBootstrapOwner && ctx.rolePolicy.isReservedSignupHandle(identity.handle)) {
     securityEvent(
       "sso_rename_onto_reserved_handle",
       { userId: existing.id, handle: existing.handle, requested: identity.handle },
@@ -513,7 +512,7 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
     // The next login then takes the BIND path (unbound row + handle match) and links the new subject. The
     // refusal's log line is the operator's tell — it names the handle and the rejected subject.
     const ownerId = await selectOwnerUserId(ctx.db);
-    return await apply(ctx, identity, ownerId, decideProvision(existing, identity, ownerId, options));
+    return await apply(ctx, identity, ownerId, decideProvision(existing, identity, { ownerId, rolePolicy: ctx.rolePolicy }, options));
   }
   return { provisionIdentity };
 }

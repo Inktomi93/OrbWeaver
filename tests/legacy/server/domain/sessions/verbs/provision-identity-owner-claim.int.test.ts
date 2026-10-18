@@ -5,7 +5,8 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -16,6 +17,8 @@ import { asProvisioned, identity, PROVEN, rowCountOn } from "./_provision-identi
 
 let db: Db;
 let svc: SessionsService;
+let policyConfig: SessionsRolePolicyConfig;
+let clock: ReturnType<typeof makeService>["clock"];
 
 async function rowCount(): Promise<number> {
   return await rowCountOn(db);
@@ -23,7 +26,8 @@ async function rowCount(): Promise<number> {
 
 beforeEach(async () => {
   db = await freshDb();
-  ({ svc } = makeService(db));
+  policyConfig = { ...env };
+  ({ svc, clock } = makeService(db, policyConfig));
 });
 
 afterEach(() => {
@@ -33,14 +37,16 @@ afterEach(() => {
 describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17/D135)", () => {
   test("an owner-by-policy OIDC login BINDS onto the existing unbound (single-user seeded) owner row — no second owner, no downgrade", async () => {
     // Seed the single-user/local owner: externalId null, handle 'owner', role owner (the seed/fallback shape).
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
     expect(seeded.role).toBe("owner");
     expect(await rowCount()).toBe(1);
 
     // Flip to OIDC: the owner signs in via authentik with a DIFFERENT handle + a stable subject, owner-by-policy
     // through OWNER_GROUP (so it does NOT resolve to the seeded row by handle or externalId).
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const oidc = asProvisioned(
       await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN),
     );
@@ -70,9 +76,11 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   // next boot then found no row at "owner", its `insertUser` collided with `users_single_owner_unique`, and
   // `ensureUser` returned a PHANTOM id (see the cascade test in tests/legacy/server/entry/boot/seed-owner.int.test.ts).
   test("the adopted owner row keeps its OWNER_HANDLES handle across the 2nd login and N more (no IdP rename)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const oidc = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
 
     /** One OIDC login → the owner row's handle afterwards (the value that must never drift). */
@@ -98,13 +106,16 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   // OWNER_HANDLES is migrating the key, and the login lands the row back on the new one (so the next boot's
   // `ensureUser(ownerHandles()[0])` finds it instead of colliding).
   test("an owner row whose handle is NOT an OWNER_HANDLES key still tracks the IdP rename (key migration)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const oidc = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
     await svc.provisionIdentity(oidc, PROVEN);
     // The operator moves the owner key to the IdP handle; the next login renames the row onto it.
-    vi.stubEnv("OWNER_HANDLES", "alex");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alex" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const migrated = asProvisioned(await svc.provisionIdentity(oidc, PROVEN));
     expect(migrated.userId).toBe(seeded.userId);
     const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
@@ -124,7 +135,6 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   describe("the owner-bind CLAIM race (#1451)", () => {
     /** Seed the single-user/local owner (unbound, handle = the OWNER_HANDLES key) on an explicit db. */
     async function seedUnboundOwner(service: SessionsService): Promise<string> {
-      vi.stubEnv("OWNER_HANDLES", "owner");
       const seeded = asProvisioned(await service.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       expect(seeded.role).toBe("owner");
       return seeded.userId;
@@ -135,9 +145,8 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 
     test("two owner-policy logins with DIFFERENT subjects: exactly ONE binds, the loser is DENIED account-exists", async () => {
       const held = await freshHeldDb();
-      const service = makeService(held.db).svc;
+      const service = makeService(held.db, { ...policyConfig, ["OWNER_HANDLES"]: "owner", ["OWNER_GROUP"]: "owners" }, clock).svc;
       const ownerId = await seedUnboundOwner(service);
-      vi.stubEnv("OWNER_GROUP", "owners");
       const warn = vi.spyOn(logger, "warn");
 
       // Both logins park at their claim statement, so both have already read the row as UNBOUND — the exact
@@ -175,9 +184,8 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     // second concurrent login (or a retry), not a takeover — it must resolve onto the row, never be denied.
     test("two concurrent logins of the SAME owner subject both succeed onto the one row — no spurious deny", async () => {
       const held = await freshHeldDb();
-      const service = makeService(held.db).svc;
+      const service = makeService(held.db, { ...policyConfig, ["OWNER_HANDLES"]: "owner", ["OWNER_GROUP"]: "owners" }, clock).svc;
       const ownerId = await seedUnboundOwner(service);
-      vi.stubEnv("OWNER_GROUP", "owners");
 
       const parked = held.hold(/update "users"/i, 2);
       const both = Promise.all([service.provisionIdentity(alex, PROVEN), service.provisionIdentity(alex, PROVEN)]);
@@ -199,7 +207,7 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     // claim and gets the same compare-and-swap. Both logins carry proof; only the database may pick the winner.
     test("two PROVEN logins matching the unbound owner row by handle, with different subjects: exactly ONE binds", async () => {
       const held = await freshHeldDb();
-      const service = makeService(held.db).svc;
+      const service = makeService(held.db, { ...policyConfig, ["OWNER_HANDLES"]: "owner" }, clock).svc;
       const ownerId = await seedUnboundOwner(service);
       const first = identity({ externalId: castId<ExternalId>("authentik|first"), handle: castId<Handle>("owner"), groups: [] });
       const second = identity({ externalId: castId<ExternalId>("authentik|second"), handle: castId<Handle>("owner"), groups: [] });
@@ -223,9 +231,11 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     });
 
     test("the uncontended adoption still binds AND still refreshes the email claim", async () => {
-      vi.stubEnv("OWNER_HANDLES", "owner");
+      policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
-      vi.stubEnv("OWNER_GROUP", "owners");
+      policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const adopted = asProvisioned(await svc.provisionIdentity({ ...alex, email: "alex@example.test" }, PROVEN));
       expect(adopted.userId).toBe(seeded.userId);
       expect(adopted.role).toBe("owner");
@@ -248,7 +258,8 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     }
 
     test("on a box flipped from single-user, the unbound owner row stays unbound", async () => {
-      vi.stubEnv("OWNER_HANDLES", "owner");
+      policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       const warn = vi.spyOn(logger, "warn");
       expect(await svc.provisionIdentity(stranger, unproven)).toEqual({ outcome: "denied" });
@@ -260,13 +271,15 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     });
 
     test("on a fresh oidc box with no owner row, no owner row is created", async () => {
-      vi.stubEnv("OWNER_HANDLES", "owner");
+      policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+      ({ svc } = makeService(db, policyConfig, clock));
       expect(await svc.provisionIdentity(stranger, { ...unproven, allowJitProvision: true })).toEqual({ outcome: "denied" });
       expect(await rowCount()).toBe(0);
     });
 
     test("with proof the same login binds the unbound owner row", async () => {
-      vi.stubEnv("OWNER_HANDLES", "owner");
+      policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
       const claimed = asProvisioned(await svc.provisionIdentity(stranger, { ownerClaimProven: true }));
       expect(claimed).toMatchObject({ userId: seeded.userId, role: "owner" });
@@ -274,9 +287,11 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     });
 
     test("an OWNER_GROUP member still binds the unbound owner row with no proof from the caller", async () => {
-      vi.stubEnv("OWNER_HANDLES", "owner");
+      policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
-      vi.stubEnv("OWNER_GROUP", "owners");
+      policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+      ({ svc } = makeService(db, policyConfig, clock));
       const member = identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] });
       expect(asProvisioned(await svc.provisionIdentity(member, unproven))).toMatchObject({ userId: seeded.userId, role: "owner" });
       expect((await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.externalId).toBe("authentik|alex");
@@ -284,9 +299,11 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
   });
 
   test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") }), PROVEN));
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN);
     // The owner row is now BOUND (externalId set) → a different member is NOT adopted; the singleton downgrades it.
     const other = asProvisioned(
@@ -306,7 +323,8 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
 // the owner at the next mode flip. A member's IdP rename onto the key, or a look-alike of it, keeps the old handle.
 describe("sessions.provisionIdentity — a member's IdP rename onto the owner seed key is refused", () => {
   test.each(["owner", "Owner", "0wner"])("an unclaimed box: a member renamed at the IdP to %j keeps its handle and role", async (renamed) => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const member = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), PROVEN));
     const warn = vi.spyOn(logger, "warn");
     const again = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>(renamed) }), PROVEN));
@@ -322,7 +340,8 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
   // The JIT insert is the other writer of a new handle. A look-alike is not an exact OWNER_HANDLES match, so it is no
   // owner claim, but its row would hold the seed key: the owner's own claim would then meet `users_handle_key_unique`.
   test.each(["Owner", "OWNER", "0wner"])("an unclaimed box: a stranger signing in as %j creates no row, and the owner still claims", async (lookalike) => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const stranger = identity({ externalId: castId<ExternalId>("authentik|stranger"), handle: castId<Handle>(lookalike) });
     expect(await svc.provisionIdentity(stranger, { ownerClaimProven: false, allowJitProvision: true })).toEqual({ outcome: "denied" });
     expect(await rowCount()).toBe(0);
@@ -331,7 +350,8 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
   });
 
   test("control: the same member's IdP rename to an ordinary handle still lands", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const member = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), PROVEN));
     await svc.provisionIdentity(identity({ handle: castId<Handle>("alicia") }), PROVEN);
     expect((await db.select().from(users).where(eq(users.id, member.userId)))[0]?.handle).toBe("alicia");
@@ -340,9 +360,11 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
 
 describe("sessions.provisionIdentity — a handle match onto a BOUND row is an impostor, not a rename", () => {
   test("OWNER takeover: a different subject presenting the owner's handle is DENIED (row untouched)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] }), PROVEN));
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     // The real owner adopts the row with their stable subject.
     await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }), PROVEN);
 
@@ -361,7 +383,8 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
   });
 
   test("USER takeover: a different subject presenting a bound user's handle is DENIED (row untouched)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const victim = asProvisioned(
       await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), PROVEN),
     );
@@ -379,7 +402,8 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
     // Owner-ruled 2026-08-09: auto-linking a subject onto an existing row by the mutable handle IS the W1
     // takeover. A non-owner unbound row reached by a subject-bearing handle match is DENIED, not bound — the
     // row stays unbound until an admin links it with the stable subject (admin.linkSsoIdentity).
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     const attempt = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), PROVEN);
     expect(attempt.outcome).toBe("denied");

@@ -12,13 +12,14 @@ import type { AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "@orb/i
 import { createBinding } from "@orb/kit/binding";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
-import { ownerHandles } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
 import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { announceOwnerClaim, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
-import { resolveBindPosture } from "@orb/server/foundation/env";
+import { env, resolveBindPosture } from "@orb/server/foundation/env";
 import { getLog } from "@orb/server/foundation/observability";
 import { createCaller, createContext } from "@orb/server/transport/trpc";
 import type { Clock } from "../iso/clock.ts";
@@ -51,6 +52,7 @@ export interface ServerHarnessOptions
   readonly ids?: SeededIds;
   readonly random?: () => number;
   readonly authConfig?: Parameters<typeof createHttpApp>[0]["authConfig"];
+  readonly rolePolicyConfig?: SessionsRolePolicyConfig;
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
   readonly clientDistDir?: Parameters<typeof createHttpApp>[0]["clientDistDir"];
   readonly ownerId?: UserId;
@@ -207,12 +209,13 @@ async function closeHarnessGraph(
 
 type HarnessConstruction = Pick<ServerTestHarness, "db" | "clock" | "idSource" | "timers"> & {
   readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]>;
+  readonly rolePolicy: SessionsRolePolicy;
   readonly rootDir: string;
 };
 
 async function prepareHarnessOwner(
   options: ServerHarnessOptions | UnclaimedServerHarnessOptions,
-  { db, clock, idSource, authConfig }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "authConfig">,
+  { db, clock, idSource, authConfig, rolePolicy }: Pick<HarnessConstruction, "db" | "clock" | "idSource" | "authConfig" | "rolePolicy">,
 ): Promise<UserId | undefined> {
   if (options.ownerId === null) {
     return;
@@ -221,7 +224,13 @@ async function prepareHarnessOwner(
   if (options.ownerId === undefined) {
     await seedUser(
       db,
-      { id: ownerId, handle: castId<Handle>(ownerHandles()[0] ?? authConfig.defaultHandle), role: "owner", createdAt: clock.now(), updatedAt: clock.now() },
+      {
+        id: ownerId,
+        handle: castId<Handle>(rolePolicy.ownerHandles()[0] ?? authConfig.defaultHandle),
+        role: "owner",
+        createdAt: clock.now(),
+        updatedAt: clock.now(),
+      },
       idSource,
     );
   }
@@ -343,13 +352,14 @@ export async function createServerHarness(
   pendingTimers = undefined;
   const random = options.random ?? ((): number => 0.5);
   const authConfig = options.authConfig ?? authConfigFromEnv();
+  const rolePolicy = createSessionsRolePolicy(options.rolePolicyConfig ?? env);
   let appLifetime: ServicesResult | undefined;
   let httpLifetime: OwnedHttpRequests | undefined;
   let oidcLifetime: Awaited<ReturnType<typeof createConfiguredOidc>> | undefined;
   let shareLifetime: ShareGraph | undefined;
   construction.defer(() => closeHarnessGraph(httpLifetime, oidcLifetime, appLifetime, shareLifetime));
   const { casDir, variantDir, importStagingDir, userRuntimeDir, modelCacheDir, stProfileDir } = await directoriesFor(rootDir, options);
-  const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rootDir };
+  const inputs: HarnessConstruction = { db, clock, idSource, timers, authConfig, rolePolicy, rootDir };
   const ownerId = await prepareHarnessOwner(options, inputs);
   const { createHttpApp: assembleHttp, createServices, createShareGraph, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
   const listener = createBinding<Readonly<AddressInfo>>("Share execution requires the server harness native listener");
@@ -360,6 +370,7 @@ export async function createServerHarness(
   const wiringDb = databaseHandle(db);
   const app = await createServices({
     authConfig,
+    rolePolicy,
     db: wiringDb,
     now: clock.now,
     timers,

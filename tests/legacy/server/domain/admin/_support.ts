@@ -23,9 +23,11 @@ import type { BatchStmt } from "@orb/db/query";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService, isReservedSignupHandle } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { env } from "@orb/server/foundation/env";
 import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
@@ -179,13 +181,13 @@ export function principal(userId: UserId, role: UserRole, handle: Handle = castI
 
 /** The repeated "wire the service, seed the admin caller" prologue (~7 call sites): builds a real
  *  `AdminService` over a fresh harness and seeds a `user_adm` admin-role caller. */
-export async function seedAdminCaller(db: Db): Promise<{ svc: AdminService; admin: UserId }> {
-  const svc = createAdminService(makeHarness(db).ctx);
+export async function seedAdminCaller(db: Db, policyConfig: SessionsRolePolicyConfig = env): Promise<{ svc: AdminService; admin: UserId }> {
+  const svc = createAdminService(makeHarness(db, policyConfig).ctx);
   const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
   return { svc, admin };
 }
 
-export function makeHarness(db: Db): AdminHarness {
+export function makeHarness(db: Db, policyConfig: SessionsRolePolicyConfig = env): AdminHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
@@ -200,6 +202,7 @@ export function makeHarness(db: Db): AdminHarness {
   // #1707 — the REAL link capability over the same test db (see the header): the bind statement rides the
   // verb's audited batch and the settlement is read back from durable state.
   const sessionsSvc = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(policyConfig),
     db,
     now: () => clock.now(),
     sessionSecret: HARNESS_PEPPER,
@@ -248,8 +251,8 @@ export function makeHarness(db: Db): AdminHarness {
         sessionsSvc.settleUnclaimedLink(userId, externalId, failure),
       // D257 — REAL: the mint rides the verb's audited batch, and the handle key is derived in sessions.
       localUserInsertStatement: sessionsSvc.localUserInsertStatement,
-      // D258 — REAL: the reserved-key rule is sessions', read at call time from OWNER_HANDLES.
-      isReservedHandle: isReservedSignupHandle,
+      // D258 — the same bound production policy protects every account mint.
+      isReservedHandle: sessionsSvc.rolePolicy.isReservedSignupHandle,
     },
 
     embed: {

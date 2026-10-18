@@ -7,20 +7,17 @@ import { userConnections, users } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { env } from "@orb/server/foundation/env";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { afterEach, describe, vi } from "vitest";
+import { describe } from "vitest";
 import { createAdminService } from "#server/domain/admin/index.ts";
 import { auditActions, makeHarness, principal, seedAdminCaller, seedUser, withBrokenAudit } from "../_support.ts";
 
 const GOOD_PASSWORD = "correct-horse";
 
 describe("createUser", () => {
-  afterEach(() => {
-    vi.unstubAllEnvs();
-  });
-
   test("an admin mints a user; the password is hashed and absent from the view (audited)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
@@ -193,9 +190,8 @@ describe("createUser", () => {
   // D258: boot's seedOwner resolves the owner row by the OWNER_HANDLES seed key, so an account holding it (or a
   // look-alike) becomes the owner at the next seeded-mode boot. No admin mint may take it.
   test.each(["owner", "0wner"])("the owner seed key and its look-alikes are refused (invalid_handle): %j", async (reserved) => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
     const db = await freshDb();
-    const { svc, admin } = await seedAdminCaller(db);
+    const { svc, admin } = await seedAdminCaller(db, { ...env, ["OWNER_HANDLES"]: "owner" });
     await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(reserved), password: GOOD_PASSWORD })).rejects.toMatchObject({
       code: "invalid_handle",
     });
@@ -203,9 +199,8 @@ describe("createUser", () => {
   });
 
   test("control: a handle that only contains the seed key is minted", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
     const db = await freshDb();
-    const { svc, admin } = await seedAdminCaller(db);
+    const { svc, admin } = await seedAdminCaller(db, { ...env, ["OWNER_HANDLES"]: "owner" });
     await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("owners"), password: GOOD_PASSWORD })).resolves.toMatchObject({
       handle: "owners",
     });

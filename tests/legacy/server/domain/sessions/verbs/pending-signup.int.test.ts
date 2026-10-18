@@ -7,7 +7,8 @@ import type { Db } from "@orb/db";
 import { oidcPendingSignups } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -19,6 +20,7 @@ const INVITE_HASH = "invite-hash";
 
 let db: Db;
 let svc: SessionsService;
+let policyConfig: SessionsRolePolicyConfig;
 let clock: ReturnType<typeof makeService>["clock"];
 
 function identity(name: string, over: Partial<ResolvedIdentity> = {}): ResolvedIdentity & { readonly externalId: ExternalId } {
@@ -27,7 +29,8 @@ function identity(name: string, over: Partial<ResolvedIdentity> = {}): ResolvedI
 
 beforeEach(async () => {
   db = await freshDb();
-  ({ svc, clock } = makeService(db));
+  policyConfig = { ...env };
+  ({ svc, clock } = makeService(db, policyConfig));
 });
 
 afterEach(() => {
@@ -70,14 +73,17 @@ describe("sessions.preparePendingSignup", () => {
   });
 
   test("refuses an owner-by-policy identity, a tightened access gate, and an identity that now has an account", async () => {
-    vi.stubEnv("OWNER_HANDLES", "boss");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "boss" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const owner = await svc.recordPendingSignup({ identity: identity("boss"), inviteTokenHash: INVITE_HASH, idToken: null });
     expect(await svc.preparePendingSignup({ secret: owner, requireApproval: false })).toBeNull();
 
     const gated = await svc.recordPendingSignup({ identity: identity("gated"), inviteTokenHash: INVITE_HASH, idToken: null });
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "friends");
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "friends" };
+    ({ svc } = makeService(db, policyConfig, clock));
     expect(await svc.preparePendingSignup({ secret: gated, requireApproval: false })).toBeNull();
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: undefined };
+    ({ svc } = makeService(db, policyConfig, clock));
 
     const taken = await svc.recordPendingSignup({ identity: identity("taken"), inviteTokenHash: INVITE_HASH, idToken: null });
     await seedUser(db, { handle: castId<Handle>("taken") });

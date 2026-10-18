@@ -23,10 +23,11 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
-import { ownerHandles } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { PerRequestSeamDeps } from "#server/entry/auth/index.ts";
 import { createAuthSeam, createHostPrincipalResolver } from "#server/entry/auth/index.ts";
 import type { AuthConfig } from "#server/infra/auth/index.ts";
@@ -38,6 +39,11 @@ const OWNER_HANDLE = "owner";
  *  `DEFAULT_USER_HANDLE`, and grew a second-class twin at handle "owner"). */
 const REAL_OWNER_HANDLE = "owner@example.test";
 const OWNER_HANDLES_VAR = "OWNER_HANDLES";
+
+let policyConfig: SessionsRolePolicyConfig;
+beforeEach(() => {
+  policyConfig = { ...env };
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -67,6 +73,7 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     throw new Error(`unexpected sessions.${name}`);
   };
   return {
+    rolePolicy: createSessionsRolePolicy(policyConfig),
     create: unused("create"),
     validate: unused("validate") as SessionsService["validate"],
     revokeByToken: unused("revokeByToken"),
@@ -125,16 +132,18 @@ interface FakeUsers {
  * this verb. `loadUserById` reads the row back. NOTHING here stamps a role: that is the point.
  */
 function fakeUsers(): FakeUsers {
+  const rolePolicy = createSessionsRolePolicy(policyConfig);
   const rows = new Map<string, FakeUserRow>();
   const ensured: string[] = [];
   const sessions = stubSessions({
+    rolePolicy,
     ensureUser: (handle: Handle) => {
       ensured.push(handle);
       const existing = rows.get(handle);
       if (existing !== undefined) {
         return Promise.resolve(existing.id);
       }
-      const row: FakeUserRow = { id: castId<UserId>(`u_${handle}`), role: ownerHandles().includes(handle) ? "owner" : "user", handle };
+      const row: FakeUserRow = { id: castId<UserId>(`u_${handle}`), role: rolePolicy.ownerHandles().includes(handle) ? "owner" : "user", handle };
       rows.set(handle, row);
       return Promise.resolve(row.id);
     },
@@ -149,7 +158,7 @@ function fakeUsers(): FakeUsers {
 test("single-user fallback resolves the OWNER's row (role read, not stamped; via=fallback)", async () => {
   // The COHERENT box: OWNER_HANDLES names the same handle verification stamps. Byte-identical to the
   // pre-D135 behaviour — the fix must not move this case.
-  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: OWNER_HANDLE };
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
@@ -168,7 +177,7 @@ test("single-user fallback resolves the OWNER's row (role read, not stamped; via
 test("#298 f2: a NON-loopback peer is DENIED the owner fallback → null (was owner on any Host)", async () => {
   // The re-gate's headline at the seam: even single-user's un-credentialed owner arm mints NOTHING off a
   // LAN/proxy peer. `ensureUser` must never be reached (a mint here would be the re-opened hole).
-  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: OWNER_HANDLE };
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
@@ -183,7 +192,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
   // placeholder. Pre-fix the seam ensured the PLACEHOLDER's row (born `user`) and stamped `role:"owner"` on
   // it, while `createHostPrincipalResolver` read `users.role` off that same id and answered `"user"` — one
   // caller, two principals, two different models.
-  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: REAL_OWNER_HANDLE };
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
@@ -198,7 +207,7 @@ test("D135: the fallback Principal and the frozen-host Principal AGREE about the
 });
 
 test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-class twin", async () => {
-  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: REAL_OWNER_HANDLE };
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
@@ -214,7 +223,7 @@ test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-clas
 test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
   // Fail-closed control: the fallback ADMITS (origin gate), it does not GRANT. A pre-existing row at a lower
   // role must reach the Principal as-is — the old code would have re-stamped `owner` over it.
-  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: REAL_OWNER_HANDLE };
   const users = fakeUsers();
   users.rows.set(REAL_OWNER_HANDLE, {
     id: castId<UserId>(`u_${REAL_OWNER_HANDLE}`),
@@ -236,8 +245,8 @@ test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still re
   // is the only thing keeping the arm from resolving to nothing. (A booted server never gets here —
   // `entry/lifecycle.ts` throws on an empty owner list first — but a seam constructed outside that boot
   // path, like this one, does.)
-  vi.stubEnv(OWNER_HANDLES_VAR, ",,");
-  expect(ownerHandles()).toEqual([]);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: ",," };
+  expect(createSessionsRolePolicy(policyConfig).ownerHandles()).toEqual([]);
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
@@ -447,7 +456,7 @@ test("a disabled SSO row is gated to null (disable takes effect next request, no
 });
 
 test("the CSRF header presence is surfaced as a signal (the ladder gates, not the seam)", async () => {
-  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: OWNER_HANDLE };
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
 
   const withHeader = await seam.resolvePrincipal(new Headers({ [CSRF_HEADER]: "1" }), { transport: "http" });
@@ -463,7 +472,7 @@ test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async ()
   // verdict's only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN check (and the
   // `expectedToken === undefined` → 404 branch with it), so a loose `true` means a caller reads
   // principal-blind whole-db probes — wire captures included. Both halves are required.
-  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: OWNER_HANDLE };
 
   // The un-credentialed owner FALLBACK on a STRICT-posture box (the dep omitted ⇒ fail-closed): a real
   // `role:"owner"` principal that presented no cookie and no header, refused at the diagnostics door.
@@ -578,7 +587,7 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
 // is the belt for a direct `users.enabled = 0` write.
 
 test("D135: a DISABLED owner row is refused by the fallback arm (parity with cookie + SSO)", async () => {
-  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: REAL_OWNER_HANDLE };
   const users = fakeUsers();
   users.rows.set(REAL_OWNER_HANDLE, {
     id: castId<UserId>(`u_${REAL_OWNER_HANDLE}`),
@@ -616,7 +625,7 @@ test("D135: the frozen-host bridge still resolves a DISABLED row (the gate is th
 });
 
 test("D135: an ENABLED fallback caller still deep-equals the frozen-host Principal (the agreement holds)", async () => {
-  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  policyConfig = { ...policyConfig, [OWNER_HANDLES_VAR]: REAL_OWNER_HANDLE };
   const users = fakeUsers();
   const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 

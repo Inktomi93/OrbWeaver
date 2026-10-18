@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-24
+updated: 2026-10-18
 ---
 
 # Orbweaver — `foundation`: the base tier (env-read · observability · residual config)
@@ -10,7 +10,7 @@ updated: 2026-09-24
 
 ## What this tier owns
 
-- **`env/` — the ONE `process.env` reader (config nature (a): boot / secret / identity).** The `.env` load (`node:util` `parseEnv` + our explicit override merge — override discipline + escape hatches; not `dotenv`, per the node-26 adoption program §3), the zod `envSchema` parse, the `superRefine` boot-fatality per `AUTH_MODE`, the frozen `env` object, and `processEnvSnapshot()` (the raw baseline the agent-sdk credential firewall spreads — the *denylist policy* is the firewall's, `packages/inference/src/backends/agent-sdk/env.ts`; env only produces the snapshot). Every tier dot-accesses typed keys (`env.PORT`); nothing else touches `process.env` (the `sole-env-reader` gate; sanctioned call-time exceptions: `OWNER_HANDLES`/`OWNER_GROUP`/`RE_DERIVE_ROLE_ON_LOGIN`/`OIDC_ADMIN_GROUPS`/`OIDC_ALLOWED_GROUPS` in `domain/sessions`, allowlisted in the gate).
+- **`env/` — the ONE `process.env` reader (config nature (a): boot / secret / identity).** The `.env` load (`node:util` `parseEnv` + our explicit override merge — override discipline + escape hatches; not `dotenv`, per the node-26 adoption program §3), the zod `envSchema` parse, the `superRefine` boot-fatality per `AUTH_MODE`, the frozen `env` object, and `processEnvSnapshot()` (the raw baseline the agent-sdk credential firewall spreads — the *denylist policy* is the firewall's, `packages/inference/src/backends/agent-sdk/env.ts`; env only produces the snapshot). Every tier dot-accesses typed keys (`env.PORT`); nothing else touches `process.env` (the `sole-env-reader` gate). Sessions binds an immutable role policy from frozen configuration when composition builds the graph.
 - **`observability/logger.ts`** — pino + the `LineRing`/`RequestRing` bounded rings backing `/api/_debug` (logs are METADATA — RP content lives in the DB), the `AsyncLocalStorage` request scope (`runInRequest`/`getLog`/`bindRequestUser`), and `securityEvent` (the one greppable `security:true` audit-trail line).
 - **`observability/tracing.ts`** — OTel spans (`initTracing`, `span`/`withRequestSpan`/`addSpanEvent`/`setSpanAttrs`), the per-`requestId` `TraceRing` with orphan-bucket eviction, `recentTraces`/`getTraceByRequestId`, and `wrapLibSqlClient` (the libSQL Proxy turning every query into a `db.<method>` span). This IS the metrics surface — metrics are the per-trace totals + request-ring timing; no separate module unless an external sink is ever wanted (the `RingExporter` is the OTLP-replaceable seam).
 - **`observability/middleware.ts`** — the per-request Hono middleware: `X-Request-Id` (charset-guarded), request-root span, request-scoped logger, one structured `request` line + ring record. Skips `/api/_debug/*` so introspection doesn't evict real traces.
@@ -46,7 +46,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 1. **The `env` `superRefine` boot-fatality.** `AUTH_MODE=oidc` (or `=local`) without its required keys does not warn-and-degrade — it **fails `envSchema.parse` at module load**. Deliberate: a half-configured SSO deploy silently falling back to owner-on-the-public-FQDN would be a security incident. Survives byte-faithfully.
 
-2. **The ONE `process.env` reader discipline.** Sole reader = typed dot-access everywhere. The sanctioned call-time exceptions live in `sessions` (per-test `vi.stubEnv` ergonomics) and are allowlisted in the `sole-env-reader` gate.
+2. **The ONE `process.env` reader discipline.** Sole reader = typed dot-access everywhere. Sessions receives one immutable role policy per graph; login still evaluates current identity-provider groups.
 
 3. **`.env` load with `override:true` + the two escape hatches.** A checked-in dev `.env` wins over a stale shell export — EXCEPT under `VITEST` (deterministic auth env) and `ORB_ENV_NO_OVERRIDE=1` (probe scripts honoring shell vars). Both matter for test determinism and one-off server fires. The parser is `node:util`'s `parseEnv`, not `dotenv`; the override MERGE is ours and explicit, because `process.loadEnvFile()` can only ever fill UNSET keys and so cannot express this direction. Asserted both ways in `tests/legacy/server/foundation/env/env-file-load.test.ts`.
 
@@ -70,7 +70,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 ## Invariants
 
-1. **`foundation/env` is the ONLY `process.env` reader.** *(`sole-env-reader` gate; five allowlisted sessions keys.)*
+1. **`foundation/env` is the ONLY `process.env` reader.** *(`sole-env-reader` gate and native `noProcessEnv` lint.)*
 2. **Foundation reaches UP to nothing.** *(resolve-time deps + dep-cruiser `foundation-reaches-up-to-nothing`.)*
 3. **The `superRefine` boot-fatality holds.** *(test-time.)*
 4. **`logAudit` never throws to the caller; the 25th drop warns.** *(test-time.)*

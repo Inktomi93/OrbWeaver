@@ -58,7 +58,7 @@ Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the meas
 
 Discovery authority is integrated. Owner-read adjudication and type homes (981) remain production work. Required seam and correctness defects block dependent harness work, not independent batches.
 
-Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Builders/corpus foundations qualify. The graph-owned forward-JWT repair passes security review and ordinary root controls. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
+Contract derivation, stored-value recovery, wire-boundary admission, runtime funding and identity enforcement are integrated with native controls and security review. Builders/corpus foundations qualify. Graph-owned identity policies pass security review and production-root controls. Sessions binds deployment policy once per graph while evaluating current login groups. Replacement-matrix and native-fact qualification remain open. Complete required production fixes before dependent qualification; prerequisites do not close the program.
 
 ### Foundation boundaries
 

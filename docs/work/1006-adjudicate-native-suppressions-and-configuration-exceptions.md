@@ -23,8 +23,6 @@ Every entry has source evidence and a retain, remove, fix or unresolved decision
 
 ## Evidence
 
-Runtime and scanner boundaries qualify; the foundation plan owns their evidence.
-
 AST/codemod permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`; root diagnostics remain separate.
 
 DB, framework and naming permissions retain actual subjects. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-mixed-framework-independent-review.md`.
@@ -49,4 +47,6 @@ Hook exceptions preserve value-keyed effects and retained factory identity. The 
 
 Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review and scoped integration pass. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
 
-Production and tooling exception adjudication are integrated. Stale directives and compatibility re-exports are removed; permissions narrow to actual subjects. Scoped evidence retains inherited failures. Session policy, transcript sizing, importer completion and excluded compatibility owners remain open. Evidence: `reports/review/1006-production-native-exceptions-claude.md` and `reports/review/1006-tooling-native-exceptions-claude.md`.
+Production and tooling exception adjudication are integrated. Stale directives and compatibility re-exports are removed; permissions narrow to actual subjects. Scoped evidence retains inherited failures. Transcript sizing, importer completion and excluded compatibility owners remain open. Sessions policy binds once per graph; its covered environment exceptions are removed. Evidence: `reports/review/1006-production-native-exceptions-claude.md` and `reports/review/1006-tooling-native-exceptions-claude.md`.
+
+Evidence: `reports/review/1048-session-role-policy-security-independent.md`.

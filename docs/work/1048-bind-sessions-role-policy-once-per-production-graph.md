@@ -24,4 +24,4 @@ Production-root controls preserve login-time group rederivation, owner and subje
 
 ## Evidence
 
-The call-time exception is sanctioned for test setup, not required by the identity ledger. A production-root control observes late environment changes altering login role. The assigned lane binds immutable configuration while preserving current-group rederivation and meaningful cases. Evidence: `reports/review/1006-session-role-policy-config-survey.md`.
+Production-root controls and independent security review qualify immutable deployment policy with current-login groups, owner proof and reserved-handle protection. Source and covered environment exceptions land together. Matching scoped checks pass; inherited compiler, legacy and import failures remain explicit. Broader native lint and application qualification follow D317. Evidence: `reports/review/1048-session-role-policy-config-delivery.md` and `reports/review/1048-session-role-policy-security-independent.md`.

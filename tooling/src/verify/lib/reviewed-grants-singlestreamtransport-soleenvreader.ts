@@ -85,49 +85,4 @@ export const REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER: readonly Revie
     why: "THE sole reader (Tier-2-Foundation.md inv #1) — foundation/env is what parses and FREEZES `env` for every other tier, so it cannot import the frozen object it produces. The test runner's own marker selects the no-override posture, and is read at module init before the frozen object exists.",
     endsWhen: "the sole reader moves out of foundation/env, or stops making this read; the row is then consumed zero times and reds.",
   },
-  {
-    id: "sole-env-reader:role-policy-oidc-admin-groups",
-    policyId: "sole-env-reader",
-    subject: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-    operation: "process-env-read:OIDC_ADMIN_GROUPS",
-    why: "the IdP group whose members are granted admin — the group→role governance half. the role-derivation policy reads this governance var at CALL time rather than through the frozen `env` so per-test `vi.stubEnv` drives the role/access matrix; the exception is scoped to this one file and to exactly these keys, and any other key here is still red.",
-    endsWhen:
-      "role-policy stops reading this var at call time — which is the per-key ratchet the legacy SANCTIONED_KEYS ledger owned by hand, now the central zero-consumption alarm.",
-  },
-  {
-    id: "sole-env-reader:role-policy-oidc-allowed-groups",
-    policyId: "sole-env-reader",
-    subject: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-    operation: "process-env-read:OIDC_ALLOWED_GROUPS",
-    why: "the IdP group gate on login itself — the other governance half. the role-derivation policy reads this governance var at CALL time rather than through the frozen `env` so per-test `vi.stubEnv` drives the role/access matrix; the exception is scoped to this one file and to exactly these keys, and any other key here is still red.",
-    endsWhen:
-      "role-policy stops reading this var at call time — which is the per-key ratchet the legacy SANCTIONED_KEYS ledger owned by hand, now the central zero-consumption alarm.",
-  },
-  {
-    id: "sole-env-reader:role-policy-owner-group",
-    policyId: "sole-env-reader",
-    subject: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-    operation: "process-env-read:OWNER_GROUP",
-    why: "the IdP group that adopts the owner row. the role-derivation policy reads this governance var at CALL time rather than through the frozen `env` so per-test `vi.stubEnv` drives the role/access matrix; the exception is scoped to this one file and to exactly these keys, and any other key here is still red.",
-    endsWhen:
-      "role-policy stops reading this var at call time — which is the per-key ratchet the legacy SANCTIONED_KEYS ledger owned by hand, now the central zero-consumption alarm.",
-  },
-  {
-    id: "sole-env-reader:role-policy-owner-handles",
-    policyId: "sole-env-reader",
-    subject: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-    operation: "process-env-read:OWNER_HANDLES",
-    why: "the handle list that adopts the owner row. the role-derivation policy reads this governance var at CALL time rather than through the frozen `env` so per-test `vi.stubEnv` drives the role/access matrix; the exception is scoped to this one file and to exactly these keys, and any other key here is still red.",
-    endsWhen:
-      "role-policy stops reading this var at call time — which is the per-key ratchet the legacy SANCTIONED_KEYS ledger owned by hand, now the central zero-consumption alarm.",
-  },
-  {
-    id: "sole-env-reader:role-policy-re-derive-role-on-login",
-    policyId: "sole-env-reader",
-    subject: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-    operation: "process-env-read:RE_DERIVE_ROLE_ON_LOGIN",
-    why: "whether a login re-derives the stored role from current group membership. the role-derivation policy reads this governance var at CALL time rather than through the frozen `env` so per-test `vi.stubEnv` drives the role/access matrix; the exception is scoped to this one file and to exactly these keys, and any other key here is still red.",
-    endsWhen:
-      "role-policy stops reading this var at call time — which is the per-key ratchet the legacy SANCTIONED_KEYS ledger owned by hand, now the central zero-consumption alarm.",
-  },
 ];

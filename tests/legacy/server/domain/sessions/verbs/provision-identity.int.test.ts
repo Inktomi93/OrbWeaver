@@ -5,7 +5,8 @@ import type { Db } from "@orb/db";
 import { userConnections, users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -16,6 +17,8 @@ import { asProvisioned, EXTERNAL, identity, PROVEN, rowCountOn } from "./_provis
 
 let db: Db;
 let svc: SessionsService;
+let policyConfig: SessionsRolePolicyConfig;
+let clock: ReturnType<typeof makeService>["clock"];
 
 async function rowCount(): Promise<number> {
   return await rowCountOn(db);
@@ -23,7 +26,8 @@ async function rowCount(): Promise<number> {
 
 beforeEach(async () => {
   db = await freshDb();
-  ({ svc } = makeService(db));
+  policyConfig = { ...env };
+  ({ svc, clock } = makeService(db, policyConfig));
 });
 
 afterEach(() => {
@@ -32,7 +36,8 @@ afterEach(() => {
 
 describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => {
   test("creates an enabled user keyed on externalId; default role user", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.enabled).toBe(true);
     expect(result.role).toBe("user");
@@ -42,14 +47,16 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
   });
 
   test("seeds owner from OWNER_GROUP membership on insert", async () => {
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(result.role).toBe("owner");
   });
 
   test("JIT-creates an admin from OIDC_ADMIN_GROUPS membership (group→admin, D17 via IdP)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(result.role).toBe("admin");
@@ -57,7 +64,8 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
   });
 
   test("a SECOND owner-group member provisions as `user` — the D17 singleton, not a UNIQUE crash", async () => {
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(
       await svc.provisionIdentity(
         identity({
@@ -87,7 +95,8 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
   });
 
   test("the SAME owner re-logging in keeps owner (singleton reconcile excludes its own row)", async () => {
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(first.role).toBe("owner");
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
@@ -102,20 +111,23 @@ describe("sessions.provisionIdentity — INSERT (first SSO login) + JIT", () => 
 // never runs for a login the gate refuses.
 describe("sessions.provisionIdentity — the new account's vector floor (#2481)", () => {
   test("a first SSO login seeds the local-light rows", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, result.userId))).toHaveLength(2);
   });
 
   test("a DENIED login seeds nothing (no row to seed for)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
     expect(await db.select().from(userConnections)).toHaveLength(0);
   });
 
   test("a RETURNING user's login re-seeds nothing new", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     await svc.provisionIdentity(identity(), PROVEN);
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, first.userId))).toHaveLength(2);
@@ -124,14 +136,16 @@ describe("sessions.provisionIdentity — the new account's vector floor (#2481)"
 
 describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-closed)", () => {
   test("gate UNSET ⇒ any authenticated identity is allowed (backward-compat)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = await svc.provisionIdentity(identity({ groups: ["whatever"] }), PROVEN);
     expect(result.outcome).toBe("provisioned");
   });
 
   test("in NONE of the allowed groups ⇒ DENIED, and NO row is created (JIT refused)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN);
     expect(result.outcome).toBe("denied");
@@ -140,23 +154,26 @@ describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-cl
   });
 
   test("in an allowed group ⇒ provisioned as user", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(result.role).toBe("user");
   });
 
   test("an admin-group member passes the gate implicitly (not separately allow-listed)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(result.role).toBe("admin");
   });
 
   test("an EXISTING user removed from all allowed groups is denied next login (row survives)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(first.role).toBe("user");
     const again = await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN);
@@ -169,11 +186,13 @@ describe("sessions.provisionIdentity — OIDC_ALLOWED_GROUPS login gate (fail-cl
 describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", () => {
   test("the owner is NEVER denied by the allowed-groups gate, even in no allowed group", async () => {
     // alice is the owner (OWNER_HANDLES) and the gate is set to a group she is NOT in.
-    vi.stubEnv("OWNER_HANDLES", "alice");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alice" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(seed.role).toBe("owner");
     // Now turn the gate on; alice is in NONE of the allowed groups → still allowed, still owner.
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
     expect(again.outcome).toBe("provisioned");
     expect(again.role).toBe("owner");
@@ -181,13 +200,15 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
 
   test("the owner is NEVER re-derived downward even with governance active + no matching group", async () => {
     // Seed the owner by handle, then flip to a config where the owner matches NO group and governance is on.
-    vi.stubEnv("OWNER_HANDLES", "alice");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alice" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const seed = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     expect(seed.role).toBe("owner");
     // OWNER_GROUP now points elsewhere; OIDC_ADMIN_GROUPS active ⇒ re-derive on. The owner row must stay owner.
-    vi.stubEnv("OWNER_HANDLES", undefined);
-    vi.stubEnv("OWNER_GROUP", "different-owners");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: undefined };
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "different-owners" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Users"] }), PROVEN));
     expect(again.role).toBe("owner");
     const owners = (await db.select().from(users)).filter((u) => u.role === "owner");
@@ -197,7 +218,8 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
 
 describe("sessions.provisionIdentity — UPDATE role policy", () => {
   test("role is PRESERVED on update by default (no governance, no flag — manual grant survives)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId));
     const again = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
@@ -205,8 +227,9 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
   });
 
   test("role RE-DERIVES admin↔user on every login when group governance is active", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     // First login in the admin group → admin.
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(first.role).toBe("admin");
@@ -219,8 +242,9 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
   });
 
   test("legacy RE_DERIVE_ROLE_ON_LOGIN still re-derives when set (no group governance)", async () => {
-    vi.stubEnv("OWNER_GROUP", "owners");
-    vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", "true");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    policyConfig = { ...policyConfig, ["RE_DERIVE_ROLE_ON_LOGIN"]: "true" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), PROVEN));
     // First login mints owner (no owner yet); this row IS the owner now.
     expect(first.role).toBe("owner");
@@ -230,7 +254,8 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
   });
 
   test("enabled is NEVER reset on update (a disabled user can't re-enable by logging in)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "x");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "x" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     await db.update(users).set({ enabled: false }).where(eq(users.id, first.userId));
     const again = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
@@ -252,8 +277,9 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
 // The owner arm is covered by the D17 exemption describe above and is deliberately NOT re-derived here.
 describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#140 matrix)", () => {
   test("PRESENT + MATCHING on an UPDATE ⇒ ELEVATION (an existing `user` row is promoted to admin)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     expect(first.role).toBe("user");
     const elevated = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng", "Orb Admins"] }), PROVEN));
@@ -268,8 +294,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   // non-group-member is wiped next login)". The IdP is the source of truth while it governs — a manual grant
   // that outlived it would be a permanent privilege the operator's group config cannot revoke.
   test("PRESENT + NON-MATCHING wipes a manual `setRole` admin grant on the next login (D65)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId)); // an out-of-band grant
     const again = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] }), PROVEN));
@@ -281,8 +308,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   // at all: every login still succeeds, and every group-derived admin quietly becomes a `user`. This is
   // exactly why the mapper's `oidc_groups_claim_missing` securityEvent exists (entry/http/auth-routes).
   test("ABSENT groups + OIDC_ADMIN_GROUPS ⇒ the fallback is `user` — an existing admin is DEMOTED", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const admin = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(admin.role).toBe("admin");
     const claimGone = asProvisioned(await svc.provisionIdentity(identity({ groups: [] }), PROVEN));
@@ -291,8 +319,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   });
 
   test("ABSENT groups + OIDC_ALLOWED_GROUPS ⇒ DENIED (fail-closed; the gate cannot be dodged by omission)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     expect((await svc.provisionIdentity(identity({ groups: [] }), PROVEN)).outcome).toBe("denied");
     expect(await rowCount()).toBe(before);
@@ -301,10 +330,11 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
   // Governance OFF is the control: with neither var set the SAME claim states must move nothing, or every
   // deployment that never configured groups silently inherits IdP-driven role churn.
   test("governance INACTIVE ⇒ the same claim states change no role (the gate is genuinely opt-in)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", undefined);
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
-    vi.stubEnv("RE_DERIVE_ROLE_ON_LOGIN", undefined);
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: undefined };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: undefined };
+    policyConfig = { ...policyConfig, ["RE_DERIVE_ROLE_ON_LOGIN"]: undefined };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] }), PROVEN));
     expect(first.role).toBe("user"); // no configured group grants anything
     await db.update(users).set({ role: "admin" }).where(eq(users.id, first.userId));
@@ -318,8 +348,9 @@ describe("sessions.provisionIdentity — the group gate ENGAGES at the verb (#14
 // see what moved it) and the fail-closed deny named the gate without naming what the identity carried.
 describe("sessions.provisionIdentity — the groups claim is on the log line (#140)", () => {
   test("the provisioned line carries the group NAMES + a truthful groupCount", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const spy = vi.spyOn(logger, "info");
     await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }), PROVEN);
     // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
@@ -329,8 +360,9 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
   });
 
   test("the OIDC_ALLOWED_GROUPS deny names the groups the identity DID carry (the diagnosis half)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const spy = vi.spyOn(logger, "warn");
     expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
     // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
@@ -346,7 +378,8 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
 // an EXISTING user still logs in. Ordered after the bind-once guard, before the allowed-groups gate.
 describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP)", () => {
   test("allowJitProvision:false ⇒ a brand-new identity is DENIED and NO row is created", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const before = await rowCount();
     const result = await svc.provisionIdentity(identity(), { ownerClaimProven: true, allowJitProvision: false });
     expect(result.outcome).toBe("denied");
@@ -354,14 +387,16 @@ describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP
   });
 
   test("allowJitProvision:false ⇒ an EXISTING user still logs in (the gate is on NEW rows only)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const first = asProvisioned(await svc.provisionIdentity(identity(), PROVEN)); // created with the default (true)
     const again = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, allowJitProvision: false }));
     expect(again.userId).toBe(first.userId);
   });
 
   test("allowJitProvision:false ⇒ the box OWNER by handle is EXEMPT (a first owner login still provisions)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "alice");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alice" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(
       await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { ownerClaimProven: true, allowJitProvision: false }),
     );
@@ -369,14 +404,16 @@ describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP
   });
 
   test("allowJitProvision:false ⇒ an owner-by-GROUP first login is EXEMPT too (not just by handle)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), { ownerClaimProven: true, allowJitProvision: false }));
     expect(result.role).toBe("owner");
   });
 
   test("default (omitted, e.g. forward-header) ⇒ a brand-new non-owner identity is provisioned", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.outcome).toBe("provisioned");
     expect(result.enabled).toBe(true);
@@ -388,7 +425,8 @@ describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP
 // control (no new role).
 describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_APPROVAL)", () => {
   test("requireApproval:true ⇒ a first-time non-owner user is created DISABLED (enabled:false)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, requireApproval: true }));
     expect(result.enabled).toBe(false);
     const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
@@ -396,14 +434,16 @@ describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_
   });
 
   test("requireApproval:true ⇒ the OWNER is never gated (a first owner login is enabled)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "alice");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alice" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { ownerClaimProven: true, requireApproval: true }));
     expect(result.role).toBe("owner");
     expect(result.enabled).toBe(true);
   });
 
   test("requireApproval:true ⇒ once enabled by an admin, the user's next login is admitted (enabled preserved)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const created = asProvisioned(await svc.provisionIdentity(identity(), { ownerClaimProven: true, requireApproval: true }));
     expect(created.enabled).toBe(false);
     // Admin approves (enable); update never re-derives enabled, so the next login stays enabled even if the
@@ -414,7 +454,8 @@ describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_
   });
 
   test("default (omitted) ⇒ a first-time user is enabled immediately", async () => {
-    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "someone-else" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const result = asProvisioned(await svc.provisionIdentity(identity(), PROVEN));
     expect(result.enabled).toBe(true);
   });

@@ -42,8 +42,9 @@ import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
+import { env } from "@orb/server/foundation/env";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -116,6 +117,7 @@ beforeEach(async () => {
     .insert(users)
     .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(env),
     db,
     now: (): number => FROZEN_AT_MS,
     sessionSecret: PEPPER,
@@ -134,6 +136,7 @@ beforeEach(async () => {
       redirectAllowlist: [CALLBACK_URI],
       scope: "openid profile email",
       claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+      rolePolicy: sessions.rolePolicy,
       groupsSeparator: ";",
       allowJitProvision: true,
       requireApproval: false,

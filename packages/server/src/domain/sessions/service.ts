@@ -8,6 +8,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { createSessionsContext } from "./context.ts";
+import type { SessionsRolePolicy } from "./contract/role-policy.ts";
 import type { SessionsService } from "./contract/service.ts";
 import { selectOwnerUserId } from "./persistence/users.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
@@ -28,6 +29,7 @@ import { createValidate } from "./verbs/validate.ts";
 /** What the composition root needs: the db handle, the injected clock, and the raw `SESSION_SECRET` pepper
  *  (read DOWN from `foundation/env` at `entry/`; bound into the token hasher here). */
 interface SessionsServiceDeps {
+  readonly rolePolicy: SessionsRolePolicy;
   db: DatabaseHandle;
   now: () => number;
   readonly idSource?: IdSource;
@@ -41,6 +43,7 @@ interface SessionsServiceDeps {
 export function createSessionsService(deps: SessionsServiceDeps): SessionsService {
   const ctx = createSessionsContext(databaseForOwner(deps.db), deps.now, deps.sessionSecret, deps);
   return {
+    rolePolicy: ctx.rolePolicy,
     ...createCreate(ctx),
     ...createValidate(ctx),
     ...createRevoke(ctx),

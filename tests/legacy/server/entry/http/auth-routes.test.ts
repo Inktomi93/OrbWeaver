@@ -4,18 +4,20 @@
 // registration (login present only with `authenticate`, OIDC present only with `oidc`). Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context.
 
-// @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
+// @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
+// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
+import type { RevokedSessionsSummary, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Configuration } from "openid-client";
-import { describe, vi } from "vitest";
+import { beforeEach, describe, vi } from "vitest";
 // #2263 — the REAL mint, by deep path (it is deliberately not on the `domain/sessions` front door; the
 // `tokens.test.ts` precedent). The alphabet pins below are worthless against a hand-`castId`'d string:
 // `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
@@ -175,8 +177,14 @@ function neverExchange(onCall: () => void): Exchange {
 
 /** A fully-typed `OidcRoutesDeps` stub (no double-cast) for the route tests that don't run the IdP round-trip.
  *  `getConfig` rejects by default; override it (with {@link fakeConfig}) for the logout / back-channel paths. */
+let policyConfig: SessionsRolePolicyConfig;
+beforeEach(() => {
+  policyConfig = { ...env };
+});
+
 function fakeOidcDeps(over: Partial<OidcRoutesDeps> = {}): OidcRoutesDeps {
   return {
+    rolePolicy: createSessionsRolePolicy(policyConfig),
     getConfig: () => Promise.reject(new Error("getConfig not stubbed")),
     exchange: neverExchange(() => undefined),
     redirectAllowlist: ["https://app.example/api/auth/oidc/callback"],
@@ -719,6 +727,8 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
         email: "alice@example.com",
       },
       authentikClaims,
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
     );
     expect(identity).toEqual({
       externalId: "sub-alice",
@@ -739,12 +749,17 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
       preferred_username: "should-be-ignored",
       sub: "should-be-ignored",
     };
-    const identity = identityFromClaims(azureClaims, {
-      usernameClaim: "upn",
-      uidClaim: "oid",
-      groupsClaim: "roles",
-      emailClaim: "email",
-    });
+    const identity = identityFromClaims(
+      azureClaims,
+      {
+        usernameClaim: "upn",
+        uidClaim: "oid",
+        groupsClaim: "roles",
+        emailClaim: "email",
+      },
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+    );
     expect(identity).toEqual({
       externalId: "00000000-1111-2222-3333-444444444444",
       handle: "bob@contoso.com",
@@ -754,18 +769,39 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   });
 
   test("missing username claim → null (fail-closed point #4)", () => {
-    expect(identityFromClaims({ sub: "sub-x", groups: [] }, authentikClaims)).toBeNull();
-    expect(identityFromClaims(undefined, authentikClaims)).toBeNull();
+    expect(
+      identityFromClaims({ sub: "sub-x", groups: [] }, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive()),
+    ).toBeNull();
+    expect(identityFromClaims(undefined, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive())).toBeNull();
   });
 
   test("a username over 64 code points → null: refused, never truncated into another handle", () => {
-    expect(identityFromClaims({ preferred_username: `a${"\u0301".repeat(64)}`, sub: "sub-long" }, authentikClaims)).toBeNull();
+    expect(
+      identityFromClaims(
+        { preferred_username: `a${"\u0301".repeat(64)}`, sub: "sub-long" },
+        authentikClaims,
+        undefined,
+        createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+      ),
+    ).toBeNull();
     const edge = `${"a".repeat(63)}\u{1D400}`;
-    expect(identityFromClaims({ preferred_username: edge, sub: "sub-edge" }, authentikClaims)?.handle).toBe(edge);
+    expect(
+      identityFromClaims(
+        { preferred_username: edge, sub: "sub-edge" },
+        authentikClaims,
+        undefined,
+        createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+      )?.handle,
+    ).toBe(edge);
   });
 
   test("no uid claim → externalId null (handle keys the row); no email → email null", () => {
-    const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
+    const identity = identityFromClaims(
+      { preferred_username: "carol" },
+      authentikClaims,
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+    );
     expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null });
   });
 
@@ -781,7 +817,12 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   // null IS the normal shape and stays legitimate), so the warn AND the refusal are mode-scoped by construction.
   test("a uid claim the IdP omits WARNS (oidc runs with the bind-once guard inert) — identity unchanged", () => {
     const spy = vi.spyOn(logger, "warn");
-    const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
+    const identity = identityFromClaims(
+      { preferred_username: "carol" },
+      authentikClaims,
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+    );
     expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null }); // NO behavior change
     expect(spy).toHaveBeenCalledOnce();
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
@@ -793,7 +834,12 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
 
   test("a subject-bearing login is SILENT (the warn is not a per-login siren)", () => {
     const spy = vi.spyOn(logger, "warn");
-    identityFromClaims({ preferred_username: "alice", sub: "sub-alice" }, authentikClaims);
+    identityFromClaims(
+      { preferred_username: "alice", sub: "sub-alice" },
+      authentikClaims,
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+    );
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -807,9 +853,13 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   // itself is UNCHANGED (still returns the subject-less identity + fires the tell); the refusal lives one tier up.
   test("oidcSessionIdentity REFUSES a null-subject identity (the #699 fail-closed gate)", () => {
     // A well-formed username but the uid claim absent — the exact misconfigured-OIDC_UID_CLAIM shape.
-    expect(oidcSessionIdentity({ preferred_username: "carol" }, authentikClaims)).toBeNull();
+    expect(
+      oidcSessionIdentity({ preferred_username: "carol" }, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive()),
+    ).toBeNull();
     // …and the mapper it wraps still HANDS BACK that identity (the refusal is the callback's, not the mapper's).
-    expect(identityFromClaims({ preferred_username: "carol" }, authentikClaims)).toEqual({
+    expect(
+      identityFromClaims({ preferred_username: "carol" }, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive()),
+    ).toEqual({
       externalId: null,
       handle: "carol",
       groups: [],
@@ -818,20 +868,27 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   });
 
   test("oidcSessionIdentity ADMITS a subject-bearing identity unchanged (the fix refuses nothing legitimate)", () => {
-    const identity = oidcSessionIdentity({ preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example" }, authentikClaims);
+    const identity = oidcSessionIdentity(
+      { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example" },
+      authentikClaims,
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+    );
     expect(identity).toEqual({ externalId: "sub-alice", handle: "alice", groups: [], email: "alice@corp.example" });
   });
 
   test("oidcSessionIdentity refuses a no-username login too (folds the pre-existing null-identity arm)", () => {
-    expect(oidcSessionIdentity({ sub: "sub-only", groups: [] }, authentikClaims)).toBeNull();
-    expect(oidcSessionIdentity(undefined, authentikClaims)).toBeNull();
+    expect(
+      oidcSessionIdentity({ sub: "sub-only", groups: [] }, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive()),
+    ).toBeNull();
+    expect(oidcSessionIdentity(undefined, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive())).toBeNull();
   });
 
   // The username claim missing already fails closed (null identity, no session) — there is no login to warn
   // about, and firing here would drown the real signal in noise from probes/misdirected requests.
   test("a MISSING username claim stays silent — it already fails closed, it is not a guard-disabled login", () => {
     const spy = vi.spyOn(logger, "warn");
-    expect(identityFromClaims({ groups: [] }, authentikClaims)).toBeNull();
+    expect(identityFromClaims({ groups: [] }, authentikClaims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive())).toBeNull();
     expect(spy).not.toHaveBeenCalled();
   });
 
@@ -849,6 +906,8 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
         groupsClaim: "user.memberOf",
         emailClaim: "contact.mail",
       },
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
     );
     expect(identity).toEqual({
       externalId: "sub-dave",
@@ -867,6 +926,8 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
         groupsClaim: "groups.nested",
         emailClaim: "email",
       },
+      undefined,
+      createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
     );
     expect(identity?.groups).toEqual([]);
   });
@@ -879,7 +940,8 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
 describe("OIDC groups-claim parsing (A4 — array | joined-string | single-string | empty)", () => {
   const claims: OidcClaimMap = { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" };
   const groupsFor = (groups: unknown, separator?: string): readonly string[] | undefined =>
-    identityFromClaims({ preferred_username: "u", sub: "s", groups }, claims, separator)?.groups;
+    identityFromClaims({ preferred_username: "u", sub: "s", groups }, claims, separator, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive())
+      ?.groups;
 
   test("an ARRAY yields its string members", () => {
     expect(groupsFor(["a", "b"])).toEqual(["a", "b"]);
@@ -942,7 +1004,7 @@ describe("OIDC groups-claim ARRIVAL observability (#140)", () => {
   /** The bindings of the one `oidc_groups_claim` info line this mapper call emitted. */
   function arrivalLine(raw: Record<string, unknown>, claimMap: OidcClaimMap = claims): Record<string, unknown> {
     const spy = vi.spyOn(logger, "info");
-    identityFromClaims(raw, claimMap);
+    identityFromClaims(raw, claimMap, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive());
     // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim");
     if (call === undefined) {
@@ -1015,7 +1077,7 @@ describe("OIDC groups-claim missing → securityEvent when group governance is A
   /** The bindings of the `oidc_groups_claim_missing` warn, or undefined when it did not fire. */
   function missingWarn(raw: Record<string, unknown>): Record<string, unknown> | undefined {
     const spy = vi.spyOn(logger, "warn");
-    identityFromClaims(raw, claims);
+    identityFromClaims(raw, claims, undefined, createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive());
     // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "oidc_groups_claim_missing");
     // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
@@ -1023,7 +1085,7 @@ describe("OIDC groups-claim missing → securityEvent when group governance is A
   }
 
   test("ABSENT claim + OIDC_ADMIN_GROUPS set ⇒ securityEvent naming the misconfigured knob", () => {
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
     const warn = missingWarn({ preferred_username: "alice", sub: "sub-alice" });
     expect(warn?.["security"]).toBe(true);
     expect(warn?.["groupsClaim"]).toBe("groups");
@@ -1032,14 +1094,14 @@ describe("OIDC groups-claim missing → securityEvent when group governance is A
   });
 
   test("ABSENT claim + OIDC_ALLOWED_GROUPS set ⇒ fires too (that gate denies EVERY login without groups)", () => {
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "Orb Users");
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "Orb Users" };
     expect(missingWarn({ preferred_username: "alice", sub: "sub-alice" })).toBeDefined();
   });
 
   // A property mapping emitting the wrong TYPE is the same silently-disabled control as emitting nothing —
   // `normalizeGroups` yields [] for both, so the gate/derivation sees no groups either way.
   test("a claim of the WRONG TYPE + governance active ⇒ fires, and names the shape it got", () => {
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
     const warn = missingWarn({ preferred_username: "alice", sub: "sub-alice", groups: 42 });
     expect(warn?.["groupsClaimShape"]).toBe("number");
   });
@@ -1048,19 +1110,26 @@ describe("OIDC groups-claim missing → securityEvent when group governance is A
   // never configured group governance has nothing to report — either firing here makes the signal a
   // per-login siren nobody reads.
   test("an EMPTY-array claim + governance active is SILENT (a user in no groups is legitimate)", () => {
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
     expect(missingWarn({ preferred_username: "alice", sub: "sub-alice", groups: [] })).toBeUndefined();
   });
 
   test("an ABSENT claim with governance INACTIVE is SILENT (no groups configured ⇒ nothing is disabled)", () => {
-    vi.stubEnv("OIDC_ADMIN_GROUPS", undefined);
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", undefined);
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: undefined };
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: undefined };
     expect(missingWarn({ preferred_username: "alice", sub: "sub-alice" })).toBeUndefined();
   });
 
   test("OBSERVABILITY ONLY — the identity is byte-identical with the signal firing", () => {
-    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
-    expect(identityFromClaims({ preferred_username: "alice", sub: "sub-alice" }, claims)).toEqual({
+    policyConfig = { ...policyConfig, ["OIDC_ADMIN_GROUPS"]: "Orb Admins" };
+    expect(
+      identityFromClaims(
+        { preferred_username: "alice", sub: "sub-alice" },
+        claims,
+        undefined,
+        createSessionsRolePolicy(policyConfig).groupRoleGovernanceActive(),
+      ),
+    ).toEqual({
       externalId: "sub-alice",
       handle: "alice",
       groups: [],
@@ -1148,6 +1217,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
     const rec: MintRecorder = {
       mints: 0,
       deps: {
+        rolePolicy: createSessionsRolePolicy(policyConfig),
         // Must NOT run on an off-allowlist login (the 400 short-circuits before any IdP round-trip).
         getConfig: (): Promise<never> => Promise.reject(new Error("getConfig must not run on an off-allowlist login")),
         // The authorize leg never exchanges anything; an off-allowlist login must not reach the IdP at all.
@@ -1492,6 +1562,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: {
+        rolePolicy: createSessionsRolePolicy(policyConfig),
         // Must NOT run when the state consume fails — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
           getConfigCalls += 1;
@@ -1598,6 +1669,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: {
+        rolePolicy: createSessionsRolePolicy(policyConfig),
         // Must NOT run on an IdP-error callback — the redirect short-circuits before the token exchange.
         getConfig: (): Promise<never> => {
           getConfigCalls += 1;

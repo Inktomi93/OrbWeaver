@@ -4,7 +4,6 @@
 import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
-import { isReservedSignupHandle } from "#domain/sessions";
 import { ownerFallbackCredentialInput, resolveOwnerFallbackCredential } from "#foundation/env";
 import type { AuthConfig } from "#infra/auth";
 import { createPasswordHasher, createRelayedFallbackNotice, ownerFallbackAllowed } from "#infra/auth";
@@ -88,7 +87,7 @@ function buildLocalAuthDeps(
     signup: {
       sessionIsLive: async (token: SessionToken): Promise<boolean> => (await sessions.validate(token)) !== null,
       invites: built.signupInvites,
-      isReservedHandle: isReservedSignupHandle,
+      isReservedHandle: sessions.rolePolicy.isReservedSignupHandle,
       handleTaken: (handle: Handle): Promise<boolean> => sessions.signupHandleTaken(handle),
       hashPassword: (plain: string): Promise<string> => hasher.hash(plain),
       seedUserConnections: built.seedUserConnections,

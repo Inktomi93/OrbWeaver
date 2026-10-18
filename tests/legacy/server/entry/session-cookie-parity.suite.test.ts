@@ -22,6 +22,8 @@ import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { SessionsService } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
@@ -74,6 +76,7 @@ function stubSessions(validate: SessionsService["validate"]): SessionsService {
     throw new Error(`unexpected sessions.${name}`);
   };
   return {
+    rolePolicy: createSessionsRolePolicy(env),
     validate,
     create: unused("create"),
     revokeByToken: unused("revokeByToken"),

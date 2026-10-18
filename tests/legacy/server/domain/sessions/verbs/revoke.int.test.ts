@@ -213,6 +213,7 @@ describe("sessions.revokeByToken — the OIDC end-session hint (#141)", () => {
     // and every id_token already at rest is unopenable. The session must still end.
     const stale = await svc.create({ userId: USER_ID, oidcIdToken: ID_TOKEN });
     const rotated = createSessionsService({
+      rolePolicy: svc.rolePolicy,
       db,
       now: (): number => FROZEN_AT_MS,
       sessionSecret: `${PEPPER}-rotated`,

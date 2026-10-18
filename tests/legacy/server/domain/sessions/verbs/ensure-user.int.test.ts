@@ -6,7 +6,8 @@ import { userConnections, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -17,10 +18,13 @@ const NO_ROW_AFTER_INSERT = /no users row for handle/u;
 
 let db: Db;
 let svc: SessionsService;
+let policyConfig: SessionsRolePolicyConfig;
+let clock: ReturnType<typeof makeService>["clock"];
 
 beforeEach(async () => {
   db = await freshDb();
-  ({ svc } = makeService(db));
+  policyConfig = { ...env };
+  ({ svc, clock } = makeService(db, policyConfig));
 });
 
 afterEach(() => {
@@ -54,7 +58,8 @@ describe("sessions.ensureUser", () => {
   });
 
   test("provisions an OWNER_HANDLES handle as owner, others as user (D17)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "alice");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alice" };
+    ({ svc } = makeService(db, policyConfig, clock));
     const ownerId = await svc.ensureUser(castId<Handle>("alice"));
     const userId = await svc.ensureUser(castId<Handle>("bob"));
     const owner = (await db.select().from(users).where(eq(users.id, ownerId)))[0];
@@ -87,7 +92,8 @@ describe("sessions.ensureUser", () => {
   // `principalFromRow` degraded the boot Principal to `role:"user"` — every owner-scoped seed then ran
   // against a non-existent non-owner principal. A fabricated id must be a loud failure, never a return value.
   test("REFUSES to return an id that points at no row when the insert is swallowed (single-owner UNIQUE)", async () => {
-    vi.stubEnv("OWNER_HANDLES", "owner");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+    ({ svc } = makeService(db, policyConfig, clock));
     await db
       .insert(users)
       .values({ id: castId<UserId>("u_existing_owner"), handle: castId<Handle>("alex"), handleKey: handleKey(castId<Handle>("alex")), role: "owner" });

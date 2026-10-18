@@ -4,9 +4,10 @@
 // now, the shared pepper) — matching the sibling `stats/_support.ts` seeder-home convention.
 
 import type { Db } from "@orb/db";
-import type { SessionsService } from "@orb/server/domain/sessions";
-import { createSessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
+import { env } from "@orb/server/foundation/env";
 import type { Clock } from "@orb/testkit/iso/clock.ts";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 
@@ -21,8 +22,10 @@ export const PEPPER = "test-session-secret-at-least-32-chars-long";
  *  admin harness keeps the batch-riding statements real: the property under test is that a minted account
  *  ends up holding `user_connections` ROWS, and a recorder would record a call and prove nothing about the
  *  rows. It is also what production hands in, so the harness cannot drift from the wiring it stands for. */
-export function makeService(db: Db): { svc: SessionsService; clock: Clock } {
-  const clock = createFrozenClock();
+export function makeService(db: Db, policyConfig: SessionsRolePolicyConfig = env, clock: Clock = createFrozenClock()): { svc: SessionsService; clock: Clock } {
   const seedUserConnections = createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined });
-  return { svc: createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections }), clock };
+  return {
+    svc: createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections, rolePolicy: createSessionsRolePolicy(policyConfig) }),
+    clock,
+  };
 }
