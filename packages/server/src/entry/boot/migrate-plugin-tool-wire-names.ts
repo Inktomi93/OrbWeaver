@@ -40,7 +40,6 @@ import { migratePluginToolWireNames as migrateToolCallRecords } from "#domain/ch
 import { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused, readInstalledPluginSlugs } from "#domain/plugin";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(MigratePluginToolWireNamesDeps): baselined when the gate landed; burn-down item 952.
 export interface MigratePluginToolWireNamesDeps {
   readonly db: Db;
 }

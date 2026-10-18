@@ -33,7 +33,6 @@ import { createHostPrincipalResolver } from "../auth/index.ts";
 import { minter } from "./minter.ts";
 import { createDeleteReachCapture } from "./room-reach.ts";
 
-// @orb-waive no-inline-package-interface(WorldInfoComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the world-info seam needs from the composition root. */
 export interface WorldInfoComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -61,7 +60,6 @@ export interface WorldInfoComposeDeps {
   readonly character: Pick<CharacterService, "mintSyntheticGroupCharacter" | "getCard">;
 }
 
-// @orb-waive no-inline-package-interface(WorldInfoComposeResult): baselined when the gate landed; burn-down item 952.
 /** The world-info compose product: the service + the import ports + the bulk importers + the owner resolver. */
 export interface WorldInfoComposeResult {
   readonly worldInfo: WorldInfoService;

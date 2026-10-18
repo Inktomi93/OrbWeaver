@@ -31,7 +31,6 @@ const OIDC_GC_INTERVAL_MS = MS_PER_HOUR;
  *  handle type never leaks. */
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
-// @orb-waive no-inline-package-interface(OidcGcSchedulerDeps): baselined when the gate landed; burn-down item 952.
 /** The DI bundle the scheduler closes over — the store sweep op + clock + timer, injected at entry/. */
 export interface OidcGcSchedulerDeps {
   readonly track?: BackgroundWork["track"];

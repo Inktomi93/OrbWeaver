@@ -16,7 +16,6 @@ import type { WorkloadContributions, WorkloadProgressBus } from "#domain/workloa
 import { reclaimInFlightOnBoot } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(ReclaimLocksDeps): baselined when the gate landed; burn-down item 952.
 export interface ReclaimLocksDeps {
   readonly emitWorkloadEvent?: WorkloadProgressBus["emitWorkloadEvent"];
   readonly db: Db;

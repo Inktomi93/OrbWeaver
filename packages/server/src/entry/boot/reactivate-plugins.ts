@@ -36,7 +36,6 @@ import type { PluginService } from "#domain/plugin";
 import { listEnabledAcrossOwners, PluginCrashedError } from "#domain/plugin";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(ReactivatePluginsDeps): baselined when the gate landed; burn-down item 952.
 export interface ReactivatePluginsDeps {
   readonly db: Db;
   /** The REAL owner-scoped verb — the same one the Plugins pane's switch drives. */
@@ -47,7 +46,6 @@ export interface ReactivatePluginsDeps {
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
 }
 
-// @orb-waive no-inline-package-interface(ReactivatePluginsReport): baselined when the gate landed; burn-down item 952.
 /** What the sweep did. `failed` rows are `errored` in the db with their `lastError` — this is the count, not
  *  the record. */
 export interface ReactivatePluginsReport {

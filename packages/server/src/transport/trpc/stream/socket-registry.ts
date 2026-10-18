@@ -69,7 +69,6 @@ export const SOCKET_REAP_MS = 60_000;
 export const ROOMS_PER_SOCKET = 32;
 export const SOCKETS_PER_USER = 8;
 
-// @orb-waive no-inline-package-interface(SocketRoom): baselined when the gate landed; burn-down item 952.
 /** One attached room's desired state. `cursor` is the last DURABLE seq delivered (null for a live-only room)
  *  — the resume point a reconnect's pump starts from, and what a `roomLagged` frame carries. */
 export interface SocketRoom {
@@ -90,7 +89,6 @@ export interface SocketRoom {
   announcedFor: number;
 }
 
-// @orb-waive no-inline-package-interface(SocketListener): baselined when the gate landed; burn-down item 952.
 /** What a LIVE socket generator registers so room changes reach its pumps in order. */
 export interface SocketListener {
   /** A room was added, or an existing room's cursor was REWOUND by a lower `sinceSeq` — start/restart its
@@ -106,7 +104,6 @@ export interface SocketListener {
   readonly onEvicted: () => void;
 }
 
-// @orb-waive no-inline-package-interface(SocketCell): baselined when the gate landed; burn-down item 952.
 export interface SocketCell {
   readonly socketId: SocketId;
   readonly userId: UserId;
@@ -135,7 +132,6 @@ export interface SocketCell {
   connectionSeq: number;
 }
 
-// @orb-waive no-inline-package-interface(SocketRegistry): baselined when the gate landed; burn-down item 952.
 export interface SocketRegistry {
   /** Create-or-adopt the cell for `(userId, socketId)`, stamping the connecting request's `sessionId`
    *  (`null` = no cookie session; see {@link SocketCell.sessionId}). Throws a leak-free `DomainNotFoundError`

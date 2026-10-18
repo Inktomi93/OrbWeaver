@@ -15,7 +15,6 @@ import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(RepairStaleJoinSeqDeps): baselined when the gate landed; burn-down item 952.
 export interface RepairStaleJoinSeqDeps {
   readonly db: Db;
 }

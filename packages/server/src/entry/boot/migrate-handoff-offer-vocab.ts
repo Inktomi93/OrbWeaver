@@ -14,7 +14,6 @@ import type { Db } from "@orb/db";
 import { migrateHandoffOfferVocab } from "#domain/chat";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(MigrateHandoffOfferVocabDeps): baselined when the gate landed; burn-down item 952.
 export interface MigrateHandoffOfferVocabDeps {
   readonly db: Db;
 }

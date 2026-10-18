@@ -13,7 +13,6 @@ import type { Db } from "@orb/db";
 import { healLegacyBackgroundPins } from "#domain/settings";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(HealLegacyBackgroundPinsDeps): baselined when the gate landed; burn-down item 952.
 export interface HealLegacyBackgroundPinsDeps {
   readonly db: Db;
 }

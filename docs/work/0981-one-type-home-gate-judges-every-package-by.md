@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-17
+status: open
+updated: 2026-10-18
 priority: P1
-lane: codex/native-type-home-migration-981
 plan: test-foundation
 ---
 
@@ -33,6 +32,8 @@ Reviewed `5d7417fc59` consolidates client-only declarations into existing compon
 
 Sandbox limits use the canonical `PluginBudgets` directly. The empty duplicate and unused re-export are removed with their stale Knip baseline entry. Server types, exact lint, scoped placement and independent runtime-erasure comparison pass. Plugin-authoring declarations remain unchanged. Evidence: `reports/review/canonical-plugin-budgets-independent-review.md`.
 
-Native direct placement covers server domains and foundation observability. Canonical contracts derive lower-owned data while preserving raw diagnostics, supported exports and runtime bodies. Independent review confirms the observability batch; final coupled qualification and budget reconciliation remain root-owned. Remaining packages stay open. Evidence: `reports/review/981-observability-type-home-delivery.md`.
+Native placement covers server domains and foundation observability. Contracts derive lower-owned data; runtime bodies and public diagnostics stay unchanged. Coupled qualification, budget reconciliation and other packages remain open. Evidence: `reports/review/981-observability-type-home-delivery.md`.
 
 Client-error telemetry derives the canonical diagnostics schema without changing public admission or logging. Root controls and the cross-tenant sweep pass. Evidence: `reports/review/981-client-error-contract-ordinary.md`.
+
+Qualified server factory and sanctioned transport markers are removed without changing runtime code or expanding placement authority. Remaining home coverage stays open. Evidence: `reports/review/marker-workload-wave-independent.md`.

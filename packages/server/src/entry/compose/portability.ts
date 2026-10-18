@@ -28,7 +28,6 @@ import { CHAT_BUNDLE_EXT } from "#primitives/serde/chat-bundle";
 import type { LifecycleDoors, NonPortableCanon, PortabilityTableName } from "../contract/portability.ts";
 
 /** What the registry builder needs from the composition root to compose each descriptor. */
-// @orb-waive no-inline-package-interface(PortabilityDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityDeps {
   readonly now: () => number;
   readonly tagCtx: TagContext;

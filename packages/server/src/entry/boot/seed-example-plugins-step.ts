@@ -5,7 +5,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ExamplePluginSeeder } from "./seed-example-plugins.ts";
 
-// @orb-waive no-inline-package-interface(SeedExamplePluginsDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedExamplePluginsDeps {
   /** Shared with the app first-request hook. */
   readonly seeder: ExamplePluginSeeder;

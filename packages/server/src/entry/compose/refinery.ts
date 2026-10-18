@@ -20,7 +20,6 @@ import type { LiveBuses } from "#transport/trpc";
 
 import { minter } from "./minter.ts";
 
-// @orb-waive no-inline-package-interface(RefineryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** Graph inputs; the refinery owns draft planning and settings owns the prose projection. */
 export interface RefineryComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -35,7 +34,6 @@ export interface RefineryComposeDeps {
   readonly loadUserSettings: SettingsService["loadUserSettings"];
 }
 
-// @orb-waive no-inline-package-interface(RefineryCompose): baselined when the gate landed; burn-down item 952.
 /** Service authority and the smaller, session-less workload bundle remain separate. */
 export interface RefineryCompose {
   readonly refinery: RefineryService;

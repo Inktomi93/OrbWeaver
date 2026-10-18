@@ -36,7 +36,6 @@ import type { LiveBuses } from "./contract/live-buses.ts";
 import type { PresenceRegistry } from "./presence-registry.ts";
 import type { SocketRegistry } from "./stream/socket-registry.ts";
 
-// @orb-waive no-inline-package-interface(Services): baselined when the gate landed; burn-down item 952.
 /**
  * The constructed domain services, wired with their db + cross-feature deps at the entry composition root
  * and handed to each request. A router reaches a domain only through its front-door service here — never
@@ -74,7 +73,6 @@ export interface Services {
   readonly worldInfo: WorldInfoService;
 }
 
-// @orb-waive no-inline-package-interface(RateLimitDecision): baselined when the gate landed; burn-down item 952.
 /** The inputs the rate-limit gate decides on. Which bucket is the injected implementation's concern;
  *  transport hands it the request facts and awaits its verdict. */
 export interface RateLimitDecision {
@@ -84,14 +82,12 @@ export interface RateLimitDecision {
   readonly clientIp: string | null;
 }
 
-// @orb-waive no-inline-package-interface(RateLimitGate): baselined when the gate landed; burn-down item 952.
 /** The rate-limit gate — the injected middleware seam. `enforce` rejects with `DomainRateLimitError` when
  *  over cap (mapped to TOO_MANY_REQUESTS + Retry-After downstream). */
 export interface RateLimitGate {
   readonly enforce: (decision: RateLimitDecision) => Promise<void>;
 }
 
-// @orb-waive no-inline-package-interface(Context): baselined when the gate landed; burn-down item 952.
 export interface Context {
   readonly liveBuses: LiveBuses;
   readonly auth: Principal | null;

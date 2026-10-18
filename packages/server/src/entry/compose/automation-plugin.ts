@@ -76,7 +76,6 @@ import { loadPluginCharacters, loadPluginMessages } from "./plugin-chat-reads.ts
 
 /** What the automation+plugin seam needs from the composition root. */
 
-// @orb-waive no-inline-package-interface(AutomationPluginComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface AutomationPluginComposeDeps {
   readonly pluginExecution?: Pick<PluginHostSeamDeps, "spawn" | "monotonicNow">;
   readonly timers?: PluginHostSeamDeps["timers"];
@@ -169,7 +168,6 @@ export interface AutomationPluginComposeDeps {
   }>;
 }
 
-// @orb-waive no-inline-package-interface(AutomationPluginComposeResult): baselined when the gate landed; burn-down item 952.
 /** The automation+plugin compose product. */
 export interface AutomationPluginComposeResult extends AsyncDisposable {
   readonly automation: AutomationService;

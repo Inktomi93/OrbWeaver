@@ -22,7 +22,6 @@ import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { and, like, lt, sql } from "drizzle-orm";
 
-// @orb-waive no-inline-package-interface(RateLimitConfig): baselined when the gate landed; burn-down item 952.
 export interface RateLimitConfig {
   /** Short tag distinguishing this limiter's rows in the shared table — e.g. "login-ip", "public-ip". */
   readonly scope: string;
@@ -34,7 +33,6 @@ export interface RateLimitConfig {
   readonly now: () => number;
 }
 
-// @orb-waive no-inline-package-interface(RateLimiter): baselined when the gate landed; burn-down item 952.
 export interface RateLimiter {
   /** Consume one point for `id`. Throws {@link DomainRateLimitError} when over budget; the error carries
    *  `msBeforeNext` and `remainingPoints` for Retry-After / X-RateLimit-Remaining. */

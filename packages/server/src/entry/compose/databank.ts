@@ -35,7 +35,6 @@ import {
 } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
-// @orb-waive no-inline-package-interface(DatabankComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
  *  front doors databank's injected ops route through. */
 export interface DatabankComposeDeps {
@@ -65,7 +64,6 @@ export interface DatabankComposeDeps {
   readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
 }
 
-// @orb-waive no-inline-package-interface(DatabankComposeResult): baselined when the gate landed; burn-down item 952.
 /** The databank compose product: the retrieval/producer service + the chunk-embed ingest subsystem. */
 export interface DatabankComposeResult {
   readonly databank: DatabankService;
