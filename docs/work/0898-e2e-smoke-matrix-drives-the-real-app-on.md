@@ -30,7 +30,7 @@ Navigation, canon and persona freshness have scoped production evidence. Preserv
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
-Private intake uses a disposable, schedule-quarantined copy. Native replay proves the first index workload starts and reports progress before the helper deadline; no fixture or final DB state qualifies. Diagnose consumer-owned cancellation before changing budgets. Supervision owns initial load and execution; a blocked-load control proves joining. Prior DB observations and retained replay remain distinct; replay absence is unobserved. Personal data stays outside Git and CI. Evidence: `reports/review/898-private-current-intake-verdict.md` and `reports/review/898-owned-workload-timeout-independent.md`.
+Private intake uses a disposable, schedule-quarantined copy. Caller-owned expiry spans setup and workloads without renewal; native completion joins before disposal. Late fixtures refuse. The current intake passes search, then refuses unspent connection recipes; no fixture qualifies. Repair public cache lifecycle through synthetic controls before another intake. Personal data stays outside Git and CI. Evidence: `reports/review/898-private-current-intake-verdict.md` and `reports/review/898-caller-owned-deadline-independent.md`.
 
 Request-sensitive corpus publication passes its seed and native boundary controls. Evidence: `reports/review/898-v2-publication.md`.
 

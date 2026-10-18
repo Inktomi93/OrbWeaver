@@ -149,7 +149,7 @@ Gate families fold onto the shared readers:
 - JSON columns: json-column-read-parsed, json-column-write-parity and open-json-column-key-parity become one JSON-column fact with three judgements.
 - Copies: contract-structural-copy, contract-derives-not-respells, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
 
-The fact store is built once per world program, updated from file changes and persisted. A `pnpm ast` verb that loads its own program is a defect: one such run held most of the box's memory. Item 965 measures the static tier on a standard hosted runner; the fix is the shared store, never a time or memory cap.
+Item 965 measures the static tier on a standard hosted runner. Shared-store consumers must not load their own programs. Fix cost through shared facts, not resource caps.
 
 ### Shared semantic inventory store
 
@@ -157,7 +157,7 @@ The [native inventory item](../../work/1002-persist-native-semantic-inventory-fa
 
 Factory readers pin complete-generation, query-only snapshots. Raw binding reuse stays snapshot-owned; borrowed readers stay fresh. Owned invocation identity and private partition membership remain validated. Session admission retains current caller keys and graph checks. Acquisition verifies exact native membership. Source wrappers are reused without assuming immutable contents or epochs. Installed controls qualify these boundaries. Maintained-support findings remain separate.
 
-Reviewed reference indexing and versioned name links are integrated. Frozen complete DOM default publication qualifies currentness, lazy reads and release with measured cost. UI parity passes; complete semantic equivalence, warm reuse and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`.
+Reviewed reference indexing and versioned name links are integrated. Complete DOM publication qualifies currentness, lazy reads and release. Warm readers preserve answers, pinned generation and disposal. Complete equivalence, cross-process reuse and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-current-tests-dom-warm-reuse.md`.
 
 Verifier native-world delivery remains incomplete. Native owners supply closed module, declaration, reference, origin, value, signature and type observations. Queries retain importing-world options and exact source membership. Executable helpers and codecs participate in reuse invalidation. Missing, foreign, stale or disposed evidence refuses instead of falling back to the syntax workspace.
 
@@ -229,7 +229,7 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
-Native HARD lint owns tooling entry identity, invalidation and missing-owner refusal. Bounded server declaration traversal completes without heap exhaustion; unsupported surfaces refuse explicitly. Coverage and type-home corrections remain open. Evidence: `reports/review/1042-native-boundary-successor.md`.
+Native HARD lint owns tooling entry identity, invalidation and missing-owner refusal. Bounded server declaration traversal completes without heap exhaustion. Adapter homes are corrected; unsupported coverage still refuses. Scoped discovery cost remains open. Evidence: `reports/review/1042-native-boundary-successor.md`.
 
 Native schemas enforce portability; runtime owns DevTools bytes. Lint owns client literals, positioning, sealed sizes and suppression refusal. Story and generated-token readers remain. Manifest/token and compiler-expiry contracts use Node CI. Containment and memo enforcement remain. Floorless geometry uses public UI metadata; complete frontend qualification remains open. Native imports judge tests and tooling; raw reach remains custom. Engine-test private imports require production-root adoption. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`. Git/text checks pass; application qualification fails on legacy collection.
 

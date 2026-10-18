@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
+lane: codex/canonical-adapter-type-homes-1042
 plan: test-foundation
 ---
 

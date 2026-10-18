@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/maintained-boundary-casts-1041
 plan: native-occurrence-index
 ---
 
@@ -30,6 +29,6 @@ Reviewed occurrence production indexes eligible function-local declarations and 
 
 Member and module occurrence production passes bounded parity controls and independent review. Empty search names retain native fallback. Source and derived lockfile are integrated. Fresh installed-SDK, SQLite and public AST controls pass in an isolated main-derived checkout. Shared-main installation matches the qualified pins. Complete-world cost remains open. Installed identity: `reports/review/1041-maintained-boundary-delivery.md`. Prior evidence keeps its original compiler identity. Evidence: `reports/review/1045-native-families-installed.md` and `reports/review/1045-native-family-occurrences-independent.md`.
 
-Frozen complete-DOM default publication validates current inputs, lazy reads and physical worker release. Cost remains high. Candidate indexing still invokes native per-query reference semantics. Semantic parity, warm reuse, other worlds and hosted acceptance remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
+Reference attribution preserves the original frozen DOM measurement and its compiler identity. Candidate indexing retains native reference semantics. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
 
-Computed-answer reuse, native location indexing and versioned name links are integrated with matching main SDK installation. Storage upgrades and exact logical replay pass controls and independent review. UI relation-on/off observations preserve complete roots, closure, inputs and reference order; they do not qualify complete DOM cost or worker release. Frozen complete default-DOM publication passes currentness, lazy reads and physical release with measured cost. Warm reuse, native equivalence and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-bulk-native-reference-delivery.md`.
+Computed-answer reuse, native location indexing and versioned name links are integrated with matching main SDK installation. Storage upgrades and exact logical replay pass controls and independent review. UI relation-on/off observations preserve complete roots, closure, inputs and reference order. Complete default-DOM publication qualifies currentness, lazy reads, physical release and measured cost. Same-process warm readers preserve nonempty public answers, pinned generation and disposal without rebuilding. Cross-process reuse, native equivalence, other worlds and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`, `reports/review/1045-current-tests-dom-warm-reuse.md` and `reports/review/1045-bulk-native-reference-delivery.md`.
