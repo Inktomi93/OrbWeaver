@@ -280,7 +280,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 ### Execution and verification
 
-Follow the orchestrator and lane skills for assignments, scoped floors, review and commits. Scoped checks can overlap under measured limits. D317 owns the pre-push application check. Protect the release container.
+Follow the orchestrator and lane skills for dispatch, scoped checks and review. Claude primary adds optional capacity; the orchestrator skill owns peer briefs and inbox monitoring. D317 owns the pre-push check. Protect the release container.
 
 ### Compose holds wiring only
 

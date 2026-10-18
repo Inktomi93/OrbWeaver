@@ -63,7 +63,7 @@ Run at most three lanes at once. Raise the cap only on an explicit owner ruling,
 
 Owner ruling: at most six `sonnet-executor` lanes plus two Opus agents at once, or three Opus agents when no Sonnet lane runs. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
 
-Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks.
+Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.
@@ -277,6 +277,8 @@ the primary merges.
 
 Cross-account messages go through `~/.claude/bridge/`. `~/.claude/bridge/PROTOCOL.md` owns the
 format, numbering, and message kinds. Read it before you write a note.
+
+For Codex dispatch to Claude primary, use the full brief above: ownership, acceptance, scoped checks, hazards and explicit exclusions. Require source and caller surveys before edits. Main retains integration and shared-host scheduling. Read `~/.claude/bridge/SESSIONS.md` and verify the existing inbox watcher; do not start a duplicate. Confirm the current session receives its alerts instead of assuming Claude plugin delivery reaches Codex.
 
 - Write each note in one shot. The bridge plugin delivers a `bridge: new note N` event for every write to your inbox.
 - Send with `claude-bridge send` (the bridge skill). It numbers the note under the lock.
