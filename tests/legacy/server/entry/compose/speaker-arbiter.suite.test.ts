@@ -8,7 +8,6 @@ import type { AgentSdkModel, DeclaredCapability, ModelCatalogEntry } from "@orb/
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { Mirror } from "#inference/catalog/mirror.ts";
@@ -20,7 +19,7 @@ import type { ResolverContext } from "#inference/resolve/resolve-task.ts";
 import { createRoleClientsFor } from "#inference/roles/role-clients.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
 import { speakerArbiterFor } from "#server/entry/compose/chat.ts";
-import { fakeConnection, fakeDeps, makeResolved, newUserId } from "../../../inference/_support.ts";
+import { fakeConnection, fakeDeps, makeResolved, newUserId, wireSchema } from "../../../inference/_support.ts";
 
 const LOCAL_BASE_URL = "http://127.0.0.1:1/v1";
 

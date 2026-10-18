@@ -5,9 +5,8 @@
 // @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 import type { OpenAiCompatChatRequest } from "./_chat-support.ts";

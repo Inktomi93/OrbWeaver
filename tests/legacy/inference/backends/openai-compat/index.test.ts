@@ -10,7 +10,6 @@ import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { stateRoundChangesSchema } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
-import { wireSchema } from "@orb/testkit/iso/wire-ready.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createOpenAiCompatBackend } from "#inference/backends/openai-compat/index.ts";
@@ -19,7 +18,7 @@ import { measuredRows } from "#inference/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { StructuredRequest, SummarizeRequest } from "#inference/contract/roles.ts";
 import type { InferenceLog } from "#inference/deps.ts";
-import { fakeApiKeySecret, fakeResolved, memoryStores } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, memoryStores, wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 
