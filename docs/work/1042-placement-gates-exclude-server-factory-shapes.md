@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P2
 area: tooling
-lane: codex/canonical-adapter-type-homes-1042
 plan: test-foundation
 ---
 
@@ -31,3 +30,5 @@ Reviewed parser and Morph observations retain separate compiler realms. Canonica
 Qualified native factory and sanctioned transport markers are removed. PrincipalEnv retains its verified entry-only Hono limitation. Remaining markers and importer qualification stay open. Evidence: `reports/review/marker-workload-wave-independent.md`.
 
 Bounded native declaration traversal replaces recursive expansion and completes the ordinary server cohort without heap exhaustion. Reviewed controls preserve actual arguments, owner identity, merged declarations and missing-data refusal. Production results retain real placement findings and explicit unqualified coverage refusals. Derived/schema, ambient and dependent-default coverage stays open; do not rewrite canonical application types to hide it. Canonical adapter-home fixes proceed independently. Evidence: `reports/review/1042-native-boundary-successor.md` and `reports/review/1042-server-public-boundary-independent.md`.
+
+Adapter contract-home corrections are integrated. Exact runtime erasure, server types and independent security review pass. Original placement findings are gone; coverage refusals, their observed delta and broader dependency reselection remain unqualified. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.

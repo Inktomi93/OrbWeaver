@@ -36,7 +36,7 @@ Immutable router publication, observed emission and the output-watch correction 
 
 The profiled TS7 prototype is slower, larger and fails reference parity. TS7 work remains parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
-Frozen complete-DOM publication retains its original source, SDK and costly result. Reviewed computed-answer reuse, native location indexing and physical name-link storage are integrated. Bounded UI parity and lower observed cost do not qualify complete DOM, warm reuse or hosted acceptance. Measure current default DOM separately without relabeling historical evidence. Evidence: `reports/review/1045-bulk-native-reference-delivery.md` and `reports/review/1002-current-tests-dom-cost.md`.
+Reviewed indexing and name links qualify frozen complete-DOM default publication, currentness and release at measured cost. Historical runs keep their source and SDK identity; timings are not a controlled speedup benchmark. Warm reuse, native equivalence, other worlds and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`.
 
 Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.
 

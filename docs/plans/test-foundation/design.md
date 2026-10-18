@@ -157,7 +157,7 @@ The [native inventory item](../../work/1002-persist-native-semantic-inventory-fa
 
 Factory readers pin complete-generation, query-only snapshots. Raw binding reuse stays snapshot-owned; borrowed readers stay fresh. Owned invocation identity and private partition membership remain validated. Session admission retains current caller keys and graph checks. Acquisition verifies exact native membership. Source wrappers are reused without assuming immutable contents or epochs. Installed controls qualify these boundaries. Maintained-support findings remain separate.
 
-Frozen DOM publication validates currentness and release; its bulk-reference cost remains historical evidence. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity passes; complete DOM cost, semantic equivalence, warm reuse and hosted acceptance remain open. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
+Reviewed reference indexing and versioned name links are integrated. Frozen complete DOM default publication qualifies currentness, lazy reads and release with measured cost. UI parity passes; complete semantic equivalence, warm reuse and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`.
 
 Verifier native-world delivery remains incomplete. Native owners supply closed module, declaration, reference, origin, value, signature and type observations. Queries retain importing-world options and exact source membership. Executable helpers and codecs participate in reuse invalidation. Missing, foreign, stale or disposed evidence refuses instead of falling back to the syntax workspace.
 

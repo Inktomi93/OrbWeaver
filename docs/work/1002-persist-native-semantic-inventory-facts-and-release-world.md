@@ -25,7 +25,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Frozen complete-DOM default publication validates inputs, lazy reads and worker release. Native equivalence, other worlds, warm concurrent reuse and hosted cost remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md`.
+Frozen complete-DOM default publication on the reviewed SDK validates currentness, lazy reads and physical release at measured cost. Native equivalence, other worlds, warm reuse and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`.
 
 Reference storage and native lifetimes pass review. Evidence: `reports/review/native-reference-string-integration.md`, `reports/review/shape-binding-integrated.md` and `reports/review/native-resource-integrated.md`.
 
@@ -39,4 +39,4 @@ Executing-input currentness, sealed consumer adoption and the reviewed ABI corre
 
 Replay batching and dependency overlays preserve independent reads, fresh validation, projected bytes and separate authored membership. Public membership controls pass. Reviewed coalescing preserves expectations within each unchanged validation boundary. Shape and public codemod deadlines still fail. Cold acquisition and executing-input replay dominate codemod cost, not query evaluation. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
 
-The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Complete DOM cost, native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
+The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.

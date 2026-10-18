@@ -36,4 +36,4 @@ Native placement covers server domains and foundation observability. Contracts d
 
 Client-error telemetry derives the canonical diagnostics schema without changing public admission or logging. Root controls and the cross-tenant sweep pass. Evidence: `reports/review/981-client-error-contract-ordinary.md`.
 
-Qualified server factory and sanctioned transport markers are removed without changing runtime code or expanding placement authority. Remaining home coverage stays open. Evidence: `reports/review/marker-workload-wave-independent.md`.
+Reviewed adapter contract homes preserve runtime bodies and raw wire boundaries. Original placement findings are gone; remaining home coverage stays open. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
