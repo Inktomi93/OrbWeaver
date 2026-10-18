@@ -251,10 +251,13 @@ function runPartitionChild(root: string, owner: string, partition: readonly Esli
     writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, "--cache-location", ownerCacheFile, ...paths]));
     const environment = nativeCompilerChildEnv(root, partition);
     const before = receipts === undefined ? [] : partition.map((entry) => profileReceipt(root, entry, owner, environment));
+    // Supervised: this process blocks in the spawn, so only the launcher can stop the worker if we die. A
+    // signal death still reaches `eslintScheme` as a null status, so it stays a tool error.
     const result = runNicedSync(process.execPath, ["scripts/eslint.ts", "--args-file", argumentsFile], {
       cwd: root,
       stdio: "inherit",
       env: environment,
+      supervised: true,
     });
     const childVerdict = eslintScheme(result.status);
     if (receipts !== undefined && childVerdict !== EXIT.toolError) {
