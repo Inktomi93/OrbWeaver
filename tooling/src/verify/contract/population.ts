@@ -6,9 +6,11 @@
 // hand-typed and tsc cannot read `pnpm-workspace.yaml`, so the workspace comparison sits at rung 4: that
 // test reconciles these roots BOTH WAYS against pnpm's own workspace enumeration
 // (`readPolicyWorkspacePackages`), so a new `packages/foo` that joins no root — and is therefore judged by
-// no policy — reds, and so does a root naming a package that does not exist. The two deliberate
-// asymmetries (`@tests`/`@scripts` are authored trees with no package; the workspace root has no `src/`)
-// live there as data with a `why`, two-sided against staleness. `AUTHORED_MEMBERSHIP` and
+// no policy — reds, and so does a root naming a package that does not exist. A package nested inside an
+// authored tree (the test kit inside `@tests`) is admitted as source by that tree and held by identity
+// separately; it gets no root of its own, which would carve its files out of the enclosing tree. The
+// deliberate asymmetries (`@tests`/`@scripts` are authored trees with no package; the workspace root has no
+// `src/`) live there as data with a `why`, two-sided against staleness. `AUTHORED_MEMBERSHIP` and
 // `PRODUCT_MEMBERSHIP` below are the separate, tsc-enforced half — which roots `@authored` and `@product`
 // MEAN (#1980, #2488).
 //
@@ -20,8 +22,9 @@
 // nothing, which is line 126's "a smaller unannounced population is not a speed improvement". `@product`
 // below is the second meaning given its own name and its own classification, so a policy SAYS which one it
 // means. `@packages` keeps its recorded six-root meaning and is NOT a compatibility alias for `@product`
-// (line 82 forbids retaining an alias for familiarity): its remaining declarers are the ones whose subject
-// is reachable only from a root that can import `@orb/db`, and each states that in its own header.
+// (line 82 forbids retaining an alias for familiarity). Each remaining declarer states in its own header why
+// the product roots outside this set cannot hold its subject: a schema read needs `@orb/db`, and a liveness
+// census grows blinder with every producer root it adds.
 export const POPULATION_ROOTS = {
   "@client": ["packages/client/src/"],
   "@ui": ["packages/ui/src/"],

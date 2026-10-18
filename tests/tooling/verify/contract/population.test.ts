@@ -24,21 +24,38 @@
 // a row below carrying its reason, and each row is asserted to still RESOLVE — a stale exclusion (a root
 // that was deleted, a member that was removed) reds exactly like an unclassified one.
 //
+// PACKAGE IDENTITY AND SOURCE ADMISSION ARE TWO QUESTIONS. A member passes the forward direction when a root
+// names it as its package, or when the real population resolver admits its directory to an `@authored` root
+// that encloses it (the test kit inside `@tests`). That second answer says only where the source is judged;
+// the identity of a nested package is held separately against the import-door constants that name the kit.
+//
 // THE RECONCILE IS A PURE FUNCTION SO IT CAN BE FALSIFIED WITH FIXTURES rather than by mutating the tree:
 // planting `packages/__probe-pkg/package.json` to make the real drive red would need an install to be seen
 // by `pnpm list`, and a live probe leaves nothing behind for the next reader. `reconcile` takes the member
-// set and the root table as arguments; one arm drives it on the REAL two, and four arms drive it on
+// set and the root table as arguments; one arm drives it on the REAL two, and the other arms drive it on
 // synthetic inputs that each isolate one direction of the defect.
 import { matchesGlob } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { TESTKIT_PACKAGE, TESTKIT_ROOT } from "../../../../tooling/src/floor/code-facts/module-specifier.ts";
 import { harnessGlobs } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
+import type { PolicyWorkspacePackage } from "../../../../tooling/src/verify/contract/policy-scope.ts";
+import type { PopulationRoot } from "../../../../tooling/src/verify/contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
+import { compilePopulation } from "../../../../tooling/src/verify/lib/population-resolver.ts";
 
 /** The repo-relative directory of a workspace member (`.` for the root), and the root table shape. */
 type MemberPaths = readonly string[];
 type RootTable = Readonly<Record<string, readonly string[]>>;
+
+const MANIFEST = "package.json";
+const AUTHORED_ROOTS: ReadonlySet<PopulationRoot> = new Set(POPULATION_SETS["@authored"]);
+const TESTKIT_IDENTITY: PolicyWorkspacePackage = { name: TESTKIT_PACKAGE.slice(0, -1), path: TESTKIT_ROOT.slice(0, -1) };
+
+function isPopulationRoot(key: string): key is PopulationRoot {
+  return Object.hasOwn(POPULATION_ROOTS, key);
+}
 
 interface ExclusionRow {
   readonly key: string;
@@ -61,7 +78,7 @@ const MEMBERS_WITHOUT_A_ROOT: readonly ExclusionRow[] = [
 const ROOTS_WITHOUT_A_MEMBER: readonly ExclusionRow[] = [
   {
     key: "@tests",
-    why: '`tests/` is the CENTRAL test mirror (AGENTS.md "Test layout"), a top-level authored tree owned by no package: its members prefix-swap INTO the packages rather than living in one.',
+    why: '`tests/` is the CENTRAL test mirror (AGENTS.md "Test layout"), a top-level authored tree that is not itself a package: its members prefix-swap INTO the packages rather than living in one. The test kit is a package nested inside it, and this root admits its source.',
   },
   {
     key: "@legacy-tests",
@@ -82,13 +99,60 @@ function claimedMember(paths: readonly string[]): string | undefined {
   return single === undefined ? undefined : /^(packages\/[^/]+)\/$/u.exec(single)?.[1];
 }
 
-/** FORWARD — a workspace member with no root is the #2267 defect: it is judged by no policy. */
+/** The root the production resolver admits a member's manifest to, among the table's real roots. A root that
+ *  names the member's own `src/` does not admit the manifest, so this answers only for an enclosing tree. */
+function enclosingRoot(member: string, roots: RootTable): PopulationRoot | undefined {
+  return member === "."
+    ? undefined
+    : Object.keys(roots)
+        .filter(isPopulationRoot)
+        .find((root) => compilePopulation(root)(`${member}/${MANIFEST}`));
+}
+
+/** FORWARD — a workspace member with no root is the #2267 defect: it is judged by no policy. A member nested in
+ *  a root outside `@authored` is the same defect, since no strict policy reads that tree. */
 function membersWithoutARoot(memberPaths: MemberPaths, roots: RootTable): readonly string[] {
   const excluded = new Set(MEMBERS_WITHOUT_A_ROOT.map(({ key }) => key));
   const claimed = new Set(Object.values(roots).map((paths) => claimedMember(paths)));
   return memberPaths
     .filter((member) => !(excluded.has(member) || claimed.has(member)))
-    .map((member) => `workspace member ${member} joins no population root — add a root naming ${member}/src/, or a MEMBERS_WITHOUT_A_ROOT row with a why`);
+    .flatMap((member) => {
+      const enclosing = enclosingRoot(member, roots);
+      if (enclosing === undefined) {
+        return [`workspace member ${member} joins no population root — add a root naming ${member}/src/, or a MEMBERS_WITHOUT_A_ROOT row with a why`];
+      }
+      return AUTHORED_ROOTS.has(enclosing)
+        ? []
+        : [`workspace member ${member} is admitted only by ${enclosing}, which is outside @authored — move the package out of that tree`];
+    });
+}
+
+/** The members whose source an enclosing authored root admits, with the root that admits them. */
+function nestedMembers(
+  members: readonly PolicyWorkspacePackage[],
+  roots: RootTable,
+): readonly (PolicyWorkspacePackage & { readonly sourceRoot: PopulationRoot })[] {
+  const claimed = new Set(Object.values(roots).map((paths) => claimedMember(paths)));
+  return members.flatMap((member) => {
+    const sourceRoot = claimed.has(member.path) ? undefined : enclosingRoot(member.path, roots);
+    return sourceRoot !== undefined && AUTHORED_ROOTS.has(sourceRoot) ? [{ ...member, sourceRoot }] : [];
+  });
+}
+
+/** IDENTITY — a nested member has no root of its own, so its package identity must be the test kit that the
+ *  import-door reader names; any other nested package, or a kit the workspace no longer carries, is reported. */
+function nestedIdentityFindings(members: readonly PolicyWorkspacePackage[], roots: RootTable): readonly string[] {
+  const isKit = (member: PolicyWorkspacePackage): boolean => member.name === TESTKIT_IDENTITY.name && member.path === TESTKIT_IDENTITY.path;
+  const nested = nestedMembers(members, roots);
+  return [
+    ...nested
+      .filter((member) => !isKit(member))
+      .map(
+        (member) =>
+          `workspace package ${member.name} at ${member.path} has no population root of its own and only rides ${member.sourceRoot} — give it a root naming ${member.path}/src/`,
+      ),
+    ...(nested.some(isKit) ? [] : [`the test kit ${TESTKIT_IDENTITY.name} at ${TESTKIT_IDENTITY.path} is not a nested workspace member`]),
+  ].toSorted();
 }
 
 /** REVERSE — a root naming a package that is not a workspace member is a dead or mis-spelled declaration. */
@@ -124,8 +188,12 @@ function reconcile(memberPaths: MemberPaths, roots: RootTable): readonly string[
   return [...membersWithoutARoot(memberPaths, roots), ...rootsWithoutAMember(memberPaths, roots), ...staleExclusions(memberPaths, roots)].toSorted();
 }
 
+function realMembers(): readonly PolicyWorkspacePackage[] {
+  return readPolicyWorkspacePackages(readPolicyRepositoryInventory(process.cwd()));
+}
+
 function realMemberPaths(): MemberPaths {
-  return readPolicyWorkspacePackages(readPolicyRepositoryInventory(process.cwd())).map(({ path }) => path);
+  return realMembers().map(({ path }) => path);
 }
 
 test("every workspace package joins a population root, and every root names a live member (#2267)", () => {
@@ -135,6 +203,37 @@ test("every workspace package joins a population root, and every root names a li
   // would make the forward direction vacuously green, which is the exact "empty population" false clean.
   expect(members.filter((path) => path.startsWith("packages/")).length).toBeGreaterThan(1);
   expect(reconcile(members, POPULATION_ROOTS)).toEqual([]);
+});
+
+test("the test kit's source rides `@tests` while its package identity matches the import-door constants", () => {
+  const members = realMembers();
+
+  expect(nestedMembers(members, POPULATION_ROOTS)).toEqual([{ ...TESTKIT_IDENTITY, sourceRoot: "@tests" }]);
+  expect(nestedIdentityFindings(members, POPULATION_ROOTS)).toEqual([]);
+});
+
+test("a package nested in an authored tree is admitted as source but reported by identity", () => {
+  const probe: PolicyWorkspacePackage = { name: "@orb/probe-kit", path: "scripts/__probe-kit" };
+
+  expect(reconcile([...realMemberPaths(), probe.path], POPULATION_ROOTS)).toEqual([]);
+  expect(nestedIdentityFindings([...realMembers(), probe], POPULATION_ROOTS)).toEqual([
+    "workspace package @orb/probe-kit at scripts/__probe-kit has no population root of its own and only rides @scripts — give it a root naming scripts/__probe-kit/src/",
+  ]);
+});
+
+test("a renamed test kit is reported by identity, not admitted as an anonymous nested package", () => {
+  const renamed = realMembers().map((member) => (member.path === TESTKIT_IDENTITY.path ? { ...member, name: "@orb/test-kit" } : member));
+
+  expect(nestedIdentityFindings(renamed, POPULATION_ROOTS)).toEqual([
+    "the test kit @orb/testkit at tests/support is not a nested workspace member",
+    "workspace package @orb/test-kit at tests/support has no population root of its own and only rides @tests — give it a root naming tests/support/src/",
+  ]);
+});
+
+test("a package nested in the legacy folder is reported, because no strict policy reads that tree (D320)", () => {
+  expect(reconcile([...realMemberPaths(), "tests/legacy/__probe-pkg"], POPULATION_ROOTS)).toEqual([
+    "workspace member tests/legacy/__probe-pkg is admitted only by @legacy-tests, which is outside @authored — move the package out of that tree",
+  ]);
 });
 
 test("a NEW workspace package that joins no root is reported — the #2267 defect, planted", () => {
