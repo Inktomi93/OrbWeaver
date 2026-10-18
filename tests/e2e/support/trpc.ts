@@ -18,6 +18,7 @@ import process from "node:process";
 import type { ContextFitPreview } from "@orb/contracts/chat";
 import type { ChatInspection, DebugErrorsResponse, RpgTracesResponse, WireCapture, WireCapturesResponse } from "@orb/contracts/debug";
 import { chatInspectionSchema, debugErrorsResponseSchema, rpgTracesResponseSchema, wireCapturesResponseSchema } from "@orb/contracts/debug";
+import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type {
@@ -88,9 +89,15 @@ export type {
 
 type InputArgs<TInput> = [TInput] extends [undefined] ? [] : undefined extends TInput ? [input?: TInput] : [input: TInput];
 
-interface TrpcEnvelope {
-  readonly result?: { readonly data?: unknown };
-  readonly error?: unknown;
+/** The first batch entry's `result.data`, or `undefined` when that entry carries an error or no result. tRPC
+ *  publishes no schema for the envelope, so it stays raw and only the envelope's own fields are read. */
+export function batchResultData(body: unknown): { readonly data: unknown } | undefined {
+  const entry: unknown = Array.isArray(body) ? body[0] : undefined;
+  if (!isPlainObject(entry) || entry["error"] !== undefined) {
+    return undefined;
+  }
+  const result = entry["result"];
+  return isPlainObject(result) ? { data: result["data"] } : undefined;
 }
 
 /** A tRPC batch client bound to one stack and one header set (a session cookie, a signed-JWT proxy header, or none).
@@ -112,14 +119,13 @@ export function createTrpcClient(baseUrl: string, headers: Readonly<Record<strin
             headers: { ...headers, "content-type": "application/json" },
             body: JSON.stringify({ 0: input }),
           });
-    // @orb-waive no-test-fabrication(readonly TrpcEnvelope[]): the batch envelope is the wire's own shape; there is no schema to parse it with.
-    const body = (await res.json()) as readonly TrpcEnvelope[];
-    const entry = body[0];
-    if (!res.ok || entry?.error !== undefined || entry?.result === undefined) {
+    const body: unknown = await res.json();
+    const result = batchResultData(body);
+    if (!res.ok || result === undefined) {
       throw new Error(`e2e trpc: ${procedure} ${kind} failed (${res.status}): ${JSON.stringify(body)}`);
     }
     // @orb-waive no-test-fabrication(TrpcOutput<TPath>): the router's output type is the only description of the payload; the harness does not re-parse it.
-    return entry.result.data as TrpcOutput<TPath>;
+    return result.data as TrpcOutput<TPath>;
   }
   return {
     query: (procedure, ...input) => call("query", procedure, input[0]),

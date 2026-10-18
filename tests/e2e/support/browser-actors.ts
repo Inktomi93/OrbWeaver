@@ -19,8 +19,8 @@
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-// @orb-waive-file no-test-fabrication(OrbNavMethods | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatId, Handle } from "@orb/kit/ids";
+import { navResultShape } from "@orb/tooling/floor/browser/page-validate";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { SESSION_COOKIE } from "./actors.ts";
 
@@ -31,27 +31,6 @@ export interface BrowserActor {
   readonly page: Page;
   readonly close: () => Promise<void>;
 }
-
-/** The dev nav bridge's per-call verdict (`__orb.nav.*`) — a refusal names its reason. */
-interface NavResult {
-  readonly ok: boolean;
-  readonly reason?: string;
-}
-
-/** The slice of the dev debug handle this module drives, declared LOCALLY (the e2e-support tree stays
- *  import-free of the package trees, so the client's `OrbDebugHandle` is not importable here). Two worlds
- *  compile this file: a closure WITHOUT the client's `globalThis.__orb` augmentation (every member here is
- *  optional, so `typeof globalThis` narrows with a single cast) and — since #1095 routed the lib barrel's
- *  bug-report capture through `agent-bridge.ts`'s read seam — a closure WITH it, where `__orb` is the real
- *  handle. `nav` is typed as the bare `object` the real `OrbNavHandle` (fixed-arity methods, no index
- *  signature) is assignable to; the method table is then cast at the call, never through `unknown` — a
- *  double-cast through `unknown` would fabricate a typed value that survives the real handle renaming a
- *  method, and the `no-test-fabrication` gate rejects it (correctly). A renamed method still surfaces as
- *  the runtime refusal `nav()` throws on. */
-interface OrbNavGlobal {
-  readonly __orb?: { readonly nav?: object };
-}
-type OrbNavMethods = Readonly<Record<string, (arg: string) => NavResult | Promise<NavResult>>>;
 
 const APP_READY = "html[data-app-ready]";
 // The login route requires the CSRF header (blocks login-CSRF), so this actor sends it exactly as the real client does.
@@ -82,25 +61,42 @@ export async function openBrowserActor(browser: Browser, baseUrl: string, handle
   return { handle, context, page, close: () => context.close() };
 }
 
-/** Invoke one `window.__orb.nav` method in-page, awaiting app-readiness + the bridge first. Throws on a
- *  refusal (or a missing bridge — a non-dev build), because a silently un-navigated page is a screenshot of
- *  the wrong surface, which is worse than a failure. */
-async function nav(page: Page, method: string, arg: string): Promise<void> {
-  await page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
-  await page.waitForFunction(() => (globalThis as OrbNavGlobal).__orb?.nav !== undefined, undefined, { timeout: READY_TIMEOUT_MS });
-  const result = (await page.evaluate<NavResult | undefined, [string, string]>(
-    async ([m, a]) => await ((globalThis as OrbNavGlobal).__orb?.nav as OrbNavMethods | undefined)?.[m]?.(a),
-    [method, arg],
-  )) ?? { ok: false, reason: `__orb.nav.${method} is unavailable (not a dev build, or the method was renamed)` };
-  if (!result.ok) {
-    throw new Error(`__orb.nav.${method}(${arg}) refused: ${result.reason ?? "no reason given"}`);
-  }
-}
-
-/** Open a chat by id — the same nav-bridge call `snap --open-chat <id>` makes. Module-local: the only
- *  caller is {@link openMembersTab}, and knip reds an export with no importer. */
+/** Open a chat by id through `window.__orb.nav.openChat`, the same nav-bridge call `snap --open-chat <id>`
+ *  makes, after app-readiness and the bridge. Throws on a refusal or a missing bridge (a non-dev build),
+ *  because a silently un-navigated page is a screenshot of the wrong surface. Module-local: the only caller
+ *  is {@link openMembersTab}, and knip reds an export with no importer.
+ *
+ *  The handle stays unknown in page and is narrowed there; each callback is serialized alone, so each repeats
+ *  the read. A renamed bridge method surfaces as the missing-bridge refusal. The raw verdict is validated on
+ *  the Node side by {@link navResultShape}, the reader the browser instruments share. */
 async function openChat(page: Page, chatId: ChatId): Promise<void> {
-  await nav(page, "openChat", chatId);
+  await page.locator(APP_READY).waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
+  await page.waitForFunction(
+    () => {
+      const scope: object = globalThis;
+      const bridge: unknown = "__orb" in scope ? scope.__orb : undefined;
+      return typeof bridge === "object" && bridge !== null && "nav" in bridge && bridge.nav !== undefined;
+    },
+    undefined,
+    { timeout: READY_TIMEOUT_MS },
+  );
+  const verdict: unknown = await page.evaluate(async (id) => {
+    const scope: object = globalThis;
+    const bridge: unknown = "__orb" in scope ? scope.__orb : undefined;
+    const navHandle: unknown = typeof bridge === "object" && bridge !== null && "nav" in bridge ? bridge.nav : undefined;
+    if (typeof navHandle !== "object" || navHandle === null || !("openChat" in navHandle) || typeof navHandle.openChat !== "function") {
+      return;
+    }
+    const result: unknown = await navHandle.openChat(id);
+    return result;
+  }, chatId);
+  if (verdict === undefined) {
+    throw new Error("__orb.nav.openChat is unavailable (not a dev build, or the method was renamed)");
+  }
+  const result = navResultShape(verdict, `nav openChat ${chatId}`);
+  if (!result.ok) {
+    throw new Error(`__orb.nav.openChat(${chatId}) refused: ${result.reason ?? "no reason given"}`);
+  }
 }
 
 /** Open a chat AND its MEMBERS context tab through the REAL user affordance: the chat header's roster entry

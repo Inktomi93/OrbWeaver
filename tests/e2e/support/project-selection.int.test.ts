@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication(JSONReport): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(readonly string[]): baselined when the gate widened to value casts; burn-down item 906.
-
 // Native collection is independent of the shared stack-boot/seed selector; no stack starts under --list.
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -8,10 +5,11 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
+import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import type { JSONReport, JSONReportSuite } from "@playwright/test/reporter";
 import { selectedModeProjects } from "./modes.ts";
 
 const SELECTORS = [
@@ -71,8 +69,21 @@ test("the corpus matrix composes its selected cell before a native terminator an
   expect(transcript).toContain("Corpus matrix: 1 of 1 cells completed; failures=[]; missing=[]");
 });
 
-function collectedProjects(suites: readonly JSONReportSuite[]): string[] {
-  return suites.flatMap((suite) => [...suite.specs.flatMap((spec) => spec.tests.map((entry) => entry.projectName)), ...collectedProjects(suite.suites ?? [])]);
+// The JSON reporter's stdout is an external observation, so the walk reads only the fields selection needs.
+function arrayField(value: unknown, key: string): readonly unknown[] {
+  const field = isPlainObject(value) ? value[key] : undefined;
+  return Array.isArray(field) ? field : [];
+}
+
+function projectName(entry: unknown): string {
+  return pageString(pageObject(entry, "collected test")["projectName"], "collected test projectName");
+}
+
+function collectedProjects(suites: readonly unknown[]): string[] {
+  return suites.flatMap((suite) => [
+    ...arrayField(suite, "specs").flatMap((spec) => arrayField(spec, "tests").map(projectName)),
+    ...collectedProjects(arrayField(suite, "suites")),
+  ]);
 }
 
 test("native repeated, variadic, equals and wildcard project selection agrees with boot configuration and the shared seed selector", { tags: ["slow"] }, () => {
@@ -80,18 +91,19 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
     const argv = [...COLLECTION_ARGS, ...selector];
     const collection = collect(selector);
     expect(collection.status, collection.stdout + collection.stderr).toBe(0);
-    const report = JSON.parse(collection.stdout) as JSONReport;
-    expect(report.errors).toEqual([]);
-    const native = [...new Set(collectedProjects(report.suites))].sort();
+    const report: unknown = JSON.parse(collection.stdout);
+    expect(report).toHaveProperty("errors", []);
+    const native = [...new Set(collectedProjects(arrayField(report, "suites")))].sort();
     expect(native.length).toBeGreaterThan(0);
     const sharedSelection = selectedModeProjects(argv)
       .map((mode) => mode.name)
       .sort();
-    const bootConfiguration = JSON.parse(
+    const bootConfiguration: unknown = JSON.parse(
       execFileSync(process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv], { encoding: "utf8" }),
-    ) as readonly string[];
+    );
+    const bootModes = pageArray(bootConfiguration, "configuration probe auth modes");
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
-    expect([...bootConfiguration].sort(), JSON.stringify(selector)).toEqual(native);
+    expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
   }
 });
 

@@ -48,12 +48,25 @@ interface TrpcErrorLike {
  *  string `code`. Never `instanceof` — `@trpc/server` doesn't resolve from the root test context. */
 function asTrpcError(e: unknown): TrpcErrorLike | null {
   if (e instanceof Error && e.name === "TRPCError" && "code" in e) {
-    const code: unknown = (e as Error & { code?: unknown }).code;
+    const code: unknown = e.code;
     if (typeof code === "string") {
       return { code, message: e.message };
     }
   }
   return null;
+}
+
+interface ThrownDescription {
+  readonly got: string;
+  readonly message: string;
+}
+
+// A rejection can carry any value, so name what actually arrived instead of assuming an Error.
+function describeThrown(e: unknown): ThrownDescription {
+  if (e instanceof Error) {
+    return { got: e.constructor.name, message: e.message };
+  }
+  return { got: e === null ? "null" : typeof e, message: typeof e === "string" ? e : "" };
 }
 
 const EXCERPT_MAX = 200;
@@ -113,10 +126,7 @@ expect.extend({
     } catch (e) {
       const trpcError = asTrpcError(e);
       if (trpcError === null) {
-        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const got = (e as Error | null)?.constructor.name ?? typeof e;
-        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const message = (e as Error | null)?.message ?? "";
+        const { got, message } = describeThrown(e);
         return {
           pass: false,
           message: (): string => `expected TRPCError "${code}", but got ${got}: ${excerpt(message)}`,
@@ -145,10 +155,7 @@ expect.extend({
       resolved = await toPromise(received);
     } catch (e) {
       if (!(e instanceof ProviderError)) {
-        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const got = (e as Error | null)?.constructor.name ?? typeof e;
-        // @orb-waive no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
-        const message = (e as Error | null)?.message ?? "";
+        const { got, message } = describeThrown(e);
         return {
           pass: false,
           message: (): string => `expected ProviderError "${kind}", but got ${got}: ${excerpt(message)}`,
