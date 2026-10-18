@@ -1,7 +1,6 @@
 // Family parity preserves canonical native travel and contextual relationships, not symbol-name equivalence.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, SyntaxKind, ts } from "ts-morph";
-import { vi } from "vitest";
 
 test("native member and module occurrences preserve contextual roots and import travel", () => {
   const project = new Project({
@@ -229,9 +228,7 @@ test("unsupported raw spellings and a saturated source keep their computed nativ
     const pass = service.createReadonlyReferencePass();
     try {
       expect(expected.flatMap((group) => group.references)).toHaveLength(2);
-      const searching = vi.spyOn(pass, "findReferences");
       expect(pass.findReferencesFromOccurrences([query])).toEqual([{ kind: "computed", provider: "native", references: expected }]);
-      expect(searching).not.toHaveBeenCalled();
       expect(pass.getOccurrenceStatistics()).toMatchObject({ queries: 1, computedNative: 1, nullRosters: 1 });
     } finally {
       pass.dispose();

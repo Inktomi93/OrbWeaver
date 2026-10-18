@@ -24,6 +24,7 @@ import {
   readInventoryExportDeclarations,
   readInventoryInputs,
   readInventoryPairs,
+  readInventoryReferences,
   readInventoryRuntimeExports,
   readInventoryShape,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
@@ -298,6 +299,57 @@ test("metadata decoding rejects malformed JSON and encoded non-string values", (
 function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_input'").get();
 }
+
+// Schemas 13 and 14 have no current DDL snapshot: each is today's store minus the tables its successors added.
+test.for([13, 14] as const)("schema %s upgrade adds name-link storage, keeps old facts and pinned readers, and round-trips links", (version, { scratch }) => {
+  const path = join(scratch, "reference-name-upgrade.sqlite");
+  const before = createPriorStorage(path, 12);
+  {
+    using upgraded = openInventoryDatabase(path);
+    upgraded.exec("DROP INDEX inventory_reference_name_lookup; DROP TABLE inventory_reference_name;");
+    if (version === 13) {
+      upgraded.exec("DROP TABLE inventory_runtime_resolution; DROP TABLE inventory_runtime_source; DROP TABLE inventory_runtime_header;");
+    }
+    upgraded.exec(`PRAGMA user_version=${String(version)}`);
+  }
+  const nameStorage = "SELECT name FROM sqlite_schema WHERE name LIKE 'inventory_reference_name%' ORDER BY name";
+  using pinned = new DatabaseSync(path, { readOnly: true });
+  pinned.exec("BEGIN");
+  expect(pinned.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: version });
+  expect(pinned.prepare(nameStorage).all()).toEqual([]);
+  expect(legacyRows(pinned)).toEqual(before);
+  using current = openInventoryDatabase(path);
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 15 });
+  expect(current.prepare(nameStorage).all()).toEqual([{ name: "inventory_reference_name" }, { name: "inventory_reference_name_lookup" }]);
+  expect(legacyRows(current)).toEqual(before);
+  expect(legacyRows(pinned)).toEqual(before);
+  expect(pinned.prepare(nameStorage).all()).toEqual([]);
+  pinned.exec("ROLLBACK");
+  const facts = brandPartition("tsconfig.names.json");
+  const file = facts.sources[0]?.file ?? "";
+  const declaration = { file, start: 0, end: 4, kind: SyntaxKind.TypeAliasDeclaration };
+  const name = { file, start: 0, end: 1, kind: SyntaxKind.Identifier };
+  const reference = { file, start: 2, end: 3, kind: SyntaxKind.Identifier };
+  const references = [
+    { declaration, reference, consumerClass: "product" as const },
+    { declaration: name, reference, consumerClass: "product" as const },
+  ];
+  current.exec("BEGIN IMMEDIATE");
+  const generation = publishInventoryGeneration(current, [
+    { ...facts, families: [...facts.families, "references"], referenceMode: "complete", references, referenceNames: [{ name, declaration }] },
+  ]);
+  current.exec("COMMIT");
+  const stored = readInventoryGeneration(current, generation)[0];
+  if (stored === undefined) {
+    throw new Error("upgraded name-link partition missing");
+  }
+  expect([...readInventoryReferences(current, stored.id)]).toEqual(references);
+  expect([...readInventoryReferences(current, stored.id, name)]).toEqual([references[1]]);
+  const rows = (table: string): unknown => current.prepare(`SELECT COUNT(*) AS rows FROM ${table} WHERE partition=?`).get(stored.id)?.["rows"];
+  expect([rows("inventory_reference"), rows("inventory_reference_name")]).toEqual([1, 1]);
+  expect(legacyRows(current)).toEqual(before);
+  expect(current.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+});
 
 const SOURCE_LOOKUP = "SELECT ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file=?";
 

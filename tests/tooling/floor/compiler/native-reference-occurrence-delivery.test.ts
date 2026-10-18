@@ -1,5 +1,5 @@
 // Fixed observation records actual indexed/fallback production without changing its queries or outcomes.
-import { cpSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { findPackageJSON } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -23,6 +23,9 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   writeFileSync(join(root, "vendor/b.ts"), "export interface Item {value:number;other?:string}\n");
   writeFileSync(join(root, "vendor/index.ts"), "export {Item} from './a';export type {Extra} from './missing';\n");
   writeFileSync(join(root, "contracts.ts"), "export interface Local {value:number}\n");
+  // The escape gives this source no admitted roster, so its queries come back computed rather than indexed.
+  // Its names appear nowhere else, so the other sources' queries stay indexed.
+  writeFileSync(join(root, "escaped.ts"), "const escapedText='\\u0061';export const escaped={distinct:1};escaped.distinct;\n");
   for (const directory of ["packages/kit/src", "packages/client/src", "scripts"]) {
     mkdirSync(join(root, directory), { recursive: true });
   }
@@ -43,7 +46,15 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   writeFileSync(
     join(root, "tsconfig.json"),
     JSON.stringify({
-      files: ["consumer.ts", "contracts.ts", "packages/kit/src/a.ts", "packages/kit/src/barrel.ts", "packages/client/src/use.ts", "scripts/tool.ts"],
+      files: [
+        "consumer.ts",
+        "contracts.ts",
+        "escaped.ts",
+        "packages/kit/src/a.ts",
+        "packages/kit/src/barrel.ts",
+        "packages/client/src/use.ts",
+        "scripts/tool.ts",
+      ],
       compilerOptions: {
         noLib: true,
         types: [],
@@ -109,9 +120,18 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   const source = readFileSync(extract, "utf8");
   const point = "  if (occurrences !== undefined && occurrences.length !== declarations.length) {";
   expect(source.split(point)).toHaveLength(2);
+  // The extractor's only own search: every call here is a second native search after the occurrence pass.
+  const search = "pass.findReferences(query.file, query.start, { includeDefinitionDisplay: false })";
+  expect(source.split(search)).toHaveLength(2);
+  const searches = join(root, ".cache/extractor-searches.log");
   writeFileSync(
     extract,
-    `import {appendFileSync as observeOccurrences} from 'node:fs';\n${source.replace(point, `  observeOccurrences(${JSON.stringify(join(root, ".cache/occurrence-coverage.jsonl"))},JSON.stringify(occurrences?.map((answer,index)=>({kind:answer.kind,declarationKind:declarations[index]?.declaration.kind}))??[])+'\\n');\n${point}`)}`,
+    `import {appendFileSync as observeOccurrences} from 'node:fs';\n${source
+      .replace(
+        point,
+        `  observeOccurrences(${JSON.stringify(join(root, ".cache/occurrence-coverage.jsonl"))},JSON.stringify(occurrences?.map((answer,index)=>({kind:answer.kind,declarationKind:declarations[index]?.declaration.kind}))??[])+'\\n');\n${point}`,
+      )
+      .replace(search, `(observeOccurrences(${JSON.stringify(searches)},'search\\n'),${search})`)}`,
   );
   const entry = join(implementation, "tests/support/node/native-reference-occurrence-delivery-child.mjs");
   mkdirSync(dirname(entry), { recursive: true });
@@ -150,6 +170,13 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   expect(observed.before.origins).toEqual([join(root, "vendor/a.ts")]);
   expect(observed.now.origins).toEqual([join(root, "vendor/b.ts")]);
   expect(observed.coverage).toHaveLength(4);
+  const answers = observed.coverage.flat();
+  expect(answers.some(({ kind }) => kind === "computed")).toBe(true);
+  // Computed and indexed answers are reused; the extractor searches again only for never-computed queries.
+  // No log means the extractor never searched.
+  expect(existsSync(searches) ? readFileSync(searches, "utf8").split("\n").filter(Boolean) : []).toHaveLength(
+    answers.filter(({ kind }) => kind === "native").length,
+  );
   for (const coverage of observed.coverage) {
     expect(coverage.some(({ kind, declarationKind }) => kind === "indexed" && declarationKind === SyntaxKind.PropertySignature)).toBe(true);
     expect(coverage.some(({ kind, declarationKind }) => kind === "indexed" && declarationKind === SyntaxKind.PropertyAssignment)).toBe(true);
