@@ -27,7 +27,6 @@
 // asserts `id === basename` — is the loader's own law and is pinned in `tests/tooling/verify/lib/loader.test.ts`.
 import { existsSync, lstatSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import process from "node:process";
 import type { PlantedPolicyRequest } from "@orb/testkit/node/planted-gate-corpus.ts";
 import { plantedPolicySource, plantedSubject, SUBJECT_COLUMN } from "@orb/testkit/node/planted-gate-corpus.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -322,10 +321,8 @@ test("the PLANTER's own child run is exempt: ORB_GATE_FIXTURES=1 must see what i
   const own = await runCli("verify", ["structure", "--check", SILENT], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
-    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
-    // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
-    env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
+    env: { ORB_GATE_FIXTURES: "1" },
   });
   await expect(own).toExitWith(0);
   expect(readSlotArtifact(root, own.stdout).run.quiet).toBe(true);
@@ -354,10 +351,8 @@ test("a FIXTURE-MODE run stamps itself a non-verdict, keeps its exit code, and n
   const fixture = await runCli("verify", ["structure"], {
     cwd: root,
     timeoutMs: RUN_TIMEOUT_MS,
-    // @orb-waive no-test-fabrication(Record<string, string>): process.env includes undefined values; the spawned child accepts string-only
-    // biome-ignore lint/style/noProcessEnv: passthrough env for the spawned child — harness plumbing, not app config.
     // biome-ignore lint/style/useNamingConvention: ORB_GATE_FIXTURES is an environment variable name.
-    env: { ...process.env, ORB_GATE_FIXTURES: "1" } as Record<string, string>,
+    env: { ORB_GATE_FIXTURES: "1" },
   });
   // THE EXIT CODE IS UNCHANGED, deliberately: check-gates.repo.int.test.ts parses its own child's stdout
   // roster and tolerates 0/1 only, so making the planter's run exit 2 would red the suite that produces the
