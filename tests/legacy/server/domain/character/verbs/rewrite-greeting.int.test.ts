@@ -3,9 +3,9 @@
 // steer), non-owner → leak-free CharacterNotFoundError BEFORE any template read / completion, and no DB write.
 // @subject packages/server/src/domain/character/verbs/rewrite-greeting.ts
 
-import { ZWSP } from "@orb/kit/guided";
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { ZWSP } from "@orb/kit/macro";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

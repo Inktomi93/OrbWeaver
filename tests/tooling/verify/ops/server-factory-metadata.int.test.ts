@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
@@ -153,15 +154,44 @@ test("public boundary implementation and provider signatures invalidate warm nat
   }
 }, 180_000);
 
-test("unrelated scoped edits avoid whole native discovery before declaration dependency admission", async ({ scratch, repoRoot }) => {
+test("unrelated UI edits retain required HARD admission without selecting server declaration consumers", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
   const snapshots = await import("../../../../tooling/src/verify/lib/config-snapshot.ts");
+  const nativeConfig = await import("../../../../tooling/src/verify/ops/config-snapshot.ts");
+  const proc = await import("../../../../tooling/src/floor/process/proc.ts");
+  const run = proc.runNicedSync;
+  const shards: string[][] = [];
   const discovery = vi.spyOn(snapshots, "readDiscoveredPopulation");
+  const populations = vi.spyOn(snapshots, "readAdmittedEslintPopulation");
+  const admissions = vi.spyOn(nativeConfig, "readEslintFileAdmissions");
+  const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
+    const path = args[2];
+    if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
+      shards.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
+    }
+    return run(executable, args, options);
+  });
   try {
     put(scratch, "packages/ui/src/unrelated.ts", "export const unrelated=2;");
     expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(0);
-    expect(discovery.mock.calls.map(([, , patterns]) => patterns)).toEqual([["packages/ui/src/unrelated.ts"]]);
+    const [ordinaryConfig, hardConfig] = ["eslint.config.js", "eslint-hard.config.js"] as const;
+    const discovered = discovery.mock.calls.map(([, , patterns], index) => ({ config: populations.mock.calls[index]?.[1], patterns }));
+    const configured = admissions.mock.calls.map(([, config, paths]) => ({ config, serverConsumer: paths.includes(CONSUMER) }));
+    expect(discovered).toEqual([
+      { config: ordinaryConfig, patterns: ["."] },
+      { config: ordinaryConfig, patterns: ["packages/ui/src/unrelated.ts"] },
+    ]);
+    expect(configured).toEqual([
+      { config: ordinaryConfig, serverConsumer: true },
+      { config: hardConfig, serverConsumer: true },
+      { config: ordinaryConfig, serverConsumer: false },
+    ]);
+    expect(shards.some((args) => args.includes(CONSUMER))).toBe(false);
+    process.stderr.write(`${JSON.stringify({ event: "native-unrelated-ui-admission", discovered, configured, serverConsumerShard: false })}\n`);
   } finally {
+    child.mockRestore();
+    admissions.mockRestore();
+    populations.mockRestore();
     discovery.mockRestore();
   }
 }, 30_000);

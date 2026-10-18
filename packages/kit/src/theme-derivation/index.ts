@@ -242,15 +242,6 @@ export function srgbToOklch({ r, g, b }: Rgb): Oklch {
   return { l: okL, c: chroma, h: hue };
 }
 
-/** OKLab (the rectangular form: L + the a/b axes) → OKLCH (the polar form the derivation reasons in) —
- *  the same L, chroma as the a/b magnitude, hue as their angle. Kit-homed beside `srgbToOklch` because it
- *  is the other "authored colour → judgeable OKLCH" conversion: `oklab()` is an `isSafeColor`-legal
- *  spelling, so the prose-ink clamp reads it rather than failing open on format (#204 / stickler F4). */
-export function oklabToOklch(l: number, a: number, b: number): Oklch {
-  const hue = (((Math.atan2(b, a) * DEGREES_PER_RADIAN) % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES;
-  return { l, c: Math.hypot(a, b), h: hue };
-}
-
 /** WCAG 2.x relative luminance (0–1) of an sRGB colour; channels outside 0–255 are clamped. */
 export function relativeLuminance({ r, g, b }: Rgb): number {
   const channel = (raw: number): number => {

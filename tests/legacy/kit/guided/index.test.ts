@@ -1,14 +1,6 @@
-import {
-  composeRewriteSteer,
-  GUIDED_GAME_STEER_KINDS,
-  GUIDED_GAME_STEERS,
-  neutralizeMacros,
-  RPG_PLOT_STEER_KINDS,
-  resolveGuidedInstruction,
-  ZWSP,
-} from "@orb/kit/guided";
+import { composeRewriteSteer, GUIDED_GAME_STEER_KINDS, GUIDED_GAME_STEERS, RPG_PLOT_STEER_KINDS, resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
-import { createDefaultRegistry, processMacros, registerUserMacros } from "@orb/kit/macro";
+import { createDefaultRegistry, neutralizeMacros, processMacros, registerUserMacros, ZWSP } from "@orb/kit/macro";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 // Fixed macro context — no Date/random, per the determinism gate.

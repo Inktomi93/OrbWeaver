@@ -5,9 +5,8 @@
 // helper (the evaluator passes the body verbatim). Pure string→string — no ctx, no registry.
 
 // Neutralize `{{`/`}}` in untrusted text so it can't be mistaken for a macro by ANY downstream pass.
-// Homed HERE (not kit/guided, its original home) because the user-macro handler (user-macros.ts)
-// splices untrusted arg/input values into an author template and needs exactly this defense — guided
-// re-exports it, so every existing `@orb/kit/guided` consumer is unchanged (one home, D51 posture).
+// Homed HERE because the user-macro handler (user-macros.ts) splices untrusted arg/input values into an
+// author template and needs exactly this defense; guided imports it from here (one home, D51 posture).
 //
 // IMPORTANT: U+200B goes BETWEEN the two braces, not before/after the pair. The macro parser scans
 // with `text.indexOf("{{", pos)` — placing the zero-width-space outside the pair leaves the `{{`

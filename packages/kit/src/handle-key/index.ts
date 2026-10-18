@@ -19,9 +19,9 @@ const SPACE = " ";
 // HTML collapses a run of spaces to one, so `ad  min` displays as `ad min`.
 const SPACE_RUN = SPACE.repeat(2);
 
-/** The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
- *  combining marks is quadratic, so every boundary refuses a longer handle before a key is computed. */
-export const HANDLE_MAX_CODE_POINTS = 64;
+// The longest handle any writer accepts, in code points. The key normalizes, and NFKC/NFD over a long run of
+// combining marks is quadratic, so every boundary refuses a longer handle before a key is computed.
+const HANDLE_MAX_CODE_POINTS = 64;
 
 /** Whether a handle is within {@link HANDLE_MAX_CODE_POINTS}, counted without normalizing it. */
 export function withinHandleLength(text: string): boolean {

@@ -19,14 +19,6 @@ const CHOICES_FENCE_NAME = "choices" satisfies (typeof DIRECTIVE_FENCE_NAMES)[nu
 // this leaf owns only the side-effect-free transformation: template + person + untrusted input +
 // macro context → resolved string.
 
-// The ZWSP macro-re-injection defense — RE-HOMED to `#macro` (content.ts) so the user-macro
-// handler can use it without a kit-internal cycle (guided already imports #macro; macro cannot import
-// guided). Re-exported here so every existing `@orb/kit/guided` consumer keeps its import unchanged.
-// The current engine doesn't re-parse handler return values, but `evaluateString` IS called on
-// macro args containing `{{`, so a template like `{{x::{{input}}}}` would re-evaluate substituted
-// user text. Defense-in-depth floor that's cheaper than reasoning about every future template shape.
-export { neutralizeMacros, ZWSP } from "#macro";
-
 // `{{person}}` is the guided-impersonate perspective token (1st/2nd/3rd-person word). Unset ⇒
 // "first" (plain impersonate / any non-impersonate template that happens to contain the token).
 const DEFAULT_PERSON = "first";

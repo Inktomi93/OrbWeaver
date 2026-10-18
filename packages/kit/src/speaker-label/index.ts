@@ -43,31 +43,6 @@ const NAME_WORD_CHARS = UNICODE_WORD_CHARS;
  *  the pattern must be compiled with the `u` flag for the property escapes to mean anything. */
 export const NAME_END_BOUNDARY = `(?![${NAME_WORD_CHARS}])`;
 
-/** One character's word-ness by the {@link NAME_END_BOUNDARY} class. Top-level regex (the
- *  no-regex-in-function gate); `undefined` = a string edge, which is always a boundary. */
-const NAME_WORD_CHAR_RE = new RegExp(`[${NAME_WORD_CHARS}]`, "u");
-function isNameWordChar(ch: string | undefined): boolean {
-  return ch !== undefined && NAME_WORD_CHAR_RE.test(ch);
-}
-
-/** Does `needle` occur in `haystack` as a WHOLE name — bounded by non-name characters or string edges?
- *  Case is the caller's to normalize (both sides lowercased is the house idiom). Substring-scan rather
- *  than a built regex so a name carrying its own punctuation ("Dr. Vane") needs no escaping, and so the
- *  boundary question is asked of exactly two characters. */
-export function includesWholeName(haystack: string, needle: string): boolean {
-  if (needle.length === 0) {
-    return false;
-  }
-  let from = haystack.indexOf(needle);
-  while (from !== -1) {
-    if (!(isNameWordChar(haystack[from - 1]) || isNameWordChar(haystack[from + needle.length]))) {
-      return true;
-    }
-    from = haystack.indexOf(needle, from + 1);
-  }
-  return false;
-}
-
 /** The tolerated-emphasis alternation every label regex below wraps around a name: `**`/`*`/`__`/`_`.
  *  Named once (was spelled 4×) so the tolerated-markdown set changes in one place. Bare alternation
  *  bytes — callers wrap it `(?:…)` (non-capturing) or `(…)` (the one backref-capturing use). */
