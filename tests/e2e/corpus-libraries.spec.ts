@@ -1,7 +1,8 @@
 // Collection edits retain native grammar, relationships and persistence across a browser reload.
 
-import { connectionSummary } from "@orb/client/lib";
+import { COLLECTION_LARGE_GROUP, connectionSummary } from "@orb/client/lib";
 import type { CorpusWire } from "@orb/testkit/iso/corpus.ts";
+import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -12,6 +13,11 @@ function corpus(): CorpusWire {
     throw new Error("Collection smoke requires the committed corpus");
   }
   return SELECTED_CORPUS_FIXTURE.wire;
+}
+
+async function selectWorldBook(page: Page, name: string): Promise<void> {
+  await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
+  await page.getByRole("button", { name, exact: true }).click();
 }
 
 test.describe("committed corpus collection settings", () => {
@@ -49,8 +55,28 @@ test.describe("committed corpus collection settings", () => {
       throw new Error("Corpus world book is absent");
     }
     const before = await host.trpc.worldInfo.getBook.query({ bookId });
+    await using population = new AsyncDisposableStack();
+    const witnessIds = new Set<typeof bookId>();
+    for (let index = 0; index <= COLLECTION_LARGE_GROUP; index += 1) {
+      const book = await host.trpc.worldInfo.createBook.mutate({ input: { name: `Window witness ${bookId} ${String(index)}` } });
+      population.defer(async () => {
+        await host.trpc.worldInfo.removeBook.mutate({ bookId: book.id });
+      });
+      witnessIds.add(book.id);
+    }
+    const books = await host.trpc.worldInfo.listBooksWithUsage.query(undefined);
+    const targetIndex = books.findIndex((book) => book.id === bookId);
+    expect(targetIndex).toBeGreaterThanOrEqual(witnessIds.size);
+    expect(books.slice(0, targetIndex).map((book) => book.id)).toEqual(expect.arrayContaining([...witnessIds]));
+    const leading = books[0];
+    if (leading === undefined) {
+      throw new Error("World book window has no leading row");
+    }
     await openConfigGroup(page, "worldInfo");
-    await page.getByRole("button", { name: before.name, exact: true }).click();
+    const list = page.getByRole("list", { name: "World books", exact: true });
+    await expect(list.getByRole("button", { name: leading.name, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: before.name, exact: true })).toHaveCount(0);
+    await selectWorldBook(page, before.name);
     await page.getByRole("button", { name: "Edit details", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Book details", exact: true });
     const description = `${before.description ?? ""} corpus smoke`;
@@ -59,7 +85,7 @@ test.describe("committed corpus collection settings", () => {
     await expect.poll(async () => (await host.trpc.worldInfo.getBook.query({ bookId })).description).toBe(description.trim());
     await page.reload();
     await openConfigGroup(page, "worldInfo");
-    await page.getByRole("button", { name: before.name, exact: true }).click();
+    await selectWorldBook(page, before.name);
     await page.getByRole("button", { name: "Edit details", exact: true }).click();
     await expect(dialog.getByRole("textbox", { name: "Description", exact: true })).toHaveValue(description.trim());
     await dialog.getByRole("textbox", { name: "Description", exact: true }).fill(before.description ?? "");
