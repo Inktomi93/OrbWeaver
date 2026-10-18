@@ -536,7 +536,16 @@ export async function idOnly(id:string){return db.query.personas.findFirst({wher
       expect(result.factErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
       expect(result.authority.effectiveFindings).toEqual([]);
-      expect(result.policies[0]?.analysis?.unknown.map(({ line }) => line)).toEqual(expect.arrayContaining([5, 6, 7, 8]));
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 5, token: "personas", reason: "table is not a directly imported schema binding" }),
+          expect.objectContaining({ line: 6, token: "personas", reason: "table is not a directly imported schema binding" }),
+          expect.objectContaining({ line: 6, token: "sql`1 OR ${personas.id}=${id}`", reason: "raw SQL is outside the direct owned-ID diagnostic" }),
+          expect.objectContaining({ line: 7, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 8, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+        ],
+      });
       expect(predicates.size).toBe(0);
     },
     scaledBudget(60_000),
@@ -565,7 +574,17 @@ export async function borrowed(id:string,owner:string){return foreign.query.pers
       expect(result.factErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
       expect(result.authority.effectiveFindings).toEqual([]);
-      expect(result.policies[0]?.analysis?.unknown.map(({ line }) => line)).toEqual(expect.arrayContaining([4, 5, 6, 7, 8, 10]));
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 4, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 5, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 6, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 7, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 8, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+          expect.objectContaining({ line: 10, token: "personas", reason: "relational configuration is outside direct SELECT analysis" }),
+        ],
+      });
       expect(predicates.size).toBe(0);
     },
     scaledBudget(60_000),
@@ -607,7 +626,10 @@ export async function borrowed(id:string,owner:string){return foreign.query.pers
         expect(result.factErrors).toEqual([]);
         expect(result.authority.withheldPolicyIds).toEqual([]);
         expect(result.authority.effectiveFindings).toEqual([]);
-        expect(result.policies[0]?.analysis?.unknown.length).toBeGreaterThan(0);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
       } finally {
         symbolPoison.mockRestore();
         typePoison.mockRestore();
@@ -651,7 +673,10 @@ export async function borrowed(id:string,owner:string){return foreign.query.pers
         expect(result.factErrors).toEqual([]);
         expect(result.authority.withheldPolicyIds).toEqual([]);
         expect(result.authority.effectiveFindings).toEqual([]);
-        expect(result.policies[0]?.analysis?.unknown.length).toBeGreaterThan(0);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
       } finally {
         restore?.();
       }
@@ -706,7 +731,17 @@ export async function mutated(id: string, owner: string) {
       expect(result.factErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
       expect(result.authority.effectiveFindings).toEqual([]);
-      expect(result.policies[0]?.analysis?.unknown.map(({ line }) => line)).toEqual(expect.arrayContaining([9, 12, 16, 19, 24]));
+      expect(result.policies[0]?.analysis).toEqual({
+        supported: 0,
+        unknown: [
+          expect.objectContaining({ line: 9, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 12, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 16, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 19, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+          expect.objectContaining({ line: 22, token: "sql`1`", reason: "raw SQL is outside the direct owned-ID diagnostic" }),
+          expect.objectContaining({ line: 24, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" }),
+        ],
+      });
     },
     scaledBudget(60_000),
   );
@@ -737,7 +772,10 @@ export async function mutated(id: string, owner: string) {
         expect(result.factErrors).toEqual([]);
         expect(result.authority.withheldPolicyIds).toEqual([]);
         expect(result.authority.effectiveFindings).toEqual([]);
-        expect(result.policies[0]?.analysis?.unknown.length).toBeGreaterThan(0);
+        expect(result.policies[0]?.analysis).toEqual({
+          supported: 0,
+          unknown: [expect.objectContaining({ line: 1, token: "personas", reason: "filter contains a helper, SQL carrier, alias or unsupported predicate" })],
+        });
       } finally {
         poison.mockRestore();
       }

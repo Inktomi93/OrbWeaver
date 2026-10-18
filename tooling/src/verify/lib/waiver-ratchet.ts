@@ -44,21 +44,24 @@ function allowance(budget: WaiverBudget, parts: readonly WaiverBudgetPart[], pol
   return parts.reduce((sum, part) => sum + (budget[part][policyId] ?? 0), 0);
 }
 
-// One alarm per judged policy whose live count differs from its population's budget; a rise-only policy alarms only above it.
+// One alarm per judged policy whose live count differs from its population's budget. A marker an analysis gap
+// deferred excuses nothing yet still occupies a budget slot, so it counts beside the excused findings.
 function judgeWaiverBudget(
   { population, budget }: WaiverBudgetJudgement,
   judged: readonly string[],
   excused: ReadonlyMap<string, number>,
-  riseOnly: ReadonlySet<string>,
+  deferred: ReadonlyMap<string, number>,
 ): readonly WaiverBudgetAuthorityAlarm[] {
   const rule = POPULATION_RULES[population];
   return judged.flatMap((policyId) => {
     const allowed = allowance(budget, rule.parts, policyId);
-    const count = excused.get(policyId) ?? 0;
-    if (count === allowed || (count < allowed && riseOnly.has(policyId))) {
+    const held = deferred.get(policyId) ?? 0;
+    const count = (excused.get(policyId) ?? 0) + held;
+    if (count === allowed) {
       return [];
     }
-    const head = `${policyId} excuses ${count} findings over the ${population} population against a waiver budget of ${allowed}`;
+    const deferral = held === 0 ? "" : ` (including ${held} marker(s) whose liveness an analysis gap defers)`;
+    const head = `${policyId} excuses ${count} findings${deferral} over the ${population} population against a waiver budget of ${allowed}`;
     const message = count > allowed ? `${head}: fix the new finding instead of excusing it` : `${head}: ${rule.lower(count)}`;
     return [{ kind: "waiver-budget", policyId, population, budget: allowed, count, message }];
   });
@@ -69,9 +72,13 @@ function judgeWaiverBudget(
 export function waiverRatchet(
   judgement: WaiverBudgetJudgement | undefined,
   results: ReadonlyMap<string, GateOwnerResult>,
-  excusedFindings: readonly { readonly finding: { readonly policyId: string } }[],
+  slots: {
+    readonly excused: readonly { readonly finding: { readonly policyId: string } }[];
+    readonly deferred: ReadonlyMap<string, number>;
+  },
   withheld: ReadonlySet<string>,
 ): { readonly alarms: readonly GateAuthorityAlarm[]; readonly report: WaiverBudgetReport | null } {
+  const { excused: excusedFindings, deferred } = slots;
   if (judgement === undefined) {
     return { alarms: [], report: null };
   }
@@ -82,20 +89,8 @@ export function waiverRatchet(
   const { walked } = POPULATION_RULES[judgement.population];
   const judged: string[] = [];
   const unjudged: string[] = [];
-  // An UNKNOWN excuses nothing, so it can only defer a stale marker: the fall is unjudged, a rise is still a new excuse.
-  const gapped = new Set<string>();
   for (const [id, result] of [...results].toSorted(([left], [right]) => left.localeCompare(right))) {
-    if (!walked(result, withheld.has(id))) {
-      unjudged.push(id);
-    } else if ((result.analysisGaps?.length ?? 0) > 0) {
-      gapped.add(id);
-      unjudged.push(id);
-    } else {
-      judged.push(id);
-    }
+    (walked(result, withheld.has(id)) ? judged : unjudged).push(id);
   }
-  return {
-    alarms: judgeWaiverBudget(judgement, [...judged, ...gapped], excused, gapped),
-    report: { population: judgement.population, judged, unjudged },
-  };
+  return { alarms: judgeWaiverBudget(judgement, judged, excused, deferred), report: { population: judgement.population, judged, unjudged } };
 }

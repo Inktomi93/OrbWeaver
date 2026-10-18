@@ -3,6 +3,7 @@ import { Project, SyntaxKind } from "ts-morph";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { renderPolicyPass } from "../../../../tooling/src/verify/lib/render.ts";
+import { analysisCoverageText } from "../../../../tooling/src/verify/lib/show-policy.ts";
 import { gateListLines } from "../../../../tooling/src/verify/lib/show-structure-view.ts";
 import { finalSide, structureCountReconciliation } from "../../../../tooling/src/verify/lib/structure-report.ts";
 
@@ -54,7 +55,7 @@ test("anchored analysis gaps survive artifacts and both CLI views without becomi
   }
   expect(final.rows[0]?.analysis).toEqual({ supported: 1, unknown: [{ file: PATH, line: 2, column: 14, token: "helper", reason: REASON }] });
   const console = renderPolicyPass(final.rows, final.report, [policy]);
-  expect(console).toContain("1 supported · 1 UNKNOWN");
+  expect(console).toContain(analysisCoverageText({ supported: 1, unknown: [{ file: PATH, line: 2, column: 14, token: "helper", reason: REASON }] }));
   expect(console).toContain(`${PATH}:2:14`);
   expect(console).toContain(REASON);
   const report = { gates: final.rows, policy: final.report, total: 0, ok: true, reconciliation: structureCountReconciliation(final.rows, final.report) };

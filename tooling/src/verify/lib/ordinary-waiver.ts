@@ -1,6 +1,7 @@
 // Exact-occurrence ordinary waiver reconciliation; carrier geometry has its own shared reader.
 import type { SourceFile } from "ts-morph";
 import { ts } from "ts-morph";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "../contract/gate-authority.ts";
 import type {
@@ -9,6 +10,7 @@ import type {
   OrdinaryWaiverMarkerMatch,
   OrdinaryWaiverMarkerOutcome,
   OrdinaryWaiverMatchResult,
+  OrdinaryWaiverReconciliation,
 } from "../contract/ordinary-waiver.ts";
 import type { OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import { commentSpansInText, forEachCommentRange } from "./comment-spans.ts";
@@ -410,41 +412,35 @@ function reconcileMatch(
   );
 }
 
+function bindsAnalysisGap(marker: AcquiredMarker, source: OrdinaryWaiverSource | undefined, gaps: StructureAnalysisCoverage["unknown"] | undefined): boolean {
+  if (source?.kind !== "typescript") {
+    return false;
+  }
+  const root = source.sourceFile.compilerNode;
+  return (gaps ?? []).some(
+    (gap) =>
+      gap.file === marker.file && gap.token === marker.position && markerBinds(marker, root.getPositionOfLineAndCharacter(gap.line - 1, gap.column - 1), root),
+  );
+}
+
 export function createOrdinaryWaiverEngine(input: OrdinaryWaiverEngineInput): OrdinaryWaiverEngine {
   const policies = policyTable(input.knownPolicies);
   const sources = sourceTable(input.sources);
   const markers = acquireMarkers(input, policies);
   return {
     match: (findings) => matchBatch(markers, sources, findings),
-    reconcile: ({ completedPolicyIds, match, subsetPopulations, analysisGaps }): readonly OrdinaryAuthorityAlarm[] => {
-      const unjudged = new Set(
-        markers
-          .filter((marker) => {
-            const source = sources.get(marker.file);
-            return (
-              source?.kind === "typescript" &&
-              (analysisGaps?.get(marker.policyId) ?? []).some(
-                (gap) =>
-                  gap.file === marker.file &&
-                  gap.token === marker.position &&
-                  markerBinds(
-                    marker,
-                    source.sourceFile.compilerNode.getPositionOfLineAndCharacter(gap.line - 1, gap.column - 1),
-                    source.sourceFile.compilerNode,
-                  ),
-              )
-            );
-          })
-          .map(({ id }) => id),
+    reconcile: ({ completedPolicyIds, match, subsetPopulations, analysisGaps }): OrdinaryWaiverReconciliation => {
+      // A marker whose exact carrier binds an analysis gap has its liveness deferred; it still holds a budget slot.
+      const bound = new Set(
+        markers.filter((marker) => bindsAnalysisGap(marker, sources.get(marker.file), analysisGaps?.get(marker.policyId))).map(({ id }) => id),
       );
-      return reconcileMatch(
-        completedPolicyIds,
-        {
-          ...match,
-          markers: match.markers.filter((marker) => !((marker.outcome === "stale" || marker.outcome === "unbound-trivia") && unjudged.has(marker.id))),
-        },
-        subsetPopulations ?? new Map(),
-      );
+      const held = match.markers.filter((marker) => (marker.outcome === "stale" || marker.outcome === "unbound-trivia") && bound.has(marker.id));
+      const deferred = new Map<string, number>();
+      for (const marker of held.filter(({ policyId }) => completedPolicyIds.includes(policyId))) {
+        deferred.set(marker.policyId, (deferred.get(marker.policyId) ?? 0) + 1);
+      }
+      const judged = { ...match, markers: match.markers.filter((marker) => !held.includes(marker)) };
+      return { alarms: reconcileMatch(completedPolicyIds, judged, subsetPopulations ?? new Map()), deferred };
     },
   };
 }

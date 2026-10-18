@@ -10,13 +10,8 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { DirectOwnerReadInputs, DirectOwnerReadScope, ReadAnchor } from "../contract/tenancy.ts";
 import { drizzleSchemaDataFact, drizzleSchemaIdentityFact } from "../lib/schema-fact.ts";
-import {
-  directOwnerRead,
-  directOwnerReadAnchor,
-  directOwnerReadInputs,
-  hasEveryOwnerAuthority,
-  hasUnauthorizedEveryOwnerMint,
-} from "../lib/tenancy-direct-read.ts";
+import { directOwnerRead, directOwnerReadAnchor, directOwnerReadInputs } from "../lib/tenancy-direct-read.ts";
+import { hasEveryOwnerAuthority, hasUnauthorizedEveryOwnerMint } from "../lib/tenancy-every-owner.ts";
 import { foreignKeyEdges, ownerScopedTableIdents, schemaTableIndex, scopeParentsOfDerivedTables } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 import { waivableCoordinate } from "../lib/waivable-coordinate.ts";

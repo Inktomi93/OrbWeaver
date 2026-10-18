@@ -3,13 +3,13 @@
 import { drizzleExportOf } from "@orb/tooling/floor/code-facts/drizzle-table-ref";
 import { literalMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import { unwrapTarget } from "@orb/tooling/floor/code-facts/reference-fact-alias";
-import type { AsExpression, CallExpression, Node } from "ts-morph";
-import { Node as N, SyntaxKind } from "ts-morph";
+import type { CallExpression, Identifier, Node } from "ts-morph";
+import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import { RELATIONAL_VERBS } from "../../floor/code-facts/drizzle-operators.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
-import { resolveTypeIdentityChain } from "../../floor/code-facts/type-member-origin.ts";
 import type { DirectOwnerRead, DirectOwnerReadInputs, DirectOwnerReadScope, ReadAnchor } from "../contract/tenancy.ts";
 import { classifyDrizzleClientCall } from "./drizzle-client-call.ts";
+import { hasPostFetchFilter } from "./tenancy-read.ts";
 import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
 
 const JOINS = new Set(["innerJoin", "leftJoin", "rightJoin", "fullJoin", "crossJoin"]);
@@ -47,8 +47,12 @@ interface PredicateObservation {
   readonly known: boolean;
   readonly byId: ReadonlySet<string>;
   readonly owners: ReadonlySet<string>;
+  /** Tables whose owner term is valued by a column; §2b class pins decide those, not this check. */
+  readonly columnOwners: ReadonlySet<string>;
   readonly edges: ReadonlySet<string>;
 }
+
+type OwnerValue = "plain" | "column" | "opaque";
 
 function unknown(reason: string): DirectOwnerRead {
   return { kind: "unknown", reason };
@@ -83,7 +87,7 @@ function column(node: Node | undefined, scope: DirectOwnerReadScope): DirectColu
 }
 
 function empty(known = true): PredicateObservation {
-  return { known, byId: new Set(), owners: new Set(), edges: new Set() };
+  return { known, byId: new Set(), owners: new Set(), columnOwners: new Set(), edges: new Set() };
 }
 
 function combine(parts: readonly PredicateObservation[], alternative: boolean): PredicateObservation {
@@ -95,8 +99,104 @@ function combine(parts: readonly PredicateObservation[], alternative: boolean): 
     known: parts.every((part) => part.known),
     byId: new Set(parts.flatMap((part) => [...part.byId])),
     owners: common((part) => part.owners),
+    columnOwners: new Set(parts.flatMap((part) => [...part.columnOwners])),
     edges: common((part) => part.edges),
   };
+}
+
+function isConstDeclaration(declaration: Node): boolean {
+  return declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const;
+}
+
+// A member operand's receiver: a parameter or fetched data object is data; a const alias of a table is a column source.
+function receiverValue(identifier: Identifier): OwnerValue {
+  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+  const [declaration] = declarations;
+  if (declarations.length !== 1 || declaration === undefined || N.isImportSpecifier(declaration) || N.isNamespaceImport(declaration)) {
+    return "opaque";
+  }
+  if (!(N.isVariableDeclaration(declaration) && isConstDeclaration(declaration))) {
+    return "plain";
+  }
+  const initializer = declaration.getInitializer();
+  const initial = initializer === undefined ? undefined : unwrapTarget(initializer);
+  if (initial !== undefined && N.isIdentifier(initial)) {
+    return imported(initial) ? "column" : "opaque";
+  }
+  return initial !== undefined && N.isCallExpression(initial) && drizzleExportOf(initial.getExpression()) !== undefined ? "column" : "plain";
+}
+
+// An identifier operand resolves exactly one hop; a column, builder, call or further alias is never a plain value.
+function identifierValue(identifier: Identifier): OwnerValue {
+  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+  const [declaration] = declarations;
+  if (declarations.length !== 1 || declaration === undefined) {
+    return "opaque";
+  }
+  if (N.isParameterDeclaration(declaration) || N.isBindingElement(declaration)) {
+    return "plain";
+  }
+  const initializer = N.isVariableDeclaration(declaration) && isConstDeclaration(declaration) ? declaration.getInitializer() : undefined;
+  if (initializer === undefined) {
+    return "opaque";
+  }
+  const initial = unwrapTarget(initializer);
+  if (N.isStringLiteral(initial) || N.isNoSubstitutionTemplateLiteral(initial) || N.isNumericLiteral(initial)) {
+    return "plain";
+  }
+  const access = literalMemberAccess(initial);
+  if (access === undefined) {
+    return "opaque";
+  }
+  const root = memberRoot(access.receiver);
+  if (root === undefined) {
+    return "opaque";
+  }
+  return imported(root) ? "column" : receiverValue(root);
+}
+
+function memberRoot(node: Node): Identifier | undefined {
+  const value = unwrapTarget(node);
+  if (N.isIdentifier(value)) {
+    return value;
+  }
+  const access = literalMemberAccess(value);
+  return access === undefined ? undefined : memberRoot(access.receiver);
+}
+
+// Owner terms are syntax only (D328): this classifies the value's shape, never its runtime type or identity.
+function ownerValue(operand: Node, scope: DirectOwnerReadScope): OwnerValue {
+  const value = unwrapTarget(operand);
+  if (column(value, scope) !== undefined) {
+    return "column";
+  }
+  if (N.isIdentifier(value)) {
+    return identifierValue(value);
+  }
+  if (N.isArrayLiteralExpression(value)) {
+    return worstValue(value.getElements().map((element) => ownerValue(element, scope)));
+  }
+  return memberValue(value);
+}
+
+function worstValue(values: readonly OwnerValue[]): OwnerValue {
+  if (values.includes("opaque")) {
+    return "opaque";
+  }
+  return values.includes("column") ? "column" : "plain";
+}
+
+// Imported members that are not resolved schema columns are foreign values; local data members are plain.
+function memberValue(value: Node): OwnerValue {
+  const access = literalMemberAccess(value);
+  if (access === undefined) {
+    return N.isStringLiteral(value) || N.isNoSubstitutionTemplateLiteral(value) ? "plain" : "opaque";
+  }
+  const root = memberRoot(access.receiver);
+  if (root === undefined) {
+    return N.isThisExpression(unwrapTarget(access.receiver)) ? "plain" : "opaque";
+  }
+  return imported(root) ? "opaque" : receiverValue(root);
 }
 
 function predicate(node: Node, scope: DirectOwnerReadScope): PredicateObservation {
@@ -117,26 +217,52 @@ function predicate(node: Node, scope: DirectOwnerReadScope): PredicateObservatio
   if (operator === undefined || !FILTERS.has(operator)) {
     return empty(false);
   }
-  if (value.getArguments().some((argument) => N.isCallExpression(unwrapTarget(argument)) || N.isTaggedTemplateExpression(unwrapTarget(argument)))) {
-    return empty(false);
-  }
   return atomicPredicate(value, operator, scope);
 }
 
-function columnRestriction(selected: DirectColumn | undefined, other: DirectColumn | undefined, operand: Node | undefined): PredicateObservation {
-  if (selected === undefined || other !== undefined || operand === undefined) {
+function columnRestriction(
+  selected: DirectColumn | undefined,
+  other: DirectColumn | undefined,
+  operand: Node | undefined,
+  scope: DirectOwnerReadScope,
+): PredicateObservation {
+  if (selected === undefined || operand === undefined) {
     return empty();
   }
-  return {
-    known: true,
-    byId: new Set(selected.name === "id" ? [selected.table] : []),
-    owners: new Set(selected.name === "ownerId" ? [selected.table] : []),
-    edges: new Set(),
-  };
+  if (selected.name === "ownerId") {
+    const value = other === undefined ? ownerValue(operand, scope) : "column";
+    if (value === "opaque") {
+      return empty(false);
+    }
+    return value === "column" ? { ...empty(), columnOwners: new Set([selected.table]) } : { ...empty(), owners: new Set([selected.table]) };
+  }
+  return other === undefined && selected.name === "id" ? { ...empty(), byId: new Set([selected.table]) } : empty();
 }
 
 function atomicPredicate(value: CallExpression, operator: string, scope: DirectOwnerReadScope): PredicateObservation {
   const [left, right] = value.getArguments();
+  return operandPredicate(left, right, operator, scope);
+}
+
+function operandPredicate(left: Node | undefined, right: Node | undefined, operator: string, scope: DirectOwnerReadScope): PredicateObservation {
+  // A conditional operand owes the predicate on every branch, like an `or`.
+  const leftChoice = left === undefined ? undefined : unwrapTarget(left);
+  if (leftChoice !== undefined && N.isConditionalExpression(leftChoice)) {
+    return combine(
+      [leftChoice.getWhenTrue(), leftChoice.getWhenFalse()].map((branch) => operandPredicate(branch, right, operator, scope)),
+      true,
+    );
+  }
+  const rightChoice = right === undefined ? undefined : unwrapTarget(right);
+  if (rightChoice !== undefined && N.isConditionalExpression(rightChoice)) {
+    return combine(
+      [rightChoice.getWhenTrue(), rightChoice.getWhenFalse()].map((branch) => operandPredicate(left, branch, operator, scope)),
+      true,
+    );
+  }
+  if ([left, right].some((side) => side !== undefined && (N.isCallExpression(unwrapTarget(side)) || N.isTaggedTemplateExpression(unwrapTarget(side))))) {
+    return empty(false);
+  }
   const a = column(left, scope);
   const b = column(right, scope);
   if (a === undefined && b === undefined) {
@@ -144,7 +270,7 @@ function atomicPredicate(value: CallExpression, operator: string, scope: DirectO
   }
   const restrictions =
     operator === "eq" || operator === "inArray"
-      ? combine([columnRestriction(a, b, right), ...(operator === "eq" ? [columnRestriction(b, a, left)] : [])], false)
+      ? combine([columnRestriction(a, b, right, scope), ...(operator === "eq" ? [columnRestriction(b, a, left, scope)] : [])], false)
       : empty();
   if (operator !== "eq" || a === undefined || b === undefined) {
     return restrictions;
@@ -291,101 +417,26 @@ export function directOwnerRead(anchor: ReadAnchor, scope: DirectOwnerReadScope)
   if (!scope.ownerTables.has(table) || facts.owners.has(table)) {
     return observed();
   }
-  const joins = calls.filter((call) => JOINS.has(literalMemberAccess(call.getExpression())?.name ?? ""));
+  const joined = calls.some((call) => JOINS.has(literalMemberAccess(call.getExpression())?.name ?? ""));
+  return unscopedOwnedRead({ anchor, table, joined }, facts, scope);
+}
+
+interface OwnedRead {
+  readonly anchor: ReadAnchor;
+  readonly table: string;
+  readonly joined: boolean;
+}
+
+function unscopedOwnedRead({ anchor, table, joined }: OwnedRead, facts: PredicateObservation, scope: DirectOwnerReadScope): DirectOwnerRead {
+  if (facts.columnOwners.has(table)) {
+    return unknown("owner term is valued by a column; its §2b class pin is outside the direct check");
+  }
   if (anchor.kind === "join") {
     return joinedOwnerRead(table, facts, scope);
   }
-  if (joins.length > 0 && !facts.byId.has(table)) {
+  if (joined && !facts.byId.has(table)) {
     return unknown("joined read scope is outside the direct naked-ID check");
   }
-  return observed(facts.byId.has(table) ? NAKED : undefined);
-}
-
-const EVERY_OWNER_HOME = "/packages/contracts/src/workloads/execution.ts";
-const RUNNER_HOME = "/packages/server/src/domain/workloads/engine/runner.ts";
-const ESTIMATE_HOME = "/packages/server/src/domain/workloads/verbs/estimate-model-calls.ts";
-
-const EVERY_OWNER_AUTHORITIES = ["EveryOwnerRun", "EveryOwnerEstimate"] as const;
-type EveryOwnerAuthority = (typeof EVERY_OWNER_AUTHORITIES)[number];
-
-/** Named aliases resolve through the canonical floor; nullable and structural lookalikes are not authority. */
-function everyOwnerAuthority(node: Node): EveryOwnerAuthority | undefined {
-  const origin = resolveTypeIdentityChain(node);
-  return origin.kind === "unresolved"
-    ? undefined
-    : EVERY_OWNER_AUTHORITIES.find((name) =>
-        origin.value.some(
-          (identity) =>
-            identity.name === name && identity.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME)),
-        ),
-      );
-}
-
-/** Assertion targets can carry authority inside a scope, array or data member; direct read admission remains separate. */
-function assertionAuthorities(assertion: AsExpression): readonly EveryOwnerAuthority[] {
-  const annotation = assertion.getTypeNode();
-  if (annotation === undefined) {
-    return [];
-  }
-  const references = [annotation, ...annotation.getDescendantsOfKind(SyntaxKind.TypeReference)];
-  const origins = references.flatMap((reference) => {
-    const chain = resolveTypeIdentityChain(reference);
-    return chain.kind === "resolved" ? chain.value : [];
-  });
-  return EVERY_OWNER_AUTHORITIES.filter((authority) =>
-    origins.some(
-      (origin) =>
-        (origin.name === authority || origin.name === (authority === "EveryOwnerRun" ? "WorkloadRunScope" : "WorkloadEstimateScope")) &&
-        origin.declarations.every((declaration) => declaration.getSourceFile().getFilePath().endsWith(EVERY_OWNER_HOME)),
-    ),
-  );
-}
-
-/** A token in an optional, defaulted or union parameter does not prove that this invocation holds it. */
-export function hasEveryOwnerAuthority(node: Node): boolean {
-  const fn = enclosingFn(node);
-  if (
-    fn === undefined ||
-    !(
-      fn.isKind(SyntaxKind.FunctionDeclaration) ||
-      fn.isKind(SyntaxKind.ArrowFunction) ||
-      fn.isKind(SyntaxKind.FunctionExpression) ||
-      fn.isKind(SyntaxKind.MethodDeclaration)
-    )
-  ) {
-    return false;
-  }
-  return fn
-    .getParameters()
-    .some((parameter) => !parameter.hasQuestionToken() && parameter.getInitializer() === undefined && everyOwnerAuthority(parameter) !== undefined);
-}
-
-/** These casts are the nominal boundary, never a caller-accessible mint. */
-function authorizedAuthorityMint(assertion: AsExpression, authority: EveryOwnerAuthority): boolean {
-  const fn = enclosingFn(assertion);
-  const choice = assertion.getFirstAncestorByKind(SyntaxKind.ConditionalExpression);
-  if (
-    fn === undefined ||
-    !fn.isKind(SyntaxKind.FunctionDeclaration) ||
-    choice === undefined ||
-    assertion.getStart() < choice.getWhenTrue().getStart() ||
-    assertion.getEnd() > choice.getWhenTrue().getEnd()
-  ) {
-    return false;
-  }
-  const path = assertion.getSourceFile().getFilePath();
-  const condition = choice.getCondition().getText();
-  const admitted = {
-    [EVERY_OWNER_AUTHORITIES[0]]: path.endsWith(RUNNER_HOME) && fn.getName() === "buildRunContext" && condition === "row.ownerId === null",
-    [EVERY_OWNER_AUTHORITIES[1]]:
-      path.endsWith(ESTIMATE_HOME) &&
-      ((fn.getName() === "estimateModelCalls" && condition === "ownerId === null") ||
-        (fn.getName() === "estimateRetryModelCalls" && condition === "original.ownerId === null")),
-  } satisfies Record<EveryOwnerAuthority, boolean>;
-  return admitted[authority];
-}
-
-/** Only directly named canonical token/scope assertions participate; arbitrary data-type inference is not claimed. */
-export function hasUnauthorizedEveryOwnerMint(assertion: AsExpression): boolean {
-  return assertionAuthorities(assertion).some((authority) => !authorizedAuthorityMint(assertion, authority));
+  // A rejecting compare of the fetched row's owner within this function body is the accepted post-fetch scope.
+  return observed(facts.byId.has(table) && !hasPostFetchFilter(anchor.call, enclosingFn(anchor.call)) ? NAKED : undefined);
 }

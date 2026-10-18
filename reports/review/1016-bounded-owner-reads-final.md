@@ -82,11 +82,13 @@ Native owner delivery: `native-owner-schema-delivery.int.test.ts` 2 of 2 and `na
   - Only TypeScript carriers defer; resource-text markers keep their verdicts.
   - Existing controls pass: `ordinary-waiver.test.ts` 27 of 27 and `owner-scoped-reads.test.ts` 5 of 5 (UNKNOWN, a concrete violation and an unrelated stale marker together; full member-table tokens).
 - Reviewed grants: the candidate passes no gap into grant reconciliation, so grant staleness is unchanged.
-- Waiver budget, defect fixed: the candidate marked a policy `unjudged` whenever it had any analysis gap (`tooling/src/verify/lib/waiver-ratchet.ts`). That silenced the growth alarm too.
-  - Scenario: `owner-scoped-reads` always has UNKNOWNs under D328. With budget 56, a 57th `@orb-waive owner-scoped-reads(...)` excusing a new naked-ID finding passed with no budget alarm.
-  - Fix: a gapped policy stays in `unjudged` for the fall direction, because a deferred stale marker can lower the live count. A count above the budget still raises "fix the new finding".
-  - Red-first: `an analysis gap leaves a fall unjudged but still reds a new excuse` failed on the candidate (no alarm, count 2 against budget 1) and passes after the fix. `waiver-ratchet.test.ts` passes 12 of 12.
-- Permissions are not carried over. Which of the existing `owner-scoped-reads` markers stay live against the bounded detector, and whether the budget row of 56 matches, is known only from the complete policy artifact. The qualification run must read it.
+- Waiver budget, defect fixed: the candidate stopped judging a policy's budget whenever it had any analysis gap. `owner-scoped-reads` always has UNKNOWNs under D328, so its budget went unjudged and the growth alarm went silent.
+  - Ruled rule: a marker whose liveness a gap defers excuses nothing, yet it keeps its budget slot. A walked policy is judged as excused findings plus deferred markers against its budget, in both directions.
+  - Mechanism: `reconcile` returns `{ alarms, deferred }`; `deferred` counts each completed policy's deferred markers (`tooling/src/verify/lib/ordinary-waiver.ts`). `waiverRatchet` adds them to the excused count (`tooling/src/verify/lib/waiver-ratchet.ts`). The alarm message names the deferred markers it counted.
+  - Effect: a new marker on an UNKNOWN anchor, or a file waiver that excuses more findings, raises the alarm. So does an unrecorded fall.
+  - Report label: a gapped policy is now judged, so the "walked only part of it or did not complete" line again describes every unjudged policy.
+  - Red-first: `an analysis gap keeps the budget judged: a deferred marker holds a slot, and a rise or a fall each red` fails on the previous commit (the gapped policy is `unjudged`) and passes now. `waiver-ratchet.test.ts` 12 of 12; `ordinary-waiver.test.ts` 27 of 27.
+- Permissions are not carried over. The qualification run must show `owner-scoped-reads` judged at excused plus deferred equal to its row of 56.
 
 ## Item 5: security self-review
 
@@ -98,16 +100,33 @@ Assumptions:
 
 Findings:
 
-1. Medium, fixed in this lane: waiver-budget growth was silenced by analysis gaps (item 4).
-2. Low, open, needs a human decision: Spine §2b overclaims the gate.
-   - `docs/law/Spine-Identity-and-Auth.md` §2b says the `owner-scoped-reads` gate enforces the class-pin rules: plain values must be string-id typed, column- and subselect-valued owner terms need a pinned table, and membership tables pin on own id or chat FK.
-   - The bounded detector does not enforce them. An owner restriction is any non-column `eq` or `inArray` operand on `table.ownerId` (`tenancy-direct-read.ts`, `columnRestriction`). Subselect, helper and SQL-carrier predicates are UNKNOWN. Non-ownerId tables are not judged.
-   - Scenario: `db.select().from(personas).where(and(eq(personas.id, id), eq(personas.ownerId, body.ownerId)))` with `body: any` is supported with no finding. Spine §2b calls that operand untyped and not plain. `predicate` refuses only call and tagged-template operands, so a property access passes. The runtime owner successors and `fetchOwned` remain the authority.
-   - Minimal fix: a law edit under D328 that records these lost static guarantees and names the bounded claim.
+1. Medium, fixed: waiver-budget growth was silenced by analysis gaps (item 4).
+2. Medium, fixed: owner terms failed open. Any operand that was neither a call nor an imported column counted as an owner restriction, so a const column alias, a column ternary branch and a hoisted subselect all read as scoped.
+   - Fix (`tooling/src/verify/lib/tenancy-direct-read.ts`): an identifier operand resolves one hop by syntax, with no Type reads.
+     - A parameter, a destructured binding, a literal, or a member of a non-table data object is a plain value.
+     - A column or table alias is column-valued.
+     - A builder, call, further alias or unresolvable binding makes the predicate unknown.
+   - A conditional operand is split per branch, and every branch owes the restriction.
+   - A table whose only owner term is column-valued is UNKNOWN, never clean. A plain owner term beside it still scopes the read.
+   - Controls in `tests/tooling/verify/gates/owner-scoped-reads.test.ts`: const-column alias, column ternary, main's P01 (hoisted subselect) and P02 (const seat column in a join), and a direct column-valued owner. Each asserts its exact token, reason and `supported` count. All failed before the fix and pass after.
+   - P02 shifts from UNJOINED (main's finding) to UNKNOWN. It is still never clean, and its control turns red if a change makes it clean.
+3. Medium, fixed: 12 false positives on main's product code.
+   - 11 are post-fetch owner compares main accepted. `directOwnerRead` now calls the existing `hasPostFetchFilter` (one function body) before reporting a naked read.
+   - Control: a rejecting compare scopes the read, and a logging-only compare stays a finding. It failed before the fix.
+   - The forbidden-capture controls still prove that no callable capture runs.
+   - The 12th, `packages/server/src/domain/search/persistence/source.ts:121`, has a column-valued owner term (`chatParticipants.userId`), so it is now UNKNOWN.
+   - Ruled: no waiver, and the budget row stays 56, because `tooling/src/verify/lib/waiver-budget.ts` forbids raising a row to admit a finding.
+4. Low, fixed in law: Spine §2b overclaimed the gate. `docs/law/Spine-Identity-and-Auth.md` §2b now states the bounded claim (D328), the UNKNOWN forms, the unchecked owner-term type, and that the cross-tenant sweep and verb gates hold the class pin rules. The stale "one hop deep ... needs a waiver that names the chain" sentence is deleted because it described pin enforcement the gate no longer does. Stated limit: an `any`-typed data member such as `body.ownerId` is a plain value.
 3. Info, verified safe: the warm full-catalog replay skip. Under an owned lease, `drizzleEvidence` replays the full catalog's nested spans only when it first retains the catalog. Every later call replays the identity catalog, which epoch-checks every roster source against the caller's project. `schemaCatalogColumns` requires `full.sources` to equal `identity.sources` before columns are cached. So every file that holds a full-catalog span is epoch-checked on every call.
 4. Info: returned identities are isolated. `structuredClone` covers identity facts and selected column values. The raw-reuse control poisons returned table, identity and projected keys, then confirms later answers are clean.
 
-Needs independent review: the bounded detector's finite claim against the old gate's guarantees (finding 2), the ratchet semantics change (finding 1), and the pinned schema reuse.
+Also from review:
+- The weak delivery assertions in `tests/tooling/verify/ops/native-tenancy-pin-delivery.int.test.ts` now assert the exact `supported` count and each anchor's line, token and reason. The `unsafe` read's own verdict ("table is not a directly imported schema binding") is now asserted separately from the raw-SQL UNKNOWN on the same line.
+- `StructureAnalysisCoverage.supported` keeps its artifact name. Its TSDoc and both CLI views now read "judged (finding or out of scope)", through one formatter, `analysisCoverageText` in `tooling/src/verify/lib/show-policy.ts`.
+- `tooling/src/verify/lib/tenancy-pin.ts` and `native-tenancy-pin.ts` are imported only by `native-tenancy-pin-delivery.int.test.ts`, which uses them as negative frame guards. Flagged for deletion with that test rework: the bounded owner reader does not consume them under D328.
+- The EveryOwner authority checks moved to `tooling/src/verify/lib/tenancy-every-owner.ts` unchanged, keeping both owner-read files under the size cap.
+
+Needs independent review: the one-hop owner-value classification (finding 2), the post-fetch arm (finding 3), the ratchet rule (finding 1) and the pinned schema reuse.
 
 ## Other inherited red found
 
@@ -120,7 +139,17 @@ The source is frozen at this lane's commit. Admission:
 - Expected peak, from the retired bounded run: controller about 11.0 GiB and native worker about 1.5 GiB, observed separately.
 - The decode fix removes the sampled hot path (repeated `readDrizzleGraph` decoding). Wall time is not measured; the earlier bounded run was retired at 1,404 s with no verdict.
 - Read the complete artifact: supported, flagged, waived and UNKNOWN counts; the `owner-scoped-reads` budget judgment; tool errors; withheld policies.
+- Measured on the reviewed commit `34eba3079a`: 1:59 wall, 5.66 GB peak, 39 raw findings (27 waived, 12 effective), 1,182 UNKNOWN, budget not judged.
+- The review round fixes those 12 effective findings (11 post-fetch, 1 column-valued UNKNOWN) and the unjudged budget. The rerun needs the same command on the new commit.
+
+## Review-round floor
+
+- Red-first: 5 new owner-read controls fail on `34eba3079a` and pass now. The new ratchet control fails on `34eba3079a` and passes now.
+- `pnpm test:scoped` across the owner gate, gate family, waiver, authority and render tests, plus both native owner delivery integrations: 89 of 89 (`reports/runs/test/agent-a5b507cf43168bf04-3983968-2026-10-18T19-44-37-423Z/test-report.json`).
+- Biome on the 15 changed TypeScript files: no errors. Direct HARD and ordinary ESLint: 15 of 15 admitted, both exit 0. `gate-authority.ts` stays at 450 lines and `ordinary-waiver.ts` at 446, both within the cap.
+- Typecheck: `tooling/tsconfig.json` passes. Root keeps exactly main's 39 diagnostics.
+- `pnpm check:docs` passes. `pnpm check:agents` reports only three `docs/plans/test-foundation/design.md` links to gitignored `reports/review` files that exist in main's checkout but not in a worktree.
 
 ## Deferred
 
-Whole-tree checks, the corrected-policy qualification run, independent security review, the Spine §2b law decision, and the three inherited `max-lines` errors.
+Whole-tree checks, the corrected-policy rerun (expected: 0 effective product findings, `owner-scoped-reads` budget judged at 56), independent re-review, the `tenancy-pin` deletion, and the three inherited `max-lines` errors.

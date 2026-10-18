@@ -26,12 +26,12 @@ function read(repoRoot: string, body: string): ReturnType<typeof runPolicyPass> 
   });
   project.createSourceFile(
     join(root, SCHEMA),
-    'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("personas",{id:text("id").primaryKey(),ownerId:text("owner_id")});',
+    'import{sqliteTable,text}from"drizzle-orm/sqlite-core";export const personas=sqliteTable("personas",{id:text("id").primaryKey(),ownerId:text("owner_id")});export const chatParticipants=sqliteTable("chat_participants",{id:text("id").primaryKey(),chatId:text("chat_id"),userId:text("user_id")});',
   );
   project.createSourceFile(join(root, "packages/db/src/index.ts"), 'export*from"./schema/persona.ts";');
   project.createSourceFile(
     join(root, PATH),
-    'import{and,eq,sql}from"drizzle-orm";import type{BaseSQLiteDatabase}from"drizzle-orm/sqlite-core";import{personas}from"@orb/db";declare const db:BaseSQLiteDatabase<"async",void>;' +
+    'import{and,eq,inArray,sql}from"drizzle-orm";import type{BaseSQLiteDatabase}from"drizzle-orm/sqlite-core";import{chatParticipants,personas}from"@orb/db";declare const db:BaseSQLiteDatabase<"async",void>;' +
       body,
   );
   return runPolicyPass({
@@ -130,4 +130,76 @@ export async function indirect(id:string){return db.select().from(source.table).
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.waivedFindings).toEqual([]);
   expect(result.policies[0]?.analysis?.unknown).toEqual([expect.objectContaining({ token: "source.table" })]);
+});
+
+const COLUMN_VALUED = "owner term is valued by a column";
+const OPAQUE_FILTER = "filter contains a helper, SQL carrier, alias or unsupported predicate";
+
+function unknownOnly(repoRoot: string, body: string): NonNullable<ReturnType<typeof runPolicyPass>["policies"][number]["analysis"]> {
+  const result = read(repoRoot, body);
+  expect(result.toolErrors).toEqual([]);
+  expect(result.factErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  const analysis = result.policies[0]?.analysis;
+  if (analysis === undefined) {
+    throw new Error("owner-read analysis coverage is missing");
+  }
+  return analysis;
+}
+
+// Each owner value a lexical check cannot pin is UNKNOWN; an identical-column or seat-valued owner is never a scoped read.
+test("a const column alias and a column ternary branch leave the by-id read UNKNOWN", ({ repoRoot }) => {
+  const alias = unknownOnly(
+    repoRoot,
+    "\nexport async function alias(id:string){const other=personas.ownerId;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,other)));}",
+  );
+  expect(alias).toEqual({ supported: 0, unknown: [expect.objectContaining({ line: 2, token: "personas", reason: expect.stringContaining(COLUMN_VALUED) })] });
+  const branch = unknownOnly(
+    repoRoot,
+    "\nexport async function choose(id:string,owner:string,flag:boolean){return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,flag?owner:personas.ownerId)));}",
+  );
+  expect(branch).toEqual({ supported: 0, unknown: [expect.objectContaining({ line: 2, token: "personas", reason: expect.stringContaining(COLUMN_VALUED) })] });
+});
+
+test("P01: a hoisted const subselect owner value is UNKNOWN, not a scoped read", ({ repoRoot }) => {
+  const analysis = unknownOnly(
+    repoRoot,
+    "\nexport async function seats(personaId:string){const seatOwners=db.select({u:chatParticipants.userId}).from(chatParticipants);return db.select().from(personas).where(and(eq(personas.id,personaId),inArray(personas.ownerId,seatOwners))).limit(1);}",
+  );
+  expect(analysis.supported).toBe(0);
+  expect(analysis.unknown).toEqual([
+    expect.objectContaining({ line: 2, token: "chatParticipants", reason: expect.stringContaining("builder is stored") }),
+    expect.objectContaining({ line: 2, token: "personas", reason: OPAQUE_FILTER }),
+  ]);
+});
+
+test("P02: a join owned only by a const seat column is UNKNOWN, not UNJOINED or scoped", ({ repoRoot }) => {
+  const analysis = unknownOnly(
+    repoRoot,
+    "\nexport async function seat(personaId:string){const seatUser=chatParticipants.userId;return db.select().from(chatParticipants).innerJoin(personas,and(eq(personas.ownerId,seatUser),eq(personas.id,personaId))).limit(1);}",
+  );
+  expect(analysis.supported).toBe(1);
+  expect(analysis.unknown).toEqual([expect.objectContaining({ line: 2, token: "personas", reason: expect.stringContaining(COLUMN_VALUED) })]);
+});
+
+test("a by-id read whose owner term is another table's column is UNKNOWN", ({ repoRoot }) => {
+  const analysis = unknownOnly(
+    repoRoot,
+    "\nexport async function hosted(id:string,chatId:string){return db.select().from(personas).innerJoin(chatParticipants,eq(chatParticipants.chatId,chatId)).where(and(eq(personas.id,id),eq(personas.ownerId,chatParticipants.userId)));}",
+  );
+  expect(analysis.supported).toBe(1);
+  expect(analysis.unknown).toEqual([expect.objectContaining({ line: 2, token: "personas", reason: expect.stringContaining(COLUMN_VALUED) })]);
+});
+
+test("a rejecting post-fetch owner compare scopes a by-id read; a logging-only compare does not", ({ repoRoot }) => {
+  const result = read(
+    repoRoot,
+    `
+export async function owned(id:string,ownerId:string){const rows=await db.select({ownerId:personas.ownerId}).from(personas).where(eq(personas.id,id));if(rows[0]?.ownerId!==ownerId){throw new Error("not found");}}
+export async function leaked(id:string,ownerId:string){const rows=await db.select().from(personas).where(eq(personas.id,id));if(rows[0]?.ownerId!==ownerId){console.log("mismatch");}return rows[0];}
+`,
+  );
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([{ token: "personas", line: 3 }]);
+  expect(result.policies[0]?.analysis).toEqual({ supported: 2, unknown: [] });
 });

@@ -419,13 +419,13 @@ export function coordinateGateAuthority(input: GateAuthorityBatchInput): GateAut
   for (const [, policy] of [...policies].toSorted(([left], [right]) => left.localeCompare(right))) {
     processPolicy(policy, state);
   }
-  const ordinaryAlarms = processOrdinary(state);
+  const ordinary = processOrdinary(state);
 
   const sortedEffective = effectiveFindings.toSorted(findingOrder);
   const errors = sortedEffective.filter(({ severity }) => severity === "error").length;
   const warnings = sortedEffective.length - errors;
-  const reconciled = reconcileAuthority(state, ordinaryAlarms);
-  const ratchet = waiverRatchet(input.waiverBudget, results, [...waivedFindings, ...grantedFindings], withheld);
+  const reconciled = reconcileAuthority(state, ordinary.alarms);
+  const ratchet = waiverRatchet(input.waiverBudget, results, { excused: [...waivedFindings, ...grantedFindings], deferred: ordinary.deferred }, withheld);
   const authorityAlarms = [...reconciled.alarms, ...ratchet.alarms].toSorted(alarmOrder);
   const unjudgedReviewedGrants = reconciled.unjudged;
   const alarmErrors = authorityAlarms.length;
