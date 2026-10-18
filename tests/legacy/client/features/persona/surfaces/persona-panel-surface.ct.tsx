@@ -5,9 +5,9 @@
 // and order; the Edit door; the account foot; the keyboard grammar.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
@@ -19,7 +19,7 @@ import { PersonaEditDoorColdStory, PersonaEditDoorStory, PersonaSwitcherBarStory
 const NOVA = "persona_nova";
 const ORION = "persona_orion";
 const LYRA = "persona_lyra";
-const CHAT_ID = castId<ChatId>("chat_switcher_ct");
+const CHAT_ID = makeChatId();
 const LONG_DESCRIPTION = Array.from({ length: 12 }, (_, i) => `Line ${i + 1} of a long persona description that keeps going.`).join(" ");
 
 // Orion leads the list on purpose: it is the first row and is neither current, default nor hovered.

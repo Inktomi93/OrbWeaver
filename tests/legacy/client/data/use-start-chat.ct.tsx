@@ -10,16 +10,16 @@
 // A CT, not a unit test: the hook composes `createEntityMutation` + the real tRPC client + `#state` module
 // actions, and its whole observable surface is what a mounted component sees.
 
-import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { makeMessagesPage, makeMessageView } from "../features/chat/fixtures.ts";
 import { StartChatStory } from "./_ct-stories.tsx";
 
-const CREATED_ID = castId<ChatId>("chat_ct_start_chat");
+const CREATED_ID = makeChatId();
 const OPENING_TEXT = "Elias waits beside the ashfall road.";
 const AUTHORITATIVE_TEXT = "Elias points toward the northern pass.";
 const OPENING_MESSAGE = makeMessageView({

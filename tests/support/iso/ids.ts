@@ -15,6 +15,9 @@ const UUID_VARIANT_INDEX = 8;
 const UUID_VERSION_4 = 0x40;
 const UUID_RFC_VARIANT = 0x80;
 export const SEEDED_ID_MAX_CURSOR = 2 ** (COUNTER_BYTE_LENGTH * 8) - 1;
+/** Start a fixture's named ids here when a story and a CT must agree on them in both worlds: builder sequences
+ *  count up from zero, one id per mint, and no run mints 2^31 ids, so this band never meets a builder's id. */
+export const FIXTURE_ID_CURSOR = 2 ** 31;
 
 export interface SeededIds {
   readonly next: (prefix?: string) => string;

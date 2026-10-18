@@ -19,11 +19,11 @@ import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { NarratorActionsDoorsStory, ReactionPickerStory, StandardLabeledDoorsStory } from "../_reaction-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 // Must MATCH `fixtures.ts::makeMessageView` — the picker's pressed state selects this room's window by the
 // message's own `selectedVariantId`, so a mismatched fixture renders an all-unpressed grid that passes.
 const VARIANT_ID = "mv_ct_1";
-const CHAT_ID = "chat_ct_keystone";
 const VIEWER_ID = "user_ct_viewer";
 const VIEWER_SEAT = "chat_participant_ct_viewer";
 const OTHER_SEAT = "chat_participant_ct_other";

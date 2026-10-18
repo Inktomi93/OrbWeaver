@@ -21,11 +21,11 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_REACTION_ADD_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { MessageActionsDoorsStory, MessageReactionsStory } from "../_reaction-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 // The fixture's ids must MATCH `fixtures.ts::makeMessageView` — the pill row selects the room's window by
 // the row's own `selectedVariantId`, so a mismatched fixture renders an empty (and silently passing) row.
 const VARIANT_ID = "mv_ct_1";
-const CHAT_ID = "chat_ct_keystone";
 const VIEWER_ID = "user_ct_viewer";
 const VIEWER_SEAT = "chat_participant_ct_viewer";
 const OTHER_SEAT = "chat_participant_ct_other";

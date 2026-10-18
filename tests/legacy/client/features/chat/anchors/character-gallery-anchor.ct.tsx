@@ -6,6 +6,7 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterGalleryAnchorStory } from "../_ct-stories.tsx";
 import { GALLERY_CELL, ITEM } from "../_gallery-fixtures.ts";
+import { CHAT_ID } from "../fixtures.ts";
 
 for (const viewport of [
   { name: "mobile", width: 360, height: 780 },
@@ -45,6 +46,6 @@ for (const viewport of [
     await scope.getByRole("radio", { name: "This chat" }).click();
     await expect
       .poll(() => trpc.lastInput("assets.listGallery"))
-      .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: "chat_ct_keystone", limit: 100, sort: "newest", direction: "forward" });
+      .toEqual({ subjectCharacterId: "character_ct_gallery", chatId: CHAT_ID, limit: 100, sort: "newest", direction: "forward" });
   });
 }

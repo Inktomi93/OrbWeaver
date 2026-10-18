@@ -209,7 +209,7 @@ import { toNotice } from "#client/lib/notify.ts";
 import { committedChat } from "#client/state/chat-handle.ts";
 import { requestChatMoment } from "#client/state/chat-moment-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
-import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
+import { CHAT_ID, COMPOSER_CHAT_ID, CT_ATTACH_ASSET_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -3472,9 +3472,6 @@ export function JoinInviteDialogStory({ token }: { readonly token: string }): Re
 }
 
 // ── Attachment media render story (#67) — the asset arm of `MessageMediaBlock` over the resolver context ──
-
-/** A stable asset id the render CT keys its provided url on. */
-const CT_ATTACH_ASSET_ID = castId<AssetId>("asset_ct_attach");
 
 /** A valid 1×1 transparent PNG data URL — an ASSET src (own origin) renders it directly (no network, no
  *  `onError` broken-fallback), so the CT can assert the real `<img>` src deterministically. */

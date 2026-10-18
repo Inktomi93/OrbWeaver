@@ -28,7 +28,7 @@ import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CHAT_AND_INBOX_READS_EMPTY } from "@orb/testkit/node/chat-and-inbox-reads-empty.ts";
-import { makeChatDetail, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeParticipantView } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
 import type { TrpcInput, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -881,6 +881,7 @@ test.describe("the phone topbar", () => {
 
 /** The tab's own sections all suspend on reads of their own; a section left unfed renders its error arm and
  *  the composition contract silently stops being covered (#629). Same feed as settings-context-tab.ct.tsx. */
+const TAB_CHAT = makeChatId();
 const TAB_ROUTES: TrpcRoutes<
   | "chat.getGroupConfig"
   | "chat.setRoomOverrides"
@@ -901,7 +902,7 @@ const TAB_ROUTES: TrpcRoutes<
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
   "chat.getChat": () =>
-    makeChatDetail({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+    makeChatDetail({ id: TAB_CHAT, viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
   // The #1742 Regex section's four reads (#1786). Its HEADING chip reads `chat.listEffectiveRegex`
   // eagerly — outside any disclosure — so an unfed tab took the section's error arm and the whole host
   // band failed to render, which is what made the two tests below red. The shared off-and-empty

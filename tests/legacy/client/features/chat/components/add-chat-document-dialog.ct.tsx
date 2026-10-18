@@ -23,8 +23,7 @@ import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts"
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { AddChatDocumentDialogStory } from "../_ct-stories.tsx";
-
-const CHAT_ID = "chat_ct_keystone";
+import { CHAT_ID } from "../fixtures.ts";
 
 const TREATISE = {
   id: castId<DocumentId>("document_00000000000000000011"),

@@ -52,7 +52,7 @@ const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEF
 
 /** The OPEN room the readout binds to — the `ChatDetail` fields `use-readout-binding` and its title chain
  *  reach for, at the same shape the sibling readout suites feed (`actions-readout.ct.tsx`'s CHAT_DETAIL). */
-const BOUND_CHAT_DETAIL = makeChatDetail({ id: "chat_ct_readoutbound", title: "Aveline & the Court" });
+const BOUND_CHAT_DETAIL = makeChatDetail({ title: "Aveline & the Court" });
 
 /** The usage wire as the verb shapes it: the active-pick FLAG (a setting, not a room list) + the rooms whose
  *  rpg GM voice redirects here, already filtered to what this caller may open. */

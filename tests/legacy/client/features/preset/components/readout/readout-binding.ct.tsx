@@ -14,7 +14,9 @@
 
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -30,7 +32,8 @@ import {
 } from "./_readout-stories.tsx";
 
 const PRESET = "preset_ct_readoutbind";
-const CHAT = "chat_ct_readoutbind";
+// The room `_readout-stories.tsx` mounts: the same band-seeded mint, since a CT cannot import a story value.
+const CHAT = mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next);
 const CHAT_TITLE = "Aveline & the Court";
 
 const PRESET_DETAIL: TrpcWireOutput<"preset.get"> = {

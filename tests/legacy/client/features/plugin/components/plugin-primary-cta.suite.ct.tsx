@@ -21,7 +21,7 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId } from "@orb/testkit/node/factories/chat-view.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import { REGEX_READS_EMPTY } from "@orb/testkit/node/regex-reads-empty.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -112,6 +112,7 @@ const SURFACE_ROUTES: TrpcRoutes<"plugin.getSurfaceState" | "plugin.getLog" | "a
 /** The "This chat" tab's own sections all suspend on reads of their own; a section left unfed renders its
  *  error arm and the composition contract silently stops being covered (#629). The proven feed, copied from
  *  chat-anchors.ct.tsx rather than re-derived. */
+const TAB_CHAT = makeChatId();
 const TAB_ROUTES: TrpcRoutes<
   | "chat.getGroupConfig"
   | "chat.setRoomOverrides"
@@ -132,7 +133,7 @@ const TAB_ROUTES: TrpcRoutes<
   "chat.getVariablePicks": () => ({ variables: [], values: {} }),
   "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: null } }),
   "chat.getChat": () =>
-    makeChatDetail({ id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
+    makeChatDetail({ id: TAB_CHAT, viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] }),
   // The #1742 Regex section's reads (#1788). Its heading chip reads `chat.listEffectiveRegex` outside every
   // disclosure, so the read fires on any mount that reaches this tab and an unfed one takes the tab's error
   // arm — which is what hid the CHAT BAND arm of the one-primary law below. Off-and-empty: this suite counts

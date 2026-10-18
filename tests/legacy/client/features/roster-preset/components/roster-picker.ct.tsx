@@ -14,7 +14,8 @@
 import type { RulePresetView } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { CharacterId, ChatId, RosterPresetId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { makeRuleView } from "@orb/testkit/node/factories/automation-view.ts";
 import { makeChatDetail, makeParticipantView, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -84,9 +85,10 @@ const PACING_PRESET: RulePresetView = {
   ],
 };
 
-/** The open room the host stories act on — `chat.getChat`'s shape, narrowed to what the picker reads. */
+/** The open room the host stories act on — `chat.getChat`'s shape, narrowed to what the picker reads. Its id
+ *  repeats the stories' band-seeded mint, since a CT cannot import a story value. */
 const HOST_CHAT = makeChatDetail({
-  id: "chat_roster_ct",
+  id: mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next),
   viewerIsHost: true,
   anchorPersonaId: null,
   rpg: null,

@@ -6,8 +6,9 @@ import type { ChatIdentity, MessageView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserConnectionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, createIdSource, ID_PREFIX } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -77,8 +78,12 @@ export function chatListResponder(all: readonly ScopedChatSummaryFixture[]): (in
   };
 }
 
+// Stories and CTs evaluate this module in separate worlds; a band-seeded mint gives both the same ids.
+const FIXTURE_IDS = createIdSource(createSeededIds(FIXTURE_ID_CURSOR).next);
 /** The fixed chat the stories address — the CT's routeTrpc/routeOrbSocket key off this id. */
-export const CHAT_ID = castId<ChatId>("chat_ct_keystone");
+export const CHAT_ID = FIXTURE_IDS.typeId(ID_PREFIX.chat);
+/** The asset the attachment-media story renders and the room-image CT binds to. */
+export const CT_ATTACH_ASSET_ID = FIXTURE_IDS.typeId(ID_PREFIX.asset);
 /** The chat a committed `ComposerStory` addresses — its own id (distinct from `CHAT_ID`) so the
  *  composer suite's turn slots never collide with the message-list suite's in the shared store. */
 export const COMPOSER_CHAT_ID = castId<ChatId>("chat_ct_composer");

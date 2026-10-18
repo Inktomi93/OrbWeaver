@@ -16,6 +16,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { AuthConfig } from "#client/data/auth-config.ts";
 import { InviteDialogStory } from "../_ct-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 const REVOKE_RE = /Revoke/u;
 /** A plain host: the sign-up switch stays hidden, so the mint-form tests below keep their pre-D259 shape. */
@@ -62,7 +63,7 @@ function overlaps(a: Box, b: Box): boolean {
 const MINT = {
   invite: {
     id: "chatinvite_ct_new",
-    chatId: "chat_ct_keystone",
+    chatId: CHAT_ID,
     status: "pending",
     maxUses: null,
     remainingUses: null,
@@ -78,7 +79,7 @@ function outstanding(): TrpcWireOutput<"invites.listInvites"> {
   return [
     {
       id: "chatinvite_ct_a",
-      chatId: "chat_ct_keystone",
+      chatId: CHAT_ID,
       status: "pending",
       maxUses: 3,
       remainingUses: 2,
@@ -89,7 +90,7 @@ function outstanding(): TrpcWireOutput<"invites.listInvites"> {
     },
     {
       id: "chatinvite_ct_b",
-      chatId: "chat_ct_keystone",
+      chatId: CHAT_ID,
       status: "revoked",
       maxUses: null,
       remainingUses: null,
@@ -397,7 +398,7 @@ test("a sign-up link row names itself as one, Revoke included, and a one-use lim
     "invites.listInvites": () => [
       {
         id: "chatinvite_ct_signup",
-        chatId: "chat_ct_keystone",
+        chatId: CHAT_ID,
         status: "pending",
         maxUses: 1,
         remainingUses: 1,
