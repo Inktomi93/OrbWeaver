@@ -547,13 +547,21 @@ function referenceHomes(fact: ReferenceFact<import("./reference-fact-contract.ts
   });
 }
 
-/** A relevant callable value escape is independent of the calls whose target could be admitted. */
-function escapingReferences(
-  references: readonly MorphNode[],
-  calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>,
-  program?: CallReturnProgram,
-): ReadonlyMap<import("ts-morph").ts.Node, readonly UnresolvedReferenceFact[]> {
-  const escaped = new Map<import("ts-morph").ts.Node, UnresolvedReferenceFact[]>();
+interface ClassifiedReference {
+  readonly node: MorphNode;
+  readonly fact: ReferenceFact<CallableDeclaration>;
+  readonly homes: readonly MorphNode[];
+}
+
+interface ReferenceClassification {
+  readonly inputs: readonly ClassifiedReference[];
+  readonly native: ReturnType<ReturnType<typeof captureNativeReferenceReads>>;
+  readonly referenceRevision: number;
+}
+
+function classifyReferences(references: readonly MorphNode[], referenceRevision: number): ReferenceClassification {
+  const native = captureNativeReferenceReads();
+  const inputs: ClassifiedReference[] = [];
   const seen = new Set<object>();
   for (const node of references) {
     if (seen.has(node.compilerNode) || isDocumentationLinkReference(node) || !referenceCandidate(node)) {
@@ -561,7 +569,18 @@ function escapingReferences(
     }
     seen.add(node.compilerNode);
     const fact = resolveCallableDeclaration(node);
-    const homes = referenceHomes(fact);
+    inputs.push({ node, fact, homes: referenceHomes(fact) });
+  }
+  return { inputs, native: native(), referenceRevision };
+}
+
+function escapingReferences(
+  references: readonly ClassifiedReference[],
+  calls: ReadonlyMap<import("ts-morph").ts.CallExpression, CallReturnObservation>,
+  program?: CallReturnProgram,
+): ReadonlyMap<import("ts-morph").ts.Node, readonly UnresolvedReferenceFact[]> {
+  const escaped = new Map<import("ts-morph").ts.Node, UnresolvedReferenceFact[]>();
+  for (const { node, fact, homes } of references) {
     for (const home of homes) {
       if (home.getSourceFile().isDeclarationFile() || admittedReference(node, home, calls, program)) {
         continue;
@@ -681,6 +700,7 @@ interface SettledCapture {
   readonly callCount: number;
   readonly referenceRevision: number;
   readonly nodes: ReadonlyMap<MorphNode, import("ts-morph").ts.Node>;
+  readonly classification: ReferenceClassification;
 }
 
 interface CapturedCallGroup {
@@ -690,8 +710,28 @@ interface CapturedCallGroup {
   readonly refinement: CapturedRefinementIndexes;
 }
 
+function currentReferenceClassification(
+  previous: SettledCapture | undefined,
+  referenceRevision: number,
+  current: () => boolean,
+): ReferenceClassification | undefined {
+  const prior = previous?.classification;
+  return prior !== undefined &&
+    prior.referenceRevision === referenceRevision &&
+    current() &&
+    prior.native.invocation?.current() !== false &&
+    (!prior.native.used || prior.native.validate?.() === true) &&
+    current()
+    ? prior
+    : undefined;
+}
+
 // Forgetting a wrapper leaves its native Program alive, so index reuse also retains each input wrapper identity.
-function settledNodes(indexes: CapturedCallIndexes, references: readonly MorphNode[]): ReadonlyMap<MorphNode, import("ts-morph").ts.Node> {
+function settledNodes(
+  indexes: CapturedCallIndexes,
+  references: readonly MorphNode[],
+  classification: ReferenceClassification,
+): ReadonlyMap<MorphNode, import("ts-morph").ts.Node> {
   const nodes = new Map<MorphNode, import("ts-morph").ts.Node>();
   const capture = (node: MorphNode): void => {
     nodes.set(node, node.compilerNode);
@@ -707,6 +747,10 @@ function settledNodes(indexes: CapturedCallIndexes, references: readonly MorphNo
     }
   }
   references.forEach(capture);
+  for (const { fact, homes } of classification.inputs) {
+    capturedFactNodes(fact, (value) => [value.declaration]).forEach(capture);
+    homes.forEach(capture);
+  }
   for (const facts of indexes.escapingReferences.values()) {
     for (const fact of facts) {
       capture(fact.node);
@@ -1726,43 +1770,50 @@ export function observeCallReturns(
         const source = reference.getSourceFile();
         group.sources.set(source, source.compilerNode);
       }
-      let nodes: SettledCapture["nodes"] = new Map();
-      const settled = (): CapturedCallIndexes => {
+      const settled = (): Pick<SettledCapture, "indexes" | "nodes" | "classification"> => {
         const previous = group.settled;
         const first = group.calls[0]?.call;
+        const current = (): boolean =>
+          previous !== undefined &&
+          first !== undefined &&
+          capturedProgram(first, { programs: [previous.owner] }).kind === "resolved" &&
+          [...previous.nodes].every(([node, native]) => !node.wasForgotten() && node.compilerNode === native);
         if (
           previous !== undefined &&
           previous.indexes.calls === group.calls &&
           previous.callCount === group.calls.length &&
           previous.referenceRevision === observedReferences.length &&
-          first !== undefined &&
-          capturedProgram(first, { programs: [previous.owner] }).kind === "resolved" &&
-          [...previous.nodes].every(([node, native]) => !node.wasForgotten() && node.compilerNode === native)
+          previous.classification.referenceRevision === observedReferences.length &&
+          current()
         ) {
-          nodes = previous.nodes;
-          return previous.indexes;
+          return { indexes: previous.indexes, nodes: previous.nodes, classification: previous.classification };
         }
         const byCall = group.refinement.calls.map(group.calls.map((observation) => [observation.call.compilerNode, observation] as const));
+        // Admission may append references; its later revision cannot certify this lexical cohort.
+        const referenceRevision = observedReferences.length;
         const currentReferences = observedReferences.filter((node) => node.getProject() === project);
         for (const reference of currentReferences) {
           const source = reference.getSourceFile();
           group.sources.set(source, source.compilerNode);
         }
+        // Calls change each round; lexical inputs retain only their native invocation and source epoch.
+        const classification = currentReferenceClassification(previous, referenceRevision, current) ?? classifyReferences(currentReferences, referenceRevision);
         const indexes = {
           calls: group.calls,
           callers: group.refinement.callers.map(capturedCallers(group.calls)),
           byCall,
-          escapingReferences: group.refinement.escapes.map(escapingReferences(currentReferences, byCall, group.settled?.owner)),
+          escapingReferences: group.refinement.escapes.map(escapingReferences(classification.inputs, byCall, group.settled?.owner)),
         };
-        if (projection.suppliedCallableTargets === true) {
-          nodes = settledNodes(indexes, currentReferences);
-        }
-        return indexes;
+        const nodes: SettledCapture["nodes"] =
+          projection.suppliedCallableTargets === true ? settledNodes(indexes, currentReferences, classification) : new Map();
+        return { indexes, nodes, classification };
       };
-      let indexes = settled();
+      let state = settled();
+      let indexes = state.indexes;
       if (published) {
         publishers.push(() => {
-          indexes = settled();
+          state = settled();
+          indexes = state.indexes;
         });
       }
       const captured: CallReturnProgram = {
@@ -1810,7 +1861,7 @@ export function observeCallReturns(
         program: project.getProgram().compilerObject,
       };
       if (projection.suppliedCallableTargets === true) {
-        group.settled = { owner: captured, indexes, callCount: group.calls.length, referenceRevision: observedReferences.length, nodes };
+        group.settled = { owner: captured, ...state, callCount: group.calls.length, referenceRevision: observedReferences.length };
       }
       return captured;
     }),
