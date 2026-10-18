@@ -41,6 +41,6 @@ Reviewed indexing and name links qualify complete DOM publication, currentness a
 
 Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.
 
-Citation-resource cost analysis preserves existing findings and authority alarms. Evidence: `reports/review/965-citation-resource-current-cost.md`.
+Citation batching passes bounded security review; repository cost remains open. Evidence: `reports/review/965-native-ignore-batch-independent.md`.
 
 AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.

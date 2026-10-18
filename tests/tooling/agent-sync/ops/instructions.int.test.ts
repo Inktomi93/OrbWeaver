@@ -52,6 +52,7 @@ test("the AGENTS.md rule list must name every rule with its exact globs, and no 
   ]);
 
   const extra = await plantedTree(tree({ "AGENTS.md": `${AGENTS}- \`.claude/rules/gone.md\`: \`x/**\`\n` }));
+  execFixtureGit(extra, ["init", "-q"]);
   expect(instructionLayerProblems(extra)).toEqual([
     "AGENTS.md:8: the path-rule list names .claude/rules/gone.md, which is not a rule file",
     "AGENTS.md:8: path does not exist: .claude/rules/gone.md",
@@ -75,10 +76,16 @@ test("a dead link or backticked path is a finding; a live one is not", async ({ 
   const root = await plantedTree(
     tree({ ".claude/agents/r.md": "See [live](../../docs/a.md), [dead](../../docs/gone.md), `docs/a.md` and `tooling/src/gone.ts:3`.\n" }),
   );
+  execFixtureGit(root, ["init", "-q"]);
   expect(instructionLayerProblems(root)).toEqual([
     ".claude/agents/r.md:1: link target does not exist: ../../docs/gone.md",
     ".claude/agents/r.md:1: path does not exist: tooling/src/gone.ts",
   ]);
+});
+
+test("an instruction's failed Git query propagates as a tool error, not a missing-path finding", async ({ plantedTree }) => {
+  const root = await plantedTree(tree({ ".claude/agents/r.md": "See `tooling/src/missing.ts`.\n" }));
+  expect(() => instructionLayerProblems(root)).toThrow(/Git ignore classification failed/u);
 });
 
 test("a path into ignored build output passes before the build runs; a typo above the ignored segment still fails", async ({ plantedTree }) => {

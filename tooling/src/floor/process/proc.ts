@@ -114,6 +114,7 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
   const res = DOORS.spawnSync(niced.command, niced.args, {
     ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
     ...(opts.env === undefined ? {} : { env: opts.env }),
+    ...(opts.input === undefined ? {} : { input: opts.input }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     ...(opts.timeout === undefined ? {} : { timeout: opts.timeout }),
     ...(stdio === undefined ? { encoding: "utf8" as const } : { stdio }),

@@ -83,7 +83,7 @@ function linkIdentity(rootReal: string, subject: Subject): AuthoredPathIdentity 
   }
 }
 
-function identify(rootAbs: string, rootReal: string, selector: string, ignoredBuildOutput: (path: string) => boolean): AuthoredPathIdentity {
+function identify(rootAbs: string, rootReal: string, selector: string, absentPaths: string[]): AuthoredPathIdentity {
   const form: AuthoredPathSelectorForm = isAbsolute(selector) ? "absolute" : "repo-relative";
   const targetAbs = resolve(rootAbs, selector);
   if (!contained(rootAbs, targetAbs)) {
@@ -97,9 +97,10 @@ function identify(rootAbs: string, rootReal: string, selector: string, ignoredBu
   } catch (error) {
     // ENOENT is the ordinary DEAD-selector answer and is not a failure of this door; anything else is.
     const absent = error instanceof Error && "code" in error && error.code === "ENOENT";
-    return absent
-      ? { selector, form, status: "absent", path: subject.path, ...(ignoredBuildOutput(subject.path) ? { ignoredBuildOutput: true as const } : {}) }
-      : { selector, form, status: "unresolved", reason: message(error) };
+    if (absent) {
+      absentPaths.push(subject.path);
+    }
+    return absent ? { selector, form, status: "absent", path: subject.path } : { selector, form, status: "unresolved", reason: message(error) };
   }
   return link.isSymbolicLink() ? linkIdentity(rootReal, subject) : nodeIdentity(subject, link);
 }
@@ -123,8 +124,18 @@ export function loadAuthoredPaths(root: string, selectors: readonly string[], gi
       reason: `invocation root cannot be resolved: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
-  const ignoredBuildOutput = ignoredBuildOutputClassifier(rootAbs, git);
-  const identities = distinct.map((selector) => identify(rootAbs, rootReal, selector, ignoredBuildOutput));
+  const absentPaths: string[] = [];
+  const identified = distinct.map((selector) => identify(rootAbs, rootReal, selector, absentPaths));
+  let ignoredBuildOutput: ReadonlyMap<string, boolean>;
+  try {
+    ignoredBuildOutput = ignoredBuildOutputClassifier(rootAbs, absentPaths, git);
+  } catch (error) {
+    return { status: "unresolved", paths: [], members: 0, reason: message(error) };
+  }
+  const identities = identified.map(
+    (identity): AuthoredPathIdentity =>
+      identity.status === "absent" && ignoredBuildOutput.get(identity.path) === true ? { ...identity, ignoredBuildOutput: true } : identity,
+  );
   // `paths` stays EMPTY on purpose. A demand door owns no population, and publishing the selectors it just
   // judged as resource paths would put a dead or escaping selector into the policy's effective population —
   // which is the opposite of the verdict it was asked for.

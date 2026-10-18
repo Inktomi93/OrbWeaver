@@ -23,8 +23,18 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { processInfo } from "@orb/tooling/floor/host/platform";
-import { execNicedSync, execNicedSyncBuffer, platformSpawn, spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
+import { execNicedSync, execNicedSyncBuffer, platformSpawn, runNicedSync, spawnNiced, spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { scaledBudget } from "../../_load-budget.ts";
+
+test("the synchronous door forwards stdin byte-for-byte while retaining captured streams and exit status", () => {
+  const input = "space name\0colon:tab\tname\0";
+  const result = runNicedSync(
+    process.execPath,
+    ["-e", "process.stdout.write(require('node:fs').readFileSync(0)); process.stderr.write('diagnostic'); process.exit(7);"],
+    { input },
+  );
+  expect(result).toEqual({ status: 7, stdout: input, stderr: "diagnostic" });
+});
 
 test("every door spawns through cross-spawn on win32 and through node's own spawn everywhere else", async () => {
   const { spawn, spawnSync } = await import("node:child_process");
