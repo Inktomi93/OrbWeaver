@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-17
+updated: 2026-10-18
 ---
 
 # Tests run the product
@@ -94,7 +94,7 @@ Each row names a candidate test site and production counterpart. These sites req
 
 **894, seeders.** Local seeders in `tests/legacy/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
 
-**899 second half, gates for Spine-Testing §10.** The gates are `test-hand-shape`, `test-production-clone`, native ESLint `max-lines`, the value-cast check in `no-test-fabrication`, the spy check in `test-mock-doctrine` and the `cpd:tests` ratchet. Their baselined findings name items 888, 890 and 906; the spies and the oversized files still need a burn-down item.
+**899 second half, enforcement for Spine-Testing §10.** Native assertion rules own fabrication. The remaining checks include `test-hand-shape`, `test-production-clone`, native ESLint `max-lines`, the spy check in `test-mock-doctrine` and `cpd:tests`. Re-derive their findings against the owning work items; preserve meaningful cases rather than repairing disposable harnesses.
 
 ## Rejected
 

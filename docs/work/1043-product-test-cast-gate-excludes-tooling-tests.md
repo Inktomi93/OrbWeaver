@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-17
+updated: 2026-10-18
 priority: P2
 area: tooling
 plan: test-foundation
@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Apply D325 in `no-test-fabrication`: the value-cast judgement excludes `tests/tooling`; the double-cast fabrication judgement and `test-production-clone` keep their populations. Delete the baselined value-cast markers under `tests/tooling`. Repair the double casts in `tests/support` factories so each builder returns a real value.
+Qualify D325 through native assertion rules. Value-narrowing excludes `tests/tooling`; literal and double-cast fabrication retain their populations. Repair shared builders through real values. Reconcile policy removal and native exception authority without transferring suppression debt.
 
 ## Why
 
@@ -25,4 +25,6 @@ A tooling-test value cast is not a finding and a `tests/support` double cast sti
 
 The D325 population change, covered marker deletion and real credential builders are integrated after independent security review. Maintained consumers use production-resolved authority; legacy compatibility stays outside the maintained kit. The admin supplier correction preserves the full role-client result contract and existing assertions.
 
-Scoped runtime, lint and DOM controls pass. Ordinary Node compilation retains the exact existing diagnostic population without additions. Deterministic double-cast removals justify targeted allowance reductions. Full value-cast allowance reconciliation still needs native consumption evidence; marker deletion alone does not establish the charged count. This item stays open. Evidence: `reports/review/1043-targeted-allowance-reconciliation.md`.
+Scoped runtime, lint and DOM controls pass. Ordinary Node compilation retains the exact existing diagnostic population without additions. Deterministic double-cast removals justify targeted allowance reductions. Evidence: `reports/review/1043-targeted-allowance-reconciliation.md`.
+
+Native replacement removes the custom policy and its budget rows. Reviewed exception classes remain tests-only; the owner-directed boundary batch and complete native qualification stay open. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.

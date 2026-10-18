@@ -33,3 +33,5 @@ The native enforcement batch and obsolete checker deletions are integrated after
 Security review qualifies scrubber and chat-viewer health deletion while preserving retained consumer refusal. Bus-payload health remains. Required raw-origin, asset, public-Caller role, per-call and uninstantiated-list claims remain custom.
 
 HARD bulk-ledger isolation is integrated after independent review and scoped native controls. Ordinary max-lines debt remains real and unchanged. Root owns coherent types, complete metadata admission, catalog and allowance reconciliation. Complete application, frontend, retained-reader and hosted qualification remain open.
+
+Native fabrication enforcement and cast-fact removal are integrated after independent review. Coherent declaration, SQLite, browser and native controls pass. Node compilation retains its existing diagnostic population. Owner-directed boundary repairs, ordinary lint, shared dependency installation and resource qualification remain open. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.

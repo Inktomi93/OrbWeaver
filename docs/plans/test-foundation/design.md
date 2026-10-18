@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-17
+updated: 2026-10-18
 ---
 
 # Tests on one harness and one code-facts engine
@@ -139,7 +139,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | Liveness | `pnpm ast` dead, orphans, testonly and chains; ledger-symbol-liveness, testid-liveness | not yet itemized |
 | tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | not yet itemized |
 | Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, sole-env-reader | not yet itemized |
-| Casts | no-loose-id-cast, no-mint-via-cast, no-test-fabrication, byte-check-cast | not yet itemized; 973 widens the id gates |
+| Casts | Native assertion rules; shared brand and assignability facts retain semantic judgments | 1041; 973 widens the id gates |
 
 Gate families fold onto the shared readers:
 
@@ -205,7 +205,7 @@ Prove native world differences, alias and dynamic-import identity, complete popu
 
 D322 permits schema-only exports. Membership hygiene is removed; authored parity and issues-origin enforcement remain. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`.
 
-The audit asks whether a custom engine is necessary after changing the enforcement mechanism. The earlier typed-necessity census describes current implementations. A genuine Type dependency can move to a type change, native typed lint or a production test. Neither census alone proves a successor correct.
+The audit asks whether native enforcement can replace each custom claim. The typed-necessity census describes current implementations. Neither census qualifies a successor.
 
 Run the migration in this order: security replacements; mechanical native lint/import moves; typed production registries; runtime/type tests; stylelint and CSS moves; obsolete family scaffolding; KEEP-only engine qualification and memory measurement. Security-executor lands real composition-root tests and native boundaries before deleting a security gate. A planted violation must fail.
 
@@ -234,6 +234,8 @@ Required producers cannot disappear with their audit row. Replace bus definition
 Move law tables into their production owners and type total registries against canonical unions. CI V8 coverage replaces contract-verb-presence and executes every domain verb implementation. Native database constraints enforce stored freeze-provenance normalization; complete canon body writers and production-root defect controls preserve freshness. Evidence: `reports/review/1041-freeze-provenance-ordinary.md`. Migration preserves coherent bytes and refuses invalid stored rows atomically. Inert DB, statement and batch wiring preserves native operands and atomicity. Native import/loader rules own the query boundary; custom per-call analysis remains. Evidence: `reports/review/1041-compose-query-capability-ordinary.md`.
 
 Rejudge waivers and grants at their subjects. D321 permits reasoned native inline exceptions and shrinking ESLint bulk migration debt, not automatic permission copying. Reviewed exceptions preserve actual transferred lifetimes, derived replacements and native compatibility boundaries. Item 1006 owns broader disposition. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Installed catalog entries are leads; confirm effective rules and scope before deleting enforcement. Missing example rule names do not authorize another dependency. Stylelint is approved for its assigned CSS claims; CSS coverage does not replace TypeScript value-flow claims.
+
+D325 native assertion rules replace custom cast facts. Review and scoped controls pass; complete qualification stays open. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.
 
 Preserve D1/D40 request and turn construction boundaries and D118 subscription placement, not only runtime procedure names. Native prose restrictions and real delivery tests preserve D132's slot invariant. A typed reservation-key object does not prove unique mount use; qualify the actual successor before dropping that claim.
 
@@ -274,7 +276,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 ### Execution and verification
 
-Give lanes cohesive assignments with ownership, behavior and scoped floors. Main schedules load under measured limits; scoped checks can overlap. Batch review corrections and reuse matching checks. Follow the lane skill for owner-authorized commit bypasses; retain message validation and record deferred checks. D317 owns the pre-push application check, not a check after each merge. The dev stack is disposable; protect the release container.
+Follow the orchestrator and lane skills for assignments, scoped floors, review and commits. Scoped checks can overlap under measured limits. D317 owns the pre-push application check. Protect the release container.
 
 ### Compose holds wiring only
 
