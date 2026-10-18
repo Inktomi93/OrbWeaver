@@ -1,5 +1,6 @@
 // One native typecheck door: discover authored programs, expand references, run every leaf exactly once.
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -9,6 +10,10 @@ import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import type { SpawnNicedResult } from "@orb/tooling/floor/process/proc";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
+import { z } from "zod";
+import { descriptorVersion } from "../../floor/code-facts/semantic-inventory-inputs.ts";
+import type { ObservedRouterDeclarationPreparation, RouterDeclarationInputs } from "../../floor/compiler/router-declarations-contract.ts";
+import { packageConfigPath } from "../../floor/compiler/type-config-intent.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import type { TypecheckExecutionResult, TypecheckProgramResult, TypecheckProgramStatus } from "../contract/typecheck.ts";
 import { withApplicationPrograms } from "../lib/application-programs.ts";
@@ -19,6 +24,8 @@ refuseDirectInvocation(import.meta.url, "pnpm typecheck [--config <repo-relative
 const TS7_WRAPPER = fileURLToPath(new URL("../../../../scripts/ts7.ts", import.meta.url));
 const COMPILER_DIAGNOSTIC_RE = /\berror TS\d+:/u;
 const NATIVE_DIAGNOSTIC_EXIT = 1;
+const CLIENT_ROUTER_SOURCE = "packages/client/src/data/trpc.ts";
+const routerPackageSchema = z.object({ exports: z.object({ "./router-types": z.object({ types: z.string() }) }) });
 const RESULT_LABELS = {
   passed: "PASS",
   violations: "FAIL",
@@ -93,34 +100,193 @@ export function classifyTypecheckChild(result: SpawnNicedResult): TypecheckProgr
 
 type ProgramRunner = (config: string) => Promise<SpawnNicedResult>;
 
-async function runPrograms(programs: readonly CompilerProgram[], concurrency: number, runner: ProgramRunner): Promise<readonly TypecheckProgramResult[]> {
-  let cursor = 0;
-  const results: TypecheckProgramResult[] = [];
-  const worker = async (): Promise<void> => {
-    for (;;) {
-      const program = programs[cursor];
-      cursor += 1;
-      if (program === undefined) {
-        return;
+interface ClientRouterProjection {
+  readonly root: string;
+  readonly owner: CompilerProgram;
+  readonly prepared: ObservedRouterDeclarationPreparation;
+  readonly inputs: RouterDeclarationInputs;
+  readonly config: string;
+  readonly directory: string;
+}
+
+function assertClientProjectionCurrent(projection: ClientRouterProjection): void {
+  projection.prepared.assertCurrent();
+  try {
+    projection.inputs.assertCurrent();
+  } catch (error) {
+    throw new Error("Client router typecheck projection changed; no current verdict is available.", { cause: error });
+  }
+  const current = readCompilerPrograms(projection.root).find(({ id }) => id === projection.owner.id);
+  if (current === undefined || descriptorVersion(current) !== descriptorVersion(projection.owner)) {
+    throw new Error("Client router typecheck native owner changed; no current verdict is available.");
+  }
+}
+
+async function prepareClientProjection(
+  root: string,
+  canonical: readonly CompilerProgram[],
+  selected: readonly CompilerProgram[],
+  views: ReadonlyMap<string, string> | undefined,
+): Promise<ClientRouterProjection | undefined> {
+  const owner = selected.find((program) => program.config === packageConfigPath("client") && program.files.includes(CLIENT_ROUTER_SOURCE));
+  if (owner === undefined) {
+    return;
+  }
+  const owners = canonical.filter(({ files }) => files.includes(CLIENT_ROUTER_SOURCE));
+  if (owners.length !== 1 || owners[0]?.id !== owner.id) {
+    throw new Error("Client router typecheck has ambiguous native direct-root ownership.");
+  }
+  if (owner.commandLine.options.paths !== undefined) {
+    throw new Error("Client router typecheck requires the canonical path-free options; no existing mapping may be replaced.");
+  }
+  const { prepareRouterDeclarations } = await import("../../floor/compiler/router-declarations.ts");
+  const { routerDeclarationInputs } = await import("../../floor/compiler/router-declaration-inputs.ts");
+  const inputs = routerDeclarationInputs();
+  const manifest = inputs.system.readFile(join(root, "packages/server/package.json"));
+  if (manifest === undefined) {
+    throw new Error("Client router typecheck requires the server's public declaration export.");
+  }
+  const door = routerPackageSchema.parse(JSON.parse(manifest)).exports["./router-types"].types;
+  for (const input of owner.configPaths) {
+    inputs.system.readFile(resolve(root, input));
+  }
+  const view = views?.get(owner.config);
+  if (views !== undefined && view === undefined) {
+    throw new Error(`application compiler view is absent: ${owner.config}`);
+  }
+  const originalConfig = resolve(root, view ?? owner.config);
+  inputs.system.readFile(originalConfig);
+  const entry = resolve(root, "packages/server", door);
+  // Native inherited-root queries must observe the view scaffolding before the producer captures its epoch.
+  const parent = join(root, ".cache/typecheck-router");
+  mkdirSync(parent, { recursive: true });
+  const directory = mkdtempSync(join(parent, "client-"));
+  const config = join(directory, "client.json");
+  try {
+    const text = JSON.stringify({
+      extends: originalConfig,
+      compilerOptions: { paths: { "@orb/server": [entry] } },
+      references: owner.commandLine.projectReferences?.map((reference) => ({ ...reference, path: reference.path })) ?? [],
+    });
+    writeFileSync(config, text, { flag: "wx" });
+    if (inputs.system.readFile(config) !== text) {
+      throw new Error("Client router typecheck projection changed while being prepared.");
+    }
+    const prepared = await prepareRouterDeclarations(root, [import.meta.url]);
+    if (entry !== prepared.entry) {
+      throw new Error("Client router typecheck public declaration export differs from the observed producer entry.");
+    }
+    const projection = { root, owner, prepared, inputs, config, directory };
+    assertClientProjectionCurrent(projection);
+    return projection;
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+function failedProgram(config: string, error: unknown, child?: SpawnNicedResult): TypecheckProgramResult {
+  const message = error instanceof Error ? error.message : String(error);
+  const stderr = child?.stderr ?? "";
+  return {
+    config,
+    status: "tool-error",
+    code: child?.code ?? null,
+    stdout: child?.stdout ?? "",
+    stderr: stderr.includes(message) ? stderr : [stderr, message].filter(Boolean).join("\n"),
+    timedOut: child?.timedOut ?? false,
+  };
+}
+
+async function runProgram(
+  program: CompilerProgram,
+  runner: ProgramRunner,
+  projection: ClientRouterProjection | undefined,
+  views: ReadonlyMap<string, string> | undefined,
+): Promise<TypecheckProgramResult> {
+  const projected = projection?.owner.id === program.id ? projection : undefined;
+  let child: SpawnNicedResult | undefined;
+  // @orb-waive caught-failure-ownership(error): failedProgram retains native output and marks this canonical owner tool-error; runTypecheck prints it and returns exit 2. Ends if a freshness failure can produce a current verdict.
+  try {
+    if (projected !== undefined) {
+      assertClientProjectionCurrent(projected);
+    }
+    let config = program.config;
+    if (views !== undefined) {
+      const view = views.get(program.config);
+      if (view === undefined) {
+        throw new Error(`application compiler view is absent: ${program.config}`);
       }
-      // @orb-waive caught-failure-ownership(error): stored as a tool-error result; runTypecheck prints its diagnostic and returns exit 2. Ends if failed child results stop affecting the command verdict.
-      try {
-        const child = await runner(program.config);
-        results.push({ config: program.config, status: classifyTypecheckChild(child), ...child });
-      } catch (error) {
-        results.push({
-          config: program.config,
-          status: "tool-error",
-          code: null,
-          stdout: "",
-          stderr: error instanceof Error ? error.message : String(error),
-          timedOut: false,
-        });
+      config = view;
+    }
+    try {
+      child = await runner(projected?.config ?? config);
+    } finally {
+      if (projected !== undefined) {
+        assertClientProjectionCurrent(projected);
       }
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(concurrency, programs.length) }, worker));
-  return results.toSorted((left, right) => compare(left.config, right.config));
+    return { config: program.config, status: classifyTypecheckChild(child), ...child };
+  } catch (error) {
+    return failedProgram(program.config, error, child);
+  }
+}
+
+async function runPrograms({
+  root,
+  canonical,
+  programs,
+  concurrency,
+  runner,
+  views,
+}: {
+  readonly root: string;
+  readonly canonical: readonly CompilerProgram[];
+  readonly programs: readonly CompilerProgram[];
+  readonly concurrency: number;
+  readonly runner: ProgramRunner;
+  readonly views?: ReadonlyMap<string, string>;
+}): Promise<readonly TypecheckProgramResult[]> {
+  const results: TypecheckProgramResult[] = [];
+  let projection: ClientRouterProjection | undefined;
+  let runnable = programs;
+  // @orb-waive caught-failure-ownership(error): the failed client preparation is a tool-error row, while every other selected native owner still runs. Ends if preparation errors are discarded or relabeled clean.
+  try {
+    projection = await prepareClientProjection(root, canonical, programs, views);
+  } catch (error) {
+    const config = packageConfigPath("client");
+    results.push(failedProgram(config, error));
+    runnable = programs.filter((program) => program.config !== config);
+  }
+  try {
+    let cursor = 0;
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const program = runnable[cursor];
+        cursor += 1;
+        if (program === undefined) {
+          return;
+        }
+        results.push(await runProgram(program, runner, projection, views));
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, runnable.length) }, worker));
+    if (projection !== undefined) {
+      // @orb-waive caught-failure-ownership(error): preserve the child's complete result but mark its owner tool-error if the original context becomes stale before batch acceptance. Ends if the failure no longer affects runTypecheck's exit 2.
+      try {
+        assertClientProjectionCurrent(projection);
+      } catch (error) {
+        const ownerConfig = projection.owner.config;
+        const index = results.findIndex(({ config }) => config === ownerConfig);
+        results[index] = failedProgram(ownerConfig, error, results[index]);
+      }
+    }
+    return results.toSorted((left, right) => compare(left.config, right.config));
+  } finally {
+    if (projection !== undefined) {
+      rmSync(projection.directory, { recursive: true, force: true });
+    }
+  }
 }
 
 export async function executeTypecheckPrograms(
@@ -152,7 +318,7 @@ export async function executeTypecheckPrograms(
     discovered: discovered.length,
     requested,
     skippedContainers,
-    programs: await runPrograms(runnable, concurrency, runner),
+    programs: await runPrograms({ root, canonical: discovered, programs: runnable, concurrency, runner }),
     concurrency,
   };
 }
@@ -173,22 +339,19 @@ export async function runTypecheck(root: string, args: readonly string[]): Promi
     ? await withApplicationPrograms(root, async ({ programs, canonicalPrograms }) => {
         const concurrency = readConcurrencyProfile().pnpmWorkspaceConcurrency;
         const configs = new Map(programs.map((program) => [program.owner.config, program.config]));
-        const runner = async (config: string): Promise<SpawnNicedResult> => {
-          const view = configs.get(config);
-          if (view === undefined) {
-            throw new Error(`application compiler view is absent: ${config}`);
-          }
-          return await spawnNiced(process.execPath, typecheckCompilerArgv(view), { cwd: root });
-        };
+        const runner = async (config: string): Promise<SpawnNicedResult> => await spawnNiced(process.execPath, typecheckCompilerArgv(config), { cwd: root });
         return {
           discovered: canonicalPrograms.length,
           requested: null,
           skippedContainers: [],
-          programs: await runPrograms(
-            programs.map(({ owner }) => owner),
+          programs: await runPrograms({
+            root,
+            canonical: canonicalPrograms,
+            programs: programs.map(({ owner }) => owner),
             concurrency,
             runner,
-          ),
+            views: configs,
+          }),
           concurrency,
         };
       })

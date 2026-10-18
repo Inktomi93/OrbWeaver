@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-17
+status: doing
+updated: 2026-10-18
 priority: P1
 area: tooling
+lane: codex/inventory-implementation-inputs-1002-types
 plan: native-occurrence-index
 ---
 

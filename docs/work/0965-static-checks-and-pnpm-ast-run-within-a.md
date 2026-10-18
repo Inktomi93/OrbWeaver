@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
-updated: 2026-10-17
+status: open
+updated: 2026-10-18
 priority: P1
-lane: codex/router-declaration-bridge-965
 plan: test-foundation
 ---
 
@@ -35,7 +34,7 @@ Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. 
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-Immutable router publication, observed cold emission and the output-watch correction are integrated. Real root and server build commands pass. A controlled full-client declaration projection preserves native options and authored roots, removes server implementation sources and passes complete canonical procedure-path, input and wire-output conformance. This is not shipped adoption or semantic-origin qualification. Evidence: `reports/review/965-native-router-equivalence-and-client-closure.md`. Startup and verdict lifetimes, retained parsers, transaction origins, warm reuse and consumer adoption remain open.
+Immutable router publication, observed emission and the output-watch correction are integrated. The client product typecheck consumes a fresh observed declaration view with native roots, options and references preserved. Currentness, cleanup and application controls pass review; the maintained full-client command passes. Source-based application eligibility stays distinct from projected child closure. Evidence: `reports/review/965-consumed-client-typecheck.md`. Complete router conformance and controlled closure evidence remain valid. Other compiler, lint, editor, semantic and transaction owners, origin qualification and warm reuse remain open.
 
 The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 

@@ -30,7 +30,7 @@ Dispatch the corpus smoke matrix independently. Its native shape and clone check
 
 Migrate qualified ESLint-only MOVE rows and DELETE scaffolding before registries. Security rows wait for behavioral successors. Prototype lint lands before shared ESLint edits. Preserve KEEP data and necessary missing-data refusal in its producer or consumer when deleting health twins.
 
-Keep cold multi-world cost separate. Router emission and controlled client projection qualify; item 965 owns startup, origin and adoption.
+Keep cold multi-world cost separate. Client typecheck consumes router declarations; item 965 retains other owners, origin and warm reuse.
 
 D321 records the owner rulings; item 1041 owns the audited gate migration. Custom gate analysis serves the KEEP set. Do not port MOVE or DELETE rows into the fact store. Shared providers count once for cost.
 
