@@ -24,6 +24,8 @@ One comparer; every caller gate and `pnpm ast respell` call it; findings and `pn
 
 Reviewed consolidation moves shared field discovery, declaration recognition, factory origin and derivation into the floor. Consumers preserve their thresholds, selection, diagnostics and distinct policy judgments. Derivation reuses the inventory store's canonical declaration identity; no second key or compiler loader is added.
 
+The archived consolidation matches its integrated ancestor; no source salvage remains. Preserve its recovery branch and archive. Evidence: `reports/review/parked-worktree-disposition-1002-954-997.md`.
+
 Matched consumer and AST output controls, native directional refusal controls and affected static checks pass. Reviewed source `91ad8df309` extends canonical factory aliases, transparent wrappers and exported local origins. Actual native terminal declarations reject asserted missing members; supplied property paths reuse the existing member reader. Reviewed source `409ce2229e` shares neutral field comparison and native utility contribution facts without changing consumer thresholds or diagnostics. Component, copy-consumer and tooling compiler controls pass. Root compilation retains unrelated diagnostics. Native repository equivalence and complete family coverage remain open; hand-shape still owns threshold replacement.
 
 Reviewed `86feee842e` adds declaration-paired generic, mapped, signature and schema-output contribution through shared readers. Component ownership consumes captured returned-value dependencies. Projected native methods and nonexecuting collector cases refuse after targeted red-first corrections. Matching affected and unchanged controls pass; complete output equivalence remains open.

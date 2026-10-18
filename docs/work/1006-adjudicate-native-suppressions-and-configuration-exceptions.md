@@ -48,6 +48,6 @@ Hook exceptions preserve value-keyed effects and retained factory identity. The 
 
 Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review and scoped integration pass. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
 
-Production and tooling exception adjudication are integrated. Stale directives and compatibility re-exports are removed; permissions narrow to actual subjects. Scoped evidence retains inherited failures. Transcript sizing, importer completion and excluded compatibility owners remain open. Sessions policy binds once per graph; its covered environment exceptions are removed. Evidence: `reports/review/1006-production-native-exceptions-claude.md` and `reports/review/1006-tooling-native-exceptions-claude.md`.
+Production and tooling permissions narrow to actual subjects. Sessions policy binds once per graph. Evidence: `reports/review/1006-production-native-exceptions-claude.md`, `reports/review/1006-tooling-native-exceptions-claude.md` and `reports/review/1048-session-role-policy-security-independent.md`.
 
-Evidence: `reports/review/1048-session-role-policy-security-independent.md`.
+Cleanup removes stale directives and their ended grant, repoints private readers and updates native metadata. Ownership timing, ordinary size and root types remain red. Complete exception disposition stays open. Evidence: `reports/review/1006-native-exception-remainder-independent.md`.
