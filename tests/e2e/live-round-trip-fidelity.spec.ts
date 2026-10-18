@@ -16,9 +16,9 @@
 // int test is the authoritative harness") — never a false pass. Self-seeds a fresh chat (shared-DB isolation:
 // never listChats()[0]). Restores the mutated preset + the prior chat Model role in a finally.
 
-// @orb-waive-file no-test-fabrication(readonly WireMessage[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { pageArray, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { expect, test } from "@playwright/test";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import {
@@ -46,6 +46,23 @@ interface WireMessage {
   readonly name?: string;
 }
 
+// The capture body is the backend's own vocabulary, so each non-system message is read field by field.
+function nonSystemWireMessages(messages: unknown): readonly WireMessage[] {
+  if (messages === undefined) {
+    return [];
+  }
+  return pageArray(messages, "captured wire messages").flatMap((message, index): WireMessage[] => {
+    const record = pageObject(message, `captured wire message ${String(index)}`);
+    const role = pageString(record["role"], `captured wire message ${String(index)} role`);
+    if (role === "system") {
+      return [];
+    }
+    const content = pageString(record["content"], `captured ${role} message ${String(index)} content`);
+    const name = record["name"];
+    return [{ role, content, ...(typeof name === "string" ? { name } : {}) }];
+  });
+}
+
 test("TASK-24 four-layer capture works on the live stack (names 'completion', one real turn)", { tag: "@live" }, async () => {
   test.setTimeout(180_000);
   // The STATELESS openai-compat wire is the harness's local-engine connection — the `name` fingerprint this
@@ -62,7 +79,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     await sendTurn(chatId, PROBE);
 
     const captures = await fetchWireCaptures(chatId, "vllm");
-    const wire = captures[0]?.body as Record<string, unknown> | undefined;
+    const wire = captures[0]?.body;
     // The AUTHORITATIVE fidelity harness is the deterministic int test — this @live leg only proves the seam
     // works on a REAL stack turn. If WIRE_CAPTURE is not enabled on the operator-started stack the capture is
     // empty; report the evidence as genuinely unavailable rather than passing without assertions.
@@ -76,7 +93,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     // ASSEMBLE — the name-stamp pass touched rows.
     expect((await getShapeTrace(chatId)).stageCounts.named).toBeGreaterThan(0);
     // WIRE — a non-system message carries a `name` (the completion fingerprint), NO inline "Author: " prefix.
-    const msgs = ((wire["messages"] as readonly WireMessage[] | undefined) ?? []).filter((m) => m.role !== "system");
+    const msgs = nonSystemWireMessages(wire["messages"]);
     expect(msgs.some((m) => m.name !== undefined && m.name.length > 0)).toBe(true);
     expect(msgs.every((m) => !AUTHOR_PREFIX_RE.test(m.content))).toBe(true);
     // DB — the assistant row is stamped with the local model.

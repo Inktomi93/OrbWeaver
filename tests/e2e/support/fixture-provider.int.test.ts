@@ -48,6 +48,25 @@ test("a wrong latest user turn is refused even when the expected marker exists e
   }
 });
 
+test("a non-text latest user turn refuses instead of matching an earlier text marker", async () => {
+  const fixture = await startFixtureProvider(0, [TURN]);
+  const body = JSON.stringify({
+    messages: [
+      { role: "user", content: TURN.userMessage },
+      { role: "assistant", content: "prior synthetic reply" },
+      { role: "user", content: [{ type: "text", text: TURN.userMessage }] },
+    ],
+  });
+  try {
+    const response = await fetch(`${fixture.baseUrl}/chat/completions`, { method: "POST", body });
+    expect(response.status).toBe(422);
+    expect(await response.text()).toContain("wrong user turn");
+    expect(fixture.requests.map((request) => ({ body: request.body, finished: request.finished }))).toEqual([{ body, finished: false }]);
+  } finally {
+    await fixture.close();
+  }
+});
+
 for (const attributed of [false, true]) {
   test(`real readiness probe succeeds, then a ${attributed ? "name-stamped" : "plain"} turn exposes only its prefix until released`, async () => {
     const fixture = await startFixtureProvider(0, [TURN]);
