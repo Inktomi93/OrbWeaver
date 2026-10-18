@@ -8,7 +8,7 @@ import { exportProcessEnv, inheritedProcessEnv, processEnvValue } from "./proces
 const NODE_OPTIONS = "NODE_OPTIONS";
 const WORKSPACE = new URL("../../../../pnpm-workspace.yaml", import.meta.url);
 const workspaceSchema = z.object({ nodeOptions: z.string().min(1) });
-const HEAP_OPTION = /^--max[-_]old[-_]space[-_]size(?:[-_]percentage)?(?:=|$)/u;
+const HEAP_OPTION = /^--max[-_](?:old[-_]space[-_]size(?:[-_]percentage)?|heap[-_]size)(?:=|$)/u;
 
 function optionWords(text: string): string[] {
   const words: string[] = [];

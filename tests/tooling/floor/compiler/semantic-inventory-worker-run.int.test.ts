@@ -16,11 +16,16 @@ const timeout = scaledBudget(30_000);
 const observation = z.object({ heap: z.number(), options: z.string(), controllerOptions: z.string(), argv: z.string().array() });
 
 const cases = [
-  { name: "floor", options: "", minimum: 16, maximum: 17, status: 0, stderr: [], fault: "" },
-  { name: "explicit", options: "--max-old-space-size=512", minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
+  { name: "floor", options: "", args: [], minimum: 16, maximum: 17, status: 0, stderr: [], fault: "" },
+  { name: "explicit", options: "--max-old-space-size=512", args: [], minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
+  { name: "total-heap-env", options: "--max-heap-size=512", args: [], minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
+  { name: "total-heap-env-underscore", options: "--max_heap_size=512", args: [], minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
+  { name: "total-heap-argv", options: "", args: ["--max-heap-size=512"], minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
+  { name: "total-heap-argv-underscore", options: "", args: ["--max_heap_size=512"], minimum: 0, maximum: 1, status: 0, stderr: [], fault: "" },
   {
     name: "signal",
     options: "",
+    args: [],
     minimum: 16,
     maximum: 17,
     status: 2,
@@ -30,6 +35,7 @@ const cases = [
   {
     name: "status",
     options: "",
+    args: [],
     minimum: 16,
     maximum: 17,
     status: 2,
@@ -55,7 +61,7 @@ ${mode.fault}`,
       `const {runInventoryPartitionWorker}=await import('./tooling/src/floor/compiler/semantic-inventory-worker-run.ts');try{runInventoryPartitionWorker({root:${JSON.stringify(implementation)},descriptor:{id:'bounded-worker'},destination:'unused'});}catch(error){process.stderr.write(String(error));process.exitCode=2;}`,
     );
     const bootstrap = join(implementation, "tooling/src/floor/compiler/semantic-inventory-runtime.ts");
-    const result = runNicedSync(process.execPath, ["--import", bootstrap, entry], {
+    const result = runNicedSync(process.execPath, [...mode.args, "--import", bootstrap, entry], {
       cwd: implementation,
       env: inheritedProcessEnv({ [NODE_OPTIONS]: mode.options }),
       timeout,
@@ -63,7 +69,7 @@ ${mode.fault}`,
     expect(existsSync(output), result.stderr).toBe(true);
     const captured = observation.parse(JSON.parse(readFileSync(output, "utf8")));
     expect(captured.options).toBe(captured.controllerOptions);
-    expect(captured.argv).toEqual(["--import", bootstrap]);
+    expect(captured.argv).toEqual([...mode.args, "--import", bootstrap]);
     expect(result.status, result.stderr).toBe(mode.status);
     for (const text of mode.stderr) {
       expect(result.stderr).toContain(text);

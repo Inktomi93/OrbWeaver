@@ -19,6 +19,10 @@ const owners = [
   { name: "unrelated", options: "--conditions=heap-control", args: [], boots: 2, minimum: 16, maximum: 17 },
   { name: "environment", options: "--max_old_space_size=512", args: [], boots: 1, minimum: 0, maximum: 1 },
   { name: "argv", options: "", args: ["--max-old-space-size=768"], boots: 1, minimum: 0, maximum: 1 },
+  { name: "total-heap-env", options: "--max-heap-size=512", args: [], boots: 1, minimum: 0, maximum: 1 },
+  { name: "total-heap-env-underscore", options: "--max_heap_size=512", args: [], boots: 1, minimum: 0, maximum: 1 },
+  { name: "total-heap-argv", options: "", args: ["--max-heap-size=512"], boots: 1, minimum: 0, maximum: 1 },
+  { name: "total-heap-argv-underscore", options: "", args: ["--max_heap_size=512"], boots: 1, minimum: 0, maximum: 1 },
   { name: "quoted-title", options: '--title="contains --max-old-space-size=512"', args: [], boots: 2, minimum: 16, maximum: 17 },
 ];
 for (const owner of owners) {
