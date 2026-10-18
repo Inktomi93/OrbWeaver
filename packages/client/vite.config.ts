@@ -567,7 +567,7 @@ export default defineConfig({
         useFlatConfig: true,
         lintCommand: "eslint 'src/**/*.{ts,tsx}'",
       },
-      overlay: { initialIsOpen: false, position: "br" },
+      overlay: process.env["E2E_HARNESS"] === "on" ? false : { initialIsOpen: false, position: "br" },
       enableBuild: false,
     }),
     // Dev-serve only: mirrors the backend's live, setting-dependent document CSP (see CSP_DEV_FALLBACK).

@@ -1,7 +1,7 @@
 ---
 kind: work
 status: doing
-updated: 2026-10-17
+updated: 2026-10-18
 priority: P1
 area: tests
 lane: codex/corpus-smoke-matrix-898
@@ -24,12 +24,14 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Corpus flow specs, scripted-provider and authentication modes, phone widths, chat styles and CI cell admission are integrated. Complete local execution and hosted qualification remain open. Settings groups use their real public behavior, including About and Backup. Production-defect controls and the complete mode matrix remain required; collection does not establish execution.
+Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Complete execution, hosted qualification and production-defect controls remain open; collection is not execution.
 
 Reviewed responsive navigation, exact virtualized canon, retained-room persona freshness and recent-thread repairs are integrated. The restored-room navigation correction passes its complete affected matrix. Matching native results cover the local matrix through case-scoped composition, not a fresh aggregate run. Historical failures remain recorded. Hosted CI, owner-copy qualification and historical infrastructure causes remain open. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
 
-The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion. Read `reports/review/seven-day-bottleneck-claude-analysis.md` before changing this dependency.
+The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
 Production migrations and integrity checks pass on a separate disposable owner-data copy. Its source and personal outputs stay outside Git and CI. This does not qualify application boot or smoke execution. Reviewed private intake preserves the existing owner, migrates a disposable clone and refuses portable publication and native output overrides. Private intake reaches workload settlement after native schedule quarantine on a separate copy. Selected workload reads use public caller-scoped IDs; bounded regression and failure controls pass. The owner-copy workload refusal remains independent and needs its native cause. Private application execution and the complete matrix remain open. Evidence: `reports/review/898-private-output-correction-security-review.md`.
 
 Request-sensitive v2 embeddings preserve production bounds. Fresh synthetic publication and one local desktop browser cell pass. Remaining cells, owner-copy parity and hosted CI stay open. Evidence: `reports/review/898-v2-publication.md`.
+
+Isolated E2E stacks disable only the native checker HUD. Terminal lint diagnostics and Vite application errors remain. Red-first browser controls and independent review pass; complete matrix acceptance stays open. Evidence: `reports/review/898-checker-hud-independent-review.md`.
