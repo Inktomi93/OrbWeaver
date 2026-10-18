@@ -102,14 +102,28 @@ Findings:
 
 1. Medium, fixed: waiver-budget growth was silenced by analysis gaps (item 4).
 2. Medium, fixed: owner terms failed open. Any operand that was neither a call nor an imported column counted as an owner restriction, so a const column alias, a column ternary branch and a hoisted subselect all read as scoped.
-   - Fix (`tooling/src/verify/lib/tenancy-direct-read.ts`): an identifier operand resolves one hop by syntax, with no Type reads.
-     - A parameter, a destructured binding, a literal, or a member of a non-table data object is a plain value.
-     - A column or table alias is column-valued.
-     - A builder, call, further alias or unresolvable binding makes the predicate unknown.
+   - Fix (`tooling/src/verify/lib/tenancy-direct-read.ts`, `bindingValue`): a binding is judged by its declaring syntax, with no Type reads. A destructuring pattern resolves to the parameter or variable that declares it.
+     - A parameter, or a name destructured from a parameter, is a plain value.
+     - A const binding, or the iterable of a `for…of`, is judged by its source:
+       - A literal is plain.
+       - `await` and non-Drizzle call results are data.
+       - A Drizzle alias call, an imported table or column, or a member of one is column-valued.
+       - A query-builder chain, or an object, array, conditional or other construction, makes the predicate unknown.
+     - A name bound straight from a call or `await` is unknown; a destructured or member-read holder of that result is data.
+     - A local root counts as data only as a parameter or a const holder of fetched data. No further hop is followed.
    - A conditional operand is split per branch, and every branch owes the restriction.
    - A table whose only owner term is column-valued is UNKNOWN, never clean. A plain owner term beside it still scopes the read.
    - Controls in `tests/tooling/verify/gates/owner-scoped-reads.test.ts`: const-column alias, column ternary, main's P01 (hoisted subselect) and P02 (const seat column in a join), and a direct column-valued owner. Each asserts its exact token, reason and `supported` count. All failed before the fix and pass after.
    - P02 shifts from UNJOINED (main's finding) to UNKNOWN. It is still never clean, and its control turns red if a change makes it clean.
+   - Second review round (Low): five `owner_id = owner_id` shapes read as clean because any destructured binding counted as plain and object, array and conditional holders fell through to data. The shapes:
+     - `const {ownerId: own} = personas`
+     - `const [t] = [personas]`
+     - `for (const {ownerId: own} of [personas])`
+     - `const t = {ownerId: personas.ownerId}`
+     - `const t = flag ? personas : personas`
+   - Each now asserts its exact token and UNKNOWN reason. All five failed on `e46d7478cd` (each read as a clean supported read).
+   - A positive control keeps parameter destructuring, data destructured from a parameter and a fetched row's member supported.
+   - Stated limit under D328 (ruled): a parameter typed as a column, such as `own: typeof personas.ownerId`, is a plain value, because the gate does not check an owner term's type.
 3. Medium, fixed: 12 false positives on main's product code.
    - 11 are post-fetch owner compares main accepted. `directOwnerRead` now calls the existing `hasPostFetchFilter` (one function body) before reporting a naked read.
    - Control: a rejecting compare scopes the read, and a logging-only compare stays a finding. It failed before the fix.
@@ -124,7 +138,7 @@ Also from review:
 - The weak delivery assertions in `tests/tooling/verify/ops/native-tenancy-pin-delivery.int.test.ts` now assert the exact `supported` count and each anchor's line, token and reason. The `unsafe` read's own verdict ("table is not a directly imported schema binding") is now asserted separately from the raw-SQL UNKNOWN on the same line.
 - `StructureAnalysisCoverage.supported` keeps its artifact name. Its TSDoc and both CLI views now read "judged (finding or out of scope)", through one formatter, `analysisCoverageText` in `tooling/src/verify/lib/show-policy.ts`.
 - `tooling/src/verify/lib/tenancy-pin.ts` and `native-tenancy-pin.ts` are imported only by `native-tenancy-pin-delivery.int.test.ts`, which uses them as negative frame guards. Flagged for deletion with that test rework: the bounded owner reader does not consume them under D328.
-- The EveryOwner authority checks moved to `tooling/src/verify/lib/tenancy-every-owner.ts` unchanged, keeping both owner-read files under the size cap.
+- The EveryOwner authority checks moved to `tooling/src/verify/lib/tenancy-every-owner.ts` unchanged. The read-chain shape helpers (`imported`, `callsAround`, `predicateColumns`, `statementGap`, `filterArguments`) moved unchanged to `tooling/src/verify/lib/tenancy-read-chain.ts`. Both moves keep the owner-read files under the size cap.
 
 Needs independent review: the one-hop owner-value classification (finding 2), the post-fetch arm (finding 3), the ratchet rule (finding 1) and the pinned schema reuse.
 
@@ -143,6 +157,14 @@ The source is frozen at this lane's commit. Admission:
 - The review round fixes those 12 effective findings (11 post-fetch, 1 column-valued UNKNOWN) and the unjudged budget. The rerun needs the same command on the new commit.
 
 ## Review-round floor
+
+Second review round:
+- Red-first: the five binding-shape controls fail on `e46d7478cd` and pass now.
+- Gate family, gate tests and both native owner delivery integrations: 37 of 37 (`reports/runs/test/agent-a5b507cf43168bf04-4109251-2026-10-18T20-06-58-730Z/test-report.json`).
+- Biome, plus direct HARD and ordinary ESLint, are clean on the three changed files. `tenancy-direct-read.ts` is 378 lines and `tenancy-read-chain.ts` 93.
+- Typecheck: tooling passes. Root keeps exactly main's 39 diagnostics.
+
+First review round:
 
 - Red-first: 5 new owner-read controls fail on `34eba3079a` and pass now. The new ratchet control fails on `34eba3079a` and passes now.
 - `pnpm test:scoped` across the owner gate, gate family, waiver, authority and render tests, plus both native owner delivery integrations: 89 of 89 (`reports/runs/test/agent-a5b507cf43168bf04-3983968-2026-10-18T19-44-37-423Z/test-report.json`).

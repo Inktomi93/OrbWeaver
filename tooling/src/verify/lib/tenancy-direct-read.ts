@@ -10,10 +10,10 @@ import { enclosingFn } from "../../floor/code-facts/function-context.ts";
 import type { DirectOwnerRead, DirectOwnerReadInputs, DirectOwnerReadScope, ReadAnchor } from "../contract/tenancy.ts";
 import { classifyDrizzleClientCall } from "./drizzle-client-call.ts";
 import { hasPostFetchFilter } from "./tenancy-read.ts";
+import { callsAround, filterArguments, imported, JOINS, predicateColumns, statementGap } from "./tenancy-read-chain.ts";
 import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
 
-const JOINS = new Set(["innerJoin", "leftJoin", "rightJoin", "fullJoin", "crossJoin"]);
-const FINISHES = new Set(["all", "get", "execute", "run"]);
+const QUERY_ROOTS = new Set(["select", "selectDistinct", "from", "$with"]);
 const FILTERS = new Set(["eq", "inArray", "ne", "gt", "gte", "lt", "lte", "like", "notLike", "isNull", "isNotNull"]);
 const NAKED = "a direct by-id READ of an ownerId-scoped table has no owner predicate in the visible local filter";
 const UNJOINED = "a direct join binds an ownerId-scoped table without an owner predicate or a declared FK pointing at it";
@@ -61,16 +61,6 @@ function observed(finding?: string): DirectOwnerRead {
   return { kind: "supported", ...(finding === undefined ? {} : { finding }) };
 }
 
-// Only import-bound table expressions reach the shared resolver; local factories and aliases stay unknown.
-function imported(node: Node): boolean {
-  const value = unwrapTarget(node);
-  if (N.isIdentifier(value)) {
-    return value.getSymbol()?.getDeclarations().some(N.isImportSpecifier) === true;
-  }
-  const member = literalMemberAccess(value);
-  return member !== undefined && N.isIdentifier(member.receiver) && member.receiver.getSymbol()?.getDeclarations().some(N.isNamespaceImport) === true;
-}
-
 function column(node: Node | undefined, scope: DirectOwnerReadScope): DirectColumn | undefined {
   if (node === undefined) {
     return;
@@ -104,55 +94,75 @@ function combine(parts: readonly PredicateObservation[], alternative: boolean): 
   };
 }
 
-function isConstDeclaration(declaration: Node): boolean {
-  return declaration.getParentIfKind(SyntaxKind.VariableDeclarationList)?.getDeclarationKind() === VariableDeclarationKind.Const;
+function soleDeclaration(identifier: Identifier): Node | undefined {
+  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
+  return declarations.length === 1 ? declarations[0] : undefined;
 }
 
-// A member operand's receiver: a parameter or fetched data object is data; a const alias of a table is a column source.
-function receiverValue(identifier: Identifier): OwnerValue {
-  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
-  const [declaration] = declarations;
-  if (declarations.length !== 1 || declaration === undefined || N.isImportSpecifier(declaration) || N.isNamespaceImport(declaration)) {
-    return "opaque";
+// A destructured name belongs to the parameter or variable whose pattern declares it.
+function bindingSite(declaration: Node | undefined): Node | undefined {
+  let site = declaration;
+  while (site !== undefined && (N.isBindingElement(site) || N.isObjectBindingPattern(site) || N.isArrayBindingPattern(site))) {
+    site = site.getParentOrThrow();
   }
-  if (!(N.isVariableDeclaration(declaration) && isConstDeclaration(declaration))) {
-    return "plain";
-  }
-  const initializer = declaration.getInitializer();
-  const initial = initializer === undefined ? undefined : unwrapTarget(initializer);
-  if (initial !== undefined && N.isIdentifier(initial)) {
-    return imported(initial) ? "column" : "opaque";
-  }
-  return initial !== undefined && N.isCallExpression(initial) && drizzleExportOf(initial.getExpression()) !== undefined ? "column" : "plain";
+  return site;
 }
 
-// An identifier operand resolves exactly one hop; a column, builder, call or further alias is never a plain value.
-function identifierValue(identifier: Identifier): OwnerValue {
-  const declarations = identifier.getSymbol()?.getDeclarations() ?? [];
-  const [declaration] = declarations;
-  if (declarations.length !== 1 || declaration === undefined) {
-    return "opaque";
+// A const binding holds its initializer, or the iterable of its `for…of`; a mutable binding holds anything.
+function bindingSource(site: Node | undefined): Node | undefined {
+  const list = site?.getParentIfKind(SyntaxKind.VariableDeclarationList);
+  if (site === undefined || !N.isVariableDeclaration(site) || list?.getDeclarationKind() !== VariableDeclarationKind.Const) {
+    return;
   }
-  if (N.isParameterDeclaration(declaration) || N.isBindingElement(declaration)) {
+  const loop = list.getParent();
+  const source = N.isForOfStatement(loop) ? loop.getExpression() : site.getInitializer();
+  return source === undefined ? undefined : unwrapTarget(source);
+}
+
+// Awaited rows and non-Drizzle call results are data; a Drizzle alias is a table and a builder chain is a subquery.
+function callValue(source: Node): OwnerValue {
+  if (N.isAwaitExpression(source)) {
     return "plain";
   }
-  const initializer = N.isVariableDeclaration(declaration) && isConstDeclaration(declaration) ? declaration.getInitializer() : undefined;
-  if (initializer === undefined) {
-    return "opaque";
+  if (!N.isCallExpression(source) || drizzleExportOf(source.getExpression()) !== undefined) {
+    return "column";
   }
-  const initial = unwrapTarget(initializer);
-  if (N.isStringLiteral(initial) || N.isNoSubstitutionTemplateLiteral(initial) || N.isNumericLiteral(initial)) {
+  return callsAround(source).some((call) => QUERY_ROOTS.has(literalMemberAccess(call.getExpression())?.name ?? "")) ? "opaque" : "plain";
+}
+
+// One further hop only: a local root is data as a parameter or as a const holder of fetched data.
+function rootData(root: Identifier): boolean {
+  const site = bindingSite(soleDeclaration(root));
+  const source = bindingSource(site);
+  const fetched = source !== undefined && (N.isAwaitExpression(source) || N.isCallExpression(source)) && callValue(source) === "plain";
+  return fetched || (site !== undefined && N.isParameterDeclaration(site));
+}
+
+/** What a binding holds, judged only by its declaring syntax; `operand` marks a name used directly as the owner value. */
+function bindingValue(declaration: Node | undefined, operand: boolean): OwnerValue {
+  const site = bindingSite(declaration);
+  const source = bindingSource(site);
+  if (site !== undefined && N.isParameterDeclaration(site)) {
     return "plain";
   }
-  const access = literalMemberAccess(initial);
-  if (access === undefined) {
+  if (source === undefined) {
     return "opaque";
   }
-  const root = memberRoot(access.receiver);
+  if (N.isStringLiteral(source) || N.isNoSubstitutionTemplateLiteral(source) || N.isNumericLiteral(source)) {
+    return "plain";
+  }
+  if (N.isAwaitExpression(source) || N.isCallExpression(source)) {
+    // A name bound straight from a computation is unanalyzed; a destructured or member-read holder of its result is data.
+    return operand && site === declaration ? "opaque" : callValue(source);
+  }
+  const root = memberRoot(source);
   if (root === undefined) {
     return "opaque";
   }
-  return imported(root) ? "column" : receiverValue(root);
+  if (imported(root)) {
+    return "column";
+  }
+  return rootData(root) ? "plain" : "opaque";
 }
 
 function memberRoot(node: Node): Identifier | undefined {
@@ -171,7 +181,7 @@ function ownerValue(operand: Node, scope: DirectOwnerReadScope): OwnerValue {
     return "column";
   }
   if (N.isIdentifier(value)) {
-    return identifierValue(value);
+    return bindingValue(soleDeclaration(value), true);
   }
   if (N.isArrayLiteralExpression(value)) {
     return worstValue(value.getElements().map((element) => ownerValue(element, scope)));
@@ -196,7 +206,7 @@ function memberValue(value: Node): OwnerValue {
   if (root === undefined) {
     return N.isThisExpression(unwrapTarget(access.receiver)) ? "plain" : "opaque";
   }
-  return imported(root) ? "opaque" : receiverValue(root);
+  return imported(root) ? "opaque" : bindingValue(soleDeclaration(root), false);
 }
 
 function predicate(node: Node, scope: DirectOwnerReadScope): PredicateObservation {
@@ -286,84 +296,10 @@ function operandPredicate(left: Node | undefined, right: Node | undefined, opera
   return { ...restrictions, edges: new Set(edges) };
 }
 
-function callsAround(anchor: CallExpression): readonly CallExpression[] {
-  const before: CallExpression[] = [];
-  let current: Node = anchor;
-  for (;;) {
-    const member = N.isCallExpression(current) ? literalMemberAccess(current.getExpression()) : undefined;
-    if (member === undefined || !N.isCallExpression(member.receiver)) {
-      break;
-    }
-    before.unshift(member.receiver);
-    current = member.receiver;
-  }
-  const after: CallExpression[] = [];
-  current = anchor;
-  for (;;) {
-    const access = current.getParent();
-    const call = access?.getParent();
-    if (access === undefined || !N.isCallExpression(call) || literalMemberAccess(access)?.receiver !== current || call.getExpression() !== access) {
-      break;
-    }
-    after.push(call);
-    current = call;
-  }
-  return [...before, anchor, ...after];
-}
-
-function predicateColumns(step: CallExpression): readonly Node[] {
-  const name = literalMemberAccess(step.getExpression())?.name;
-  if (name !== "where" && !JOINS.has(name ?? "")) {
-    return [];
-  }
-  return step
-    .getArguments()
-    .flatMap((argument) => [
-      argument,
-      ...argument.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression),
-      ...argument.getDescendantsOfKind(SyntaxKind.ElementAccessExpression),
-    ])
-    .filter((candidate) => {
-      const access = literalMemberAccess(candidate);
-      return access !== undefined && imported(access.receiver);
-    });
-}
-
 /** Demand only direct read methods and import-bound predicate columns, never all application references. */
 export function directOwnerReadInputs(anchors: readonly ReadAnchor[]): DirectOwnerReadInputs {
   const calls = anchors.filter((anchor) => anchor.kind !== "relational" && imported(anchor.table)).map((anchor) => anchor.call);
   return { calls, columns: [...new Set(calls.flatMap(callsAround).flatMap(predicateColumns))] };
-}
-
-function consumed(top: CallExpression, method: string | undefined): boolean {
-  const parent = top.getParent();
-  if (N.isAwaitExpression(parent) || FINISHES.has(method ?? "")) {
-    return true;
-  }
-  const fn = top.getFirstAncestor((node) => N.isFunctionLikeDeclaration(node));
-  if (!((N.isFunctionDeclaration(fn) || N.isArrowFunction(fn) || N.isFunctionExpression(fn) || N.isMethodDeclaration(fn)) && fn.isAsync())) {
-    return false;
-  }
-  return N.isReturnStatement(parent) || parent === fn;
-}
-
-function statementGap(calls: readonly CallExpression[]): string | undefined {
-  const methods = calls.map((call) => literalMemberAccess(call.getExpression())?.name);
-  if (!(methods.includes("select") || methods.includes("selectDistinct"))) {
-    return "read chain has no direct SELECT root";
-  }
-  if (methods.includes("$dynamic") || methods.filter((method) => method === "where").length > 1) {
-    return "dynamic or repeated WHERE is outside direct analysis";
-  }
-  const top = calls.at(-1);
-  return top === undefined || !consumed(top, methods.at(-1)) ? "builder is stored, returned editable, or handed to another consumer" : undefined;
-}
-
-function filterArguments(call: CallExpression, anchor: ReadAnchor): readonly Node[] {
-  const name = literalMemberAccess(call.getExpression())?.name;
-  const filters = name === "where" || name === "innerJoin" || (call === anchor.call && anchor.kind === "join");
-  const argument = call.getArguments()[JOINS.has(name ?? "") ? 1 : 0];
-  return filters && argument !== undefined ? [argument] : [];
 }
 
 function joinedOwnerRead(table: string, facts: PredicateObservation, scope: DirectOwnerReadScope): DirectOwnerRead {

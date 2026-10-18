@@ -203,3 +203,46 @@ export async function leaked(id:string,ownerId:string){const rows=await db.selec
   expect(result.authority.effectiveFindings.map(({ token, line }) => ({ token, line }))).toEqual([{ token: "personas", line: 3 }]);
   expect(result.policies[0]?.analysis).toEqual({ supported: 2, unknown: [] });
 });
+
+// The same binding rule keeps parameter data, destructured parameter data and a fetched row's member plain owner values.
+test("parameter, destructured parameter and fetched-row owner values stay supported", ({ repoRoot }) => {
+  const data = read(
+    repoRoot,
+    `
+export async function fromParameter(id:string,{ownerId}:{ownerId:string}){return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,ownerId)));}
+export async function fromPrincipal(id:string,principal:{userId:string}){const{userId}=principal;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,userId)));}
+export async function fromRow(id:string){const[seat]=await db.select({userId:chatParticipants.userId}).from(chatParticipants).where(eq(chatParticipants.id,id));if(seat===undefined){return;}return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,seat.userId)));}
+`,
+  );
+  expect(data.authority.effectiveFindings).toEqual([]);
+  expect(data.policies[0]?.analysis).toEqual({ supported: 4, unknown: [] });
+});
+
+// Each shape reads owner_id = owner_id through a binding; only a parameter or fetched data is a plain owner value.
+test("table destructuring and object, array, loop or conditional table holders are UNKNOWN owner values", ({ repoRoot }) => {
+  const shapes = [
+    {
+      body: "export async function pattern(id:string){const{ownerId:own}=personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}",
+      reason: expect.stringContaining(COLUMN_VALUED),
+    },
+    {
+      body: "export async function element(id:string){const[t]=[personas];return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
+      reason: OPAQUE_FILTER,
+    },
+    {
+      body: "export async function loop(id:string){for(const{ownerId:own}of[personas]){return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,own)));}return undefined;}",
+      reason: OPAQUE_FILTER,
+    },
+    {
+      body: "export async function holder(id:string){const t={ownerId:personas.ownerId};return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
+      reason: OPAQUE_FILTER,
+    },
+    {
+      body: "export async function choose(id:string,flag:boolean){const t=flag?personas:personas;return db.select().from(personas).where(and(eq(personas.id,id),eq(personas.ownerId,t.ownerId)));}",
+      reason: OPAQUE_FILTER,
+    },
+  ];
+  expect(shapes.map(({ body }) => unknownOnly(repoRoot, `\n${body}`))).toEqual(
+    shapes.map(({ reason }) => ({ supported: 0, unknown: [expect.objectContaining({ line: 2, token: "personas", reason })] })),
+  );
+});
