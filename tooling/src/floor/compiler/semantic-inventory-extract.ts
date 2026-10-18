@@ -1035,8 +1035,17 @@ function extractReferenceFacts(
     throw new Error("native inventory reference pass is unavailable");
   }
   const references: InventoryPartition["references"] = [];
-  for (const declaration of referenceDeclarations.values()) {
-    const nativeReferences = nativeReferenceFacts(pass, program, declaration.query, spans);
+  const declarations = [...referenceDeclarations.values()];
+  const occurrences =
+    typeof pass.findReferencesFromOccurrences === "function"
+      ? pass.findReferencesFromOccurrences(declarations.map(({ query }) => ({ fileName: query.file, position: query.start })))
+      : undefined;
+  if (occurrences !== undefined && occurrences.length !== declarations.length) {
+    throw new Error("native occurrence answers differ from their complete declaration demand");
+  }
+  for (const [index, declaration] of declarations.entries()) {
+    const answer = occurrences?.[index];
+    const nativeReferences = nativeReferenceFacts({ pass, program }, declaration.query, spans, answer?.kind === "indexed" ? answer.references : undefined);
     for (const reference of nativeReferences) {
       references.push({ declaration: declaration.declaration, ...reference });
     }
@@ -1108,7 +1117,7 @@ function captureReferenceQueries(
     referenceQueries.push({
       root: pair.root,
       query,
-      references: nativeReferenceFacts(owner.pass, owner.program, { file: target.getSourceFile().getFilePath(), start: target.getStart() }, spans),
+      references: nativeReferenceFacts(owner, { file: target.getSourceFile().getFilePath(), start: target.getStart() }, spans),
     });
     owner.pass.validate(root.getFilePath());
     owner.pass.validate(source.getFilePath());
@@ -1126,13 +1135,14 @@ function captureReferenceQueries(
 }
 
 function nativeReferenceFacts(
-  pass: ts.ReadonlyReferencePass,
-  program: ts.Program,
+  owner: { readonly pass: ts.ReadonlyReferencePass; readonly program: ts.Program },
   query: ReferenceDeclaration["query"],
   spans: InventorySpans,
+  captured?: readonly ts.ReferencedSymbol[],
 ): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
+  const { pass, program } = owner;
   // DocumentSpan wrappers subscribe to source modifications and retain every result in this read-only worker.
-  const groups = pass.findReferences(query.file, query.start, { includeDefinitionDisplay: false }) ?? [];
+  const groups = captured ?? pass.findReferences(query.file, query.start, { includeDefinitionDisplay: false }) ?? [];
   const references: Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] = [];
   for (const group of groups) {
     const alias = group.definition.kind === ts.ScriptElementKind.alias;
