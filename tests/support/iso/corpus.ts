@@ -477,20 +477,8 @@ function capturedSnapshotInputs(wire: CorpusWire): string {
   });
 }
 
-/** Refuse changed requests and producer-known private values; publication never repairs captured data. */
-export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]): string {
-  const literals = secretRedactionLiterals(secrets);
-  const containsPrivate = (text: string): boolean => literals.some((literal) => text.includes(literal));
-  // Inspect native captures before schema diagnostics can echo private keys or invalid values.
-  const captured = JSON.stringify(wire, (key, value: JsonValue | undefined) => {
-    if (containsPrivate(key) || (typeof value === "string" && containsPrivate(value))) {
-      throw new Error(PRIVATE_MATERIAL_MESSAGE);
-    }
-    return value;
-  });
-  if (containsPrivate(captured)) {
-    throw new Error(PRIVATE_MATERIAL_MESSAGE);
-  }
+/** Encode strict captures without making a publication or secret-scrubbing claim. */
+export function encodeCorpusWire(wire: CorpusWire): string {
   const published = publishedCorpusSchema.parse({
     auth: wire.auth,
     ...(wire.oidc === undefined ? {} : { oidc: wire.oidc }),
@@ -512,6 +500,24 @@ export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]
     throw new Error("Corpus request does not match its publication recipe");
   }
   const serialized = JSON.stringify(published);
+  return serialized;
+}
+
+/** Refuse changed requests and producer-known private values; publication never repairs captured data. */
+export function serializeCorpusWire(wire: CorpusWire, secrets: readonly string[]): string {
+  const literals = secretRedactionLiterals(secrets);
+  const containsPrivate = (text: string): boolean => literals.some((literal) => text.includes(literal));
+  // Inspect native captures before schema diagnostics can echo private keys or invalid values.
+  const captured = JSON.stringify(wire, (key, value: JsonValue | undefined) => {
+    if (containsPrivate(key) || (typeof value === "string" && containsPrivate(value))) {
+      throw new Error(PRIVATE_MATERIAL_MESSAGE);
+    }
+    return value;
+  });
+  if (containsPrivate(captured)) {
+    throw new Error(PRIVATE_MATERIAL_MESSAGE);
+  }
+  const serialized = encodeCorpusWire(wire);
   if (containsPrivate(serialized)) {
     throw new Error(PRIVATE_MATERIAL_MESSAGE);
   }

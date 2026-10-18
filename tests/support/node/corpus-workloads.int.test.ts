@@ -143,3 +143,21 @@ test("native sleep registration refusal retains its worker error owner without r
     unsubscribe();
   }
 });
+
+test("manual native corpus execution joins only its admitted jobs and leaves an older queued job untouched", async () => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const older = await caller.workloads.start({ input: { kind: "compute-cooccurrence", params: {} }, mode: "bulk" });
+  const before = await caller.workloads.get({ id: older.id });
+  const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+  expect(await settleCorpusWorkloads(root, caller, [admitted])).toMatchObject([{ id: admitted.id, status: "succeeded" }]);
+  expect(await caller.workloads.get({ id: older.id })).toEqual(before);
+  const cancelled = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+  await caller.workloads.cancel({ id: cancelled.id });
+  await expect(settleCorpusWorkloads(root, caller, [cancelled])).rejects.toThrow("did not complete successfully");
+  expect(await caller.workloads.get({ id: cancelled.id })).toMatchObject({ status: "cancelled" });
+  const closedRunner = root.runAdmittedWorkload;
+  expect(closedRunner).toBeDefined();
+  await root[Symbol.asyncDispose]();
+  await expect(closedRunner?.(older.id, new AbortController().signal)).rejects.toThrow();
+});

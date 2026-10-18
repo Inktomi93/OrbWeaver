@@ -1,22 +1,82 @@
 // Durable corpus publication and native consumers; each runner retains its own isolation and cleanup policy.
 
 import { randomBytes } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { appendFileSync, realpathSync } from "node:fs";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
-import { exportProcessEnv, inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { exportProcessEnv, inheritedProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
 const LOCAL_PASSWORD_BYTES = 32;
+const PRIVATE_OUTPUT_UMASK = 0o077;
 const USAGE =
-  "corpus-fixture requires publish <new-directory>, e2e|matrix [published-directory] [--] [native E2E arguments], or snap [published-directory] [--] [native Snap arguments]";
+  "corpus-fixture requires publish <new-directory>, private <snapshot-directory>, e2e|matrix [fixture-directory] [--] [native E2E arguments], or snap [fixture-directory] [--] [native Snap arguments]";
 
 const INTERRUPTED_EXIT = 130;
+
+async function runPrivateCorpus(command: string, directory: string | undefined, args: readonly string[]): Promise<number | undefined> {
+  if (directory === undefined || directory === "--" || command === "publish") {
+    return;
+  }
+  const { assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, assertPrivateCorpusNetwork, privateCorpusParent } = await import(
+    "@orb/testkit/node/corpus.ts"
+  );
+  const parent = command === "private" ? realpathSync(dirname(resolve(directory))) : privateCorpusParent(resolve(directory));
+  if (parent === undefined) {
+    return;
+  }
+  if (command === "snap") {
+    throw new UsageError("Private corpus Snap stages have no private output owner; use the corpus matrix");
+  }
+  assertPrivateCorpusOutput(parent, join(parent, "owner-corpus-run"));
+  if (args.some((argument) => /^(?:--config(?:=|$)|-c)/u.test(argument))) {
+    throw new UsageError("Private corpus artifacts cannot override native output ownership");
+  }
+  assertPrivateCorpusOutputArguments(args);
+  assertPrivateCorpusNetwork();
+  const inherited = processEnvValue("CORPUS_PRIVATE_RUN_ROOT");
+  if (inherited !== undefined) {
+    assertPrivateCorpusOutput(parent, inherited);
+    return;
+  }
+  process.umask(PRIVATE_OUTPUT_UMASK);
+  const runRoot = await mkdtemp(join(parent, "owner-corpus-run-"));
+  const temporary = join(runRoot, "tmp");
+  await mkdir(temporary);
+  const log = join(runRoot, "runtime.log");
+  const marker = mintRunMarker();
+  const timeoutMs =
+    command === "matrix" ? CONSUMER_TIMEOUT_MS * (await import("../tests/e2e/support/modes.ts")).CORPUS_PROJECT_CELLS.length : CONSUMER_TIMEOUT_MS;
+  const result = await spawnNicedTranscript(
+    "pnpm",
+    ["--config.verify-deps-before-run=false", "exec", "node", "scripts/corpus-fixture.ts", command, directory, ...args],
+    {
+      cwd: process.cwd(),
+      env: inheritedProcessEnv({
+        ...runMarkerEnv(marker),
+        CORPUS_PRIVATE_RUN_ROOT: runRoot,
+        TMPDIR: temporary,
+        TMP: temporary,
+        TEMP: temporary,
+        E2E_CORPUS_REPORT_PREFIX: join(runRoot, "browser"),
+      }),
+      timeoutMs: budget(timeoutMs),
+      teardown: runMarkerTranscriptTeardown(marker),
+      onChunk: (chunk) => appendFileSync(log, chunk, { mode: 0o600 }),
+    },
+  );
+  process.stdout.write(`Private corpus artifacts: ${runRoot}\n`);
+  if (command === "private" && result.code === 0) {
+    process.stdout.write(`Private corpus fixture: ${join(runRoot, "fixture")}\n`);
+  }
+  return result.code ?? 2;
+}
 
 async function runCorpusMatrix(directory: string | undefined, args: readonly string[]): Promise<number> {
   const { CORPUS_PROJECT_CELLS, parseProjectSelection } = await import("../tests/e2e/support/modes.ts");
@@ -30,6 +90,11 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
   for (const cell of cells) {
     process.stdout.write(`Corpus matrix cell: ${cell.name}\n`);
     const marker = mintRunMarker();
+    const privateRoot = processEnvValue("CORPUS_PRIVATE_RUN_ROOT");
+    const prefix = privateRoot === undefined ? `reports/e2e-corpus-matrix/${cell.name}/${marker}` : join(privateRoot, cell.name, marker);
+    if (privateRoot !== undefined) {
+      await mkdir(dirname(prefix), { recursive: true, mode: 0o700 });
+    }
     const result = await spawnNicedTranscript(
       "pnpm",
       [
@@ -44,7 +109,7 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
       ],
       {
         cwd: process.cwd(),
-        env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_REPORT_PREFIX: `reports/e2e-corpus-matrix/${cell.name}/${marker}` }),
+        env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_REPORT_PREFIX: prefix }),
         timeoutMs: budget(CONSUMER_TIMEOUT_MS),
         teardown: runMarkerTranscriptTeardown(marker),
         onChunk: (chunk, stream) => {
@@ -182,20 +247,24 @@ async function runCorpusSnap(directory: string | undefined, nativeArgs: readonly
   return code;
 }
 
-await runTool(async () => {
-  const [command, directory, ...trailing] = process.argv.slice(2);
-  if (command !== "publish" && command !== "e2e" && command !== "snap" && command !== "matrix") {
+async function writePrivateIntake(directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
+  if (directory === undefined || nativeArgs.length > 0) {
     throw new UsageError(USAGE);
   }
-  const nativeArgs = command !== "publish" && directory !== "--" && trailing[0] === "--" ? trailing.slice(1) : trailing;
-  exportProcessEnv("ORB_ENV_NO_FILE", "1");
-  exportProcessEnv("CORPUS_AUTOINDEX", "false");
-  if (command === "matrix") {
-    return await runCorpusMatrix(directory, nativeArgs);
+  const parent = processEnvValue("CORPUS_PRIVATE_RUN_ROOT");
+  if (parent === undefined) {
+    throw new UsageError("Private corpus intake requires its owned private output root");
   }
-  if (command === "snap") {
-    return await runCorpusSnap(directory, nativeArgs);
-  }
+  const { createCorpusCapsule, writePrivateCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
+  const { createCorpusRecipe } = await import("@orb/testkit/node/corpus-recipe.ts");
+  const { options } = await createCorpusRecipe(parent);
+  await using capsule = await createCorpusCapsule({ ...options, privateSourceDirectory: resolve(directory), directory: join(parent, "working") });
+  const fixture = await writePrivateCorpusFixture(capsule, join(parent, "fixture"));
+  process.stdout.write(`Private corpus fixture: ${fixture.layout.root}\n`);
+  return 0;
+}
+
+async function runCorpusFixture(command: string, directory: string | undefined, nativeArgs: readonly string[]): Promise<number> {
   const { createCorpusCapsule, publishCorpusFixture, loadCorpusFixture, cloneCorpusFixture } = await import("@orb/testkit/node/corpus.ts");
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-fixture-"));
   let consumerCompleted = true;
@@ -267,4 +336,28 @@ await runTool(async () => {
     await joinEscaped();
     consumerCompleted = true;
   }
+}
+
+await runTool(async () => {
+  const [command, directory, ...trailing] = process.argv.slice(2);
+  if (command === undefined || !["publish", "private", "e2e", "snap", "matrix"].includes(command)) {
+    throw new UsageError(USAGE);
+  }
+  const nativeArgs = command !== "publish" && directory !== "--" && trailing[0] === "--" ? trailing.slice(1) : trailing;
+  exportProcessEnv("ORB_ENV_NO_FILE", "1");
+  exportProcessEnv("CORPUS_AUTOINDEX", "false");
+  const privateResult = await runPrivateCorpus(command, directory, nativeArgs);
+  if (privateResult !== undefined) {
+    return privateResult;
+  }
+  if (command === "private") {
+    return await writePrivateIntake(directory, nativeArgs);
+  }
+  if (command === "matrix") {
+    return await runCorpusMatrix(directory, nativeArgs);
+  }
+  if (command === "snap") {
+    return await runCorpusSnap(directory, nativeArgs);
+  }
+  return await runCorpusFixture(command, directory, nativeArgs);
 });

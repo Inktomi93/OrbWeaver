@@ -1,20 +1,25 @@
-// A capsule owns a new synthetic directory and the actual persisted graph. Private rows stay Node-owned;
-// only owner-validated wire captures may feed a later, separately authorized portable publication.
-import { existsSync, readFileSync, statSync } from "node:fs";
+// Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
+// only fresh synthetic captures may enter portable publication.
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { networkInterfaces, tmpdir } from "node:os";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
-import { localPath } from "@orb/db";
+import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import { localPath, pendingTurns, workloads } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { listEnabledAcrossOwners } from "@orb/server/domain/plugin";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
+import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { inheritedProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { count, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { CorpusWire } from "../iso/corpus.ts";
-import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { encodeCorpusWire, hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
 import type { seedCorpusChatLifecycle as produceCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
 import type { seedCorpusConnection as produceCorpusConnection } from "./corpus-connection.ts";
@@ -53,6 +58,8 @@ import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
 const CORPUS_REPLAY_FILE = "replay.json";
+const CORPUS_PRIVATE_FILE = ".private-corpus.json";
+const PRIVATE_PERMISSION_MODULUS = 0o100;
 const SHARED_MEMBER_PASSWORD = "synthetic-corpus-shared-member-password";
 
 const corpusReplaySchema = z.strictObject({ version: z.literal(1), nowMs: z.int().nonnegative(), idCursor: z.int().min(0).max(SEEDED_ID_MAX_CURSOR) });
@@ -111,10 +118,15 @@ export interface CorpusCapsule extends AsyncDisposable {
   readonly replay: CorpusReplayState;
 }
 
+export interface PrivateCorpusCapsule extends Omit<CorpusCapsule, "privateCaptures"> {
+  readonly privateParent: string;
+}
+
 export interface CorpusFixture {
   readonly layout: DataLayout;
   readonly wire: CorpusWire;
   readonly replay?: CorpusReplayState;
+  readonly privateParent?: string;
 }
 
 export interface PreparedCorpusFixture extends CorpusFixture, AsyncDisposable {}
@@ -151,6 +163,7 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
   const root = ownership.use(
     await createServerHarness({
       ...execution,
+      ...(source.privateParent === undefined ? {} : { startJobs: false }),
       db,
       ownerId: brandedId<UserId>().parse(owner.userId),
       clock: createFrozenClock(source.replay.nowMs),
@@ -180,16 +193,32 @@ function corpusDatabaseFile(layout: DataLayout): string {
   return path;
 }
 
+function parsePrivateCorpusWire(serialized: string): CorpusWire {
+  let wire: CorpusWire | undefined;
+  // Schema errors can embed captured content; the boundary reports only the refusal below.
+  try {
+    wire = parseCorpusWire(serialized);
+  } catch {
+    wire = undefined;
+  }
+  if (wire === undefined) {
+    throw new Error("Private corpus wire is malformed");
+  }
+  return wire;
+}
+
 /** Borrow a completed publication; the committed synthetic input is the lazy default, never a writable app root. */
 export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-data", import.meta.url))): CorpusFixture {
   const layout = resolveDataLayout({ ["DATA_DIR"]: resolve(directory) });
-  const wire = parseCorpusWire(readFileSync(join(layout.root, CORPUS_WIRE_FILE), "utf8"));
+  const privateParent = privateCorpusParent(layout.root);
+  const serialized = readFileSync(join(layout.root, CORPUS_WIRE_FILE), "utf8");
+  const wire = privateParent === undefined ? parseCorpusWire(serialized) : parsePrivateCorpusWire(serialized);
   if (!statSync(corpusDatabaseFile(layout)).isFile()) {
     throw new Error("Prepared corpus fixture has no database file");
   }
   const replayFile = join(layout.root, CORPUS_REPLAY_FILE);
   if (!existsSync(replayFile)) {
-    return { layout, wire };
+    return { layout, wire, ...(privateParent === undefined ? {} : { privateParent }) };
   }
   const replayText = readFileSync(replayFile, "utf8");
   // This Node-only boundary reports no malformed field values or keys that could contain private input.
@@ -202,24 +231,110 @@ export function loadCorpusFixture(directory = fileURLToPath(new URL("./corpus-da
   if (replay === null || !replay.success) {
     throw new Error("Corpus replay state is malformed");
   }
-  return { layout, wire, replay: replay.data };
+  return { layout, wire, replay: replay.data, ...(privateParent === undefined ? {} : { privateParent }) };
+}
+
+/** Read privacy routing before any captured user content or application graph is loaded. */
+export function privateCorpusParent(directory: string): string | undefined {
+  const privacyFile = join(directory, CORPUS_PRIVATE_FILE);
+  if (!existsSync(privacyFile)) {
+    return;
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(readFileSync(privacyFile, "utf8"));
+  } catch {
+    value = null;
+  }
+  const parsed = z.strictObject({ parent: z.string() }).safeParse(value);
+  if (!parsed.success) {
+    throw new Error("Private corpus classification is invalid");
+  }
+  assertPrivateCorpusOutput(parsed.data.parent, directory);
+  return parsed.data.parent;
+}
+
+/** Native artifact and source-update switches cannot redirect a private consumer away from its configured owner. */
+export function assertPrivateCorpusOutputArguments(args: readonly string[]): void {
+  if (args.some((argument) => /^(?:--(?:output|reporter|last-failed-file|update-snapshots|update-source-method)(?:=|$)|-u)/u.test(argument))) {
+    throw new Error("Private corpus artifacts cannot override native output ownership");
+  }
+}
+
+/** Private descendants must remain beneath their original inaccessible, non-repository output owner. */
+export function assertPrivateCorpusOutput(parent: string, directory: string): void {
+  if (processEnvValue("CI") !== undefined || processEnvValue("GITHUB_ACTIONS") !== undefined) {
+    throw new Error("Private corpus is local-only and cannot enter CI");
+  }
+  // Native reporter environment wins over configured destinations; loader/cache overrides also escape that owner.
+  const outputOverride =
+    /^(?:PLAYWRIGHT_(?:(?:JSON|JUNIT|BLOB)_OUTPUT_(?:FILE|DIR|NAME)|HTML_(?:OUTPUT_DIR|REPORT|OPEN|ATTACHMENTS_BASE_URL|HOST|PORT)|LAST_RUN_OUTPUT_FILE)|PW_TEST_(?:REPORTER|HTML_REPORT_OPEN)|PWTEST_CACHE_DIR)$/u;
+  if (Object.keys(inheritedProcessEnv()).some((name) => outputOverride.test(name))) {
+    throw new Error("Private corpus artifacts cannot override native output ownership");
+  }
+  const root = realpathSync(parent);
+  if (statSync(root).mode % PRIVATE_PERMISSION_MODULUS !== 0 || !resolve(directory).startsWith(`${root}${sep}`)) {
+    throw new Error("Private corpus output requires its private parent");
+  }
+  let ancestor = existsSync(directory) ? realpathSync(directory) : realpathSync(dirname(directory));
+  if (ancestor !== root && !ancestor.startsWith(`${root}${sep}`)) {
+    throw new Error("Private corpus output escapes its private parent");
+  }
+  for (;;) {
+    if (existsSync(join(ancestor, ".git"))) {
+      throw new Error("Private corpus output cannot enter a repository");
+    }
+    const next = dirname(ancestor);
+    if (next === ancestor) {
+      break;
+    }
+    ancestor = next;
+  }
+}
+
+/** Private native consumers inherit a real loopback-only namespace, never an asserted environment flag. */
+export function assertPrivateCorpusNetwork(): void {
+  const interfaces = networkInterfaces();
+  const addresses = Object.values(interfaces).flatMap((entries) => entries ?? []);
+  if (addresses.length === 0 || addresses.some((address) => !address.internal)) {
+    throw new Error("Private corpus requires an isolated loopback-only network namespace");
+  }
+  for (const family of ["-4", "-6"]) {
+    const result = runNicedSync("ip", ["-j", family, "route", "show"]);
+    if (result.status !== 0) {
+      throw new Error("Private corpus network routes could not be established");
+    }
+    const routes = z.array(z.object({ dst: z.string(), dev: z.string() })).parse(JSON.parse(result.stdout));
+    if (routes.some((route) => route.dst !== "::1" || route.dev !== "lo")) {
+      throw new Error("Private corpus refuses non-loopback network routes");
+    }
+  }
 }
 
 type CloneOptions = Parameters<typeof import("@orb/tooling/snap")["cloneStageDb"]>[2];
 
 async function copyCorpusFixture(
-  source: Pick<CorpusFixture, "layout" | "replay">,
+  source: Pick<CorpusFixture, "layout" | "replay" | "privateParent">,
   published: string,
   directory: string,
   options: CloneOptions = {},
 ): Promise<CorpusFixture> {
   const root = resolve(directory);
+  if (source.privateParent !== undefined) {
+    if (options.publication !== undefined) {
+      throw new Error("Private corpus cannot enter portable publication");
+    }
+    assertPrivateCorpusOutput(source.privateParent, root);
+  }
   await mkdir(root);
   let completed = false;
   try {
     const layout = resolveDataLayout({ ["DATA_DIR"]: root });
-    const { cloneStageDb } = await import("@orb/tooling/snap");
-    cloneStageDb(corpusDatabaseFile(source.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
+    const { cloneMigratedStageDb } = await import("@orb/tooling/snap");
+    await cloneMigratedStageDb(corpusDatabaseFile(source.layout), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets }, options);
+    if (source.privateParent !== undefined) {
+      await writeFile(join(root, CORPUS_PRIVATE_FILE), JSON.stringify({ parent: source.privateParent }), { flag: "wx", mode: 0o600 });
+    }
     await writeFile(join(root, CORPUS_WIRE_FILE), published, { encoding: "utf8", flag: "wx" });
     if (source.replay !== undefined) {
       await writeFile(join(root, CORPUS_REPLAY_FILE), JSON.stringify(corpusReplaySchema.parse(source.replay)), { encoding: "utf8", flag: "wx" });
@@ -239,12 +354,21 @@ function ownedCorpusFixture(fixture: CorpusFixture): PreparedCorpusFixture {
 }
 
 /** A private stage clone retains backend lineage; its caller owns deletion after every stage process stops. */
-export async function prepareCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
-  return ownedCorpusFixture(await copyCorpusFixture(capsule, capsule.publishWire(), directory));
+export async function prepareCorpusFixture(capsule: CorpusCapsule | PrivateCorpusCapsule, directory: string): Promise<PreparedCorpusFixture> {
+  const published = "privateParent" in capsule ? encodeCorpusWire(capsule.wire) : capsule.publishWire();
+  return ownedCorpusFixture(await copyCorpusFixture(capsule, published, directory));
+}
+
+/** Retain a local-only fixture for later owner drives without portable publication or automatic deletion. */
+export async function writePrivateCorpusFixture(capsule: PrivateCorpusCapsule, directory: string): Promise<CorpusFixture> {
+  return await copyCorpusFixture(capsule, encodeCorpusWire(capsule.wire), directory);
 }
 
 /** Publish a durable, completed DB/CAS and portable envelope; source runtime identities and known echoes cannot leave. */
-export async function publishCorpusFixture(capsule: CorpusCapsule, directory: string): Promise<CorpusFixture> {
+export async function publishCorpusFixture(capsule: CorpusCapsule | PrivateCorpusCapsule, directory: string): Promise<CorpusFixture> {
+  if ("privateParent" in capsule || existsSync(join(capsule.layout.root, CORPUS_PRIVATE_FILE))) {
+    throw new Error("Private corpus cannot enter portable publication");
+  }
   return await copyCorpusFixture(capsule, capsule.publishWire(), directory, {
     publication: { privateLiterals: capsule.privateCaptures.publicationSecrets },
   });
@@ -252,30 +376,138 @@ export async function publishCorpusFixture(capsule: CorpusCapsule, directory: st
 
 /** Each consumer owns an independent writable copy; disposing it never deletes or modifies the durable publication. */
 export async function cloneCorpusFixture(fixture: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
-  return ownedCorpusFixture(await copyCorpusFixture(fixture, serializeCorpusWire(fixture.wire, []), directory, { publication: { privateLiterals: [] } }));
+  const privateParent =
+    fixture.privateParent ?? (existsSync(join(fixture.layout.root, CORPUS_PRIVATE_FILE)) ? loadCorpusFixture(fixture.layout.root).privateParent : undefined);
+  return ownedCorpusFixture(
+    await copyCorpusFixture(
+      { ...fixture, ...(privateParent === undefined ? {} : { privateParent }) },
+      privateParent === undefined ? serializeCorpusWire(fixture.wire, []) : encodeCorpusWire(fixture.wire),
+      directory,
+      privateParent === undefined ? { publication: { privateLiterals: [] } } : {},
+    ),
+  );
 }
 
 interface CapturedCapsule {
   readonly wire: CorpusWire;
-  readonly privateCaptures: CorpusPrivateCaptures;
+  readonly privateCaptures: Omit<CorpusPrivateCaptures, "oidc"> & { readonly oidc: CorpusPrivateCaptures["oidc"] | undefined };
   readonly publishWire: CorpusCapsule["publishWire"];
   readonly snapshotReplay: () => CorpusReplayState;
 }
 
 /** Create only a new directory; teardown removes only this capsule, never a pre-existing data root. */
-export async function createCorpusCapsule(options: CorpusCapsuleOptions): Promise<CorpusCapsule> {
+export function createCorpusCapsule(options: CorpusCapsuleOptions & { readonly privateSourceDirectory: string }): Promise<PrivateCorpusCapsule>;
+export function createCorpusCapsule(options: CorpusCapsuleOptions): Promise<CorpusCapsule>;
+export async function createCorpusCapsule(
+  options: CorpusCapsuleOptions & { readonly privateSourceDirectory?: string },
+): Promise<CorpusCapsule | PrivateCorpusCapsule> {
   const directory = resolve(options.directory);
+  const sourceDirectory = options.privateSourceDirectory === undefined ? undefined : realpathSync(options.privateSourceDirectory);
+  const privateParent = sourceDirectory === undefined ? undefined : realpathSync(dirname(directory));
+  if (privateParent !== undefined) {
+    const sourceParent = dirname(sourceDirectory ?? "");
+    assertPrivateCorpusOutput(sourceParent, privateParent);
+    assertPrivateCorpusOutput(privateParent, directory);
+    assertPrivateCorpusOutput(sourceParent, join(tmpdir(), "private-corpus-temporary"));
+    if (sourceDirectory === directory || directory.startsWith(`${sourceDirectory}${sep}`) || sourceDirectory?.startsWith(`${directory}${sep}`) === true) {
+      throw new Error("Private corpus source cannot be its working clone");
+    }
+  }
   await mkdir(directory);
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(directory, { recursive: true, force: true }));
   const layout = resolveDataLayout({ ["DATA_DIR"]: directory });
-  const { snapshotReplay, ...captured } = await captureCapsule(options, layout);
+  if (options.privateSourceDirectory !== undefined) {
+    const source = resolveDataLayout({ ["DATA_DIR"]: resolve(options.privateSourceDirectory) });
+    const { cloneMigratedStageDb } = await import("@orb/tooling/snap");
+    await cloneMigratedStageDb(corpusDatabaseFile(source), { databaseUrl: layout.databaseUrl, assetsDir: layout.assets });
+    await writeFile(join(directory, CORPUS_PRIVATE_FILE), JSON.stringify({ parent: privateParent }), { flag: "wx", mode: 0o600 });
+  }
+  const { snapshotReplay, ...captured } = await captureCapsule(options, layout, privateParent !== undefined);
   const replay = corpusReplaySchema.parse(snapshotReplay());
+  if (privateParent !== undefined) {
+    const lifetime = ownership.move();
+    return {
+      layout,
+      wire: captured.wire,
+      replay,
+      privateParent,
+      publishWire: (): never => {
+        throw new Error("Private corpus cannot enter portable publication");
+      },
+      [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
+    };
+  }
+  const oidc = captured.privateCaptures.oidc;
+  if (oidc === undefined) {
+    throw new Error("Synthetic corpus requires its native OIDC initialization");
+  }
   const lifetime = ownership.move();
-  return { layout, ...captured, replay, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  return { layout, ...captured, privateCaptures: { ...captured.privateCaptures, oidc }, replay, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
-async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout): Promise<CapturedCapsule> {
+interface CorpusOwnerInitialization {
+  readonly ownerId: UserId;
+  readonly ownerHandle: string | undefined;
+  readonly oidc: CorpusPrivateCaptures["oidc"] | undefined;
+}
+
+async function assertPrivateCorpusIdle(db: NonNullable<ServerHarnessOptions["db"]>): Promise<void> {
+  const active = await db.select({ count: count() }).from(workloads).where(inArray(workloads.status, ACTIVE_WORKLOAD_STATUSES));
+  const pending = await db.select({ count: count() }).from(pendingTurns);
+  if (active[0]?.count !== 0 || pending[0]?.count !== 0) {
+    throw new Error(`Private corpus refuses copied unfinished work: ${JSON.stringify({ activeWorkloads: active[0]?.count, pendingTurns: pending[0]?.count })}`);
+  }
+}
+
+async function initializeCorpusOwner(
+  options: CorpusCapsuleOptions,
+  layout: DataLayout,
+  runtime: Required<Pick<ServerHarnessOptions, "db" | "clock" | "ids">>,
+  privateSource: boolean,
+): Promise<CorpusOwnerInitialization> {
+  const { createServerHarness } = await import("./server.ts");
+  const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
+  const { seedOidcCorpus } = await import("./corpus-seed.ts");
+  const issuer = await createNativeIssuer();
+  await using authentication = await createServerHarness({
+    ...corpusServerOptions(options.server),
+    ...runtime,
+    startJobs: !privateSource,
+    ownerId: null,
+    authConfig: { ...options.server.authConfig, mode: "oidc", fallback: "deny" },
+    // biome-ignore lint/style/useNamingConvention: OIDC_SIGNUP is the canonical startup setting; the fresh corpus exercises the real pending-join path.
+    oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_SIGNUP: false },
+    networkExecution: {
+      fetch: issuer.fetch,
+      resolver: (hostname) =>
+        hostname === new URL(ISSUER).hostname ? Promise.resolve(["93.184.215.14"]) : Promise.reject(new Error("unscripted corpus issuer address resolution")),
+    },
+    casDir: layout.assets,
+    variantDir: layout.variants,
+    importStagingDir: layout.importStaging,
+  });
+  if (privateSource) {
+    const ownerId = await authentication.app.sessions.getOwnerUserId();
+    const fields = ownerId === undefined ? null : await authentication.app.sessions.loadUserById(ownerId);
+    if (ownerId === undefined || fields === null) {
+      throw new Error("Private corpus requires its existing singleton owner");
+    }
+    const schedules = await authentication.services.workloads.listSchedules({ caller: null });
+    if (schedules.some(({ enabled }) => enabled)) {
+      throw new Error("Private corpus requires copied enabled schedules to be resolved before native ticking");
+    }
+    for (const { ownerId: pluginOwner, pluginId } of await listEnabledAcrossOwners(runtime.db)) {
+      const caller = await authentication.principalFor(pluginOwner);
+      await authentication.services.plugin.setEnabled({ caller, pluginId, enabled: false });
+    }
+    return { ownerId, ownerHandle: fields.handle, oidc: undefined };
+  }
+  const oidc = await seedOidcCorpus(authentication, issuer);
+  return { ownerId: oidc.ownerId, ownerHandle: undefined, oidc };
+}
+
+async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout, privateSource = false): Promise<CapturedCapsule> {
   const server = corpusServerOptions(options.server);
   const { assertReferentialIntegrity, createDb, preCloseHousekeeping, runMigrations } = await import("@orb/db");
   const { SHIPPED_MIGRATIONS, createDbStatementHold } = await import("./db.ts");
@@ -286,7 +518,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const { createCorpusImageWire } = await import("./corpus-image-wire.ts");
   const { createServerHarness } = await import("./server.ts");
   const { createControlledTimers } = await import("../iso/timers.ts");
-  const { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
+  const { NATIVE_OIDC_SETTINGS } = await import("./oidc-issuer.ts");
   const { seedUserCredential } = await import("./factories/credentials.ts");
   const { seedCorpusPlugins } = await import("./corpus-plugin.ts");
   const { seedCorpusKnowledge } = await import("./corpus-knowledge.ts");
@@ -310,16 +542,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     "./corpus-connection-wire.ts"
   );
   const { createRpgFlightWire, createRpgFlightTimers } = await import("./corpus-rpg-flight-wire.ts");
-  const {
-    captureCookieAuth,
-    captureCorpusReads,
-    seedCorpusActors,
-    seedCorpusAutomation,
-    seedCorpusLibraries,
-    seedOidcCorpus,
-    seedRecallCorpus,
-    seedSyntheticCorpus,
-  } = await import("./corpus-seed.ts");
+  const { captureCookieAuth, captureCorpusReads, seedCorpusActors, seedCorpusAutomation, seedCorpusLibraries, seedRecallCorpus, seedSyntheticCorpus } =
+    await import("./corpus-seed.ts");
+  const { seedCorpusAccount } = await import("./corpus-auth.ts");
   await using lifetimes = new AsyncDisposableStack();
   const dbHold = createDbStatementHold();
   const chatWire = createCorpusChatWire();
@@ -337,40 +562,19 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch)))),
   );
   const ids = options.server.ids ?? createSeededIds();
-  const issuer = await createNativeIssuer();
-  let oidc: Awaited<ReturnType<typeof produceOidcCorpus>>;
-  {
-    await using authentication = await createServerHarness({
-      ...server,
-      db,
-      clock,
-      ids,
-      ownerId: null,
-      authConfig: { ...options.server.authConfig, mode: "oidc", fallback: "deny" },
-      // biome-ignore lint/style/useNamingConvention: OIDC_SIGNUP is the canonical startup setting; the corpus exercises the real pending-join path.
-      oidc: { ...NATIVE_OIDC_SETTINGS, OIDC_SIGNUP: false },
-      networkExecution: {
-        fetch: issuer.fetch,
-        resolver: (hostname) => {
-          if (hostname !== new URL(ISSUER).hostname) {
-            return Promise.reject(new Error("unscripted corpus issuer address resolution"));
-          }
-          return Promise.resolve(["93.184.215.14"]);
-        },
-      },
-      casDir: layout.assets,
-      variantDir: layout.variants,
-      importStagingDir: layout.importStaging,
-    });
-    oidc = await seedOidcCorpus(authentication, issuer);
+  if (privateSource) {
+    await assertPrivateCorpusIdle(db);
   }
+  const { ownerId, ownerHandle, oidc } = await initializeCorpusOwner(options, layout, { db, clock, ids }, privateSource);
   const root = lifetimes.use(
     await createServerHarness({
       ...server,
+      startJobs: !privateSource,
       db,
       clock,
       ids,
-      ownerId: oidc.ownerId,
+      ownerId,
+      ...(ownerHandle === undefined ? {} : { authConfig: { ...options.server.authConfig, defaultHandle: ownerHandle, fallback: "deny" } }),
       sdkSpawn: sdkExecution.spawn,
       providerFetch: imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.providerFetch ?? fetch)))),
       networkExecution: {
@@ -389,9 +593,9 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
       importStagingDir: layout.importStaging,
     }),
   );
-  const actors = await seedCorpusActors(root);
+  const actors = await seedCorpusActors(root, privateSource);
   const credential = await seedUserCredential(db, root.services.credentials.add, { ...options.privateCredential, principal: actors.owner });
-  const baseline = await seedSyntheticCorpus(root, options.seed);
+  const baseline = await seedSyntheticCorpus(root, { ...options.seed, secondUserId: actors.secondUserId });
   const libraries = await seedCorpusLibraries(root);
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({
@@ -405,7 +609,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   });
   const knowledge = await seedCorpusKnowledge(root, recall);
   const automation = await seedCorpusAutomation(root, libraries.room.chat.id);
-  const plugins = await seedCorpusPlugins(root, oidc.joiner.id);
+  const plugins = await seedCorpusPlugins(root, oidc?.joiner.id ?? (await seedCorpusAccount(root)).userId);
   const rpg = await seedCorpusRpg(root);
   const rpgProvider = await seedCorpusRpgProvider(root, actors.connections.text.id);
   const knowledgeVariants = await seedCorpusKnowledgeVariants(root);
@@ -442,7 +646,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
   const reads = await captureCorpusReads(root, { ...baseline.identities, personaIds: [libraries.persona.id] });
   const wire = hydrateCorpusWire({
     auth: baseline.auth,
-    oidc: oidc.wire,
+    ...(oidc === undefined ? {} : { oidc: oidc.wire }),
     health,
     reads,
     searchLibrary: searchFinal.value,
@@ -465,19 +669,28 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout)
     CORPUS_SDK_TOKEN,
     ...baseline.secrets,
     ...sharedMemberAuthentication.secrets,
-    ...oidc.secrets,
+    ...(oidc?.secrets ?? []),
     ...imageVariants.secrets,
     ...notifications.secrets,
     ...[credential, connection.own.credential, connection.foreign.credential, connection.account.hosted.credential, sdkSessions.credential].flatMap(
       ({ row }) => [row.ciphertext, row.iv, row.tag],
     ),
-    ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce, row.inviteTokenHash]),
-    oidc.pending.secretHash,
-    oidc.pending.inviteTokenHash,
-    oidc.pending.idTokenCiphertext,
-    oidc.pending.idTokenIv,
-    oidc.pending.idTokenTag,
-    ...[...oidc.ownerSessions, ...oidc.joinerSessions].flatMap((row) => [row.tokenHash, row.oidcIdTokenCiphertext, row.oidcIdTokenIv, row.oidcIdTokenTag]),
+    ...(oidc === undefined
+      ? []
+      : [
+          ...oidc.transactions.flatMap((row) => [row.state, row.codeVerifier, row.nonce, row.inviteTokenHash]),
+          oidc.pending.secretHash,
+          oidc.pending.inviteTokenHash,
+          oidc.pending.idTokenCiphertext,
+          oidc.pending.idTokenIv,
+          oidc.pending.idTokenTag,
+          ...[...oidc.ownerSessions, ...oidc.joinerSessions].flatMap((row) => [
+            row.tokenHash,
+            row.oidcIdTokenCiphertext,
+            row.oidcIdTokenIv,
+            row.oidcIdTokenTag,
+          ]),
+        ]),
     ...sdkSessions.receipts.flatMap(({ sessionId, resume }) => [sessionId, resume]),
     chatLifecycle.held.invite.tokenHash,
     chatLifecycle.aborted.invite.tokenHash,

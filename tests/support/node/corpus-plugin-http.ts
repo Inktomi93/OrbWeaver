@@ -11,6 +11,7 @@ import {
 } from "@orb/contracts/plugin";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { strToU8 } from "fflate";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
 import { captureCookieAuth } from "./corpus-seed.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
@@ -45,9 +46,9 @@ const FRAME_GUEST_SOURCE = `const h = orb.host(1); h.ui.registerFrame({ id: "fra
 /** Authenticate both viewers through native login; ownership, consent, CSRF and handle liveness remain production decisions. */
 export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<CorpusPluginHttp> {
   const caller = await root.principalFor(root.ownerId);
-  const foreign = await root.actor();
+  const foreign = await seedCorpusAccount(root);
   const ownerAuth = await captureCookieAuth(root, caller, "native-plugin-owner-password");
-  const foreignAuth = await captureCookieAuth(root, await root.principalFor(foreign.id), "native-plugin-foreign-password");
+  const foreignAuth = await captureCookieAuth(root, foreign, "native-plugin-foreign-password");
   const ownerHeaders = { cookie: ownerAuth.cookie, forwarded: "" };
   const foreignHeaders = { cookie: foreignAuth.cookie, forwarded: "" };
   const manifest = pluginManifestSchema.parse({

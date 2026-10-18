@@ -16,7 +16,7 @@ import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import type { CapturedCookieAuth } from "./corpus-auth.ts";
-import { captureCookieAuth } from "./corpus-auth.ts";
+import { captureCookieAuth, seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
 import { makeAssetBytes, seedStoredAsset } from "./factories/asset.ts";
@@ -435,6 +435,7 @@ export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallC
 }
 
 export interface SeedSyntheticCorpusOptions {
+  readonly secondUserId?: Awaited<ReturnType<ServerHarness["app"]["sessions"]["ensureUser"]>>;
   readonly ownerPassword: string;
   readonly log: (message: string) => void;
 }
@@ -446,11 +447,13 @@ interface CorpusActors {
 }
 
 /** Configure actual actors and hosted execution bindings through their owners, not a runtime resolver substitute. */
-export async function seedCorpusActors(root: ServerHarness): Promise<CorpusActors> {
+export async function seedCorpusActors(root: ServerHarness, freshAccount = false): Promise<CorpusActors> {
   const owner = await root.principalFor(root.ownerId);
   await root.services.settings.updateAppSettings({ principal: owner, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   const connections = await seedCorpusConnections(root, owner);
-  const secondUserId = await root.app.sessions.ensureUser(brandedId<Handle>().parse(SECOND_HUMAN_HANDLE));
+  const secondUserId = freshAccount
+    ? (await seedCorpusAccount(root)).userId
+    : await root.app.sessions.ensureUser(brandedId<Handle>().parse(SECOND_HUMAN_HANDLE));
   await seedCorpusConnections(root, await root.principalFor(secondUserId));
   return { owner, secondUserId, connections };
 }
@@ -588,6 +591,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
   );
   const { seedDemoContent } = await loadDemoSeed();
   const seed = await seedDemoContent({
+    ...(options.secondUserId === undefined ? {} : { secondUserId: options.secondUserId }),
     built: root.app,
     services: root.services,
     owner,

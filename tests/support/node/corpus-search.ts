@@ -7,6 +7,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
 import { corpusSearchInput, corpusSearchRoomIds } from "../iso/corpus-search.ts";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import type { SeededCorpusLibraries, SeededRecallCorpus, seedCorpusActors } from "./corpus-seed.ts";
@@ -61,7 +62,7 @@ interface NativeSearchGroup {
   readonly standaloneMemory: Awaited<ReturnType<typeof captureChatMemoryRows>>;
 }
 interface SearchSpaceLifecycle {
-  readonly actor: Awaited<ReturnType<ServerTestHarness["actor"]>>;
+  readonly actor: Awaited<ReturnType<typeof seedCorpusAccount>>;
   readonly initial: SearchReads["status"];
   readonly text: Awaited<ReturnType<typeof seedEmbeddingGeneration>>;
   readonly image: Awaited<ReturnType<typeof seedEmbeddingGeneration>>;
@@ -201,9 +202,8 @@ async function nativeGroup(root: ServerTestHarness, caller: Caller, sources: Sou
 }
 
 async function movingSpace(root: ServerTestHarness): Promise<SearchSpaceLifecycle> {
-  const actor = await root.actor();
-  const principal = await root.principalFor(actor.id);
-  const caller = await root.internalCallerFor(actor.id);
+  const principal = await seedCorpusAccount(root);
+  const caller = await root.internalCallerFor(principal.userId);
   const initial = await caller.search.spaceStatus();
   await seedCorpusConnections(root, principal);
   await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
@@ -211,20 +211,32 @@ async function movingSpace(root: ServerTestHarness): Promise<SearchSpaceLifecycl
   for (let scene = 0; scene <= DEFAULT_MEMORY_DEFAULTS.blockSize + DEFAULT_MEMORY_DEFAULTS.verbatimWindow; scene += 1) {
     await caller.chat.commitMessage({ chatId, content: `Moving-space native history ${scene}: The ledger records a real witness.`, timeZone: UTC_TIME_ZONE });
   }
-  const text = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [actor.id, "embed"]);
-  const image = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [actor.id, "imageEmbed", "embed"]);
+  const text = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [principal.userId, "embed"]);
+  const image = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [principal.userId, "imageEmbed", "embed"]);
   const moving = await caller.search.spaceStatus();
   const refused = await searchRefusal(caller.search.search({ query: "moving ledger", topN: 5, over: "entities", scope: { kind: "owner" } }));
-  const callsBeforeEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, actor.id)).orderBy(embeddingCalls.id);
+  const callsBeforeEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, principal.userId)).orderBy(embeddingCalls.id);
   const emptyDocuments = await caller.search.search({ query: "bankless ledger", topN: 5, over: "documents", scope: { kind: "owner" } });
-  const callsAfterEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, actor.id)).orderBy(embeddingCalls.id);
+  const callsAfterEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, principal.userId)).orderBy(embeddingCalls.id);
   const jobs = await settleCorpusWorkloads(root, caller, [
     await caller.workloads.start({ input: { kind: "index", params: { source: "all" } }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
   ]);
   await root.settleBackground();
-  return { actor, initial, text, image, moving, refused, jobs, emptyDocuments, callsBeforeEmpty, callsAfterEmpty, settled: await caller.search.spaceStatus() };
+  return {
+    actor: principal,
+    initial,
+    text,
+    image,
+    moving,
+    refused,
+    jobs,
+    emptyDocuments,
+    callsBeforeEmpty,
+    callsAfterEmpty,
+    settled: await caller.search.spaceStatus(),
+  };
 }
 
 /** Capture genuine routed result arms over already-produced native rows; private captures never become portable fixtures here. */

@@ -17,7 +17,7 @@ import { readSessionCookie } from "@orb/server/entry/auth";
 import { inArray } from "drizzle-orm";
 import type { CorpusNotificationInbox } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
-import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
+import { captureCorpusCookieIdentity, seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "./corpus-provider.ts";
 import { seedAutomationRule, seedAutomationRun } from "./factories/automation.ts";
 import { captureChatReplayRows } from "./factories/chat.ts";
@@ -148,16 +148,16 @@ export async function captureCorpusNotificationRows(db: Db, recipientIds: readon
 
 async function actorsFor(root: ServerTestHarness): Promise<NotificationActors> {
   const admin = await root.internalCallerFor(root.ownerId);
-  const reader = await root.actor();
-  await admin.admin.resetPassword({ userId: reader.id, password: CORPUS_NOTIFICATION_PASSWORD });
-  const host = await root.actor();
-  const foreign = await root.actor();
+  const reader = await seedCorpusAccount(root);
+  await admin.admin.resetPassword({ userId: reader.userId, password: CORPUS_NOTIFICATION_PASSWORD });
+  const host = await seedCorpusAccount(root);
+  const foreign = await seedCorpusAccount(root);
   return {
-    host: await root.principalFor(host.id),
-    reader: await root.principalFor(reader.id),
-    foreign: await root.principalFor(foreign.id),
-    caller: await root.internalCallerFor(reader.id),
-    foreignCaller: await root.internalCallerFor(foreign.id),
+    host,
+    reader,
+    foreign,
+    caller: await root.internalCallerFor(reader.userId),
+    foreignCaller: await root.internalCallerFor(foreign.userId),
   };
 }
 

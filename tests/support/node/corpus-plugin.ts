@@ -9,6 +9,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../iso/clock.ts";
 import type { CorpusPluginLibrary, CorpusPluginStage } from "../iso/corpus-plugin.ts";
 import { corpusPluginInput } from "../iso/corpus-plugin.ts";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import {
   CORPUS_PLUGIN_OUTPUT_MANIFEST,
   CORPUS_PLUGIN_OUTPUT_PRIVATE_VALUE,
@@ -240,7 +241,7 @@ export async function seedCorpusPluginWithdrawal(root: ServerTestHarness, recipi
   const after = await capturePluginRows(root.db, recipient.userId, selected.plugin.id);
   const ownerInstalls = await root.services.plugin.list({ caller: owner });
   const remainingPublications = await root.services.plugin.listDistributedPlugins({ caller: owner });
-  const lateUser = await root.principalFor((await root.actor()).id);
+  const lateUser = await seedCorpusAccount(root);
   const lateApplication = await root.services.plugin.applyDistributedPlugins({ caller: lateUser });
   return { published, upgraded, before, refused, stillPublished, withdrawn, after, ownerInstalls, remainingPublications, lateApplication };
 }

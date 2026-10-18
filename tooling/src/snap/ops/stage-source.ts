@@ -8,7 +8,8 @@
 import { constants, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { localPath } from "@orb/db";
+import { createDb, localPath, preCloseHousekeeping } from "@orb/db";
+import { DB_LAUNCHED, runBootMigrations } from "@orb/server/entry/boot";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DATA_LAYOUT_DIRS, DB_FILE_NAME, DEFAULT_DATA_DIR, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { print } from "../../floor/artifacts/artifacts.ts";
@@ -134,8 +135,34 @@ export function seedStageData(root: string, paths: StagePaths, stageDb?: string,
  *  (`entry/boot/seed-owner.ts`), which is how the stage signs in as the owner of the copied rows.
  *  The caller has removed any older stage dir, so an existing stage db is a bug, not a cache. */
 export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "databaseUrl" | "assetsDir">, options: StageCloneOptions = {}): StageDbProvenance {
+  const { source, stageDb } = copyCloneDatabase(sourceDb, paths.databaseUrl);
+  return finishCloneDatabase(source, stageDb, paths.assetsDir, options);
+}
+
+/** Upgrade only disposable copied bytes before mandatory current-schema secret scrubbing. */
+export async function cloneMigratedStageDb(
+  sourceDb: string,
+  paths: Pick<StagePaths, "databaseUrl" | "assetsDir">,
+  options: StageCloneOptions = {},
+): Promise<StageDbProvenance> {
+  const { source, stageDb } = copyCloneDatabase(sourceDb, paths.databaseUrl);
+  const db = await createDb(paths.databaseUrl);
+  try {
+    await runBootMigrations({
+      db,
+      databaseUrl: paths.databaseUrl,
+      backupDir: resolveDataLayout({ ["DATA_DIR"]: dirname(dirname(stageDb)) }).backups,
+      launched: DB_LAUNCHED,
+    });
+  } finally {
+    await preCloseHousekeeping(db);
+  }
+  return finishCloneDatabase(source, stageDb, paths.assetsDir, options);
+}
+
+function copyCloneDatabase(sourceDb: string, databaseUrl: string): { readonly source: string; readonly stageDb: string } {
   const source = resolve(sourceDb);
-  const stageDb = localPath(paths.databaseUrl) ?? "";
+  const stageDb = localPath(databaseUrl) ?? "";
   if (!(existsSync(source) && statSync(source).isFile())) {
     throw new Error(`--stage-db ${sourceDb}: no database file there`);
   }
@@ -148,6 +175,10 @@ export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "database
       cpSync(source + suffix, stageDb + suffix);
     }
   }
+  return { source, stageDb };
+}
+
+function finishCloneDatabase(source: string, stageDb: string, assetsDir: string, options: StageCloneOptions): StageDbProvenance {
   const clone = new DatabaseSync(stageDb);
   try {
     scrubStageClone(clone, options);
@@ -156,9 +187,9 @@ export function cloneStageDb(sourceDb: string, paths: Pick<StagePaths, "database
   } finally {
     clone.close();
   }
-  cloneStageAssets(source, paths.assetsDir);
+  cloneStageAssets(source, assetsDir);
   if (options.publication !== undefined) {
-    verifyStagePublicationBytes(stageDb, paths.assetsDir, options.publication.privateLiterals);
+    verifyStagePublicationBytes(stageDb, assetsDir, options.publication.privateLiterals);
   }
   return { copiedFrom: source, cloned: true, copiedAt: new Date().toISOString(), devDbMtimeAtCopy: statSync(source).mtime.toISOString() };
 }

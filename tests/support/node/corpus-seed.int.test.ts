@@ -3,6 +3,7 @@
 // @subject tooling/src/seed/ops/demo.ts
 // @subject tooling/src/seed/ops/demo-library-arms.ts
 
+import { createCharacterSchema } from "@orb/contracts/character";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError } from "@orb/inference";
@@ -31,6 +32,24 @@ function corpusExecution(): ReturnType<typeof createCorpusProviderExecution> {
     usage: { promptTokens: 40, completionTokens: 15 },
   });
 }
+
+test("a nonempty owner library retains existing cards while producing the required corpus scenario", async () => {
+  const wire = corpusExecution();
+  await using root = await createServerHarness({ providerFetch: wire.execute, authConfig: { ...authConfigFromEnv(), mode: "local" } });
+  const principal = await root.principalFor(root.ownerId);
+  const existing = await root.services.character.create({
+    principal,
+    input: createCharacterSchema.parse({ handle: "existing-private-card", name: "Existing private fixture", description: "Unchanged fixture content" }),
+  });
+  const before = await root.services.character.getCard({ principal, characterId: existing.id });
+  await seedCorpusActors(root);
+  const corpus = await seedSyntheticCorpus(root, { ownerPassword: OWNER_PASSWORD, log: () => undefined });
+  expect(await root.services.character.getCard({ principal, characterId: existing.id })).toEqual(before);
+  expect(corpus.seed.soloTurn?.messages.length).toBeGreaterThan(0);
+  expect(corpus.seed.groupTurn?.messages.length).toBeGreaterThan(0);
+  expect(corpus.identities.soloChatId).not.toBe(corpus.identities.groupChatId);
+  expect(corpus.reads["chat.getChat"].map(({ input }) => input.chatId)).toEqual([corpus.identities.soloChatId, corpus.identities.groupChatId]);
+});
 
 test("the sole corpus seed retains actual turns, ingestion, library FKs and cookie-admitted wire outputs", async () => {
   const wire = corpusExecution();

@@ -5,6 +5,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_LOG_LEVELS, PLUGIN_MAIN_ENTRY, pluginManif
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { PluginLogView } from "@orb/server/domain/plugin";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "@orb/server/infra/plugin-host";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { CapturedPluginOutputs } from "./factories/plugin.ts";
 import { capturePluginOutputs, capturePluginRows, makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "./factories/plugin.ts";
@@ -225,7 +226,7 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   const caller = await root.principalFor(root.ownerId);
   const rpc = await root.internalCallerFor(root.ownerId);
   const room = (await rpc.chat.startChat({ characterIds: [], opening: "none" })).chat;
-  const foreignRpc = await root.internalCallerFor((await root.actor()).id);
+  const foreignRpc = await root.internalCallerFor((await seedCorpusAccount(root)).userId);
   const foreignRoom = (await foreignRpc.chat.startChat({ characterIds: [], opening: "none" })).chat;
   const manifest = pluginManifestSchema.parse({
     ...CORPUS_PLUGIN_OUTPUT_MANIFEST,
@@ -396,7 +397,7 @@ export async function seedCorpusPluginLogRing(root: ServerTestHarness): Promise<
     await rpc.plugin.invokeUiCommand({ pluginId: params.pluginId, name: "chars", args: String(batch), chatId: null });
   }
   const chars = await root.services.plugin.getLog(params);
-  const foreign = await root.internalCallerFor((await root.actor()).id);
+  const foreign = await root.internalCallerFor((await seedCorpusAccount(root)).userId);
   const foreignRead = await Promise.allSettled([foreign.plugin.getLog({ pluginId: params.pluginId })]);
   const repeated = await root.services.plugin.getLog(params);
   await root.services.plugin.setEnabled({ caller, pluginId: params.pluginId, enabled: false });

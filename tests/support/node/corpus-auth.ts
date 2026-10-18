@@ -2,6 +2,8 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { Principal, ViewerView } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER, viewerViewSchema } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { readSessionCookie } from "@orb/server/entry/auth";
 import { z } from "zod";
 import type { CorpusCookieIdentity, CorpusWire } from "../iso/corpus.ts";
@@ -10,6 +12,16 @@ import { seedLoginBuckets } from "./factories/sessions.ts";
 import type { ServerTestHarness } from "./server.ts";
 
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
+
+/** A fresh scenario account never adopts or resets a copied human's handle. */
+export async function seedCorpusAccount(root: ServerTestHarness): ReturnType<ServerTestHarness["principalFor"]> {
+  let handle: Handle;
+  do {
+    handle = brandedId<Handle>().parse(`c-${root.ids.next("")}`);
+  } while ((await root.app.sessions.resolveHandle(handle)) !== null);
+  const userId = await root.app.sessions.ensureUser(handle);
+  return await root.principalFor(userId);
+}
 
 export interface CapturedAccountViews {
   readonly viewer: Awaited<ReturnType<Caller["sessions"]["me"]>>;

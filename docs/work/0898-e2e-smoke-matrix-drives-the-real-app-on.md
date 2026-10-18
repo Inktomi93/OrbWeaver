@@ -30,4 +30,4 @@ Reviewed responsive navigation, exact virtualized canon, retained-room persona f
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion. Read `reports/review/seven-day-bottleneck-claude-analysis.md` before changing this dependency.
 
-Production migrations and integrity checks pass on a separate disposable owner-data copy. Its source and personal outputs stay outside Git and CI. This does not qualify application boot or smoke execution. Private intake and isolated execution remain open.
+Production migrations and integrity checks pass on a separate disposable owner-data copy. Its source and personal outputs stay outside Git and CI. This does not qualify application boot or smoke execution. Reviewed private intake preserves the existing owner, migrates a disposable clone and refuses portable publication and native output overrides. Private application execution and the complete matrix remain open. Evidence: `reports/review/898-private-output-correction-security-review.md`.
