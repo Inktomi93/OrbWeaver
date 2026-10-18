@@ -24,4 +24,4 @@ Complete native reference controls preserve aliases, declarations, contextual an
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reference-family attribution identifies separate bulk, exact and invocation query owners. The existing SQLite relation already indexes declaration references. Native occurrence production and parity remain open; binding-row inversion does not establish complete coverage. Evidence: `reports/review/1045-reference-family-attribution.md`.

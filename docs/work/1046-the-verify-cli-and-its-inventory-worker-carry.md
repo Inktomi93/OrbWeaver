@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-17
+status: doing
+updated: 2026-10-18
 priority: P2
 area: tooling
+lane: codex/router-declaration-bridge-965
 plan: test-foundation
 ---
 
