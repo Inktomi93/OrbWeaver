@@ -5,9 +5,9 @@
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { UserId } from "@orb/kit/ids";
-import type { ProvisionIdentityOptions } from "../contract/params.ts";
+import type { ProvisionDecisionContext, ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionCandidate, ProvisionDecision, ProvisionDeny, ProvisionInsert, ProvisionUpdate } from "../contract/results.ts";
-import { identityAccess, isOwnerByPolicy, isOwnerGroupMember, isReservedSignupHandle, isSubjectMismatch } from "./role-policy.ts";
+import { isSubjectMismatch } from "./role-policy.ts";
 
 const deny = (cause: ProvisionDeny["cause"]): ProvisionDeny => ({ kind: "deny", cause });
 
@@ -55,12 +55,12 @@ function decideNonOwner({ existing, identity, derivedRole, ownerId, options }: D
 
 /**
  * Decide what one SSO login may do to `users`. `existing` is the row matched by `externalId`, else by handle;
- * `ownerId` is the current owner row, if any. No I/O: the two follow-up reads are named by the decision.
+ * The context carries the current owner row and bound policy. No I/O: follow-up reads are named by the decision.
  */
 export function decideProvision(
   existing: ProvisionCandidate | undefined,
   identity: ResolvedIdentity,
-  ownerId: UserId | undefined,
+  { ownerId, rolePolicy }: ProvisionDecisionContext,
   options: ProvisionIdentityOptions,
 ): ProvisionDecision {
   // The handle fallback binds an unbound row and never rebinds a bound one (the impostor refusal).
@@ -68,14 +68,14 @@ export function decideProvision(
     return deny("subject-mismatch");
   }
   // An OWNER_GROUP member is the IdP operator's grant; an OWNER_HANDLES match needs the caller's proof.
-  const claimProven = options.ownerClaimProven || isOwnerGroupMember(identity.groups);
+  const claimProven = options.ownerClaimProven || rolePolicy.isOwnerGroupMember(identity.groups);
   // The owner exemption: matched by row identity, never by a role compare.
   if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
     return decideOwnerRow(existing, identity, claimProven);
   }
-  const claimsOwner = isOwnerByPolicy(identity.handle, identity.groups);
+  const claimsOwner = rolePolicy.isOwnerByPolicy(identity.handle, identity.groups);
   const ownerByPolicy = claimsOwner && claimProven;
-  const access = identityAccess(ownerByPolicy, identity.groups);
+  const access = rolePolicy.identityAccess(ownerByPolicy, identity.groups);
   if (access.outcome === "deny") {
     return deny("access-gate");
   }
@@ -86,7 +86,7 @@ export function decideProvision(
   // SECURITY (D258): no new non-owner row may hold an OWNER_HANDLES seed key or a look-alike of one, compared on the
   // handle key. On a fresh box an unproven exact match would insert the owner itself; any holder of the key blocks the
   // owner's own claim on `users_handle_key_unique` and breaks boot's seedOwner. Do not narrow this to an exact match.
-  if (isReservedSignupHandle(identity.handle) && existing === undefined) {
+  if (rolePolicy.isReservedSignupHandle(identity.handle) && existing === undefined) {
     return deny("owner-claim-unproven");
   }
   return decideNonOwner(inputs);

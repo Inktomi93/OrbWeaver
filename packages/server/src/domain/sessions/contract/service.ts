@@ -19,9 +19,11 @@ import type {
   UserPrincipalFields,
   ValidatedSession,
 } from "./results.ts";
+import type { SessionsRolePolicy } from "./role-policy.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
+  readonly rolePolicy: SessionsRolePolicy;
   db: Db;
   now: () => number;
   readonly idSource?: IdSource;
@@ -69,6 +71,7 @@ export interface SessionsContext {
 }
 
 export interface SessionsService {
+  readonly rolePolicy: SessionsRolePolicy;
   /** Mint an opaque 32-byte token + persist only its peppered hash; audits `AUTH_LOGIN`. Returns the raw
    *  token once — never stored. */
   create: (params: CreateSessionParams) => Promise<CreateSessionResult>;

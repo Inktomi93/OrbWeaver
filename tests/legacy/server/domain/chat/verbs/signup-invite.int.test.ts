@@ -6,6 +6,8 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -55,7 +57,13 @@ beforeEach(async () => {
 });
 
 function ops(capability: SignupInviteCapability = LOCAL, failPointers = false): ReturnType<typeof createSignupInvite> {
-  const sessions = createSessionsService({ db, now: () => FROZEN_AT_MS, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
+  const sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(env),
+    db,
+    now: () => FROZEN_AT_MS,
+    sessionSecret: "s".repeat(32),
+    seedUserConnections: () => Promise.resolve(),
+  });
   return createSignupInvite(makeChatContext(db, { signupInvites: capability }), {
     signupUserStatement: sessions.signupUserStatement,
     signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>(`persona_joiner_${personasMinted++}`) }),

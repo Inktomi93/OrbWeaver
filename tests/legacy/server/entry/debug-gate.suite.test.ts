@@ -47,8 +47,9 @@ import type { Db } from "@orb/db";
 import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
-import { ownerHandles } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { readGlobalSettings } from "@orb/server/domain/settings";
+import { env } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -106,6 +107,7 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     throw new Error(`unexpected sessions.${name}`);
   };
   return {
+    rolePolicy: createSessionsRolePolicy(env),
     create: unused("create"),
     validate: unused("validate") as SessionsService["validate"],
     revokeByToken: unused("revokeByToken"),
@@ -140,14 +142,20 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
  *  un-credentialed fallback lands on a genuine `role:"owner"` row — i.e. this fake is the WORST case, not a
  *  softened one: the principal reaching the verdict really does satisfy `can(p,'admin',global)`. */
 function ownerRowSessions(): SessionsService {
+  const rolePolicy = createSessionsRolePolicy(env);
   const rows = new Map<string, { id: UserId; role: UserRole; handle: Handle }>();
   return stubSessions({
+    rolePolicy,
     ensureUser: (handle: Handle) => {
       const existing = rows.get(handle);
       if (existing !== undefined) {
         return Promise.resolve(existing.id);
       }
-      const row = { id: castId<UserId>(`u_${handle}`), role: ownerHandles().includes(handle) ? ("owner" as UserRole) : ("user" as UserRole), handle };
+      const row = {
+        id: castId<UserId>(`u_${handle}`),
+        role: rolePolicy.ownerHandles().includes(handle) ? ("owner" as UserRole) : ("user" as UserRole),
+        handle,
+      };
       rows.set(handle, row);
       return Promise.resolve(row.id);
     },

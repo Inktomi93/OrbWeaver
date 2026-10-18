@@ -17,12 +17,13 @@ export function createSessionsContext(
   db: Db,
   now: () => number,
   sessionSecret: string | null,
-  inputs: Pick<SessionsContext, "seedUserConnections"> & Partial<Pick<SessionsContext, "idSource">>,
+  inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy"> & Partial<Pick<SessionsContext, "idSource">>,
 ): SessionsContext {
   // #141 — the OIDC id_token cipher, keyed off the SAME pepper (HKDF, own purpose label — tokens/tokens.ts).
   const idTokenBox = createIdTokenBox(sessionSecret);
   const pendingHasher = createTokenHasher(sessionSecret);
   return {
+    rolePolicy: inputs.rolePolicy,
     db,
     now,
     idSource: inputs.idSource ?? createIdSource(),

@@ -8,7 +8,8 @@ import { userConnections, users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -79,6 +80,7 @@ test("a user minted AFTER the boot sweep still carries the vector floor", async 
   const bound: UserId[] = [];
   const onEmbedSpaceBound = (boundUser: UserId): void => void bound.push(boundUser);
   const sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(env),
     db,
     now,
     sessionSecret: POST_BOOT_PEPPER,
@@ -99,6 +101,7 @@ test("a FAILING per-user seed is a warning, never a failed mint (\u00a75.3b)", a
   // return the account. An un-seedable vector floor is repairable; an un-created account is not.
   await db.run(sql`drop table connection_bindings`);
   const sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(env),
     db,
     now,
     sessionSecret: POST_BOOT_PEPPER,

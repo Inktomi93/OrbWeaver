@@ -20,7 +20,6 @@ import {
   selectOwnerUserId,
 } from "../persistence/users.ts";
 import { decideProvision } from "../substrate/decide-provision.ts";
-import { deriveIdentityAccess, isOwnerByPolicy, isReservedSignupHandle } from "../substrate/role-policy.ts";
 
 type PendingSignupVerbs = Pick<SessionsService, "recordPendingSignup" | "readPendingSignup" | "preparePendingSignup">;
 
@@ -80,12 +79,15 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
     };
     // The frozen groups decide again: a gate tightened since the callback refuses, and an owner-by-policy
     // identity never joins through an invite (the owner is seeded or adopted, never signed up).
-    if (deriveIdentityAccess(identity.handle, identity.groups).outcome === "deny" || isOwnerByPolicy(identity.handle, identity.groups)) {
+    if (
+      ctx.rolePolicy.deriveIdentityAccess(identity.handle, identity.groups).outcome === "deny" ||
+      ctx.rolePolicy.isOwnerByPolicy(identity.handle, identity.groups)
+    ) {
       return null;
     }
     // The local signup's handle rules: an invite is the one path where a stranger picks the handle, so a
     // reserved seed key, a mixed-script handle or one sharing a member's key never becomes a look-alike account.
-    if (!admitsHandle(identity.handle) || isReservedSignupHandle(identity.handle) || (await selectHandleKeyTaken(ctx.db, identity.handle))) {
+    if (!admitsHandle(identity.handle) || ctx.rolePolicy.isReservedSignupHandle(identity.handle) || (await selectHandleKeyTaken(ctx.db, identity.handle))) {
       return null;
     }
     const existing = (await selectForProvisionByExternalId(ctx.db, identity.externalId)) ?? (await selectForProvisionByHandle(ctx.db, identity.handle));
@@ -93,7 +95,12 @@ export function createPendingSignup(ctx: SessionsContext): PendingSignupVerbs {
     // The invite is the JIT admission for this one identity; approval stays the caller's resolved flag. An invite is
     // never owner-claim proof (D258); owner-by-policy is refused above in any case.
     const insert = insertOf(
-      decideProvision(existing, identity, ownerId, { allowJitProvision: true, requireApproval: args.requireApproval, ownerClaimProven: false }),
+      decideProvision(
+        existing,
+        identity,
+        { ownerId, rolePolicy: ctx.rolePolicy },
+        { allowJitProvision: true, requireApproval: args.requireApproval, ownerClaimProven: false },
+      ),
     );
     if (insert === null) {
       return null;

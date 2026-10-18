@@ -9,7 +9,6 @@ import type { EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createExportService } from "#domain/export";
 import type { SessionsService } from "#domain/sessions";
-import { isReservedSignupHandle } from "#domain/sessions";
 import type { ToolUseService } from "#domain/tool-use";
 import { createToolUseService } from "#domain/tool-use";
 import type { AuditEntry } from "#foundation/observability";
@@ -32,7 +31,14 @@ export interface AdminComposeDeps {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly sessions: Pick<
     SessionsService,
-    "listForUser" | "revoke" | "revokeAllForUser" | "revokeAllForUserStatement" | "linkExternalIdStatement" | "settleUnclaimedLink" | "localUserInsertStatement"
+    | "listForUser"
+    | "revoke"
+    | "revokeAllForUser"
+    | "revokeAllForUserStatement"
+    | "linkExternalIdStatement"
+    | "settleUnclaimedLink"
+    | "localUserInsertStatement"
+    | "rolePolicy"
   >;
   /** Transport owns sockets; admin receives their eviction capability through its consumer port. */
   readonly sockets: SessionSocketEviction;
@@ -80,7 +86,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       settleUnclaimedLink: sessions.settleUnclaimedLink,
       localUserInsertStatement: sessions.localUserInsertStatement,
       evictUserSockets: (userId) => deps.sockets.evictUser(userId),
-      isReservedHandle: isReservedSignupHandle,
+      isReservedHandle: sessions.rolePolicy.isReservedSignupHandle,
     }),
     embed: createAdminCardEmbed({
       getCard: (input) => character.getCard(input),

@@ -3,7 +3,6 @@ import { castId, createIdSource } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import { insertUser, selectIdByHandle } from "../persistence/users.ts";
-import { determineRole } from "../substrate/role-policy.ts";
 
 // Resolve a handle → UserId, JIT-creating the row on first sight (single-user/owner-fallback path;
 // externalId stays null — provisionIdentity owns the SSO path). Race-tolerant: insertUser does
@@ -29,7 +28,7 @@ export function createEnsureUser(ctx: SessionsContext): Pick<SessionsService, "e
     }
     const id = (ctx.idSource ?? createIdSource()).unprefixed<UserId>();
     const now = ctx.now();
-    const role = determineRole(handle, []);
+    const role = ctx.rolePolicy.determineRole(handle, []);
     await insertUser(ctx.db, {
       id,
       handle,

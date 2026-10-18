@@ -1,188 +1,80 @@
-import process from "node:process";
+// Configuration is bound once per graph; verified identity groups remain per-login inputs.
 import type { UserRole } from "@orb/contracts/identity";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle } from "@orb/kit/ids";
-import { env } from "#foundation/env";
 import type { IdentityAccess } from "../contract/results.ts";
+import type { SessionsRolePolicy, SessionsRolePolicyConfig } from "../contract/role-policy.ts";
 
-// The app's IdP-group → role governance: pure derivation policy + the sanctioned call-time `process.env`
-// reads (OWNER_HANDLES/OWNER_GROUP/OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS/RE_DERIVE_ROLE_ON_LOGIN), read at
-// call time (not via the frozen `env`) so per-test `vi.stubEnv` drives the role/access matrix. Documented
-// exception to "foundation/env is the only process.env reader," scoped to this file's biome override.
-//
-// Roles: OWNER (OWNER_GROUP membership or handle in OWNER_HANDLES; immutable bootstrap singleton, exempt
-// from the allowed-groups gate). ADMIN (membership in any OIDC_ADMIN_GROUPS group; implicitly allowed to log
-// in). USER (passes the allowed-groups gate, no admin group). DENY (OIDC_ALLOWED_GROUPS set and the identity
-// is in none of those groups and not owner/admin — login refused).
-
-// The var names are inlined at each `process.env["…"]` read (NOT hoisted to a const) so the
-// `sole-env-reader` gate can statically verify the EXACT allowlisted keys at the access site — exactly the
-// `process.env["VITEST"]` literal style `foundation/env` uses.
 const CSV_SEPARATOR = ",";
-// Tolerant truthy set for RE_DERIVE_ROLE_ON_LOGIN — the pre-fix exact `=== "true"` silently disabled
-// group-driven revocation on "True"/"1"/"yes".
 const TRUTHY = new Set(["true", "1", "yes"]);
 
-/** Parse a comma-list env value into trimmed, non-empty entries. */
-function csv(raw: string | undefined): string[] {
-  if (raw === undefined || raw.trim().length === 0) {
-    return [];
-  }
-  return raw
-    .split(CSV_SEPARATOR)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
+function csv(raw: string | undefined): readonly string[] {
+  return Object.freeze(
+    (raw ?? "")
+      .split(CSV_SEPARATOR)
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0),
+  );
 }
 
-/** Non-empty intersection test (small lists — the linear scan is fine). */
 function intersects(a: readonly string[], b: readonly string[]): boolean {
-  return a.some((x) => b.includes(x));
+  return a.some((entry) => b.includes(entry));
 }
 
-/** The IdP groups that grant `admin` on login (`OIDC_ADMIN_GROUPS`, CSV). Empty ⇒ no group grants admin. */
-function adminGroups(): string[] {
-  return csv(process.env["OIDC_ADMIN_GROUPS"]);
-}
+/** Bind the sessions-owned rules to a copied deployment configuration, never mutable process state. */
+export function createSessionsRolePolicy(config: SessionsRolePolicyConfig): SessionsRolePolicy {
+  const defaultHandle = config.DEFAULT_USER_HANDLE;
+  const rawHandles = config.OWNER_HANDLES;
+  const handles = rawHandles !== undefined && rawHandles.trim().length > 0 ? csv(rawHandles) : Object.freeze([defaultHandle]);
+  const ownerGroup = config.OWNER_GROUP?.trim();
+  const admins = csv(config.OIDC_ADMIN_GROUPS);
+  const allowed = csv(config.OIDC_ALLOWED_GROUPS);
+  const governanceActive = admins.length > 0 || allowed.length > 0;
+  const reDerive = governanceActive || TRUTHY.has(config.RE_DERIVE_ROLE_ON_LOGIN?.trim().toLowerCase() ?? "");
+  const reservedKeys = Object.freeze([...handles, defaultHandle].map(handleKey));
 
-/** The login-access gate groups (`OIDC_ALLOWED_GROUPS`, CSV). Empty ⇒ the gate is OFF (all authenticated
- *  users allowed — backward-compat). */
-function allowedGroups(): string[] {
-  return csv(process.env["OIDC_ALLOWED_GROUPS"]);
-}
-
-/**
- * The owner-handle allowlist: `OWNER_HANDLES` (comma-list) when set, else just `[DEFAULT_USER_HANDLE]`
- * (the single-user owner). The SAME predicate `determineRole` and the single-user/fallback path agree on.
- */
-export function ownerHandles(): string[] {
-  const raw = process.env["OWNER_HANDLES"];
-  if (raw !== undefined && raw.trim().length > 0) {
-    return csv(raw);
+  function isOwnerGroupMember(groups: readonly string[]): boolean {
+    return ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup);
   }
-  return [env.DEFAULT_USER_HANDLE];
+
+  function isOwnerByPolicy(handle: Handle, groups: readonly string[]): boolean {
+    return isOwnerGroupMember(groups) || handles.includes(handle);
+  }
+
+  function roleFor(ownerByPolicy: boolean, groups: readonly string[]): UserRole {
+    if (ownerByPolicy) {
+      return "owner";
+    }
+    return intersects(groups, admins) ? "admin" : "user";
+  }
+
+  function identityAccess(ownerByPolicy: boolean, groups: readonly string[]): IdentityAccess {
+    // Owner policy and admin-group membership bypass the login gate; a role literal never grants that bypass.
+    const privileged = ownerByPolicy || intersects(groups, admins);
+    if (!(privileged || allowed.length === 0 || intersects(groups, allowed))) {
+      return { outcome: "deny" };
+    }
+    return { outcome: "allow", role: roleFor(ownerByPolicy, groups) };
+  }
+
+  return Object.freeze({
+    ownerHandles: (): readonly string[] => handles,
+    // A group can prove an owner claim, but cannot identify the handle boot re-seeds through.
+    isOwnerSeedHandle: (handle: Handle): boolean => handles.includes(handle),
+    isReservedSignupHandle: (handle: Handle): boolean => reservedKeys.includes(handleKey(handle)),
+    isOwnerByPolicy,
+    isOwnerGroupMember,
+    determineRole: (handle: Handle, groups: readonly string[]): UserRole => roleFor(isOwnerByPolicy(handle, groups), groups),
+    deriveIdentityAccess: (handle: Handle, groups: readonly string[]): IdentityAccess => identityAccess(isOwnerByPolicy(handle, groups), groups),
+    identityAccess,
+    groupRoleGovernanceActive: (): boolean => governanceActive,
+    // The bootstrap owner's exemption remains the provisioning verb's row-identity decision (D65).
+    reDeriveRoleOnLogin: (): boolean => reDerive,
+  });
 }
 
-/**
- * Whether `handle` is an owner SEED KEY — i.e. an `OWNER_HANDLES` entry. Deliberately NOT
- * {@link isOwnerByPolicy}: that asks "is this IDENTITY the owner?" (groups OR handle) about a LOGIN, while
- * this asks "is this ROW's handle the one boot re-seeds through?" — a handle-only question a group can never
- * answer. Two consumers resolve the owner ROW by this handle rather than by id: boot's `seedOwner` →
- * `ensureUser(ownerHandles()[0])` (`entry/boot/seed-owner.ts`) and the auth seam's owner fallback
- * (`ownerHandleForFallback`, `entry/auth/seam.ts`). A login that moves the owner row OFF this key therefore
- * strands both — `provisionIdentity`'s update path asks here before renaming.
- */
-export function isOwnerSeedHandle(handle: Handle): boolean {
-  return ownerHandles().includes(handle);
-}
-
-/** D259 — a handle a signup may never claim: an `OWNER_HANDLES` seed key or the single-user placeholder,
- *  compared on the handle key, so a case variant or look-alike cannot squat the key the next boot re-seeds
- *  through. */
-export function isReservedSignupHandle(handle: Handle): boolean {
-  const claimed = handleKey(handle);
-  return [...ownerHandles(), env.DEFAULT_USER_HANDLE].some((reserved) => handleKey(reserved) === claimed);
-}
-
-/**
- * THE bind-once predicate (spine U1: ONE linking rule, shared by every externalId writer). TRUE when a row
- * is already BOUND to a stable subject that DIFFERS from the incoming one — the impostor / rebind refusal.
- * Pure over the two subject fields so both the SSO seam (`provisionIdentity`) and the admin link capability
- * (`linkExternalId`) reach it without a verb→verb import. A null on EITHER side is never a mismatch: a
- * null-subject login carries no claim to contradict a binding (that residual is the SSO seam's scope note),
- * and an unbound row is a first-link, not a rebind.
- */
+/** Bind-once subject comparison shared by SSO provisioning and the admin link capability. A null subject
+ *  claims nothing; forward-header identities may legitimately have none (D258). */
 export function isSubjectMismatch(existingExternalId: ExternalId | null, incomingExternalId: ExternalId | null): boolean {
   return incomingExternalId !== null && existingExternalId !== null && existingExternalId !== incomingExternalId;
-}
-
-/** Whether the identity is the box OWNER by policy — in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group
- *  preferred). This is owner POLICY (who the operator declared the owner is), NOT a privilege-lattice compare
- *  — it re-spells no `role === "owner"` (the `owner-role-split` gate's target), so a consumer that needs the
- *  binary "is this the owner?" question calls THIS instead of comparing a derived role literal. */
-export function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
-  return isOwnerGroupMember(groups) || ownerHandles().includes(handle);
-}
-
-/** Whether the identity is in `OWNER_GROUP`. Group membership is the IdP operator's grant, so it claims the owner
- *  with no further proof, where a handle match alone does not (`decideProvision`). */
-export function isOwnerGroupMember(groups: readonly string[]): boolean {
-  // Trimmed like every sibling group var: `csv()` trims the configured lists and the OIDC callback trims each
-  // claimed group name, so a raw compare would never match a padded `OWNER_GROUP`. Trim only: the compare stays
-  // exact (case-sensitive, no prefix or fuzzy match), because anything looser widens elevation.
-  const ownerGroup = process.env["OWNER_GROUP"]?.trim();
-  return ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup);
-}
-
-/**
- * The PURE role derivation (no login gate): `owner` (owner policy) → `admin` (any `OIDC_ADMIN_GROUPS`
- * group) → `user`. The owner-fallback JIT path (`ensureUser`) uses this directly with empty groups (⇒
- * owner for the owner handle, else user). SSO login uses {@link deriveIdentityAccess}, which layers the
- * allowed-groups gate on top. The returned member is a subset of `UserRole` (no inline re-spell).
- */
-export function determineRole(handle: Handle, groups: string[]): UserRole {
-  return roleFor(isOwnerByPolicy(handle, groups), groups);
-}
-
-function roleFor(ownerByPolicy: boolean, groups: string[]): UserRole {
-  if (ownerByPolicy) {
-    return "owner";
-  }
-  if (intersects(groups, adminGroups())) {
-    return "admin";
-  }
-  return "user";
-}
-
-/** Whether the identity passes the `OIDC_ALLOWED_GROUPS` gate. Unset ⇒ pass (backward-compat). */
-function passesAllowedGate(groups: string[]): boolean {
-  const allowed = allowedGroups();
-  if (allowed.length === 0) {
-    return true;
-  }
-  return intersects(groups, allowed);
-}
-
-/** The SSO login access + role decision. `deny` when `OIDC_ALLOWED_GROUPS` is set and the identity is in
- *  none of those groups (and is not owner/admin — owner is exempt, admin is implicitly allowed, OpenWebUI
- *  parity). Fail-closed by construction: an empty/unparseable groups list with the gate set never passes. */
-export function deriveIdentityAccess(handle: Handle, groups: string[]): IdentityAccess {
-  return identityAccess(isOwnerByPolicy(handle, groups), groups);
-}
-
-/** {@link deriveIdentityAccess} for an identity whose owner policy the caller already resolved. `decideProvision`
- *  passes false for an unproven `OWNER_HANDLES` claimant, which then meets the gate like anyone else. */
-export function identityAccess(ownerByPolicy: boolean, groups: string[]): IdentityAccess {
-  // Owner/admin bypass the allowed-groups gate (owner is exempt; admin — an OIDC_ADMIN_GROUPS member — is
-  // implicitly allowed, OpenWebUI parity). The bypass is the GROUP predicate, NOT a role-literal comparison
-  // (the owner ⊇ admin lattice lives only in `can()` — the `owner-role-split` gate forbids comparing here).
-  const privileged = ownerByPolicy || intersects(groups, adminGroups());
-  if (!(privileged || passesAllowedGate(groups))) {
-    return { outcome: "deny" };
-  }
-  return { outcome: "allow", role: roleFor(ownerByPolicy, groups) };
-}
-
-/**
- * Whether group-driven role governance is ACTIVE — the operator opted in by setting `OIDC_ADMIN_GROUPS`
- * or `OIDC_ALLOWED_GROUPS`. When active, admin/user roles RE-DERIVE from groups on every login (an
- * authentik group change takes effect next login). When inactive (neither set), role governance is the
- * legacy manual-`setRole` posture and a login preserves the stored role unless `RE_DERIVE_ROLE_ON_LOGIN`.
- * The OWNER role is NEVER re-derived either way (the immutable bootstrap singleton — enforced at the verb).
- */
-export function groupRoleGovernanceActive(): boolean {
-  return adminGroups().length > 0 || allowedGroups().length > 0;
-}
-
-/**
- * Whether a `provisionIdentity` UPDATE should RE-DERIVE the (non-owner) `role`. TRUE when group governance
- * is active OR the legacy `RE_DERIVE_ROLE_ON_LOGIN` flag is set (default OFF — "removal does NOT
- * auto-demote"; a manual `setRole` grant survives the user's next login). Tolerant flag parse: true on
- * `true`/`1`/`yes` (case-insensitive).
- */
-export function reDeriveRoleOnLogin(): boolean {
-  if (groupRoleGovernanceActive()) {
-    return true;
-  }
-  const raw = process.env["RE_DERIVE_ROLE_ON_LOGIN"]?.trim().toLowerCase();
-  return raw !== undefined && TRUTHY.has(raw);
 }

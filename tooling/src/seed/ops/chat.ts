@@ -23,7 +23,7 @@ import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import {
   createLocalLightUserSeed,
@@ -101,13 +101,15 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   await runBootMigrations({ db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups, launched: DB_LAUNCHED });
 
   const sessionSecret = env.SESSION_SECRET ?? CHAT_SEED_SESSION_SECRET;
-  const handles = ownerHandles();
+  const rolePolicy = createSessionsRolePolicy(env);
+  const handles = rolePolicy.ownerHandles();
   // #2481 — the owner is minted through `ensureUser` below, and this CLI never runs the boot sweep, so
   // the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
   const bootSessions = createSessionsService({
+    rolePolicy,
     db: wiringDb,
     now,
     sessionSecret,
@@ -121,6 +123,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
   const owner = await createHostPrincipalResolver(bootSessions)(ownerId);
 
   const built = await createServices({
+    rolePolicy,
     db: wiringDb,
     now,
     ownerId,

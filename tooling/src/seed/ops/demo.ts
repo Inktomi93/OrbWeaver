@@ -48,7 +48,7 @@ import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
-import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import {
   createLocalLightUserSeed,
@@ -309,13 +309,15 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
 
   await Promise.resolve(deps.validateRequiredAssets?.());
 
-  const handles = ownerHandles();
+  const rolePolicy = createSessionsRolePolicy(env);
+  const handles = rolePolicy.ownerHandles();
   // #2481 — the owner is minted through `ensureUser` below, and this seeder never runs the boot sweep,
   // so the per-user seed is the only thing that gives the seeded owner its local-light vector floor.
   // An owner whose encoder this seed binds gets its search sweeps enqueued once services exist (as boot does).
   const ownersBoundBeforeCompose: UserId[] = [];
   const wiringDb = databaseHandle(db);
   const bootSessions = createSessionsService({
+    rolePolicy,
     db: wiringDb,
     now,
     sessionSecret,
@@ -330,6 +332,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
   const owner = await principalFor(ownerId);
 
   const built = await createServices({
+    rolePolicy,
     db: wiringDb,
     now,
     ownerId,

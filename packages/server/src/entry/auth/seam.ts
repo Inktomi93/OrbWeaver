@@ -39,7 +39,6 @@ import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isOwner } from "#domain/admin";
 import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
-import { ownerHandles } from "#domain/sessions";
 import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore, RelayedFallbackNotice } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { captureUserRole } from "#primitives/role-data";
@@ -181,8 +180,8 @@ async function resolveCookiePrincipal(sessions: SessionsService, headers: Header
  * the only belt for a seam constructed OUTSIDE that boot path (unit tests, the int harness, any future
  * embedder), and removing it would resolve the arm to nothing there.
  */
-function ownerHandleForFallback(verificationHandle: Handle): Handle {
-  return castId<Handle>(ownerHandles()[0] ?? verificationHandle);
+function ownerHandleForFallback(sessions: SessionsService, verificationHandle: Handle): Handle {
+  return castId<Handle>(sessions.rolePolicy.ownerHandles()[0] ?? verificationHandle);
 }
 
 /** Owner-fallback or SSO header path. `null` for an anonymous/disabled caller (→ transport 401). */
@@ -213,7 +212,7 @@ async function resolveHeaderOrFallbackPrincipal(
     // makes EVERY proxied (LAN/internet) request a loopback peer. `ownerFallbackAllowed` refuses a request
     // that carries a relay tell, but a proxy that sends none is invisible, so a flag left set on such a box
     // mints owner for the whole network, not just the on-box operator (docs/law/container-deployment-security.md).
-    const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
+    const userId = await sessions.ensureUser(ownerHandleForFallback(sessions, res.identity.handle));
     return await resolveFallbackPrincipal(userId);
   }
   // D258: the trusted proxy is the identity authority in forward-header, so its handle is the owner's word.

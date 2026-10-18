@@ -109,8 +109,8 @@ import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";
 import { withRetrievalDegrade } from "#domain/search";
-import type { SessionsService } from "#domain/sessions";
-import { createResolveUserEnabled, createSessionsService } from "#domain/sessions";
+import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
+import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
 import {
   createEffectiveConfigCache,
@@ -223,6 +223,7 @@ export interface ServicesDeps {
   readonly timers?: TimerScheduler;
   readonly userRuntimeDir?: string;
   readonly authConfig?: Pick<AuthConfig, "mode">;
+  readonly rolePolicy?: SessionsRolePolicy;
   readonly random?: (() => number) | undefined;
   readonly randomInt?: RpgContext["randomInt"] | undefined;
   readonly idSource?: IdSource;
@@ -479,7 +480,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   );
   egressLifetime = egress;
   const forwardJwtVerifier = createForwardJwtVerifier(resources.use(createJwksReader(egress.configuredEndpointFetch)).jwksFor);
-  const { db, now, authConfig = { mode: env.AUTH_MODE }, idSource = createIdSource(), newOpaqueId = randomUUID, userRuntimeDir = env.USER_RUNTIME_DIR } = deps;
+  const {
+    db,
+    now,
+    authConfig = { mode: env.AUTH_MODE },
+    rolePolicy = createSessionsRolePolicy(env),
+    idSource = createIdSource(),
+    newOpaqueId = randomUUID,
+    userRuntimeDir = env.USER_RUNTIME_DIR,
+  } = deps;
   const authMode = authConfig.mode;
   const presence = createPresenceRegistry(now);
   const sockets = createSocketRegistry(now);
@@ -504,7 +513,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       embedReindex.detachEmbedReindex(ownerId);
     },
   });
-  const sessions = createSessionsService({ db, now, idSource, sessionSecret: deps.sessionSecret, seedUserConnections });
+  const sessions = createSessionsService({
+    db,
+    now,
+    idSource,
+    sessionSecret: deps.sessionSecret,
+    seedUserConnections,
+    rolePolicy,
+  });
   // A connection/binding write that changes an owner's embed or imageEmbed SPACE
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during

@@ -11,15 +11,16 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { RevokedSessionsSummary } from "@orb/server/domain/sessions";
-import { isReservedSignupHandle } from "@orb/server/domain/sessions";
+import type { RevokedSessionsSummary, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, like } from "drizzle-orm";
 import { Hono } from "hono";
-import { afterEach, describe, vi } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createSignupInvite } from "#server/domain/chat/verbs/signup-invite.ts";
 import { createJoinerPersonaStatement } from "#server/domain/persona/verbs/joiner-persona-statement.ts";
 import { createSessionsService } from "#server/domain/sessions/service.ts";
@@ -28,7 +29,6 @@ import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
-import { env } from "#server/foundation/env/index.ts";
 import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
 import { createPublicHttpMintNotice, ownerFallbackAllowed } from "#server/infra/auth/index.ts";
 
@@ -637,6 +637,11 @@ describe("local signup route (D259)", () => {
   const InviteId = castId<ChatInviteId>("chat_invite_signup_route");
   const creds = { token: Good, handle: "friend", password: "hunter2pw", persona: { name: "Mira", description: "" } };
 
+  let policyConfig: SessionsRolePolicyConfig;
+  beforeEach(() => {
+    policyConfig = { ...env };
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -701,7 +706,7 @@ describe("local signup route (D259)", () => {
         multiHumanCapable: (): boolean => true,
         sessionIsLive: (): Promise<boolean> => Promise.resolve(false),
         invites: stubInvites(spies),
-        isReservedHandle: isReservedSignupHandle,
+        isReservedHandle: createSessionsRolePolicy(policyConfig).isReservedSignupHandle,
         handleTaken: (): Promise<boolean> => Promise.resolve(false),
         hashPassword: (plain: string): Promise<string> => {
           spies.hashed += 1;
@@ -784,7 +789,7 @@ describe("local signup route (D259)", () => {
   });
 
   test.each([["owner"], ["Owner"], ["OWNER"], ["Boss"], ["0WNER"], ["B0SS"]])("the reserved handle %s → 409 before any hashing", async (handle) => {
-    vi.stubEnv("OWNER_HANDLES", "boss");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "boss" };
     const { app, spies } = await signupApp();
     const res = await postSignup(app, "10.9.1.1", { ...creds, handle });
     expect(res.status).toBe(409);
@@ -820,7 +825,13 @@ describe("local signup route (D259)", () => {
       createdAt: NOW,
     });
     await seedUser(db, { handle: castId<Handle>("someone-else") });
-    const sessionsSvc = createSessionsService({ db, now: () => NOW, sessionSecret: "s".repeat(32), seedUserConnections: () => Promise.resolve() });
+    const sessionsSvc = createSessionsService({
+      rolePolicy: createSessionsRolePolicy(policyConfig),
+      db,
+      now: () => NOW,
+      sessionSecret: "s".repeat(32),
+      seedUserConnections: () => Promise.resolve(),
+    });
     const announced: ChatId[] = [];
     const invites = createSignupInvite(
       {

@@ -8,7 +8,6 @@ import { sessions, users } from "@orb/db";
 import type { ExternalId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { ownerHandles } from "@orb/server/domain/sessions";
 import { oidcPendingJoinCookieFor, readRequestCookie, readSessionCookie } from "@orb/server/entry/auth";
 import { eq } from "drizzle-orm";
 import type { JWTPayload } from "jose";
@@ -100,7 +99,7 @@ export async function seedOidcCorpus(root: UnclaimedServerTestHarness, issuer: A
   if (anonymousConfig.mode !== "oidc" || root.ownerClaimFile === undefined) {
     throw new Error("corpus OIDC capture requires a configured unclaimed root and its real boot claim file");
   }
-  const handle = ownerHandles()[0];
+  const handle = root.app.sessions.rolePolicy.ownerHandles()[0];
   if (handle === undefined) {
     throw new Error("corpus OIDC capture has no configured owner handle");
   }

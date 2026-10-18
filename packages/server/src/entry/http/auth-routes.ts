@@ -42,8 +42,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import type { SignupInviteOps } from "#domain/chat";
-import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsService } from "#domain/sessions";
-import { groupRoleGovernanceActive } from "#domain/sessions";
+import type { ProvisionIdentityOptions, RevokedSessionsSummary, SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { getLog, groupsLogFields, securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcExchange, OidcTransaction, OwnerClaimCode, PublicHttpMintNotice } from "#infra/auth";
 import {
@@ -501,6 +500,7 @@ export interface OidcClaimMap {
 
 // @orb-waive no-inline-package-interface(OidcRoutesDeps): baselined when the gate landed; burn-down item 952.
 export interface OidcRoutesDeps {
+  readonly rolePolicy: SessionsRolePolicy;
   readonly getConfig: () => Promise<Configuration>;
   /** #867 — the code→token exchange, injected so the callback's happy path is drivable without an IdP.
    *  Production wires `infra/auth`'s `createOidcExchange(authorizationCodeGrant)` — the real grant — at
@@ -1216,7 +1216,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       return loginErrorRedirect(c, exchange.code);
     }
     // #699 — the usable-identity gate refuses both no-username AND no-stable-subject logins (`oidcSessionIdentity`).
-    const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator);
+    const identity = oidcSessionIdentity(exchange.claims, oidc.claims, oidc.groupsSeparator, oidc.rolePolicy.groupRoleGovernanceActive());
     if (identity === null) {
       return loginErrorRedirect(c, AUTH_ERROR_NO_IDENTITY);
     }
@@ -1509,41 +1509,6 @@ function groupsClaimIsUsable(raw: unknown): boolean {
   return Array.isArray(raw) || typeof raw === "string";
 }
 
-/**
- * #140 — THE ARRIVAL RECEIPT FOR THE `groups` CLAIM. Until this line existed the provisioning path logged
- * handle + externalId and never the claim that decides the ROLE, so "does authentik's `groups` actually ride
- * the token?" was unobservable on the box (the 2026-08-09 authentik crosscheck's open residual #2) — and
- * absence was indistinguishable from "present and empty" by the time it reached `provisionIdentity`, which
- * only ever sees the normalized `string[]`. THIS is the one place both facts are still in hand.
- *
- * One INFO line per OIDC login: the configured claim NAME (the knob to fix), whether a usable value arrived,
- * its raw shape, and the bounded group NAMES (`groupsLogFields` — names only; the ID token and the raw claim
- * object are never logged).
- *
- * Plus a securityEvent when the claim is UNUSABLE **and group governance is ACTIVE** — the same
- * silently-disabled-control class as `oidc_subject_claim_missing` (#34). With `OIDC_ADMIN_GROUPS` set that
- * login derives `user` for everyone (no admin is ever granted, and an existing group-derived admin is
- * DEMOTED by the login re-derive); with `OIDC_ALLOWED_GROUPS` set the fail-closed gate denies EVERY login.
- * Both read as "the IdP is broken" with nothing naming the cause. Gated on governance being active so a box
- * that never configured groups stays silent. OBSERVABILITY ONLY — the identity returned is byte-identical.
- */
-function reportGroupsClaimArrival(raw: unknown, groups: readonly string[], claimName: string, handle: Handle): void {
-  const usable = groupsClaimIsUsable(raw);
-  const shape = groupsClaimShape(raw);
-  getLog().info(
-    { event: "oidc_groups_claim", handle, groupsClaim: claimName, groupsClaimPresent: usable, groupsClaimShape: shape, ...groupsLogFields(groups) },
-    usable ? "auth: OIDC groups claim arrived" : "auth: OIDC groups claim ABSENT — the IdP emitted no usable value at this claim path",
-  );
-  if (usable || !groupRoleGovernanceActive()) {
-    return;
-  }
-  securityEvent(
-    "oidc_groups_claim_missing",
-    { handle, groupsClaim: claimName, groupsClaimShape: shape },
-    "security: group governance is ACTIVE (OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS) but this login carried NO usable groups claim — no group can grant admin (and a group-derived admin is demoted on this login), and OIDC_ALLOWED_GROUPS denies everyone; point OIDC_GROUPS_CLAIM at a claim the IdP emits (authentik: `groups` rides the `profile` scope — check the provider's property mapping)",
-  );
-}
-
 /** Resolve a claim name that may be a dot-path (e.g. `user.memberOf`) against the claims object. A flat
  *  name is a single-key lookup; the walk short-circuits to `undefined` at any non-object segment. */
 function readClaimPath(claims: { readonly [claim: string]: unknown }, path: string): unknown {
@@ -1580,7 +1545,8 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
 export function identityFromClaims(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
-  groupsSeparator = ";",
+  groupsSeparator: string | undefined,
+  governanceActive: boolean,
 ): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
@@ -1610,11 +1576,30 @@ export function identityFromClaims(
     );
   }
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
-  const groups = normalizeGroups(rawGroups, groupsSeparator);
+  const groups = normalizeGroups(rawGroups, groupsSeparator ?? ";");
   // #140 — the claim's ARRIVAL (or its absence) is recorded HERE, the last point at which "the IdP emitted
   // nothing" and "the IdP emitted an empty list" are still distinguishable; `ResolvedIdentity.groups` folds
   // both to `[]`.
-  reportGroupsClaimArrival(rawGroups, groups, claimMap.groupsClaim, handle);
+  const usableGroups = groupsClaimIsUsable(rawGroups);
+  const groupsShape = groupsClaimShape(rawGroups);
+  getLog().info(
+    {
+      event: "oidc_groups_claim",
+      handle,
+      groupsClaim: claimMap.groupsClaim,
+      groupsClaimPresent: usableGroups,
+      groupsClaimShape: groupsShape,
+      ...groupsLogFields(groups),
+    },
+    usableGroups ? "auth: OIDC groups claim arrived" : "auth: OIDC groups claim ABSENT — the IdP emitted no usable value at this claim path",
+  );
+  if (!usableGroups && governanceActive) {
+    securityEvent(
+      "oidc_groups_claim_missing",
+      { handle, groupsClaim: claimMap.groupsClaim, groupsClaimShape: groupsShape },
+      "security: group governance is ACTIVE (OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS) but this login carried NO usable groups claim — no group can grant admin (and a group-derived admin is demoted on this login), and OIDC_ALLOWED_GROUPS denies everyone; point OIDC_GROUPS_CLAIM at a claim the IdP emits (authentik: `groups` rides the `profile` scope — check the provider's property mapping)",
+    );
+  }
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {
@@ -1649,9 +1634,10 @@ export function identityFromClaims(
 export function oidcSessionIdentity(
   claims: { readonly [claim: string]: unknown } | undefined,
   claimMap: OidcClaimMap,
-  groupsSeparator?: string,
+  groupsSeparator: string | undefined,
+  governanceActive: boolean,
 ): (ResolvedIdentity & { readonly externalId: ExternalId }) | null {
-  const identity = identityFromClaims(claims, claimMap, groupsSeparator);
+  const identity = identityFromClaims(claims, claimMap, groupsSeparator, governanceActive);
   if (identity === null || identity.externalId === null) {
     return null;
   }

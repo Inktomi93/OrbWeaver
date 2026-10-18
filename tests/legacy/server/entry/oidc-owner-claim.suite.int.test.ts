@@ -3,12 +3,14 @@
 // code. OWNER_GROUP still claims. This composes the REAL login and callback routes, the REAL sessions service and OIDC
 // store and a REAL database; only the IdP exchange is a fake that hands the callback chosen verified claims.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService } from "@orb/server/domain/sessions";
+// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -75,7 +77,13 @@ interface Flow {
 async function flow(): Promise<Flow> {
   const db = await freshDb();
   const now = (): number => FROZEN_AT_MS;
-  const sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: () => Promise.resolve() });
+  const sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(policyConfig),
+    db,
+    now,
+    sessionSecret: PEPPER,
+    seedUserConnections: () => Promise.resolve(),
+  });
   const ownerClaim = createOwnerClaimCode();
   const claims = { current: claimsFor("owner") };
   // biome-ignore lint/style/useNamingConvention: `authorization_endpoint` is the OIDC discovery field name.
@@ -86,6 +94,7 @@ async function flow(): Promise<Flow> {
     redirectAllowlist: [PUBLIC_CALLBACK, LOOPBACK_CALLBACK],
     scope: "openid profile email",
     claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+    rolePolicy: sessions.rolePolicy,
     groupsSeparator: ";",
     allowJitProvision: true,
     requireApproval: false,
@@ -138,9 +147,11 @@ function claimWarned(calls: readonly (readonly unknown[])[]): boolean {
   return calls.some(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_owner_claim_unproven");
 }
 
+let policyConfig: SessionsRolePolicyConfig;
 beforeEach(() => {
-  vi.stubEnv("OWNER_HANDLES", "owner");
-  vi.stubEnv("OWNER_GROUP", undefined);
+  policyConfig = { ...env };
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  policyConfig = { ...policyConfig, ["OWNER_GROUP"]: undefined };
 });
 
 afterEach(() => {
@@ -208,7 +219,7 @@ describe("the owner claims with proof", () => {
   });
 
   test("an OWNER_GROUP member binds through the proxy with no code", async () => {
-    vi.stubEnv("OWNER_GROUP", "owners");
+    policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
     const f = await flow();
     await seedUnboundOwner(f);
     const res = await signIn(f, viaProxy, "alex", { groups: ["owners"] });

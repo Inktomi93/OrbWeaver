@@ -20,7 +20,7 @@ import { RESTART_EXIT_CODE } from "@orb/kit/supervisor";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import type { ServerRestartPort } from "#domain/admin";
 
-import { createSessionsService, ownerHandles } from "#domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
 import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#domain/share";
 
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
@@ -328,7 +328,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // Resolve the owner id before compose (the owner role-clients bundle resolves against it). A
     // transient sessions service is built only to run the owner seed; compose owns the real one.
     const ownersBoundBeforeCompose: UserId[] = [];
+    const rolePolicy = createSessionsRolePolicy(env);
     const bootSessions = createSessionsService({
+      rolePolicy,
       db: wiringDb,
       now,
       sessionSecret,
@@ -364,7 +366,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         inContainer: bindPostureInput().inContainer,
       });
     } else {
-      const handles = ownerHandles();
+      const handles = rolePolicy.ownerHandles();
       // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't
       // locked out. Passed only in local mode; first-boot-only + non-clobbering (see seed-owner).
       const localPasswordSeed =
@@ -454,6 +456,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     const authConfig = authConfigFromEnv();
     const built = await createServices({
+      rolePolicy,
       authConfig,
       db: wiringDb,
       now,

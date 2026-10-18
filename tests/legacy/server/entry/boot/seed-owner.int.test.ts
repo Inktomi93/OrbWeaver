@@ -12,15 +12,18 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createSessionsService } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed, seedOwner } from "@orb/server/entry/boot";
+import { env } from "@orb/server/foundation/env";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { afterEach, vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import { createPasswordHasher } from "#server/infra/auth/index.ts";
 
 const OWNER_ID = castId<UserId>("u_owner");
@@ -34,6 +37,11 @@ const INITIAL_PASSWORD = "correct horse battery";
 
 /** The moved-seed-key refusal's tell — the message must name WHY it refused, not just fail. */
 const HANDLE_TAKEN_REFUSAL = /already held by another user/;
+
+let policyConfig: SessionsRolePolicyConfig;
+beforeEach(() => {
+  policyConfig = { ...env };
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -134,12 +142,13 @@ test("leaves a non-OWNER-handle row untouched (stays role=user)", async ({ clock
 test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate path", async ({ clock }) => {
   const db = await freshDb();
   // Real sessions service = real ensureUser (JIT-create) + real scrypt verify over the same pepper.
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
+  };
+  const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 
   const [ownerId] = await seedOwner({
     db,
@@ -166,12 +175,13 @@ test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate
 
 test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
+  };
+  const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const hasher = createPasswordHasher(PEPPER);
 
   await seedOwner({
@@ -224,13 +234,15 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
 //   non-existent, non-owner principal.
 test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no phantom", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
-  vi.stubEnv("OWNER_HANDLES", "owner");
+  };
+  let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 
   const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
   if (firstBootOwner === undefined) {
@@ -238,7 +250,8 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
   }
 
   // The owner flips the box to OIDC and signs in TWICE under a different IdP handle (adopt, then re-login).
-  vi.stubEnv("OWNER_GROUP", "owners");
+  policyConfig = { ...policyConfig, ["OWNER_GROUP"]: "owners" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const oidc: ResolvedIdentity = {
     externalId: castId<ExternalId>("authentik|alex"),
     handle: castId<Handle>("alex"),
@@ -275,13 +288,15 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
 // a seeded mode (boot runs seedOwner) and back to oidc. The member must never end up holding the owner row.
 test("a member's IdP rename onto the seed key never becomes the owner across a mode flip and back", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
-  vi.stubEnv("OWNER_HANDLES", "owner");
+  };
+  let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const member: ResolvedIdentity = { externalId: castId<ExternalId>("idp|mallory"), handle: castId<Handle>("mallory"), groups: [], email: null };
 
   // oidc, unclaimed: the member joins, then renames at the IdP to the seed key.
@@ -305,13 +320,15 @@ test("a member's IdP rename onto the seed key never becomes the owner across a m
 // `ensureUser(seed key)` meets `users_handle_key_unique`.
 test("after a stranger's JIT sign-in as a seed-key look-alike, a seeded-mode boot still seeds the owner", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
-  vi.stubEnv("OWNER_HANDLES", "owner");
+  };
+  let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const stranger: ResolvedIdentity = { externalId: castId<ExternalId>("idp|stranger"), handle: castId<Handle>("Owner"), groups: [], email: null };
   await sessions.provisionIdentity(stranger, { ownerClaimProven: false, allowJitProvision: true });
 
@@ -323,13 +340,15 @@ test("after a stranger's JIT sign-in as a seed-key look-alike, a seeded-mode boo
 
 test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, boot survives, role/subject intact", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
-  vi.stubEnv("OWNER_HANDLES", "owner");
+  };
+  let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 
   const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
   // The realistic shape: the row is already SSO-bound (that binding is exactly what must survive the move).
@@ -339,7 +358,8 @@ test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, bo
     .where(eq(users.handle, castId<Handle>("owner")));
 
   // The operator's IdP username changed, so they edit OWNER_HANDLES and restart.
-  vi.stubEnv("OWNER_HANDLES", "alex");
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alex" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const secondBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["alex"], now: clock.now }))[0];
 
   expect(secondBootOwner).toBe(firstBootOwner);
@@ -358,17 +378,21 @@ test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, bo
 // `users_single_owner_unique` would reject as an opaque SQLITE_CONSTRAINT — the pre-fix failure).
 test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly and touches NEITHER row", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
-  vi.stubEnv("OWNER_HANDLES", "owner");
+  };
+  let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
   await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("alex"), handleKey: handleKey(castId<Handle>("alex")), role: "user" });
 
-  vi.stubEnv("OWNER_HANDLES", "alex");
+  policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "alex" };
+
+  sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   await expect(seedOwner({ db, sessions, ownerHandles: ["alex"], now: clock.now })).rejects.toThrow(HANDLE_TAKEN_REFUSAL);
 
   const rows = await db.select().from(users);
@@ -380,12 +404,13 @@ test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly a
 
 test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {
   const db = await freshDb();
-  const sessions = createSessionsService({
-    db,
+  const sessionInputs = {
+    db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
     seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
-  });
+  };
+  const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 
   await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
 

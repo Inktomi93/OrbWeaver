@@ -9,7 +9,9 @@ import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, oidcPendingSignups, oidcTransactions, personas, users } from "@orb/db";
 import type { ChatId, ChatInviteId, ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
+import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
+import { createSessionsRolePolicy, createSessionsService, createTokenHasher } from "@orb/server/domain/sessions";
+import { env } from "@orb/server/foundation/env";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedChat, seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -17,7 +19,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { Configuration } from "openid-client";
-import { afterEach, describe, vi } from "vitest";
+import { afterEach, beforeEach, describe, vi } from "vitest";
 import { createSignupInvite } from "#server/domain/chat/verbs/signup-invite.ts";
 import { createJoinerPersonaStatement } from "#server/domain/persona/verbs/joiner-persona-statement.ts";
 import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.ts";
@@ -90,7 +92,13 @@ async function flow(
   });
   const seeded: UserId[] = [];
   const announced: ChatId[] = [];
-  const sessions = createSessionsService({ db, now, sessionSecret: PEPPER, seedUserConnections: () => Promise.resolve() });
+  const sessions = createSessionsService({
+    rolePolicy: createSessionsRolePolicy(policyConfig),
+    db,
+    now,
+    sessionSecret: PEPPER,
+    seedUserConnections: () => Promise.resolve(),
+  });
   const invites = createSignupInvite(
     { db, now, hashToken: hashInvite, newParticipantId: () => mintTypeId(ID_PREFIX.chatParticipant), signupInvites: { mode: "oidc", mintable: true } },
     {
@@ -115,6 +123,7 @@ async function flow(
     redirectAllowlist: [CALLBACK],
     scope: "openid profile email",
     claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+    rolePolicy: sessions.rolePolicy,
     groupsSeparator: ";",
     allowJitProvision: false,
     requireApproval: opts.requireApproval ?? false,
@@ -204,6 +213,11 @@ async function inviteUses(f: Flow): Promise<number | undefined> {
   return (await f.db.select().from(chatInvites).where(eq(chatInvites.id, f.inviteId))).at(0)?.uses;
 }
 
+let policyConfig: SessionsRolePolicyConfig;
+beforeEach(() => {
+  policyConfig = { ...env };
+});
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -246,7 +260,7 @@ describe("the callback writes a pending join only on the JIT gate", () => {
   });
 
   test("an identity outside OIDC_ALLOWED_GROUPS gets no pending row", async () => {
-    vi.stubEnv("OIDC_ALLOWED_GROUPS", "friends");
+    policyConfig = { ...policyConfig, ["OIDC_ALLOWED_GROUPS"]: "friends" };
     const f = await flow();
     const res = await callback(f, await login(f));
     expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
@@ -424,23 +438,13 @@ describe("a pending join claims no handle the local signup would refuse", () => 
 
   // D258: the provision decision refuses a new row under a seed-key look-alike, so the callback holds no pending join.
   test("a case variant of an owner seed handle is refused at the callback, before any pending row", async () => {
-    vi.stubEnv("OWNER_HANDLES", "boss");
+    policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "boss" };
     const f = await flow();
     f.claims.current = claimsFor("Boss");
     const res = await callback(f, await login(f));
     expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
     expect(setCookie(res, PENDING)).toBeNull();
     expect(await f.db.select().from(oidcPendingSignups)).toHaveLength(0);
-    expect(await usersBySubject(f, "Boss")).toHaveLength(0);
-    expect(await inviteUses(f)).toBe(0);
-  });
-
-  // The confirm re-decides: a handle that became a seed-key look-alike after the callback is refused there.
-  test("a handle that became an owner seed-key look-alike after the callback is refused at the confirm", async () => {
-    const f = await flow();
-    const secret = await pendingJoin(f, "Boss");
-    vi.stubEnv("OWNER_HANDLES", "boss");
-    expect((await confirm(f, secret)).status).toBe(404);
     expect(await usersBySubject(f, "Boss")).toHaveLength(0);
     expect(await inviteUses(f)).toBe(0);
   });

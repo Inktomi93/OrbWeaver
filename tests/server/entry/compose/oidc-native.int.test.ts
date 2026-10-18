@@ -4,13 +4,14 @@ import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
+import type { ExternalId } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
-import { ownerHandles } from "@orb/server/domain/sessions";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { createConfiguredOidc } from "@orb/server/entry/compose";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createControlledTimers } from "@orb/testkit/iso/timers.ts";
-import { freshHeldDb } from "@orb/testkit/node/db.ts";
+import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS as SETTINGS } from "@orb/testkit/node/oidc-issuer.ts";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/server.ts";
@@ -38,7 +39,7 @@ function cookieJar(response: Response): string {
 function rootFor(
   issuer: Issuer,
   oidc: Partial<NonNullable<ServerHarnessOptions["oidc"]>> = {},
-  edges: Pick<ServerHarnessOptions, "clock" | "timers"> = {},
+  edges: Pick<ServerHarnessOptions, "clock" | "timers" | "db" | "rolePolicyConfig"> = {},
 ): Promise<UnclaimedServerTestHarness> {
   return createServerHarness({
     ...edges,
@@ -158,7 +159,7 @@ test("a genuine fresh OIDC root refuses a guessable owner handle, then claims on
   const issuer = await createNativeIssuer();
   await using root = await rootFor(issuer);
   // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
-  const claims = { sub: "native-owner-subject", preferred_username: ownerHandles()[0] } satisfies JWTPayload;
+  const claims = { sub: "native-owner-subject", preferred_username: root.app.sessions.rolePolicy.ownerHandles()[0] } satisfies JWTPayload;
   const unproven = await callback(root, await begin(root, issuer, claims));
   expect(unproven.headers.get("location")).toBe("/login?authError=not_authorized");
   expect(await root.app.sessions.getOwnerUserId()).toBeUndefined();
@@ -224,7 +225,7 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   }
   const claimUrl = new URL((await readFile(root.ownerClaimFile, "utf8")).trim());
   // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
-  await signIn(root, issuer, { sub: "native-owner-subject", preferred_username: ownerHandles()[0] }, claimUrl.search);
+  await signIn(root, issuer, { sub: "native-owner-subject", preferred_username: root.app.sessions.rolePolicy.ownerHandles()[0] }, claimUrl.search);
   const ownerId = await root.app.sessions.getOwnerUserId();
   if (ownerId === undefined) {
     throw new Error("real owner claim produced no owner row");
@@ -268,6 +269,69 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   expect(replay.status).toBe(404);
   const signedIn = await root.http.request("/api/auth/me", { headers: { cookie: cookieJar(confirmed) } });
   expect(authMeSchema.parse(await signedIn.json()).authenticated).toBe(!approval);
+});
+
+test("native OIDC group claims fail closed under the graph's configured allowed groups", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
+  for (const groups of [undefined, null, 7, [], ["outsiders"], { value: "friends" }]) {
+    const response = await callback(root, await begin(root, issuer, { ...MEMBER, groups }));
+    expect(response.headers.get("location")).toBe("/login?authError=not_authorized");
+    expect(await root.db.select().from(users)).toEqual([]);
+    expect(await root.db.select().from(sessions)).toEqual([]);
+  }
+  const cookie = await signIn(root, issuer, { ...MEMBER, groups: [" friends "] });
+  const signedIn = await root.http.request("/api/auth/me", { headers: { cookie } });
+  expect(authMeSchema.parse(await signedIn.json())).toMatchObject({ authenticated: true, role: "user" });
+});
+
+test("a handle that became an owner seed-key look-alike after the callback is refused at the confirm", async () => {
+  await using resources = new AsyncDisposableStack();
+  const db = await freshDb();
+  resources.defer(() => closeDb(db));
+  const issuer = await createNativeIssuer();
+  const first = resources.use(
+    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "original-owner" } }),
+  );
+  if (first.ownerClaimFile === undefined) {
+    throw new Error("configured OIDC omitted its actual owner claim file");
+  }
+  const claimUrl = new URL((await readFile(first.ownerClaimFile, "utf8")).trim());
+  await signIn(first, issuer, { sub: "restart-policy-owner", [SETTINGS.OIDC_USERNAME_CLAIM]: "original-owner" }, claimUrl.search);
+  const ownerId = await first.app.sessions.getOwnerUserId();
+  if (ownerId === undefined) {
+    throw new Error("the actual owner claim produced no owner row");
+  }
+  const owner = await first.internalCallerFor(ownerId);
+  const room = (await owner.chat.startChat({ characterIds: [], opening: "none" })).chat;
+  const invite = await owner.invites.createInvite({ chatId: room.id, input: { allowSignup: true, maxUses: 1, expiresAt: first.clock.now() + MS_PER_HOUR } });
+  const pending = await callback(
+    first,
+    await begin(first, issuer, { sub: "restart-policy-joiner", [SETTINGS.OIDC_USERNAME_CLAIM]: "Boss" }, `?invite=${encodeURIComponent(invite.token)}`),
+  );
+  expect(pending.headers.get("location")).toBe("/login?pendingJoin=1");
+  const pendingCookie = cookieJar(pending);
+  expect(await db.select().from(oidcPendingSignups)).toHaveLength(1);
+  await first[Symbol.asyncDispose]();
+
+  const restarted = resources.use(
+    await rootFor(issuer, { ["OIDC_SIGNUP"]: false }, { db, rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OWNER_HANDLES"]: "boss" } }),
+  );
+  const confirmed = await restarted.http.request("/api/auth/oidc/pending/confirm", {
+    method: "POST",
+    headers: { cookie: pendingCookie, [CSRF_HEADER]: "1", "content-type": "application/json" },
+    body: JSON.stringify({ persona: { name: "Restart joiner", description: "" } }),
+  });
+  expect(confirmed.status).toBe(404);
+  expect(
+    await db
+      .select()
+      .from(users)
+      .where(eq(users.externalId, brandedId<ExternalId>().parse("restart-policy-joiner"))),
+  ).toHaveLength(0);
+  expect((await db.select().from(chatInvites).where(eq(chatInvites.id, invite.invite.id)))[0]?.uses).toBe(0);
+  const signedOut = await restarted.http.request("/api/auth/me", { headers: { cookie: cookieJar(confirmed) } });
+  expect(authMeSchema.parse(await signedOut.json()).authenticated).toBe(false);
 });
 
 test("native key caches are graph-local for identical issuer/kid and survive another root's disposal", async () => {
