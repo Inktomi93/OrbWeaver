@@ -25,3 +25,5 @@ Native controls preserve local factory ownership, cross-tier exposure, sanctione
 ## Evidence
 
 Reviewed adapter, transport, env and canonical subscription declarations are integrated. Existing runtime security controls remain unchanged; D327 owns bounded env policy. Native placement and importer source, generic contribution and lazy metadata dispatch pass bounded review after correction. Isolated private returned-data and directory reselection controls pass. Production importer completion and cost, Hono contribution, AppRouter ownership, marker removal and complete qualification remain open. Evidence: `reports/review/1042-native-placement-delivery.md` and `reports/review/1042-native-placement-review-corrections-independent.md`.
+
+Reviewed native parser and Morph observations retain separate compiler realms through shared algorithms. Focused controls and comparator corrections pass. Ordinary attribute completion and broader qualification remain open. Evidence: `reports/review/1042-native-placement-abi-independent-review.md`.
