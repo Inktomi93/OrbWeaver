@@ -3,11 +3,13 @@
 import "./composed-real.ts";
 import { setTimeout as physicalDelay } from "node:timers/promises";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, closeDb, embeddingCalls } from "@orb/db";
 import { logRing } from "@orb/server/foundation/observability";
 import { afterAll, vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createControlledTimers } from "../iso/timers.ts";
+import { seedCorpusAccount } from "./corpus-auth.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusConnections } from "./corpus-seed.ts";
 import { settleCorpusWorkloads } from "./corpus-workloads.ts";
@@ -156,8 +158,46 @@ test("manual native corpus execution joins only its admitted jobs and leaves an 
   await caller.workloads.cancel({ id: cancelled.id });
   await expect(settleCorpusWorkloads(root, caller, [cancelled])).rejects.toThrow("did not complete successfully");
   expect(await caller.workloads.get({ id: cancelled.id })).toMatchObject({ status: "cancelled" });
+  const failed = await root.services.workloads.start({
+    caller: null,
+    ownerId: root.ownerId,
+    funderUserId: null,
+    mode: "bulk",
+    input: { kind: "distill-characters", params: {} },
+  });
+  await expect(settleCorpusWorkloads(root, caller, [failed])).rejects.toMatchObject({
+    message: expect.stringContaining('"status":"failed"'),
+    cause: [expect.objectContaining({ id: failed.id, status: "failed" })],
+  });
+  const foreign = await seedCorpusAccount(root);
+  const foreignCaller = await root.internalCallerFor(foreign.userId);
+  await expect(settleCorpusWorkloads(root, foreignCaller, [admitted])).rejects.toMatchObject({ code: "NOT_FOUND" });
   const closedRunner = root.runAdmittedWorkload;
   expect(closedRunner).toBeDefined();
   await root[Symbol.asyncDispose]();
   await expect(closedRunner?.(older.id, new AbortController().signal)).rejects.toThrow();
+});
+
+test("selected native corpus settlement reads its exact admitted ID behind newer history", async () => {
+  await using root = await createServerHarness({ startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const principal = await root.principalFor(root.ownerId);
+  const admitted = await caller.workloads.start({ input: { kind: "reconcile-stats", params: {} }, mode: "singular" });
+  expect(await settleCorpusWorkloads(root, caller, [admitted])).toMatchObject([{ id: admitted.id, status: "succeeded" }]);
+  for (let row = 0; row < WORKLOAD_LIST_MAX_LIMIT; row += 1) {
+    root.clock.advance(1);
+    const newer = await root.services.workloads.start({
+      caller: principal,
+      ownerId: root.ownerId,
+      input: { kind: "reconcile-stats", params: {} },
+      mode: "singular",
+    });
+    await root.services.workloads.cancel({ caller: principal, id: newer.id });
+  }
+  const history = await caller.workloads.list();
+  expect(history).toHaveLength(WORKLOAD_LIST_MAX_LIMIT);
+  expect(history.some((job) => job.id === admitted.id)).toBe(false);
+  const selected = await caller.workloads.get({ id: admitted.id });
+  expect(selected).toMatchObject({ id: admitted.id, status: "succeeded" });
+  expect(await settleCorpusWorkloads(root, caller, [admitted])).toEqual([selected]);
 });
