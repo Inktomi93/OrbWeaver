@@ -313,11 +313,13 @@ function workloadsFor(
   const runAdmittedWorkload: NonNullable<ServerTestHarness["runAdmittedWorkload"]> = async (id, signal) => {
     shutdown.throwIfAborted();
     signal.throwIfAborted();
-    const row = await loadWorkload(execution.db, app.workloadContributions, id);
-    if (row === null || row.poison) {
-      throw new Error("The admitted workload has no runnable native row");
-    }
-    const completion = runWorkload(execution, row, AbortSignal.any([signal, shutdown]));
+    const completion = (async (): Promise<void> => {
+      const row = await loadWorkload(execution.db, app.workloadContributions, id);
+      if (row === null || row.poison) {
+        throw new Error("The admitted workload has no runnable native row");
+      }
+      await runWorkload(execution, row, AbortSignal.any([signal, shutdown]));
+    })();
     app.supervise(`server-harness-workload:${id}`, "workloads.run", { workloadId: id }, () => completion);
     await completion;
   };
