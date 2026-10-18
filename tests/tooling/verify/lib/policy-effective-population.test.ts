@@ -177,8 +177,7 @@ function hybridPolicy(visited: string[]): GatePolicy {
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 /** The real selected-files shape: a source population plus a resource DISJOINT from it (the `baseui-read`
@@ -203,8 +202,7 @@ function disjointPolicy(visited: string[]): GatePolicy {
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 function dispatch(policies: readonly GatePolicy[], requestedPaths: readonly string[]): PolicyPassResult {
@@ -381,8 +379,7 @@ test("a consumed fact is an INPUT: touching only its population keeps the consum
     }),
     mustFlag: [{ mode: "source", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
-  } as GatePolicy);
+  });
 
   const project = projectOf();
   project.createSourceFile(`${ROOT}/packages/server/src/census.ts`, "export const census = 1;\n");
@@ -435,8 +432,7 @@ test("a source population that admits nothing is still refused before any select
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "packages/server/src/x.ts": "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "packages/server/src/x.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
-  } as GatePolicy);
+  });
   const result = dispatch([orphan], [SOURCE_A]);
   expect(result.toolErrors).toMatchObject([{ policyId: "selection-orphan", phase: "population" }]);
   expect(result.authority.withheldPolicyIds).toEqual(["selection-orphan"]);
@@ -466,8 +462,7 @@ test("a visitor is indexed for every reselected file — the dispatcher's own Sy
     }),
     mustFlag: [{ mode: "resource", files: { [SOURCE_A]: "export const planted = true;\n" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { [SOURCE_A]: "export const clean = true;\n" }, why: "nearest legal shape" }],
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the population resolver exercises; no factory exists
-  } as GatePolicy);
+  });
   expect(dispatch([gate], [NOTES]).toolErrors).toEqual([]);
   expect(seen).toEqual(["a.ts", "b.ts"]);
 });

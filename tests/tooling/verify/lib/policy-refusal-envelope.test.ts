@@ -37,7 +37,7 @@ import { scaledBudget } from "../../_load-budget.ts";
  *  tree; it is a ceiling for a legible failure, never a target. */
 const TREE_WALK_BUDGET = scaledBudget(60_000, 4);
 
-function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePolicy {
+function sourcePolicy(id: string, overrides: Partial<Omit<GatePolicy, "severity" | "workItem">> = {}): GatePolicy {
   return defineGate({
     id,
     family: id,
@@ -59,8 +59,7 @@ function sourcePolicy(id: string, overrides: Partial<GatePolicy> = {}): GatePoli
     mustFlag: [{ mode: "source", files: { "packages/client/src/proof.ts": "export const planted = true;\n" }, why: "the founding defect" }],
     mustPass: [{ mode: "source", files: { "packages/client/src/proof.ts": "export const clean = true;\n" }, why: "the nearest legal shape" }],
     ...overrides,
-    // @orb-waive no-test-fabrication(GatePolicy): partial fixture — only the fields the refusal envelope exercises; no factory exists
-  } as GatePolicy);
+  });
 }
 
 test("the envelope carries every prefix, every phase and kind token, every dispatcher sentence, and nothing twice", () => {

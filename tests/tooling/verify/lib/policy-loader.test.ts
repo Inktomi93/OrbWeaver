@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact } from "../../../../tooling/src/verify/contract/fact.ts";
 import type { GateAuthority } from "../../../../tooling/src/verify/contract/gate-authority.ts";
-import type { GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
+import type { GatePolicy, GatePolicyProofMode } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { GatePolicyAnalysis } from "../../../../tooling/src/verify/contract/policy-primitives.ts";
 import { loadPolicyCorpus } from "../../../../tooling/src/verify/lib/policy-loader.ts";
@@ -90,9 +90,10 @@ test("shared fact descriptors are branded, exact, and restricted to entire-popul
   });
   expect(() => assertGateFactDescriptor(fact)).not.toThrow();
   expect(() => assertGateFactDescriptor({ ...fact })).toThrow(/defineFact|brand/i);
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid gate shape
-  // @orb-waive no-loose-id-cast({ ...fact, extra: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  expect(() => assertGateFactDescriptor(defineFact({ ...fact, extra: true } as never))).toThrow(/unknown.*extra/i);
+  const extra = defineFact({ ...fact });
+  // A loaded JavaScript fact can author an extra field after registration; the runtime validator must reject it.
+  Reflect.set(extra, "extra", true);
+  expect(() => assertGateFactDescriptor(extra)).toThrow(/unknown.*extra/i);
 
   const policy = defineGate({
     id: "fact-consumer",
@@ -115,8 +116,10 @@ test("shared fact descriptors are branded, exact, and restricted to entire-popul
   expect(() => assertGatePolicyDescriptor(duplicate)).toThrow(/duplicate.*fixture-fact/i);
 });
 
+type ResourcePolicyOverrides = Partial<Pick<GatePolicy, "analysis" | "population" | "resources" | "mustFlag" | "mustPass">>;
+
 /** A minimal valid resource policy to mutate one field of at a time. */
-function resourcePolicy(overrides: Partial<Parameters<typeof defineGate>[0]> = {}): unknown {
+function resourcePolicy(overrides: ResourcePolicyOverrides = {}): GatePolicy {
   return defineGate({
     id: "resource-shape",
     family: "resource-shape",
@@ -132,17 +135,13 @@ function resourcePolicy(overrides: Partial<Parameters<typeof defineGate>[0]> = {
     mustFlag: [{ mode: "resource", files: { "biome.json": "{}" }, why: "founding defect" }],
     mustPass: [{ mode: "resource", files: { "biome.json": "{}" }, why: "nearest legal shape" }],
     ...overrides,
-    // @orb-waive no-test-fabrication(Parameters<typeof defineGate>[0]): partial fixture exercising the loader's validation of incomplete input
-  } as Parameters<typeof defineGate>[0]);
+  });
 }
 
 /** Feed a malformed proof row to the runtime validator after constructing a valid branded descriptor.
  *  This models a loaded JavaScript gate whose row was never checked by TypeScript. */
-function resourcePolicyWithMalformedPass(row: Record<string, unknown>, overrides: Partial<Parameters<typeof defineGate>[0]> = {}): unknown {
+function resourcePolicyWithMalformedPass(row: Record<string, unknown>, overrides: ResourcePolicyOverrides = {}): unknown {
   const descriptor = resourcePolicy(overrides);
-  if (typeof descriptor !== "object" || descriptor === null) {
-    throw new Error("resourcePolicy did not construct a descriptor");
-  }
   Reflect.set(descriptor, "mustPass", [row]);
   return descriptor;
 }
@@ -152,12 +151,12 @@ test("an installed-package request declares a closed MODE, and `file` is require
   expect(() =>
     assertGatePolicyDescriptor(resourcePolicy({ resources: [{ kind: "installed-package", id: "base-ui", mode: "text", file: "index.js" }] })),
   ).not.toThrow();
-  // The four malformed shapes below are ALREADY refused by tsc — the closed `InstalledPackageRequest` union
-  // makes each one a type error, which is the stronger enforcement tier. The casts reach past it to prove
-  // the RUNTIME backstop, which is what actually judges a loaded module the compiler never saw.
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid gate shape
-  // @orb-waive no-loose-id-cast([request]): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
+  // Loaded JavaScript may replace a registered descriptor's closed request; runtime validation still owns refusal.
+  const malformed = (request: unknown): unknown => {
+    const descriptor = resourcePolicy();
+    Reflect.set(descriptor, "resources", [request]);
+    return descriptor;
+  };
   // A `text` request with no file would read nothing; an `ast` request with one carries a file nobody reads.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "text" }))).toThrow(/file.*nonempty|unknown property/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "installed-package", id: "base-ui", mode: "ast", file: "x.js" }))).toThrow(
@@ -553,8 +552,7 @@ test("resource proof file identity comes from descriptor declarations rather tha
 
 /** A minimal valid policy to hang a `mustRefuse` arm on, one field at a time. */
 function refusingPolicy(mustRefuse: unknown): unknown {
-  // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  return defineGate({
+  const descriptor = defineGate({
     id: "refuse-shape",
     family: "refuse-shape",
     authority: "hard",
@@ -568,9 +566,12 @@ function refusingPolicy(mustRefuse: unknown): unknown {
     create: () => ({ evaluate: () => undefined }),
     mustFlag: [{ mode: "source", files: { "tooling/src/proof.ts": "export const planted = true;\n" }, expect: { count: 1 }, why: "founding defect" }],
     mustPass: [{ mode: "source", files: { "tooling/src/proof.ts": "export const clean = true;\n" }, why: "nearest legal shape" }],
-    ...(mustRefuse === undefined ? {} : { mustRefuse }),
-    // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
-  } as never);
+  });
+  // Preserve absent versus declared arm identity while admitting malformed JavaScript values to the validator.
+  if (mustRefuse !== undefined) {
+    Reflect.set(descriptor, "mustRefuse", mustRefuse);
+  }
+  return descriptor;
 }
 const REFUSE_ROW = { mode: "source", files: { "tooling/src/proof.ts": "export const refuse = true;\n" }, why: "the designed refusal" } as const;
 
@@ -641,9 +642,12 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   ] as const) {
     expect(() => assertGatePolicyDescriptor(resourcePolicy({ resources: [request] }))).not.toThrow();
   }
-  // @orb-waive no-test-fabrication(never): deliberate type-erasure to test the loader's rejection of an invalid authority value
-  // @orb-waive no-loose-id-cast([request]): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
-  const malformed = (request: unknown): unknown => resourcePolicy({ resources: [request] as never });
+  // Runtime validation must also reject a loaded JavaScript descriptor's misspelled resource kind or id.
+  const malformed = (request: unknown): unknown => {
+    const descriptor = resourcePolicy();
+    Reflect.set(descriptor, "resources", [request]);
+    return descriptor;
+  };
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
