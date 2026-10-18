@@ -5,10 +5,15 @@ import process from "node:process";
 import type { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
-import { assertSchemaColumnRoster, SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
+import {
+  assertSchemaColumnRoster,
+  SCHEMA_DATA_CATALOG_KEY,
+  SCHEMA_IDENTITY_CATALOG_KEY,
+} from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
 import type { InventoryBuildRequest, InventorySpan, SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { drizzleQueryKey, drizzleSchemas } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import {
@@ -192,6 +197,46 @@ test("released owned lease refuses warm schema evidence while its connection rem
   lease[Symbol.dispose]();
   expect(db.isOpen).toBe(true);
   expect(() => reader.drizzleEvidence(fixture.direct, SERVER, "called-member")).toThrow("lease has been released");
+});
+
+test("borrowed reader rereads both schema catalogs after a warm column read", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS * 2) }, ({
+  scratch,
+  repoRoot,
+}) => {
+  const fixture = setup(scratch, repoRoot, `${ENTRY_TEXT}\nexport const selected=assets.meta;`);
+  const selected = fixture.direct.getSourceFile().getVariableDeclarationOrThrow("selected").getInitializerOrThrow();
+  using original = nativeInventoryFixture({
+    ...fixture.options,
+    families: ["drizzle-identities", "schema-data"],
+    schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
+    drizzleQueries: [...(fixture.options.drizzleQueries ?? []), { program: SERVER, query: { node: span(selected), mode: "column" } }],
+  });
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  const partitions = readInventoryGeneration(db, original.generation);
+  const catalog = partitions.find(({ program }) => program === DB);
+  if (catalog === undefined) {
+    throw new Error("native schema catalog partition is missing");
+  }
+  using reader = inventoryReader(scratch, original.generation, partitions, { db, dispose: () => undefined });
+  expect(reader.drizzleEvidence(selected, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "resolved" } });
+  const graphCut =
+    (key: string) =>
+    (connection: DatabaseSync): void => {
+      connection
+        .prepare("DELETE FROM inventory_drizzle_atom WHERE partition=? AND owner=(SELECT ordinal FROM inventory_drizzle_evidence WHERE partition=? AND key=?)")
+        .run(catalog.id, catalog.id, inventoryString(key));
+    };
+  // A borrowed connection is live storage: corruption after a warm read must reach the next read.
+  for (const mutate of [graphCut(SCHEMA_IDENTITY_CATALOG_KEY), graphCut(SCHEMA_DATA_CATALOG_KEY)]) {
+    db.exec("BEGIN IMMEDIATE; PRAGMA defer_foreign_keys=ON;");
+    try {
+      mutate(db);
+      expect(() => reader.drizzleEvidence(selected, SERVER, "column")).toThrow("fact graph is incomplete");
+    } finally {
+      db.exec("ROLLBACK");
+    }
+  }
+  expect(reader.drizzleEvidence(selected, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "resolved" } });
 });
 
 test(
@@ -516,7 +561,8 @@ test(
     });
     expect(inventory.drizzleEvidence(fixture.bound, SERVER, "instance")).toMatchObject({ mode: "instance", table: { references: [{ kind: "table" }] } });
   },
-  scaledBudget(60_000),
+  // Completion allowance, not timing evidence (D308): eight serial native workers plus cold replays measured 69-102 s.
+  scaledBudget(LONG_TEST_TIMEOUT_BASE_MS * 5),
 );
 
 test(

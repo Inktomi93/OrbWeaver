@@ -44,17 +44,18 @@ function allowance(budget: WaiverBudget, parts: readonly WaiverBudgetPart[], pol
   return parts.reduce((sum, part) => sum + (budget[part][policyId] ?? 0), 0);
 }
 
-// One alarm per judged policy whose live count differs from its population's budget.
+// One alarm per judged policy whose live count differs from its population's budget; a rise-only policy alarms only above it.
 function judgeWaiverBudget(
   { population, budget }: WaiverBudgetJudgement,
   judged: readonly string[],
   excused: ReadonlyMap<string, number>,
+  riseOnly: ReadonlySet<string>,
 ): readonly WaiverBudgetAuthorityAlarm[] {
   const rule = POPULATION_RULES[population];
   return judged.flatMap((policyId) => {
     const allowed = allowance(budget, rule.parts, policyId);
     const count = excused.get(policyId) ?? 0;
-    if (count === allowed) {
+    if (count === allowed || (count < allowed && riseOnly.has(policyId))) {
       return [];
     }
     const head = `${policyId} excuses ${count} findings over the ${population} population against a waiver budget of ${allowed}`;
@@ -81,8 +82,20 @@ export function waiverRatchet(
   const { walked } = POPULATION_RULES[judgement.population];
   const judged: string[] = [];
   const unjudged: string[] = [];
+  // An UNKNOWN excuses nothing, so it can only defer a stale marker: the fall is unjudged, a rise is still a new excuse.
+  const gapped = new Set<string>();
   for (const [id, result] of [...results].toSorted(([left], [right]) => left.localeCompare(right))) {
-    (walked(result, withheld.has(id)) && (result.analysisGaps?.length ?? 0) === 0 ? judged : unjudged).push(id);
+    if (!walked(result, withheld.has(id))) {
+      unjudged.push(id);
+    } else if ((result.analysisGaps?.length ?? 0) > 0) {
+      gapped.add(id);
+      unjudged.push(id);
+    } else {
+      judged.push(id);
+    }
   }
-  return { alarms: judgeWaiverBudget(judgement, judged, excused), report: { population: judgement.population, judged, unjudged } };
+  return {
+    alarms: judgeWaiverBudget(judgement, [...judged, ...gapped], excused, gapped),
+    report: { population: judgement.population, judged, unjudged },
+  };
 }

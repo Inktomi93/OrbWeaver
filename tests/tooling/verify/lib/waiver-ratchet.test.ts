@@ -204,3 +204,57 @@ test("only a requested-path subset reports a policy unjudged, and never passes i
   expect(ratchet(result)).toEqual([]);
   expect(result.authority.waiverBudget).toEqual({ population: "repository", judged: [], unjudged: ALL_JUDGED });
 });
+
+// An UNKNOWN never excuses a finding, so it may hide only a fall: a gapped policy still reds on every new excuse.
+const GAPPED = defineGate({
+  id: "gapped-fixture",
+  family: "gapped-fixture",
+  authority: "ordinary",
+  severity: "error",
+  population: "@server",
+  analysis: "syntax",
+  execution: "selected-files",
+  facts: [],
+  resources: [],
+  message: "gapped-fixture message",
+  fix: "waive with @orb-waive gapped-fixture(position): reason",
+  create: (ctx) => ({
+    visitors: [
+      {
+        kinds: [SyntaxKind.VariableDeclaration],
+        visit: (node) =>
+          node.getText().startsWith("opaque") ? ctx.report.analysis(node, { kind: "unknown", reason: "outside the direct shape" }) : ctx.report.node(node),
+      },
+    ],
+  }),
+  mustFlag: [{ mode: "source", files: { [SERVER]: "export const planted = true;\n" }, why: "every direct declaration is a finding" }],
+  mustPass: [{ mode: "source", files: { [SERVER]: "export const opaque = true;\n" }, why: "an opaque declaration is only an analysis gap" }],
+});
+
+function gappedPass(excuses: readonly string[]): PolicyPassResult {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/${SERVER}`, `${waived(GAPPED.id, excuses)}export const opaque = 1;\n`);
+  return runPolicyPass({
+    knownPolicies: [GAPPED],
+    policies: [GAPPED],
+    root: ROOT,
+    project,
+    reviewedGrants: [],
+    waiverBudget: { application: { [GAPPED.id]: 1 }, implementation: {} },
+    failOnWarnings: false,
+  });
+}
+
+test("an analysis gap leaves a fall unjudged but still reds a new excuse", () => {
+  const risen = gappedPass(["gappedExcuse", "newGappedExcuse"]);
+  expect(risen.toolErrors).toEqual([]);
+  expect(ratchet(risen)).toMatchObject([
+    { policyId: GAPPED.id, population: "repository", budget: 1, count: 2, message: expect.stringContaining("fix the new finding") },
+  ]);
+  const fallen = gappedPass([]);
+  expect(ratchet(fallen)).toEqual([]);
+  expect(fallen.authority.waiverBudget).toEqual({ population: "repository", judged: [], unjudged: [GAPPED.id] });
+  const atBudget = gappedPass(["gappedExcuse"]);
+  expect(ratchet(atBudget)).toEqual([]);
+  expect(atBudget.authority.waiverBudget).toEqual({ population: "repository", judged: [], unjudged: [GAPPED.id] });
+});
