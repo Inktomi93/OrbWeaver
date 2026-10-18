@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
-lane: codex/citation-native-ignore-965
 plan: test-foundation
 ---
 

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P2
 area: tooling
+lane: codex/native-exception-remainder-1006
 plan: test-foundation
 ---
 
@@ -41,9 +42,9 @@ Native parser-fixture permissions apply only to source-string restrictions. Runt
 
 Reviewed native exceptions retain actual transferred or borrowed lifetimes, atomic derived-plane replacements, producer compatibility and platform-only physical assertions. Stale comments are removed. Evidence: `reports/review/1006-native-exception-classes-ordinary.md`. Broader disposition remains open.
 
-Node-child and Base UI exceptions retain native boundaries, not budget growth. Keep the central alarm visible. Evidence: `reports/review/1041-egress-watchdog-ordinary.md` and `reports/review/1041-native-baseui-seals-delivery.md`.
+Node-child and Base UI exceptions retain native boundaries, not budget growth. Evidence: `reports/review/1041-egress-watchdog-ordinary.md` and `reports/review/1041-native-baseui-seals-delivery.md`.
 
-Hook exceptions preserve value-keyed effects and retained factory identity. The bracket effect depends only on selection. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
+Hook exceptions preserve value-keyed effects and retained factory identity. Evidence: `reports/review/1006-hook-suppression-disposition.md`.
 
 Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review and scoped integration pass. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
 

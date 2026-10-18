@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
+lane: codex/proof-decision-census-1002
 plan: test-foundation
 ---
 
