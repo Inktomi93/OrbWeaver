@@ -16,10 +16,10 @@ import { CORPUS_IMAGE_MODEL } from "./corpus-imagery.ts";
 import { corpusKnowledgeVariantsText, createKnowledgeSwipeWire } from "./corpus-knowledge-wire.ts";
 import {
   CORPUS_EMBED_MODEL,
-  CORPUS_EMBEDDING_VECTOR,
   CORPUS_PROVIDER_ENDPOINT,
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
+  corpusEmbeddingForText,
   createCorpusProviderExecution,
   createCorpusProviderServer,
 } from "./corpus-provider.ts";
@@ -115,7 +115,7 @@ export async function createCorpusRecipeExecution(baseUrl?: string): Promise<Cor
   const execution = createCorpusProviderExecution({
     ...(baseUrl === undefined ? {} : { baseUrl }),
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
+    embedding: corpusEmbeddingForText,
     chatText: corpusKnowledgeVariantsText,
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: await corpusImageryPhysicalBytes(),

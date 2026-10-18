@@ -19,6 +19,7 @@ import { characterSummaries, characters, chatDigests, chatSegments, closeDb, emb
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { tickWorkloadSchedules } from "@orb/server/domain/workloads";
+import { CORPUS_EMBEDDING_VECTOR } from "@orb/testkit/node/corpus-provider.ts";
 import { seedCorpusConnections, seedRecallRoom } from "@orb/testkit/node/corpus-seed.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -254,7 +255,7 @@ test("bulk memory uses admitted Utility funding but each room host's encoder win
     await root.services.connection.update({
       principal: host,
       connectionId: connections.embed.id,
-      patch: { declared: { ...connections.embed.declared, embedding: { dims: 3, maxInputTokens: index === 0 ? 256 : 8192 } } },
+      patch: { declared: { ...connections.embed.declared, embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: index === 0 ? 256 : 8192 } } },
     });
     const caller = await root.internalCallerFor(host.userId);
     await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
