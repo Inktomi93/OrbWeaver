@@ -1,7 +1,7 @@
-// Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns (D328).
-// Shared floor association uses canonical native declarations, not structural similarity or copy intent.
-// Boundaries resolve through aliases and a bounded walk of wrappers, containers, unions and intersections.
-// A site judged no-owner is clean only when no production declaration can own it; an unseen identity is UNKNOWN, never a finding.
+// Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns, judged by canonical native declarations (D328).
+// Boundaries resolve through aliases and a bounded walk of wrappers, containers, unions and intersections; function values and generic production parameters are UNKNOWN.
+// No-owner is clean only when no production declaration can own the site; an unseen identity is UNKNOWN, never a finding.
+// Limits: object literals and their properties, test classes, and workspace production .d.ts types are never judged or owners.
 // Singleton: direct boundary ownership is not the structural-copy family's field-fit judgment.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

@@ -22,6 +22,7 @@ export const SHAPE_ASSOCIATION_UNKNOWN = {
   manyHands: "the direct value has multiple handwritten declarations",
   unannotatedAssignment: "the assignment target has no direct explicit type annotation",
   unresolvedParameter: "the direct call has no resolved parameter for this argument",
+  genericParameter: "the callee declares this parameter as a type parameter whose constraint is not observed",
   unsupportedBoundary: "the boundary has no supported whole named production type",
   manyOwners: "the boundary has multiple canonical production declarations",
 } as const;

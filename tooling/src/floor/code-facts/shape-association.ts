@@ -4,7 +4,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite, ShapeAssociationUnknown } from "./shape-association-contract.ts";
 import { SHAPE_ASSOCIATION_UNKNOWN } from "./shape-association-contract.ts";
-import { readShapeConstituent } from "./shape-constituents.ts";
+import { readDeclaredParameters, readShapeConstituent } from "./shape-constituents.ts";
 import { isHandWrittenShape } from "./shape-declaration.ts";
 import { observedSymbolDeclarations, observedUltimateSymbol } from "./symbol-identity.ts";
 import type { ObservedReference, ShapeConstituent, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
@@ -80,13 +80,15 @@ function isLibrary(node: MorphNode): boolean {
   return node.getSourceFile().isInNodeModules();
 }
 
+// A callable's parameters and return can carry a shape the walk does not read.
+function isCallable(node: MorphNode): boolean {
+  return Node.isFunctionLikeDeclaration(node) || Node.isFunctionTypeNode(node) || Node.isCallSignatureDeclaration(node) || Node.isMethodSignature(node);
+}
+
 // Callables, enums, modules and value literals are not object-shape declarations on either side of a boundary.
 function isNotShape(node: MorphNode): boolean {
   return (
-    Node.isFunctionLikeDeclaration(node) ||
-    Node.isFunctionTypeNode(node) ||
-    Node.isCallSignatureDeclaration(node) ||
-    Node.isMethodSignature(node) ||
+    isCallable(node) ||
     Node.isEnumDeclaration(node) ||
     Node.isEnumMember(node) ||
     Node.isModuleDeclaration(node) ||
@@ -198,6 +200,15 @@ function symbolIdentity(constituent: ShapeConstituent, declarations: readonly Mo
     const own = named(shapes);
     return handsOf(own, read).length > 0 || read.side === "boundary" ? own : contained([own, argumentsOf(constituent, read)], read, false);
   }
+  return declarationIdentity(declarations, read);
+}
+
+// Declarations that are no named object shape: callables, enums, modules, literals and classes.
+function declarationIdentity(declarations: readonly MorphNode[], read: IdentityRead): ShapeIdentity {
+  if (declarations.some(isCallable)) {
+    // A function value may return or accept a hand; a function boundary production declares may own one.
+    return read.side === "value" || declarations.some(read.isProduction) ? OPAQUE : NONE;
+  }
   if (declarations.every(isNotShape)) {
     return NONE;
   }
@@ -270,6 +281,13 @@ function boundaryIdentity(site: ShapeAssociationSite, read: IdentityRead): Shape
   const target = site.argument === undefined ? nodeTypeSelector(site.target) : readers.callParameters(site.target)?.[site.argument];
   if (target === undefined) {
     return SHAPE_ASSOCIATION_UNKNOWN.unresolvedParameter;
+  }
+  if (site.argument !== undefined) {
+    // The resolved parameter of a generic callee is the argument's own type; production may constrain it to an owner.
+    const declared = readDeclaredParameters(site.target, readers);
+    if (declared !== undefined && read.isProduction(declared.declaration) && declared.generic[site.argument] === true) {
+      return SHAPE_ASSOCIATION_UNKNOWN.genericParameter;
+    }
   }
   const resolved = constituentIdentity(readShapeConstituent(target, readers), read);
   const annotation = site.argument === undefined ? annotationName(site.target) : undefined;

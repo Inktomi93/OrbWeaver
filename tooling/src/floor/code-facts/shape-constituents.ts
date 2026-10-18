@@ -1,6 +1,7 @@
 // The bounded `shape-constituents` walk: capture and replay read the same union, intersection and argument slots.
+import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { ShapeConstituent, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
+import type { ShapeConstituent, ShapeDeclaredSignature, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
 
@@ -58,6 +59,20 @@ export function observeShapeConstituents(question: TypeObservationQuestion, read
       for (const parameter of readers.callParameters(node) ?? []) {
         readShapeConstituent(parameter, readers);
       }
+      readDeclaredParameters(node, readers);
     }
   }
+}
+
+/** The callee declaration and which declared parameters are type parameters, read by the same question. */
+export function readDeclaredParameters(call: MorphNode, readers: TypeObservationReader): ShapeDeclaredSignature | undefined {
+  const signature = readers.signature(call);
+  if (signature === null) {
+    return;
+  }
+  const generic = signature.parameters.map((parameter) => {
+    const reference = readers.select(parameter);
+    return reference !== null && readers.type(reference).typeParameter;
+  });
+  return { declaration: signature.declaration, generic };
 }

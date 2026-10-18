@@ -92,7 +92,14 @@ Fix-round evidence:
 | Biome, HARD ESLint, ordinary ESLint on the changed files | pass, except `type-observation-questions.ts` `max-lines`: 851 lines on the parent and 853 now (one import and one registry row); the walk lives in `shape-constituents.ts` |
 | `pnpm typecheck` tooling, tests-dom, tests-iso | pass; root keeps the inherited `tests/legacy/**/_support.ts` errors |
 
-Known limit: a generic production parameter (`takeAll<T extends Owner>(owner: T)`) is judged at its instantiation, so a hand passed there is unassociated; seeing the declared constraint needs the signature-parameter observation on the callee, which this fix does not add.
+## Final round: function values and constrained generics
+
+- A function-typed value (arrow, function expression, function type) is UNKNOWN `opaqueValue` at a boundary production may own, because the walk does not read signatures. A function boundary declared outside production (a library or test callback) stays decided.
+- A hand or unseen value at a production callee parameter declared as a type parameter is UNKNOWN `genericParameter`. The `shape-constituents` question also reads the callee's declared parameters (`readers.signature`); no constraint observation is added.
+- Stated limits, in the gate header and Spine-Testing section 10: object literals and their properties, test classes, and workspace production `.d.ts` types are never judged or owners.
+- Red-first: the four new P2 probes (function value, function argument, production callback, constrained generic) failed on `f97d76f17c` and pass now; the library-callback and stated-limit probes pass on both.
+- Sample (same 222 files, 34,351 sites): 2,462 UNKNOWN, 7.2%. Function values account for 1,767 of them; constrained generic parameters account for none in the sample.
+- Floor: gate tests 35/35, reader 5/5, native fixture, shape consumers, shape copy and the shared observation suites pass; the family suite passes except the inherited `test-mock-doctrine` 5 s timeout. Biome, HARD and ordinary ESLint pass on the changed files; tooling typecheck passes.
 
 ## Owed
 

@@ -39,6 +39,10 @@ const OWNER_SOURCE = `export interface Owner { readonly value: string }
 export function take(owner: Owner): void { void owner; }
 export function takeRows(rows: readonly Owner[]): void { void rows; }
 export function takeNames(names: readonly string[]): void { void names; }
+export function takeAll<T extends Owner>(owner: T): void { void owner; }
+export type Factory = () => Owner;
+export function make(factory: () => Owner): void { void factory; }
+export function onRow(callback: (row: Owner) => void): void { void callback; }
 `;
 
 function pass(repoRoot: string, overrides: Partial<PolicyPassInput> = {}, helper = HELPER_SOURCE): PolicyPassResult {
@@ -91,8 +95,8 @@ test("the committed grants and budget admit no hand shape: the real table is sil
   expect(granted.authority.authorityAlarms).toMatchObject([{ kind: "waiver-budget", policyId: gate.id, budget: 0, count: 1 }]);
 });
 
-const PROBE_HEAD = `import type { Owner } from "../../../packages/contracts/src/chat/owner";
-import { take, takeNames, takeRows } from "../../../packages/contracts/src/chat/owner";
+const PROBE_HEAD = `import type { Factory, Owner } from "../../../packages/contracts/src/chat/owner";
+import { make, onRow, take, takeAll, takeNames, takeRows } from "../../../packages/contracts/src/chat/owner";
 interface Hand { readonly value: string }
 declare const hand: Hand;
 declare const loose: any;
@@ -189,8 +193,30 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
     findings: [],
     unknown: [U.opaqueValue],
   },
+  {
+    name: "function value at a production function alias",
+    body: "declare const fn: () => Hand;\nexport const seen: Factory = fn;",
+    findings: [],
+    unknown: [U.opaqueValue],
+  },
+  { name: "function argument at a production function parameter", body: "declare const fn: () => Hand;\nmake(fn);", findings: [], unknown: [U.opaqueValue] },
+  { name: "callback at a production callback parameter", body: "onRow((row: Hand) => {\n  void row;\n});", findings: [], unknown: [U.opaqueValue] },
+  { name: "callback at a library callback parameter", body: "[hand].forEach((row: Hand) => {\n  void row;\n});", findings: [], unknown: [] },
+  { name: "hand at a constrained generic production parameter", body: "takeAll(hand);", findings: [], unknown: [U.genericParameter] },
+  {
+    name: "stated limit: a test class is no judged hand",
+    body: 'class FakeOwner {\n  readonly value = "";\n}\nexport const seen: Owner = new FakeOwner();',
+    findings: [],
+    unknown: [],
+  },
   { name: "erased argument", body: "take(loose);", findings: [], unknown: [U.erasedValue] },
-  { name: "object literal spread", body: "export const seen: Owner = { ...hand };", findings: [], unknown: [] },
+  { name: "stated limit: an object literal spread has no declared identity", body: "export const seen: Owner = { ...hand };", findings: [], unknown: [] },
+  {
+    name: "stated limit: a property-level flow has no declared identity",
+    body: "export const seen: { readonly inner: Owner } = { inner: hand };",
+    findings: [],
+    unknown: [],
+  },
 ];
 
 test("the shape-constituents walk is demanded only by this policy, not by another native-question consumer", ({ repoRoot }) => {

@@ -265,6 +265,11 @@ export interface ShapeConstituent {
   readonly typeArguments: readonly ShapeConstituent[];
   readonly truncated: boolean;
 }
+/** A callee's declaration and, per declared parameter, whether its type is an unresolved type parameter. */
+export interface ShapeDeclaredSignature {
+  readonly declaration: Node;
+  readonly generic: readonly boolean[];
+}
 export interface ObservedProperty {
   readonly name: string;
   readonly symbol: ObservedReference<"symbol">;
