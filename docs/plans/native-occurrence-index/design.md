@@ -1,7 +1,7 @@
 ---
 kind: plan
 status: active
-updated: 2026-10-17
+updated: 2026-10-18
 ---
 
 # Native reference occurrences without repeated program searches
@@ -50,6 +50,8 @@ Keep complete selected roots and resolved closure. Publish coherent generations 
 Retain aliases, reexports, merged declarations, overloads, shorthand properties, contextual members, computed members, namespace uses, JSX and type/value distinctions. A location can carry several meanings.
 
 Reference lookup is not callable provenance. Keep allocation, argument bindings, property paths, mutation and escape judgments at their canonical owners. An occurrence index supplies facts; it does not establish runtime origin by itself.
+
+Bounded member and module indexing preserves canonical native travel and fallback. Installed-SDK, SQLite and public AST controls pass in an isolated main-derived checkout. Shared-main installation and complete-world cost remain open. Evidence: `reports/review/1045-native-families-installed.md`.
 
 ## Rejected
 

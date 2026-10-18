@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-15
+updated: 2026-10-18
 priority: P1
 area: tenancy
 plan: test-foundation
@@ -29,7 +29,7 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 
 Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
 
-Native registration preserves disposal and parameter effects. The original query completes unresolved at `ctx.backgroundSignal` after nested optional sibling preservation refuses. Item 1002 owns that repair. Evidence: `reports/review/1002-original-callable-current/9299c01cfd-diagnosis.md`. Complete policy qualification remains open.
+Native registration preserves disposal and parameter effects. D323's original driver completes with a non-prototype `ctx.backgroundSignal` refusal. Stop helper-specific repair. Run the complete selected policy after coherent currentness delivery; bounded results do not qualify it. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 
