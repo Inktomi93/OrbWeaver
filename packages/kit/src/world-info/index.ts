@@ -139,12 +139,12 @@ function literalKeyRegex(key: string): RegExp {
     : new RegExp(`(?<![${KEY_WORD_CHARS}])${RegExp.escape(key)}(?![${KEY_WORD_CHARS}])`, "u");
 }
 
-/** Compile-or-return the cached RegExp for a key. `literal` (the default) escapes the key — the whole-word /
- *  boundary-less compile above. `regex` compiles the key AS a pattern (a V3 `use_regex` entry): an invalid or
- *  over-complex pattern falls back to the LITERAL compile and reports through `onCompileFailure` — a bad key
- *  must never take a turn's context build down. A failed compile is NOT cached, so the report fires per call
- *  rather than once per process lifetime. Updates the LRU position on hit so the cap doesn't evict hot keys. */
-export function keyRegex(key: string, mode: EntryKeyMode = "literal", onCompileFailure?: (key: string, reason: string) => void): RegExp {
+// Compile-or-return the cached RegExp for a key. `literal` (the default) escapes the key — the whole-word /
+// boundary-less compile above. `regex` compiles the key AS a pattern (a V3 `use_regex` entry): an invalid or
+// over-complex pattern falls back to the LITERAL compile and reports through `onCompileFailure` — a bad key
+// must never take a turn's context build down. A failed compile is NOT cached, so the report fires per call
+// rather than once per process lifetime. Updates the LRU position on hit so the cap doesn't evict hot keys.
+function keyRegex(key: string, mode: EntryKeyMode = "literal", onCompileFailure?: (key: string, reason: string) => void): RegExp {
   // Mode-prefixed so the two compiles of one key never collide (`dr.` is a period literally, a wildcard as a pattern).
   const cacheKey = `${mode}\u0000${key}`;
   const existing = keyRegexCache.get(cacheKey);
@@ -200,7 +200,7 @@ function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason:
 const REGEX_FLAG_LETTERS = /^[dgimsuvy]*$/;
 
 /** Is this key written in ST's DELIMITED regex form (`/pattern/` or `/pattern/flags`)? — the exact spelling
- *  {@link keyRegex} already compiles in `regex` mode, asked as a question so an importer can DERIVE the mode
+ *  {@link matchEntryKeys} already compiles under `keyMode: "regex"`, asked as a question so an importer can DERIVE the mode
  *  for a source format that carries no explicit flag.
  *
  *  Owner ruling 2026-08-19 (#268 arm (a)): ST's NATIVE world file (`worlds/*.json`) has no `use_regex` field
@@ -211,7 +211,7 @@ const REGEX_FLAG_LETTERS = /^[dgimsuvy]*$/;
  *  Strict on purpose — a false positive would silently turn a user's literal key into a pattern. All four
  *  must hold: opens with `/`, has a LATER closing `/`, the pattern between them is non-empty, the trailing
  *  characters are all real flag letters, and the whole thing actually compiles under the same ReDoS cap +
- *  flag normalization `keyRegex` applies. `and/or`, `/path/to/file` and `/unclosed` are literal keys. */
+ *  flag normalization that regex-mode compile applies. `and/or`, `/path/to/file` and `/unclosed` are literal keys. */
 export function isDelimitedKeyPattern(key: string): boolean {
   const lastSlash = key.lastIndexOf("/");
   // < 2 covers both "no closing slash" (`/unclosed`, lastSlash 0) and an empty pattern (`//`, lastSlash 1).

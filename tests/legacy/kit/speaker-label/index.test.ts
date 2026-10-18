@@ -1,14 +1,12 @@
 import {
   cleanPerSpeakerReply,
   foreignLabelStops,
-  LEADING_SPEAKER_TAG,
   NAME_END_BOUNDARY,
   normalizeExampleStart,
   parseSpeakerSpans,
   resolveSegmentAnchor,
   segmentSnippet,
   speakerTagsToPlain,
-  stripInlineSpeakerLabel,
   stripLeadingSpeakerName,
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
@@ -118,10 +116,10 @@ test("parseSpeakerSpans: a TAGGED body ignores characterNames — the marker gra
   expect(parseSpeakerSpans("<speaker>Charlotte</speaker>JFC: quoting him.", CHARACTERS)).toEqual([{ speaker: "Charlotte", text: "JFC: quoting him." }]);
 });
 
-test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitively", () => {
-  expect(LEADING_SPEAKER_TAG.test("<speaker>hi")).toBe(true);
-  expect(LEADING_SPEAKER_TAG.test("  <Speaker name='x'> hi")).toBe(true);
-  expect(LEADING_SPEAKER_TAG.test("hi <speaker>")).toBe(false);
+test("stripSelfSpeakerLabel strips only a LEADING <speaker> open-tag, case-insensitively, with attributes", () => {
+  expect(stripSelfSpeakerLabel("<speaker>hi", "Alice")).toBe("hi");
+  expect(stripSelfSpeakerLabel("  <Speaker name='x'> hi", "Alice")).toBe("hi");
+  expect(stripSelfSpeakerLabel("hi <speaker>", "Alice")).toBe("hi <speaker>");
 });
 
 test("speakerTagsToPlain converts inline markers to `Name: ` attribution", () => {
@@ -200,17 +198,17 @@ test("cleanPerSpeakerReply strips own label then truncates foreign drift", () =>
 // group turn, interleaves its OWN tag MID-generation. The `dumJFC: —b` word-splice observed in fixture
 // synthetic assistant message (seq 5): the model spat `JFC: —` at a token boundary between `dum`
 // and `b`. The `^`-anchored leading/foreign strips can't reach a mid-content self-label — before the fix
-// the fragment persisted into canon. RED on old code (stripInlineSpeakerLabel didn't exist).
-test("stripInlineSpeakerLabel removes a mid-word self-tag splice (the dumJFC case)", () => {
-  expect(stripInlineSpeakerLabel("ship the dumJFC: —b version by Friday", "JFC")).toBe("ship the dumb version by Friday");
+// the fragment persisted into canon. RED on code without the inline self-label scrub.
+test("the inline self-label scrub (cleanPerSpeakerReply) removes a mid-word self-tag splice (the dumJFC case)", () => {
+  expect(cleanPerSpeakerReply("ship the dumJFC: —b version by Friday", "JFC", [])).toBe("ship the dumb version by Friday");
 });
 
-test("stripInlineSpeakerLabel scrubs every inline self-label but leaves foreign names and prose colons", () => {
-  expect(stripInlineSpeakerLabel("one JFC: two JFC: three", "JFC")).toBe("one two three");
+test("the inline self-label scrub (cleanPerSpeakerReply) scrubs every inline self-label but leaves foreign names and prose colons", () => {
+  expect(cleanPerSpeakerReply("one JFC: two JFC: three", "JFC", [])).toBe("one two three");
   // A different speaker's inline label is left alone (foreign-drift truncation owns that case).
-  expect(stripInlineSpeakerLabel("mine Mira: hers", "JFC")).toBe("mine Mira: hers");
+  expect(cleanPerSpeakerReply("mine Mira: hers", "JFC", [])).toBe("mine Mira: hers");
   // Empty name is a no-op.
-  expect(stripInlineSpeakerLabel("JFC: text", "")).toBe("JFC: text");
+  expect(cleanPerSpeakerReply("JFC: text", "", [])).toBe("JFC: text");
 });
 
 // #1354 — fence state used to count raw ``` OCCURRENCES, so ONE inline triple-backtick in prose suppressed
@@ -228,43 +226,43 @@ test("parseSpeakerSpans: a real LINE-ANCHORED fence still protects a label insid
   expect(parseSpeakerSpans(unclosed, ["Tom"]).map((span) => span.speaker)).toEqual([null]);
 });
 
-test("stripInlineSpeakerLabel tolerates markdown-wrapped and dash-opener variants", () => {
-  expect(stripInlineSpeakerLabel("dum**JFC:**b", "JFC")).toBe("dumb");
-  expect(stripInlineSpeakerLabel("a JFC:— b", "JFC")).toBe("a b");
+test("the inline self-label scrub (cleanPerSpeakerReply) tolerates markdown-wrapped and dash-opener variants", () => {
+  expect(cleanPerSpeakerReply("dum**JFC:**b", "JFC", [])).toBe("dumb");
+  expect(cleanPerSpeakerReply("a JFC:— b", "JFC", [])).toBe("a b");
 });
 
-test("stripInlineSpeakerLabel keeps a word separator on a space-delimited inline label", () => {
-  expect(stripInlineSpeakerLabel("one JFC: two", "JFC")).toBe("one two");
+test("the inline self-label scrub (cleanPerSpeakerReply) keeps a word separator on a space-delimited inline label", () => {
+  expect(cleanPerSpeakerReply("one JFC: two", "JFC", [])).toBe("one two");
 });
 
 // #1354 — the inline stripper had no LEFT boundary, so a character name that is a SUFFIX of an ordinary word was
 // deleted out of the middle of it. This runs on every per-speaker reply BEFORE persist, so the altered bytes
 // are what canon keeps.
-test("stripInlineSpeakerLabel does NOT eat a character name out of the middle of an ordinary word", () => {
-  expect(stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")).toBe("I told SusAnn: watch out.");
-  expect(stripInlineSpeakerLabel("the QUOTA: figure", "Ota")).toBe("the QUOTA: figure");
+test("the inline self-label scrub (cleanPerSpeakerReply) does NOT eat a character name out of the middle of an ordinary word", () => {
+  expect(cleanPerSpeakerReply("I told SusAnn: watch out.", "Ann", [])).toBe("I told SusAnn: watch out.");
+  expect(cleanPerSpeakerReply("the QUOTA: figure", "Ota", [])).toBe("the QUOTA: figure");
   // Non-ASCII names too — the boundary is `\p{L}\p{N}\p{M}`, not the ASCII-only `\b`.
-  expect(stripInlineSpeakerLabel("книгаМария: тут", "Мария")).toBe("книгаМария: тут");
+  expect(cleanPerSpeakerReply("книгаМария: тут", "Мария", [])).toBe("книгаМария: тут");
 });
 
 // #1530 — the two residues of the boundary fix. A DECOMPOSED letter ends the word for a `\p{L}\p{N}` test
 // (the combining mark is neither), and an ASCII hyphen after the colon is ordinary prose, not the measured
 // `Name: —` turn-opener the mid-word arm exists for.
-test("stripInlineSpeakerLabel: a COMBINING MARK does not end the word, and a plain hyphen is not the turn-opener dash", () => {
+test("the inline self-label scrub (cleanPerSpeakerReply): a COMBINING MARK does not end the word, and a plain hyphen is not the turn-opener dash", () => {
   // "caféAnn" written decomposed: cafe + U+0301 + Ann — the mark sits immediately before the name.
-  expect(stripInlineSpeakerLabel("I told cafe\u0301Ann: watch out.", "Ann")).toBe("I told cafe\u0301Ann: watch out.");
-  expect(stripInlineSpeakerLabel("I told SusAnn: -bring it", "Ann")).toBe("I told SusAnn: -bring it");
+  expect(cleanPerSpeakerReply("I told cafe\u0301Ann: watch out.", "Ann", [])).toBe("I told cafe\u0301Ann: watch out.");
+  expect(cleanPerSpeakerReply("I told SusAnn: -bring it", "Ann", [])).toBe("I told SusAnn: -bring it");
   // The em/en dash still fires mid-word, and the hyphen still goes at a real boundary (arm A is unchanged).
-  expect(stripInlineSpeakerLabel("dumAnn: –b", "Ann")).toBe("dumb");
-  expect(stripInlineSpeakerLabel("a Ann:- b", "Ann")).toBe("a b");
+  expect(cleanPerSpeakerReply("dumAnn: –b", "Ann", [])).toBe("dumb");
+  expect(cleanPerSpeakerReply("a Ann:- b", "Ann", [])).toBe("a b");
 });
 
 // The other half of the same boundary decision: the torn-tag garbage this stripper exists for must STILL be
 // removed mid-word. Narrowing that far would trade one corruption for another.
-test("stripInlineSpeakerLabel still removes a mid-word torn label carrying markdown or the turn-opener dash", () => {
-  expect(stripInlineSpeakerLabel("dumJFC: —b", "JFC")).toBe("dumb");
-  expect(stripInlineSpeakerLabel("dum**JFC:**b", "JFC")).toBe("dumb");
-  expect(stripInlineSpeakerLabel("start JFC: mid JFC: —end", "JFC")).toBe("start mid end");
+test("the inline self-label scrub (cleanPerSpeakerReply) still removes a mid-word torn label carrying markdown or the turn-opener dash", () => {
+  expect(cleanPerSpeakerReply("dumJFC: —b", "JFC", [])).toBe("dumb");
+  expect(cleanPerSpeakerReply("dum**JFC:**b", "JFC", [])).toBe("dumb");
+  expect(cleanPerSpeakerReply("start JFC: mid JFC: —end", "JFC", [])).toBe("start mid end");
 });
 
 // The finalized canon-purity guarantee: cleanPerSpeakerReply (the persist-path entry point) must never

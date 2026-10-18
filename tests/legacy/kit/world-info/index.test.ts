@@ -4,7 +4,6 @@ import {
   ENTRY_SCOPE_MODES,
   inertActivationFields,
   isDelimitedKeyPattern,
-  keyRegex,
   matchEntryKeys,
   resolveEntryInjection,
   resolveEntryKeyMode,
@@ -118,33 +117,21 @@ test("matchEntryKeys substring-matches boundary-less scripts (CJK has no word br
   expect(matchEntryKeys([han], hanHaystack)).toEqual([han]);
 });
 
-test("keyRegex compiles whole-word for spaced scripts and substring for boundary-less ones", () => {
-  const han = "北京";
-  const hanHaystack = `我去${han}了`;
-  expect(keyRegex("cat").test("a cat")).toBe(true);
-  expect(keyRegex("cat").test("category")).toBe(false);
-  expect(keyRegex(han).test(hanHaystack)).toBe(true);
-});
-
 // #1543 — the literal-key boundary was a FOURTH spelling of the word-character class and the only one still
 // missing `\p{M}`, so a COMBINING MARK satisfied its "not a word character" lookbehind: a key `ann` fired
 // inside `caféann` when the é was decomposed (`cafe` + U+0301). The haystack is whatever the room typed, and
 // NFC vs NFD is not something a host can see, so the same visible word matched or did not by invisible bytes.
 // The class now comes from `@orb/kit/strings::UNICODE_WORD_CHARS`, shared with the speaker-label matchers.
-test("keyRegex's whole-word boundary counts a COMBINING MARK as part of the word (precomposed AND decomposed)", () => {
+test("matchEntryKeys' whole-word boundary counts a COMBINING MARK as part of the word (precomposed AND decomposed)", () => {
   const precomposed = "caf\u00E9ann"; // café + ann, with é as ONE code point
   const decomposed = "cafe\u0301ann"; // the SAME word, with e + the combining acute
   expect(precomposed.normalize("NFD")).toBe(decomposed); // the two spellings really are the same word
-  expect(keyRegex("ann").test(precomposed)).toBe(false);
-  expect(keyRegex("ann").test(decomposed)).toBe(false); // ← the defect: the mark read as a separator
+  expect(matchEntryKeys(["ann"], precomposed)).toEqual([]);
+  expect(matchEntryKeys(["ann"], decomposed)).toEqual([]); // ← the defect: the mark read as a separator
   // …and the key still fires where it genuinely is a whole word, either side of a mark-bearing neighbour.
-  expect(keyRegex("ann").test("café ann waits")).toBe(true);
+  expect(matchEntryKeys(["ann"], "café ann waits")).toEqual(["ann"]);
   // The trailing side too: a mark immediately AFTER the key is part of the following letter, not a boundary.
-  expect(keyRegex("ann").test("anné")).toBe(false);
-});
-
-test("keyRegex returns the same cached instance for a repeated key", () => {
-  expect(keyRegex("repeatkey")).toBe(keyRegex("repeatkey"));
+  expect(matchEntryKeys(["ann"], "anné")).toEqual([]);
 });
 
 test("the haystack builder joins messages and names, drops empties, and lower-cases", () => {
@@ -171,7 +158,7 @@ test("matchEntryKeys folds ASCII I to i deterministically (Turkish locale would 
   expect(matchEntryKeys(["WIFI"], "the wifi password")).toEqual(["wifi"]);
 });
 
-test("keyRegex escapes regex metacharacters in the key — a literal period never wildcards", () => {
+test("matchEntryKeys escapes regex metacharacters in a literal key — a period never wildcards", () => {
   // Without escaping, the "." in "dr." would compile as a regex wildcard and wrongly match "dru".
   expect(matchEntryKeys(["dr."], "the dru walked in")).toEqual([]);
   expect(matchEntryKeys(["dr."], "the dr. walked in")).toEqual(["dr."]);
@@ -233,7 +220,7 @@ test("isDelimitedKeyPattern recognizes ONLY a genuine /pattern/flags key (#268 a
   expect(isDelimitedKeyPattern("/unclosed")).toBe(false); // no closing delimiter
   expect(isDelimitedKeyPattern("//")).toBe(false); // empty pattern
   expect(isDelimitedKeyPattern("he(llo|y)")).toBe(false); // bare form: valid in regex MODE, not a marker
-  // Same guards `keyRegex` applies: a syntax error or a stacked-quantifier ReDoS shape is not a pattern.
+  // Same guards the regex-mode compile applies: a syntax error or a stacked-quantifier ReDoS shape is not a pattern.
   expect(isDelimitedKeyPattern("/(unclosed/i")).toBe(false);
   expect(isDelimitedKeyPattern("/(a+)+(b+)+(c+)+/")).toBe(false);
 });
@@ -284,11 +271,10 @@ test("resolveEntryKeyMode reads metadata.keyMode in isolation, defaulting to lit
   expect(resolveEntryKeyMode({ keyMode: "regex", inject: "broken" })).toBe("regex");
 });
 
-test("the literal and regex compiles are cached under DISTINCT keys (no cross-mode bleed)", () => {
-  expect(keyRegex("dr.", "literal")).not.toBe(keyRegex("dr.", "regex"));
-  expect(keyRegex("dr.", "regex")).toBe(keyRegex("dr.", "regex"));
-  expect(keyRegex("dr.", "literal").test("the dru walked in")).toBe(false);
-  expect(keyRegex("dr.", "regex").test("the dru walked in")).toBe(true);
+test("the literal and regex compiles of one key never bleed into each other, in either order", () => {
+  expect(matchEntryKeys(["dr."], "the dru walked in", { keyMode: "regex" })).toEqual(["dr."]);
+  expect(matchEntryKeys(["dr."], "the dru walked in")).toEqual([]);
+  expect(matchEntryKeys(["dr."], "the dru walked in", { keyMode: "regex" })).toEqual(["dr."]);
 });
 
 test("the haystack builder lower-cases without locale dependence", () => {

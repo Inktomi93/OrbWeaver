@@ -9,8 +9,8 @@
 
 import { UNICODE_WORD_CHARS } from "#strings";
 
-/** A leading `<speaker ...>` / `<speaker>` open-tag (case-insensitive, optional attrs). */
-export const LEADING_SPEAKER_TAG = /^\s*<\s*speaker\b[^>]*>\s*/i;
+// A leading `<speaker ...>` / `<speaker>` open-tag (case-insensitive, optional attrs).
+const LEADING_SPEAKER_TAG = /^\s*<\s*speaker\b[^>]*>\s*/i;
 
 /** A complete `<speaker ...>NAME</speaker>` marker — name BETWEEN the tags (the format the client
  *  narrator parser `parseSpeakerSpans` consumes), bounded (no `<`/`>` in the name, capped length) so
@@ -326,11 +326,11 @@ function inlineLabelRe(name: string): RegExp {
   return new RegExp(`(?:(?<![${NAME_WORD_CHARS}*_])${emph}?${label}[—–-]*|${emph}${label}[—–-]*|${emph}?${label}[—–]+)\\s*`, "gu");
 }
 
-/** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of
- *  `stripLeadingSpeakerName`. A member never legitimately prefixes their OWN dialogue with `TheirName:` in a
- *  per-speaker row, so an inline `${speakerName}:` (with the crunchy markdown/dash variants) is always a
- *  leaked tag fragment; strip every occurrence. Empty name / no match ⇒ unchanged. */
-export function stripInlineSpeakerLabel(content: string, speakerName: string): string {
+// Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of
+// `stripLeadingSpeakerName`. A member never legitimately prefixes their OWN dialogue with `TheirName:` in a
+// per-speaker row, so an inline `${speakerName}:` (with the crunchy markdown/dash variants) is always a
+// leaked tag fragment; strip every occurrence. Empty name / no match ⇒ unchanged.
+function stripInlineSpeakerLabel(content: string, speakerName: string): string {
   const name = speakerName.trim();
   if (name.length === 0) {
     return content;

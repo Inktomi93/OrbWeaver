@@ -380,24 +380,6 @@ export function derivedForegroundLightnessForSurfaces(surfaces: readonly Oklch[]
   );
 }
 
-/** One global low-emphasis ink judged against the actual neutral hosts it is documented to paint on.
- * It stays in the softer band where that band clears and firms toward black/white only when necessary. */
-export function derivedMutedForegroundLightness(surfaces: readonly Oklch[]): number {
-  const anchor = surfaces[0];
-  if (anchor === undefined) {
-    throw new Error("muted foreground requires at least one surface");
-  }
-  const polarity = surfacePolarity(anchor);
-  const initial = polarity === "light" ? THEME_DERIVATION.mutedLMin : THEME_DERIVATION.mutedLMax;
-  const anchorRgb = oklchToSrgb(anchor);
-  return neutralInkLightness(
-    polarity,
-    surfaces.map((surface) => oklchToSrgb(surface)),
-    initial,
-    neutralInkTarget(polarity, anchorRgb),
-  );
-}
-
 /** The foreground orb WOULD derive for `surface` — chroma 0 at the surface's own hue, exactly as
  *  `foregroundOn()` emits `oklch(from <surface> <CONTRAST_L> 0 h)`. */
 export function derivedForeground(surface: Oklch): Oklch {
