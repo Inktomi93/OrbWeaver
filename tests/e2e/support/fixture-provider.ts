@@ -1,9 +1,8 @@
-// @orb-waive-file no-test-fabrication(ChatRequest): baselined when the gate widened to value casts; burn-down item 906.
-
 // External scripted OpenAI-compatible wire fixture; the app still owns HTTP, SSE and persistence.
 // Held turns advance only when the browser has observed a prefix, so completion cannot fake streaming.
 import type { Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
+import { isPlainObject } from "@orb/kit/guards";
 
 /** The lie's TRUTH string — the comparand the member payload must never carry (body OR reasoning). Exported
  *  so the spec asserts on the exact bytes the fixture streams. */
@@ -118,8 +117,17 @@ export interface FixtureProvider {
   readonly close: () => Promise<void>;
 }
 
-interface ChatRequest {
-  readonly messages: readonly { readonly role: string; readonly content: string }[];
+// The product's outbound request is the observation, so read only the latest user turn's text; any other
+// content shape is not a matching turn.
+function lastUserContent(request: unknown): string | undefined {
+  const messages = isPlainObject(request) ? request["messages"] : undefined;
+  if (!Array.isArray(messages)) {
+    return undefined;
+  }
+  const entries: readonly unknown[] = messages;
+  const lastUser = entries.findLast((message) => isPlainObject(message) && message["role"] === "user");
+  const content = isPlainObject(lastUser) ? lastUser["content"] : undefined;
+  return typeof content === "string" ? content : undefined;
 }
 
 function matchesUserTurn(content: string | undefined, marker: string): boolean {
@@ -157,9 +165,8 @@ export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[
         request.closed = true;
         held.delete(index);
       });
-      const parsed = JSON.parse(body) as ChatRequest;
-      const lastUser = parsed.messages.findLast((message) => message.role === "user");
-      if (expectedUserMarker !== undefined && !matchesUserTurn(lastUser?.content, expectedUserMarker)) {
+      const lastUserTurn = lastUserContent(JSON.parse(body));
+      if (expectedUserMarker !== undefined && !matchesUserTurn(lastUserTurn, expectedUserMarker)) {
         res.writeHead(422, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { message: "fixture-provider: wrong user turn" } }));
         return;
@@ -172,7 +179,7 @@ export function startFixtureProvider(port: number, turns?: readonly FixtureTurn[
         return;
       }
       const turn = turns[index];
-      if (turn === undefined || !matchesUserTurn(lastUser?.content, turn.userMessage)) {
+      if (turn === undefined || !matchesUserTurn(lastUserTurn, turn.userMessage)) {
         res.writeHead(422, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: { message: "fixture-provider: exhausted script or wrong user turn" } }));
         return;

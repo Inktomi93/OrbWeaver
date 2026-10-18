@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-
 // tests/e2e/support/sse — the chat-room SSE collector's VERDICT, proven against a scripted loopback server
 // (#1505). Node-lane (vitest) for the same reason target-guard.test.ts is: the arms that matter must be
 // provable without booting a stack or a model.
@@ -11,7 +9,6 @@
 // server delivers, so the timed-out and ended verdicts cannot be a server that never worked.
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, expect, test } from "vitest";
@@ -64,7 +61,11 @@ async function scriptedRoom(frames: readonly string[], tail: Tail): Promise<stri
   server = createServer(handler);
   const listening = server;
   await new Promise<void>((resolve) => listening.listen(0, "127.0.0.1", () => resolve()));
-  return `http://127.0.0.1:${String((listening.address() as AddressInfo).port)}`;
+  const address = listening.address();
+  if (address === null || typeof address === "string") {
+    throw new Error(`scripted SSE server has no TCP address: ${String(address)}`);
+  }
+  return `http://127.0.0.1:${String(address.port)}`;
 }
 
 describe("collectChatRoomFrames verdict", () => {

@@ -1,13 +1,9 @@
-// @orb-waive-file no-test-fabrication(AggregateError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(WarmupDiagnostics): baselined when the gate widened to value casts; burn-down item 906.
-
 import { readdir, readFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./chat-room.ts";
-import type { WarmupDiagnostics } from "./global-setup.ts";
 import { __warmClientsForTest } from "./global-setup.ts";
 import { MODE_PROJECTS } from "./modes.ts";
 
@@ -108,8 +104,10 @@ test("fatal warm-up persists complete evidence, bounds its error and drains the 
       () => new Error("fatal warm-up incorrectly succeeded"),
       (error: Error): Error => error,
     );
-    expect(failure).toBeInstanceOf(AggregateError);
-    expect((failure as AggregateError).errors).toEqual([
+    if (!(failure instanceof AggregateError)) {
+      throw new Error(`fatal warm-up must reject with an AggregateError, got ${failure.name}: ${failure.message}`);
+    }
+    expect(failure.errors).toEqual([
       expect.objectContaining({ message: expect.stringContaining("single-user") }),
       expect.objectContaining({ message: expect.stringContaining("local") }),
     ]);
@@ -124,22 +122,25 @@ test("fatal warm-up persists complete evidence, bounds its error and drains the 
       startupReports.map(({ bytes }) => bytes),
     );
     const reports = await Promise.all(
-      modes.map(async (mode): Promise<WarmupDiagnostics> => {
+      modes.map(async (mode): Promise<unknown> => {
         const artifact = join(reportDir, `warmup-${mode.name}.json`);
         await testInfo.attach(`warmup-${mode.name}`, { path: artifact, contentType: "application/json" });
-        return JSON.parse(await readFile(artifact, "utf8")) as WarmupDiagnostics;
+        // The persisted artifact is the observation under test, so its bytes stay unknown until asserted.
+        const persisted: unknown = JSON.parse(await readFile(artifact, "utf8"));
+        return persisted;
       }),
     );
     const [earlyReport, peerReport] = reports;
-    expect(earlyReport?.loads).toEqual([]);
-    expect(peerReport?.navigations.length).toBeGreaterThan(0);
-    expect(peerReport?.failures).toContain(`JavaScript: boot-failure-11-${longDetail}`);
-    expect(peerReport?.failures).toContain("HTTP 503: /refused-11");
-    expect(peerReport?.failures).toContain(`Console: ${consoleRefusal} http://127.0.0.1/missing.js`);
+    expect(earlyReport).toHaveProperty("loads", []);
+    expect(peerReport).toHaveProperty("navigations", expect.arrayContaining([expect.anything()]));
+    expect(peerReport).toHaveProperty(
+      "failures",
+      expect.arrayContaining([`JavaScript: boot-failure-11-${longDetail}`, "HTTP 503: /refused-11", `Console: ${consoleRefusal} http://127.0.0.1/missing.js`]),
+    );
     expect(JSON.stringify(peerReport)).not.toContain("fixture-query");
-    expect(peerReport?.pendingRequests).toContain(`/held-11-${longDetail}`);
-    expect(peerReport?.readiness).toEqual(expect.arrayContaining([expect.objectContaining({ state: "degraded" })]));
-    expect(peerReport?.loads).toHaveLength(2);
+    expect(peerReport).toHaveProperty("pendingRequests", expect.arrayContaining([`/held-11-${longDetail}`]));
+    expect(peerReport).toHaveProperty("readiness", expect.arrayContaining([expect.objectContaining({ state: "degraded" })]));
+    expect(peerReport).toHaveProperty("loads.length", 2);
   } finally {
     await Promise.all(
       [early, peer, held].map(

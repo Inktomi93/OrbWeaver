@@ -1,9 +1,8 @@
-// @orb-waive-file no-test-fabrication(readonly { readonly result: { readonly data: { readonly chat: { readonly id: ChatId } } } }[]): baselined when the gate widened to value casts; burn-down item 906.
-
 // Composed smoke: browser sends, external provider streams, native SSE settles and canon survives reload.
 // Only synthetic prompts leave the app; the held endpoint is not a provider-quality certification.
+import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { charactersRailButton, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
@@ -11,7 +10,7 @@ import { expect, test } from "./support/corpus-test.ts";
 import type { FixtureProvider, FixtureTurn } from "./support/fixture-provider.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import type { CanonMessage } from "./support/trpc.ts";
-import { listCanon, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
+import { batchResultData, listCanon, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
 
 const CHARACTER = "Smoke Wire Character";
 const GREETING = "A known greeting from the smoke-owned character.";
@@ -33,12 +32,15 @@ async function openOwnedCharacter(page: Page): Promise<ChatId> {
   await cta.click();
   const response = await started;
   expect(response.ok()).toBe(true);
-  const body = (await response.json()) as readonly { readonly result: { readonly data: { readonly chat: { readonly id: ChatId } } } }[];
-  const id = body[0]?.result.data.chat.id;
-  expect(id).toBeDefined();
-  if (id === undefined) {
+  // The click's response is a raw wire observation; read the one field this flow needs and parse its id.
+  const startResult = batchResultData(await response.json());
+  const data = startResult?.data;
+  const chat = isPlainObject(data) ? data["chat"] : undefined;
+  const rawId = isPlainObject(chat) ? chat["id"] : undefined;
+  if (rawId === undefined) {
     throw new Error("chat.startChat returned no chat id");
   }
+  const id = typeIdSchema(ID_PREFIX.chat).parse(rawId);
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
   return id;
 }

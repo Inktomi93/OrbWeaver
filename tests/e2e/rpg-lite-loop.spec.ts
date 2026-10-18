@@ -37,9 +37,10 @@
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
 import type { RpgActorRef } from "@orb/contracts/rpg";
-// @orb-waive-file no-test-fabrication(readonly { readonly content?: unknown }[]): baselined when the gate widened to value casts; burn-down item 906.
+import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
@@ -420,9 +421,13 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     expect(captures.length).toBeGreaterThan(0);
     const turnCapture = captures.find((c) => c.providerId === "vllm");
     expect(turnCapture).toBeDefined();
-    const messages = turnCapture?.body["messages"] as readonly { readonly content?: unknown }[];
-    expect(Array.isArray(messages)).toBe(true);
-    const promptText = messages.map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
+    const messages = pageArray(turnCapture?.body["messages"], "vllm wire capture messages");
+    const promptText = messages
+      .map((m) => {
+        const content = isPlainObject(m) ? m["content"] : undefined;
+        return typeof content === "string" ? content : JSON.stringify(content);
+      })
+      .join("\n");
     expect(promptText).toContain("The Rusted Gate tavern");
     expect(promptText).toContain("Game state");
 

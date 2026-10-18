@@ -1,9 +1,8 @@
 // Full-stack room reads, multiplexed attachment and bus-driven rename reconciliation.
 // Ordinary tRPC queries and mutations share JSON POST batches; the tab's SSE socket is separate.
 
-// @orb-waive-file no-test-fabrication(BatchInputs): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Pick<typeof import): baselined when the gate widened to value casts; burn-down item 906.
-import type { StreamAttachInput, StreamFrameFor } from "@orb/contracts/stream";
+import type { StreamAttachInput } from "@orb/contracts/stream";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
@@ -32,29 +31,54 @@ interface TimelineEntry {
 }
 
 async function openedRoomId(page: Page): Promise<ChatId> {
-  // Read the already-served navigation store, not a room identity inferred from network traffic.
-  const chatId = await page.evaluate(async (modulePath) => {
-    const state = (await import(modulePath)) as Pick<typeof import("@orb/client/state"), "activeChatId">;
-    return state.activeChatId();
+  // Read the already-served navigation store, not a room identity inferred from network traffic. The served
+  // module stays unknown in page; its result is parsed on the Node side with the canonical chat id schema.
+  const served: unknown = await page.evaluate(async (modulePath) => {
+    const state: unknown = await import(modulePath);
+    if (typeof state !== "object" || state === null || !(("activeChatId" satisfies keyof typeof import("@orb/client/state")) in state)) {
+      throw new Error(`${modulePath} serves no activeChatId reader`);
+    }
+    if (typeof state.activeChatId !== "function") {
+      throw new Error(`${modulePath} activeChatId is not a reader`);
+    }
+    const activeChatId: unknown = state.activeChatId();
+    return activeChatId;
   }, "/src/state/active-chat-store.ts");
+  const chatId = typeIdSchema(ID_PREFIX.chat).nullable().parse(served);
   if (chatId === null) {
     throw new Error("The rendered room has no active chat identity");
   }
   return chatId;
 }
 
-type BatchInputs = Record<string, StreamAttachInput | Pick<StreamFrameFor<"chat">, "chatId">>;
+// The recorder observes the client's raw batch body, so each input stays unknown until one field is read.
+function inputChatId(procedure: string, input: unknown): ChatId | undefined {
+  if (!isPlainObject(input)) {
+    return undefined;
+  }
+  if (procedure === ATTACH) {
+    const ref = input["ref"];
+    return isPlainObject(ref) && ref["channel"] === "chat" ? typeIdSchema(ID_PREFIX.chat).parse(ref["chatId"]) : undefined;
+  }
+  if ((procedure === GET_CHAT || procedure === LIST_MESSAGES || procedure === UPDATE_TITLE) && "chatId" in input) {
+    return typeIdSchema(ID_PREFIX.chat).parse(input["chatId"]);
+  }
+  return undefined;
+}
+
+// A batch body is index-keyed; an array-shaped body is read by the same index rather than dropped.
+function batchInput(inputs: unknown, index: number): unknown {
+  if (Array.isArray(inputs)) {
+    const entries: readonly unknown[] = inputs;
+    return entries[index];
+  }
+  return isPlainObject(inputs) ? inputs[String(index)] : undefined;
+}
 
 function batchEntries(phase: string, method: string, procedures: readonly string[], postData: string | null): readonly TimelineEntry[] {
-  const inputs: BatchInputs = method === POST_METHOD && postData !== null ? (JSON.parse(postData) as BatchInputs) : {};
+  const inputs: unknown = method === POST_METHOD && postData !== null ? JSON.parse(postData) : undefined;
   return procedures.map((procedure, index) => {
-    const input = inputs[String(index)];
-    let chatId: ChatId | undefined;
-    if (procedure === ATTACH && input !== undefined && "ref" in input && input.ref.channel === "chat") {
-      chatId = typeIdSchema(ID_PREFIX.chat).parse(input.ref.chatId);
-    } else if ((procedure === GET_CHAT || procedure === LIST_MESSAGES || procedure === UPDATE_TITLE) && input !== undefined && "chatId" in input) {
-      chatId = typeIdSchema(ID_PREFIX.chat).parse(input.chatId);
-    }
+    const chatId = inputChatId(procedure, batchInput(inputs, index));
     return { phase, procedure, batchSize: procedures.length, ...(chatId === undefined ? {} : { chatId }) };
   });
 }

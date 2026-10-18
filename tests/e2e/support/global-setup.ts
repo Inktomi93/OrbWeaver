@@ -216,7 +216,7 @@ const DIAGNOSTIC_SAMPLE_COUNT = 5;
 const DIAGNOSTIC_SAMPLE_LENGTH = 250;
 
 /** Complete startup evidence; thrown errors carry bounded samples instead of this full record. */
-export interface WarmupDiagnostics {
+interface WarmupDiagnostics {
   readonly elapsedMs: number;
   readonly path: string;
   readonly loads: readonly number[];

@@ -8,81 +8,64 @@
 // declaration order preserved). Optional/nullable/default/readonly wrappers are transparent. Anything else — a
 // primitive, an enum, a `.transform()` pipe (the branded-id schemas), a scalar union — is a LEAF.
 
-// @orb-waive-file no-test-fabrication(ZodDefLike): baselined when the gate widened to value casts; burn-down item 906.
-import type { z } from "zod";
-
-/** The zod v4 internal def shape this walker reads. Zod exposes `.def` publicly per node; the fields present
- *  depend on `type` (verified against zod 4.4: object→shape, array→element, record→valueType, union→options,
- *  optional/nullable/default/readonly/nonoptional→innerType). */
-interface ZodDefLike {
-  readonly type: string;
-  readonly shape?: Readonly<Record<string, unknown>>;
-  readonly element?: unknown;
-  readonly valueType?: unknown;
-  readonly options?: readonly unknown[];
-  readonly innerType?: unknown;
-}
+import { z } from "zod";
 
 /** The wrappers that carry no path segment of their own — unwrap and keep walking. */
-const TRANSPARENT = new Set(["optional", "nullable", "default", "prefault", "readonly", "nonoptional", "catch"]);
+type TransparentWrapper = z.ZodOptional | z.ZodNullable | z.ZodDefault | z.ZodPrefault | z.ZodReadonly | z.ZodNonOptional | z.ZodCatch;
 
-function defOf(schema: unknown): ZodDefLike | null {
-  if (typeof schema !== "object" || schema === null) {
-    return null;
-  }
-  const def = (schema as { def?: unknown }).def;
-  if (typeof def !== "object" || def === null || typeof (def as { type?: unknown }).type !== "string") {
-    return null;
-  }
-  return def as ZodDefLike;
+function isTransparent(schema: z.core.$ZodType): schema is TransparentWrapper {
+  return (
+    schema instanceof z.ZodOptional ||
+    schema instanceof z.ZodNullable ||
+    schema instanceof z.ZodDefault ||
+    schema instanceof z.ZodPrefault ||
+    schema instanceof z.ZodReadonly ||
+    schema instanceof z.ZodNonOptional ||
+    schema instanceof z.ZodCatch
+  );
 }
 
-function walk(schema: unknown, prefix: string, out: string[]): void {
-  const def = defOf(schema);
-  if (def === null) {
-    push(out, prefix);
+function walk(schema: z.core.$ZodType, prefix: string, out: string[]): void {
+  if (isTransparent(schema)) {
+    walk(schema.def.innerType, prefix, out);
     return;
   }
-  if (TRANSPARENT.has(def.type) && def.innerType !== undefined) {
-    walk(def.innerType, prefix, out);
-    return;
-  }
-  if (!walkContainer(def, prefix, out)) {
+  if (!walkContainer(schema, prefix, out)) {
     push(out, prefix);
   }
 }
 
 /** Walk a COMPOSITE node's children; `false` = this node is a leaf (a primitive, an enum, a `.transform()`
  *  pipe, or a scalar union) and the caller records the path. */
-function walkContainer(def: ZodDefLike, prefix: string, out: string[]): boolean {
-  if (def.type === "object" && def.shape !== undefined) {
-    for (const [key, child] of Object.entries(def.shape)) {
+function walkContainer(schema: z.core.$ZodType, prefix: string, out: string[]): boolean {
+  if (schema instanceof z.ZodObject) {
+    for (const [key, child] of Object.entries(schema.def.shape)) {
       walk(child, prefix === "" ? key : `${prefix}.${key}`, out);
     }
     return true;
   }
-  if (def.type === "array" && def.element !== undefined) {
-    walk(def.element, `${prefix}[]`, out);
+  if (schema instanceof z.ZodArray) {
+    walk(schema.def.element, `${prefix}[]`, out);
     return true;
   }
-  if (def.type === "record" && def.valueType !== undefined) {
-    walk(def.valueType, `${prefix}.*`, out);
+  if (schema instanceof z.ZodRecord) {
+    walk(schema.def.valueType, `${prefix}.*`, out);
     return true;
   }
-  return walkUnion(def, prefix, out);
+  return walkUnion(schema, prefix, out);
 }
 
 /** An OBJECT union (discriminated or not) contributes every option's fields — a `cast` NPC's `npcKey` is a
  *  field of the actor-ref plane exactly as `characterId` is. A SCALAR union (`number | string`) is a leaf. */
-function walkUnion(def: ZodDefLike, prefix: string, out: string[]): boolean {
-  if (def.type !== "union" || def.options === undefined) {
+function walkUnion(schema: z.core.$ZodType, prefix: string, out: string[]): boolean {
+  if (!(schema instanceof z.ZodUnion)) {
     return false;
   }
-  const objectOptions = def.options.filter((o) => defOf(o)?.type === "object");
-  if (objectOptions.length === 0 || objectOptions.length !== def.options.length) {
+  const options: readonly z.core.$ZodType[] = schema.def.options;
+  if (options.length === 0 || !options.every((option) => option instanceof z.ZodObject)) {
     return false;
   }
-  for (const option of objectOptions) {
+  for (const option of options) {
     walk(option, prefix, out);
   }
   return true;

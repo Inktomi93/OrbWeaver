@@ -1,10 +1,9 @@
-// @orb-waive-file no-test-fabrication({ readonly port: number }): baselined when the gate widened to value casts; burn-down item 906.
-
 import { existsSync, readFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { isPlainObject } from "@orb/kit/guards";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
@@ -45,7 +44,12 @@ export async function startFilmstripAuthFixture(scratch: string): Promise<{ read
     child.killGroup("SIGKILL");
     throw new Error(`filmstrip auth fixture did not publish readiness: ${readFileSync(logPath, "utf8")}`);
   }
-  const port = (JSON.parse(await readFile(ready, "utf8")) as { readonly port: number }).port;
+  const readiness: unknown = JSON.parse(await readFile(ready, "utf8"));
+  const port = isPlainObject(readiness) ? readiness["port"] : undefined;
+  if (typeof port !== "number") {
+    child.killGroup("SIGKILL");
+    throw new Error(`filmstrip auth fixture published malformed readiness: ${JSON.stringify(readiness)}`);
+  }
   return {
     base: `http://127.0.0.1:${String(port)}`,
     close: async (): Promise<void> => {
