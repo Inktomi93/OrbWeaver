@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-17
+status: doing
+updated: 2026-10-18
 priority: P2
 area: packages
+lane: wt/claude-fabrication-1041
 plan: test-foundation
 ---
 

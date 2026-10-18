@@ -24,13 +24,13 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Hosted qualification and owner-copy execution remain open; collection is not execution.
+Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Hosted and owner-copy execution remain open; collection is not execution.
 
-Responsive navigation, canon, persona freshness, recent threads and restored-room navigation have scoped production evidence. Preserve their source epochs and historical failures. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
+Navigation, canon and persona freshness have scoped production evidence. Preserve source epochs and failures. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
-Private intake migrates and scrubs a disposable, schedule-quarantined copy. The current owner-copy attempt expires at its first admitted job without a fixture or row snapshot; its input is unchanged. Timeout diagnostics preserve the original reason and phase without starting I/O after expiry. Last observations are not final states. Personal data stays outside Git and CI. Evidence: `reports/review/898-private-current-intake-verdict.md` and `reports/review/898-owned-workload-timeout-independent.md`.
+Private intake uses a disposable, schedule-quarantined copy. Native replay proves the first index workload starts and reports progress before the helper deadline; no fixture or final DB state qualifies. Diagnose consumer-owned cancellation before changing budgets. Supervision owns initial load and execution; a blocked-load control proves joining. Prior DB observations and retained replay remain distinct; replay absence is unobserved. Personal data stays outside Git and CI. Evidence: `reports/review/898-private-current-intake-verdict.md` and `reports/review/898-owned-workload-timeout-independent.md`.
 
 Request-sensitive corpus publication passes its seed and native boundary controls. Evidence: `reports/review/898-v2-publication.md`.
 

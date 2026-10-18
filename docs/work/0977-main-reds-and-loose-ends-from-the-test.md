@@ -39,9 +39,9 @@ Remaining findings: legacy disposal/typed lint, maintained classes, client forma
 
 D161 cites a removed health module; immutable ADR lifecycle law blocks a direct edit. Citation grants also exceed their budget. Add no allowance or placeholder. Evidence: `reports/review/1042-boundary-home-independent-review.md`.
 
-Legacy export-floor findings concern optional RPG, profile and tag inputs in seed-user-content, profile-directory and run-profile-import. Preserve cases for replacement, not fixture retrofits.
+Optional RPG, profile and tag export-floor cases remain replacement inputs, not fixture retrofits.
 
-Compose integration preserves census equality. Reindex/auth classifications remain unproven; literal removals shrink budgets.
+Compose census is preserved; reindex/auth classifications remain unproven.
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
@@ -58,3 +58,5 @@ The generation-provenance wire requires a derived slot fact. `scripts/probes/f4-
 Native dependency cycles remain. Evidence: `reports/review/1027-native-finite-ordinary.md`.
 
 Maintained-support types and native prototype instrumentation remain open. Preserve production edges and bounded controls. Evidence: `reports/review/1002-coherent-abi-integration.md`.
+
+Inherited source size and adoption-test timeout findings remain open without budget or suppression changes. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.

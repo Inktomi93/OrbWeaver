@@ -51,7 +51,7 @@ Retain aliases, reexports, merged declarations, overloads, shorthand properties,
 
 Reference lookup is not callable provenance. Keep allocation, argument bindings, property paths, mutation and escape judgments at their canonical owners. An occurrence index supplies facts; it does not establish runtime origin by itself.
 
-Bounded member and module indexing preserves canonical native travel and fallback. Installed-SDK, SQLite and public AST controls pass in an isolated main-derived checkout. Shared-main installation matches the qualified pins; see `reports/review/1041-maintained-boundary-delivery.md`. Complete-world cost remains open. Evidence: `reports/review/1045-native-families-installed.md`.
+Native location indexing preserves canonical travel and explicit fallback. The extractor retains computed answers instead of repeating searches. Versioned name links remove artificial physical copies while replaying exact logical ordering and native repeats. Installed controls, storage upgrades and bounded UI parity pass review. Main installation matches the reviewed SDK. Complete DOM publication, semantic equivalence, warm reuse and hosted cost remain open. Evidence: `reports/review/1045-bulk-native-reference-delivery.md` and `reports/review/native-reference-reviewed-train-integration.md`.
 
 ## Rejected
 

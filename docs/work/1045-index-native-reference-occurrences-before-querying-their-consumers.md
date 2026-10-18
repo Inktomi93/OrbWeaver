@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: wt/claude-fabrication-1041
+lane: codex/maintained-boundary-casts-1041
 plan: native-occurrence-index
 ---
 
@@ -32,4 +32,4 @@ Member and module occurrence production passes bounded parity controls and indep
 
 Frozen complete-DOM default publication validates current inputs, lazy reads and physical worker release. Cost remains high. Candidate indexing still invokes native per-query reference semantics. Semantic parity, warm reuse, other worlds and hosted acceptance remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
 
-The assigned native-pass batch must preserve computed answers and index location relationships with explicit native fallback. Name-reference normalization must use versioned links and preserve native repeats, ordering and reader projections. Qualify bounded parity before another expensive-world run. Evidence: `reports/review/1045-bulk-native-reference-next-proposal.md`.
+Computed-answer reuse, native location indexing and versioned name links are integrated with matching main SDK installation. Storage upgrades and exact logical replay pass controls and independent review. UI relation-on/off observations preserve complete roots, closure, inputs and reference order; they do not qualify complete DOM cost or worker release. Complete default-DOM publication is the next owned measurement. Evidence: `reports/review/1045-bulk-native-reference-delivery.md` and `reports/review/native-reference-reviewed-train-integration.md`.

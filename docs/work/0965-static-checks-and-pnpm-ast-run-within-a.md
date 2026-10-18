@@ -28,17 +28,15 @@ The supported `pnpm ast apisurface --in /src/ --public --json --max 1000000` com
 
 Bounded native UI projection completes with worker release: elapsed 1:58.62, maximum RSS 2,501,396 KiB, no swaps. This is not aggregate concurrent memory or a full apisurface measurement.
 
-The composite diagnostic exhausts V8 heap at API-surface entry; cause unqualified.
-
 Complete tests-DOM cold publication passes at frozen `7394d01aaf` in 73:47.834. Sampled parent-plus-worker RSS peaks at 10.977 GiB, without sampled swap; this is not a continuous physical-memory peak. Inputs revalidate and owned processes exit. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
 Immutable router publication, observed emission and the output-watch correction are integrated. The client product typecheck consumes a fresh observed declaration view with native roots, options and references preserved. Currentness, cleanup and application controls pass review; the maintained full-client command passes. Source-based application eligibility stays distinct from projected child closure. Evidence: `reports/review/965-consumed-client-typecheck.md`. Complete router conformance and controlled closure evidence remain valid. Other compiler, lint, editor, semantic and transaction owners, origin qualification and warm reuse remain open.
 
-The profiled TS7 prototype is slower, larger and fails reference parity. Further TS7 benchmarks and adapters remain parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
+The profiled TS7 prototype is slower, larger and fails reference parity. TS7 work remains parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
-Frozen complete-DOM default publication validates current inputs, lazy reads and physical worker release. Cost remains high. Candidate indexing still invokes native per-query reference semantics. Semantic parity, warm reuse, other worlds and hosted acceptance remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
+Frozen complete-DOM publication retains its original source, SDK and costly result. Reviewed computed-answer reuse, native location indexing and physical name-link storage are integrated. Bounded UI parity and lower observed cost do not qualify complete DOM, warm reuse or hosted acceptance. Measure current default DOM separately without relabeling historical evidence. Evidence: `reports/review/1045-bulk-native-reference-delivery.md` and `reports/review/1002-current-tests-dom-cost.md`.
 
 Maintained tests-DOM projection is declined: real CT support retains the server graph, so declarations add files without isolating it. Native checks and router conformance pass; this does not justify adopting the projection. Evidence: `reports/review/965-dom-router-qualification.md`.
 

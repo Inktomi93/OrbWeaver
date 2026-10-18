@@ -157,7 +157,7 @@ The [native inventory item](../../work/1002-persist-native-semantic-inventory-fa
 
 Factory readers pin complete-generation, query-only snapshots. Raw binding reuse stays snapshot-owned; borrowed readers stay fresh. Owned invocation identity and private partition membership remain validated. Session admission retains current caller keys and graph checks. Acquisition verifies exact native membership. Source wrappers are reused without assuming immutable contents or epochs. Installed controls qualify these boundaries. Maintained-support findings remain separate.
 
-Frozen DOM default publication validates inputs, lazy reads and physical release. Complete semantic parity, other worlds, warm reuse and hosted cost remain open. Bulk reference search dominates the measured sample. Evidence: `reports/review/1002-current-tests-dom-cost.md`.
+Frozen DOM publication validates currentness and release; its bulk-reference cost remains historical evidence. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity passes; complete DOM cost, semantic equivalence, warm reuse and hosted acceptance remain open. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
 
 Verifier native-world delivery remains incomplete. Native owners supply closed module, declaration, reference, origin, value, signature and type observations. Queries retain importing-world options and exact source membership. Executable helpers and codecs participate in reuse invalidation. Missing, foreign, stale or disposed evidence refuses instead of falling back to the syntax workspace.
 
@@ -209,7 +209,7 @@ Prove native world differences, alias and dynamic-import identity, complete popu
 
 D322 permits schema-only exports. Membership hygiene is removed; authored parity and issues-origin enforcement remain. Evidence: `reports/review/1041-native-zod-surface-ordinary.md`.
 
-The audit asks whether native enforcement can replace each custom claim. The typed-necessity census describes current implementations. Neither census qualifies a successor.
+The audit and implementation census guide native replacement; neither qualifies a successor.
 
 Run the migration in this order: security replacements; mechanical native lint/import moves; typed production registries; runtime/type tests; stylelint and CSS moves; obsolete family scaffolding; KEEP-only engine qualification and memory measurement. Security-executor lands real composition-root tests and native boundaries before deleting a security gate. A planted violation must fail.
 
@@ -229,7 +229,7 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
-Native HARD lint owns tooling entry identity, manifest invalidation and missing-owner refusal. Production exceptions narrow to actual subjects. Server importer resource qualification remains open. Evidence: `reports/review/1041-native-tool-entry-independent.md` and `reports/review/1042-server-native-importer-diagnosis.md`.
+Native HARD lint owns tooling entry identity, invalidation and missing-owner refusal. Bounded server declaration traversal completes without heap exhaustion; unsupported surfaces refuse explicitly. Coverage and type-home corrections remain open. Evidence: `reports/review/1042-native-boundary-successor.md`.
 
 Native schemas enforce portability; runtime owns DevTools bytes. Lint owns client literals, positioning, sealed sizes and suppression refusal. Story and generated-token readers remain. Manifest/token and compiler-expiry contracts use Node CI. Containment and memo enforcement remain. Floorless geometry uses public UI metadata; complete frontend qualification remains open. Native imports judge tests and tooling; raw reach remains custom. Engine-test private imports require production-root adoption. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`. Git/text checks pass; application qualification fails on legacy collection.
 

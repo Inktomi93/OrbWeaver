@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-18
 priority: P2
 area: tooling
-lane: codex/maintained-boundary-casts-1041
+lane: codex/canonical-adapter-type-homes-1042
 plan: test-foundation
 ---
 
@@ -30,4 +30,4 @@ Reviewed parser and Morph observations retain separate compiler realms. Canonica
 
 Qualified native factory and sanctioned transport markers are removed. PrincipalEnv retains its verified entry-only Hono limitation. Remaining markers and importer qualification stay open. Evidence: `reports/review/marker-workload-wave-independent.md`.
 
-The ordinary server cohort exhausts the heap only with the recursive importer enabled. Preserve ownership claims through compiler-checked public boundaries and native declaration edges; unqualified inferred or nested surfaces must refuse. The assigned lane surveys the successor before implementation. Evidence: `reports/review/1042-server-native-importer-diagnosis.md`.
+Bounded native declaration traversal replaces recursive expansion and completes the ordinary server cohort without heap exhaustion. Reviewed controls preserve actual arguments, owner identity, merged declarations and missing-data refusal. Production results retain real placement findings and explicit unqualified coverage refusals. Derived/schema, ambient and dependent-default coverage stays open; do not rewrite canonical application types to hide it. Canonical adapter-home fixes proceed independently. Evidence: `reports/review/1042-native-boundary-successor.md` and `reports/review/1042-server-public-boundary-independent.md`.
