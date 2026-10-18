@@ -12,7 +12,7 @@
 // both and the server disambiguates, as it does for a folder uploaded whole.
 
 import type { StProfileHandledEntry } from "@orb/contracts/import";
-import { chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
+import { chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, sniffTreeLayout, stProfileEntryDisposition } from "@orb/contracts/import";
 import { slugifyHandle } from "@orb/kit/slug";
 import { relativePathOf } from "./import-tree.ts";
 
@@ -112,19 +112,6 @@ function commonWrapper(paths: readonly string[]): string | null {
   }
   const prefix = first.slice(0, slash + 1);
   return paths.every((p) => p.startsWith(prefix)) ? prefix.slice(0, -1) : null;
-}
-
-const PROFILE_MARKERS: ReadonlySet<string> = new Set([ST_SETTINGS_FILE, CHARACTERS_DIR, CHATS_DIR, USER_AVATARS_DIR]);
-
-/** How many leading segments name the profile dir: 0 when the picked folder IS a profile, 1 when it holds
- *  profile subdirs (the `data/` root), null when the tree is not SillyTavern-shaped. */
-function profileDepth(paths: readonly string[]): 0 | 1 | null {
-  const top = new Set(paths.map((p) => p.split("/")[0] ?? ""));
-  if ([...top].some((name) => PROFILE_MARKERS.has(name))) {
-    return 0;
-  }
-  const second = new Set(paths.map((p) => p.split("/")[1] ?? ""));
-  return [...second].some((name) => PROFILE_MARKERS.has(name)) ? 1 : null;
 }
 
 /** The server's chat-dir pairing: the slug, else the slug minus an ST folder-name decoration
@@ -386,11 +373,14 @@ export async function planTreeImport(
     const path = wrapper === null ? raw : raw.slice(wrapper.length + 1);
     return { file, path, segments: path.split("/") };
   });
-  const depth = profileDepth(planned.map((f) => f.path));
-  if (depth === null) {
+  const layout = sniffTreeLayout(planned.map((f) => f.path));
+  if (layout.kind === "reject") {
+    throw new Error("The selected folder does not contain an unambiguous supported library layout");
+  }
+  if (layout.kind === "orb") {
     return planGeneric(planned, caps);
   }
-  const inProfile = depth === 0 ? planned : planned.map((f) => ({ ...f, segments: f.segments.slice(1) }));
+  const inProfile = layout.stagePrefix === "" ? planned.map((f) => ({ ...f, segments: f.segments.slice(1) })) : planned;
   const classified = classifySt(inProfile, caps);
   const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
 

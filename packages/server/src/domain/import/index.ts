@@ -82,7 +82,6 @@ export {
 } from "./substrate/preset.ts";
 export { formatImportReport } from "./substrate/report.ts";
 export { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "./substrate/staging.ts";
-export { sniffTreeLayout } from "./substrate/tree-layout.ts";
 export { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 export { createEnqueueImportIndex } from "./verbs/enqueue-import-index.ts";
 export { createImportLibraryEmitter } from "./verbs/import-library-emitter.ts";

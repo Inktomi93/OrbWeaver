@@ -21,7 +21,7 @@ import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { decodePersonaCollisionChoices, importStartedSchema, isStSecretsFile, PERSONA_COLLISION_FIELD } from "@orb/contracts/import";
+import { decodePersonaCollisionChoices, importStartedSchema, isStSecretsFile, PERSONA_COLLISION_FIELD, sniffTreeLayout } from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -33,7 +33,6 @@ import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
-import { sniffTreeLayout } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
 
 const UNAUTHORIZED = 401;
@@ -60,13 +59,6 @@ const OWNER_ONLY_DIR = 0o700;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 const TRAILING_SLASH = /\/$/;
-// Orb bundle dir names that ALSO appear in a real SillyTavern profile tree — a name collision, not an
-// orb signal. `characters/`/`chats/` are shared by both formats' content; `themes/` (orb theme
-// portability vs ST's UI-theme dir) and `assets/` (orb asset portability vs ST's uploaded-assets dir)
-// collide by NAME only. Excluding them here is what lets a real ST profile (which always carries
-// `settings.json` + a `themes/` dir) sniff as ST instead of tripping the both-markers ambiguity reject.
-const ST_SHARED_DIRS = new Set(["characters/", "chats/", "themes/", "assets/"]);
-
 // @orb-waive no-inline-package-interface(ImportTreeDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
@@ -167,17 +159,6 @@ function stripWrapper(path: string, wrapper: string | null): string {
   return wrapper !== null ? path.slice(wrapper.length + 1) : path;
 }
 
-/** Registry entity dirs minus the ST-shared `characters/`/`chats/`, as bare segment names — the orb signal. */
-function orbOnlyDirNames(registry: PortabilityRegistry): Set<string> {
-  const names = new Set<string>();
-  for (const entity of registry) {
-    if (!ST_SHARED_DIRS.has(entity.dir)) {
-      names.add(entity.dir.replace(TRAILING_SLASH, ""));
-    }
-  }
-  return names;
-}
-
 /** Collect + validate the multipart parts fail-closed: count, per-file bytes, path sanitization. Throws
  *  {@link TreeRejected} (nothing staged) on the first breach. A `secrets.json` part is dropped, never staged. */
 async function collectParts(form: FormData): Promise<UploadPart[]> {
@@ -272,7 +253,7 @@ function readCollisionChoices(form: FormData): PersonaCollisionChoices {
 /** Sniff + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
  *  cleans up its OWN partial dir on a staging failure so the caller only owns cleanup after this returns. */
 async function stageUpload(
-  orbDirs: ReadonlySet<string>,
+  nativeDirs: ReadonlySet<string>,
   stagingRoot: string,
   parts: readonly UploadPart[],
   choices: PersonaCollisionChoices,
@@ -280,7 +261,7 @@ async function stageUpload(
   const wrapper = commonWrapper(parts.map((p) => p.relPath));
   const layout = sniffTreeLayout(
     parts.map((p) => stripWrapper(p.relPath, wrapper)),
-    orbDirs,
+    nativeDirs,
   );
   if (layout.kind === "reject") {
     const found = layout.found.join(", ") || "nothing";
@@ -318,7 +299,7 @@ interface TreeContext {
 /** Register `POST /api/import/tree`. Auth-first, CSRF-guarded, DoS-capped; sanitizes + stages the folder
  *  batch, sniffs the layout, and starts the matching per-owner import workload, replying 202 with the id. */
 export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): void {
-  const orbDirs = orbOnlyDirNames(deps.registry);
+  const nativeDirs = new Set(deps.registry.map((entity) => entity.dir.replace(TRAILING_SLASH, "")));
   app.post(TREE_ROUTE, authCsrfGuard, bodyCap(IMPORT_TREE_MAX_TOTAL_BYTES), async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
@@ -332,7 +313,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
       const form = await c.req.formData();
       const parts = await collectParts(form);
       const { stagedRoot, input } = await stageUpload(
-        orbDirs,
+        nativeDirs,
         stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId),
         parts,
         readCollisionChoices(form),

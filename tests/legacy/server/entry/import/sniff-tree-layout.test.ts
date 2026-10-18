@@ -4,9 +4,9 @@
 // under a synthetic `profile/` wrapper; a multi-profile ST root routes to the ST loop with no prefix; and an
 // unrecognized OR doubly-marked tree is a reject (never a silent guess). Inputs are already wrapper-stripped.
 
+import { sniffTreeLayout } from "@orb/contracts/import";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { sniffTreeLayout } from "#server/entry/import/index.ts";
 
 // The registry's orb-only entity dirs (bare names) — the positive orb signal the route passes in. This is
 // the full portable set MINUS every dir whose NAME also appears in a real SillyTavern profile: `characters`

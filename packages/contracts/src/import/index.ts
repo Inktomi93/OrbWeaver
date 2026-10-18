@@ -1,6 +1,7 @@
-// @orb/contracts/import — the SillyTavern profile-folder vocabulary both ends of the folder import read: the
-// browser planner skips what the server would only report, and the server collector and report name the
-// same planes with the same reasons, so the two sides can never disagree about what was left behind.
+// Native and SillyTavern import vocabulary and shared folder-layout admission.
+// The planner and HTTP boundary classify the same paths before selecting their import behavior.
+
+import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
 
 export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
 export { cardImportResultSchema } from "./card-result.ts";
@@ -138,3 +139,120 @@ export function chatDirCardCandidates(slug: string): string[] {
 
 export type { FsDirEntry, FsDirEntryKind, ImportFsPort } from "./filesystem.ts";
 export { FS_DIR_ENTRY_KINDS } from "./filesystem.ts";
+
+/** The sniff outcome: the importer to route to + the staging-path prefix that normalizes the tree, or a
+ *  typed reject carrying the top-level names found (so the caller can tell the user what it saw). The importer consumes the classification before any staging write. */
+export type TreeLayout =
+  | { readonly kind: "st"; readonly stagePrefix: string }
+  | { readonly kind: "orb"; readonly stagePrefix: string }
+  | { readonly kind: "reject"; readonly found: readonly string[] };
+
+interface TreeChild {
+  readonly files: Set<string>;
+  readonly dirs: Set<string>;
+}
+
+/** The top-level shape derived from a set of relative paths, plus a one-level-down child index used only to
+ *  recognize a multi-profile ST root (a parent dir whose subdirs are each an ST profile). */
+interface TreeShape {
+  readonly topFiles: Set<string>;
+  readonly topDirs: Set<string>;
+  /** For each top-level dir: the names of its immediate child files + child dirs (for multi-profile detection). */
+  readonly childrenByDir: Map<string, TreeChild>;
+}
+
+/** An ST-only per-profile directory marker. */
+const ST_AVATARS_DIR = "User Avatars";
+/** Directories shared by both the ST profile layout and the orb bundle vocabulary — never a sole decider. */
+const ST_CONTENT_DIRS = new Set(["characters", "chats"]);
+const ST_SHARED_DIRS = new Set([...ST_CONTENT_DIRS, "themes", "assets"]);
+const NATIVE_DIRECTORIES: ReadonlySet<string> = new Set(Object.values(PORTABLE_DIRECTORIES).map((dir) => dir.slice(0, -1)));
+/** Synthetic wrapper a single picked ST profile is re-nested under so the profile LOOP sees one profile subdir. */
+const ST_SINGLE_PROFILE_PREFIX = "profile/";
+
+function buildShape(paths: readonly string[]): TreeShape {
+  const topFiles = new Set<string>();
+  const topDirs = new Set<string>();
+  const childrenByDir = new Map<string, TreeChild>();
+  for (const path of paths) {
+    const segments = path.split("/");
+    const [top] = segments;
+    if (top === undefined || top.length === 0) {
+      continue;
+    }
+    if (segments.length === 1) {
+      topFiles.add(top);
+      continue;
+    }
+    topDirs.add(top);
+    const child = childrenByDir.get(top) ?? { files: new Set<string>(), dirs: new Set<string>() };
+    const second = segments[1];
+    if (second !== undefined && second.length > 0) {
+      if (segments.length === 2) {
+        child.files.add(second);
+      } else {
+        child.dirs.add(second);
+      }
+    }
+    childrenByDir.set(top, child);
+  }
+  return { topFiles, topDirs, childrenByDir };
+}
+
+/** Recognize an ST profile without treating its shared themes or unsupported extension assets as native-only data. */
+function looksLikeStProfile(child: TreeChild, orbOnlyDirs: ReadonlySet<string>): boolean {
+  for (const dir of child.dirs) {
+    if (orbOnlyDirs.has(dir)) {
+      return false;
+    }
+  }
+  if (child.files.has(ST_SETTINGS_FILE) || child.dirs.has(ST_AVATARS_DIR)) {
+    return true;
+  }
+  for (const shared of ST_CONTENT_DIRS) {
+    if (child.dirs.has(shared)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Classify wrapper-stripped paths against native registry directories, without trailing slashes.
+ * Explicit ST profile markers permit known ST planes but refuse exclusively native data.
+ */
+export function sniffTreeLayout(paths: readonly string[], nativeDirs: ReadonlySet<string> = NATIVE_DIRECTORIES): TreeLayout {
+  const orbOnlyDirs = new Set([...nativeDirs].filter((dir) => !ST_SHARED_DIRS.has(dir)));
+  const shape = buildShape(paths);
+  const orbAtTop = [...shape.topDirs].some((d) => orbOnlyDirs.has(d));
+  const stStrongAtTop = shape.topFiles.has(ST_SETTINGS_FILE) || shape.topDirs.has(ST_AVATARS_DIR);
+  const stSharedAtTop = [...ST_CONTENT_DIRS].some((d) => shape.topDirs.has(d));
+
+  // A native-only entity plane beside ST-only profile markers is ambiguous.
+  if (orbAtTop && stStrongAtTop) {
+    return { kind: "reject", found: sortedTop(shape) };
+  }
+  if (orbAtTop) {
+    return { kind: "orb", stagePrefix: "" };
+  }
+  // A single picked ST profile: its own contents sit at the tree top → re-nest under a synthetic wrapper.
+  if (stStrongAtTop || stSharedAtTop) {
+    return { kind: "st", stagePrefix: ST_SINGLE_PROFILE_PREFIX };
+  }
+  // A multi-profile ST root (the picked `data/`-style dir): subdirs are each an ST profile, none orb-shaped.
+  if (shape.topDirs.size > 0) {
+    const anyProfile = [...shape.topDirs].some((d) => {
+      const child = shape.childrenByDir.get(d);
+      return child !== undefined && looksLikeStProfile(child, orbOnlyDirs);
+    });
+    const anyOrb = [...shape.childrenByDir.values()].some((child) => [...child.dirs].some((dir) => orbOnlyDirs.has(dir)));
+    if (anyProfile && !anyOrb) {
+      return { kind: "st", stagePrefix: "" };
+    }
+  }
+  return { kind: "reject", found: sortedTop(shape) };
+}
+
+function sortedTop(shape: TreeShape): string[] {
+  return [...shape.topDirs, ...shape.topFiles].sort((a, b) => a.localeCompare(b));
+}

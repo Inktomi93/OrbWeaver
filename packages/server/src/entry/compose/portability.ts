@@ -1,5 +1,6 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableKind } from "@orb/contracts/portability";
+import { PORTABLE_DIRECTORIES } from "@orb/contracts/portability";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext, ImportAssetPort } from "#domain/assets";
@@ -116,31 +117,43 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
   const importPreset = createImportPresets(deps.presetCtx);
   const importWorldBook = createImportWorldBook({ importStandalone: deps.importStandaloneLorebook });
   return [
-    { kind: "assets", dir: "assets/", ext: "", exportAll: createExportAssets(deps.assetsCtx), importFile: createImportAsset(deps.assetsCtx) },
-    { kind: "gallery", dir: "gallery/", ext: ".json", exportAll: exports.gallery, importFile: (ownerId, file) => importGallery(ownerId, file) },
-    { kind: "tag", dir: "tags/", ext: ".json", exportAll: exports.tag, importFile: imports.tag },
-    { kind: "theme", dir: "themes/", ext: ".json", exportAll: exports.theme, importFile: (ownerId, file) => importTheme(ownerId, file.bytes) },
+    { kind: "assets", dir: PORTABLE_DIRECTORIES.assets, ext: "", exportAll: createExportAssets(deps.assetsCtx), importFile: createImportAsset(deps.assetsCtx) },
+    {
+      kind: "gallery",
+      dir: PORTABLE_DIRECTORIES.gallery,
+      ext: ".json",
+      exportAll: exports.gallery,
+      importFile: (ownerId, file) => importGallery(ownerId, file),
+    },
+    { kind: "tag", dir: PORTABLE_DIRECTORIES.tag, ext: ".json", exportAll: exports.tag, importFile: imports.tag },
+    { kind: "theme", dir: PORTABLE_DIRECTORIES.theme, ext: ".json", exportAll: exports.theme, importFile: (ownerId, file) => importTheme(ownerId, file.bytes) },
     {
       kind: "user-settings",
-      dir: "user-settings/",
+      dir: PORTABLE_DIRECTORIES["user-settings"],
       ext: ".json",
       exportAll: exports.userSettings,
       importFile: (ownerId, file) => importUserSettings(ownerId, file.bytes),
     },
-    { kind: "preset", dir: "presets/", ext: ".json", exportAll: exports.preset, importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }) },
+    {
+      kind: "preset",
+      dir: PORTABLE_DIRECTORIES.preset,
+      ext: ".json",
+      exportAll: exports.preset,
+      importFile: (ownerId, file) => importPreset({ ownerId, bytes: file.bytes }),
+    },
     {
       kind: "world-info",
-      dir: "world-info/",
+      dir: PORTABLE_DIRECTORIES["world-info"],
       ext: ".json",
       exportAll: exports.worldInfo,
       importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
     },
-    { kind: "regex", dir: "regex/", ext: ".json", exportAll: exports.regex, importFile: imports.regex },
-    { kind: "databank", dir: "databank/", ext: ".json", exportAll: exports.databank, importFile: imports.databank },
-    { kind: "persona", dir: "personas/", ext: ".json", exportAll: exports.persona, importFile: imports.persona },
-    { kind: "character", dir: "characters/", ext: ".png", exportAll: exports.character, importFile: imports.character },
-    { kind: "chat", dir: "chats/", ext: CHAT_BUNDLE_EXT, exportAll: exports.chat, importFile: imports.chat },
-    { kind: "imagery", dir: "imagery/", ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile },
+    { kind: "regex", dir: PORTABLE_DIRECTORIES.regex, ext: ".json", exportAll: exports.regex, importFile: imports.regex },
+    { kind: "databank", dir: PORTABLE_DIRECTORIES.databank, ext: ".json", exportAll: exports.databank, importFile: imports.databank },
+    { kind: "persona", dir: PORTABLE_DIRECTORIES.persona, ext: ".json", exportAll: exports.persona, importFile: imports.persona },
+    { kind: "character", dir: PORTABLE_DIRECTORIES.character, ext: ".png", exportAll: exports.character, importFile: imports.character },
+    { kind: "chat", dir: PORTABLE_DIRECTORIES.chat, ext: CHAT_BUNDLE_EXT, exportAll: exports.chat, importFile: imports.chat },
+    { kind: "imagery", dir: PORTABLE_DIRECTORIES.imagery, ext: ".json", exportAll: deps.imagery.exportAll, importFile: deps.imagery.importFile },
   ];
 }
 
