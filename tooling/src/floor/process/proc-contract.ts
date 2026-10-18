@@ -65,6 +65,8 @@ export interface RunNicedSyncOptions extends CaptureCeilingOption {
 
 export interface RunNicedSyncResult {
   readonly status: number | null;
+  /** The actual native termination signal, absent for a numeric exit or failed spawn. */
+  readonly signal?: NodeJS.Signals;
   readonly stdout: string;
   readonly stderr: string;
   /** THE DISCRIMINATOR FOR A `status: null` (#2284). `spawnSync` reports a failure of the SPAWN — as opposed

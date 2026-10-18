@@ -121,6 +121,7 @@ export function runNicedSync(cmd: string, args: readonly string[], opts: RunNice
   const errorCode = errnoCodeOf(res.error);
   return {
     status: res.status,
+    ...(res.signal === null ? {} : { signal: res.signal }),
     stdout: typeof res.stdout === "string" ? res.stdout : "",
     stderr: typeof res.stderr === "string" ? res.stderr : "",
     ...(errorCode === undefined ? {} : { errorCode }),
