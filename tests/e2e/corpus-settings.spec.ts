@@ -6,9 +6,11 @@ import type { ConfigGroupId } from "@orb/client/state";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { PortableTextFile } from "@orb/contracts/portability";
 import type { RegexScriptRow } from "@orb/contracts/regex";
+import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { prepareBackupFolder } from "@orb/testkit/node/backup-folder.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Request, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
@@ -17,6 +19,16 @@ import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 
 const BUNDLE_IMPORT_ROUTE = "/api/import/bundle";
 const IMPORT_GROUP_NAME = /^Import /u;
+// Quiet-box bases for the corpus-sized Backup case; `budget` stretches them under measured contention.
+const BACKUP_CASE_BASE_MS = 120_000;
+const IMPORT_SETTLE_BASE_MS = 60_000;
+// A backup at the local folder bound (export, both restore legs and their import workloads) earns half an hour.
+const FULL_BOUND_RESTORE_MS = 1_800_000;
+
+/** The size-derived share of the restore allowance, bounded because the folder helper refuses a larger archive. */
+function restoreAllowanceMs(archiveBytes: number): number {
+  return Math.ceil((Math.min(archiveBytes, IMPORT_TREE_MAX_TOTAL_BYTES) / IMPORT_TREE_MAX_TOTAL_BYTES) * FULL_BOUND_RESTORE_MS);
+}
 
 async function toggleAndReload(page: Page, group: ConfigGroupId, label: string): Promise<boolean> {
   await openGroup(page, group);
@@ -62,7 +74,12 @@ async function chooseBackup(page: Page, path: string, folder: boolean): Promise<
   }
 }
 
-async function assertNativeRestore(page: Page, host: ReturnType<typeof ownerActor>, folder: boolean, entries: number): Promise<void> {
+async function assertNativeRestore(
+  page: Page,
+  host: ReturnType<typeof ownerActor>,
+  restore: { readonly folder: boolean; readonly entries: number; readonly settleMs: number },
+): Promise<void> {
+  const { folder, entries } = restore;
   const owner = await host.trpc.sessions.me.query(undefined);
   const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
   await expect(preflight).toBeVisible();
@@ -82,7 +99,7 @@ async function assertNativeRestore(page: Page, host: ReturnType<typeof ownerActo
   try {
     const [response] = await Promise.all([page.waitForResponse(matches), preflight.getByRole("button", { name: "Import", exact: true }).click()]);
     expect(response.status()).toBe(202);
-    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "Import another", exact: true })).toBeVisible({ timeout: restore.settleMs });
     expect(statuses.every((status) => status === 202)).toBe(true);
     // The UI owns response parsing; native rows supply identities without rereading an evicted response body.
     const after = await host.trpc.workloads.list.query({ kind: "import-bundle", limit: WORKLOAD_LIST_MAX_LIMIT });
@@ -139,12 +156,12 @@ async function restoreBackup(
   page: Page,
   host: ReturnType<typeof ownerActor>,
   witness: RegexScriptRow,
-  input: { readonly path: string; readonly folder: boolean; readonly entries: number; readonly exported: PortableTextFile },
+  input: { readonly path: string; readonly folder: boolean; readonly entries: number; readonly exported: PortableTextFile; readonly settleMs: number },
 ): Promise<RegexScriptRow> {
   await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
   expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
   await chooseBackup(page, input.path, input.folder);
-  await assertNativeRestore(page, host, input.folder, input.entries);
+  await assertNativeRestore(page, host, input);
   if (!input.folder) {
     await page.getByRole("button", { name: "Import another", exact: true }).click();
   }
@@ -227,7 +244,8 @@ test.describe("committed corpus settings", () => {
   });
 
   test("Backup exports a real library and imports the downloaded bundle", { tag: "@smoke" }, async ({ page, baseURL }, testInfo) => {
-    test.setTimeout(120_000);
+    // The export size is unknown until the download lands, so the case starts with the bound's allowance.
+    test.setTimeout(budget(BACKUP_CASE_BASE_MS + FULL_BOUND_RESTORE_MS));
     const host = ownerActor(baseURL ?? "");
     const scriptId = SELECTED_CORPUS_FIXTURE?.wire.regexLibrary?.ids.scriptId;
     if (scriptId === undefined) {
@@ -249,14 +267,19 @@ test.describe("committed corpus settings", () => {
     const configResponse = await page.request.get("/api/auth/config");
     expect(configResponse.ok()).toBe(true);
     const caps = authConfigSchema.parse(await configResponse.json()).uploads;
-    const overZipCap = (await stat(path)).size > caps.importTotal;
+    const archiveBytes = (await stat(path)).size;
+    const allowance = restoreAllowanceMs(archiveBytes);
+    // Narrow to this archive, so a small library still fails fast.
+    test.setTimeout(budget(BACKUP_CASE_BASE_MS + allowance));
+    const settleMs = budget(IMPORT_SETTLE_BASE_MS + allowance);
+    const overZipCap = archiveBytes > caps.importTotal;
     await using folder = await prepareBackupFolder(path, testInfo.outputPath("backup-folder"));
     if (overZipCap) {
       await assertZipSizeRefusal(page, path);
     } else {
-      witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported });
+      witness = await restoreBackup(page, host, witness, { path, folder: false, entries: folder.entries, exported, settleMs });
       await openGroup(page, "backup");
     }
-    await restoreBackup(page, host, witness, { path: folder.directory, folder: true, entries: folder.entries, exported });
+    await restoreBackup(page, host, witness, { path: folder.directory, folder: true, entries: folder.entries, exported, settleMs });
   });
 });
