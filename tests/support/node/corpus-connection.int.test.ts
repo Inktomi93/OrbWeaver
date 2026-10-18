@@ -3,7 +3,10 @@
 import "@orb/testkit/node/composed-real.ts";
 import { randomBytes } from "node:crypto";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
-import { assertReferentialIntegrity } from "@orb/db";
+import { assertReferentialIntegrity, closeDb } from "@orb/db";
+import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { createFrozenClock } from "../iso/clock.ts";
+import { createSeededIds } from "../iso/ids.ts";
 import { seedCorpusConnection } from "./corpus-connection.ts";
 import {
   CORPUS_CONNECTION_FOREIGN_KEY,
@@ -17,7 +20,9 @@ import {
 } from "./corpus-connection-wire.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusActors } from "./corpus-seed.ts";
+import { freshDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
+import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native connection catalog, capability and account outputs retain real task identity while withholding actual private material", async () => {
@@ -188,4 +193,94 @@ test("native connection catalog, capability and account outputs retain real task
   });
   expect(wire.remaining()).toBe(0);
   await assertReferentialIntegrity(root.db);
+});
+
+test("native connection corpus spends its recipes after legitimate memory and persisted hosted catalog hits", async () => {
+  await using database = new AsyncDisposableStack();
+  const db = await freshDb();
+  database.defer(() => closeDb(db));
+  const wire = createCorpusConnectionWire();
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "The ledger remains intact.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  let delegated = 0;
+  const execute: typeof fetch = (input, init) => {
+    delegated += 1;
+    return physical.execute(input, init);
+  };
+  const options = {
+    db,
+    startJobs: false,
+    clock: createFrozenClock(),
+    ids: createSeededIds(),
+    secretBoxKey: randomBytes(32),
+    providerFetch: wire.wrap(execute),
+    networkExecution: { fetch: wire.wrap(execute), resolver: wire.resolver },
+  };
+  let ownerId: UserId;
+  let connectionId: UserConnectionId;
+  let cold: Awaited<ReturnType<ServerTestHarness["services"]["connection"]["catalogModels"]>>;
+  {
+    await using root = await createServerHarness(options);
+    ownerId = root.ownerId;
+    const caller = await root.internalCallerFor(ownerId);
+    const connection = await caller.connection.create({
+      providerId: "openrouter",
+      credentialId: null,
+      baseUrl: null,
+      model: CORPUS_CONNECTION_HOSTED_MODEL,
+    });
+    connectionId = connection.id;
+    expect(wire.requests).toHaveLength(0);
+    wire.hostedCatalog();
+    cold = await caller.connection.catalogModels({ connectionId });
+    expect(cold).toMatchObject({ listed: true, models: expect.arrayContaining([expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL })]) });
+    expect(wire.requests).toHaveLength(3);
+    expect(wire.remaining()).toBe(0);
+    expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);
+    expect(wire.requests).toHaveLength(3);
+  }
+  await using root = await createServerHarness({ ...options, ownerId });
+  const caller = await root.internalCallerFor(ownerId);
+  expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);
+  expect(wire.requests).toHaveLength(3);
+  expect(wire.remaining()).toBe(0);
+  const actors = await seedCorpusActors(root);
+  const result = await seedCorpusConnection(root, actors, wire);
+  expect(result.account.catalog).toEqual(cold);
+  expect(result.account.refresh).toEqual({ models: 3 });
+  expect(result.account.turn.aborted).toBe(false);
+  expect(result.account.cost).toEqual({ totalCost: 0.000_011, tokensPrompt: 5, tokensCompletion: 3 });
+  expect(result.capabilities.requestsAfterRepeated).toBe(result.capabilities.requestsAfterFirst);
+  expect(result.catalogs.requestsAfterBuiltin).toBe(result.catalogs.requestsBeforeBuiltin);
+  expect(result.refusals.requestsAfter).toBe(result.refusals.requestsBefore);
+  const hostedCatalogRequests = result.physical.filter(({ url }) => {
+    const address = new URL(url);
+    return address.hostname === wire.hostname && address.pathname.endsWith("/models");
+  });
+  expect(hostedCatalogRequests).toHaveLength(6);
+  expect(wire.remaining()).toBe(0);
+  const beforeExhausted = wire.requests.length;
+  const delegatedBeforeRefusal = delegated;
+  const exhausted = await caller.connection.catalogModels({ connectionId: result.own.row.id });
+  expect(exhausted).toMatchObject({ listed: false });
+  expect(wire.requests).toHaveLength(beforeExhausted);
+  expect(delegated).toBe(delegatedBeforeRefusal);
+  wire.models(CORPUS_CONNECTION_KEY);
+  const other = await root.internalCallerFor(actors.secondUserId);
+  const unmatched = await other.connection.catalogModels({ connectionId: result.foreign.row.id });
+  expect(unmatched).toMatchObject({ listed: false });
+  expect(wire.requests).toHaveLength(beforeExhausted);
+  expect(delegated).toBe(delegatedBeforeRefusal);
+  expect(wire.remaining()).toBe(1);
+  const matched = await caller.connection.catalogModels({ connectionId: result.own.row.id });
+  expect(matched).toMatchObject({ listed: true, models: [{ id: CORPUS_CONNECTION_MODEL }] });
+  expect(wire.requests).toHaveLength(beforeExhausted + 1);
+  expect(delegated).toBe(delegatedBeforeRefusal);
+  expect(wire.remaining()).toBe(0);
+  await assertReferentialIntegrity(db);
 });

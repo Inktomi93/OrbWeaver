@@ -296,10 +296,10 @@ async function accountReads(root: ServerTestHarness, caller: Caller, wire: Wire)
     allowBackground: true,
   });
   const hosted = { credential, row, view: await caller.connection.get({ connectionId: row.id }) };
-  wire.hostedCatalog();
-  const catalog = await caller.connection.catalogModels({ connectionId: row.id });
+  // A saved catalog may be warm; refresh owns the physical fetch before the query reads its native cache.
   wire.hostedCatalog();
   const refresh = await caller.connection.refreshCatalog({ providerId: "openrouter" });
+  const catalog = await caller.connection.catalogModels({ connectionId: row.id });
   const nullRefresh = await caller.connection.refreshCatalog({ providerId: "claude-sub" });
   wire.credits();
   const credits = await caller.connection.accountCredits({ connectionId: row.id });
