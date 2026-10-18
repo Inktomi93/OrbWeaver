@@ -46,14 +46,15 @@ A server factory shape is owned by its production signature: it is a parameter, 
 | ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and foundation observability; generated declarations and domain test mirrors retain custom ownership |
 | `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in its existing populations, excluding qualified native direct aliases; local export origins and generated token ownership remain custom |
 | `no-inline-domain-interface` | server-domain interface origins outside contract homes, excluding qualified native direct declarations; local export lists and unadmitted generated declarations remain custom |
-| `no-inline-package-interface` | existing server-tier, inference and token-authoring interface placement, excluding qualified native inference and observability direct declarations; the server factory API row is not yet excluded (D324) |
+| `no-inline-package-interface` | generated, inference local-export and token-authoring interfaces retain custom placement; qualified server factory declarations delegate to native lint under D324 |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
 | `types-in-contract` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
-| `no-loose-id-cast`, `no-mint-via-cast`, `no-test-fabrication` | casts into id brands, `as never`, and test-side cast fabrication |
+| `no-loose-id-cast`, `no-mint-via-cast` | semantic ID-brand construction and cast claims |
+| ESLint `orb/no-test-fabrication`, `@typescript-eslint/consistent-type-assertions`, `@typescript-eslint/no-unsafe-type-assertion` | maintained tests reject fabricated literal construction and unsafe narrowing; tooling value casts follow D325, while double-cast fabrication remains forbidden |
 
-A structural `as T` outside those spellings, and an inline shape that copies no contract, are held by review only; no gate judges them. Wire values that cross a boundary are parsed, not cast: `wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`. The antipattern classes, their detectors and their burn-down items are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
+Production structural assertions outside the named claims require review. Maintained application tests also use native assertion enforcement; D325 owns tooling-test scope. Wire values that cross a boundary are parsed, not cast: `wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`. The antipattern classes, their detectors and their burn-down items are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
 
 ## House TypeScript style
 
@@ -159,7 +160,7 @@ Every authored TypeScript file has an intended world (ISO, Node or DOM) and exac
 | Intended world and primary owner | `tooling/src/floor/compiler/project-worlds.ts` |
 | Test kinds, compiler intent and mirror rules | `tooling/src/floor/testing/test-kinds.ts` |
 | Generated world templates and runnable configs | `tooling/src/floor/compiler/type-config-intent.ts` |
-| Compiler roots, references and inherited inputs | `tooling/src/verify/lib/policy-program-membership.ts` |
+| Compiler roots, references and inherited inputs | `tooling/src/floor/compiler/compiler-programs.ts` |
 | Native import closures and the membership report | `tooling/src/verify/ops/tests-type-membership.ts` |
 | File-to-program routing for the hook and scoped verification | `tooling/src/verify/ops/typecheck-plan.ts` |
 

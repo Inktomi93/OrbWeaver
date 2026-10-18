@@ -114,7 +114,6 @@ test("private intake retains the existing singleton owner and nonempty content i
   vi.stubEnv("GITHUB_ACTIONS", undefined);
   vi.stubEnv("TMPDIR", parent);
   vi.stubEnv("TMP", parent);
-  // biome-ignore lint/nursery/noFloatingPromises: Vitest stubEnv synchronously returns VitestUtils, not a promise.
   vi.stubEnv("TEMP", parent);
   const { options } = await createCorpusRecipe(parent);
   const intake = { ...options, directory: join(intakeParent, "working"), privateSourceDirectory: layout.root };

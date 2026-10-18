@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P1
 area: tooling
+lane: wt/claude-fabrication-1041
 plan: native-occurrence-index
 ---
 
@@ -29,4 +30,6 @@ Reviewed occurrence production indexes eligible function-local declarations and 
 
 Member and module occurrence production passes bounded parity controls and independent review. Empty search names retain native fallback. Source and derived lockfile are integrated. Fresh installed-SDK, SQLite and public AST controls pass in an isolated main-derived checkout. Shared-main installation matches the qualified pins. Complete-world cost remains open. Installed identity: `reports/review/1041-maintained-boundary-delivery.md`. Prior evidence keeps its original compiler identity. Evidence: `reports/review/1045-native-families-installed.md` and `reports/review/1045-native-family-occurrences-independent.md`.
 
-The complete-DOM CPU sample is dominated by bulk native reference search, not callable provenance. Candidate indexing still invokes native per-query reference semantics. The running measurement is profiled, not a completed cost verdict. Inspect that query work before further optimization. Evidence: `reports/review/1002-current-dom-reference-profile.md`.
+Frozen complete-DOM default publication validates current inputs, lazy reads and physical worker release. Cost remains high. Candidate indexing still invokes native per-query reference semantics. Semantic parity, warm reuse, other worlds and hosted acceptance remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
+
+The assigned native-pass batch must preserve computed answers and index location relationships with explicit native fallback. Name-reference normalization must use versioned links and preserve native repeats, ordering and reader projections. Qualify bounded parity before another expensive-world run. Evidence: `reports/review/1045-bulk-native-reference-next-proposal.md`.

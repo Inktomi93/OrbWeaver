@@ -229,15 +229,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noExplicitAny` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-suspicious-no-template-curly-in-string",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noTemplateCurlyInString",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 9 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noTemplateCurlyInString` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-react-hooks-exhaustive-deps",
     policyId: "suppressions",
     subject: "react-hooks/exhaustive-deps",

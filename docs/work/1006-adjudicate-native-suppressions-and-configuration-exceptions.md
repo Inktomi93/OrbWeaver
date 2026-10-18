@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P2
 area: tooling
-lane: wt/claude-fabrication-1041
 plan: test-foundation
 ---
 
@@ -50,4 +49,4 @@ Hook exceptions preserve value-keyed effects and retained factory identity. The 
 
 Source error-suppression retirement is integrated with validated browser imports and preserved test negatives. Review and scoped integration pass. Bus source health remains. Evidence: `reports/review/1006-source-type-suppression-delivery.md`.
 
-Production exception adjudication is integrated. Stale permissions and compatibility re-exports are removed; configuration and factory exceptions narrow to actual subjects. Independent review and focused checks pass with inherited failures recorded. Session policy config, transcript sizing and server importer completion remain open. Tooling directive adjudication continues in the assigned lane. Evidence: `reports/review/1006-production-native-exceptions-claude.md`.
+Production and tooling exception adjudication are integrated. Stale directives and compatibility re-exports are removed; permissions narrow to actual subjects. Scoped evidence retains inherited failures. Session policy, transcript sizing, importer completion and excluded compatibility owners remain open. Evidence: `reports/review/1006-production-native-exceptions-claude.md` and `reports/review/1006-tooling-native-exceptions-claude.md`.

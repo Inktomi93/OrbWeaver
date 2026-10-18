@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/native-fabrication-review-1041
 plan: test-foundation
 ---
 
@@ -26,7 +25,7 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-Bounded extraction, publication and reuse pass; complete demand remains open. Evidence: `reports/review/authored-input-integrated.md` and `reports/review/1002-native-kit-format6-result.md`.
+Frozen complete-DOM default publication validates inputs, lazy reads and worker release. Native equivalence, other worlds, warm concurrent reuse and hosted cost remain open. Evidence: `reports/review/1002-current-tests-dom-cost.md`.
 
 Reference storage, guarded bindings and native resource lifetimes pass bounded review. Evidence: `reports/review/native-reference-string-integration.md`, `reports/review/shape-binding-integrated.md` and `reports/review/native-resource-integrated.md`.
 
