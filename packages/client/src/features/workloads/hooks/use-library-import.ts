@@ -215,7 +215,7 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "uploading", filename: relativePathOf(first) });
     // @orb-waive caught-failure-ownership(importTree): the .catch below calls fail(), which sets
     // an error state and toasts — a rendered failure surface. Ends if fail() stops writing that state.
-    importTree(batch, run.choices)
+    importTree(batch, run.choices, run.plan.layout)
       .then(({ workloadId }) => {
         if (run.epoch === requestEpoch.current) {
           setState({

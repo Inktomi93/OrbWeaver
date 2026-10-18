@@ -13,15 +13,25 @@
 // Belt order mirrors the sibling upload routes: auth (401 before the body is read) → CSRF (403 on a cookie
 // mutation missing the custom header) → a hono/body-limit total-bytes cap (413) → per-file + count caps
 // (413) → fail-closed path sanitization (400, WHOLE upload rejected, nothing staged) → resolve-escape check
-// (never trust string filtering alone) → layout sniff (400 on an unrecognized/ambiguous tree) → owner-scoped
+// (never trust string filtering alone) → layout admission (400 on an unrecognized/ambiguous tree, or on a
+// declared native batch that is not wholly native — the declaration routes, it never authorizes) → owner-scoped
 // start. Every rejection is typed; a rejected path or a cap breach fails the WHOLE upload (no partial staging).
 
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import { mkdir, open, rm } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
-import type { PersonaCollisionChoices } from "@orb/contracts/import";
-import { decodePersonaCollisionChoices, importStartedSchema, isStSecretsFile, PERSONA_COLLISION_FIELD, sniffTreeLayout } from "@orb/contracts/import";
+import type { PersonaCollisionChoices, TreeLayoutDeclaration } from "@orb/contracts/import";
+import {
+  admitTreeBatch,
+  decodePersonaCollisionChoices,
+  importStartedSchema,
+  isStSecretsFile,
+  PERSONA_COLLISION_FIELD,
+  TREE_FILE_FIELD,
+  TREE_LAYOUT_FIELD,
+  treeLayoutDeclarationSchema,
+} from "@orb/contracts/import";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import { IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_FILES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { StartWorkloadInput } from "@orb/contracts/workloads";
@@ -43,7 +53,6 @@ const CONFLICT = 409;
 const ACCEPTED = 202;
 const TREE_ROUTE = "/api/import/tree";
 const REVIEW_ROUTE = "/api/import/tree/review";
-const UPLOAD_FIELD = "file";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
 
@@ -63,7 +72,7 @@ const TRAILING_SLASH = /\/$/;
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly persona: Pick<PersonaService, "reviewImport">;
-  /** The portability registry — its entity-dir names (minus the ST-shared ones) are the positive orb signal. */
+  /** The portability registry — its entity-dir names are the native directory set layout admission reads. */
   readonly registry: PortabilityRegistry;
   readonly stagingDir?: string;
 }
@@ -162,7 +171,7 @@ function stripWrapper(path: string, wrapper: string | null): string {
 /** Collect + validate the multipart parts fail-closed: count, per-file bytes, path sanitization. Throws
  *  {@link TreeRejected} (nothing staged) on the first breach. A `secrets.json` part is dropped, never staged. */
 async function collectParts(form: FormData): Promise<UploadPart[]> {
-  const received = form.getAll(UPLOAD_FIELD).filter((e): e is File => e instanceof File);
+  const received = form.getAll(TREE_FILE_FIELD).filter((e): e is File => e instanceof File);
   // The browser never sends the credentials file; this guard holds for a caller that is not our browser.
   const files = received.filter((f) => !isStSecretsFile(f.name));
   // DIAGNOSTIC: how many parts the server actually received + their total bytes. Locates a truncated
@@ -172,7 +181,7 @@ async function collectParts(form: FormData): Promise<UploadPart[]> {
     "import-tree: multipart parts received",
   );
   if (files.length === 0) {
-    throw new TreeRejected(BAD_REQUEST, `no "${UPLOAD_FIELD}" uploads`);
+    throw new TreeRejected(BAD_REQUEST, `no "${TREE_FILE_FIELD}" uploads`);
   }
   if (files.length > IMPORT_TREE_MAX_FILES) {
     throw new TreeRejected(PAYLOAD_TOO_LARGE, `too many files (over ${IMPORT_TREE_MAX_FILES})`);
@@ -250,17 +259,32 @@ function readCollisionChoices(form: FormData): PersonaCollisionChoices {
   return choices;
 }
 
-/** Sniff + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
+/** The batch's declared layout. A malformed or repeated declaration rejects the whole upload instead of
+ *  falling back to sniffing the batch alone. */
+function readLayoutDeclaration(form: FormData): TreeLayoutDeclaration | null {
+  const values = form.getAll(TREE_LAYOUT_FIELD);
+  if (values.length === 0) {
+    return null;
+  }
+  const parsed = values.length === 1 ? treeLayoutDeclarationSchema.safeParse(values[0]) : null;
+  if (parsed?.success !== true) {
+    throw new TreeRejected(BAD_REQUEST, `malformed "${TREE_LAYOUT_FIELD}" field`);
+  }
+  return parsed.data;
+}
+
+/** Admit + stage the batch into a fresh unique dir. Throws {@link TreeRejected} on an unrecognized layout;
  *  cleans up its OWN partial dir on a staging failure so the caller only owns cleanup after this returns. */
 async function stageUpload(
   nativeDirs: ReadonlySet<string>,
   stagingRoot: string,
   parts: readonly UploadPart[],
-  choices: PersonaCollisionChoices,
+  fields: { readonly choices: PersonaCollisionChoices; readonly declared: TreeLayoutDeclaration | null },
 ): Promise<{ readonly stagedRoot: string; readonly input: StartWorkloadInput }> {
   const wrapper = commonWrapper(parts.map((p) => p.relPath));
-  const layout = sniffTreeLayout(
+  const layout = admitTreeBatch(
     parts.map((p) => stripWrapper(p.relPath, wrapper)),
+    fields.declared,
     nativeDirs,
   );
   if (layout.kind === "reject") {
@@ -277,7 +301,7 @@ async function stageUpload(
     await rm(stagedRoot, { recursive: true, force: true });
     throw err;
   }
-  return { stagedRoot, input: startInput(layout.kind, token, choices) };
+  return { stagedRoot, input: startInput(layout.kind, token, fields.choices) };
 }
 
 /** Map a caught upload failure to its typed response; rethrows an unexpected error to the app's onError. */
@@ -312,12 +336,10 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     try {
       const form = await c.req.formData();
       const parts = await collectParts(form);
-      const { stagedRoot, input } = await stageUpload(
-        nativeDirs,
-        stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId),
-        parts,
-        readCollisionChoices(form),
-      );
+      const { stagedRoot, input } = await stageUpload(nativeDirs, stagedOwnerRoot(deps.stagingDir ?? DEFAULT_IMPORT_STAGING_DIR, principal.userId), parts, {
+        choices: readCollisionChoices(form),
+        declared: readLayoutDeclaration(form),
+      });
       try {
         const { id } = await deps.workloads.start({
           input,

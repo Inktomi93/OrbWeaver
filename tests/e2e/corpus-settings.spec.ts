@@ -235,7 +235,7 @@ test.describe("committed corpus settings", () => {
     }
     // An unattached native duplicate makes the removable witness without deleting captured scope edges.
     const copy = await host.trpc.regex.duplicateScript.mutate({ scriptId });
-    let witness = await host.trpc.regex.updateScript.mutate({ scriptId: copy.id, input: { name: `Backup restore ${copy.id}` } });
+    let witness: RegexScriptRow = await host.trpc.regex.updateScript.mutate({ scriptId: copy.id, input: { name: `Backup restore ${copy.id}` } });
     const exported = await host.trpc.regex.exportScript.query({ scriptId: witness.id });
     await openGroup(page, "backup");
     const downloaded = page.waitForEvent("download");

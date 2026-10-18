@@ -1,6 +1,7 @@
 // Native and SillyTavern import vocabulary and shared folder-layout admission.
 // The planner and HTTP boundary classify the same paths before selecting their import behavior.
 
+import { z } from "zod";
 import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
 
 export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
@@ -251,6 +252,40 @@ export function sniffTreeLayout(paths: readonly string[], nativeDirs: ReadonlySe
     }
   }
   return { kind: "reject", found: sortedTop(shape) };
+}
+
+/** The layouts a client may declare for one upload batch of a folder it split across several uploads. */
+export const TREE_LAYOUT_DECLARATIONS = ["orb"] as const;
+export const treeLayoutDeclarationSchema = z.enum(TREE_LAYOUT_DECLARATIONS);
+export type TreeLayoutDeclaration = z.infer<typeof treeLayoutDeclarationSchema>;
+
+/** The repeated multipart field carrying each folder file, its relative path as the part filename. */
+export const TREE_FILE_FIELD = "file";
+
+/** The multipart field naming a batch's declared layout. Without it the server sniffs the batch alone. */
+export const TREE_LAYOUT_FIELD = "layout";
+
+/**
+ * Admit one wrapper-stripped upload batch. An undeclared batch is sniffed alone. A declared native batch is
+ * one slice of a larger backup, so it need not carry a native-only directory, but it is admitted only when
+ * every entry sits under a canonical native directory. That excludes both SillyTavern-only markers
+ * (`settings.json` is a top-level file and `User Avatars` is no native directory). Anything else is refused,
+ * never routed to the SillyTavern importer.
+ */
+export function admitTreeBatch(
+  paths: readonly string[],
+  declared: TreeLayoutDeclaration | null,
+  nativeDirs: ReadonlySet<string> = NATIVE_DIRECTORIES,
+): TreeLayout {
+  switch (declared) {
+    case null:
+      return sniffTreeLayout(paths, nativeDirs);
+    case "orb": {
+      const shape = buildShape(paths);
+      const native = shape.topFiles.size === 0 && shape.topDirs.size > 0 && [...shape.topDirs].every((dir) => nativeDirs.has(dir));
+      return native ? { kind: "orb", stagePrefix: "" } : { kind: "reject", found: sortedTop(shape) };
+    }
+  }
 }
 
 function sortedTop(shape: TreeShape): string[] {
