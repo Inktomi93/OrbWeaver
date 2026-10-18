@@ -46,7 +46,8 @@ function workloadSettlementFailure(
   requested: number,
   jobs: CorpusWorkloadRows | undefined,
   diagnostic?: {
-    readonly timeout: unknown;
+    readonly timeout?: unknown;
+    readonly cancellation?: unknown;
     readonly phase: (typeof WORKLOAD_SETTLEMENT_PHASES)[number];
     readonly index: number | null;
     readonly admitted: Parameters<typeof settleCorpusWorkloads>[2];
@@ -71,42 +72,67 @@ function workloadSettlementFailure(
   );
 }
 
+function describeCancellation(
+  signal: ServerTestHarness["workloadExecutionSignal"],
+  error: unknown,
+): { readonly message: string; readonly reason: Pick<NonNullable<Parameters<typeof workloadSettlementFailure>[3]>, "timeout" | "cancellation"> } {
+  const timedOut = signal === undefined || (error instanceof DOMException && error.name === "TimeoutError");
+  return {
+    message: `The selected native corpus workloads ${timedOut ? "timed out" : "were cancelled"}`,
+    reason: timedOut ? { timeout: error } : { cancellation: error },
+  };
+}
+
+function assertSelectedWorkloadsSucceeded(requested: number, jobs: CorpusWorkloadRows): void {
+  if (jobs.length !== requested || jobs.some((job) => job.status !== "succeeded")) {
+    throw workloadSettlementFailure("The selected native corpus workloads did not complete successfully", requested, jobs);
+  }
+}
+
 /** Settle the actual admitted IDs; failed or cancelled jobs never become successful corpus data. */
 export async function settleCorpusWorkloads(
-  root: Pick<ServerTestHarness, "app" | "timers" | "settleBackground" | "runAdmittedWorkload">,
+  root: Pick<ServerTestHarness, "app" | "timers" | "settleBackground" | "runAdmittedWorkload" | "workloadExecutionSignal">,
   caller: Pick<CorpusCaller, "workloads">,
   started: readonly Awaited<ReturnType<CorpusCaller["workloads"]["start"]>>[],
 ): Promise<CorpusWorkloadRows> {
-  const deadline = AbortSignal.timeout(RECALL_WAIT_TIMEOUT_MS);
-  const timeout = Promise.withResolvers<never>();
-  using _cancellation = addAbortListener(deadline, () => timeout.reject(deadline.reason));
+  const deadline = root.workloadExecutionSignal ?? AbortSignal.timeout(RECALL_WAIT_TIMEOUT_MS);
   let phase: (typeof WORKLOAD_SETTLEMENT_PHASES)[number] = WORKLOAD_SETTLEMENT_PHASES[0];
   let index: number | null = null;
   let lastObserved: CorpusWorkloadRows | undefined;
   try {
+    deadline.throwIfAborted();
+    const timeout = Promise.withResolvers<never>();
+    using _cancellation = addAbortListener(deadline, () => timeout.reject(deadline.reason));
     getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads initial background entry");
-    await Promise.race([root.settleBackground(), timeout.promise]);
-    if (root.runAdmittedWorkload !== undefined) {
+    await Promise.race([Promise.resolve().then(root.settleBackground), timeout.promise]);
+    deadline.throwIfAborted();
+    const runAdmittedWorkload = root.runAdmittedWorkload;
+    if (runAdmittedWorkload !== undefined) {
       for (const [selectedIndex, workload] of started.entries()) {
+        deadline.throwIfAborted();
         phase = WORKLOAD_SETTLEMENT_PHASES[1];
         index = selectedIndex;
         getLog().info({ phase, requested: started.length, index, deadlineAborted: deadline.aborted }, "corpus workloads admitted entry");
-        await Promise.race([root.runAdmittedWorkload(workload.id, deadline), timeout.promise]);
+        await Promise.race([Promise.resolve().then(() => runAdmittedWorkload(workload.id, deadline)), timeout.promise]);
+        deadline.throwIfAborted();
       }
+      deadline.throwIfAborted();
       const jobs = await Promise.all(started.map(({ id }) => caller.workloads.get({ id })));
+      deadline.throwIfAborted();
       lastObserved = jobs;
-      if (jobs.length !== started.length || jobs.some((job) => job.status !== "succeeded")) {
-        throw workloadSettlementFailure("The selected native corpus workloads did not complete successfully", started.length, jobs);
-      }
+      assertSelectedWorkloadsSucceeded(started.length, jobs);
       return jobs;
     }
     phase = WORKLOAD_SETTLEMENT_PHASES[2];
     for (;;) {
+      deadline.throwIfAborted();
       root.timers.advance(RECALL_WORKER_ADVANCE_MS);
       // Fired native sleeps register their finite worker steps before this continuation joins them.
       await Promise.resolve();
-      await Promise.race([root.settleBackground(), timeout.promise]);
+      await Promise.race([Promise.resolve().then(root.settleBackground), timeout.promise]);
+      deadline.throwIfAborted();
       const jobs = await Promise.all(started.map(({ id }) => caller.workloads.get({ id })));
+      deadline.throwIfAborted();
       lastObserved = jobs;
       if (jobs.some((job) => job.status === "failed" || job.status === "cancelled")) {
         throw workloadSettlementFailure("synthetic recall corpus workload failed", started.length, jobs);
@@ -119,8 +145,9 @@ export async function settleCorpusWorkloads(
     if (!ownsDeadlineFailure(deadline, error)) {
       throw error;
     }
-    throw workloadSettlementFailure("The selected native corpus workloads timed out", started.length, lastObserved, {
-      timeout: error,
+    const { message, reason } = describeCancellation(root.workloadExecutionSignal, error);
+    throw workloadSettlementFailure(message, started.length, lastObserved, {
+      ...reason,
       phase,
       index,
       admitted: started,
