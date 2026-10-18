@@ -3,6 +3,10 @@ import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
+import { labelInNameFindings } from "./accessible-names.ts";
+import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "./autosave-status-transcript.ts";
+import { lastInkColumn, readCanvasBandInk, solidColumns } from "./canvas-ink.ts";
+import { frameFingerprint, frameFingerprintPair } from "./weave-drive.ts";
 
 test("socket frames wait for completed attaches", async ({ page }) => {
   await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
@@ -231,4 +235,114 @@ test("the production typed client keeps batch inputs raw, path-correlated and di
   });
   expect(recorder.requireLastInput("settings.addExternalBackground")).toEqual({ url: 42, arrayField: true });
   expect(recorder.requireLastInput("databank.scrapeYoutube")).toEqual({ url: "  array-video  ", lang: null });
+});
+
+test.describe("maintained browser boundaries", () => {
+  test.use({ deviceScaleFactor: 2 });
+
+  test("weave readouts preserve native RGBA sums, missing-pair refusal and context sentinel", async ({ page }) => {
+    await page.setContent(
+      '<canvas id="first" width="2" height="1"></canvas><canvas id="second" width="1" height="1"></canvas><canvas id="occupied"></canvas><div id="not-canvas"></div>',
+    );
+    await page.evaluate(() => {
+      const first = document.querySelector("#first");
+      const second = document.querySelector("#second");
+      const occupied = document.querySelector("#occupied");
+      if (!(first instanceof HTMLCanvasElement && second instanceof HTMLCanvasElement && occupied instanceof HTMLCanvasElement)) {
+        throw new Error("canvas fixtures missing");
+      }
+      const a = first.getContext("2d");
+      const b = second.getContext("2d");
+      if (a === null || b === null || occupied.getContext("bitmaprenderer") === null) {
+        throw new Error("native canvas contexts unavailable");
+      }
+      a.fillStyle = "rgb(10, 20, 30)";
+      a.fillRect(0, 0, 1, 1);
+      a.fillStyle = "rgb(40, 50, 60)";
+      a.fillRect(1, 0, 1, 1);
+      b.fillStyle = "rgb(3, 5, 7)";
+      b.fillRect(0, 0, 1, 1);
+    });
+    expect(await frameFingerprint(page.locator("#first"))).toBe("50:70:90");
+    expect(await frameFingerprintPair(page.locator("#first, #second"))).toEqual(["50:70:90", "3:5:7"]);
+    expect(await frameFingerprint(page.locator("#occupied"))).toBe("no-ctx");
+    await expect(frameFingerprintPair(page.locator("#absent"))).rejects.toThrow();
+    await expect(frameFingerprintPair(page.locator("#first"))).rejects.toThrow();
+    await expect(frameFingerprintPair(page.locator("canvas"))).rejects.toThrow();
+    await expect(frameFingerprint(page.locator("#not-canvas"))).rejects.toThrow();
+  });
+
+  test("canvas bands preserve backing-store coordinates, alpha counts and native DPR", async ({ page }) => {
+    await page.setContent('<canvas id="band" width="3" height="2"></canvas><canvas id="occupied"></canvas><div id="not-canvas"></div>');
+    await page.evaluate(() => {
+      const canvas = document.querySelector("#band");
+      const occupied = document.querySelector("#occupied");
+      if (!(canvas instanceof HTMLCanvasElement && occupied instanceof HTMLCanvasElement)) {
+        throw new Error("canvas fixtures missing");
+      }
+      const context = canvas.getContext("2d");
+      if (context === null || occupied.getContext("bitmaprenderer") === null) {
+        throw new Error("native canvas contexts unavailable");
+      }
+      context.fillStyle = "rgb(255, 0, 0)";
+      context.fillRect(0, 0, 1, 2);
+      context.fillStyle = "rgba(0, 0, 255, 0.5)";
+      context.fillRect(1, 0, 1, 1);
+    });
+    const band = await readCanvasBandInk(page.locator("#band"), 0, 1);
+    expect(band).toEqual({ widthPx: 3, bandHeightPx: 2, dpr: 2, columnInk: [2, 1, 0], dominantColor: "255,0,0" });
+    expect(solidColumns(band)).toEqual([0]);
+    expect(lastInkColumn(band)).toBe(1);
+    await expect(readCanvasBandInk(page.locator("#occupied"), 0, 1)).rejects.toThrow();
+    await expect(readCanvasBandInk(page.locator("#not-canvas"), 0, 1)).rejects.toThrow();
+  });
+
+  test("name cloning removes descriptions and hidden text without changing the source control", async ({ page }) => {
+    await page.setContent(
+      '<button type="button" aria-label="Aria — character" aria-describedby="desc">Aria <span id="desc">responding</span><span aria-hidden="true">secret</span></button><button type="button" aria-label="Open palette">Jump</button>',
+    );
+    const findings = await labelInNameFindings(page);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.detail).toContain('"jump"');
+    expect(await page.getByRole("button", { name: "Aria — character", exact: true }).textContent()).toBe("Aria respondingsecret");
+  });
+
+  test("autosave records ordered distinct transitions and reads raw JSON without healing malformed bytes", async ({ page }) => {
+    await page.setContent('<p id="status" data-slot="autosave-status">Saved</p>');
+    expect(await readAutosaveStatusTranscript(page)).toEqual([]);
+    await beginAutosaveStatusTranscript(page);
+    expect(await readAutosaveStatusTranscript(page)).toEqual([]);
+    await page.locator("#status").evaluate((node) => {
+      node.textContent = " Saving… ";
+    });
+    await page.evaluate(() => {
+      document.body.append(document.createTextNode("unrelated mutation"));
+    });
+    expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…"]);
+    await page.locator("#status").evaluate((node) => {
+      node.textContent = "";
+    });
+    await page.locator("#status").evaluate((node) => {
+      const replacement = document.createElement("div");
+      replacement.id = "status";
+      replacement.setAttribute("data-slot", "autosave-status");
+      replacement.textContent = "Saved";
+      node.replaceWith(replacement);
+    });
+    expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…", "Saved"]);
+    const sink = page.locator('script[type="application/json"]');
+    expect(await sink.textContent()).toBe('["Saving…","Saved"]');
+    await sink.evaluate((node) => {
+      node.textContent = '[1,"raw",null]';
+    });
+    expect(await readAutosaveStatusTranscript(page)).toEqual([1, "raw", null]);
+    await sink.evaluate((node) => {
+      node.textContent = "{";
+    });
+    await expect(readAutosaveStatusTranscript(page)).rejects.toThrow();
+    await sink.evaluate((node) => {
+      node.remove();
+    });
+    expect(await readAutosaveStatusTranscript(page)).toEqual([]);
+  });
 });
