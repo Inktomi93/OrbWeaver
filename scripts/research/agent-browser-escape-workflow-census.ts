@@ -47,7 +47,7 @@ const FAMILIES = ["headless-devtools", "logged-in-chrome", "shell-playwright", "
 type Family = (typeof FAMILIES)[number];
 const OUTCOMES = ["success", "error", "unpaired"] as const;
 type Outcome = (typeof OUTCOMES)[number];
-type Event = {
+interface Event {
   account: Account;
   file: string;
   ordinal: number;
@@ -57,7 +57,7 @@ type Event = {
   name: string;
   input: string;
   outcome: Outcome;
-};
+}
 
 const out = process.argv[process.argv.indexOf("--out") + 1];
 if (!out) {

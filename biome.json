@@ -2845,8 +2845,7 @@
                   }
                 ]
               }
-            },
-            "useConsistentTypeDefinitions": "off"
+            }
           }
         }
       }

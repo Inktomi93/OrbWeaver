@@ -11,22 +11,24 @@ const LEADING_LABEL = /^([^\n:]{1,40}): /;
 
 /** An ST wire message/tool as generate-goldens.ts captured it. */
 type JsonValue = string | number | boolean | null | readonly JsonValue[] | { readonly [k: string]: JsonValue };
-type WireObject = { readonly [k: string]: JsonValue };
+interface WireObject {
+  readonly [k: string]: JsonValue;
+}
 
 /** ST's Claude wire carries `content` as an array of typed blocks; ours carries a plain string. */
-type WirePayload = {
+interface WirePayload {
   readonly messages?: readonly WireObject[];
   readonly tools?: readonly WireObject[];
   readonly system?: JsonValue;
   readonly [k: string]: JsonValue | undefined;
-};
+}
 /** `generate-goldens.ts`'s output envelope (ST arm) — the captured body sits under `payload`. */
-type StCapture = {
+interface StCapture {
   readonly payload?: WirePayload;
-  // biome-ignore lint/style/useNamingConvention: verbatim key from the ST arm's on-disk capture envelope.
+  // Verbatim key from the ST arm's on-disk capture envelope.
   readonly captured_at?: string;
   readonly model?: string;
-};
+}
 /** An `orbweaver-output/` file — the raw outbound body, no envelope. Its producer (`capture-orbweaver.ts`) is
  *  deleted, so every file here is historical (README "The ORB arm"). */
 type OrbCapture = WirePayload;
