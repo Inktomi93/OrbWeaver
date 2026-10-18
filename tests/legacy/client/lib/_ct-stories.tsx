@@ -6,7 +6,7 @@
 // QueryClient (the one whose MutationCache.onError reads `meta.errorToast`), binds `notify` to a real
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
-import { createAppQueryClient } from "@orb/client/data";
+import { createAppQueryClient, readAutomationFires } from "@orb/client/data";
 import { AppToaster } from "@orb/client/features/app-shell";
 import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -1331,6 +1331,7 @@ export function AgentBridgeStory(): ReactElement {
       seed: { game: async () => ({ chatId: BRIDGE_CHAT_ID }), richGame: async () => ({ chatId: BRIDGE_CHAT_ID }) },
       rpg: async () => ({ chatId: null, game: null, tracker: null, journal: [], turnToolCalls: [] }),
       pluginLog: async () => ({ ok: true as const, plugins: [] }),
+      automationFires: readAutomationFires,
       css: {
         read: () => ({ enabled: true, calls: cssStateRef.current.calls, conflictCalls: 0, deduplicatedConflictCalls: 0, receipts: [], status: "ok" as const }),
         reset: () => {

@@ -3,7 +3,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
-import type { OrbPluginLogReader } from "./agent-plugin-bridge.ts";
+import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 
 export interface QuerySummary {
   readonly key: unknown;
@@ -64,6 +64,7 @@ export interface OrbAgentHandles {
   readonly seed: OrbSeedHandle;
   readonly rpg: OrbRpgReader;
   readonly pluginLog: OrbPluginLogReader;
+  readonly automationFires: (filter?: OrbAutomationFiresFilter) => Promise<unknown>;
   readonly css: OrbCssHandle;
   readonly durableLocalUserId: () => string | null;
 }

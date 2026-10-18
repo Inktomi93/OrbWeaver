@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-17
+updated: 2026-10-18
 priority: P2
 ---
 
@@ -35,7 +35,7 @@ Each listed check is green on main or has a recorded cause and owner.
 
 ## Evidence
 
-Remaining findings: legacy disposal/typed lint, maintained classes, client formatting/imports, caught-failure census and the agent-bridge client-lib-floor violation.
+Remaining findings: legacy disposal/typed lint, maintained classes, client formatting/imports and caught-failure census. The dev bridge receives its data reader through composition. Evidence: `reports/review/977-agent-bridge-composition.md`.
 
 D161 cites a removed health module; immutable ADR lifecycle law blocks a direct edit. Citation grants also exceed their budget. Add no allowance or placeholder. Evidence: `reports/review/1042-boundary-home-independent-review.md`.
 

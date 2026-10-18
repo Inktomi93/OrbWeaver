@@ -3,12 +3,11 @@
 // `import.meta.env.DEV` dynamic door in main.tsx; production readiness lives in app-ready-signal.ts (#995).
 
 import type { QueryClient } from "@tanstack/react-query";
-import { readAutomationFires } from "#data";
 import type { AppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import { readAppearanceMatrixBridgeContract } from "./agent-bridge-appearance.ts";
 import type { OrbAgentHandles, OrbCssHandle, OrbNavHandle, OrbRpgReader, OrbSeedHandle, QuerySummary, ShellSnapshot } from "./agent-bridge-handles.ts";
 import { flagCounts, motionSummary } from "./agent-bridge-summary.ts";
-import type { OrbAutomationFiresFilter, OrbPluginLogReader } from "./agent-plugin-bridge.ts";
+import type { OrbPluginLogReader } from "./agent-plugin-bridge.ts";
 import { appReady, isAppReady } from "./app-ready-signal.ts";
 import { enableAppearanceMessageRegistry } from "./appearance-message-registry.ts";
 import type { BusEventRecord } from "./bus-devlog.ts";
@@ -111,7 +110,7 @@ interface OrbDebugHandle {
    *  newest-first across the deployment, via a same-origin read of `/api/_debug/automation/fires` —
    *  `{chatId?, ruleId?, limit?}` narrow. The debug gate admits the dev admin session (or `x-debug-token`);
    *  a refused read answers `{ok:false, reason}` with the HTTP status, never a throw. */
-  readonly automationFires: (filter?: OrbAutomationFiresFilter) => Promise<unknown>;
+  readonly automationFires: OrbAgentHandles["automationFires"];
   /** The durable-local namespace's bound identity (`state/durable-local.ts`) — `null` before the viewer
    *  read binds it (the pre-adoption legacy world). The lens a test or this bridge asserts the
    *  per-user localStorage scoping through, without reaching into `localStorage` by hand. */
@@ -232,7 +231,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
   installMotionObservers();
   installMotionFlaggers();
   installConsoleErrorRing();
-  const { nav, seed, rpg, pluginLog, css, durableLocalUserId } = handles;
+  const { nav, seed, rpg, pluginLog, automationFires, css, durableLocalUserId } = handles;
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
     panels: [...document.querySelectorAll(".shell-panel")].map((p) => ({
@@ -337,7 +336,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, handles: OrbAg
     rpg,
     pluginLog,
     css,
-    automationFires: readAutomationFires,
+    automationFires,
     durableLocalUserId,
     capabilities: (): Readonly<Record<keyof OrbDebugHandle, string>> => ORB_DEBUG_CAPABILITIES,
     rings: (): readonly OrbRingMetadata[] => ORB_RINGS,

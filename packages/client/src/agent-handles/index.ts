@@ -24,6 +24,7 @@
 import { cssMergeTrace } from "@orb/ui/lib";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc, TrpcClient } from "#data";
+import { readAutomationFires } from "#data";
 import type { ContributorRegistry } from "#lib";
 import type { ConfigSectionContribution } from "#state";
 import { activeChatId, activeDurableLocalUserId } from "#state";
@@ -51,6 +52,7 @@ export function installAgentHandles(
     seed: buildAgentSeed(trpcClient),
     rpg: buildAgentRpg(trpcClient, activeChatId),
     pluginLog: buildAgentPlugin(trpcClient),
+    automationFires: readAutomationFires,
     css: { read: cssMergeTrace.read, reset: cssMergeTrace.reset },
     durableLocalUserId: activeDurableLocalUserId,
   });
