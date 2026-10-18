@@ -51,6 +51,8 @@ export interface DataLayout {
   readonly importStaging: string;
   /** The pinned cloudflared a share downloads on its first start, bare metal and container alike. */
   readonly relay: string;
+  /** The wire-capture recorder's spill. It holds provider request bodies, so it lives with the data it came from. */
+  readonly wireCapture: string;
   readonly explicit: ReadonlySet<DataLayoutKeeperKey>;
   readonly skip: ReadonlySet<string>;
 }

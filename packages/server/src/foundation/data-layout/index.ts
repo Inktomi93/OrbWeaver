@@ -43,6 +43,7 @@ export const DATA_LAYOUT_DIRS = {
   variants: "cache/variants",
   importStaging: "cache/import-staging",
   relay: "cache/relay",
+  wireCapture: "cache/wire-capture",
 } as const;
 
 /** The legacy root entries a layout migration moves, in move order (the db last, so a failure on any other
@@ -144,6 +145,7 @@ export function resolveDataLayout(input: DataLayoutInput): DataLayout {
     variants: under(root, DATA_LAYOUT_DIRS.variants),
     importStaging: isSet(input.IMPORT_STAGING_DIR) ? input.IMPORT_STAGING_DIR : under(root, DATA_LAYOUT_DIRS.importStaging),
     relay: under(root, DATA_LAYOUT_DIRS.relay),
+    wireCapture: under(root, DATA_LAYOUT_DIRS.wireCapture),
     explicit,
     skip,
   };
