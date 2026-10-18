@@ -23,7 +23,6 @@
 
 import type { StreamAttachInput, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
-import { isPlainObject } from "@orb/kit/guards";
 import type { Page, Request, Route } from "@playwright/test";
 
 /** The typed TERMINAL frame `withSubscriptionErrors` yields when a subscription's source throws a
@@ -118,14 +117,15 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
   }
   const isBatch = url.searchParams.get("batch") === "1";
   const inputBody = isBatch ? body : { 0: body };
-  const byIndex = isPlainObject(inputBody) ? inputBody : {};
+  const byIndex = typeof inputBody === "object" && inputBody !== null ? inputBody : {};
   const attaches: AttachRequest[] = [];
   for (const [i, proc] of procs.entries()) {
     if (proc !== `stream.${wanted}`) {
       continue;
     }
+    const rawInput: unknown = Reflect.get(byIndex, String(i));
     // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Passive stream protocol observations preserve unvalidated refs and unnormalized cursors; canonical parsing would reject malformed wire this recorder must observe. Ends when a native typed wire recorder preserves these observations.
-    const input = byIndex[String(i)] as Partial<Pick<StreamAttachInput, "ref" | "sinceSeq">> | null | undefined;
+    const input = rawInput as Partial<Pick<StreamAttachInput, "ref" | "sinceSeq">> | null | undefined;
     if (input?.ref !== undefined) {
       attaches.push({ ref: input.ref, sinceSeq: input.sinceSeq ?? null });
     }

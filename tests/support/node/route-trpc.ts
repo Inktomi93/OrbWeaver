@@ -35,7 +35,6 @@
 // as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
 // PRODUCES, so either works as a route value or as a function's return.
 
-import { isPlainObject } from "@orb/kit/guards";
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
@@ -421,7 +420,7 @@ function unwrapTrpcWireEscape(value: unknown): unknown {
 // Inputs: queries carry `?input=` (batched or not — getUrl always URL-encodes query input);
 // mutations and subscriptions carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
 // the raw input, normalized to index "0".
-function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, unknown> {
+function decodeInputs(req: Request, url: URL, isBatch: boolean): object {
   let raw: unknown;
   const inputParam = url.searchParams.get("input");
   if (inputParam !== null) {
@@ -436,7 +435,7 @@ function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, 
   if (!isBatch) {
     return { 0: raw };
   }
-  return isPlainObject(raw) ? raw : {};
+  return typeof raw === "object" && raw !== null ? raw : {};
 }
 
 export interface TrpcRecorder {
@@ -507,7 +506,8 @@ export async function routeTrpc<const TRoutes extends object>(
     const accept = req.headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
       for (const [i, proc] of procs.entries()) {
-        record(proc, byIndex[String(i)]);
+        const input: unknown = Reflect.get(byIndex, String(i));
+        record(proc, input);
       }
       await route.fulfill({ status: 204, body: "" });
       return;
@@ -519,7 +519,7 @@ export async function routeTrpc<const TRoutes extends object>(
     // delivery waits. Without the hold arm this stays exactly as synchronous as it was.
     const results = await Promise.all(
       procs.map(async (proc, i) => {
-        const input = byIndex[String(i)];
+        const input: unknown = Reflect.get(byIndex, String(i));
         record(proc, input);
         noteUnstubbed(proc);
         const responder: unknown = Reflect.get(routes, proc);

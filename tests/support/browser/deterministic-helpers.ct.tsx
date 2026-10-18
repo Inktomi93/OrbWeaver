@@ -151,7 +151,7 @@ test("a deferred successful attach cannot release frames before the HTTP request
 test("socket observations preserve malformed IDs and raw cursors but ignore missing refs without claiming admission", async ({ page }) => {
   await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
   await page.goto("http://orb.test/");
-  await page.route("**/api/trpc/**", (route) => route.fulfill({ json: { result: { data: null } } }));
+  const trpc = await routeTrpc(page, { "stream.attach": null, "stream.detach": null });
   const recorder = await routeOrbSocket(page);
   await page.evaluate(async () => {
     for (const body of [
@@ -169,6 +169,11 @@ test("socket observations preserve malformed IDs and raw cursors but ignore miss
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ 0: { ref: { channel: "notifications" } }, 1: { ref: { channel: "user" } } }),
     });
+    await fetch("/api/trpc/stream.attach,stream.detach?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([{ ref: { channel: "chat", chatId: "array-malformed" }, sinceSeq: "array-raw" }, { ref: { channel: "notifications" } }]),
+    });
   });
   expect(recorder.attachRequests()).toEqual([
     { ref: { channel: "user" }, sinceSeq: 0 },
@@ -176,8 +181,10 @@ test("socket observations preserve malformed IDs and raw cursors but ignore miss
     { ref: { channel: "unknown" }, sinceSeq: null },
     { ref: { channel: "user" }, sinceSeq: "wrong" },
     { ref: { channel: "notifications" }, sinceSeq: null },
+    { ref: { channel: "chat", chatId: "array-malformed" }, sinceSeq: "array-raw" },
   ]);
-  expect(recorder.detaches()).toEqual([{ channel: "user" }]);
+  expect(recorder.detaches()).toEqual([{ channel: "user" }, { channel: "notifications" }]);
+  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("the production typed client keeps batch inputs raw, path-correlated and distinct from missing calls", async ({ mount, page }) => {
@@ -212,4 +219,16 @@ test("the production typed client keeps batch inputs raw, path-correlated and di
   });
   expect(recorder.requireLastInput("settings.addExternalBackground")).toEqual({ url: 41, forwardField: true });
   expect(recorder.inputs("settings.addExternalBackground")).toEqual([{ url: backgroundUrl }, { url: 41, forwardField: true }]);
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/settings.addExternalBackground,databank.scrapeYoutube?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([
+        { url: 42, arrayField: true },
+        { url: "  array-video  ", lang: null },
+      ]),
+    });
+  });
+  expect(recorder.requireLastInput("settings.addExternalBackground")).toEqual({ url: 42, arrayField: true });
+  expect(recorder.requireLastInput("databank.scrapeYoutube")).toEqual({ url: "  array-video  ", lang: null });
 });
