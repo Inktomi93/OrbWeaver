@@ -233,6 +233,12 @@ for (const fixture of [SELECTED_CORPUS_FIXTURE, SELECTED_LOCAL_CORPUS_FIXTURE]) 
     assertPrivateCorpusOutput(fixture.privateParent, join(tmpdir(), "private-browser-temporary"));
   }
 }
+const stFolderDirectory = process.env["E2E_ST_FOLDER"];
+if (stFolderDirectory !== undefined && SELECTED_CORPUS_FIXTURE?.privateParent === undefined) {
+  throw new Error("E2E_ST_FOLDER is private input and requires a private corpus run");
+}
+/** A local SillyTavern library folder; only a private corpus run, whose artifacts stay in its owner, accepts one. */
+export const SELECTED_ST_FOLDER = stFolderDirectory;
 const SINGLE_BACKEND_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.server : E2E_PORTS.singleUser.server);
 const SINGLE_VITE_PORT = String(DEV_TARGET_ALLOWED ? DEV_PORTS.vite : E2E_PORTS.singleUser.vite);
 export const SINGLE_USER: ModeProject = {

@@ -59,13 +59,16 @@
 //
 // ── SPILL TO DISK ───────────────────────────────────────────────────────────────────────────────────────
 // The ring is in-memory and 256 slots, so a restart or a busy hour erases exactly the evidence you went
-// looking for (it did). Both arms therefore ALSO append to a size-capped JSONL under `.cache/`, best-effort:
-// a spill failure never touches the request path. Off with the feature off, like everything else here.
+// looking for (it did). Both arms therefore ALSO append to a size-capped JSONL under the data layout's
+// `wireCapture` slot, best-effort: a spill failure never touches the request path. Off with the feature off,
+// like everything else here. The spill holds provider request bodies, so it never derives from the process
+// cwd: a stack started from a checkout must not write its data's prompts into that checkout.
 
 import { appendFile, mkdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { WireCapture } from "@orb/contracts/debug";
 import { createBoundedRing } from "@orb/kit/bounded-ring";
+import { resolveDataLayout } from "#foundation/data-layout";
 import { env } from "#foundation/env";
 import type { WireCaptureFilter, WireOutcome } from "../contract/wire-capture.ts";
 
@@ -94,8 +97,8 @@ export function isWireReplyCaptureEnabled(): boolean {
 
 /** Record ONE captured wire body. This is the SINK compose injects into the backends (only when capture is
  *  enabled). Kept in the process ring for the live `/api/_debug` read AND best-effort spilled to
- *  `.cache/wire-capture/captures.jsonl` (see SPILL below) — never a DB table, but not process-memory-only
- *  either. */
+ *  `captures.jsonl` in the data layout's `wireCapture` slot (see SPILL below) — never a DB table, but not
+ *  process-memory-only either. */
 export function recordWireCapture(capture: WireCapture): void {
   ring.push(capture);
   spill("request", capture);
@@ -171,14 +174,14 @@ export function recentTurnOutcomes(filter: Pick<WireCaptureFilter, "chatId" | "l
 
 // ── SPILL ───────────────────────────────────────────────────────────────────────────────────────────────
 
-const SPILL_DIR = ".cache/wire-capture";
+const SPILL_DIR = resolveDataLayout(env).wireCapture;
 const SPILL_PATH = join(SPILL_DIR, "captures.jsonl");
 const SPILL_PREV_PATH = join(SPILL_DIR, "captures.prev.jsonl");
 /** Rotate past this (32 MiB); two generations are retained, so the on-disk ceiling is 64 MiB. */
 const SPILL_MAX_BYTES = 33_554_432;
 
 /** Serializes every append so concurrent turns cannot interleave a half-written line. Failures are swallowed
- *  into the chain (never rethrown) — an unwritable `.cache/` must not fail a chat turn. */
+ *  into the chain (never rethrown) — an unwritable spill directory must not fail a chat turn. */
 let spillChain: Promise<void> = Promise.resolve();
 
 /** Append one record as JSONL, rotating at the cap. Best-effort by construction. */
@@ -193,7 +196,7 @@ function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): 
     return; // an unserializable body is not worth failing (or retrying) a turn over
   }
   // @orb-waive caught-failure-ownership(spillChain): documented above the spillChain
-  // declaration — failures are swallowed into the chain, never rethrown; an unwritable .cache/ must not
+  // declaration — failures are swallowed into the chain, never rethrown; an unwritable spill directory must not
   // fail a chat turn. Ends if spill stops being best-effort by contract.
   spillChain = spillChain
     .then(async () => {
