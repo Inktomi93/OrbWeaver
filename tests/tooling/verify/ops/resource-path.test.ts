@@ -29,6 +29,7 @@ function identify(root: string, selectors: readonly string[], git: typeof runGit
 }
 
 test("a repo-relative selector resolves to file, directory or absent, and the partition is total", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "-q"]);
   plantFile(scratch, "tests/live.int.test.ts");
   const identities = identify(scratch, ["tests/live.int.test.ts", "tests", "tests/gone.int.test.ts", "tests/live.int.test.ts"]);
 
@@ -112,6 +113,7 @@ test("an empty demand is an EMPTY fact, never a ready one with nothing in it", (
 });
 
 test("the door owns no population: a ready fact publishes zero resource paths", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "-q"]);
   plantFile(scratch, "tests/live.int.test.ts");
   const load = loadAuthoredPaths(scratch, ["tests/live.int.test.ts", "tests/gone.int.test.ts"]);
 
@@ -156,7 +158,61 @@ test("a resource load shares prefix answers and the next load sees ignore edits"
     return runGit(root, args, options);
   };
   expect(identify(scratch, selectors, countedGit).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === true)).toBe(true);
-  expect(queries).toBe(2);
+  expect(queries).toBe(1);
   plantFile(scratch, ".gitignore", "out/\n");
   expect(identify(scratch, selectors).every((identity) => identity.status === "absent" && identity.ignoredBuildOutput === undefined)).toBe(true);
+});
+
+test("a fatal ignore batch refuses the resource instead of publishing partial identities", ({ scratch }) => {
+  plantFile(scratch, "packages/live.ts");
+  const fatalGit: typeof runGit = () => ({ status: 128, stdout: "", stderr: "private external target" });
+  const load = loadAuthoredPaths(scratch, ["packages/live.ts", "packages/missing.ts"], fatalGit);
+  expect(load).toEqual({ status: "unresolved", paths: [], members: 0, reason: expect.stringContaining("Git ignore classification failed") });
+  if (load.status === "ready") {
+    throw new Error("a failed batch published identities");
+  }
+  expect(load.reason).not.toContain("private external target");
+  expect(load.reason).toContain("packages");
+});
+
+test("a contained symlink ancestor preserves Git's fatal refusal rather than becoming a missing path", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "-q"]);
+  plantFile(scratch, ".gitignore", "dist/\n");
+  mkdirSync(join(scratch, "packages/real"), { recursive: true });
+  symlinkSync("real", join(scratch, "packages/linked"), "dir");
+  const selector = "packages/linked/dist/missing.js";
+  expect(runGit(scratch, ["check-ignore", "--", "packages/linked/dist", "packages/linked/dist/"]).status).toBe(128);
+  const load = loadAuthoredPaths(scratch, [selector, "packages/real"]);
+  expect(load.status).toBe("unresolved");
+  if (load.status === "ready") {
+    throw new Error("a fatal symlink query published identities");
+  }
+  expect(load.reason).toContain("exit 128");
+  expect(load.reason).toContain("packages/linked/dist");
+  expect(load.reason).not.toContain(scratch);
+  expect(identify(scratch, ["packages/real/dist/missing.js"])[0]).toHaveProperty("ignoredBuildOutput", true);
+});
+
+test("existing and outside selectors spend no Git query, including a root reached through a symlink", ({ scratch }) => {
+  plantFile(scratch, "real-root/packages/live.ts");
+  symlinkSync("real-root", join(scratch, "linked-root"), "dir");
+  let queries = 0;
+  const git: typeof runGit = () => {
+    queries += 1;
+    throw new Error("no missing path means no Git query");
+  };
+  expect(identify(join(scratch, "linked-root"), ["packages/live.ts", "../../outside"], git).map((identity) => identity.status)).toEqual(["outside", "file"]);
+  expect(queries).toBe(0);
+});
+
+test("a non-directory ancestor is unresolved, not absent or eligible for ignore classification", ({ scratch }) => {
+  plantFile(scratch, "packages/file.ts");
+  let queries = 0;
+  const git: typeof runGit = () => {
+    queries += 1;
+    throw new Error("an unresolved selector is not an ignore query");
+  };
+  const selector = "packages/file.ts/missing.ts";
+  expect(identify(scratch, [selector], git)).toEqual([{ selector, form: "repo-relative", status: "unresolved", reason: expect.stringContaining("ENOTDIR") }]);
+  expect(queries).toBe(0);
 });

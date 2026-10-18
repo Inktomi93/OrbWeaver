@@ -54,6 +54,8 @@ export interface CaptureCeilingOption {
 export interface RunNicedSyncOptions extends CaptureCeilingOption {
   readonly cwd?: string;
   readonly env?: NodeJS.ProcessEnv;
+  /** Bytes written to the child's stdin before it is closed. */
+  readonly input?: string;
   /** "collect" (default) captures utf8 stdout/stderr; "inherit" streams to the operator's terminal
    *  (the stack-boot / rsync shape); "ignore" discards. */
   readonly stdio?: "collect" | "inherit" | "ignore";

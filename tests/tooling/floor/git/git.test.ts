@@ -1,5 +1,7 @@
 // The one git door: every spawn names its root, starts from an environment with the `GIT_*` namespace
 // dropped (the variables a git hook exports to its children), and adds only the keys a caller spells.
+
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +13,18 @@ import { inheritedProcessEnv, withProcessEnv } from "../../../../tooling/src/flo
 function env(entries: readonly (readonly [string, string])[]): NodeJS.ProcessEnv {
   return Object.fromEntries(entries);
 }
+
+test("runGit forwards NUL-delimited stdin through the canonical synchronous process door", ({ scratch }) => {
+  const input = "space name\0colon:tab\tname\0";
+  const options = { input, stdio: "collect" as const };
+  const result = runGit(scratch, ["hash-object", "--stdin"], options);
+  const expected = createHash("sha1")
+    .update(`blob ${Buffer.byteLength(input)}\0`)
+    .update(input)
+    .digest("hex");
+  expect(result.status).toBe(0);
+  expect(result.stdout.trim()).toBe(expected);
+});
 
 test("repoGitEnvironment drops every GIT_* key and keeps the rest", () => {
   const cleaned = repoGitEnvironment(

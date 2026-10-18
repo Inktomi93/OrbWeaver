@@ -2,6 +2,7 @@
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { docFileCount, docLayerProblems, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
 
 const TODAY = "2026-09-23";
@@ -34,6 +35,7 @@ test("a batch of complete items, blocked ones included, round-trips through the 
 
 test("a writing-rule finding, a dead path and a structural finding all reach the one list", async ({ plantedTree }) => {
   const root = await plantedTree({ "docs/Mission.md": MISSION, "docs/notes.md": "# stray\n" });
+  execFixtureGit(root, ["init", "-q"]);
   newAdr({ slug: "one", title: "One" }, root, TODAY);
   const { writeFileSync } = await import("node:fs");
   const { join } = await import("node:path");
@@ -48,6 +50,11 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
     "docs/adr/0001-one.md:9: link target does not exist: ../../missing.md",
     "docs/adr/0001-one.md:9: path does not exist: tooling/src/gone.ts",
   ]);
+});
+
+test("a document's failed Git query propagates as a tool error, not a missing-path finding", async ({ plantedTree }) => {
+  const root = await plantedTree({ "docs/Mission.md": `${MISSION}\nSee \`tooling/src/missing.ts\`.\n` });
+  expect(() => docLayerProblems(root)).toThrow(/Git ignore classification failed/u);
 });
 
 test("a relative code-span path resolves against its own file: a missing target reds with file and line, a live one passes", async ({ plantedTree }) => {

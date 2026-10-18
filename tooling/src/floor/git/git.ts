@@ -14,7 +14,7 @@ export function repoGitEnvironment(environment: NodeJS.ProcessEnv = inheritedPro
   return Object.fromEntries(Object.entries(environment).filter(([name]) => !name.startsWith("GIT_")));
 }
 
-export interface RunGitOptions extends Pick<RunNicedSyncOptions, "stdio" | "maxBuffer" | "timeout"> {
+export interface RunGitOptions extends Pick<RunNicedSyncOptions, "stdio" | "maxBuffer" | "timeout" | "input"> {
   /** The environment to start from before the `GIT_*` namespace is dropped; the process environment by default. */
   readonly env?: NodeJS.ProcessEnv;
   /** Keys added AFTER the drop: a temporary `GIT_INDEX_FILE`, a fixture's `GIT_CONFIG_GLOBAL`. Every git
@@ -29,6 +29,7 @@ export function runGit(root: string, args: readonly string[], opts: RunGitOption
     cwd: root,
     env,
     ...(opts.stdio === undefined ? {} : { stdio: opts.stdio }),
+    ...(opts.input === undefined ? {} : { input: opts.input }),
     ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     ...(opts.timeout === undefined ? {} : { timeout: opts.timeout }),
   });
@@ -45,7 +46,7 @@ export function execGit(root: string, args: readonly string[], opts: RunGitOptio
 }
 
 /** Read raw Git output without decoding binary blobs; preserve the same repository and environment fence. */
-export function execGitBytes(root: string, args: readonly string[], opts: RunGitOptions = {}): Buffer {
+export function execGitBytes(root: string, args: readonly string[], opts: Pick<RunGitOptions, "env" | "extra" | "maxBuffer"> = {}): Buffer {
   return execNicedSyncBuffer("git", args, {
     cwd: root,
     env: { ...repoGitEnvironment(opts.env), ...opts.extra },
