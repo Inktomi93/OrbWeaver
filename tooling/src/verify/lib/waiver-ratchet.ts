@@ -82,7 +82,7 @@ export function waiverRatchet(
   const judged: string[] = [];
   const unjudged: string[] = [];
   for (const [id, result] of [...results].toSorted(([left], [right]) => left.localeCompare(right))) {
-    (walked(result, withheld.has(id)) ? judged : unjudged).push(id);
+    (walked(result, withheld.has(id)) && (result.analysisGaps?.length ?? 0) === 0 ? judged : unjudged).push(id);
   }
   return { alarms: judgeWaiverBudget(judgement, judged, excused), report: { population: judgement.population, judged, unjudged } };
 }

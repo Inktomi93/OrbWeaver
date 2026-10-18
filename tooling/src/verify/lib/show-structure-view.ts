@@ -50,18 +50,23 @@ function scanNote(scan: GateScanView | undefined, ink: ShowInk): string {
 }
 
 function gateLines(g: GateReport, violations: readonly Violation[], f: StructureViewFilter, ink: ShowInk): readonly string[] {
+  const gaps = isFinalRow(g) ? (g.analysis?.unknown ?? []).filter((gap) => f.file === null || gap.file.toLowerCase().includes(f.file.toLowerCase())) : [];
+  const advisory = gaps.slice(0, f.limit).map((gap) => ink.dim(`  UNKNOWN ${gap.file}:${gap.line}:${gap.column} — ${gap.reason}`));
+  if (gaps.length > f.limit) {
+    advisory.push(ink.dim(`  …and ${gaps.length - f.limit} more UNKNOWN (--limit N to widen)`));
+  }
   const header = isFinalRow(g)
     ? finalRowHeader(g, violations.length, ink)
     : `${g.ok ? ink.green("✓") : ink.red("✗")} ${ink.bold(g.name)} (${violations.length} violation${violations.length === 1 ? "" : "s"})${scanNote(g.scan, ink)}`;
   if (f.errorsOnly || violations.length === 0) {
-    return [header, ""];
+    return [header, ...advisory, ""];
   }
   const sample = violations.slice(0, f.limit);
   const lines = [header, ...sample.map((v) => violationLine(v, ink))];
   if (violations.length > sample.length) {
     lines.push(ink.dim(`  …and ${violations.length - sample.length} more (--limit N to widen)`));
   }
-  lines.push("");
+  lines.push(...advisory, "");
   return lines;
 }
 
@@ -118,7 +123,7 @@ export function gateListLines(report: StructureReport, filter: StructureViewFilt
     }
     const violations = filteredViolations(g, filter);
     // A clean gate is noise unless the caller explicitly asked to inspect this exact gate.
-    if (violations.length === 0 && filter.gate === null) {
+    if (violations.length === 0 && filter.gate === null && (!isFinalRow(g) || (g.analysis?.unknown.length ?? 0) === 0)) {
       continue;
     }
     lines.push(...gateLines(g, violations, filter, ink));

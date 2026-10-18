@@ -47,6 +47,7 @@ export const GATE_OWNER_COVERAGES = ["whole", "subset"] as const;
 export type GateOwnerCoverage = (typeof GATE_OWNER_COVERAGES)[number];
 
 export interface GateOwnerResult {
+  readonly analysisGaps?: import("../../floor/artifacts/structure-artifact-contract.ts").StructureAnalysisCoverage["unknown"];
   readonly policyId: string;
   readonly populationFiles: readonly string[];
   readonly coverage: GateOwnerCoverage;

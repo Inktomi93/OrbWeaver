@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
+import { vi } from "vitest";
 import { assertSchemaColumnRoster, SCHEMA_DATA_CATALOG_KEY } from "../../../../tooling/src/floor/code-facts/drizzle-inventory-contract.ts";
 import type { InventoryBuildRequest, InventorySpan, SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { drizzleQueryKey, drizzleSchemas } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
@@ -16,8 +17,8 @@ import {
   readInventoryGeneration,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts";
 import { inputVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-inputs.ts";
-import { readInventoryDrizzleCall } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
-import { inventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { acquireInventoryReadLease, readInventoryDrizzleCall } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
+import { inventoryReader, ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { readInventoryRuntime } from "../../../../tooling/src/floor/code-facts/semantic-inventory-runtime-query.ts";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
@@ -40,6 +41,7 @@ const UNRELATED_TEXT =
   "import {sqliteTable,text,index} from 'drizzle-orm/sqlite-core';import {assets} from './assets.ts';export const unrelated=sqliteTable('unrelated',{id:text('id').primaryKey(),assetId:text('asset_id').references(()=>assets.id)},table=>[index('unrelated_asset').on(table.assetId)]);";
 const ENTRY_TEXT =
   "import type {BaseSQLiteDatabase} from 'drizzle-orm/sqlite-core';import {assets} from '@orb/db';import {held} from '../../../dependency/prefix.ts';declare const db:BaseSQLiteDatabase<'async',void>;export const direct=db.insert(assets);held();";
+const inventoryQueries = await import("../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts");
 
 function span(node: MorphNode): InventorySpan {
   return { file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() };
@@ -114,6 +116,83 @@ function setup(
     },
   };
 }
+
+test("owned schema raw reuse isolates returned values and still checks every source epoch", { timeout: scaledBudget(60_000) }, ({ scratch, repoRoot }) => {
+  const fixture = setup(scratch, repoRoot, `${ENTRY_TEXT}\nexport const selected=assets.meta;export const second=assets.id;`);
+  const source = fixture.direct.getSourceFile();
+  const selected = source.getVariableDeclarationOrThrow("selected").getInitializerOrThrow();
+  const second = source.getVariableDeclarationOrThrow("second").getInitializerOrThrow();
+  using original = nativeInventoryFixture({
+    ...fixture.options,
+    families: ["drizzle-identities", "schema-data"],
+    schemaDataQuery: { program: DB, sources: fixture.sources.map(span) },
+    drizzleQueries: [
+      ...(fixture.options.drizzleQueries ?? []),
+      ...[selected, second].map((node) => ({ program: SERVER, query: { node: span(node), mode: "column" as const } })),
+    ],
+  });
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  using lease = acquireInventoryReadLease(db, original.generation, readInventoryGeneration(db, original.generation));
+  using reader = ownedInventoryReader(scratch, original.generation, lease, { db, dispose: () => undefined });
+  const identities = vi.spyOn(inventoryQueries, "readInventorySchemaIdentity");
+  const full = vi.spyOn(inventoryQueries, "readInventorySchemaData");
+  try {
+    const first = reader.drizzleEvidence(selected, SERVER, "column");
+    reader.drizzleEvidence(second, SERVER, "column");
+    reader.drizzleEvidence(selected, SERVER, "column");
+    expect(identities).toHaveBeenCalledTimes(1);
+    expect(full).toHaveBeenCalledTimes(1);
+    if (first.mode !== "column" || first.column.kind !== "resolved") {
+      throw new Error("native selected column is unavailable");
+    }
+    Object.assign(first.column.value.table, { key: "poisoned" });
+    const identity = reader.schemaIdentity(fixture.sources, DB);
+    const table = identity.status === "ready" ? identity.value.tables[0] : undefined;
+    if (table === undefined) {
+      throw new Error("native identity table is unavailable");
+    }
+    Object.assign(table.identity, { key: "poisoned" });
+    const projected = reader.schemaData(fixture.sources, DB);
+    const column = projected.status === "ready" ? projected.value.tables[0]?.columns[0] : undefined;
+    if (column === undefined) {
+      throw new Error("native projected column is unavailable");
+    }
+    Object.assign(column.identity, { key: "poisoned" });
+    expect(reader.drizzleEvidence(selected, SERVER, "column")).toMatchObject({
+      mode: "column",
+      column: { kind: "resolved", value: { key: `${ASSETS}#assets.meta`, table: { key: `${ASSETS}#assets` } } },
+    });
+    expect(reader.schemaIdentity(fixture.sources, DB)).toMatchObject({
+      status: "ready",
+      value: { tables: [expect.objectContaining({ identity: expect.objectContaining({ key: `${ASSETS}#assets` }) }), expect.anything()] },
+    });
+    expect(identities).toHaveBeenCalledTimes(1);
+    expect(full).toHaveBeenCalledTimes(1);
+    const unrelated = fixture.sources[1];
+    if (unrelated === undefined) {
+      throw new Error("native unrelated schema source is unavailable");
+    }
+    unrelated.replaceWithText(`${UNRELATED_TEXT}\n`);
+    expect(() => reader.drizzleEvidence(selected, SERVER, "column")).toThrow("source/epoch");
+    unrelated.replaceWithText(UNRELATED_TEXT);
+    expect(reader.drizzleEvidence(selected, SERVER, "column")).toMatchObject({ mode: "column", column: { kind: "resolved" } });
+  } finally {
+    identities.mockRestore();
+    full.mockRestore();
+  }
+});
+
+test("released owned lease refuses warm schema evidence while its connection remains open", { timeout: scaledBudget(60_000) }, ({ scratch, repoRoot }) => {
+  const fixture = setup(scratch, repoRoot);
+  using original = nativeInventoryFixture(fixture.options);
+  using db = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  using lease = acquireInventoryReadLease(db, original.generation, readInventoryGeneration(db, original.generation));
+  using reader = ownedInventoryReader(scratch, original.generation, lease, { db, dispose: () => undefined });
+  expect(reader.drizzleEvidence(fixture.direct, SERVER, "called-member")).toMatchObject({ mode: "called-member", table: { kind: "resolved" } });
+  lease[Symbol.dispose]();
+  expect(db.isOpen).toBe(true);
+  expect(() => reader.drizzleEvidence(fixture.direct, SERVER, "called-member")).toThrow("lease has been released");
+});
 
 test(
   "native column evidence retains canonical selected columns, unknowns and old call modes under one complete catalog",

@@ -30,6 +30,9 @@ function finalRowNote(row: FinalPolicyRow, ink: ShowInk): string {
   if (row.granted > 0) {
     parts.push(`granted ${row.granted}`);
   }
+  if (row.analysis !== undefined) {
+    parts.push(`${row.analysis.supported} supported · ${row.analysis.unknown.length} UNKNOWN (advisory)`);
+  }
   if (row.owner.status !== "success") {
     parts.push(`owner ${row.owner.status}${"reason" in row.owner ? `: ${row.owner.reason}` : ""}`);
   }

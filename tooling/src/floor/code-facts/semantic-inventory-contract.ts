@@ -904,6 +904,7 @@ export interface InventoryReaderSourceMetadata {
 
 /** Acquired only by transitioning an owned connection to its selected-generation read snapshot. */
 export interface InventoryReadLease extends Disposable {
+  readonly assertOpen: () => void;
   readonly partitions: readonly StoredInventoryPartition[];
   readonly invocationEvidence: (id: string, query: InventoryInvocationQuery) => Iterable<InventoryInvocationEvidence>;
   readonly bindings: (id: string, file: string) => readonly InventoryPartition["bindings"][number][];

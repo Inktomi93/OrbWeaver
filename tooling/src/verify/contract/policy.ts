@@ -98,7 +98,11 @@ export interface GatePolicyFileFindingDetails extends GatePolicyFindingDetails {
   readonly token?: string;
 }
 
+export type GatePolicyAnalysisDetails = { readonly kind: "supported" } | { readonly kind: "unknown"; readonly reason: string };
+
 export interface GatePolicyReportSink {
+  /** Records partial coverage without findings, authority consumption or warning promotion. */
+  readonly analysis: (node: Node, details: GatePolicyAnalysisDetails) => void;
   /** Node-derived coordinates; the node must belong to the effective source population. */
   readonly node: (node: Node, details?: GatePolicyNodeFindingDetails) => void;
   /** Explicit file/resource anchor; the identity must belong to the effective combined population. */

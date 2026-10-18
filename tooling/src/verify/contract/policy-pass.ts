@@ -1,6 +1,7 @@
 // Exact population, phase, owner, and authority receipts emitted by the final policy dispatcher.
 
 import type { Project } from "ts-morph";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import type { GateFact } from "./fact.ts";
 import type { GateAuthorityBatchResult, GateOwnerCompletion, RawGateFinding, ReviewedGateGrant, WaiverBudget } from "./gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal } from "./ordinary-waiver-source.ts";
@@ -168,6 +169,7 @@ export interface GateFactOwnerResult {
 }
 
 export interface PolicyOwnerResult {
+  readonly analysis?: StructureAnalysisCoverage;
   readonly id: string;
   readonly owner: GateOwnerCompletion;
   readonly population: PolicyPopulationReceipt;

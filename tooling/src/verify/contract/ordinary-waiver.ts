@@ -1,5 +1,5 @@
 // Final ordinary-waiver acquisition and reconciliation contract.
-import type { CoordinatedGateFinding, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "./gate-authority.ts";
+import type { CoordinatedGateFinding, GateOwnerResult, OrdinaryAuthorityAlarm, SelectedGatePolicy } from "./gate-authority.ts";
 import type { OrdinaryWaiverSource } from "./ordinary-waiver-source.ts";
 
 export interface OrdinaryWaiverEngineInput {
@@ -50,6 +50,7 @@ export interface OrdinaryWaiverMatchResult {
 /** @public knip type-face false positive — a structural field (`reconcile`) of the exported `OrdinaryWaiverEngine` shape (line
  *  55), never referenced by its own name at any call site. */
 export interface OrdinaryWaiverReconciliationInput {
+  readonly analysisGaps?: ReadonlyMap<string, NonNullable<GateOwnerResult["analysisGaps"]>>;
   readonly completedPolicyIds: readonly string[];
   /** Effective population of each completed owner that covered only a subset; its markers outside it are not judged. */
   readonly subsetPopulations?: ReadonlyMap<string, ReadonlySet<string>>;

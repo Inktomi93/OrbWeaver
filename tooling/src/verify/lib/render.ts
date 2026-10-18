@@ -44,6 +44,9 @@ function policySuffix(row: FinalPolicyRow): string {
   if (row.granted > 0) {
     parts.push(`granted ${row.granted}`);
   }
+  if (row.analysis !== undefined) {
+    parts.push(`${row.analysis.supported} supported · ${row.analysis.unknown.length} UNKNOWN (advisory)`);
+  }
   return `  ·  ${parts.join(" · ")}`;
 }
 
@@ -117,6 +120,9 @@ export function renderPolicyPass(rows: readonly FinalPolicyRow[], report: Struct
   const out: string[] = [];
   for (const row of rows) {
     out.push(...renderPolicyRow(row, byId.get(row.name)));
+    for (const gap of row.analysis?.unknown ?? []) {
+      out.push(`      UNKNOWN ${gap.file}:${gap.line}:${gap.column} — ${gap.reason}`);
+    }
   }
   out.push(...renderPolicyBlock(report));
   const waived = rows.reduce((n, row) => n + row.waived, 0);

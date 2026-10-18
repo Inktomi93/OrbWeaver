@@ -1,5 +1,4 @@
-/** Central gate authority coordinator. Detectors never select their own severity or exception door. */
-
+// Findings cannot author authority; reconciliation binds them to the completed policy.
 import type {
   AuthorityConsumption,
   CoordinatedGateFinding,
@@ -332,7 +331,8 @@ function processOrdinary(state: CoordinationState): ReturnType<ReturnType<typeof
       return result?.coverage === "subset" ? [[id, new Set(result.populationFiles)] as const] : [];
     }),
   );
-  return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), subsetPopulations, match: matched });
+  const analysisGaps = new Map([...state.completedOrdinary].map((id) => [id, state.results.get(id)?.analysisGaps ?? []]));
+  return engine.reconcile({ completedPolicyIds: [...state.completedOrdinary].toSorted(), subsetPopulations, analysisGaps, match: matched });
 }
 
 interface GrantReconciliation {

@@ -3,10 +3,12 @@ import { factProvider } from "../contract/fact.ts";
 
 import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { ts } from "ts-morph";
+import type { StructureAnalysisCoverage } from "../../floor/artifacts/structure-artifact-contract.ts";
 import type { GateFact, GateFactContext, GateFactValue } from "../contract/fact.ts";
 import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type {
   GatePolicy,
+  GatePolicyAnalysisDetails,
   GatePolicyContext,
   GatePolicyFileFindingDetails,
   GatePolicyFindingDetails,
@@ -48,6 +50,7 @@ interface ContextInput {
 }
 
 export interface PolicyContextRuntime {
+  readonly finishAnalysis: () => StructureAnalysisCoverage | undefined;
   readonly context: GatePolicyContext;
   readonly finishReceipts: () => readonly PolicySemanticReceipt[];
   readonly unconsumedFacts: () => readonly string[];
@@ -68,7 +71,7 @@ interface CapabilityContextInput {
   readonly nativeTypes?: NativeTypeFacts;
 }
 
-export interface FactContextRuntime extends Omit<PolicyContextRuntime, "context" | "unconsumedFacts"> {
+export interface FactContextRuntime extends Omit<PolicyContextRuntime, "context" | "unconsumedFacts" | "finishAnalysis"> {
   readonly context: GateFactContext;
 }
 
@@ -85,34 +88,7 @@ function assertOptionalText(value: unknown, label: string): void {
   }
 }
 
-/** THE UNWAIVABLE-POSITION FENCE (#1957, armed on the #2107 ruling).
- *
- *  A finding's position token is the only handle an `@orb-waive` marker has on it, and the marker grammar's
- *  position group cannot hold a paren, a CR or an LF ({@link isWaivablePosition}, the ONE home of that rule).
- *  A finding minted with such a token is REAL and permanently UNANSWERABLE: every marker naming it parses
- *  `malformed`, so the policy's own `fix` string — "write an adjacent `@orb-waive <id>(<position>)`" —
- *  instructs the reader to do something the parser refuses.
- *
- *  The DERIVED path below always obeyed the rule: `derivedNodePosition` skips any candidate carrying one. The
- *  EXPLICIT `{ token, offset }` path and `report.file`'s `token` did not, and that asymmetry WAS the class.
- *
- *  THE ORDER MATTERED AND IS RECORDED. The fence was built, armed once against the live corpus, and held back
- *  because that run WAS the finding: it named five rows in three policies minting positions the grammar
- *  cannot hold (`no-raw-color-in-css` mustFlag[1] `oklch(0.5 0.2 30)`, ORDINARY · `no-tailwind-dark-variant`
- *  mustFlag[13]/[14], ORDINARY · `rest-transform-grid` mustFlag[4]/[6], hard and therefore latent). Owner
- *  ruling #2107 (2026-09-12) took neither "narrow the anchor" nor "widen the grammar" but the arm the law
- *  already described (guide §2.1): the value stays the CARRIER and moves into the MESSAGE, while the COORDINATE
- *  narrows to its leading paren-free slice through `waivableCoordinate`. Those three landed FIRST, in this
- *  commit, so the fence goes up on a tree where nothing correct reds.
- *
- *  It is a THROW rather than a silent drop because a policy that cannot express its own position has a defect
- *  in its ANCHORING, not in its subject, and `lib/caught-failure.ts` is the worked answer (`anchorWithin` /
- *  `calleeAnchorCandidates` / `firstAnchor` / `catchAnchor` take the widest candidate the grammar can hold and
- *  fall back to the member NAME when a chain spans lines). A policy needing an exact-slice position CONSUMES
- *  that; it never re-derives one. The fence binds regardless of AUTHORITY: a hard policy's findings are
- *  unwaivable anyway, but authority is a field an owner can change, and a position minted under `hard` would
- *  become silently unanswerable the day it flips — which is exactly why `rest-transform-grid` was repaired
- *  alongside the two ordinary ones instead of being left as a declared limit. */
+// A reported position must remain expressible by the exact waiver grammar, regardless of authority.
 function assertWaivablePosition(token: string, label: string): string {
   if (!isWaivablePosition(token)) {
     throw new Error(
@@ -178,9 +154,7 @@ function assertCoordinate(value: number | undefined, label: string): number {
 function makeCapabilityContext(input: CapabilityContextInput): FactContextRuntime {
   const files = Object.freeze([...input.files]);
   const resourcePaths = Object.freeze([...input.resourcePaths]);
-  // Per-owner path tables are LOOKUPS into the pass's one resolution: `relativePath` runs on every visited
-  // node (56 policy call sites + every `report.node`), and re-deriving `relative(resolve(root), …)` plus the
-  // identity asserts there was ~7 s of a 46 s composed pass (node:path 5.3 s + the asserts, profiled 2026-09-06).
+  // Reuse the pass-owned source identities rather than resolving paths per node.
   const pathByIdentity = new Map<object, string>(
     files.map((candidate) => {
       const path = input.paths.get(candidate.compilerNode);
@@ -309,31 +283,7 @@ export function makeFactContext(input: CapabilityContextInput): FactContextRunti
   return { ...runtime, context: Object.freeze({ ...runtime.context, input: input.factInput ?? [] }) };
 }
 
-/** WHY A REFUSED FILE IS REFUSED, when the answer is the policy's OWN declared provider (#1976).
- *
- *  A shared fact's population is the UNION of its consumers' by construction — `tuple-vocabulary-fact.ts`
- *  declares `@client`+`@server`+`@contracts` and is read by four policies each strictly narrower — so the
- *  value a policy receives routinely carries nodes from files the policy may not NAME. Ask `ctx.relativePath`
- *  about one and the pass THROWS and withholds the whole policy: correct (a finding outside the population
- *  would be unanchorable), fail-closed, and completely silent about the cause. Three independent workarounds
- *  for it already exist on the tree — `chrome-registry-completeness.ts:87` and `warning-code-coverage.ts:176`
- *  route through `lib/declaration-home.ts`, and `lib/role-vocabulary.ts` `vocabularyAtHome` hand-rolls an
- *  absolute-path infix for the same reason — which is the evidence the class is real and was unnamed.
- *
- *  So the refusal now DIAGNOSES rather than merely refusing. The message KEEPS its measured prefix (the
- *  before/after pair in `warning-code-coverage.ts:167-170` quotes it) and appends the fact that admits the
- *  file plus the reader that answers it. A containment REQUIREMENT in the other direction was considered and
- *  refused: `fact.population ⊆ policy.population` is false for all four live consumers and would make a
- *  shared primitive index unshareable. */
-/** THE THREE DOORS THAT REFUSE AN OUT-OF-POPULATION PATH, spelled as the author would type them.
- *
- *  #2250 (cb-v-wave-6): the #1976 diagnosis closed with a HARD-CODED *"never with ctx.relativePath"* and
- *  `factWidening(...)` appended it verbatim to the `sourceFile` and `report.file` refusals too — so a policy
- *  that called `ctx.sourceFile(path)` was told not to use a function it never called, which is §5b criterion 2
- *  (the message is TRUE of what the code does) failing on a REMEDY. The remedy half of the sentence is the
- *  part an author acts on, so it names the door that actually threw. The `relativePath` wording is unchanged
- *  by construction — that arm passes its own name — which keeps the measured before/after pair quoted in
- *  `warning-code-coverage.ts:167-170` intact. */
+// Provider populations can be wider; diagnose their declaration home without widening report admission.
 const POPULATION_DOOR = { relativePath: "ctx.relativePath", sourceFile: "ctx.sourceFile", reportFile: "ctx.report.file" } as const;
 type PolicyPopulationDoor = (typeof POPULATION_DOOR)[keyof typeof POPULATION_DOOR];
 
@@ -353,6 +303,9 @@ function factWideningDiagnosis(policy: GatePolicy): (repoRelativePath: string, d
 
 /** Construct one invocation-local policy context. No internal Project/root reference is exposed on it. */
 export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
+  let supported = 0;
+  let analyzed = false;
+  const gaps: StructureAnalysisCoverage["unknown"][number][] = [];
   const capability = makeCapabilityContext({
     ownerId: input.policy.id,
     analysis: input.policy.analysis,
@@ -381,6 +334,20 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
       throw new Error(`${POLICY_PASS_REFUSALS.sourcePathOutsidePopulation}: ${path}${factWidening(path, POPULATION_DOOR.sourceFile)}`);
     }
     return capability.context.sourceFile(path);
+  };
+  const reportAnalysis = (node: Node, details: GatePolicyAnalysisDetails): void => {
+    const file = relativePath(node.getSourceFile());
+    exactKeys(details, new Set(details.kind === "supported" ? ["kind"] : ["kind", "reason"]), "analysis detail");
+    analyzed = true;
+    if (details.kind === "supported") {
+      supported += 1;
+      return;
+    }
+    const reason = requiredText(details.reason, "analysis reason");
+    const authored = node.getText();
+    const position = isWaivablePosition(authored) ? { token: authored, offset: 0 } : derivedNodePosition(node);
+    const at = node.getSourceFile().getLineAndColumnAtPos(node.getStart() + position.offset);
+    gaps.push({ file, line: at.line, column: at.column, token: position.token, reason });
   };
   const reportNode = (node: Node, rawDetails?: GatePolicyNodeFindingDetails): void => {
     const details = rawDetails ?? {};
@@ -460,11 +427,18 @@ export function makePolicyContext(input: ContextInput): PolicyContextRuntime {
     relativePath,
     sourceFile,
     fact,
-    report: Object.freeze({ node: reportNode, file: reportFile }),
+    report: Object.freeze({ node: reportNode, file: reportFile, analysis: reportAnalysis }),
   });
   return {
     ...capability,
     context,
+    finishAnalysis: () =>
+      analyzed
+        ? {
+            supported,
+            unknown: gaps.toSorted((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column || a.reason.localeCompare(b.reason)),
+          }
+        : undefined,
     unconsumedFacts: () =>
       input.policy.facts
         .map(factProvider)
