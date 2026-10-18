@@ -5,7 +5,7 @@ import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
-import type { NativeHttpBindings } from "./contract/http-server.ts";
+import type { DrainLog, NativeHttpBindings } from "./contract/http-server.ts";
 
 // The installed adapter's lightweight Request has the platform prototype but not its private brand.
 // Materialize from public fields, not Request(input), and retain its one physical body without a tee.
@@ -148,11 +148,6 @@ interface ConnectionCloser {
 function connectionCloser(handle: ServerType): ConnectionCloser | null {
   const candidate = handle as Partial<ConnectionCloser>;
   return typeof candidate.closeIdleConnections === "function" && typeof candidate.closeAllConnections === "function" ? (candidate as ConnectionCloser) : null;
-}
-
-/** The minimal logger shape {@link drainHttpServer} needs — real `getLog()` in production, a spy in tests. */
-interface DrainLog {
-  readonly warn: (fields: Record<string, unknown>, msg: string) => void;
 }
 
 /** Stop accepting, then drain — WITH A DEADLINE.

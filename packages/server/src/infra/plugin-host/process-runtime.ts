@@ -57,6 +57,7 @@ import {
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
   PLUGIN_SNIPPET_RUNTIME_MAX,
 } from "./budgets.ts";
+import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type {
   CreateInstanceInputIn,
   CreateInstanceOutcomeOut,
@@ -66,7 +67,6 @@ import type {
   SnippetRunOut,
 } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
-import type { PluginNetEgress } from "./net-egress.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";

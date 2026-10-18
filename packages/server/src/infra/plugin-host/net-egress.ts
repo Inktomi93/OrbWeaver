@@ -7,21 +7,7 @@ import type { SafeFetchOptions, ScopedEgress } from "../network/contract/egress.
 import { safeFetch } from "../network/egress.ts";
 import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import { HOST_FN_DEADLINE_MS, PLUGIN_ASSET_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
-import type { PluginNetResponse } from "./contract/net-egress.ts";
-
-// @orb-waive no-inline-package-interface(PluginNetEgress): baselined when the gate landed; burn-down item 952.
-/** The membrane's egress seam. `init` is the guest's raw (already dumped) request init; only GET/POST, a
- *  string-valued header map and a string body survive into the request. */
-export interface PluginNetEgress {
-  readonly fetch: (url: string, init: unknown, liveness: PluginInvocationLiveness) => Promise<PluginNetResponse>;
-  readonly fetchAsset: (
-    url: string,
-    liveness: PluginInvocationLiveness,
-  ) => Promise<{
-    // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly assetId: string;
-  }>;
-}
+import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 
 // @orb-waive no-inline-package-interface(PluginEgressBridge): baselined when the gate landed; burn-down item 952.
 /** The only domain closures egress reaches: the two hourly belts and the installer's CAS store. */
@@ -118,5 +104,3 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   }
   return Object.values(value).every((v) => typeof v === "string");
 }
-
-export type { PluginNetResponse } from "./contract/net-egress.ts";

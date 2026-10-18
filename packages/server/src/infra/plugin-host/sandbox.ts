@@ -36,10 +36,10 @@ import type {
 } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
+import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
-import type { PluginNetEgress } from "./net-egress.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";

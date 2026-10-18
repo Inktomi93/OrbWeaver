@@ -75,9 +75,9 @@ import {
   PLUGIN_DUMP_NODE_GUARD,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
+import type { PluginNetEgress } from "./contract/net-egress.ts";
 import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
-import type { PluginNetEgress } from "./net-egress.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 
