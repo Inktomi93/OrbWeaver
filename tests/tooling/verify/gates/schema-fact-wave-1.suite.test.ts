@@ -18,6 +18,7 @@ import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/
 import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
+import { drizzleSchemaDataFact } from "../../../../tooling/src/verify/lib/schema-fact.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -85,22 +86,14 @@ const PROBE = "packages/db/src/schema/probe.ts";
 const OWN_TABLES_SOURCE = "tooling/src/verify/gates/own-tables-only.ts";
 const STALE_FILE_PREFIX = "FILE_ALLOWLIST row for a file with NO foreign table import left (ratchet down) — delete it in own-tables-only.ts: ";
 
-function runConsumer(files: Readonly<Record<string, string>>): PolicyPassResult {
-  const project = new Project({ useInMemoryFileSystem: true });
-  for (const [path, content] of Object.entries(files)) {
-    project.createSourceFile(`${VIRTUAL_ROOT}/${path}`, content);
-  }
-  return runPolicyPass({ knownPolicies: [schemaBranding], policies: [schemaBranding], root: VIRTUAL_ROOT, project, reviewedGrants: [], failOnWarnings: false });
-}
-
 describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (schema-fact-health RETIRED, #1948; phase moved #1962)", () => {
   test("a schema population with no canonical Drizzle table: the census is DELIVERED and its consumer refuses on it", () => {
-    const result = runConsumer({ [PROBE]: "export const noSchemaTable = true;\n" });
+    const result = consumerPass(schemaBranding, { [PROBE]: "export const noSchemaTable = true;\n" });
     // The provider SUCCEEDS: it walked one authored schema source and says so. Emptiness is the fact's own
     // modelled status, which is exactly what makes `freeze-provenance-write-pairing-health` able to REPORT
     // this corpus instead of dying on it (#1962).
     expect(result.factErrors).toEqual([]);
-    expect(result.facts[0]).toMatchObject({ id: "drizzle-schema", status: "success", receipts: [{ source: "drizzle-schema-sources", members: 1 }] });
+    expect(result.facts[0]).toMatchObject({ id: drizzleSchemaDataFact.id, status: "success", receipts: [{ source: "drizzle-schema-sources", members: 1 }] });
     expect(result.toolErrors).toEqual([
       expect.objectContaining({
         policyId: "schema-branding",
@@ -113,7 +106,7 @@ describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (s
   });
 
   test("an impostor builder leaves the census unresolved: the consumer refuses, no manufactured evidence", () => {
-    const result = runConsumer({
+    const result = consumerPass(schemaBranding, {
       [PROBE]:
         'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
         "const fake = { primaryKey: (value: unknown) => value };\n" +
@@ -128,7 +121,7 @@ describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (s
   });
 
   test("the healthy control: a resolved census reaches the consumer and it runs to a verdict", () => {
-    const result = runConsumer({
+    const result = consumerPass(schemaBranding, {
       [PROBE]: 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const probe = sqliteTable("probe", { id: text("id").primaryKey() });\n',
     });
     expect(result.factErrors).toEqual([]);
