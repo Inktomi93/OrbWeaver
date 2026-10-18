@@ -280,10 +280,11 @@ function createInventoryReader(
     if (existing !== undefined && !existing.wasForgotten()) {
       return existing;
     }
-    const leaf = sf.getDescendantAtPos(span.start);
-    const node = [sf, leaf, ...(leaf?.getAncestors() ?? [])].find(
-      (candidate) => candidate?.getStart() === span.start && candidate.getEnd() === span.end && candidate.getKind() === span.kind,
-    );
+    let node: Node | undefined = sf;
+    // Native DocumentSpan selection can return SyntaxLists, which are children but absent from parent ancestry.
+    while (node !== undefined && !(node.getStart() === span.start && node.getEnd() === span.end && node.getKind() === span.kind)) {
+      node = node.getChildAtPos(span.start);
+    }
     if (node === undefined) {
       throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${spanKey(span)}`);
     }
