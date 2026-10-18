@@ -19,8 +19,8 @@ A gate that cannot complete over the client world gives no verdict, and a standa
 
 ## Done when
 
-The focused run completes over the client world within the default worker heap on this box, with peak memory measured, and the cost fix lives in the shared inventory reader (965/1002), not in a heap raise or a population cut.
+A focused run on the client world completes within the default worker heap, and a focused run's evaluate step stays inside the hosted-runner budget item 965 sets. The cost fix lives in the shared reader and fact queries (965/1002), not in a heap raise or a population cut.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Measured by claude-b's 1049 lane. A single-file focused run (`packages/kit/src/time/index.ts`, 6 markers) took 127.5 s, of which evaluate was 91.4 s; the CLI peaked at 3.1 GB and the semantic-inventory worker at 470 MB over 11 s, in one world. Nine kit files did not finish in 900 s; two client census files finished in 216 s (evaluate 190 s, 4.4 GB). A 298-file run passed 83 minutes without writing an artifact. Cost is roughly linear at about 90 s per file in the CLI evaluate step (reader and native fact queries), separate from the client-world heap exhaustion. Artifacts: lane worktree `agent-a4bd93033f54dc368`, `reports/cb-1049-mine/` and `reports/runs/structure/`.
