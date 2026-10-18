@@ -21,14 +21,14 @@ test("a second corpus human opens shared history without gaining host or admin c
     throw new Error("Shared corpus smoke requires its captured human, room and run-owned password");
   }
   const member = await loginLocal(baseURL ?? "", human.handle, password);
-  await member.mutation("settings.updateUserSettingsSection", {
+  await member.trpc.settings.updateUserSettingsSection.mutate({
     section: "appearance",
     patch: { chatStyle: z.enum(THEME_CHAT_STYLES).parse(info.project.metadata["chatStyle"]) },
   });
-  const detail = await member.query("chat.getChat", { chatId: room.id });
+  const detail = await member.trpc.chat.getChat.query({ chatId: room.id });
   expect(detail.viewerUserId).toBe(human.userId);
   expect(detail.viewerIsHost).toBe(false);
-  const history = await member.query("chat.listMessages", { chatId: room.id, limit: 30 });
+  const history = await member.trpc.chat.listMessages.query({ chatId: room.id, limit: 30 });
   const last = history.messages.findLast((message) => message.content.trim().length > 0);
   if (last === undefined) {
     throw new Error("Shared corpus room has no visible history");
@@ -38,7 +38,10 @@ test("a second corpus human opens shared history without gaining host or admin c
     {
       characterNamesById: new Map<CharacterId, RowCharacterName>(),
       personaNamesById: new Map<PersonaId, RowPersonaName>(),
-      displayScripts: [...(await member.query("regex.listRoomDisplayScripts", { chatId: room.id })), ...(await member.query("regex.listScripts", undefined))],
+      displayScripts: [
+        ...(await member.trpc.regex.listRoomDisplayScripts.query({ chatId: room.id })),
+        ...(await member.trpc.regex.listScripts.query(undefined)),
+      ],
     },
     last.characterId,
     last.personaId,

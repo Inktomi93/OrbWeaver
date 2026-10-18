@@ -49,13 +49,13 @@ export const test = base.extend({
     const localPassword = CORPUS_LOCAL_PASSWORDS.owner;
     const client =
       info.project.metadata["authMode"] === "local" && owner !== undefined && localPassword !== undefined
-        ? await loginLocal(baseURL ?? "", viewerViewSchema.parse(owner).handle, localPassword)
+        ? (await loginLocal(baseURL ?? "", viewerViewSchema.parse(owner).handle, localPassword)).trpc
         : createTrpcClient(baseURL ?? "");
-    await client.mutation("settings.updateUserSettingsSection", { section: "appearance", patch: { chatStyle } });
+    await client.settings.updateUserSettingsSection.mutate({ section: "appearance", patch: { chatStyle } });
     await openConfigGroup(page, "appearance");
     const radio = page.getByRole("radio").filter({ has: page.locator(`[data-chat-style="${chatStyle}"]`) });
     await expect(radio).toBeChecked();
-    expect((await client.query("settings.getUserSettings", undefined)).config.appearance.chatStyle).toBe(chatStyle);
+    expect((await client.settings.getUserSettings.query(undefined)).config.appearance.chatStyle).toBe(chatStyle);
     await page.goto("/home");
     await waitForAppReady(page);
     await use(page);

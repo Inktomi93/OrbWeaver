@@ -53,9 +53,9 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   if (character === undefined) {
     throw new Error("Corpus has no library character");
   }
-  const started = await host.mutation("chat.startChat", { characterIds: [character] });
+  const started = await host.trpc.chat.startChat.mutate({ characterIds: [character] });
   const chatId = started.chat.id;
-  const initial = await host.query("chat.getChat", { chatId });
+  const initial = await host.trpc.chat.getChat.query({ chatId });
   const persona = corpus().reads["persona.list"][0]?.output.find(({ id }) => id !== initial.viewerActivePersonaId);
   if (persona === undefined) {
     throw new Error("Corpus has no alternate persona");
@@ -64,7 +64,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
   let restore: (() => Promise<void>) | undefined;
   try {
     restore = await configureCustomProvider(host, fixture.baseUrl, "fixture-corpus-actions");
-    await host.mutation("chat.updateTitle", { chatId, title: TITLE });
+    await host.trpc.chat.updateTitle.mutate({ chatId, title: TITLE });
     await openChatByTitle(page, TITLE);
     const sent = page.waitForResponse((response) => response.request().method() === "POST" && response.url().includes("chat.send"));
     await typeAndSend(page.getByRole("textbox", { name: "Message", exact: true }), PROMPT);
@@ -107,7 +107,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await expect(pin).toHaveAttribute("aria-pressed", "true");
     await expect
       .poll(async () => {
-        const chat = await host.query("chat.getChat", { chatId });
+        const chat = await host.trpc.chat.getChat.query({ chatId });
         return [chat.viewerActivePersonaId, chat.anchorPersonaId];
       })
       .toEqual([persona.id, persona.id]);
@@ -119,7 +119,7 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await expect(page.locator('[data-slot="ghost-message-row"]')).toContainText(SWITCHED.prefix);
     fixture.release(2);
     await expect(assistant).toContainText(SWITCHED.prefix + SWITCHED.suffix);
-    const user = (await host.query("chat.listMessages", { chatId, limit: 30 })).messages.find(
+    const user = (await host.trpc.chat.listMessages.query({ chatId, limit: 30 })).messages.find(
       (message) => message.role === "user" && message.content === SWITCHED.userMessage,
     );
     expect(user?.personaId).toBe(persona.id);
@@ -132,11 +132,11 @@ test("a corpus character supports swipe selection, edit save/cancel, persona swi
     await expect(page.getByRole("button", { name: `${persona.name} — current persona`, exact: true })).toBeVisible();
     await expect(pin).toHaveAttribute("aria-pressed", "true");
     await pin.click();
-    await expect.poll(async () => (await host.query("chat.getChat", { chatId })).anchorPersonaId).toBeNull();
+    await expect.poll(async () => (await host.trpc.chat.getChat.query({ chatId })).anchorPersonaId).toBeNull();
   } finally {
     await fixture.close();
     await restore?.();
-    await host.mutation("chat.delete", { chatId });
+    await host.trpc.chat.delete.mutate({ chatId });
   }
 });
 
@@ -147,12 +147,12 @@ test("the corpus character gallery opens native image bytes", { tag: "@smoke" },
   if (characterId === undefined) {
     throw new Error("Corpus has no gallery character");
   }
-  const character = await host.query("character.get", { characterId });
-  const images = await host.query("assets.listGallery", { subjectCharacterId: characterId, limit: 50 });
+  const character = await host.trpc.character.get.query({ characterId });
+  const images = await host.trpc.assets.listGallery.query({ subjectCharacterId: characterId, limit: 50 });
   expect(images.length).toBeGreaterThan(0);
-  const room = await host.mutation("chat.startChat", { characterIds: [characterId] });
+  const room = await host.trpc.chat.startChat.mutate({ characterIds: [characterId] });
   try {
-    await host.mutation("chat.updateTitle", { chatId: room.chat.id, title: "Corpus gallery room" });
+    await host.trpc.chat.updateTitle.mutate({ chatId: room.chat.id, title: "Corpus gallery room" });
     await openChatByTitle(page, "Corpus gallery room");
     await openChatOptions(page);
     await page.getByRole("menuitem", { name: `${character.name}'s gallery`, exact: true }).click();
@@ -164,6 +164,6 @@ test("the corpus character gallery opens native image bytes", { tag: "@smoke" },
     const src = await image.getAttribute("src");
     expect(images.some((item) => new URL(src ?? "", baseURL).pathname === blobUrl(item.hash))).toBeTruthy();
   } finally {
-    await host.mutation("chat.delete", { chatId: room.chat.id });
+    await host.trpc.chat.delete.mutate({ chatId: room.chat.id });
   }
 });

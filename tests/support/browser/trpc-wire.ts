@@ -19,7 +19,8 @@ type ProcedurePaths<TRecord> = {
       : never;
 }[keyof TRecord & string];
 
-type ProcedureAt<TRecord, TPath extends string> = TPath extends `${infer Head}.${infer Tail}`
+/** Look up a dotted procedure in a router record or its native client decoration. */
+export type ProcedureAt<TRecord, TPath extends string> = TPath extends `${infer Head}.${infer Tail}`
   ? Head extends keyof TRecord
     ? ProcedureAt<TRecord[Head], Tail>
     : never

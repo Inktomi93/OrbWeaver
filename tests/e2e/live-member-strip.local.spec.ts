@@ -43,35 +43,35 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
   const host = ownerActor(origin);
 
   // Fresh spec-owned character (idempotent across crashed runs — remove any prior, then re-mint chatless).
-  const priorList = await host.query("character.list", {});
+  const priorList = await host.trpc.character.list.query({});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
-    await host.mutation("character.remove", { characterId: prior.id });
+    await host.trpc.character.remove.mutate({ characterId: prior.id });
   }
-  const character = await host.mutation("character.create", {
+  const character = await host.trpc.character.create.mutate({
     input: { handle: CARD_HANDLE, name: "Thornwick", description: "e2e member-strip probe", greetings: [{ text: "The lantern gutters." }] },
   });
 
   try {
     // HOST: a lite game with deception active + a planted lie in the greeting canon row.
-    const started = await host.mutation("chat.startChat", { characterIds: [character.id] });
+    const started = await host.trpc.chat.startChat.mutate({ characterIds: [character.id] });
     const chatId = started.chat.id;
-    await host.mutation("rpg.createGame", { chatId, mode: "lite" });
-    await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
-    expect((await host.query("rpg.getConfigView", { chatId })).deception).toBe(true);
+    await host.trpc.rpg.createGame.mutate({ chatId, mode: "lite" });
+    await host.trpc.rpg.updateConfig.mutate({ chatId, patch: { deception: true, hiddenContentReveal: true } });
+    expect((await host.trpc.rpg.getConfigView.query({ chatId })).deception).toBe(true);
 
-    const canon = await host.query("chat.listMessages", { chatId });
+    const canon = await host.trpc.chat.listMessages.query({ chatId });
     const greeting = canon.messages.find((m) => m.role === "assistant");
     expect(greeting).toBeDefined();
     const greetingId = greeting?.id ?? "";
-    await host.mutation("chat.editMessage", { chatId, timeZone: UTC_TIME_ZONE, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
+    await host.trpc.chat.editMessage.mutate({ chatId, timeZone: UTC_TIME_ZONE, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
 
     // MEMBER: log in + join the chat (createInvite → redeemInvite).
     const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // ── ASSERTION 1 (MEMBER-STRIP): the member's serialized listMessages payload carries ZERO hidden bytes.
-    const memberPage = await member.query("chat.listMessages", { chatId });
+    const memberPage = await member.trpc.chat.listMessages.query({ chatId });
     const memberWire = JSON.stringify(memberPage);
     expect(memberWire).not.toContain(LIE_TRUTH); // the truth is server-stripped, not client-hidden
     expect(memberWire).not.toContain("<lie"); // the whole hidden span is gone, tag and all
@@ -80,13 +80,13 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
     expect(memberGreeting?.content).toContain("Just a traveller");
 
     // ── ASSERTION 2 (HOST REVEAL): the host sees the truth via the reveal eye + reads the raw body verbatim.
-    const reveal = await host.query("rpg.revealHidden", { chatId });
+    const reveal = await host.trpc.rpg.revealHidden.query({ chatId });
     const thornwickLies = reveal.standingLies.find((g) => g.character === "Thornwick");
     expect(thornwickLies?.lies.some((l) => l.truth === LIE_TRUTH)).toBe(true);
 
-    const hostPage = await host.query("chat.listMessages", { chatId });
+    const hostPage = await host.trpc.chat.listMessages.query({ chatId });
     expect(hostPage.messages.find((m) => m.id === greetingId)?.content).toContain(LIE_TRUTH);
   } finally {
-    await host.mutation("character.remove", { characterId: character.id });
+    await host.trpc.character.remove.mutate({ characterId: character.id });
   }
 });
