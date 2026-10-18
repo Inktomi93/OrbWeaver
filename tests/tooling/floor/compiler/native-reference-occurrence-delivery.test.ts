@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -20,14 +21,38 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   writeFileSync(join(root, ".gitignore"), ".cache/\nvendor/\n");
   writeFileSync(join(root, "vendor/a.ts"), "export interface Item {value:number}\n");
   writeFileSync(join(root, "vendor/b.ts"), "export interface Item {value:number;other?:string}\n");
-  writeFileSync(join(root, "vendor/index.ts"), "export {Item} from './a';\n");
+  writeFileSync(join(root, "vendor/index.ts"), "export {Item} from './a';export type {Extra} from './missing';\n");
+  writeFileSync(join(root, "contracts.ts"), "export interface Local {value:number}\n");
+  for (const directory of ["packages/kit/src", "packages/client/src", "scripts"]) {
+    mkdirSync(join(root, directory), { recursive: true });
+  }
+  writeFileSync(join(root, "packages/kit/src/a.ts"), "export const shaped={n:1};export const runtime={n:2};export const witnessed=3;export const unused=4;\n");
+  writeFileSync(join(root, "packages/kit/src/barrel.ts"), "export {shaped as Renamed,runtime} from './a';\n");
+  writeFileSync(
+    join(root, "packages/client/src/use.ts"),
+    "import {Renamed,runtime} from '@fixture/api';import {missing} from './absent';export type Shape=typeof Renamed;export const used=runtime;export const unresolved=missing;\n",
+  );
+  writeFileSync(
+    join(root, "scripts/tool.ts"),
+    "const witness='witnessed' satisfies keyof typeof import('../packages/kit/src/a');export const checked=witness;\n",
+  );
   writeFileSync(
     join(root, "consumer.ts"),
-    "import type {Item} from './vendor/index';export function read(seed:Item){const local:Item=seed;const unused=0;const shorthand={local};return [local,shorthand.local];}\n",
+    "import type {Item,Extra} from './vendor/index';import type {Local} from './contracts';export type ExtraAlias=Extra;export function read(seed:Item){const local:Item=seed;const unused=0;const record:Local={value:seed.value};record.value;const shorthand={local};return [local,shorthand.local];}\n",
   );
   writeFileSync(
     join(root, "tsconfig.json"),
-    JSON.stringify({ files: ["consumer.ts"], compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" } }),
+    JSON.stringify({
+      files: ["consumer.ts", "contracts.ts", "packages/kit/src/a.ts", "packages/kit/src/barrel.ts", "packages/client/src/use.ts", "scripts/tool.ts"],
+      compilerOptions: {
+        noLib: true,
+        types: [],
+        target: "ES2022",
+        module: "ESNext",
+        moduleResolution: "Bundler",
+        paths: { "@fixture/api": ["./packages/kit/src/barrel.ts"] },
+      },
+    }),
   );
   execFixtureGit(root, ["init", "-q"]);
   const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
@@ -86,7 +111,7 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
   expect(source.split(point)).toHaveLength(2);
   writeFileSync(
     extract,
-    `import {appendFileSync as observeOccurrences} from 'node:fs';\n${source.replace(point, `  observeOccurrences(${JSON.stringify(join(root, ".cache/occurrence-coverage.jsonl"))},JSON.stringify(occurrences?.map((answer)=>answer.kind)??[])+'\\n');\n${point}`)}`,
+    `import {appendFileSync as observeOccurrences} from 'node:fs';\n${source.replace(point, `  observeOccurrences(${JSON.stringify(join(root, ".cache/occurrence-coverage.jsonl"))},JSON.stringify(occurrences?.map((answer,index)=>({kind:answer.kind,declarationKind:declarations[index]?.declaration.kind}))??[])+'\\n');\n${point}`)}`,
   );
   const entry = join(implementation, "tests/support/node/native-reference-occurrence-delivery-child.mjs");
   mkdirSync(dirname(entry), { recursive: true });
@@ -99,26 +124,35 @@ test("indexed occurrence generations preserve dependency invalidation overlay pi
     root,
     result,
   ]);
-  expect(completed.status, completed.stderr).toBe(0);
+  expect(completed.status, completed.stdout + completed.stderr).toBe(0);
   const observed = z
     .object({
-      coverage: z.array(z.array(z.enum(["indexed", "native"]))),
+      coverage: z.array(z.array(z.object({ kind: z.enum(["indexed", "native"]), declarationKind: z.number() }))),
       before: z.object({ origins: z.array(z.string()), zero: z.array(z.never()) }),
       now: z.object({ origins: z.array(z.string()) }),
       warmReused: z.boolean(),
       dependencyInvalidated: z.boolean(),
+      negativeInvalidated: z.boolean(),
       historicalPinsUnchanged: z.boolean(),
       disposed: z.boolean(),
       publicationUnchanged: z.boolean(),
     })
     .parse(JSON.parse(readFileSync(result, "utf8")));
-  expect(observed).toMatchObject({ warmReused: true, dependencyInvalidated: true, historicalPinsUnchanged: true, disposed: true, publicationUnchanged: true });
+  expect(observed).toMatchObject({
+    warmReused: true,
+    dependencyInvalidated: true,
+    negativeInvalidated: true,
+    historicalPinsUnchanged: true,
+    disposed: true,
+    publicationUnchanged: true,
+  });
   expect(observed.before.zero).toEqual([]);
   expect(observed.before.origins).toEqual([join(root, "vendor/a.ts")]);
   expect(observed.now.origins).toEqual([join(root, "vendor/b.ts")]);
-  expect(observed.coverage).toHaveLength(3);
+  expect(observed.coverage).toHaveLength(4);
   for (const coverage of observed.coverage) {
-    expect(coverage.filter((kind) => kind === "indexed").length).toBeGreaterThan(0);
-    expect(coverage.filter((kind) => kind === "native").length).toBeGreaterThan(0);
+    expect(coverage.some(({ kind, declarationKind }) => kind === "indexed" && declarationKind === SyntaxKind.PropertySignature)).toBe(true);
+    expect(coverage.some(({ kind, declarationKind }) => kind === "indexed" && declarationKind === SyntaxKind.PropertyAssignment)).toBe(true);
+    expect(coverage.some(({ kind, declarationKind }) => kind === "indexed" && declarationKind === SyntaxKind.InterfaceDeclaration)).toBe(true);
   }
 });

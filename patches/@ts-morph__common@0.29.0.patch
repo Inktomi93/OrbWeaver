@@ -19,7 +19,7 @@ index 5af00c34c0dd35cf9436f09040219463a487033e..c30c63c59bbfd46e6690811bfbc67b7a
          realpath: languageServiceHost.realpath,
      };
 diff --git a/dist/typescript.js b/dist/typescript.js
-index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11cacc2b411 100644
+index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..59252aebf60955056345b5b580c7bcc59e9714d2 100644
 --- a/dist/typescript.js
 +++ b/dist/typescript.js
 @@ -153369,6 +153369,7 @@ var invalidOperationsInSyntacticMode = [
@@ -243,7 +243,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
 +    }, (queries) => {
 +      validateSnapshot();
 +      for (const query of queries) validateSource(query.fileName);
-+      const answers = Core.getReferenceOccurrencesForQueries(queries, snapshotProgram, cancellationToken, getReferenceLocation);
++      const answers = Core.getReferenceOccurrencesForQueries(queries, snapshotProgram, cancellationToken, getReferenceLocation, getDirectImports);
 +      for (const query of queries) validateSource(query.fileName);
 +      validateSnapshot();
 +      return answers;
@@ -354,82 +354,95 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
    return { displayParts, kind: symbolKind };
  }
  function toRenameLocation(entry, originalNode, checker, providePrefixAndSuffixText, quotePreference) {
-@@ -173590,6 +173788,74 @@ function declarationIsWriteAccess(decl) {
+@@ -173590,6 +173788,87 @@ function declarationIsWriteAccess(decl) {
  }
  var Core;
  ((Core2) => {
-+  function getReferenceOccurrencesForQueries(queries, program, cancellationToken, getReferenceLocation) {
-+    const checker = program.getTypeChecker();
++  function getReferenceOccurrencesForQueries(queries, program, cancellationToken, getReferenceLocation, getDirectImports) {
 +    const sources = program.getSourceFiles();
-+    const sourceSet = new Set(sources.map((source) => source.fileName));
-+    const bySource = /* @__PURE__ */ new Map();
-+    const selected = queries.map((query) => {
++    const admitted = new Set(sources);
++    const rosters = /* @__PURE__ */ new Map();
++    let nameCount = 0;
++    let positionCount = 0;
++    let nameUnits = 0;
++    let indexed = false;
++    let used = false;
++    const getPositions = (source, name, container, compute) => {
++      const native = () => {
++        indexed = false;
++        return compute(source, name, container);
++      };
++      if (!name || !admitted.has(source) || isInJSFile(source)) return native();
++      let roster = rosters.get(source);
++      if (roster === void 0) {
++        const pending = /* @__PURE__ */ new Map();
++        let pendingPositions = 0;
++        let pendingUnits = 0;
++        let complete = rosters.size < maximumReadonlyReferenceNames;
++        const visit = (node) => {
++          cancellationToken.throwIfCancellationRequested();
++          if (!complete) return;
++          if (isIdentifier(node) || isPrivateIdentifier(node) || isStringLiteralLike(node) || isNumericLiteral(node) || node.kind === 90 /* DefaultKeyword */) {
++            const text = node.kind === 90 /* DefaultKeyword */ ? "default" : node.text;
++            const start = node.getStart(source) + (isStringLiteralLike(node) ? 1 : 0);
++            const end = start + text.length;
++            // Escaped spellings retain the native raw-position provider rather than certifying decoded candidates.
++            if (source.text.slice(start, end) !== text) {
++              complete = false;
++              return;
++            }
++            if ((start === 0 || !isIdentifierPart(source.text.charCodeAt(start - 1), 99 /* Latest */)) && (end === source.text.length || !isIdentifierPart(source.text.charCodeAt(end), 99 /* Latest */))) {
++              let positions = pending.get(text);
++              if (!positions) {
++                if (nameCount + pending.size >= maximumReadonlyReferenceNames || nameUnits + pendingUnits + text.length > maximumReadonlyReferenceNameUnits) {
++                  complete = false;
++                  return;
++                }
++                pending.set(text, positions = /* @__PURE__ */ new Set());
++                pendingUnits += text.length;
++              }
++              if (!positions.has(start)) {
++                if (positionCount + pendingPositions >= maximumReadonlyReferencePositions) {
++                  complete = false;
++                  return;
++                }
++                positions.add(start);
++                pendingPositions++;
++              }
++            }
++          }
++          for (const child of node.getChildren(source)) visit(child);
++        };
++        visit(source);
++        roster = complete ? new Map([...pending].map(([text, positions]) => [text, [...positions].sort((left, right) => left - right)])) : null;
++        if (complete) {
++          nameCount += pending.size;
++          positionCount += pendingPositions;
++          nameUnits += pendingUnits;
++        }
++        if (rosters.size < maximumReadonlyReferenceNames) rosters.set(source, roster);
++      }
++      if (roster === null) return native();
++      used = true;
++      const positions = roster.get(name) || emptyArray;
++      return container === source ? positions : positions.filter((position) => position >= container.pos && position <= container.end);
++    };
++    return queries.map((query) => {
 +      cancellationToken.throwIfCancellationRequested();
 +      const source = program.getSourceFile(query.fileName);
-+      if (isInJSFile(source)) return void 0;
 +      const node = getReferenceLocation(source, query.position);
-+      const declaration = getDeclarationFromName(node);
-+      if (isThis(node) || !isIdentifier(node) || !declaration || !(isVariableDeclaration(declaration) || isParameter(declaration) || isTypeParameterDeclaration(declaration)) || declaration.name !== node) return void 0;
-+      const symbol = checker.getSymbolAtLocation(node);
-+      if (!symbol || symbol.flags & ~(3 /* Variable */ | 262144 /* TypeParameter */) || !symbol.declarations || !symbol.declarations.every((decl) => (isVariableDeclaration(decl) || isParameter(decl) || isTypeParameterDeclaration(decl)) && isIdentifier(decl.name))) return void 0;
-+      const scope = getSymbolScope(symbol);
-+      if (!scope || !isFunctionLike(scope)) return void 0;
-+      const allSearchSymbols = populateSearchSymbolSet(symbol, node, checker, false, false, false);
-+      if (allSearchSymbols.length !== 1 || allSearchSymbols[0] !== symbol) return void 0;
-+      const state = new State(sources, sourceSet, 0 /* None */, checker, cancellationToken, getIntersectingMeaningFromDeclarations(node, symbol), { use: 1 /* References */, getReferenceLocation }, []);
-+      const entry = { node, symbol, scope, state, search: state.createSearch(node, symbol, void 0, { allSearchSymbols }), unsupported: false };
-+      let searches = bySource.get(source);
-+      if (!searches) bySource.set(source, searches = /* @__PURE__ */ new Map());
-+      const entries = searches.get(entry.search.text) || [];
-+      entries.push(entry);
-+      searches.set(entry.search.text, entries);
-+      return entry;
-+    });
-+    for (const [source, searches] of bySource) {
-+      const positions = /* @__PURE__ */ new Map();
-+      const names = new Set(searches.keys());
-+      const visit = (node) => {
-+        cancellationToken.throwIfCancellationRequested();
-+        if (isIdentifier(node) || isPrivateIdentifier(node) || isStringLiteralLike(node) || isNumericLiteral(node) || node.kind === 90 /* DefaultKeyword */) {
-+          const start = node.getStart(source);
-+          // Native name scans do not admit escaped spellings merely because their decoded text matches.
-+          const offset = isStringLiteralLike(node) ? 1 : 0;
-+          const text = node.kind === 90 /* DefaultKeyword */ ? "default" : node.text;
-+          const position = start + offset;
-+          const end = position + text.length;
-+          if (names.has(text) && source.text.slice(position, end) === text && (position === 0 || !isIdentifierPart(source.text.charCodeAt(position - 1), 99 /* Latest */)) && (end === source.text.length || !isIdentifierPart(source.text.charCodeAt(end), 99 /* Latest */))) positions.set(position, node);
-+        }
-+        for (const child of node.getChildren(source)) visit(child);
-+      };
-+      visit(source);
-+      for (const position of [...positions.keys()].sort((left, right) => left - right)) {
-+        cancellationToken.throwIfCancellationRequested();
-+        const node = getReferenceLocation(source, position);
-+        const symbol = checker.getSymbolAtLocation(node);
-+        if (!symbol) continue;
-+        for (const entry of searches.get(node.kind === 90 /* DefaultKeyword */ ? "default" : node.text) || []) {
-+          if (entry.unsupported || position < entry.scope.pos || position > entry.scope.end || !isValidReferencePosition(node, entry.search.text)) continue;
-+          if (isExportSpecifier(node.parent) || getImportOrExportSymbol(node, symbol, checker, false)) {
-+            entry.unsupported = true;
-+            continue;
-+          }
-+          getReferencesAtLocation(source, position, entry.search, entry.state, true);
-+        }
-+      }
-+    }
-+    return selected.map((entry) => !entry || entry.unsupported ? { kind: "native" } : {
-+      kind: "indexed",
-+      references: entry.state.result.filter((group) => group.definition).map(({ definition, references }) => ({
-+        definition: checker.runWithCancellationToken(cancellationToken, (active) => definitionToReferencedSymbolDefinitionInfo(definition, active, entry.node, false)),
-+        references: references.map((reference) => toReferencedSymbolEntry(reference, entry.symbol))
-+      }))
++      if (isInJSFile(source) || isThis(node) || !isDefinitionForReference(node)) return { kind: "native" };
++      indexed = true;
++      used = false;
++      const references = findReferencedSymbols(program, cancellationToken, sources, source, query.position, false, getDirectImports, getReferenceLocation, getPositions) || emptyArray;
++      return indexed && used ? { kind: "indexed", references } : { kind: "native" };
 +    });
 +  }
 +  Core2.getReferenceOccurrencesForQueries = getReferenceOccurrencesForQueries;
    function getReferencedSymbolsForNode(position, node, program, sourceFiles, cancellationToken, options = {}, sourceFilesSet = new Set(sourceFiles.map((f) => f.fileName))) {
      var _a, _b;
      node = getAdjustedNode2(node, options);
-@@ -174008,7 +174274,7 @@ var Core;
+@@ -174008,7 +174287,7 @@ var Core;
      }
      /** Gets every place to look for references of an exported symbols. See `ImportsResult` in `importTracker.ts` for more documentation. */
      getImportSearches(exportSymbol, exportInfo) {
@@ -438,7 +451,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
        return this.importTracker(exportSymbol, exportInfo, this.options.use === 2 /* Rename */);
      }
      /** @param allSearchSymbols set of additional symbols for use by `includes`. */
-@@ -174317,7 +174583,8 @@ var Core;
+@@ -174317,7 +174596,8 @@ var Core;
      if (!state.markSearchedSymbols(sourceFile, search.allSearchSymbols)) {
        return;
      }
@@ -448,7 +461,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
        getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere);
      }
    }
-@@ -174325,7 +174592,7 @@ var Core;
+@@ -174325,7 +174605,7 @@ var Core;
      return !!(getMeaningFromLocation(referenceLocation) & state.searchMeaning);
    }
    function getReferencesAtLocation(sourceFile, position, search, state, addReferencesHere) {
@@ -457,7 +470,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
      if (!isValidReferencePosition(referenceLocation, search.text)) {
        if (!state.options.implementations && (state.options.findInStrings && isInString(sourceFile, position) || state.options.findInComments && isInNonReferenceComment(sourceFile, position))) {
          state.addStringOrCommentReference(sourceFile.fileName, createTextSpan(position, search.text.length));
-@@ -179062,9 +179329,13 @@ function getSymbolModifiers(typeChecker, symbol) {
+@@ -179062,9 +179342,13 @@ function getSymbolModifiers(typeChecker, symbol) {
    }
    return modifiers.size > 0 ? arrayFrom(modifiers.values()).join(",") : "" /* none */;
  }
@@ -472,7 +485,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
    let documentation = [];
    let tags = [];
    const symbolFlags = getCombinedLocalAndExportSymbolFlags(symbol);
-@@ -179077,7 +179348,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179077,7 +179361,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
    const typeWriterOut = { canIncreaseExpansionDepth: false, truncated: false };
    let symbolWasExpanded = false;
    if (location.kind === 110 /* ThisKeyword */ && !isThisExpression) {
@@ -481,7 +494,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
    }
    if (symbolKind !== "" /* unknown */ || symbolFlags & 32 /* Class */ || symbolFlags & 2097152 /* Alias */) {
      if (symbolKind === "getter" /* memberGetAccessorElement */ || symbolKind === "setter" /* memberSetAccessorElement */) {
-@@ -179157,7 +179428,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179157,7 +179441,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
              displayParts.push(punctuationPart(59 /* ColonToken */));
              displayParts.push(spacePart());
              if (!(getObjectFlags(type) & 16 /* Anonymous */) && type.symbol) {
@@ -490,7 +503,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
                  typeChecker,
                  type.symbol,
                  enclosingDeclaration,
-@@ -179247,7 +179518,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179247,7 +179531,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      displayParts.push(spacePart());
      addRange(
        displayParts,
@@ -499,7 +512,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
          typeChecker,
          location.parent && isConstTypeReference(location.parent) ? typeChecker.getTypeAtLocation(location.parent) : typeChecker.getDeclaredTypeOfSymbol(symbol),
          enclosingDeclaration,
-@@ -179309,7 +179580,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179309,7 +179593,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else if (declaration.kind !== 180 /* CallSignature */ && declaration.name) {
              addFullSymbolName(declaration.symbol);
            }
@@ -508,7 +521,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
          } else if (isTypeAliasDeclaration(declaration)) {
            addInPrefix();
            displayParts.push(keywordPart(156 /* TypeKeyword */));
-@@ -179334,7 +179605,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179334,7 +179618,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        }
      }
    }
@@ -517,7 +530,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
      prefixNextMeaning();
      if (!hasAddedSymbolInfo || documentation.length === 0 && tags.length === 0) {
        const resolvedSymbol = typeChecker.getAliasedSymbol(symbol);
-@@ -179427,7 +179698,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179427,7 +179711,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            displayParts.push(punctuationPart(59 /* ColonToken */));
            displayParts.push(spacePart());
            if (type.symbol && type.symbol.flags & 262144 /* TypeParameter */ && symbolKind !== "index" /* indexSignatureElement */) {
@@ -526,7 +539,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
                const param = typeChecker.typeParameterToDeclaration(
                  type,
                  enclosingDeclaration,
-@@ -179446,7 +179717,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179446,7 +179730,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
            } else {
              addRange(
                displayParts,
@@ -535,7 +548,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
                  typeChecker,
                  type,
                  enclosingDeclaration,
-@@ -179478,6 +179749,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179478,6 +179762,9 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        symbolKind = getSymbolKind(typeChecker, symbol, location);
      }
    }
@@ -545,7 +558,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
    if (documentation.length === 0 && !hasMultipleSignatures) {
      documentation = symbol.getContextualDocumentationComment(enclosingDeclaration, typeChecker);
    }
-@@ -179584,7 +179858,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179584,7 +179871,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
      if (canExpandSymbol(symbol2, typeWriterOut)) {
        const symbolMeaning = semanticToSymbolMeaning(meaning);
@@ -554,7 +567,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
          const nodes = typeChecker.getEmitResolver().symbolToDeclarations(
            symbol2,
            symbolMeaning,
-@@ -179617,11 +179891,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179617,11 +179904,11 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      let fullSymbolDisplayParts = [];
      if (symbolToDisplay.flags & 131072 /* Signature */ && indexInfos) {
        if (symbolToDisplay.parent) {
@@ -568,7 +581,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
          if (i !== indexInfos.length - 1) {
            fullSymbolDisplayParts.push(spacePart());
            fullSymbolDisplayParts.push(punctuationPart(52 /* BarToken */));
-@@ -179630,7 +179904,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179630,7 +179917,7 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
        });
        fullSymbolDisplayParts.push(punctuationPart(24 /* CloseBracketToken */));
      } else {
@@ -577,7 +590,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
          typeChecker,
          symbolToDisplay,
          enclosingDeclaration2 || sourceFile,
-@@ -179673,7 +179947,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179673,7 +179960,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function addSignatureDisplayParts(signature, allSignatures, flags = 0 /* None */) {
@@ -587,7 +600,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
      if (allSignatures.length > 1) {
        displayParts.push(spacePart());
        displayParts.push(punctuationPart(21 /* OpenParenToken */));
-@@ -179691,14 +179966,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
+@@ -179691,14 +179979,14 @@ function getSymbolDisplayPartsDocumentationAndSymbolKindWorker(typeChecker, symb
      }
    }
    function writeTypeParametersOfSymbol(symbol2, enclosingDeclaration2) {
@@ -604,7 +617,7 @@ index d25e8c3f8426003d87f2f61512ed6ca885aa9d1a..e3f4f4c3966ba64db9fedfd055bcd11c
    return getSymbolDisplayPartsDocumentationAndSymbolKindWorker(
      typeChecker,
      symbol,
-@@ -179710,7 +179985,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
+@@ -179710,7 +179998,8 @@ function getSymbolDisplayPartsDocumentationAndSymbolKind(typeChecker, symbol, so
      semanticMeaning,
      alias,
      maximumLength,
@@ -627,7 +640,7 @@ index fc9c9023b451eb20b214794744abde1a928dee3c..d745ef8409462b2356f9136efd304f0a
      getResolvedModuleWithFailedLookupLocationsFromCache?: ts.LanguageServiceHost["getResolvedModuleWithFailedLookupLocationsFromCache"];
      resolveTypeReferenceDirectives?: ts.LanguageServiceHost["resolveTypeReferenceDirectives"];
 diff --git a/lib/typescript.d.ts b/lib/typescript.d.ts
-index 05326adf9d574e7b1ca54f5839471cb17dfd3559..26c701b9b56d7d8e100a13d53dfbb2fdb79e809d 100644
+index 05326adf9d574e7b1ca54f5839471cb17dfd3559..2abe9d67f33b611967e984b6b9b1e4ca83f6720e 100644
 --- a/lib/typescript.d.ts
 +++ b/lib/typescript.d.ts
 @@ -10234,7 +10234,9 @@ declare namespace ts {
@@ -650,7 +663,7 @@ index 05326adf9d574e7b1ca54f5839471cb17dfd3559..26c701b9b56d7d8e100a13d53dfbb2fd
 +        validate(fileName: string): void;
 +        /** Returns detached native results; checks cancellation and Program/checker/source-population identity on every call. */
 +        findReferences(fileName: string, position: number, options?: FindReferencesOptions): ReferencedSymbol[] | undefined;
-+        /** Batch local lexical occurrences using native relationships; unsupported queries explicitly retain native search. Lean groups preserve native order and multiplicity. */
++        /** Batch native symbol occurrences using canonical reference selection and travel; unsupported position coverage retains native search. Lean groups preserve native order and multiplicity. */
 +        findReferencesFromOccurrences(queries: readonly ReferenceOccurrenceQuery[]): readonly ReferenceOccurrenceAnswer[];
 +        /** Releases this pass's native import map, bounded syntax/result memos, detached string pool, and owner references. Idempotent. */
 +        dispose(): void;
