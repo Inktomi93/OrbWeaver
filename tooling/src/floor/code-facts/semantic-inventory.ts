@@ -78,22 +78,22 @@ function authoredVersion(root: string): string {
 }
 
 function projectOverlay(options: SemanticInventoryOptions): InventoryOverlay | undefined {
-  if (options.overlay === undefined && options.fileSystem === undefined) {
+  if (options.overlay === undefined && options.fileSystem === undefined && options.projectedPaths === undefined) {
     return;
   }
   const fs = options.fileSystem;
   if (fs === undefined) {
     throw new Error("native inventory overlay requires its transaction filesystem");
   }
-  const paths = new Set([...readAuthoredRepositoryInventory(options.root).paths, ...(options.overlay?.addedPaths ?? [])]);
+  const paths = [...readAuthoredRepositoryInventory(options.root).paths, ...(options.overlay?.addedPaths ?? []), ...(options.projectedPaths ?? [])];
   const deleted = (options.overlay?.deletedPaths ?? []).map((path) => canonicalInventoryPath(resolve(options.root, path)));
   const excluded = new Set(deleted);
-  const files = [...paths]
-    .filter((path) => isTypeWorldSource(path) || /\.(?:json|[cm]?js)$/u.test(path))
-    .map((path) => canonicalInventoryPath(resolve(options.root, path)))
-    .filter((path) => !excluded.has(path) && fs.fileExistsSync(path))
+  // A virtual realpath can retain its lexical alias; changing that key changes bytes and native input identity.
+  const files = [...new Set(paths.filter((path) => isTypeWorldSource(path) || /\.(?:json|[cm]?js)$/u.test(path)).map((path) => resolve(options.root, path)))]
+    .filter((path) => !excluded.has(canonicalInventoryPath(path)) && fs.fileExistsSync(path))
     .map((path) => ({ path, text: fs.readFileSync(path) }));
-  return { root: options.root, files, deleted };
+  const authoredAddedPaths = [...new Set((options.overlay?.addedPaths ?? []).map((path) => canonicalInventoryPath(resolve(options.root, path))))];
+  return { root: options.root, files, deleted, authoredAddedPaths };
 }
 
 function moduleTargetOptions(rawOptions: SemanticInventoryOptions): SemanticInventoryOptions {

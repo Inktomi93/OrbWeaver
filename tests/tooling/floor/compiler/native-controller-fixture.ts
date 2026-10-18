@@ -38,7 +38,7 @@ if (mode === "overlay") {
     files: [{ path: helper, text: "module.exports=2;\n" }],
     deleted: [],
   });
-  options = { ...options, fileSystem, overlay: { addedPaths: [], deletedPaths: [] } };
+  options = { ...options, fileSystem, projectedPaths: [helper], overlay: { addedPaths: [], deletedPaths: [] } };
 }
 const prepare = DatabaseSync.prototype.prepare;
 const observed: { path?: ReturnType<DatabaseSync["location"]> } = {};

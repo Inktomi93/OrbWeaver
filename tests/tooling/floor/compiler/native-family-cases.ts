@@ -75,7 +75,13 @@ async function run(mode: string, root: string): Promise<object> {
       files: [{ path: join(root, path), text: changed }],
       deleted: [],
     });
-    using overlay = createSemanticInventory({ ...options, callableQueries: [first], fileSystem, overlay: { addedPaths: [], deletedPaths: [] } });
+    using overlay = createSemanticInventory({
+      ...options,
+      callableQueries: [first],
+      fileSystem,
+      projectedPaths: [join(root, path)],
+      overlay: { addedPaths: [], deletedPaths: [] },
+    });
     const overlaySource = overlay.sourceCorpus().getSourceFile(path);
     const overlayCall = overlaySource?.getDescendantsOfKind(SyntaxKind.CallExpression).find((candidate) => candidate.getStart() === node.start);
     if (overlayCall === undefined) {

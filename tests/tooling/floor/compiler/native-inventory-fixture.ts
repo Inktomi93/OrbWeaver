@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type {
   InventoryBuildRequest,
+  InventoryFileProjection,
   InventoryOverlay,
   InventoryShapeQuery,
   SemanticInventory,
@@ -41,13 +42,14 @@ const resultSchema = z.union([
 
 /** Only source data crosses; callbacks and Projects stay with their executing native owner. */
 export function nativeInventoryFixture(
-  options: Omit<SemanticInventoryOptions, "buildPartition" | "shapePlan" | "overlay" | "fileSystem">,
+  options: Omit<SemanticInventoryOptions, "buildPartition" | "shapePlan" | "overlay" | "fileSystem" | "projectedPaths">,
   observation: {
     readonly failWorker?: boolean;
     readonly workers?: string[];
     readonly faults?: string[];
     readonly fault?: NativeInventoryFault;
-    readonly projection?: InventoryOverlay;
+    readonly projection?: InventoryFileProjection;
+    readonly authoredAddedPaths?: InventoryOverlay["authoredAddedPaths"];
     readonly lifetime?: NativeInventoryLifetime[];
     readonly coverage?: NativeInventoryCoverage[];
     readonly shapeQueries?: readonly InventoryShapeQuery[];
@@ -58,7 +60,7 @@ export function nativeInventoryFixture(
     readonly published?: number[];
   } = {},
 ): SemanticInventory {
-  if (["buildPartition", "shapePlan", "overlay", "fileSystem"].some((key) => key in options)) {
+  if (["buildPartition", "shapePlan", "overlay", "fileSystem", "projectedPaths"].some((key) => key in options)) {
     throw new Error("native verdict fixture cannot transport executable callbacks or source carriers");
   }
   const scratch = mkdtempSync(join(tmpdir(), "orb-native-inventory-verdict-"));
@@ -73,6 +75,7 @@ export function nativeInventoryFixture(
         failWorker: observation.failWorker,
         fault: observation.fault,
         projection: observation.projection,
+        authoredAddedPaths: observation.authoredAddedPaths,
         observeCoverage: observation.coverage !== undefined,
         observeRequests: observation.requests !== undefined,
         shapeQueries: observation.shapeQueries,

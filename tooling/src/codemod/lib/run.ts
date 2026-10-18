@@ -207,6 +207,7 @@ function buildCodemodContext(opts: {
         project,
         repoRoot,
         overlay: compilerSourceOverlay(project, ledger, repoRoot),
+        projectedPaths: actualChangedPaths(project, ledger),
       }),
     plan(plan): void {
       plans.push(plan);
