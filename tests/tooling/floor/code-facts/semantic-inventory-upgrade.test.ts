@@ -351,6 +351,85 @@ test.for([13, 14] as const)("schema %s upgrade adds name-link storage, keeps old
   expect(current.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
 });
 
+test("reference name links store one copy and replay the exact logical stream", ({ scratch }) => {
+  const facts = brandPartition("tsconfig.names-stream.json");
+  const native: InventoryPartition = { ...facts, families: [...facts.families, "references"], referenceMode: "complete" };
+  const file = native.sources[0]?.file;
+  if (file === undefined) {
+    throw new Error("native reference-name fixture source missing");
+  }
+  const span = (start: number, kind: number): InventoryPartition["references"][number]["declaration"] => ({ file, start, end: start + 1, kind });
+  const declarations = [
+    span(0, SyntaxKind.VariableDeclaration),
+    span(2, SyntaxKind.Parameter),
+    span(4, SyntaxKind.PropertySignature),
+    span(6, SyntaxKind.PropertyAssignment),
+  ];
+  const [repeated, empty, shared, sharedTwin] = declarations;
+  const names = [span(0, SyntaxKind.Identifier), span(2, SyntaxKind.Identifier), span(4, SyntaxKind.Identifier)];
+  const [repeatedName, emptyName, sharedName] = names;
+  const unnamed = span(8, SyntaxKind.FunctionDeclaration);
+  if ([repeated, empty, shared, sharedTwin, repeatedName, emptyName, sharedName].includes(undefined)) {
+    throw new Error("native reference-name fixture spans missing");
+  }
+  const rows = (declaration: InventoryPartition["references"][number]["declaration"], targets: readonly number[]): InventoryPartition["references"] =>
+    targets.map((start, index) => ({
+      declaration,
+      reference: span(start, SyntaxKind.Identifier),
+      consumerClass: index % 2 === 0 ? ("product" as const) : ("test" as const),
+    }));
+  const at = <T>(value: T | undefined): T => {
+    if (value === undefined) {
+      throw new Error("native reference-name fixture value missing");
+    }
+    return value;
+  };
+  // Native repeats (11 twice) stay; a nameless declaration interleaves; one name links two declarations.
+  native.references = [
+    ...rows(at(repeated), [10, 11, 11]),
+    ...rows(at(repeatedName), [10, 11, 11]),
+    ...rows(unnamed, [12]),
+    ...rows(at(shared), [13]),
+    ...rows(at(sharedName), [13]),
+    ...rows(at(sharedTwin), [14, 15]),
+    ...rows(at(sharedName), [14, 15]),
+  ];
+  native.referenceNames = [
+    { name: at(repeatedName), declaration: at(repeated) },
+    { name: at(emptyName), declaration: at(empty) },
+    { name: at(sharedName), declaration: at(shared) },
+    { name: at(sharedName), declaration: at(sharedTwin) },
+  ];
+  using database = openInventoryDatabase(join(scratch, "names.sqlite"));
+  database.exec("BEGIN IMMEDIATE");
+  const generation = publishInventoryGeneration(database, [native]);
+  database.exec("COMMIT");
+  const stored = readInventoryGeneration(database, generation)[0];
+  if (stored === undefined) {
+    throw new Error("native reference-name partition missing");
+  }
+  expect([...readInventoryReferences(database, stored.id)]).toStrictEqual(native.references);
+  for (const origin of [...declarations, ...names, unnamed, span(9, SyntaxKind.Identifier)]) {
+    const key = JSON.stringify(origin);
+    expect([...readInventoryReferences(database, stored.id, origin)], key).toStrictEqual(
+      native.references.filter((row) => JSON.stringify(row.declaration) === key),
+    );
+  }
+  const count = (table: string): unknown => database.prepare(`SELECT COUNT(*) AS rows FROM ${table} WHERE partition=?`).get(stored.id)?.["rows"];
+  expect(count("inventory_reference")).toBe(7);
+  expect(count("inventory_reference_name")).toBe(4);
+  const refused = [
+    { change: "differ", references: native.references.map((row, index) => (index === 4 ? { ...row, consumerClass: "product" as const } : row)) },
+    { change: "missing", references: native.references.filter((row) => JSON.stringify(row.declaration) !== JSON.stringify(repeatedName)) },
+  ];
+  for (const { change, references } of refused) {
+    using rejecting = openInventoryDatabase(join(scratch, `names-${change}.sqlite`));
+    rejecting.exec("BEGIN IMMEDIATE");
+    expect(() => publishInventoryGeneration(rejecting, [{ ...native, references }])).toThrow(change);
+    rejecting.exec("ROLLBACK");
+  }
+});
+
 const SOURCE_LOOKUP = "SELECT ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts FROM inventory_source WHERE partition=? AND file=?";
 
 test.for([11, 12] as const)("source-file lookup upgrades physical schema %s without replacing old rows or blocking indexed readers", (version, { scratch }) => {
