@@ -6,6 +6,8 @@
 import { expectTypeOf, test } from "vitest";
 import type { RunFullSeedDeps, RunFullSeedResult } from "../../../../tooling/src/seed/index.ts";
 
+declare const result: RunFullSeedResult;
+
 test("every non-deterministic input is injected, never ambient", () => {
   expectTypeOf<RunFullSeedDeps["now"]>().toEqualTypeOf<() => number>();
   expectTypeOf<RunFullSeedDeps["sessionSecret"]>().toEqualTypeOf<string>();
@@ -15,8 +17,6 @@ test("every non-deterministic input is injected, never ambient", () => {
 
 test("the result reports whether it AUGMENTED, so a sentinel skip is not silent", () => {
   expectTypeOf<RunFullSeedResult["augmented"]>().toEqualTypeOf<boolean>();
-  // @orb-waive no-test-fabrication(RunFullSeedResult): a type-level probe — a `.test-d` file is typechecked, never executed, so the value is never read; the cast exists only so the next line can prove the property. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const result = {} as RunFullSeedResult;
   // @ts-expect-error — the seed outcome is evidence, not a mutable record.
   result.augmented = true;
 });

@@ -33,7 +33,6 @@ import {
   acquireInventoryReadLease,
   readInventoryBindings,
   readInventoryBrands,
-  readInventoryCasts,
   readInventoryExports,
   readInventoryInputs,
   readInventoryInvocationEvidence,
@@ -187,7 +186,6 @@ function partition(request: InventoryBuildRequest): InventoryPartition {
     available: sources.map((source) => source.file),
     format: INVENTORY_FORMAT,
     families: request.intent === "membership" ? [] : inventoryFamilies(request.families),
-    casts: [],
     brands: [],
     memberOrigins: [],
     callableDeclarations: [],
@@ -221,7 +219,6 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
   return {
     ...metadata,
     inputs: [...readInventoryInputs(database, id)],
-    casts: stored.families.includes("cast-relations") ? [...readInventoryCasts(database, id)] : [],
     brands: stored.families.includes("id-brands") ? [...readInventoryBrands(database, id)] : [],
     memberOrigins: [],
     callableDeclarations: [],
@@ -795,7 +792,6 @@ test("all scalar metadata and indexed keys preserve UTF-16 without hash collisio
   const node = { file: value, start: 0, end: 1, kind: 80 };
   const native: InventoryPartition = {
     families: inventoryFamilies(undefined),
-    casts: [],
     brands: [],
     memberOrigins: [],
     callableDeclarations: [],

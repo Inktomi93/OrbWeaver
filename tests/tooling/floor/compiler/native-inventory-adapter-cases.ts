@@ -18,18 +18,17 @@ async function run(mode: string, implementation: string, root: string): Promise<
     mkdirSync(dirname(join(root, file)), { recursive: true });
     writeFileSync(join(root, file), text);
   };
-  if (mode === "cast-session") {
+  if (mode === "runtime-session") {
     const { projectCtx } = (await import(
       moduleURL("../verify/lib/project-context.ts")
     )) as typeof import("../../../../tooling/src/verify/lib/project-context.ts");
-    const { SyntaxKind } = await import("ts-morph");
     const context = projectCtx(root);
-    using relations = context.nativeTypeFacts?.();
-    if (relations === undefined) {
-      throw new Error("native cast session missing");
+    using facts = context.nativeTypeFacts?.();
+    if (facts === undefined) {
+      throw new Error("native runtime export session missing");
     }
-    const node = context.project.getSourceFileOrThrow(join(root, "tests/native/value.test.ts")).getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression);
-    const dom = context.project.getSourceFileOrThrow(join(root, "tests/native/value.dom.test.ts")).getFirstDescendantByKindOrThrow(SyntaxKind.AsExpression);
+    const node = context.project.getSourceFileOrThrow(join(root, "tests/native/value.test.ts"));
+    const dom = context.project.getSourceFileOrThrow(join(root, "tests/native/value.dom.test.ts"));
     const refusal = (action: () => void): string | null => {
       try {
         action();
@@ -38,20 +37,20 @@ async function run(mode: string, implementation: string, root: string): Promise<
         return String(error);
       }
     };
-    relations.request("control", { kind: "cast-relations", nodes: [node] });
+    facts.request("control", { kind: "runtime-exports", nodes: [node] });
     const beforeSeal = refusal(() => {
-      relations.castRelations("control", [node]);
+      facts.runtimeExports("control", [node]);
     });
-    relations.seal(new Set(["control"]));
-    const relation = relations.castRelations("control", [node]).get(node);
+    facts.seal(new Set(["control"]));
+    const exports = facts.runtimeExports("control", [node]).get(node);
     const registration = refusal(() => {
-      relations.request("control", { kind: "cast-relations", nodes: [dom] });
+      facts.request("control", { kind: "runtime-exports", nodes: [dom] });
     });
-    relations[Symbol.dispose]();
+    facts[Symbol.dispose]();
     const disposed = refusal(() => {
-      relations.castRelations("control", [node]);
+      facts.runtimeExports("control", [node]);
     });
-    return { mode, beforeSeal, relation, registration, disposed };
+    return { mode, beforeSeal, exports, registration, disposed };
   }
   if (mode === "drizzle-session") {
     const { projectCtx } = (await import(
@@ -208,7 +207,7 @@ if (process.argv[1] === import.meta.filename) {
   const root = process.argv[4];
   const result = process.argv[5];
   if (
-    (mode !== "workspace-config" && mode !== "module-owner" && mode !== "drizzle-session" && mode !== "cast-session") ||
+    (mode !== "workspace-config" && mode !== "module-owner" && mode !== "drizzle-session" && mode !== "runtime-session") ||
     implementation === undefined ||
     root === undefined ||
     result === undefined

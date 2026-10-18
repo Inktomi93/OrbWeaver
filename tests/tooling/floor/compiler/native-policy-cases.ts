@@ -16,7 +16,6 @@ export const NATIVE_POLICY_CASES = [
   "callable-waiver-describe",
   "member-orders",
   "member-grants",
-  "cast-orders",
 ] as const;
 
 async function run(mode: string, root: string): Promise<object> {
@@ -48,12 +47,7 @@ async function run(mode: string, root: string): Promise<object> {
   const { reviewedGrantsFor } = await import("../../../../tooling/src/verify/lib/reviewed-grants.ts");
   let orders: readonly (readonly GatePolicy[])[];
   let known: readonly GatePolicy[];
-  if (mode === "cast-orders") {
-    const { gate: fabrication } = await import("../../../../tooling/src/verify/gates/no-test-fabrication.ts");
-    const { gate: looseIds } = await import("../../../../tooling/src/verify/gates/no-loose-id-cast.ts");
-    known = [fabrication, looseIds];
-    orders = [known, known.toReversed()];
-  } else if (mode === "runtime-orders") {
+  if (mode === "runtime-orders") {
     const { gate: verbs } = await import("../../../../tooling/src/verify/gates/verb-naming.ts");
     const { gate: health } = await import("../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts");
     known = [verbs, health];
@@ -80,9 +74,6 @@ async function run(mode: string, root: string): Promise<object> {
     orders = [[gate]];
   }
   const context = projectCtx(root);
-  const { openInventoryDatabase, latestInventoryGeneration, readInventoryGeneration } = await import(
-    "../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts"
-  );
   const checker = context.project.getTypeChecker;
   let checkerReads = 0;
   let exportReads = 0;
@@ -135,25 +126,11 @@ async function run(mode: string, root: string): Promise<object> {
         reviewedGrants,
         failOnWarnings: false,
       });
-      let timeline:
-        | { readonly generation: number; readonly programs: readonly { readonly program: string; readonly families: readonly string[] }[] }
-        | undefined;
-      if (mode === "cast-orders") {
-        using db = openInventoryDatabase(join(root, ".cache/semantic-inventory.sqlite"));
-        const generation = latestInventoryGeneration(db);
-        timeline = {
-          generation,
-          programs: readInventoryGeneration(db, generation)
-            .map(({ program, families }) => ({ program, families }))
-            .toSorted((a, b) => a.program.localeCompare(b.program)),
-        };
-      }
       return {
         errors: result.toolErrors,
         policies: result.policies.map(({ owner, findings }) => [owner.status, findings.length]),
         rows: result.policies.map(({ id, findings, receipts }) => ({ id, tokens: findings.map(({ token }) => token).toSorted(), receipts })),
         workers: requests.length - before,
-        timeline,
         findings: result.policies.flatMap(({ findings }) => findings.map(({ file, token, message }) => ({ file, token, message }))),
         effective: result.authority.effectiveFindings.map(({ file, token }) => [file, token]),
         effectivePolicies: result.authority.effectiveFindings.map(({ policyId, file, token }) => [policyId, file, token]),
@@ -172,7 +149,6 @@ async function run(mode: string, root: string): Promise<object> {
       requests,
       checkerReads,
       exportReads,
-      ...(mode === "cast-orders" ? { sameGeneration: new Set(passes.map((pass) => pass.timeline?.generation)).size === 1 } : {}),
     };
   } finally {
     Object.defineProperty(context.project, "getTypeChecker", { value: checker });

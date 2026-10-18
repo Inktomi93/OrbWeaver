@@ -6,7 +6,7 @@ import type { StatementSync } from "node:sqlite";
 import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { InventoryPartition } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { INVENTORY_FORMAT } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { INVENTORY_FORMAT, inventoryFamilies } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import {
   beginInventoryWrite,
   importInventoryPartition,
@@ -99,6 +99,8 @@ function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
     db.prepare("SELECT * FROM inventory_input WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_source WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_text WHERE partition=? ORDER BY source,ordinal").all(LEGACY_PARTITION),
+    db.prepare("SELECT * FROM inventory_span WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
+    db.prepare("SELECT * FROM inventory_cast WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
   ];
 }
 
@@ -128,7 +130,7 @@ function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
   db.exec(`PRAGMA user_version=${String(version)}`);
   const program = inventoryString("tsconfig.legacy.json");
   const file = inventoryString("/fixture/legacy.ts");
-  const text = "export const legacy=1;";
+  const text = "export const legacy=1 as number;";
   db.prepare("INSERT INTO inventory_partition(id,program,format,payload) VALUES(?,?,?,?)").run(
     LEGACY_PARTITION,
     program,
@@ -156,6 +158,16 @@ function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
     "INSERT INTO inventory_source(partition,ordinal,file,path,consumerClass,authored,textVersion,textLength,textParts) VALUES(?,0,?,?,'product',1,?,?,1)",
   ).run(LEGACY_PARTITION, file, file, inventoryTextVersion(inventoryTextParts(text)), text.length);
   db.prepare("INSERT INTO inventory_text(partition,source,ordinal,value) VALUES(?,0,0,?)").run(LEGACY_PARTITION, inventoryString(text));
+  db.prepare("INSERT INTO inventory_span(partition,ordinal,file,start,end,kind) VALUES(?,0,?,?,?,?)").run(
+    LEGACY_PARTITION,
+    file,
+    text.indexOf("1 as number"),
+    text.length - 1,
+    SyntaxKind.AsExpression,
+  );
+  db.prepare("INSERT INTO inventory_cast(partition,ordinal,node,leftToRight,rightToLeft,leftIsAny,rightIsAny,reason) VALUES(?,0,0,1,0,0,0,NULL)").run(
+    LEGACY_PARTITION,
+  );
   return legacyRows(db);
 }
 
@@ -240,13 +252,31 @@ function brandPartition(program: string): InventoryPartition {
     bindings: [],
     references: [],
     witnesses: [],
-    casts: [],
   };
 }
 
 function familyDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {
   return db.prepare("SELECT sql FROM sqlite_schema WHERE name='inventory_family'").get();
 }
+
+test("retired cast facts remain historical rows but cannot become current demand or a current partition", ({ scratch }) => {
+  const path = join(scratch, "retired-casts.sqlite");
+  const before = createPriorStorage(path, 0);
+  using pinned = new DatabaseSync(path, { readOnly: true });
+  pinned.exec("BEGIN");
+  expect(legacyRows(pinned)).toEqual(before);
+  using current = openInventoryDatabase(path);
+  expect(
+    current.prepare("SELECT node,leftToRight,rightToLeft,leftIsAny,rightIsAny,reason FROM inventory_cast WHERE partition=?").all(LEGACY_PARTITION),
+  ).toEqual([{ node: 0, leftToRight: 1, rightToLeft: 0, leftIsAny: 0, rightIsAny: 0, reason: null }]);
+  expect(legacyRows(current)).toEqual(before);
+  expect(legacyRows(pinned)).toEqual(before);
+  expect(() => readInventoryGeneration(current, 1)).toThrow();
+  pinned.exec("ROLLBACK");
+  using reopened = openInventoryDatabase(path);
+  expect(legacyRows(reopened)).toEqual(before);
+  expect(() => inventoryFamilies(["cast-relations"])).toThrow();
+});
 
 test("metadata decoding rejects malformed JSON and encoded non-string values", ({ scratch }) => {
   using db = openInventoryDatabase(join(scratch, "metadata.sqlite"));
@@ -284,7 +314,7 @@ test.for([11, 12] as const)("source-file lookup upgrades physical schema %s with
   using current = openInventoryDatabase(path);
   const details = current.prepare(`EXPLAIN QUERY PLAN ${SOURCE_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/legacy.ts"));
   expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_source USING INDEX inventory_source_file (partition=? AND file=?)");
-  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
   expect(legacyRows(current)).toEqual(before);
   expect(legacyRows(pinned)).toEqual(before);
   expect(pinned.prepare("SELECT name FROM sqlite_schema WHERE name='inventory_source_file'").get()).toBeUndefined();
@@ -364,7 +394,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
       current.exec("COMMIT");
       const direct = readInventoryGeneration(current, generation)[0];
       expect(direct?.id).toBe(freshId);
-      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+      expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
       expect(legacyRows(current)).toEqual(before);
       expect(legacyRows(pinned)).toEqual(before);
       expect(familyDdl(pinned)).toEqual(oldDdl);
@@ -391,7 +421,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
       try {
         using reader = openInventoryDatabase(path);
         expect(legacyRows(reader)).toEqual(before);
-        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+        expect(reader.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
       } finally {
         readerLock.mockRestore();
       }
@@ -484,7 +514,7 @@ test.for([
   expect(observer.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").all()).toEqual(oldTables);
   expect(observer.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   using retried = openInventoryDatabase(path);
-  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+  expect(retried.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
   expect(legacyRows(retried)).toEqual(before);
 });
 
@@ -501,7 +531,7 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)("competing physical up
     results.map(({ code }) => code),
     JSON.stringify(results),
   ).toEqual([0, 0]);
-  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 13 }, { ["user_version"]: 13 }]);
+  expect(results.map(({ stdout }) => JSON.parse(stdout))).toEqual([{ ["user_version"]: 14 }, { ["user_version"]: 14 }]);
   using db = openInventoryDatabase(path);
   expect(legacyRows(db)).toEqual(before);
   expect(db.prepare("SELECT name FROM sqlite_schema WHERE name IN ('inventory_family_upgrade','inventory_input_upgrade')").all()).toEqual([]);
@@ -511,10 +541,10 @@ test("an unsupported future physical schema is refused rather than downgraded", 
   const path = join(scratch, "future.sqlite");
   const before = createPriorStorage(path, 0);
   using db = new DatabaseSync(path);
-  db.exec("PRAGMA user_version=14");
+  db.exec("PRAGMA user_version=15");
   const oldDdl = familyDdl(db);
-  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 14");
-  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
+  expect(() => openInventoryDatabase(path)).toThrow("unsupported native inventory storage schema: 15");
+  expect(db.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 15 });
   expect(familyDdl(db)).toEqual(oldDdl);
   expect(legacyRows(db)).toEqual(before);
 });
@@ -553,7 +583,7 @@ test.for([11, 12] as const)(
     using current = openInventoryDatabase(path);
     const details = current.prepare(`EXPLAIN QUERY PLAN ${LIST_LOOKUP}`).all(LEGACY_PARTITION, inventoryString("/fixture/library-1023.ts"));
     expect(details.map((row) => row["detail"])).toContain("SEARCH inventory_list USING INDEX inventory_list_value (partition=? AND kind=? AND value=?)");
-    expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+    expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
     expect(legacyRows(current)).toEqual(before);
     expect(legacyRows(pinned)).toEqual(before);
     expect(current.prepare("SELECT * FROM inventory_list ORDER BY partition,kind,ordinal").all()).toEqual(rows);
@@ -634,7 +664,7 @@ test("strict reference schema12 migration rolls back new tables and preserves ol
   expect(observer.prepare("SELECT name FROM sqlite_schema WHERE name LIKE 'inventory_reference_query%'").all()).toEqual([]);
   expect(legacyRows(observer)).toEqual(before);
   using current = openInventoryDatabase(path);
-  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 13 });
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: 14 });
   expect(legacyRows(current)).toEqual(before);
   expect(current.prepare("SELECT referenceMode FROM inventory_descriptor").all()).toEqual([{ referenceMode: "complete" }]);
   expect(pinned.prepare("SELECT id,format FROM inventory_generation").all()).toEqual([{ id: 1, format: 19 }]);

@@ -17,8 +17,7 @@ const CEILING_BUDGET = scaledBudget(90_000, 4);
 const MEASURE_BUDGET = scaledBudget(120_000, 4);
 
 function program(id: string, files: readonly string[]): CompilerProgram {
-  // @orb-waive no-test-fabrication(CompilerProgram["commandLine"]): partial fixture — only the options field the membership check exercises; no factory exists
-  return { id, config: id, files, references: [], configPaths: [id], commandLine: {} as CompilerProgram["commandLine"] };
+  return { id, config: id, files, references: [], configPaths: [id], commandLine: { options: {}, fileNames: [...files], errors: [] } };
 }
 
 test("discovery filenames equal native dot semantics across ignored, untracked, dotfile, and symlink arms", async () => {

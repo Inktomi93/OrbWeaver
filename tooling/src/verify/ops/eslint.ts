@@ -210,7 +210,7 @@ async function typedNativeMetadata(root: string, paths: readonly string[]): Prom
     if (!(direct || typedNativeDependencySignal(entry, paths, authored, root))) {
       continue;
     }
-    const family = { hard: false, requiresTypeInformation: true, patterns: ["."], rules: [`orb/${entry.id}`], label: `typed-native:${entry.id}` };
+    const family = { hard: false, requiresTypeInformation: true, patterns: ["."], rules: [entry.ruleId], label: `typed-native:${entry.id}` };
     let compilerConfigs: readonly string[] | undefined;
     if (entry.declarationPackage !== undefined) {
       declarationAdmissions ??= await admittedPopulation(root, ["."]);

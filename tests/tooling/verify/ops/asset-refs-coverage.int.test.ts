@@ -134,7 +134,7 @@ test("a schema module whose asset FKs all vanished REFUSES — broken evidence, 
 });
 
 test("a registry row that is not a resolved Drizzle table/column REFUSES rather than reading as absent", () => {
-  // @orb-waive no-test-fabrication(unknown): deliberate partial drizzle column — vendor type has no factory; only FK fields set
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- An unbranded table/column row must reach real registry intake and refuse Drizzle identity, not count as absent coverage. Ends when that runtime identity validation is removed.
   const notATable = { table: { name: "characters" }, column: { name: "avatar_asset_id" } } as unknown as (typeof RETAINING)[number];
 
   expect(() => compareAssetRefsCoverage({ schema: FULL_SCHEMA, retaining: [notATable], derived: DERIVED })).toThrow(/does not carry a Drizzle SQLiteTable/u);
@@ -150,8 +150,7 @@ test(
     const schema = await import("@orb/db/schema");
     const { ASSET_REFS, DERIVED_ASSET_COLUMNS } = await import("@orb/server/domain/assets");
     const coverage = compareAssetRefsCoverage({
-      // @orb-waive no-test-fabrication(unknown): deliberate partial drizzle column — vendor type has no factory; only FK fields set
-      schema: schema as unknown as Readonly<Record<string, unknown>>,
+      schema,
       retaining: ASSET_REFS,
       derived: DERIVED_ASSET_COLUMNS,
     });

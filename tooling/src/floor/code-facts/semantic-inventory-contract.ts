@@ -4,7 +4,6 @@ import { SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import type { CompilerProgram, CompilerSourceOverlay } from "../compiler/compiler-programs-contract.ts";
 import type { SourceCorpus } from "../compiler/ts-workspace-contract.ts";
-import { typeRelationSchema } from "./assignability-contract.ts";
 import type { NativeAuthoredValueProjection } from "./authored-value-projection.ts";
 import type { SourceBindingUsage } from "./binding-usage-contract.ts";
 import type { IndexedCallParameters } from "./drizzle-column-read-contract.ts";
@@ -46,7 +45,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 21;
+export const INVENTORY_FORMAT = 22;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -54,7 +53,6 @@ export const INVENTORY_FAMILIES = [
   "bindings",
   "references",
   "witnesses",
-  "cast-relations",
   "id-brands",
   "runtime-exports",
   "shape-catalog",
@@ -552,11 +550,6 @@ export function moduleTargetQueryKey(query: InventoryModuleTargetQuery): string 
 export function inventoryNodeQueryKey(node: InventorySpan): string {
   return JSON.stringify(spanSchema.parse(node));
 }
-export const castRelationResultSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("resolved"), value: typeRelationSchema }),
-  z.object({ kind: z.literal("unavailable"), reason: z.literal("primitive-absent") }),
-]);
-export type InventoryCastRelationResult = z.infer<typeof castRelationResultSchema>;
 export const exportDeclarationQuerySchema = z.object({ file: z.string(), name: z.string() });
 export type InventoryExportDeclarationQuery = z.infer<typeof exportDeclarationQuerySchema>;
 export interface InventoryNativeExportDeclarationQuery {
@@ -663,7 +656,6 @@ export const partitionSchema = z.object({
   schemaData: schemaDataCatalogSchema.optional(),
   drizzleCalls: z.array(drizzleSchemas.call).optional(),
   brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
-  casts: z.array(z.object({ node: spanSchema, result: castRelationResultSchema })),
   format: z.literal(INVENTORY_FORMAT),
   program: z.string(),
   descriptorVersion: z.string(),
@@ -703,7 +695,6 @@ export const partitionMetadataSchema = partitionSchema.omit({
   pairs: true,
   runtimeExports: true,
   exportDeclarations: true,
-  casts: true,
   brands: true,
   inputs: true,
   implementation: true,
@@ -724,7 +715,6 @@ export const INVENTORY_FAMILY_FIELDS = {
   bindings: "bindings",
   references: "references",
   witnesses: "witnesses",
-  "cast-relations": "casts",
   "id-brands": "brands",
   "runtime-exports": "runtimeExports",
   "shape-catalog": "shapes",
@@ -756,7 +746,6 @@ export const INVENTORY_RECORD_TABLES = [
   "reference",
   "referenceQuery",
   "referenceQueryNode",
-  "cast",
   "brand",
   "runtimeExport",
   "exportDeclaration",
@@ -888,7 +877,6 @@ export interface SemanticInventory extends Disposable {
   readonly shape: (node: Node) => InventoryShape;
   readonly shapePair: (query: InventoryShapeQuery) => readonly { readonly program: string; readonly result: InventoryShapePairResult }[];
   readonly runtimeExports: (node: SourceFile, program: string) => readonly InventoryRuntimeExport[];
-  readonly castRelation: (node: Node, program: string) => InventoryCastRelationResult;
   readonly idBrand: (node: Node, program: string) => string | null;
   readonly generation: number;
   readonly programs: readonly string[];

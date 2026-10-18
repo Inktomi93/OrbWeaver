@@ -15,7 +15,6 @@ import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/n
 import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
-import { gate as fabrication } from "../../../../tooling/src/verify/gates/no-test-fabrication.ts";
 import { gate as handShapes } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
 import { gate as zodIssues } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { candidateFields, contractFields } from "../../../../tooling/src/verify/lib/contract-structural-copy.ts";
@@ -246,9 +245,7 @@ export interface Divergent { a: string; b: number; meta: { tags: number[] }; }
 test(
   "migrated shape policy consumers retain their catch, near-miss and refusal rows",
   () => {
-    expect(verifyPolicyProofs([copies, derives, handShapes, fabrication, inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces, zodIssues])).toEqual(
-      [],
-    );
+    expect(verifyPolicyProofs([copies, derives, handShapes, inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces, zodIssues])).toEqual([]);
   },
   scaledBudget(120_000),
 );

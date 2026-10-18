@@ -272,8 +272,8 @@ test("capture keeps the primary, disable, and detach failures without closing th
   });
   const detach = vi.fn((): Promise<void> => Promise.reject(new Error("detach failure")));
   const cdp = { send, on: vi.fn(), off: vi.fn(), detach };
-  const context = { newCDPSession: vi.fn(async () => cdp) };
-  // @orb-waive no-test-fabrication(unknown): deliberate partial Playwright Page double plants CDP primary/cleanup failures; real-browser tests above own the success contract. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+  const context = { newCDPSession: vi.fn(async () => cdp), close: vi.fn(async () => undefined) };
+  // eslint-disable-next-line orb/no-test-fabrication, @typescript-eslint/consistent-type-assertions -- Controlled CDP capture must retain primary, disable and detach failures without closing the owner context. Ends when native protocol injection supplies all three faults.
   const page = { context: () => context } as unknown as Page;
 
   let caught: unknown;
@@ -287,4 +287,5 @@ test("capture keeps the primary, disable, and detach failures without closing th
   expect(messages).toEqual(expect.arrayContaining(["primary take failure", "disable failure", "detach failure"]));
   expect(detach).toHaveBeenCalledTimes(1);
   expect(context.newCDPSession).toHaveBeenCalledTimes(1);
+  expect(context.close).not.toHaveBeenCalled();
 });

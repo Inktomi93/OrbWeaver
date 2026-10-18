@@ -347,8 +347,8 @@ export async function buildHeapComparisonReceipt(
 }
 
 export async function buildHeapRetainerReceipt(
-  parser: HeapDevToolsParser,
-  snapshot: HeapSnapshotReceipt,
+  parser: Pick<HeapDevToolsParser, "retainers">,
+  snapshot: Pick<HeapSnapshotReceipt, "identity">,
   selector: HeapRetainerSelector,
 ): Promise<HeapRetainerReceipt> {
   const parsed = await parser.retainers(snapshot.identity.rawPath, selector);

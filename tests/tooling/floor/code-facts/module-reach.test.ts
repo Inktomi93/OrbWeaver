@@ -129,7 +129,6 @@ test("unqualified syntax carriers refuse native importer, test and runtime reach
   const partition: InventoryPartition = {
     format: INVENTORY_FORMAT,
     families: DEFAULT_INVENTORY_FAMILIES,
-    casts: [],
     brands: [],
     memberOrigins: [],
     callableDeclarations: [],
