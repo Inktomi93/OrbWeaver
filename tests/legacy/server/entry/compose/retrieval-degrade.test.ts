@@ -10,8 +10,7 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // @orb-waive-file no-test-fabrication(SearchError): baselined when the gate widened to value casts; burn-down item 906.
-import { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "#server/domain/search/index.ts";
-import { withRetrievalDegrade } from "#server/entry/compose/retrieval-degrade.ts";
+import { SEARCH_EMPTY_QUERY, SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError, withRetrievalDegrade } from "#server/domain/search/index.ts";
 
 const HITS: readonly string[] = ["a", "b"];
 

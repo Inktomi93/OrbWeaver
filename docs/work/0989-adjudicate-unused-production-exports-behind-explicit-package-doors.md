@@ -36,3 +36,5 @@ Use existing `pnpm ast apisurface` results for package-boundary consumption and 
 Drive one batched codemod from the native production inventory and adjudicated symbol origins. Reuse `tooling/src/codemod` plans and export helpers; extend their type-only/alias handling only where required. Remove unused barrel re-exports separately from declaration exports and implementation deletion. Preserve same-package imports, side effects, dynamic/registry use and supported external APIs. Keep ambiguous candidates as unresolved decisions, not allowlist entries.
 
 Freeze candidate and edit scope against the landed compose wave before applying. Review one cohesive diff, check affected native programs and relevant behavior, then reconcile the shrink-only native inventory. Do not run a separate typed workspace for each symbol or build another liveness gate.
+
+Search compatibility cleanup preserves the legacy cases through their existing raw-reach map. Native findings shrink without new baseline keys. Evidence: `reports/review/989-search-compatibility-cleanup.md`.
