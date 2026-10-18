@@ -10,11 +10,11 @@ import type {
   PluginNodeKind,
   PluginSurfaceNode,
   PluginSurfaceSpec,
-  pluginSurfaceNodeSchema,
 } from "@orb/contracts/plugin";
 import { pluginCommandArgsSchema } from "@orb/contracts/plugin";
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
+import type { pluginSurfaceNodeSchema } from "#contracts/plugin/ui.ts";
 
 test("PLUGIN_NODE_KINDS is EXACTLY the union's `kind` discriminants — neither side can drift", () => {
   expectTypeOf<PluginNodeKind>().toEqualTypeOf<PluginSurfaceNode["kind"]>();

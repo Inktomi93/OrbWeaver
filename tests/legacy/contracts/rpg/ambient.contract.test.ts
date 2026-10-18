@@ -10,10 +10,10 @@ import {
   TIME_OF_DAY,
   TIME_OF_DAY_HOURS,
   TIME_OF_DAY_RANGES,
-  timeOfDayAtHour,
 } from "@orb/contracts/rpg";
 import { WEATHER_TYPES } from "@orb/kit/weather";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { timeOfDayAtHour } from "#contracts/rpg/ambient.ts";
 
 test("clock enforces day≥1, hour 0-23, minute 0-59", () => {
   expect(rpgClockTimeSchema.safeParse({ day: 1, hour: 0, minute: 0 }).success).toBe(true);

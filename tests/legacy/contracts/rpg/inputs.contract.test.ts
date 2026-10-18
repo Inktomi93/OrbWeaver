@@ -4,9 +4,7 @@
 // steeringNote cap rides through from the config contract, and the optional fields are genuinely optional.
 
 import {
-  RPG_JOURNAL_LIST_MAX_LIMIT,
   RPG_STEERING_NOTE_MAX,
-  RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgCreateGameInputSchema,
   rpgDeleteJournalEntryInputSchema,
   rpgDismissActorInputSchema,
@@ -24,6 +22,7 @@ import {
 } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { RPG_JOURNAL_LIST_MAX_LIMIT, RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT } from "#contracts/rpg/inputs.ts";
 
 const CHAT_ID = mintTypeId(ID_PREFIX.chat);
 /** A wire-shaped character id (the `typeIdSchema(ID_PREFIX.character)` prefix) — the promotion test needs a

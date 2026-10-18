@@ -1,9 +1,10 @@
 // Queue output preserves the clean per-kind contract and keeps corrupt stored rows explicitly poison.
 
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
-import { WORKLOAD_KINDS, workloadRowAnyKindSchema, workloadRunnableRowSchema, workloadScheduleViewSchema } from "@orb/contracts/workloads";
+import { WORKLOAD_KINDS, workloadRowAnyKindSchema, workloadScheduleViewSchema } from "@orb/contracts/workloads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { workloadRunnableRowSchema } from "#contracts/workloads/views.ts";
 
 const row = {
   id: mintTypeId(ID_PREFIX.workload),

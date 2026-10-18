@@ -7,7 +7,6 @@
 import {
   RPG_HAND_PATCH_PLANES,
   RPG_OP_SHAPED_PLANES,
-  RPG_SNAPSHOT_STATE_PLANES,
   rpgActorIdentityLockBase,
   rpgActorLockBase,
   rpgActorVolatileLockBase,
@@ -19,6 +18,7 @@ import {
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { RPG_SNAPSHOT_STATE_PLANES } from "#contracts/rpg/snapshot.ts";
 
 test("a quest is a stable-id object with status + n/m objectives (the snapshot-resident shape)", () => {
   const quest = rpgQuestSchema.parse({

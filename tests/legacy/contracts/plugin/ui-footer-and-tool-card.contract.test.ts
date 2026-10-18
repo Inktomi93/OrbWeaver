@@ -2,8 +2,6 @@
 
 import {
   PLUGIN_ANCHOR_TIERS,
-  PLUGIN_FOOTER_MAX_DEPTH,
-  PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
   PLUGIN_NODE_KINDS,
   PLUGIN_SURFACE_ANCHORS,
@@ -13,6 +11,7 @@ import {
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_FOOTER_MAX_DEPTH, PLUGIN_FOOTER_MAX_NODES } from "#contracts/plugin/ui.ts";
 
 // ── The `message-footer` PER-ROW anchor (U6, §5.4) — the three clamps, each at the tier that enforces it ─────
 // This anchor mounts once per COMMITTED transcript row, so its cost multiplies by transcript length. The design

@@ -24,20 +24,14 @@ import type {
   PluginSuggestedAct,
   PluginToastLevel,
 } from "@orb/contracts/plugin";
-import {
-  PLUGIN_CAPABILITIES,
-  PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
-  PLUGIN_FRAME_HTML_MAX_CHARS,
-  PLUGIN_FRAME_SURFACES_MAX,
-  PLUGIN_TOOL_NAME_LOCAL_MAX,
-  parsePluginFrameCall,
-} from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, PLUGIN_FRAME_SURFACES_MAX, PLUGIN_TOOL_NAME_LOCAL_MAX, parsePluginFrameCall } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { compilePluginDirectory } from "@orb/plugin-toolchain";
 import { getPluginQuickJS, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
+import { PLUGIN_COMMAND_PLACEMENT_LABEL_MAX, PLUGIN_FRAME_HTML_MAX_CHARS } from "#contracts/plugin/ui.ts";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
 import type { MembraneRuntime } from "#server/infra/plugin-host/membrane.ts";
 import { attachMembrane } from "#server/infra/plugin-host/membrane.ts";

@@ -98,7 +98,7 @@ export type {
   ImportedChatIdentity,
   PendingGenerationObservationInput,
 } from "./bulk-import.ts";
-export { pendingGenerationObservationInputSchema, pendingGenerationObservationsSchema } from "./bulk-import.ts";
+export { pendingGenerationObservationsSchema } from "./bulk-import.ts";
 export type {
   ChatBusEvent,
   ChatContentPart,
@@ -149,11 +149,7 @@ export {
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
 export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock } from "./content-blocks.ts";
-export {
-  cardTrustSchema,
-  contentSpansToBlocks,
-  messageContentBlockSchema,
-} from "./content-blocks.ts";
+export { contentSpansToBlocks, messageContentBlockSchema } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
@@ -194,7 +190,6 @@ export {
   CONNECTION_ATTRIBUTION_PROVENANCES,
   CUE_ROLES,
   chatReasoningPartSchema,
-  connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
   isSeededGreetingRow,
   legacyNotionalCostSamples,
@@ -204,7 +199,6 @@ export {
   messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,
-  standaloneVariableDeltaSchema,
   standaloneVariableDeltasSchema,
   TOOL_CALL_EDIT_ACTIONS,
   toolCallRecordSchema,
@@ -212,9 +206,7 @@ export {
   VARIANT_METADATA_REASONING_MS_KEY,
   VARIANT_METADATA_TOKEN_COUNT_KEY,
   variableDeltaSchema,
-  variablePreconditionSchema,
   variablePreconditionsSchema,
-  variantMetadataSchema,
   variantProviderMetadataSchema,
   varOpSchema,
 } from "./messages.ts";
@@ -237,10 +229,8 @@ export {
   GROUP_OUTPUT_LABELS,
   GROUP_POLICIES,
   GROUP_POLICY_LABELS,
-  GUIDED_STEER_INPUT_MAX,
   groupConfigInputSchema,
   groupConfigSchema,
-  groupPolicySchema,
   guidedSteerSchema,
   MEMBER_CARD_VISIBILITY_LEVELS,
   memberCardVisibilitySchema,
@@ -323,7 +313,6 @@ export {
   CHAT_REACT_TOOL_NAME,
   CHAT_REACTION_SLOT_WINDOW,
   chatReactionsViewSchema,
-  messageReactionGroupSchema,
   REACTION_ATTRIBUTION_CONTENT_CAP,
   REACTION_ATTRIBUTION_MAX_PER_MESSAGE,
   REACTION_ATTRIBUTION_SLOT_WINDOW,
@@ -416,7 +405,6 @@ export {
   previewInviteSchema,
   redeemInviteSchema,
   renderPolicyOverrideForStep,
-  renderPolicySchema,
   rendersTrustedHtml,
   resolveCarriedBackground,
   resolveCarriedBackgroundForAppearance,

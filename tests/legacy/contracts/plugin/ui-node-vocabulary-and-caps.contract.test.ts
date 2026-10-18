@@ -1,16 +1,9 @@
 // Contract tests for @orb/contracts/plugin/ui — the node vocabulary, form discipline and the spec-root caps.
 
 import type { PluginSurfaceSpec } from "@orb/contracts/plugin";
-import {
-  PLUGIN_NODE_KINDS,
-  PLUGIN_ROWS_MAX,
-  PLUGIN_SPEC_MAX_BYTES,
-  PLUGIN_SPEC_MAX_DEPTH,
-  PLUGIN_SPEC_MAX_NODES,
-  PLUGIN_TEXT_MAX_BYTES,
-  pluginSurfaceSpecSchema,
-} from "@orb/contracts/plugin";
+import { PLUGIN_NODE_KINDS, PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpecSchema } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_ROWS_MAX, PLUGIN_SPEC_MAX_BYTES, PLUGIN_SPEC_MAX_NODES, PLUGIN_TEXT_MAX_BYTES } from "#contracts/plugin/ui.ts";
 
 test("PLUGIN_NODE_KINDS is the pinned 22-kind vocabulary in §4.3 order (U5 appended the browse genre; #799 the reach pair)", () => {
   expect(PLUGIN_NODE_KINDS).toEqual([

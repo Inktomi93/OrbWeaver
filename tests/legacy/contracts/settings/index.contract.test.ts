@@ -5,7 +5,6 @@ import {
   APP_SETTINGS_SCHEMA_VERSION,
   appSettingsConfig,
   appSettingsSchema,
-  DEFAULT_BLUR_SURFACES,
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_USER_SETTINGS,
   LOG_LEVELS,
@@ -23,6 +22,7 @@ import {
 } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { DEFAULT_BLUR_SURFACES } from "#contracts/settings/appearance.ts";
 
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;

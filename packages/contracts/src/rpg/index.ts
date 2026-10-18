@@ -72,7 +72,6 @@ export {
   TIME_OF_DAY,
   TIME_OF_DAY_HOURS,
   TIME_OF_DAY_RANGES,
-  timeOfDayAtHour,
 } from "./ambient.ts";
 export type { EmitRpgEvent, RpgBusEvent, RpgBusEventType } from "./bus.ts";
 export { RPG_BUS_EVENT_TYPES } from "./bus.ts";
@@ -173,7 +172,6 @@ export {
   recordToolCalls,
   rpgExtractionSchema,
   rpgPopulateSchema,
-  rpgPopulateSheetSchema,
   rpgRecordedToolCallSchema,
   salvagedToolCallFields,
   salvageExtraction,
@@ -213,8 +211,6 @@ export type {
   RpgUpsertQuestInput,
 } from "./inputs.ts";
 export {
-  RPG_JOURNAL_LIST_MAX_LIMIT,
-  RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgAddJournalEntryInputSchema,
   rpgCreateCheckpointInputSchema,
   rpgCreateGameInputSchema,
@@ -248,12 +244,9 @@ export {
   RPG_PROFILE_D20,
   RPG_PROFILE_FREEFORM,
   RPG_PROFILE_MAX_ATTRIBUTES,
-  RPG_SEED_HP_MAX,
   rpgAttributeModifier,
   rpgSeedTrackers,
-  rpgStatAttributeDefSchema,
   rpgStatProfileSchema,
-  rpgStatResolutionSchema,
 } from "./profile.ts";
 export { RPG_PROSE_SLOTS } from "./prose.ts";
 export {
@@ -284,29 +277,20 @@ export {
 } from "./ruleset.ts";
 export type { RpgSheet } from "./sheet.ts";
 export { rpgSheetSchema } from "./sheet.ts";
-export type { RpgFieldLocks, RpgPlot, RpgPlotAct, RpgQuest, RpgQuestObjective, RpgSnapshotState } from "./snapshot.ts";
+export type { RpgFieldLocks, RpgPlot, RpgQuest, RpgQuestObjective, RpgSnapshotState } from "./snapshot.ts";
 export {
   RPG_HAND_PATCH_PLANES,
   RPG_OP_SHAPED_PLANES,
-  RPG_SNAPSHOT_STATE_PLANES,
   rpgActorIdentityLockBase,
   rpgActorLockBase,
   rpgActorVolatileLockBase,
   rpgFieldLocksSchema,
-  rpgPlotActSchema,
   rpgPlotSchema,
   rpgQuestObjectiveSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
-export {
-  describePatchFields,
-  patchChangesToToolCalls,
-  patchFieldPaths,
-  patchToolsOnlyFields,
-  RPG_PATCH_INDEX_MAX,
-  stateRoundPatchSchema,
-} from "./structured-patch.ts";
+export { describePatchFields, patchChangesToToolCalls, patchFieldPaths, patchToolsOnlyFields, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
   RPG_STATE_CHANGES_FIELD,
@@ -330,7 +314,6 @@ export {
   journalTitleFor,
   journalTypeFor,
   ROLL_DICE_TOOL_NAME,
-  RPG_JOURNAL_TYPE_FALLBACK,
   RPG_LITE_TOOL_NAMES,
   RPG_QUEST_ACTIONS,
   rollDiceArgsSchema,
@@ -362,12 +345,10 @@ export {
   RPG_TRACKER_COLOR_RE,
   RPG_TRACKER_VALUE_EMPTY,
   resolveTrackerMaxOverride,
-  rpgTrackerAppliesToSchema,
   rpgTrackerDefSchema,
   rpgTrackerValueSchema,
   rpgTrackerValuesSchema,
   sortTrackers,
-  trackerAppliesToCarrier,
   trackerCeiling,
   trackerGloss,
   trackerNumber,

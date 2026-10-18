@@ -38,7 +38,6 @@ export {
   BACKGROUND_DIM_MIN,
   BLUR_SURFACES,
   backgroundLibraryEntrySchema,
-  DEFAULT_BLUR_SURFACES,
   SURFACE_TEXTURES,
 } from "./appearance.ts";
 export type { SettingsKvPort, SettingsTenantPrefix } from "./kv.ts";
