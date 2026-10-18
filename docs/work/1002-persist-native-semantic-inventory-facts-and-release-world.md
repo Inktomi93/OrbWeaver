@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/prototype-exposure-census-1002
 plan: test-foundation
 ---
 
@@ -40,6 +39,6 @@ Executing-input currentness, sealed consumer adoption and the reviewed ABI corre
 
 Replay batching, overlays and intra-boundary coalescing preserve independent current reads, projected bytes and authored membership. Shape and public codemod deadlines fail in acquisition/replay, not queries. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
 
-Complete-policy profiling locates costly escaping-reference classification. Measure native-epoch reuse while preserving dynamic admission. Evidence: `reports/review/1016-complete-policy-refinement-causal-map.md`.
+Reviewed lexical classification reuse is integrated; dynamic admission and cohort revision remain current. Production cost stays unqualified. Evidence: `reports/review/1002-refinement-reference-classification-independent.md`.
 
 The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.

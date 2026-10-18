@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-18
 priority: P2
 area: tooling
+lane: codex/native-exception-remainder-1006
 plan: test-foundation
 ---
 
