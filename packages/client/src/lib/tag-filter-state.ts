@@ -24,8 +24,8 @@ export interface TagFilterEntry {
   readonly state: ActiveTagFilterState;
 }
 
-/** The click cycle. A total Record over the union — the ONE place the order of the three states is stated. */
-export const NEXT_TAG_FILTER_STATE: Record<TagFilterState, TagFilterState> = {
+// The click cycle. A total Record over the union — the ONE place the order of the three states is stated.
+const NEXT_TAG_FILTER_STATE: Record<TagFilterState, TagFilterState> = {
   off: "include",
   include: "exclude",
   exclude: "off",

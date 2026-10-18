@@ -29,7 +29,7 @@ import {
   useUploadAsset,
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, renderMessageForDisplay, timeLib, toNotice } from "@orb/client/lib";
+import { bindNotify, renderMessageForDisplay, timeLib } from "@orb/client/lib";
 import {
   __readSurfaceBoxForTest,
   activeDurableLocalUserId,
@@ -58,6 +58,7 @@ import { __resetSessionFreshness, sessionFreshnessAgeMs } from "#client/data/ses
 import type { CardFrameRequest } from "#client/data/use-card-frame.ts";
 import { useOnlineStatus } from "#client/data/use-online-status.ts";
 import type { PluginFrameRequest } from "#client/data/use-plugin-frame.ts";
+import { toNotice } from "#client/lib/notify.ts";
 import { AppRootSessionBoundary } from "#client/routes/app-root-session-boundary/index.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`

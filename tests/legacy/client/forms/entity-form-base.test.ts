@@ -4,10 +4,10 @@
 // every draft-bearing editor leans on. `focusFirstInvalidField` (the DOM `[aria-invalid]` chokepoint)
 // is DOM-bound and exercised live by the factories' onSubmitInvalid through the editor CTs.
 
-import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { StateStorage } from "zustand/middleware";
+import { mirrorDraft, readDraftSeed } from "#client/forms/entity-form-base.ts";
 import { createEntityDraftStore } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 
 interface Values {

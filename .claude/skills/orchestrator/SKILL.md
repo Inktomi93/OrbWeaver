@@ -65,6 +65,8 @@ Owner ruling: at most six `sonnet-executor` lanes plus two Opus agents at once, 
 
 Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 
+Owner ruling for Claude primary on Codex assignments: run at most four peer lanes. This peer limit replaces the model-specific cap above. Codex owns integration, independent review and shared-host scheduling. The peer does not dispatch forge or stickler.
+
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.
 - Before the first dispatch or whole-tree run of a session, do the pre-flight below.

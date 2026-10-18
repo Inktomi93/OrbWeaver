@@ -4,9 +4,9 @@
 // that an unordered tag (`sortOrder: null`) lands AFTER every authored position instead of colliding at 0,
 // and that the sort never mutates its input — the input is a query cache's array.
 
-import type { SortableTag } from "@orb/client/lib";
 import { sortTagsBy } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { SortableTag } from "#client/lib/tag-sort.ts";
 
 const tag = (name: string, total: number, sortOrder: number | null): SortableTag => ({ name, sortOrder, usage: { total } });
 

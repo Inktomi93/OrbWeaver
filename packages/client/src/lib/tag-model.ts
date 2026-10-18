@@ -115,8 +115,8 @@ export function tagColorLabel(kind: "Background" | "Text", value: string | null)
   return value === null ? `${kind}: ${COLOR_UNSET_LABEL.toLowerCase()}` : `${kind}: ${value}`;
 }
 
-/** The compact total-uses label for a tag row's usage chip (e.g. `"12 uses"` / `"1 use"` / `"unused"`). */
-export function usageTotalLabel(total: number): string {
+// The compact total-uses label for a tag row's usage chip (e.g. `"12 uses"` / `"1 use"` / `"unused"`).
+function usageTotalLabel(total: number): string {
   if (total === 0) {
     return "unused";
   }

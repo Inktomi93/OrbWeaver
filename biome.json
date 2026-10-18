@@ -3083,9 +3083,6 @@
       "includes": ["tests/**"],
       "linter": {
         "rules": {
-          "suspicious": {
-            "noConsole": "off"
-          },
           "style": {
             "noMagicNumbers": "off"
           },
@@ -3103,6 +3100,16 @@
                 "withinDescribe": "test"
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tests/legacy/**", "tests/support/**", "tests/tooling/**", "tests/e2e/support/**", "tests/db/client/native-ownership-control.mjs"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
           }
         }
       }

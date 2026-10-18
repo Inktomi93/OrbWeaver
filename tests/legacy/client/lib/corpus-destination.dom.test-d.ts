@@ -1,7 +1,8 @@
-import type { CORPUS_DESTINATION_KINDS, CorpusDestination } from "@orb/client/lib";
+import type { CorpusDestination } from "@orb/client/lib";
 import { selectCorpusArtifact } from "@orb/client/state";
 import type { CorpusDigestSource, CorpusSource, DigestSourceHit, DiscoverSegment } from "@orb/contracts/search";
 import { expectTypeOf, test } from "vitest";
+import type { CORPUS_DESTINATION_KINDS } from "#client/lib/corpus-destination.ts";
 
 test("destination payloads cover the canonical kind tuple and keep scheme absent", () => {
   expectTypeOf<CorpusDestination["kind"]>().toEqualTypeOf<(typeof CORPUS_DESTINATION_KINDS)[number]>();

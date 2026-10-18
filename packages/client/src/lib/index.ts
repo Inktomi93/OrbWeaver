@@ -11,8 +11,8 @@ export { APPEARANCE_OWNER_KEYS } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
-export { __resetBusDupBursts, busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
-export { authoredChatName, chatRoomTitle, deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
+export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { authoredChatName, chatRoomTitle, deriveChatTitle } from "./chat-title.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";
 export type {
   CollectionContribution,
@@ -81,7 +81,7 @@ export {
 } from "./contribution-contracts.ts";
 export { copyWithNotice } from "./copy-with-notice.ts";
 export type { CorpusDestination } from "./corpus-destination.ts";
-export { CORPUS_DESTINATION_KINDS, corpusDestinationIdentity } from "./corpus-destination.ts";
+export { corpusDestinationIdentity } from "./corpus-destination.ts";
 export type { CorpusMode, CorpusModeContribution } from "./corpus-modes.ts";
 export { CORPUS_MODE_LABELS, CORPUS_MODES, CORPUS_WHOLE_LABEL, isCorpusMode } from "./corpus-modes.ts";
 export { createRegistryContext } from "./create-registry-context.tsx";
@@ -146,13 +146,13 @@ export {
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
-export { logClock } from "./log-clock.ts";
+export {} from "./log-clock.ts";
 export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
-export { isDisplayRegexTooComplex, renderMessageForDisplay } from "./message-render.ts";
+export { renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { Notify, NotifyAction, NotifyInput, NotifyNotice } from "./notify.ts";
-export { bindNotify, leaseNotify, notify, toNotice } from "./notify.ts";
+export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two
 // EXECUTION CONTEXTS, which is why it is a client-wide lib shape rather than a feature-private one.
@@ -196,7 +196,6 @@ export type {
   ContextRegionDef,
   ContextRegionView,
   ContextTabDef,
-  ContextTabsSpec,
   CorpusContextState,
   RefineryContextState,
   ResolvedContextTab,
@@ -207,7 +206,6 @@ export {
   defineContextRegion,
   defineContextTabs,
   GAME_STRIP_LABEL,
-  resolveContextTabs,
   VOID_STATE,
 } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
@@ -255,7 +253,7 @@ export {
   unusedTagsLabel,
   usageBreakdown,
 } from "./tag-model.ts";
-export type { SortableTag, TagSortMode } from "./tag-sort.ts";
+export type { TagSortMode } from "./tag-sort.ts";
 export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
 export { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "./talkativeness.ts";
 export { testId } from "./test-ids.ts";
@@ -264,7 +262,6 @@ export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
 export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
-export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
 export { trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";

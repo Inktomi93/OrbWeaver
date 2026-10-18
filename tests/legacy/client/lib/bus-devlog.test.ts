@@ -6,9 +6,10 @@
 // for fifteen independent scenarios driven ~3ms apart. `__resetBusDupBursts` is the fix, so this file pins
 // the thing that MUST NOT change with it: the alarm still fires on a real burst, still stays silent at the
 // commit+complete baseline of 2×, and still logs ONCE per burst rather than on every hit past the crossing.
-import { __resetBusDupBursts, busDupCheck } from "@orb/client/lib";
+import { busDupCheck } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import { __resetBusDupBursts } from "#client/lib/bus-devlog.ts";
 
 const KEY = "chat.listMessages";
 

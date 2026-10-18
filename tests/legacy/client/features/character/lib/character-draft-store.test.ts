@@ -7,10 +7,10 @@
 // per zustand's own `window.localStorage`-unavailable fallback; `create-entity-draft-store.test.ts`
 // establishes the same posture with an injected storage instead).
 
-import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { DEFAULT_CHARACTER_CARD_FORM } from "#client/features/character/lib/character-card-form-model.ts";
 import { characterDraftStore } from "#client/features/character/lib/character-draft-store.ts";
+import { mirrorDraft, readDraftSeed } from "#client/forms/entity-form-base.ts";
 
 test("character draft mirrors a form-value change and reads it back keyed by entityId", () => {
   expect(readDraftSeed(characterDraftStore, "char_1")).toBeUndefined();

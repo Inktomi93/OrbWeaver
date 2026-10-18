@@ -5,7 +5,7 @@
 import { QueryBoundary } from "@orb/client/components";
 import { PersonaPanelRow, personaChrome } from "@orb/client/features/persona";
 import type { NotifyInput, NotifyNotice } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { bindNotify } from "@orb/client/lib";
 import { __resetConfigNav, selectChat, usePersonaEditorId } from "@orb/client/state";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,6 +21,7 @@ import { FirstRunPersonaDialog } from "#client/features/persona/anchors/first-ru
 import { PersonaEditor } from "#client/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "#client/features/persona/components/persona-list.tsx";
 import { PersonaNotificationsSection } from "#client/features/persona/components/persona-notifications-section.tsx";
+import { toNotice } from "#client/lib/notify.ts";
 
 const LIST_MOUNT_DELAY_MS = 800;
 

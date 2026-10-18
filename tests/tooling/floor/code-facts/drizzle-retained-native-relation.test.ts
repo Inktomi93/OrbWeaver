@@ -253,7 +253,6 @@ export async function read(db:Db,ownerId:string,chatId:Parameters<typeof retaine
     reviewedGrants: [],
     failOnWarnings: false,
   });
-  console.log("actual retained owner policy", result.authority.effectiveFindings);
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.owner.status).toBe("success");
   expect(result.authority.authorityAlarms).toEqual([]);

@@ -152,9 +152,9 @@ export function labelNamesModel(label: string, model: string): boolean {
  *  the CT config mirror gate reads a nav id statically and does not follow a member read. */
 export const MODEL_ROLES_SUBCATEGORY_ID = "model-roles";
 
-/** Settings → Connections → Model roles, as `openConfigTo` addresses it. The Connections nav takes its ids from here,
- *  so a door and the leaf it opens cannot drift apart. */
-export const MODEL_ROLES_ADDRESS = { group: "connections", sub: MODEL_ROLES_SUBCATEGORY_ID } as const;
+// Settings → Connections → Model roles, as `openConfigTo` addresses it. The Connections nav takes its ids from here,
+// so a door and the leaf it opens cannot drift apart.
+const MODEL_ROLES_ADDRESS = { group: "connections", sub: MODEL_ROLES_SUBCATEGORY_ID } as const;
 
 /** Where a door to the Utility role lands: Model roles, at the Utility picker. */
 export const UTILITY_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "utility-model" } as const;

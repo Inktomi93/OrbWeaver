@@ -24,7 +24,7 @@ import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows, useTRPC } from "@orb/client/data";
 import { HomeSurface } from "@orb/client/features/home";
 import type { NotifyInput } from "@orb/client/lib";
-import { bindNotify, toNotice } from "@orb/client/lib";
+import { bindNotify } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { __readSurfaceBoxForTest, rememberHomeTileSettledHidden, rememberSurfaceBox, selectChat, useHomeTileSettledHidden } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
@@ -40,6 +40,7 @@ import { RosterCollectionRows } from "#client/features/roster-preset/components/
 import { RosterPicker } from "#client/features/roster-preset/components/roster-picker.tsx";
 import { rosterPresetHomeTile } from "#client/features/roster-preset/lib/home-rosters-tile.tsx";
 import { RosterMemberSurface } from "#client/features/roster-preset/surfaces/roster-member-surface.tsx";
+import { toNotice } from "#client/lib/notify.ts";
 
 // The stories' active-chat id — the `.ct.tsx` stubs `chat.getChat`/`automation.listRules` for this same id
 // (a plain module-const, not an export: a story module exports components ONLY).

@@ -4,7 +4,7 @@ status: doing
 updated: 2026-10-18
 priority: P2
 area: packages
-lane: wt/claude-fabrication-1041
+lane: wt/agent-ae30b7e6538e3c955
 plan: test-foundation
 ---
 
@@ -38,4 +38,4 @@ Reviewed non-macro kit cleanup removes obsolete exports and dead implementations
 
 Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
 
-Reviewed client data doors preserve module evaluation and legacy cases. Native consumer roles stay explicit; scoped legacy failures remain red. Only exact stale keys leave. Evidence: `reports/review/989-client-data-independent.md`.
+Reviewed client barrels preserve module evaluation and legacy cases. Retained APIs and unresolved contracts stay explicit; parent-reproduced source reds remain. Only exact stale keys leave. Evidence: `reports/review/989-client-lib-forms-independent.md`.
