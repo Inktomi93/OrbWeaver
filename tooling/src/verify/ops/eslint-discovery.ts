@@ -1,7 +1,7 @@
-// Discovery asks ESLint itself which filenames `.` (or a scoped run's paths) means, while disabling only typed
-// program creation and rule execution. The child emits filenames, never a lint verdict; actual shards use the
-// untouched config. An explicit path ESLint ignores yields no filename, as `--no-warn-ignored` would.
-import { relative, sep } from "node:path";
+// Native discovery preserves CLI filename semantics without source parsing, authored processors or rules.
+// Original effective configuration is still validated; actual lint shards use that untouched configuration.
+// The child emits filenames, never a lint verdict; explicit ignored paths behave as `--no-warn-ignored`.
+import { relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
@@ -44,11 +44,21 @@ export async function discoverEslintFiles(root: string, patterns: readonly strin
   const eslint = new ESLint({
     cwd: root,
     overrideConfigFile: true,
-    overrideConfig: discoveryRow(loaded.default) as FlatRow[],
+    overrideConfig: [
+      ...(discoveryRow(loaded.default) as FlatRow[]),
+      // Empty blocks preserve native outer filenames without parsing or invoking authored processors.
+      { processor: { preprocess: (): [] => [], postprocess: (): [] => [] } },
+    ],
     ruleFilter: (): boolean => false,
     warnIgnored: false,
   });
   const results = await eslint.lintFiles([...patterns]);
+  const original = new ESLint({ cwd: root, overrideConfigFile: resolve(root, CONFIG_REL) });
+  for (const { filePath } of results) {
+    if ((await original.calculateConfigForFile(filePath)) === undefined) {
+      throw new Error("ESLint discovery and original native configuration resolved different filename populations");
+    }
+  }
   return results.map(({ filePath }) => relative(root, filePath).split(sep).join("/")).toSorted();
 }
 
