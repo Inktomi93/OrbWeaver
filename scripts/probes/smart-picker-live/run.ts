@@ -18,7 +18,8 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import { createInferenceRuntime, resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import type {
   ArbiterCandidate,
   SmartArbitrationResult,
@@ -34,6 +35,7 @@ import { speakerArbiterFor } from "../../../packages/server/src/entry/compose/ch
 import { fakeApiKeySecret, fakeConnection, fakeDeps } from "../../../tests/legacy/inference/_support.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
 import { readEnvKey } from "../openrouter/_kit.ts";
+import { rowPrincipalResolver } from "../row-principal.ts";
 import type { Scene } from "./scenes.ts";
 import { SCENES } from "./scenes.ts";
 
@@ -160,7 +162,9 @@ const runtime = await createInferenceRuntime({
   // The shipped reranker files, copied out of the stack's model cache; nothing downloads mid-run.
   localLight: { cacheDir: readEnvKey("SMART_PICKER_MODEL_CACHE"), allowRemoteModels: false },
 });
-const owner = principal(OWNER);
+const identityDb = await freshDb();
+await seedUser(identityDb, { id: OWNER });
+const owner = await rowPrincipalResolver(identityDb)(OWNER);
 
 /** The code each row ran against: HEAD plus whether product code had uncommitted edits, so a row from a tree
  *  mid-fix is never read as the committed branch. */

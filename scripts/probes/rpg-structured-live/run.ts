@@ -21,6 +21,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { z } from "zod";
+import { createHostPrincipalResolver } from "../../../packages/server/src/entry/auth/index.ts";
 import type { ServicesResult } from "../../../packages/server/src/entry/compose/index.ts";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "../../../packages/server/src/entry/compose/index.ts";
 import { execGit } from "../../../tooling/src/floor/git/git.ts";
@@ -607,10 +608,6 @@ async function echoUpstream(wire: Wire): Promise<Record<string, unknown>> {
 
 // ── the app, per cell ──────────────────────────────────────────────────────────────────────────────────────────
 
-function principalOf(userId: UserId, handle: string): Principal {
-  return { userId, role: "user", handle: castId<Handle>(handle), externalId: null, via: "header" };
-}
-
 interface Booted {
   readonly app: ServicesResult;
   readonly host: Principal;
@@ -647,7 +644,7 @@ async function boot(cell: Cell): Promise<Booted> {
   });
   await seedUser(db, { id: OWNER, handle: castId<Handle>("rpgstructlive_owner"), role: "owner" });
   await seedUser(db, { id: HOST, handle: castId<Handle>("rpgstructlive_host") });
-  const host = principalOf(HOST, "rpgstructlive_host");
+  const host = await createHostPrincipalResolver(app.sessions)(HOST);
   const { services } = app;
   const credentialId = cell.keyEnv === undefined ? null : await storeKey(services, host, cell.providerId, cell.keyEnv);
   const connection = await services.connection.create({

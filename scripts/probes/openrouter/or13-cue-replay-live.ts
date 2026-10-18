@@ -9,22 +9,14 @@ import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView, Sp
 import { chatReasoningPartSchema } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
-import type { InferenceLog, WireCaptureSink } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, MessageId, ModelId, UserId } from "@orb/kit/ids";
+import type { WireCaptureSink } from "@orb/inference";
+import type { AssetId, CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createAnthropicBackend } from "../../../packages/inference/src/backends/anthropic-messages/index.ts";
-import { detectModelFamily } from "../../../packages/inference/src/capability/families.ts";
-import { applyEndpointPosture } from "../../../packages/inference/src/capability/floor.ts";
-import { curatedRows } from "../../../packages/inference/src/capability/sources/curated/loader.ts";
-import { measuredRows } from "../../../packages/inference/src/capability/sources/measured/loader.ts";
-import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
-import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../packages/server/src/domain/chat/assembly/injections.ts";
 import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
-import { createRunChatTurnBridge } from "../../../packages/server/src/entry/compose/chat.ts";
-import { makeApiKeySecret, makeResolved } from "../../../tests/legacy/inference/_support.ts";
+import { composeChatFunding } from "../composed-chat-funding.ts";
 import { filler, jsonl, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or13";
@@ -60,14 +52,11 @@ interface CallRecord {
   readonly outputTokens: number | null;
   /** `providerMetadata.thinkingDropped`; null when the response listed no transformations. */
   readonly thinkingDropped: number | null;
-  readonly alarms: number;
   readonly thinkingBlocksSent: number;
   readonly blockBinding: string | null;
   readonly cueRole: string | null;
   readonly costUsd: number;
 }
-
-const silent = { debug: (): void => undefined, info: (): void => undefined, warn: (): void => undefined, error: (): void => undefined };
 
 function view(chatId: ChatId, seq: number, content: string, characterId: CharacterId | null): MessageView {
   return buildCommittedMessageView({
@@ -112,23 +101,16 @@ export async function run(): Promise<object> {
     capture.body = entry.body;
     capture.headers = entry.responseHeaders ?? {};
   };
-  let alarms = 0;
-  const log: InferenceLog = { ...silent, error: (fields) => (fields["event"] === "provider.thinking_dropped" ? (alarms += 1) : undefined) };
-  const registry = new Map([["anthropic-messages" as const, createAnthropicBackend({ now: Date.now, log, fetch: globalThis.fetch, captureWire: sink })]]);
-  const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()), beginEmbeddingAccounting: () => {
-    throw new Error("or13 is a chat-only probe; unexpected embedding execution");
-  } });
-  const base = makeResolved({ providerId: "anthropic" });
-  const query = { model: MODEL, providerId: base.provider.id, wire: base.provider.wire, api: base.provider.apis[0] ?? null };
-  const synthesized = synthesizeCapability("generation", detectModelFamily(MODEL), { measured: measuredRows(query), curated: curatedRows(query) });
-  const connection = makeResolved({
+  await using funding = await composeChatFunding({
+    ownerId: OWNER,
     providerId: "anthropic",
-    model: castId<ModelId>(MODEL),
-    factsModel: castId<ModelId>(MODEL),
-    capability: applyEndpointPosture(base.provider, synthesized.capability, false),
-    credential: makeApiKeySecret(key),
+    model: MODEL,
+    key,
+    declared: null,
+    fetch: globalThis.fetch,
+    captureWire: sink,
   });
-  const runChatTurn = createRunChatTurnBridge({ runChatTurn: executor.runChatTurn });
+  const { connection, runChatTurn } = funding;
 
   const refs: SpeakerRef[] = SPEAKERS.map((s) => ({ kind: "character", characterId: s.id }));
   const marker: ChatInjection = {
@@ -168,7 +150,6 @@ export async function run(): Promise<object> {
     }
     capture.body = null;
     capture.headers = {};
-    const alarmsBefore = alarms;
     const result = await runTurnPipeline({
       now: Date.now,
       applyRegexReplace: (text, regex, replacer) => text.replace(regex, replacer),
@@ -201,7 +182,6 @@ export async function run(): Promise<object> {
       requestId: capture.headers["request-id"] ?? null,
       ...usage,
       thinkingDropped: meta !== undefined && meta !== null && meta.provider === "anthropic" ? (meta.thinkingDropped ?? null) : null,
-      alarms: alarms - alarmsBefore,
       thinkingBlocksSent: thinkingBlocks(capture.body),
       blockBinding: JSON.stringify(thinking?.["block_binding"] ?? null),
       cueRole: result.cue?.role ?? null,
@@ -212,7 +192,7 @@ export async function run(): Promise<object> {
     out.append({ kind: "arm", probe: id, runId, model: MODEL, ...record, spendSoFar: spend });
     console.log(
       `${label}: id=${record.requestId} prompt=${record.promptTokens} read=${record.readTokens} write=${record.writeTokens} out=${record.outputTokens} ` +
-        `dropped=${record.thinkingDropped} alarms=${record.alarms} thinkingSent=${record.thinkingBlocksSent} binding=${record.blockBinding} ` +
+        `dropped=${record.thinkingDropped} thinkingSent=${record.thinkingBlocksSent} binding=${record.blockBinding} ` +
         `cue=${record.cueRole} est=$${record.costUsd.toFixed(USD_DIGITS)}`,
     );
     const committed = view(chatId, canon.length + 1, result.content, speaker.id);
@@ -233,7 +213,7 @@ export async function run(): Promise<object> {
     (canon.push(view(chatId, canon.length + 1, "Fine. Then which of you rows me out to the weirs at dawn?", null)), await reply("follow-up (Aria)", SPEAKERS[0], 0));
   const reads = calls.map((c) => c.readTokens ?? 0);
   const readsGrow = reads.every((read, i) => i === 0 || read > (reads[i - 1] ?? 0));
-  const zeroDrops = calls.every((c) => (c.thinkingDropped ?? 0) === 0 && c.alarms === 0);
+  const zeroDrops = calls.every((c) => (c.thinkingDropped ?? 0) === 0);
   const verdict = {
     kind: "verdict",
     probe: id,
