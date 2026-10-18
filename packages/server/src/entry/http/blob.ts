@@ -61,7 +61,7 @@ export interface BlobDeps {
   readonly cas: BlobCasPort;
 }
 
-// @orb-waive no-inline-package-interface(PrincipalEnv): baselined when the gate landed; burn-down item 952.
+// @orb-waive no-inline-package-interface(PrincipalEnv): entry-only registrar environment belongs to the same-file registerBlob signature (D324); native Hono conditional contribution is unproven. Ends when native signature ownership proves that contribution.
 /** The request-context shape EVERY principal-reading route registrar in this directory types its `app`
  *  against — declared once here (the oldest such registrar) rather than re-spelled per route file. It is the
  *  WHOLE set of vars the auth middleware writes, not just the ones this route reads: Hono's env generic is

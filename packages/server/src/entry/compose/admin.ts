@@ -18,7 +18,6 @@ import type { LiveBuses } from "#transport/trpc";
 
 import type { SessionSocketEviction } from "../http/index.ts";
 
-// @orb-waive no-inline-package-interface(AdminComposeDeps): baselined when the gate landed; burn-down item 952.
 /** Boot dependencies and precise sibling service capabilities wired into admin and export. */
 export interface AdminComposeDeps {
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -52,7 +51,6 @@ export interface AdminComposeDeps {
   readonly serverRestart: ServerRestartPort;
 }
 
-// @orb-waive no-inline-package-interface(AdminComposeResult): baselined when the gate landed; burn-down item 952.
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
  *  the export service). */
 export interface AdminComposeResult {

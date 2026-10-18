@@ -9,7 +9,6 @@ import { getLog } from "#foundation/observability";
 
 const OPENROUTER_PROVIDER = "openrouter" as const;
 
-// @orb-waive no-inline-package-interface(SeedCredentialDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedCredentialDeps {
   /** The credentials front door — only the existence check + the add verb are needed. */
   readonly credentials: Pick<CredentialsService, "list" | "add">;

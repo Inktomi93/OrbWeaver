@@ -12,7 +12,6 @@ import { createUserContentSeeder as createContentSeedPolicy } from "#domain/sett
 
 export type { UserContentSeeder } from "#domain/settings";
 
-// @orb-waive no-inline-package-interface(UserContentSeederDeps): baselined when the gate landed; burn-down item 952.
 export interface UserContentSeederDeps {
   /** The operator switch (`SEED_CONTENT`); off ⇒ nothing is seeded and nothing is recorded. */
   readonly enabled: () => boolean;
@@ -69,7 +68,6 @@ export function createUserContentSeeder(deps: UserContentSeederDeps): UserConten
   });
 }
 
-// @orb-waive no-inline-package-interface(SeedUserContentDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedUserContentDeps {
   /** Shared with the app first-request hook. */
   readonly seeder: UserContentSeeder;

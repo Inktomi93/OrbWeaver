@@ -1,7 +1,6 @@
 import type { Db } from "@orb/db";
 import { ensureSeedThemes } from "#domain/settings";
 
-// @orb-waive no-inline-package-interface(SeedThemesDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedThemesDeps {
   readonly db: Db;
   readonly now: () => number;

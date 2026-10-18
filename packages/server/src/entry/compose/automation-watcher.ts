@@ -27,7 +27,6 @@ import type { LiveBuses } from "#transport/trpc";
  *  one-directional flow). Each closes over its owning sibling service; `authorUserId` resolves to a Principal
  *  where the sibling gates on ownership (world-info book owner, imagery caller). */
 
-// @orb-waive no-inline-package-interface(AutomationActionOpsDeps): baselined when the gate landed; burn-down item 952.
 export interface AutomationActionOpsDeps {
   readonly db: DatabaseHandle;
   /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`) — membership AND the D16 canon

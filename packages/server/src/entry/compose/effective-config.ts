@@ -1,7 +1,6 @@
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { SettingsService } from "#domain/settings";
 
-// @orb-waive no-inline-package-interface(EffectiveConfigWiring): baselined when the gate landed; burn-down item 952.
 /** The boot surface: the SYNC getter hot paths inject + the boot reload that warms the cache. */
 export interface EffectiveConfigWiring {
   readonly getEffectiveConfig: () => EffectiveAppConfig;

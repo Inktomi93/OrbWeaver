@@ -40,7 +40,6 @@ import { buildPortabilityRegistry } from "./portability.ts";
 const DEFAULT_ST_PROFILE_DIR = ".st-data";
 
 /** What the portability+import seam needs from the composition root. */
-// @orb-waive no-inline-package-interface(PortabilityRunnerComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface PortabilityRunnerComposeDeps {
   readonly quiet: LiveBuses["quiet"]["withQuietBulkFanout"];
   readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
@@ -92,7 +91,6 @@ export interface PortabilityRunnerComposeDeps {
 }
 
 /** The compose product: the registry the delivery core iterates + the deps import's contributions take. */
-// @orb-waive no-inline-package-interface(PortabilityRunnerComposeResult): baselined when the gate landed; burn-down item 952.
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;
   readonly importWorkloads: ImportWorkloadDeps;

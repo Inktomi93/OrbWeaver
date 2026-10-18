@@ -17,7 +17,6 @@ import type { BackfillPluginProvenanceResult } from "#domain/character";
 import { backfillPluginProvenance } from "#domain/character";
 import { getLog } from "#foundation/observability";
 
-// @orb-waive no-inline-package-interface(BackfillPluginProvenanceOnBootDeps): baselined when the gate landed; burn-down item 952.
 export interface BackfillPluginProvenanceOnBootDeps {
   readonly db: Db;
 }

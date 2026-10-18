@@ -9,7 +9,6 @@ import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env";
 /** The disclaimer's closed topic set; `exposure` is the only one that can carry a security line. */
 export const BOOT_DISCLAIMER_TOPICS = ["mode", "listen", "owner", "cookie", "secrets", "caveat", "exposure"] as const;
 
-// @orb-waive no-inline-package-interface(BootSecretProvenance): baselined when the gate landed; burn-down item 952.
 /** Where one boot secret came from: the explicit env value, else the keyfile path (`null` for a remote db). */
 export interface BootSecretProvenance {
   readonly explicit: boolean;
@@ -31,7 +30,6 @@ export interface BootDisclaimerOptions {
   readonly secrets: { readonly sessionSecret: BootSecretProvenance; readonly credentialsKey: BootSecretProvenance };
 }
 
-// @orb-waive no-inline-package-interface(BootDisclaimerLine): baselined when the gate landed; burn-down item 952.
 export interface BootDisclaimerLine {
   readonly topic: (typeof BOOT_DISCLAIMER_TOPICS)[number];
   readonly level: "info" | "warn";

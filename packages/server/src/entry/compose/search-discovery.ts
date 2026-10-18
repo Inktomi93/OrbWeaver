@@ -66,7 +66,6 @@ import { minter } from "./minter.ts";
 import { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
 import { createVisibleRoomsReader } from "./visible-rooms.ts";
 
-// @orb-waive no-inline-package-interface(SearchDiscoveryComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the search/discovery cluster seam needs from the composition root. */
 export interface SearchDiscoveryComposeDeps {
   readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
@@ -110,7 +109,6 @@ export interface SearchDiscoveryComposeDeps {
   readonly emptyMemoryScope: ChatBoundBackfillOps["emptyMemoryScope"];
 }
 
-// @orb-waive no-inline-package-interface(SearchDiscoveryComposeResult): baselined when the gate landed; burn-down item 952.
 /** The cluster compose product. `enqueueEmbedReindex` is returned so the keystone can bind it onto its
  *  late-bound embed-space-change holder (the trigger). */
 export interface SearchDiscoveryComposeResult {

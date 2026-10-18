@@ -47,7 +47,6 @@ import type { ToolUseService } from "#domain/tool-use";
 import type { ChatComposeResult } from "./chat.ts";
 import { minter } from "./minter.ts";
 
-// @orb-waive no-inline-package-interface(RpgComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the rpg seam needs from the composition root: the rounds' own DI bundle (minus the handle-conflict
  *  classifier, wired here off character's front door) plus the ops only `RpgContext` itself consumes. */
 export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHandleConflict"> {
@@ -70,7 +69,6 @@ export interface RpgComposeDeps extends Omit<RpgRoundsDeps, "rpgChatOps" | "isHa
   readonly toolUse: Pick<ToolUseService, "register">;
 }
 
-// @orb-waive no-inline-package-interface(RpgComposeResult): baselined when the gate landed; burn-down item 952.
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
  *  injection (the `input.rpg ?? null` seam). */
 export interface RpgComposeResult extends AsyncDisposable {

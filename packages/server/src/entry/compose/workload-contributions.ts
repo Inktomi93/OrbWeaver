@@ -32,7 +32,6 @@ import { createStatsWorkloadContributions } from "#domain/stats";
 import type { AnyWorkloadContribution, WorkloadContributions } from "#domain/workloads";
 import { createReservedWorkloadContributions } from "#domain/workloads";
 
-// @orb-waive no-inline-package-interface(WorkloadContributionsDeps): baselined when the gate landed; burn-down item 952.
 /** What the registry seam needs from the composition root: the union of each owning domain's contribution
  *  deps. Adding a domain's background work adds ONE member here and ONE spread below — nothing else. */
 export interface WorkloadContributionsDeps

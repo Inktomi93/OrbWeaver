@@ -32,7 +32,6 @@ import { createLocalLightUserSeed as createUserSeedPolicy, seedLocalLightAccount
 import { createListSeedAccountIds } from "#domain/sessions";
 import { minter } from "../compose/minter.ts";
 
-// @orb-waive no-inline-package-interface(SeedLocalLightDeps): baselined when the gate landed; burn-down item 952.
 export interface SeedLocalLightDeps {
   readonly idSource?: IdSource;
   readonly db: DatabaseHandle;

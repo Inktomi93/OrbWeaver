@@ -19,7 +19,6 @@ import type { ToolUseService } from "#domain/tool-use";
 import { fetchImageBytes } from "#infra/network";
 import { minter } from "./minter.ts";
 
-// @orb-waive no-inline-package-interface(ImageryComposeDeps): baselined when the gate landed; burn-down item 952.
 export interface ImageryComposeDeps {
   readonly fetchImageBytes?: typeof fetchImageBytes;
   readonly idSource?: IdSource;

@@ -18,7 +18,6 @@ interface PresenceCell {
   lastSeenAt: number | null;
 }
 
-// @orb-waive no-inline-package-interface(PresenceRegistry): baselined when the gate landed; burn-down item 952.
 export interface PresenceRegistry {
   /** Register one live device connection for `userId`; releases (decrements) on `signal` abort. */
   readonly connect: (userId: UserId, signal: AbortSignal) => void;

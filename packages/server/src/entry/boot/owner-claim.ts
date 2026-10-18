@@ -12,7 +12,6 @@ import type { OwnerClaimCode } from "#infra/auth";
 import { removeSecretFile, writeSecretFile } from "#infra/crypto";
 import { ownerClaimLoginUrl } from "../http/index.ts";
 
-// @orb-waive no-inline-package-interface(OwnerClaimAnnouncement): baselined when the gate landed; burn-down item 952.
 /** What {@link announceOwnerClaim} reads, where it writes the URL, and where it prints the read command. */
 export interface OwnerClaimAnnouncement {
   readonly log: { readonly warn: (fields: Record<string, unknown>, msg: string) => void };

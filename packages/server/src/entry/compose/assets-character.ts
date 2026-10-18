@@ -59,7 +59,6 @@ import type { LiveBuses } from "#transport/trpc";
 import { minter } from "./minter.ts";
 import { createSeedAvatarOps } from "./seed-avatar-ops.ts";
 
-// @orb-waive no-inline-package-interface(AssetsCharacterComposeDeps): baselined when the gate landed; burn-down item 952.
 /** What the assets/character seam needs from the composition root. `getPreset`/`getPersona` are the request-time
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder
  *  (character/seeders reference it, and this seam returns the real op the keystone rebinds onto the holder). */
@@ -100,7 +99,6 @@ export interface AssetsCharacterComposeDeps {
   readonly getLorebookImport: () => { readonly importLorebook: BulkImportLorebook; readonly hasPrimaryBook: HasPrimaryBook };
 }
 
-// @orb-waive no-inline-package-interface(AssetsCharacterComposeResult): baselined when the gate landed; burn-down item 952.
 /** The assets/character compose product. `materializeBackgroundOp` is the constructed op the keystone rebinds
  *  onto its late-bound holder now that `assets` is live. */
 export interface AssetsCharacterComposeResult {

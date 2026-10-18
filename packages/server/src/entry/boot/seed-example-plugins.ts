@@ -6,7 +6,6 @@ import { createExamplePluginSeeder as createShowcaseSeedPolicy } from "#domain/p
 
 export type { ExamplePluginSeeder } from "#domain/plugin";
 
-// @orb-waive no-inline-package-interface(ExamplePluginSeederDeps): baselined when the gate landed; burn-down item 952.
 /** The original graph port; shipped slugs are bound here rather than imported by a domain. */
 export interface ExamplePluginSeederDeps {
   readonly packBundle: ShowcaseSeedDeps["packBundle"];
