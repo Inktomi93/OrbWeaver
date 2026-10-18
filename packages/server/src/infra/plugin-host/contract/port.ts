@@ -12,7 +12,7 @@ import type {
 } from "@orb/contracts/plugin";
 import type { TimerScheduler } from "@orb/kit/time";
 import type { ScopedEgress } from "#infra/network";
-import type { PluginNetEgress } from "../net-egress.ts";
+import type { PluginNetEgress } from "./net-egress.ts";
 
 /** The determinism seams every instance's realm binds. */
 export interface PluginHostSeamDeps {

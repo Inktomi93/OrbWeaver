@@ -4,9 +4,9 @@ import { HOST_FUNCTION_CAPABILITY, PLUGIN_TOAST_LEVELS } from "@orb/contracts/pl
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
+import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
-import type { PluginNetEgress, PluginNetResponse } from "./net-egress.ts";
 
 type AsyncCall = (operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness) => Promise<unknown>;
 
