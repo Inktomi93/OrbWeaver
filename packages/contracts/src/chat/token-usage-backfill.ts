@@ -3,7 +3,8 @@
 
 import type { MessageVariantId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { TokenProvenance, VariantMetadata } from "./messages.ts";
+import type { VariantMetadata } from "./messages.ts";
+import type { TokenProvenance } from "./token-provenance.ts";
 
 export interface ImportedTokenUsageCandidate {
   readonly variantId: MessageVariantId;

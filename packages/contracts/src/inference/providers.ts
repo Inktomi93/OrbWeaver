@@ -11,8 +11,9 @@
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
+import { isPluginProviderId } from "./provider-id.ts";
 import type { ProviderDef } from "./provider-schema.ts";
-import { isPluginProviderId, providerDefSchema } from "./provider-schema.ts";
+import { providerDefSchema } from "./provider-schema.ts";
 import type { Task } from "./tasks.ts";
 import { WIRE_DEFS } from "./wires.ts";
 

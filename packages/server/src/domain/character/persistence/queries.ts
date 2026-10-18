@@ -367,46 +367,33 @@ function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
   return or(gt(characters.name, name), and(eq(characters.name, name), gt(characters.id, id)));
 }
 
-// if-chained (not switch) — biome's noUnnecessaryConditions can't track discriminant narrowing through
-// a Zod-inferred discriminated union property switch the way the typed eslint rule can, and misflags
-// every case as unreachable. The final arm's comparison is a true tautology once narrowed (all other
-// members excluded); suppressed there only, so assertNever still catches a future unhandled sort.
 function keysetFor(activity: CharacterActivity, cursor: CharacterListCursor): SQL | undefined {
-  if (cursor.sort === "recent") {
-    return recentKeyset(activity, cursor);
+  switch (cursor.sort) {
+    case "recent":
+      return recentKeyset(activity, cursor);
+    case "alpha":
+      return alphaKeyset(cursor.name, cursor.id);
+    case "starred":
+      return or(lt(characters.starred, cursor.starred), and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)));
+    case "newest":
+      return createdAtKeysetDesc(cursor.createdAt, cursor.id);
+    case "oldest":
+      return createdAtKeysetAsc(cursor.createdAt, cursor.id);
+    case "mostChats":
+      return mostChatsKeyset(activity, cursor);
+    case "fewestChats":
+      return fewestChatsKeyset(activity, cursor);
+    case "largestCards":
+      return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
+    case "smallestCards":
+      return tokenSizeKeysetAsc(cursor.tokenSize, cursor.id);
+    case "bestScore":
+      return bestScoreKeyset(cursor);
+    case "worstScore":
+      return worstScoreKeyset(cursor);
+    default:
+      return assertNever(cursor);
   }
-  if (cursor.sort === "alpha") {
-    return alphaKeyset(cursor.name, cursor.id);
-  }
-  if (cursor.sort === "starred") {
-    return or(lt(characters.starred, cursor.starred), and(eq(characters.starred, cursor.starred), alphaKeyset(cursor.name, cursor.id)));
-  }
-  if (cursor.sort === "newest") {
-    return createdAtKeysetDesc(cursor.createdAt, cursor.id);
-  }
-  if (cursor.sort === "oldest") {
-    return createdAtKeysetAsc(cursor.createdAt, cursor.id);
-  }
-  if (cursor.sort === "mostChats") {
-    return mostChatsKeyset(activity, cursor);
-  }
-  if (cursor.sort === "fewestChats") {
-    return fewestChatsKeyset(activity, cursor);
-  }
-  if (cursor.sort === "largestCards") {
-    return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
-  }
-  if (cursor.sort === "smallestCards") {
-    return tokenSizeKeysetAsc(cursor.tokenSize, cursor.id);
-  }
-  if (cursor.sort === "bestScore") {
-    return bestScoreKeyset(cursor);
-  }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tautology after exhaustive narrowing; kept so assertNever still guards a future unhandled member.
-  if (cursor.sort === "worstScore") {
-    return worstScoreKeyset(cursor);
-  }
-  return assertNever(cursor);
 }
 
 /** The library SEARCH predicate — the strings the ROW ITSELF renders, over the whole library: the name, the

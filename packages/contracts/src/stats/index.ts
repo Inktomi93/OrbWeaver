@@ -9,8 +9,8 @@ import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
 import { z } from "zod";
 import type { GenerationUsageLeg, ProviderId } from "#inference";
 import { modelIdSchema, providerIdSchema } from "#inference";
-import type { TokenProvenance } from "../chat/messages.ts";
-import { tokenProvenanceSchema } from "../chat/messages.ts";
+import type { TokenProvenance } from "../chat/token-provenance.ts";
+import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
 
 /** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`), enforced at the transport trust
  *  boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence `rollups.ts` DoS clamp

@@ -3,8 +3,8 @@
 import type { CharacterId, EmbedGenerationId, ThemeClusterId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import type { TokenProvenance } from "../chat/messages.ts";
-import { tokenProvenanceSchema } from "../chat/messages.ts";
+import type { TokenProvenance } from "../chat/token-provenance.ts";
+import { tokenProvenanceSchema } from "../chat/token-provenance.ts";
 import type { ThemeLevel } from "./vocabulary.ts";
 import { THEME_LEVELS } from "./vocabulary.ts";
 

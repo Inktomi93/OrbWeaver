@@ -10,8 +10,9 @@ import type { Branded } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { SEMVER_RE } from "@orb/kit/semver";
 import { z } from "zod";
+import { isPluginProviderId, pluginNameOfProviderId } from "../inference/provider-id.ts";
 import type { ProviderDef } from "../inference/provider-schema.ts";
-import { isPluginProviderId, pluginNameOfProviderId, providerDefSchema } from "../inference/provider-schema.ts";
+import { providerDefSchema } from "../inference/provider-schema.ts";
 
 /** The closed capability axis. A manifest declares a SUBSET; a new capability is a member here + a
  *  host-function row in `CAPABILITY_HOST_FUNCTIONS` (host-v1.ts) — a capability with no function (or a

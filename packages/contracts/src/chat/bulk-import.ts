@@ -18,10 +18,11 @@ import type { GenerationUsage } from "../inference/usage.ts";
 import { generationUsageLegSchema } from "../inference/usage.ts";
 import type { UserMacroValues } from "../preset/index.ts";
 import type { CHAT_INJECTION_POSITIONS } from "./assemble.ts";
-import type { TokenProvenance, VariantMetadata } from "./messages.ts";
+import type { VariantMetadata } from "./messages.ts";
 import type { ChatMetadata } from "./metadata.ts";
 import type { MessageKind } from "./participants.ts";
 import type { SeatKnobs } from "./roster.ts";
+import type { TokenProvenance } from "./token-provenance.ts";
 
 /** Normalized completed facts travel by local transcript position, never by private funding or connection ids. */
 export const pendingGenerationObservationInputSchema = z

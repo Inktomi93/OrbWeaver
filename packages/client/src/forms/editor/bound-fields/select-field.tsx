@@ -24,7 +24,7 @@ export function SelectField(props: SelectFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<string>(props);
   return (
     <Field {...fieldProps}>
-      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- #579 source-verified: association
+      {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- association
           flows through Base UI's FieldRootContext at render time (`BaseField.Control` injects
           `aria-labelledby` — packages/ui/src/primitives/select/select.tsx), never as a literal JSX prop on
           this element, so no `control-has-associated-label` option (labelAttributes/controlComponents/depth)

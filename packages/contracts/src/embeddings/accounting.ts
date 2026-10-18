@@ -4,7 +4,7 @@
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { modalitySchema } from "../inference/modalities.ts";
-import type { ProviderId } from "../inference/provider-schema.ts";
+import type { ProviderId } from "../inference/provider-id.ts";
 import { costUsageSchema, tokenDetailsSchema } from "../inference/usage.ts";
 import type { Wire } from "../inference/wires.ts";
 import { embedUsageSchema } from "../providers/index.ts";

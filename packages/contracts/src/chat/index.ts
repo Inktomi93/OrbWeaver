@@ -181,7 +181,6 @@ export type {
   ReattributeScope,
   StandaloneVariableDelta,
   TextSignature,
-  TokenProvenance,
   ToolCallEditAction,
   ToolCallRecord,
   UserMacroDraws,
@@ -195,7 +194,6 @@ export {
   CONNECTION_ATTRIBUTION_PROVENANCES,
   CUE_ROLES,
   chatReasoningPartSchema,
-  combineTokenProvenance,
   connectionAttributionProvenanceSchema,
   INLINE_REPLY_ORIGIN,
   isSeededGreetingRow,
@@ -208,9 +206,7 @@ export {
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,
   standaloneVariableDeltasSchema,
-  TOKEN_PROVENANCES,
   TOOL_CALL_EDIT_ACTIONS,
-  tokenProvenanceSchema,
   toolCallRecordSchema,
   userMacroDrawsSchema,
   VARIANT_METADATA_REASONING_MS_KEY,
@@ -444,6 +440,8 @@ export {
 } from "./roster.ts";
 export type { StartChatInput } from "./start.ts";
 export { startChatSchema } from "./start.ts";
+export type { TokenProvenance } from "./token-provenance.ts";
+export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 export type {
   CompareAndSetImportedTokenUsage,
   ImportedTokenUsageCandidate,

@@ -18,7 +18,6 @@ export class PresetNotFoundError extends DomainNotFoundError {
 
 export class PresetOperationError extends DomainOperationError {
   // Narrows code to PresetOpCode so a verb can never throw an off-catalog reason code.
-  // biome-ignore lint/complexity/noUselessConstructor: the narrowing constructor is the point.
   constructor(code: PresetOpCode, message: string) {
     super(code, message);
   }

@@ -13,17 +13,13 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { NormalizedFinishReason } from "../inference/finish-reasons.ts";
 import { normalizedFinishReasonSchema } from "../inference/finish-reasons.ts";
-import type { ProviderId } from "../inference/provider-schema.ts";
-import { providerIdSchema } from "../inference/provider-schema.ts";
+import type { ProviderId } from "../inference/provider-id.ts";
+import { providerIdSchema } from "../inference/provider-id.ts";
 import { generationUsageLegSchema } from "../inference/usage.ts";
 import type { MessageKind } from "./participants.ts";
 import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 import type { TokenProvenance } from "./token-provenance.ts";
 import { tokenProvenanceSchema } from "./token-provenance.ts";
-
-export type { TokenProvenance } from "./token-provenance.ts";
-// biome-ignore lint/performance/noBarrelFile: compatibility reexports preserve the existing chat API after its required cycle-free token-provenance leaf move; this module owns substantive schemas.
-export { combineTokenProvenance, TOKEN_PROVENANCES, tokenProvenanceSchema } from "./token-provenance.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE MESSAGE / VARIANT WIRE CONTRACT (D26) — `messages` is a pure SLOT; ALL content/economics live on

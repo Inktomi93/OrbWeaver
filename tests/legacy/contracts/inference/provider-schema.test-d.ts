@@ -1,6 +1,6 @@
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
-import type { ProviderId, providerIdSchema } from "#contracts/inference/provider-schema.ts";
+import type { ProviderId, providerIdSchema } from "#contracts/inference/provider-id.ts";
 
 test("providerIdSchema accepts a string and outputs the canonical ProviderId brand", () => {
   expectTypeOf<z.input<typeof providerIdSchema>>().toEqualTypeOf<string>();

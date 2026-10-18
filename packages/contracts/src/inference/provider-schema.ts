@@ -12,10 +12,6 @@ import { TASKS } from "./tasks.ts";
 import type { Wire } from "./wires.ts";
 import { WIRE_DEFS, WIRES } from "./wires.ts";
 
-export type { ProviderId } from "./provider-id.ts";
-// biome-ignore lint/performance/noBarrelFile: compatibility reexports preserve the provider-row API after the required usage-cycle leaf move; this module still owns the provider row schema.
-export { isPluginProviderId, PLUGIN_PROVIDER_ID_PREFIX, PROVIDER_ID, pluginNameOfProviderId, providerIdSchema } from "./provider-id.ts";
-
 /** The name a person sees for a provider row. A plugin row carries its plugin's name, so a manifest label
  *  such as "Anthropic" never reads as the built-in row of that name. */
 export function providerDisplayLabel(provider: { readonly id: string; readonly label: string }): string {
