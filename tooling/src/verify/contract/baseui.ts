@@ -2,6 +2,7 @@
 // the committed manifest claims about it (`Manifest*`/`Disposition`), and what @orb/ui actually imports and
 // renders (`BaseUiBinding`/`RenderSite`). The readers live in ../lib/baseui-read.ts + ../lib/baseui-expand.ts.
 
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "./config-snapshot.ts";
 import { JSON_RESOURCE_PATHS } from "./resource-json.ts";
 
 export const BASE_UI_DATA_RULE = "orb/baseui-derives-not-respells";
@@ -16,7 +17,7 @@ export const BASE_UI_NATIVE_INPUT_PATHS = [
   "tooling/src/verify/contract/baseui.ts",
   "tooling/src/verify/contract/resource-json.ts",
   "tooling/src/verify/lib/baseui-manifest.ts",
-  "tooling/src/verify/ops/eslint.ts",
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
 ] as const;
 
 /** `part` = an anatomy part (its declaration file declares `<Symbol>Props`); `hook` / `type` = the other

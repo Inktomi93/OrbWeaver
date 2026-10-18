@@ -1,6 +1,7 @@
 import { matchesGlob } from "node:path";
 import { HELPER_WORLD_DIRS } from "../../floor/compiler/project-worlds.ts";
 import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "../contract/config-snapshot.ts";
 
 export const TEST_PACKAGE_SUBPATH_RULE = "orb/tests-package-subpath";
 export const TOOLING_ROOT_CONFIG_IMPORT_RULE = "orb/tooling-root-config-import";
@@ -24,7 +25,7 @@ export const TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS = [
   "tooling/src/floor/code-facts/module-specifier.ts",
   "tooling/src/floor/compiler/project-worlds.ts",
   "tooling/src/floor/testing/test-population.ts",
-  "tooling/src/verify/ops/eslint.ts",
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
   "tooling/src/verify/lib/selection.ts",
 ] as const;
 

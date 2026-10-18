@@ -49,4 +49,4 @@ Source error-suppression retirement is integrated with validated browser imports
 
 Production and tooling permissions narrow to actual subjects. Sessions policy binds once per graph. Evidence: `reports/review/1006-production-native-exceptions-claude.md`, `reports/review/1006-tooling-native-exceptions-claude.md` and `reports/review/1048-session-role-policy-security-independent.md`.
 
-Reviewed cleanup preserves lifetimes; prior source reds remain. Complete suppression qualification retains a budget alarm without tool errors. Config exceptions and inline type negatives remain open. Evidence: `reports/review/1006-current-suppression-authority.md`.
+Reviewed cleanup preserves lifetimes; prior source reds remain. Complete suppression qualification retains a budget alarm without tool errors. Hook config narrows to diagnostic-bearing files; remaining exceptions and type negatives stay open. Evidence: `reports/review/1006-current-suppression-authority.md` and `reports/review/1006-hook-config-exceptions.md`.

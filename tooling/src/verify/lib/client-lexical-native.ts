@@ -1,3 +1,4 @@
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "../contract/config-snapshot.ts";
 /** Native lexical rule and helper changes rejudge the actual frontend syntax population. */
 export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
   "eslint.config.js",
@@ -10,7 +11,7 @@ export const CLIENT_LEXICAL_NATIVE_INPUT_PATHS = [
   "tooling/src/verify/lib/raw-spacing-tier.ts",
   "tooling/src/verify/lib/raw-typography-tier.ts",
   "tooling/src/verify/lib/client-lexical-native.ts",
-  "tooling/src/verify/ops/eslint.ts",
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
 ] as const;
 
 export const CLIENT_LEXICAL_NATIVE_RULES = [

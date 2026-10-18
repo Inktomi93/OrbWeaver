@@ -15,6 +15,7 @@ import {
 } from "../../floor/code-facts/type-home.ts";
 import { compilerConfigRoster, readCompilerProgramGraph } from "../../floor/compiler/compiler-programs.ts";
 import type { EslintFileAdmission, EslintNativeMetadataFamily } from "../contract/config-snapshot.ts";
+import { ESLINT_NATIVE_EXECUTION_INPUT_PATHS } from "../contract/config-snapshot.ts";
 import type { PolicyWorkspacePackage } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
 import { affectsRepositoryManifest, isPackageManifestPath, readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "./policy-repo-inventory.ts";
@@ -50,6 +51,7 @@ export function typedNativeCompilerConfigs(admissions: readonly EslintFileAdmiss
 }
 
 const COMMON_INPUTS = [
+  ...ESLINT_NATIVE_EXECUTION_INPUT_PATHS,
   "eslint.config.js",
   "tooling/src/verify/lib/typed-native-inputs.ts",
   "tooling/src/floor/compiler/compiler-programs.ts",

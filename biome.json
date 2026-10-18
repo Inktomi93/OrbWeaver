@@ -3535,22 +3535,67 @@
       }
     },
     {
-      "includes": [".claude/hooks/**"],
+      "includes": [".claude/hooks/biome-check.mjs", ".claude/hooks/codex-edit-advisory.mjs", ".claude/hooks/tool-guard.mjs"],
       "linter": {
         "rules": {
           "complexity": {
-            "noExcessiveCognitiveComplexity": "off",
+            "noExcessiveCognitiveComplexity": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [".claude/hooks/biome-check.mjs", ".claude/hooks/tool-guard.mjs"],
+      "linter": {
+        "rules": {
+          "complexity": {
             "useSimplifiedLogicExpression": "off",
-            "useMaxParams": "off",
+            "useMaxParams": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [".claude/hooks/tool-guard.mjs"],
+      "linter": {
+        "rules": {
+          "complexity": {
             "noUselessUndefined": "off",
             "useOptionalChain": "off"
           },
           "style": {
-            "noProcessEnv": "off",
             "noNestedTernary": "off",
-            "noMagicNumbers": "off",
-            "useNumericSeparators": "off",
-            "useForOf": "off"
+            "useNumericSeparators": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        ".claude/hooks/biome-check.mjs",
+        ".claude/hooks/codex-edit-advisory.mjs",
+        ".claude/hooks/playwright-revision-shim.mjs",
+        ".claude/hooks/tool-guard.mjs"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noProcessEnv": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        ".claude/hooks/biome-check.mjs",
+        ".claude/hooks/codex-edit-advisory.mjs",
+        ".claude/hooks/orchestrator-inject.mjs",
+        ".claude/hooks/tool-guard.mjs"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noMagicNumbers": "off"
           }
         }
       }

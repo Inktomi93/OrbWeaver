@@ -30,7 +30,7 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 
 Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
 
-D323's original driver ends with a non-prototype signal refusal; stop helper-specific repair. The stopped obsolete-source run has no verdict; preserve its artifacts. Current-source qualification uses the assigned checkout. Recover its existing handle. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md`.
+D323's original driver ends with a non-prototype signal refusal; stop helper-specific repair. Passive recovery observes the existing policy tree after supervisor loss. The observation gap prevents complete cost qualification. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md`.
 
 Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
 

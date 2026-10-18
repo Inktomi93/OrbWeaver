@@ -4,7 +4,12 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
+import type { EslintCompletedProfiles } from "../../../../tooling/src/verify/contract/config-snapshot.ts";
+import { readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
 import { runEslint, runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
+import { hasCompletedProfiles, runProfiles } from "../../../../tooling/src/verify/ops/eslint-profile.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const SOURCE = "source.js";
@@ -114,17 +119,70 @@ test("a hard profile refuses typed subjects without canonical compiler admission
   await expect(runScopedEslint(root, [SOURCE])).rejects.toThrow("HARD native compiler admission is unavailable");
 });
 
+test("completed profiles retain violations but refuse changed source, options, environments and nonexact operands", async ({ plantedTree, repoRoot }) => {
+  const root = await rootFor(plantedTree, repoRoot, "debugger;\n");
+  const completed = new Map<string, EslintCompletedProfiles>();
+  const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
+  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(1);
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(true);
+  for (const paths of [[SOURCE, SOURCE], ["."], ["*.js"], ["missing.js"]]) {
+    expect(await hasCompletedProfiles(root, paths, completed)).toBe(false);
+  }
+  await withProcessEnv("ORB_ESLINT_COVERAGE_CONTROL", "changed", async () => {
+    expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+  });
+  writeFileSync(join(root, SOURCE), "void 0;\n");
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+  writeFileSync(join(root, SOURCE), "debugger;\n");
+  writeFileSync(join(root, HARD_CONFIG), HARD_DEBUGGER_CONFIG.replace("DebuggerStatement", "Identifier"));
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+  writeFileSync(
+    join(root, HARD_CONFIG),
+    `${HARD_DEBUGGER_CONFIG.slice(0, -2)}, { files: ["source.js"], languageOptions: { parserOptions: { projectService: true } } }];`,
+  );
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+});
+
+test("an ordinary native tool error cannot promote completed HARD work into full profile coverage", async ({ plantedTree, repoRoot }) => {
+  const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+  writeFileSync(join(root, BULK_LEDGER), JSON.stringify({ [SOURCE]: { "no-alert": { count: 1 } } }));
+  const completed = new Map<string, EslintCompletedProfiles>();
+  const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
+  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(2);
+  expect(completed.size).toBe(0);
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+});
+
+test("an unknown configured compiler context cannot qualify completed native lint for reuse", async ({ plantedTree, repoRoot }) => {
+  const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+  writeFileSync(join(root, "tsconfig.json"), JSON.stringify({ compilerOptions: { noLib: true, allowJs: true, types: [] }, files: [SOURCE] }));
+  writeFileSync(
+    join(root, "eslint.config.js"),
+    'export default [{files:["source.js"],languageOptions:{parserOptions:{projectService:{loadTypeScriptPlugins:false}}},rules:{"no-alert":"error"}}];',
+  );
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "."]);
+  const completed = new Map<string, EslintCompletedProfiles>();
+  const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
+  expect(admitted).toMatchObject([{ requiresTypeInformation: true, compilerConfigs: null }]);
+  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(0);
+  expect(completed.size).toBe(0);
+  expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
+});
+
 test(
   "the mandatory real CLI consumes the canonical production HARD network profile",
   async ({ plantedTree, repoRoot, runCli }) => {
     const source = "packages/server/src/native-hard-probe.ts";
     const root = await plantedTree({
-      "package.json": '{"type":"module","private":true}',
+      "package.json": '{"name":"native-hard-network-fixture","type":"module","private":true}',
       "eslint.config.js": 'export default [{ files: ["**/*.ts"] }];',
       [HARD_CONFIG]: `import { hardConfig } from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)}; export default [...hardConfig];`,
       "scripts/eslint.ts": `await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/eslint.ts")).href)});`,
       [source]: '/* eslint "no-restricted-syntax":"off", "@eslint-community/eslint-comments/no-use":"off" */\nexport const rejected="corsproxy.io";',
     });
+    execFixtureGit(root, ["init", "-q"]);
+    execFixtureGit(root, ["add", "."]);
     const result = await runCli("verify", ["eslint-scoped", source], { cwd: root });
     await expect(result).toExitWith(1);
     expect(result.stdout).toContain("D61 B5a:");
