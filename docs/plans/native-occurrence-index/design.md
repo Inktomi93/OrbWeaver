@@ -22,7 +22,7 @@ Complete the executing-input currentness delivery before changing its frozen ext
 
 The bulk reference collector calls the native reference pass for each demanded declaration. The exact-query collector also calls that pass. The patched pass already reuses candidate positions, direct imports and retained results; it is not an uncached text scan.
 
-The bulk collector runs only when the references family is demanded. Read the actual worker request before attributing a slow run to it. Invocation evidence can perform separate reference searches through the native workspace. Measure those paths separately.
+The bulk collector runs only when the references family is demanded. Read the actual worker request before attributing a slow run to it. Invocation evidence can perform separate reference searches through the native workspace. Measure those paths separately. Candidate indexing still invokes native reference semantics per query. The complete-DOM CPU sample identifies bulk reference search, not callable provenance; see `reports/review/1002-current-dom-reference-profile.md`. Qualify complete extraction separately from bounded index controls.
 
 [SCIP's TypeScript indexer](https://github.com/sourcegraph/scip-typescript/blob/main/src/FileIndexer.ts) traverses source nodes and emits occurrences with symbol identity and roles. It also handles contextual properties, shorthand bindings and declaration relationships. [Glean](https://glean.software/docs/indexer/lsif-typescript/) consumes SCIP for TypeScript. These are design references, not equivalence evidence.
 

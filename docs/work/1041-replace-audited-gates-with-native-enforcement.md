@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tooling
-lane: codex/maintained-boundary-casts-1041
 plan: test-foundation
 ---
 
@@ -37,3 +36,5 @@ HARD bulk-ledger isolation is integrated after independent review and scoped nat
 Native fabrication enforcement and cast-fact removal are integrated after independent review. Coherent declaration, SQLite, browser and native controls pass. Node compilation retains its existing diagnostic population. Evidence: `reports/review/1041-native-fabrication-wave-landed.md`.
 
 Raw observations, auth-fixture lifetimes, native tRPC and legacy-brand quarantine pass independent review and scoped runtime controls. Coherent DOM and iso compilation pass; Node retains its existing diagnostics. The shared installation matches the qualified pins. Current native-client conversation and local sharing browser controls pass. Ordinary lint and resource qualification remain open. Evidence: `reports/review/1041-maintained-boundary-delivery.md`.
+
+Native HARD lint owns tooling CLI and ops entry identity. Actual manifest edits, additions, deletions, renames and containing directories reselect unchanged consumers. Independent review and bounded launcher controls pass. Generated catalog and tooling law match the native successors. Evidence: `reports/review/1041-native-tool-entry-independent.md`.

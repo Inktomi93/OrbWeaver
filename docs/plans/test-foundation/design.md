@@ -107,11 +107,11 @@ Then rebuild corpus e2e smoke, server domains on the composition root, CTs on th
 
 ### Why the rebuild, not the retrofit
 
-Fake-heavy harnesses copy composition and drift from production. Repeated fixture repair preserves that defect and consumes check time. Spine-Testing requires composed production with external edges scripted. Build that foundation, then replace assemblies while preserving meaningful cases.
+Copied composition drifts from production. Spine-Testing requires real composition with scripted external edges. Replace assemblies while preserving meaningful cases.
 
 ### Every check is one kind of thing
 
-A check is a claim plus something observed. Checks differ by subject and by cadence, not by being "tests" or "verify".
+Checks differ by subject and cadence.
 
 | Subject | Examples | Character |
 | - | - | - |
@@ -225,6 +225,8 @@ Opaque roles and root-derived Principals preserve internal authority. Public Cal
 
 Native Node/browser assertions and real-root controls replace bus secret-name checks. Source health and its readers remain; scoped main controls pass.
 
+Native HARD lint owns tooling entry identity, manifest invalidation and missing-owner refusal. Production exceptions narrow to actual subjects. Server importer resource qualification remains open. Evidence: `reports/review/1041-native-tool-entry-independent.md` and `reports/review/1042-server-native-importer-diagnosis.md`.
+
 Native schemas enforce portability; runtime owns DevTools bytes. Lint owns client literals, positioning, sealed sizes and suppression refusal. Story and generated-token readers remain. Manifest/token and compiler-expiry contracts use Node CI. Containment and memo enforcement remain. Floorless geometry uses public UI metadata; complete frontend qualification remains open. Native imports judge tests and tooling; raw reach remains custom. Engine-test private imports require production-root adoption. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`. Git/text checks pass; application qualification fails on legacy collection.
 
 Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
@@ -287,7 +289,7 @@ Follow the orchestrator and lane skills for assignments, scoped floors, review a
 ### What carries over from the retrofit
 
 - Product moved to its home: wire schemas into contracts, one home for the present-host read, kit helpers, exported production seams, rules shared by client and server in contracts or kit.
-- The testkit package with its world subpaths, and the first builders and typed responders: the start of item 959.
+- Testkit world doors, builders and typed responders feed item 959.
 - Gates and readers: the keyed waiver budget, tenancy through joins, the shared shape comparer and member reader: the first slices of items 953 to 955.
 - The CT door, typed story ids and the shared width builder: the start of item 960.
 - The seed and clone path for side-eye: part of the corpus.

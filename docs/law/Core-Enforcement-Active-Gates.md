@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(245 registered gates)
+(242 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -176,7 +176,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
 | `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
-| `no-inline-package-interface` | no-inline-types | ordinary/error | @server,@inference,@ui-authoring\* | exported interface in server entry,… |
+| `no-inline-package-interface` | no-inline-types | ordinary/error | @server,@inference,@ui-authoring\* | exported interface outside its… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
@@ -190,7 +190,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
 | `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
-| `no-test-fabrication` | — | ordinary/error | @authored\* | X as unknown as Y double-cast in a… |
 | `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
 | `no-untyped-soft-ref` | drizzle-schema | reviewed-grant/error | @db\* | an id-shaped column (its JS key ends… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
@@ -278,10 +277,8 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tooling-artifact-run-slot` | tooling-artifact | hard/error | @tooling | an instrument that files artifacts… |
 | `tooling-browser-door` | — | reviewed-grant/error | @tooling | a second Playwright door — a browser… |
 | `tooling-child-process-door` | — | reviewed-grant/error | @tooling | a subprocess outside the ONE home —… |
-| `tooling-cli-entry` | tooling-program-entry | hard/error | @tooling\* | a tool cli.ts must enter through… |
 | `tooling-clock-budget` | plumbing-literals | ordinary/error | @tooling,@tests\* | a fixed wall clock — a numeric… |
 | `tooling-instrument-proof` | — | hard/error | @tooling,@tests\* | the instrument-proof contract is… |
-| `tooling-ops-direct-invocation` | tooling-program-entry | hard/error | @tooling\* | an ops/ module can be RUN as a… |
 | `tooling-os-neutral` | — | hard/error | @tooling,@scripts,@tests\* | an OS-specific program, path, env key… |
 | `tooling-port-registry` | plumbing-literals | reviewed-grant/error | @tooling,@tests\* | a TCP port outside the ONE registry —… |
 | `tooling-process-exit-home` | process-member | reviewed-grant/error | @tooling | a bare process.exit outside the… |

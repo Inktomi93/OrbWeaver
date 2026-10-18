@@ -4,6 +4,14 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
   {
+    id: "suppressions:tests-lint-style-use-error-cause",
+    policyId: "suppressions",
+    subject: "lint/style/useErrorCause",
+    operation: "tests",
+    why: "Verified Biome false positive at the private corpus failure owner: native SuppressedError retains the caught capture failure in error and the original intake failure in suppressed. Its constructor has no ErrorOptions parameter; both native identities are asserted by the filesystem controls.",
+    endsWhen: "Biome recognizes native SuppressedError ownership, or the final governed tests-scope directive for this native constructor disappears.",
+  },
+  {
     id: "suppressions:tests-typescript-eslint-no-unsafe-type-assertion",
     policyId: "suppressions",
     subject: "@typescript-eslint/no-unsafe-type-assertion",

@@ -30,7 +30,7 @@ Responsive navigation, canon, persona freshness, recent threads and restored-roo
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
-Private intake preserves the existing owner, migrates a disposable clone and refuses portable publication or output overrides. Migrations and integrity checks pass. Native schedules are quarantined only on that copy. Workload settlement and private application execution remain unqualified; retain the native refusal. Personal inputs and outputs stay outside Git and CI. Evidence: `reports/review/898-private-output-correction-security-review.md`.
+Private intake migrates and scrubs a disposable clone; only that copy has quarantined schedules. Portable publication and output overrides refuse. Native intake failures retain their causes in exclusive private files before cleanup. Filesystem controls and security review pass. Owner-copy workloads and application execution remain unqualified. Personal inputs and outputs stay outside Git and CI. Evidence: `reports/review/898-private-failure-capture-independent.md`.
 
 Request-sensitive corpus publication passes its seed and native boundary controls. Evidence: `reports/review/898-v2-publication.md`.
 

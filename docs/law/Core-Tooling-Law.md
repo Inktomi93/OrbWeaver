@@ -248,9 +248,9 @@ The limit forces decomposition during the move, not after it.
 
 At the limit, put new behavior in a sibling module or split the existing file by concern. Preserve necessary explanations; deleting them does not remove the complexity that caused the split.
 
-### 4.4 The plumbing homes — the ten-policy split of `tooling-shared-plumbing`
+### 4.4 The plumbing homes
 
-`tooling-shared-plumbing` does not run; the ten policies below are what runs instead. One `defineGate` policy governs each floor capability, each with ONE authority; the floor homes and the censused exceptions are exact reviewed grants in `lib/reviewed-grants.ts` (subject, operation, why, endsWhen), and central grant liveness replaces every hand-written stale sweep. Comment posture stays comment-SAFE throughout (node kinds, statically-read strings, numeric literals — never a text regex).
+Native ESLint and structural policies enforce the floor homes below. Structural exceptions use exact reviewed grants in `lib/reviewed-grants.ts`. Central grant liveness checks their consumption. Native entry restrictions run in the HARD profile without inline or bulk permissions. Missing compiler ownership or a required home refuses.
 
 | Policy | Law | Authority · reader |
 | - | - | - |
@@ -259,13 +259,14 @@ At the limit, put new behavior in a sibling module or split the existing file by
 | `tooling-artifact-path-home` | a `"reports"`/`"reports/…"` literal fed to `join`/`resolve`/`mkdir`/`mkdirSync` outside `floor/artifacts/artifacts.ts` | reviewed-grant · family `tooling-artifact`, `lib/artifact-filing.ts` (the callee by identity against node's path/fs doors); grant `reports-path-literal` |
 | `tooling-artifact-run-slot` | a tool filing through `artifactDir`/`artifactFile` opens `withInstrumentRun` in its `cli.ts` | hard · family `tooling-artifact`; the home located and evidenced |
 | `tooling-process-exit-home` | `process.exit(` outside `floor/cli/run-tool.ts` | reviewed-grant · family `process-member`, `lib/process-member-origin.ts`; grant `process-exit` |
-| `tooling-cli-entry` | every `tooling/src/<tool>/cli.ts` calls `runTool` | hard · family `tooling-program-entry`, `lib/project-home-origin.ts` against the located runner home |
+| `orb/tooling-cli-entry` | every `tooling/src/<tool>/cli.ts` calls the canonical `runTool` | native HARD ESLint · own-parser compiler authority and the existing home-origin reader |
+| `orb/tooling-ops-direct-invocation` | an ops library calls the canonical refusal or runner at module scope | native HARD ESLint · canonical home identity and `tooling/src/floor/compiler/module-entry.ts` |
 | `tooling-child-process-door` | `node:child_process` outside `floor/process/proc.ts`; a full-priority door call outside a reviewed caller | reviewed-grant · the import by specifier, the doors by identity against the located `proc.ts`; grants `child-process-import` + one `full-priority-spawn` per reviewed caller |
 | `tooling-port-registry` | a port literal outside `floor/host/ports.ts`, in `tooling/src/**` + `tests/e2e/support/**` | reviewed-grant · family `plumbing-literals`, `lib/plumbing-literals.ts#portLiteralOf`; grant `port-literal` |
 | `tooling-clock-budget` | a fixed wall clock in `tooling/src/**` + `tests/tooling/**` | **ordinary** · family `plumbing-literals`, `#fixedClockOf`; a deliberately fixed clock is `@orb-waive tooling-clock-budget(<literal>)` at its site |
 | `tooling-runner-config-literals` | both literal laws over the three root runner configs, for the port-registry and clock-budget policies above | hard · resource; three `exact-file` ids, walked by `#runnerConfigLiteralFacts` through the one scratch parser |
 
-**Identity, not spelling** governs matching: every callee, receiver and constructor is judged by DECLARATION through the shared origin readers — an alias is caught, a same-named local passes, an unplaceable one is reported fail-closed. **Clocks are ordinary, everything else is a grant:** a per-site argument (the tool guard's `timeout` is its input under test) is a waiver; a home or a censused caller is a permission that outlives any one edit, which is a grant. **Homes are located and evidenced:** `floor/process/proc.ts`, `floor/cli/run-tool.ts` and `floor/artifacts/artifact-out.ts` are found in the population and evidenced one record per home, so a moved home refuses the run instead of silently carrying its exemption. The root-config policy's closed `exact-file` ids name the three configs that exist; a fourth runner config is unjudged until it gets an id.
+**Identity, not spelling** governs matching through shared declaration-origin readers. Aliases retain canonical identity; a same-named local cannot establish a required entry. Unreadable authority refuses. **Exceptions follow authority:** ordinary clock sites may use a valid waiver; structural home and caller permissions use reviewed grants. HARD entry rules permit neither. **Homes are located and evidenced:** `floor/process/proc.ts`, `floor/cli/run-tool.ts` and `floor/artifacts/artifact-out.ts` are found in the population and evidenced one record per home, so a moved home refuses the run instead of silently carrying its exemption. The root-config policy's closed `exact-file` ids name the three configs that exist; a fourth runner config is unjudged until it gets an id.
 
 ### 4.5 `tooling-instrument-proof`
 
