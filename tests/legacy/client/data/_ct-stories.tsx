@@ -31,11 +31,9 @@ import {
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, timeLib } from "@orb/client/lib";
 import {
-  __readSurfaceBoxForTest,
   activeDurableLocalUserId,
   enterCreatedChat,
   goToLanding,
-  registerDurableLocalStore,
   rememberSurfaceBox,
   useActiveChatId,
   useActiveSection,
@@ -60,6 +58,8 @@ import { useOnlineStatus } from "#client/data/use-online-status.ts";
 import type { PluginFrameRequest } from "#client/data/use-plugin-frame.ts";
 import { toNotice } from "#client/lib/notify.ts";
 import { AppRootSessionBoundary } from "#client/routes/app-root-session-boundary/index.ts";
+import { registerDurableLocalStore } from "#client/state/durable-local.ts";
+import { __readSurfaceBoxForTest } from "#client/state/surface-box-store.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from

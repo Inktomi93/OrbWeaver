@@ -13,24 +13,10 @@ import type { ContributorRegistry } from "@orb/client/lib";
 import { CORPUS_MODES } from "@orb/client/lib";
 import type { ChromeEntry, ConfigSectionContribution, SectionDefinition } from "@orb/client/state";
 import {
-  __dismissPresetSectionForTest,
-  __migrateActiveChatForTest,
-  __readComposerDraftsForTest,
-  __resetAppearanceBootHint,
-  __resetChatContextSections,
-  __resetComposerDrafts,
-  __resetConfigFocus,
-  __resetConfigGroupOpen,
   __resetConfigNav,
-  __resetConfigSearch,
-  __resetDeploymentBootHint,
-  __resetPresetSection,
-  __resetPresetSelection,
-  __resetTagFilter,
   activeChatId,
   announceStatus,
   assembleChrome,
-  COMPOSER_DRAFT_CAP,
   ConfigSectionRegistryProvider,
   chatDeletedFromList,
   clearActiveConfigGroup,
@@ -41,7 +27,6 @@ import {
   clearChatListCharacterFilter,
   clearChatMoment,
   clearCollectionSelection,
-  clearConfigFocus,
   clearConnectionEditorRequest,
   clearCorpusSelection,
   clearDatabankPhaseFilter,
@@ -54,7 +39,6 @@ import {
   closeConfigGroup,
   closeModal,
   collapseListPanel,
-  compareCorpusPair,
   consumeChatMoment,
   corpusSectionSelection,
   cycleTagFilter,
@@ -66,13 +50,11 @@ import {
   getContextTab,
   goToLanding,
   hideContextPanel,
-  isCommitted,
   labelDeleted,
   onGameModeStarted,
   onGameModeStopped,
   openCharacterGallery,
   openChatMoment,
-  openConfigGroup,
   openConfigTo,
   openImageDetail,
   openInstalledPlugin,
@@ -88,7 +70,6 @@ import {
   rememberDataThemeHint,
   rememberMultiHumanCapable,
   reportSectionSaveStatus,
-  requestChatMoment,
   requestComposerFocus,
   requestConnectionEditor,
   requestRefineryLandingFocus,
@@ -201,7 +182,6 @@ import {
   useLabelNameFocus,
   useModalRegistry,
   useMultiHumanCapableHint,
-  useNarrowViewport,
   useNewChatIntent,
   useOpenModal,
   useOpenOverlayPanel,
@@ -231,7 +211,6 @@ import {
   useTagPruneConfirmOpen,
   useTagSortMode,
   useVisibleConfigSettings,
-  withContentSwap,
 } from "@orb/client/state";
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, TagId, UserConnectionId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -241,6 +220,20 @@ import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
+import { __migrateActiveChatForTest } from "#client/state/active-chat-store.ts";
+import { __resetAppearanceBootHint } from "#client/state/appearance-boot-hint.ts";
+import { __resetTagFilter } from "#client/state/character-library-store.ts";
+import { __resetChatContextSections } from "#client/state/chat-context-section-open-store.ts";
+import { isCommitted } from "#client/state/chat-handle.ts";
+import { requestChatMoment } from "#client/state/chat-moment-store.ts";
+import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP } from "#client/state/composer-draft-store.ts";
+import { __resetConfigFocus, clearConfigFocus } from "#client/state/config-focus-store.ts";
+import { __resetConfigGroupOpen, openConfigGroup } from "#client/state/config-group-open-store.ts";
+import { __resetConfigSearch } from "#client/state/config-search-store.ts";
+import { compareCorpusPair } from "#client/state/corpus-compare-store.ts";
+import { __resetDeploymentBootHint } from "#client/state/deployment-boot-hint.ts";
+import { __dismissPresetSectionForTest, __resetPresetSection, __resetPresetSelection } from "#client/state/preset-selection-store.ts";
+import { useNarrowViewport, withContentSwap } from "#client/state/shell-store.ts";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through

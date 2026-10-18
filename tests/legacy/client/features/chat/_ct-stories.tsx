@@ -59,14 +59,12 @@ import {
   chatDeletedFromList,
   chatSectionSelection,
   chatStream,
-  committedChat,
   enterSelectionMode,
   isLiveTurnPhase,
   MessageToolsRendererRegistryProvider,
   openCharacterGallery,
   openNewChatPicker,
   openRoomInvite,
-  requestChatMoment,
   requestComposerFocus,
   SlashCommandRegistryProvider,
   selectChat,
@@ -208,6 +206,8 @@ import { rpgDiceComposerMediaSurface, rpgDiceToolRenderer } from "#client/featur
 import { enableAppearanceMessageRegistry } from "#client/lib/appearance-message-registry.ts";
 import type { SlashArgOffer } from "#client/lib/contribution-contracts.ts";
 import { toNotice } from "#client/lib/notify.ts";
+import { committedChat } from "#client/state/chat-handle.ts";
+import { requestChatMoment } from "#client/state/chat-moment-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
 

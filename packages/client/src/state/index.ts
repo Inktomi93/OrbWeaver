@@ -4,7 +4,6 @@
 // per-entity vanilla factories), and `createPersistedStore` (hook-shaped singletons that persist to storage).
 
 export {
-  __migrateActiveChatForTest,
   activeChatId,
   chatDeletedFromList,
   chatSectionSelection,
@@ -28,7 +27,6 @@ export {
 export { setAnalyticsSearchQuery, useAnalyticsSearchQuery } from "./analytics-search-store.ts";
 export { clearAnalyticsSelection, selectAnalyticsCharacterFromList, useSelectedAnalyticsCharacterId } from "./analytics-selection-store.ts";
 export {
-  __resetAppearanceBootHint,
   DATA_THEME_ATTR,
   FONT_SCALE_VAR,
   REDUCED_MOTION_ATTR,
@@ -41,7 +39,6 @@ export { assembleChrome } from "./assemble-chrome.ts";
 export type { AuthedComposition } from "./authed-composition.ts";
 export { closeCharacterGallery, openCharacterGallery, useCharacterGalleryTarget } from "./character-gallery-store.ts";
 export {
-  __resetTagFilter,
   clearCharacterFilters,
   cycleTagFilter,
   setBulkMode,
@@ -63,7 +60,6 @@ export {
   useTagFilter,
 } from "./character-library-store.ts";
 export {
-  __readSelectedCharacterIdForTest,
   characterSectionSelection,
   clearCharacterFacet,
   clearCharacterSelection,
@@ -72,8 +68,8 @@ export {
   useSelectedCharacterFacetId,
   useSelectedCharacterId,
 } from "./character-selection-store.ts";
-export { __resetChatContextSections, setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
-export { type ActiveChatHandle, type ChatHandle, committedChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
+export { setChatContextSectionOpen, useChatContextSectionOpen } from "./chat-context-section-open-store.ts";
+export { type ActiveChatHandle, type ChatHandle, isLanding } from "./chat-handle.ts";
 export type { ChatListCharacterFilter } from "./chat-list-filter-store.ts";
 export {
   clearChatListCharacterFilter,
@@ -84,14 +80,12 @@ export {
   useChatListMonth,
   useChatListSearch,
 } from "./chat-list-filter-store.ts";
-export { clearChatMoment, consumeChatMoment, requestChatMoment, useChatMoment } from "./chat-moment-store.ts";
+export { clearChatMoment, consumeChatMoment, useChatMoment } from "./chat-moment-store.ts";
 export { consumeReturnFocus, useReturnedChat } from "./chat-return-store.ts";
 export type { ChatStreamApi, RecallState, TurnSlot } from "./chat-stream.ts";
 export {
-  __setFrameSchedulerForTest,
   chatStream,
   isLiveTurnPhase,
-  subscribeTurnSlot,
   subscribeUserMessageCommitted,
   useRecallState,
   useSwipeTargetMessageId,
@@ -100,20 +94,28 @@ export {
   useTurnSlot,
   useTurnSpeakerCharacterId,
 } from "./chat-stream.ts";
-export type { ActionChromeEntry, ChromeEntry, ChromeEntryBehavior, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry.ts";
-export { CHROME_ZONES, mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
+export type { ActionChromeEntry, ChromeEntry, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry.ts";
+export { mobileBarCuration, sheetOverflowChrome } from "./chrome-registry.ts";
 export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
-export * from "./composer-draft-store.ts";
+export type { ComposerDraftSnapshot } from "./composer-draft-store.ts";
+export {
+  readComposerDraft,
+  readComposerDraftSnapshot,
+  replaceComposerDraft,
+  setComposerDraft,
+  useComposerDraft,
+  useComposerDraftRevision,
+} from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
 export type { ConfigFocus } from "./config-focus-store.ts";
-export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
+export { setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
 export type { ConfigGroupId, ConfigShelf } from "./config-group-ids.ts";
-export { CONFIG_GROUP_IDS, CONFIG_SHELVES, isConfigGroupId, MULTI_USER_CONFIG_SUB } from "./config-group-ids.ts";
-export { __resetConfigGroupOpen, closeConfigGroup, openConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
+export { CONFIG_GROUP_IDS, CONFIG_SHELVES, MULTI_USER_CONFIG_SUB } from "./config-group-ids.ts";
+export { closeConfigGroup, useConfigGroupOpen } from "./config-group-open-store.ts";
 export type {
   CollectionGroupDefinition,
   ConfigGroupBase,
@@ -131,7 +133,6 @@ export type {
 export { configSettingControlId, isCollectionGroup, isPlaceholderGroup, isTeachNone, rendersOwnBody } from "./config-group-registry.ts";
 export { formatConfigLink, parseConfigLink } from "./config-link.ts";
 export {
-  __readConfigTargetForTest,
   __resetConfigNav,
   type ConfigVisibleSetting,
   clearActiveConfigGroup,
@@ -149,14 +150,8 @@ export {
 export type { ConfigRowAnnotation } from "./config-row-annotation.ts";
 export { ConfigRowAnnotationProvider, useConfigRowAnnotation } from "./config-row-annotation.ts";
 export type { ConfigModifiedMap } from "./config-search-store.ts";
-export {
-  __resetConfigSearch,
-  setConfigSearchMatch,
-  setConfigSearchQuery,
-  useConfigSearchMatch,
-  useConfigSearchQuery,
-} from "./config-search-store.ts";
-export { assertSettingsKeyPartition, UNCLAIMED_SETTINGS_KEYS } from "./config-section-partition.ts";
+export { setConfigSearchMatch, setConfigSearchQuery, useConfigSearchMatch, useConfigSearchQuery } from "./config-search-store.ts";
+export { assertSettingsKeyPartition } from "./config-section-partition.ts";
 // `ResolvedConfigSection` is deliberately absent: no importer outside `state/` reads it by name (#978).
 export type { ConfigSectionContribution, ConfigSectionPartition, SettingsKeyClaim } from "./config-section-registry.ts";
 export {
@@ -181,7 +176,6 @@ export {
 export { assertTeachHonesty } from "./config-teach.ts";
 export { clearConnectionEditorRequest, requestConnectionEditor, useRequestedConnectionEditor } from "./connection-editor-request-store.ts";
 export {
-  compareCorpusPair,
   setCorpusCompareA,
   setCorpusCompareB,
   useCorpusCompareA,
@@ -189,7 +183,7 @@ export {
   useCorpusCompareB,
   useCorpusCompareBName,
 } from "./corpus-compare-store.ts";
-export { getCorpusMode, healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
+export { healCorpusModeFrom, useCorpusMode } from "./corpus-mode-store.ts";
 export {
   readCorpusResultScroll,
   setCorpusResultScroll,
@@ -208,28 +202,19 @@ export {
   useSelectedCorpusCharacterId,
   useSelectedCorpusDestination,
 } from "./corpus-selection-store.ts";
-export { createDrillSelectionStore, type DrillSelectionStore, type PrimaryDrillStore } from "./create-drill-selection-store.ts";
+export {} from "./create-drill-selection-store.ts";
 export { createEntityDraftStore, type EntityDraftStore } from "./create-entity-draft-store.ts";
-export { createGatedStore, type GatedSet, type GatedStoreHook, STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
+export { createGatedStore, type GatedSet, type GatedStoreHook } from "./create-gated-store.ts";
 export type { KindedSelection } from "./create-kinded-selection-store.ts";
-export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
+export {} from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
 // `IngestPhase`/`INGEST_PHASES` are a `databank.list` input homed in `@orb/contracts/databank`; never re-export them here.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
-export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
+export { rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
 // D166: room configuration belongs to committed server verbs, not a second local draft model.
-export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
-export {
-  __resetDurableLocal,
-  activeDurableLocalUserId,
-  bindDurableLocalToUser,
-  durableLocalKey,
-  durableLocalReadyFor,
-  durableLocalWritesAllowed,
-  registerDurableLocalStore,
-} from "./durable-local.ts";
+export { activeDurableLocalUserId, bindDurableLocalToUser, durableLocalReadyFor } from "./durable-local.ts";
 export { setExtensionsSearchQuery, useExtensionsSearchQuery } from "./extensions-search-store.ts";
 export {
   GAME_MODE_KEPT_LINE,
@@ -251,8 +236,6 @@ export {
 } from "./home-tile-memory-store.ts";
 export type { ImageSubject, ImagineSeed } from "./imagery-store.ts";
 export {
-  __readImageryIntentForTest,
-  __resetImageryIntent,
   clearDetailSubject,
   clearEditSubject,
   clearImagineSeed,
@@ -267,7 +250,6 @@ export { setLabelNameFocus, useLabelNameFocus } from "./label-name-focus-store.t
 export { clearLabelSelection, labelDeleted, selectLabel, selectLabelFromList, useSelectedLabelId } from "./label-selection-store.ts";
 export { collapseListPanel, dockListPanel, registerListFlipCarry } from "./list-flip-carry.ts";
 export {
-  __readMessageEditDraftForTest,
   cancelEditingMessage,
   setMessageEditDraft,
   startEditingMessage,
@@ -277,7 +259,6 @@ export {
   useMessageEditReservedInlineSize,
 } from "./message-edit-draft.ts";
 export {
-  __resetSelection,
   enterSelectionMode,
   exitSelectionMode,
   readSelectedMessageIds,
@@ -296,30 +277,12 @@ export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { resolvePanelMode } from "./panel-resolve.ts";
-export {
-  __readPersonaEditorFocusForTest,
-  dropPersonaEditorFocusExcept,
-  requestPersonaEditorFocus,
-  takePersonaEditorFocus,
-  usePersonaEditorFocusRequest,
-} from "./persona-editor-focus-store.ts";
+export { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "./persona-editor-focus-store.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";
-export {
-  __readPluginCommandArgsSubjectForTest,
-  __resetPluginCommandArgs,
-  clearPluginCommandArgs,
-  openPluginCommandArgs,
-  usePluginCommandArgsSubject,
-} from "./plugin-command-args-store.ts";
-export { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog, usePluginDialogSubject } from "./plugin-dialog-store.ts";
+export { clearPluginCommandArgs, openPluginCommandArgs, usePluginCommandArgsSubject } from "./plugin-command-args-store.ts";
+export { clearPluginDialog, openPluginDialog, usePluginDialogSubject } from "./plugin-dialog-store.ts";
 export type { PluginPageKey } from "./plugin-page-selection-store.ts";
-export {
-  clearPluginPage,
-  pluginPageKey,
-  pluginPageSectionSelection,
-  selectPluginPageFromList,
-  usePluginPageKey,
-} from "./plugin-page-selection-store.ts";
+export { pluginPageKey, pluginPageSectionSelection, selectPluginPageFromList, usePluginPageKey } from "./plugin-page-selection-store.ts";
 export { INSTALLED_PLUGINS_SUBCATEGORY_ID, installedPluginControlId, openInstalledPlugin } from "./plugin-settings-navigation.ts";
 export { setPresetEditorView, setPresetReadoutTarget, usePresetEditorView, usePresetReadoutTarget } from "./preset-editor-view-store.ts";
 export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
@@ -330,9 +293,6 @@ export {
   useDrilledPresetSectionId,
 } from "./preset-section-drill-store.ts";
 export {
-  __dismissPresetSectionForTest,
-  __resetPresetSection,
-  __resetPresetSelection,
   getSelectedPresetId,
   presetSectionSelection,
   selectPreset,
@@ -342,20 +302,13 @@ export {
   useSelectedPresetSectionId,
 } from "./preset-selection-store.ts";
 export {
-  __resetPresetTemplate,
   closePresetTemplateDrill,
   drillPresetTemplate,
   selectPresetTemplate,
   useDrilledPresetTemplateId,
   useSelectedPresetTemplateId,
 } from "./preset-template-selection-store.ts";
-export {
-  __readRecentModelsForTest,
-  __resetAllRecentModels,
-  pushRecentModel,
-  RECENT_MODELS_CAP,
-  useRecentModels,
-} from "./recent-models-store.ts";
+export { pushRecentModel, useRecentModels } from "./recent-models-store.ts";
 export { requestRefineryLandingFocus, useRefineryLandingFocusRequest } from "./refinery-landing-focus-store.ts";
 export {
   refinerySectionSelection,
@@ -365,7 +318,6 @@ export {
 } from "./refinery-selection-store.ts";
 export type { RefineryWorkbenchDoor } from "./refinery-view-store.ts";
 export {
-  __peekRefineryViewForTest,
   clearRefineryWorkbenchDoor,
   requestRefineryWorkbenchDoor,
   setRefineryArmedRewrite,
@@ -375,7 +327,6 @@ export {
   useRefineryViewedRunId,
 } from "./refinery-view-store.ts";
 export {
-  __readRegexBulkForTest,
   clearRegexBulkSelection,
   exitRegexBulkMode,
   toggleRegexBulkMode,
@@ -384,7 +335,7 @@ export {
   useRegexBulkActive,
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
-export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
+export { applyRpgRoundEvent, clearRpgRounds, useRpgRoundPending } from "./rpg-round-store.ts";
 export type { RuleCreation } from "./rule-creation-store.ts";
 export {
   acknowledgeRuleCreation,
@@ -398,14 +349,14 @@ export {
   useRuleCreations,
 } from "./rule-creation-store.ts";
 export type { SectionId } from "./section-ids.ts";
-export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
+export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionBackTarget, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
 export type {
   RailZone,
   SectionDefinition,
   SectionSelection,
 } from "./section-registry.ts";
-export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
+export { NO_SELECTION_TITLE, SECTION_GROUPS } from "./section-registry.ts";
 export type { SectionRegistry } from "./section-registry-context.ts";
 export { useSectionRegistry } from "./section-registry-context.ts";
 export { SectionRegistryProvider } from "./section-registry-provider.tsx";
@@ -419,8 +370,6 @@ export {
   useErroredSaveSections,
 } from "./settings-save-status-store.ts";
 export {
-  __readOpenModalForTest,
-  activeSectionNow,
   closeModal,
   getAvailableContextTabIds,
   getAvailableContextTabs,
@@ -441,17 +390,15 @@ export {
   useActiveSection,
   useContextTab,
   useMobileViewport,
-  useNarrowViewport,
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
-  withContentSwap,
 } from "./shell-store.ts";
 export type { SlashCommandRegistry } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts";
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.tsx";
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
-export { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP, useRecentSteers } from "./steer-recovery-store.ts";
-export { __readSurfaceBoxForTest, __resetSurfaceBoxes, forgetSurfaceBox, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
+export { pushFiredSteer, useRecentSteers } from "./steer-recovery-store.ts";
+export { forgetSurfaceBox, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
 export { setLabelFilter, setTagPruneConfirmOpen, setTagSortMode, useLabelFilter, useTagPruneConfirmOpen, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId, worldEntrySelectionSeam } from "./world-entry-selection-store.ts";

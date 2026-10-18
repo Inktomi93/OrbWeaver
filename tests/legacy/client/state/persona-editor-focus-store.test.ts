@@ -1,6 +1,7 @@
-import { __readPersonaEditorFocusForTest, dropPersonaEditorFocusExcept, requestPersonaEditorFocus, takePersonaEditorFocus } from "@orb/client/state";
+import { takePersonaEditorFocus } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { __readPersonaEditorFocusForTest, dropPersonaEditorFocusExcept, requestPersonaEditorFocus } from "#client/state/persona-editor-focus-store.ts";
 
 // The focus request is one-shot: raised by the Edit door, taken by the editor, and never left behind for a
 // later expand to trip over.

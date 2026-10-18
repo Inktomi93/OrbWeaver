@@ -1,14 +1,9 @@
 // The refinery WALK store (view-back / operate-back — schema-renderer §16.1): the two pointers move
 // independently and clear independently — walking is free, nothing here mutates server state.
 
-import {
-  __peekRefineryViewForTest,
-  clearRefineryWorkbenchDoor,
-  requestRefineryWorkbenchDoor,
-  setRefineryArmedRewrite,
-  setRefineryViewedRun,
-} from "@orb/client/state";
+import { clearRefineryWorkbenchDoor, requestRefineryWorkbenchDoor, setRefineryArmedRewrite, setRefineryViewedRun } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { __peekRefineryViewForTest } from "#client/state/refinery-view-store.ts";
 
 test("viewed-run and armed-rewrite pointers move independently and clear to latest", () => {
   setRefineryViewedRun(null);

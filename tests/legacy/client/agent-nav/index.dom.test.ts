@@ -8,17 +8,12 @@
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigGroupId, ConfigSectionContribution } from "@orb/client/state";
 import {
-  __readConfigTargetForTest,
-  __readOpenModalForTest,
-  __readSelectedCharacterIdForTest,
   __resetConfigNav,
   activeChatId,
-  activeSectionNow,
   clearCharacterSelection,
   closeModal,
   getAvailableContextTabIds,
   getContextTab,
-  getCorpusMode,
   goToLanding,
   openModal,
   publishContextTabs,
@@ -35,6 +30,10 @@ import type { QueryClient } from "@tanstack/react-query";
 import { QueryClient as RealQueryClient } from "@tanstack/react-query";
 import { beforeEach } from "vitest";
 import { buildAgentNav } from "#client/agent-nav/index.ts";
+import { __readSelectedCharacterIdForTest } from "#client/state/character-selection-store.ts";
+import { __readConfigTargetForTest } from "#client/state/config-nav-store.ts";
+import { getCorpusMode } from "#client/state/corpus-mode-store.ts";
+import { __readOpenModalForTest, activeSectionNow } from "#client/state/shell-store.ts";
 
 const CHAT_ID = castId<ChatId>("chat_agentnav_a");
 const CHARACTER_ID = castId<CharacterId>("character_agentnav_a");

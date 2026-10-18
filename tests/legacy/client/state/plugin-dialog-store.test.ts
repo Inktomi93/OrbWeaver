@@ -7,10 +7,11 @@
 // surfaceId)` is what forces the body to resolve off the live cache and show the honest "gone" arm instead.
 // The other pin is that a re-open REPLACES — an outcome that opens a second dialog must never render the first.
 
-import { __readPluginDialogSubjectForTest, __resetPluginDialog, clearPluginDialog, openPluginDialog } from "@orb/client/state";
+import { clearPluginDialog, openPluginDialog } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readPluginDialogSubjectForTest, __resetPluginDialog } from "#client/state/plugin-dialog-store.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const PLUGIN_ID = mintTypeId(ID_PREFIX.plugin);

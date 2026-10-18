@@ -3,10 +3,11 @@
 // React render — the `plugin-dialog-store.test.ts` posture). The pins: the store carries the command + its
 // declared specs as the subject, a re-open REPLACES, and clear frees the slot.
 
-import { __readPluginCommandArgsSubjectForTest, __resetPluginCommandArgs, clearPluginCommandArgs, openPluginCommandArgs } from "@orb/client/state";
+import { clearPluginCommandArgs, openPluginCommandArgs } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readPluginCommandArgsSubjectForTest, __resetPluginCommandArgs } from "#client/state/plugin-command-args-store.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const PLUGIN_ID = mintTypeId(ID_PREFIX.plugin);

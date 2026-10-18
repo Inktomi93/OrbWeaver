@@ -14,8 +14,6 @@
 
 import { PresetReadout } from "@orb/client/features/preset";
 import {
-  __resetPresetSelection,
-  __resetPresetTemplate,
   goToLanding,
   selectChat,
   selectPreset,
@@ -37,6 +35,8 @@ import { useEffect, useState } from "react";
 import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";
+import { __resetPresetSelection } from "#client/state/preset-selection-store.ts";
+import { __resetPresetTemplate } from "#client/state/preset-template-selection-store.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");

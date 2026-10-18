@@ -7,17 +7,10 @@
 // Exercised through the non-hook `__readComposerDraftsForTest` snapshot; the reactive `useComposerDraft`
 // needs a React render.
 
-import {
-  __readComposerDraftsForTest,
-  __resetComposerDrafts,
-  COMPOSER_DRAFT_CAP,
-  readComposerDraft,
-  readComposerDraftSnapshot,
-  replaceComposerDraft,
-  setComposerDraft,
-} from "@orb/client/state";
+import { readComposerDraft, readComposerDraftSnapshot, replaceComposerDraft, setComposerDraft } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readComposerDraftsForTest, __resetComposerDrafts, COMPOSER_DRAFT_CAP } from "#client/state/composer-draft-store.ts";
 
 describe("composer-draft store", () => {
   beforeEach(() => {

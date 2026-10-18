@@ -11,7 +11,7 @@
 // runtime) exactly like the reducer's own `assertNever` discipline.
 
 import type { TurnSlot } from "@orb/client/state";
-import { chatStream, subscribeTurnSlot } from "@orb/client/state";
+import { chatStream } from "@orb/client/state";
 import type { ChatBusEvent, ChatDeltaEvent, ChatWarning, TurnIntent } from "@orb/contracts/chat";
 import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -21,6 +21,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { applyChatBusEvent } from "#client/data/bus/apply-chat-bus-event.ts";
 import type { ChatBusDeps } from "#client/data/bus/index.ts";
+import { subscribeTurnSlot } from "#client/state/chat-stream.ts";
 import { makeMessageView } from "../../features/chat/fixtures.ts";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────
