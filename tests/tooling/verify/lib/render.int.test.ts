@@ -162,3 +162,68 @@ test("a run with unjudged waiver budgets prints the NOT-judged count; a fully ju
   expect(partial).toMatch(/NOT judged for 1 of 2 polic\(ies\) over the repository population/u);
   expect(renderPolicyPass([policyRow([], true)], withBudget(["density-tier"], []), [twoArmPolicy])).not.toContain("waiver budget NOT judged");
 });
+
+// UNKNOWN analysis gaps print grouped per reason; the row (which the artifact serialises) keeps every gap.
+const gap = (file: string, line: number, reason: string): { file: string; line: number; column: number; token: string; reason: string } => ({
+  file,
+  line,
+  column: 3,
+  token: "t",
+  reason,
+});
+
+function gapRow(unknown: readonly ReturnType<typeof gap>[]): FinalPolicyRow {
+  return { ...policyRow([], true), analysis: { supported: 4, unknown } };
+}
+
+test("many UNKNOWN gaps print one block per reason: total, file count, top files, example sites and a tail", () => {
+  const files = Array.from({ length: 8 }, (_, i) => `packages/client/src/f${i}.ts`);
+  // f0 carries 3 gaps, f1 carries 2, the other six carry 1 each: 11 gaps, 8 files; plus one other-reason gap.
+  const unknown = [
+    ...[1, 2, 3].map((n) => gap(files[0] ?? "", n, "helper is opaque")),
+    ...[1, 2].map((n) => gap(files[1] ?? "", n, "helper is opaque")),
+    ...files.slice(2).map((file) => gap(file, 1, "helper is opaque")),
+    gap(files[0] ?? "", 9, "spread is opaque"),
+  ];
+  const row = gapRow(unknown);
+  const out = renderPolicyPass([row], EMPTY_REPORT, [twoArmPolicy]);
+  const lines = out.split("\n");
+  expect(out).toContain("      UNKNOWN helper is opaque — 11 site(s) in 8 file(s)");
+  expect(out).toContain("      UNKNOWN spread is opaque — 1 site(s) in 1 file(s)");
+  expect(out).toContain("        packages/client/src/f0.ts (3)");
+  expect(out).toContain("        packages/client/src/f1.ts (2)");
+  expect(out).toContain("        … 3 more file(s)");
+  expect(lines.filter((line) => line.startsWith("        e.g. "))).toEqual([
+    "        e.g. packages/client/src/f0.ts:1:3",
+    "        e.g. packages/client/src/f0.ts:2:3",
+    "        e.g. packages/client/src/f0.ts:3:3",
+    "        e.g. packages/client/src/f0.ts:9:3",
+  ]);
+  expect(lines.filter((line) => line.startsWith("      UNKNOWN "))).toHaveLength(2);
+  expect(row.analysis?.unknown).toHaveLength(unknown.length);
+});
+
+test("a single UNKNOWN gap prints its block with no tail", () => {
+  const out = renderPolicyPass([gapRow([gap("packages/client/src/a.ts", 7, "only one")])], EMPTY_REPORT, [twoArmPolicy]);
+  expect(out).toContain("      UNKNOWN only one — 1 site(s) in 1 file(s)");
+  expect(out).toContain("        packages/client/src/a.ts (1)");
+  expect(out).toContain("        e.g. packages/client/src/a.ts:7:3");
+  expect(out).not.toContain("more file(s)");
+});
+
+test("no UNKNOWN gaps print no UNKNOWN block", () => {
+  expect(renderPolicyPass([gapRow([])], EMPTY_REPORT, [twoArmPolicy])).not.toContain("      UNKNOWN ");
+});
+
+test("findings still print one line each beside a grouped UNKNOWN block", () => {
+  const violations = [1, 2, 3].map((n) => ({ file: "packages/client/src/a.ts", line: n, column: 0, message: POLICY_MESSAGE, severity: "error" as const }));
+  const row = {
+    ...policyRow(violations, false),
+    analysis: { supported: 0, unknown: [gap("packages/client/src/a.ts", 1, "r"), gap("packages/client/src/a.ts", 2, "r")] },
+  };
+  const out = renderPolicyPass([row], EMPTY_REPORT, [twoArmPolicy]);
+  for (const n of [1, 2, 3]) {
+    expect(out).toContain(`      packages/client/src/a.ts:${n}:0\n`);
+  }
+  expect(out).toContain("      UNKNOWN r — 2 site(s) in 1 file(s)");
+});

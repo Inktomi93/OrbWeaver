@@ -51,6 +51,31 @@ function policySuffix(row: FinalPolicyRow): string {
   return `  ·  ${parts.join(" · ")}`;
 }
 
+/** Files listed per reason before the "more file(s)" tail. */
+const UNKNOWN_TOP_FILES = 5;
+/** Example `file:line:column` sites printed per reason. */
+const UNKNOWN_EXAMPLE_SITES = 3;
+
+/** The console view of a policy's UNKNOWN analysis gaps: one block per reason, because a gate can report
+ *  thousands and a line each buries the findings. The full list stays on the row, so the run artifact keeps it. */
+function unknownGapLines(unknown: NonNullable<FinalPolicyRow["analysis"]>["unknown"]): readonly string[] {
+  const lines: string[] = [];
+  for (const [reason, gaps] of Map.groupBy(unknown, (gap) => gap.reason)) {
+    const perFile = [...Map.groupBy(gaps, (gap) => gap.file)].map(([file, inFile]) => [file, inFile.length] as const).sort((a, b) => b[1] - a[1]);
+    lines.push(`      UNKNOWN ${reason} — ${gaps.length} site(s) in ${perFile.length} file(s)`);
+    for (const [file, count] of perFile.slice(0, UNKNOWN_TOP_FILES)) {
+      lines.push(`        ${file} (${count})`);
+    }
+    if (perFile.length > UNKNOWN_TOP_FILES) {
+      lines.push(`        … ${perFile.length - UNKNOWN_TOP_FILES} more file(s)`);
+    }
+    for (const gap of gaps.slice(0, UNKNOWN_EXAMPLE_SITES)) {
+      lines.push(`        e.g. ${gap.file}:${gap.line}:${gap.column}`);
+    }
+  }
+  return lines;
+}
+
 function renderPolicyRow(row: FinalPolicyRow, policy: GatePolicy | undefined): readonly string[] {
   const suffix = policySuffix(row);
   if (row.owner.status !== "success" || row.withheld) {
@@ -121,9 +146,7 @@ export function renderPolicyPass(rows: readonly FinalPolicyRow[], report: Struct
   const out: string[] = [];
   for (const row of rows) {
     out.push(...renderPolicyRow(row, byId.get(row.name)));
-    for (const gap of row.analysis?.unknown ?? []) {
-      out.push(`      UNKNOWN ${gap.file}:${gap.line}:${gap.column} — ${gap.reason}`);
-    }
+    out.push(...unknownGapLines(row.analysis?.unknown ?? []));
   }
   out.push(...renderPolicyBlock(report));
   const waived = rows.reduce((n, row) => n + row.waived, 0);
