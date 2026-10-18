@@ -22,11 +22,11 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 ### Recovery priority and analysis scope
 
-Read the [bottleneck research](../../../reports/review/seven-day-bottleneck-claude-analysis.md) in full before callable or migration dispatch. Its snapshots and counts are leads; derive the current affected set without another whole-tree audit.
+Follow D328 before analysis dispatch. The [bottleneck research](../../../reports/review/seven-day-bottleneck-claude-analysis.md) records source-specific diagnosis, not a mandate to resume its repair loop. Derive current affected claims without another whole-tree audit.
 
-[D323](../../adr/0323-prototype-exposure-per-native-generation.md) replaces per-read prototype closure with one native-generation census. Land prototype-mutation lint first. Reuse the classifier and program epoch; preserve allocation, bindings, paths, mutation and escape refusal. Ordinary computed data reads and calls are not prototype exposure. Keep contextual callable obligations at their existing owners. Report admitted mutation sites once; refuse outside-population exposure with its source location instead of bypassing the reporter. Stop helper-specific repairs; no TS7 experiments, heap increases or population cuts.
+[D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) bounds analyzer acceptance. Keep shared native facts and local analysis; stop exhaustive DI, callable and escape proofs. Prefer native tools and partial coverage. Unsupported flows stay explicit, not universal release blockers. Concrete violations block. Security migrations retain production authorization, native boundaries and real cross-tenant controls; record lost static guarantees. Preserve complete declared populations, world identity and store lifetimes. D323 prototype enforcement remains. No helper-specific repair, new unbounded diagnostic, TS7 experiment or heap increase.
 
-The original chat-accounting driver completes with a non-prototype signal-origin refusal. Stop this repair line. Run the complete selected owner-scoped-reads policy after coherent currentness delivery, not against the incomplete producer tree. Evidence: `reports/review/1002-d323-original-census-result.md`.
+The original driver retains its signal-origin refusal; the full owner-policy run is stopped without a verdict. Neither qualifies the bounded successor. Item 1016 replaces the expensive reader with useful owner-read coverage and explicit limits. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md` and `reports/review/1002-owner-read-native-partial-addendum.md`.
 
 Dispatch the corpus smoke matrix independently. Its native shape and clone checks are available; callable resolution, store cost and gate migration do not block item 898. Complete its provider, authentication, width, style and flow acceptance before general legacy suite ports.
 
@@ -36,7 +36,7 @@ Keep cold multi-world cost separate. Client typecheck consumes router declaratio
 
 D321 records the owner rulings; item 1041 owns the audited gate migration. Custom gate analysis serves the KEEP set. Do not port MOVE or DELETE rows into the fact store. Shared providers count once for cost.
 
-Start the audited migration after the assigned SQL correction's acceptance. Keep retained-reader gaps and complete equivalence/cost qualification open without blocking that migration. The [delivery-boundary report](../../../reports/review/1027-remaining-delivery-boundary.md) traces the remaining schema, clone and compose readers.
+Continue audited migration independently of general callable closure. Qualify bounded retained-reader coverage and cost under D328. The [delivery-boundary report](../../../reports/review/1027-remaining-delivery-boundary.md) traces the remaining schema, clone and compose readers.
 
 [D320](../../adr/0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) makes legacy tests run/typecheck-only. Keep their CI regression execution and native typecheck programs. Exclude legacy worlds from semantic extraction and legacy files from typed gate/provider populations and type-aware lint. Preserve cheap admission and boundary checks.
 
@@ -101,7 +101,7 @@ Then rebuild corpus e2e smoke, server domains on the composition root, CTs on th
 - Repair product, security and checker defects. Preserve useful legacy cases for replacement; stop fixture polish, copied-harness repair and waiver bookkeeping as independent deliverables.
 - Rejudge waivers and grants against their actual subjects. Their existence does not establish authority or justify weakening enforcement.
 - Recover unfinished production branches by coherent current-tree changes, not wholesale stale merges. The work items for contract derivation and stored-value parsing own their security blockers.
-- Complete engine and replacement qualification remains open; source integration alone is not completion.
+- Complete bounded-engine and replacement qualification remains open; source integration alone is not completion.
 - A rebuilt test calls production through a public entry, builds data through a builder, and carries no fake that stands in for domain logic.
 - A ported suite keeps every case of the file it replaces; the verifier checks the case list.
 - Retrofit work on fake-heavy server harnesses stops; those rows move to the rebuild.
@@ -149,7 +149,7 @@ Gate families fold onto the shared readers:
 - JSON columns: json-column-read-parsed, json-column-write-parity and open-json-column-key-parity become one JSON-column fact with three judgements.
 - Copies: contract-structural-copy, contract-derives-not-respells, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
 
-Item 965 measures the static tier on a standard hosted runner. Shared-store consumers must not load their own programs. Fix cost through shared facts, not resource caps.
+Item 965 measures supported commands on a standard hosted runner. Preserve shared facts; D328 replaces general proof obligations with explicit bounded contracts.
 
 ### Shared semantic inventory store
 
@@ -179,13 +179,13 @@ Keep transaction overlays separate from committed facts. Derive their roots from
 
 Portable corpus captures derive production contracts without Node support or AppRouter reach. Node retains exhaustive router input and wire-output conformance. Native closure, compiler, publication, cross-tenant and independent security checks qualify this boundary. Evidence: `reports/review/1040-portable-corpus-ordinary.md`. A declaration bridge requires fresh generated output and qualified transitive closure; declaration emission alone does not establish isolation. Legacy CI and typecheck evidence remains available without extracting legacy semantic worlds, as D320 requires. Cross-world file duplication does not explain the separate single-world callable cost.
 
-Capture validation and lexical classification already reuse current facts. Measure existing proof-owner decisions before another repair; current dominant cost is unknown. Evidence: `reports/review/1002-current-predicate-cost-next-step.md`. Codemod acquisition/replay deadlines remain open; preserve transaction isolation.
+Capture validation and lexical classification reuse current facts. D328 stops the general proof campaign; the isolated diagnostic stays unlaunched. Codemod acquisition/replay cost and transaction isolation remain acceptance obligations. Evidence: `reports/review/1002-current-predicate-cost-next-step.md`.
 
 The store-backed inventory corpus is a separate syntax carrier over the complete authored-root inventory. Its readers query native facts explicitly. Keep the existing native `SourceCorpus` contract, including browser-native `getType`, for consumers not yet ported. Do not give those consumers a syntax carrier with synthetic compiler options.
 
-Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Ordinary demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. Original target resolution remains unqualified.
+Terminal optional sibling continuations preserve nullish or closed-absent receivers and unsafe-use refusals. Evidence: `reports/review/1002-default-binding-continuations-ordinary.md`. Direct awaited module aliases preserve native identity and consumer closure. Evidence: `reports/review/1002-module-alias-ordinary.md`. Captured catch transfer and ordinary call demand pass scoped controls and security review. Ordinary demand preserves private lifetime and requires actual publication; context-free transfer refuses. Evidence: `reports/review/1002-namespace-call-demand-ordinary.md`. These controls do not require general callable completion under D328.
 
-Callable provenance retains allocation, bindings and live premises. The generation prototype census passes independent review. The target still refuses `ctx.backgroundSignal` at `packages/server/src/domain/chat/service.ts:93`. Stop helper-specific repair. Complete owner-policy and current-store cost qualification remain open. Evidence: `reports/review/1002-d323-original-census-result.md`.
+The generation prototype census passes review. Its target refusal remains recorded; D328 replaces further callable closure with bounded enforcement. Current-store cost and supported security-policy coverage remain open. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
 | Consumer home | Planned shared-store migration |
 | - | - |
@@ -233,7 +233,7 @@ Native HARD lint owns tooling entry identity, invalidation and missing-owner ref
 
 Native schemas enforce portability; runtime owns DevTools bytes. Lint owns client literals, positioning, sealed sizes and suppression refusal. Story and generated-token readers remain. Manifest/token and compiler-expiry contracts use Node CI. Containment and memo enforcement remain. Floorless geometry uses public UI metadata; complete frontend qualification remains open. Native imports judge tests and tooling; raw reach remains custom. Engine-test private imports require production-root adoption. Evidence: `reports/review/1041-native-test-tooling-imports-ordinary.md`. Git/text checks pass; application qualification fails on legacy collection.
 
-Typed KEEP gates are bus-producer-coverage, caught-failure-ownership, contract-structural-copy, json-column-write-parity, no-inline-union-redecl, owner-scoped-reads, test-hand-shape and test-production-clone. The per-call half of compose-wiring-only also stays custom. KEEP does not require deep Types for a syntax-only claim. Preserve the audit's syntax/resource KEEP consumers and their shared contracts.
+Typed KEEP claims include bus production, failure ownership, structural copies, JSON writes, unions, owner reads and test shapes/clones. Compose retains its per-call claim. D328 bounds their implementations; KEEP does not authorize arbitrary callable proofs. Preserve syntax/resource consumers and required contracts.
 
 Required producers cannot disappear with their audit row. Replace bus definitions, schema/catalog data, static-class and floorless-control inputs before removing an upstream producer used by KEEP consumers. Preserve meaningful unavailable-data and lifecycle refusal. Retire redundant certification, not the remaining consumer's failure behavior.
 
@@ -356,4 +356,4 @@ General [checker-recertification cleanup](../../work/1012-remove-whole-tree-chec
 
 ## Test plan
 
-Each engine move diffs `pnpm ast` output and gate findings before and after. Each ported suite shows the same case list and a production mutant that turns it red. The legacy-folder gate refuses a new entry and a returning file.
+Each engine move compares supported outputs and records intentional unsupported outcomes under D328. Native or partial security successors need planted negative and production-root controls. Each replacement preserves meaningful cases and catches a production defect. Legacy admission remains monotonic.

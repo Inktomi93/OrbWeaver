@@ -3,7 +3,7 @@ kind: bug
 status: doing
 updated: 2026-10-18
 priority: P2
-lane: wt/agent-ae3eafbaa82f66d57
+lane: wt/agent-aa30b4f0866837c09
 ---
 
 # Main reds and loose ends from the test-mirror lanes
@@ -16,9 +16,7 @@ Item 981 owns UI token-authoring contract homes. Retain their supported D318 pub
 
 ## Population and migration checks
 
-Audit `@packages` policies in `tooling/src/verify/contract/population.ts`: this set omits `@inference`; `@product` includes it. Match each claim to its population. Review remaining Biome nursery rules against native ESLint coverage.
-
-Workspace reconciliation omits `tests/support` package identity, not its `@tests` source admission. Adjudicate these separately without exclusions.
+The remaining `@packages` declarations match their claims; inference belongs to `@product`. Workspace reconciliation recognizes testkit identity without narrowing `@tests`. Staging-resource identity remains a lead. Evidence: `reports/review/peer-state-population-independent.md`. Review Biome nursery coverage separately.
 
 Legacy condition, coercion, sort and nullish findings stay with replacement cases. Modal headers use the existing primitive slot; panel focus-return markers preserve list and context behavior.
 

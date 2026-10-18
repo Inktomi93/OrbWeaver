@@ -16,19 +16,11 @@
 // (tests/legacy/client/features/imagery/) exercise the opener→body path end-to-end through the real slot.
 
 import type { ImageSubject, ImagineSeed } from "@orb/client/state";
-import {
-  __readImageryIntentForTest,
-  __resetImageryIntent,
-  clearDetailSubject,
-  clearEditSubject,
-  clearImagineSeed,
-  openImageDetail,
-  openImageEdit,
-  openImagine,
-} from "@orb/client/state";
+import { clearDetailSubject, clearEditSubject, clearImagineSeed, openImageDetail, openImageEdit, openImagine } from "@orb/client/state";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readImageryIntentForTest, __resetImageryIntent } from "#client/state/imagery-store.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const CHAT_ID = mintTypeId(ID_PREFIX.chat);

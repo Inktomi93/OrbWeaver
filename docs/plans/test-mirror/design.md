@@ -18,13 +18,13 @@ Preserve useful migration cases and production contract concerns for the test-fo
 
 [test-foundation](../test-foundation/design.md) owns execution order, the legacy boundary, shared readers, production composition, builders/corpus and replacement suites. This plan retains candidate cases and production contract concerns; it does not authorize a separate legacy retrofit queue.
 
-The work items own live status. Contract, stored-value and current wire-boundary recovery is integrated through canonical type homes, ownership before private parsing and refusal before effects. Test-foundation owns remaining physical-edge and corpus qualification. The corpus smoke matrix proceeds with its qualified native shape and clone checks. General legacy ports still wait for shared readers.
+The work items own live status. Contract, stored-value and current wire-boundary recovery is integrated through canonical type homes, ownership before private parsing and refusal before effects. Test-foundation owns remaining physical-edge and corpus qualification. The corpus smoke matrix proceeds with its qualified native shape and clone checks. General ports wait for their required bounded readers, not exhaustive callable proof.
 
 ### Recovery priority
 
 D321 and the test-foundation plan own the audited gate migration after 1027. Runtime replacement tests call production; they do not revive this inventory as a fake-harness retrofit queue.
 
-Follow [test-foundation's current analysis priorities](../test-foundation/design.md#recovery-priority-and-analysis-scope) before dispatch. D320 keeps legacy regression execution and native typechecking, not deep fact extraction or typed analysis. Replacement still preserves meaningful cases before legacy deletion. Audit maintained-tool and syntax coverage before expanding custom semantic readers; this inventory does not authorize another legacy retrofit or prover campaign.
+Follow [D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) and [test-foundation's current analysis priorities](../test-foundation/design.md#recovery-priority-and-analysis-scope) before dispatch. D320 keeps legacy regression execution and native typechecking, not deep fact extraction or typed analysis. Replacement still preserves meaningful cases before legacy deletion. Audit maintained-tool and syntax coverage before expanding custom semantic readers; this inventory does not authorize another legacy retrofit or prover campaign.
 
 ### Using the inventory
 

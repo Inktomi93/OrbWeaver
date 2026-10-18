@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Finish the remaining assigned native delivery before the D321 migration in item 1041. Do not expand delivery into new MOVE or DELETE fact-store ports. D320 excludes legacy typed populations while preserving regression execution and native typechecking.
+D328 bounds remaining delivery; stop general callable closure and new MOVE/DELETE store ports. D321 migration continues independently. D320 excludes legacy typed populations, not regression execution or native typechecking.
 
 Route maintained verifier typed reads through canonical native source and checker views. Preserve the separate cheap syntax scan and importing-world meaning. Reuse the run-owned lazy workspace without eager world enumeration or private compiler programs.
 
@@ -43,4 +43,4 @@ Plain-value pins, session capture reuse, evaluated waiver metadata, lazy lexical
 
 D320 eligibility is integrated. Ordinary controls retain native closure, runtime/typecheck worlds, syntax boundaries and historical generations. Store metadata failures remain unchanged. Evidence: `reports/review/1002-legacy-analysis-current-integration.md`.
 
-Native full-schema metadata and clone export discovery pass review and bounded controls. Evidence: `reports/review/native-foundation-wave-ordinary.md`. Compose callable/reference/lifetime delivery and complete equivalence remain open. The foundation plan keeps these separate from the audited migration.
+Native full-schema metadata and clone export discovery pass review and bounded controls. Evidence: `reports/review/native-foundation-wave-ordinary.md`. Supported compose/reference/lifetime delivery and native equivalence remain open. D328 removes general callable closure from acceptance; the foundation plan owns security successors.

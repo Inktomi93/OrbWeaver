@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P1
 area: tenancy
-lane: codex/owner-policy-current-1016
 plan: test-foundation
 ---
 
@@ -12,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Adjudicate retained owner-scoped reads against actual SQL, ownership chains and callers. Fix query defects or canonical Drizzle judgments with discriminating controls. Preserve lawful cross-owner operations without grants or budget inflation.
+Implement D328 native or partial owner-read coverage over the declared population. Detect concrete local defects; report complex flows as unknown. Preserve production authorization and lawful cross-owner operations without general helper, SQL-carrier or DI closure.
 
 ## Why
 
@@ -20,7 +19,7 @@ The complete selected policy reports unresolved or unscoped reads outside the ty
 
 ## Done when
 
-Every retained finding has an evidence-backed disposition and owner. Corrected queries and shared-reader judgments pass affected production and bounded policy controls. The unchanged complete population judges clean without weakening enforcement or retrofitting disposable harnesses.
+Every retained finding has an evidence-backed disposition and owner. Corrected queries and shared-reader judgments pass affected production and bounded policy controls. Classify supported reads and explicit unknowns. Native boundaries, production-root cross-tenant controls and planted negatives qualify the partial successor before old-reader removal. Record lost static guarantees.
 
 ## Evidence
 
@@ -30,9 +29,9 @@ Reviewed sources `4db0868d4c` and `5fb8c4992b` preserve character helpers, paren
 
 Reviewed `0b45eda681` retains descriptor provenance and closes callable storage per actual allocation. Reviewed `4eb70893f5` excludes only the exact defining name after native context and binding checks. Native controls and independent review pass. Evidence: `reports/review/1016-inert-definition-result.md`.
 
-D323's original driver ends with a non-prototype signal refusal; stop helper-specific repair. Passive recovery observes the existing policy tree after supervisor loss. The observation gap prevents complete cost qualification. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md`.
+The general policy run is owner-stopped without a verdict. D328 replaces that acceptance, not its evidence. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md`.
 
-Adjudicate actual SQL and callers before changing a query or reader. An unresolved helper is not automatically a product leak; add no grant or budget allowance. Bounded controls do not establish whole-policy qualification.
+Adjudicate actual SQL and callers; general unresolved analysis proves neither a privacy exploit nor safety. Successor contract: `reports/review/1002-owner-read-native-partial-addendum.md`.
 
 Reviewed source `0b778e7a97` preserves distinct refinery Run and Estimate authority through executing target reads and scalar counting. Shared domain readiness preserves candidate semantics. Native runtime, nominal and owned-predicate controls pass.
 

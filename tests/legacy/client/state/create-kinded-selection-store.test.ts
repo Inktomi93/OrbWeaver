@@ -4,9 +4,9 @@
 // config-selection-store.ct.tsx), so this node lane pins the FACTORY contract: the surface it exposes,
 // callable actions, and the `createGatedStore` duplicate-name guard propagating through the mint.
 
-import { createKindedSelectionStore } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
+import { createKindedSelectionStore } from "#client/state/create-kinded-selection-store.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

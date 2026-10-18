@@ -5,9 +5,10 @@
 // because the value is written straight into a `min-block-size` — a garbage measurement (0, NaN, a
 // detached-node height) would reserve a garbage box on every subsequent boot.
 
-import { __readSurfaceBoxForTest, __resetSurfaceBoxes, forgetSurfaceBox, rememberSurfaceBox } from "@orb/client/state";
+import { forgetSurfaceBox, rememberSurfaceBox } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readSurfaceBoxForTest, __resetSurfaceBoxes } from "#client/state/surface-box-store.ts";
 
 const TILE = "chat.recents";
 

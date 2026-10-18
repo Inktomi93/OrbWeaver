@@ -4,9 +4,10 @@
 // enabled only when DEV *and* the Redux DevTools extension exist — neither here, so zustand must
 // not console-warn about a missing extension).
 
-import { createGatedStore, STORE_DEVTOOLS_ENABLED } from "@orb/client/state";
+import { createGatedStore } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import { STORE_DEVTOOLS_ENABLED } from "#client/state/create-gated-store.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

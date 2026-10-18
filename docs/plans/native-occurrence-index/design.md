@@ -49,7 +49,7 @@ Keep complete selected roots and resolved closure. Publish coherent generations 
 
 Retain aliases, reexports, merged declarations, overloads, shorthand properties, contextual members, computed members, namespace uses, JSX and type/value distinctions. A location can carry several meanings.
 
-Reference lookup is not callable provenance. Keep allocation, argument bindings, property paths, mutation and escape judgments at their canonical owners. An occurrence index supplies facts; it does not establish runtime origin by itself.
+Reference lookup is not runtime provenance. [D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) stops general callable and escape proofs. Preserve indexed native meanings; unsupported runtime questions remain explicit rather than invented call targets. Security consumers need qualified bounded successors.
 
 Native location indexing preserves canonical travel and explicit fallback. The extractor retains computed answers instead of repeating searches. Versioned name links remove artificial physical copies while replaying exact logical ordering and native repeats. Installed controls, storage upgrades and bounded UI parity pass review. Main installation matches the reviewed SDK. Frozen complete DOM default publication validates currentness, lazy reads and physical release at measured cost. Complete semantic equivalence, warm reuse, other worlds and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-bulk-native-reference-delivery.md`.
 

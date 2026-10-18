@@ -10,7 +10,7 @@ plan: test-foundation
 
 ## What
 
-Prioritize structural cuts: D320 legacy analysis eligibility, unnecessary typed-gate removal and AppRouter type-bridge closure isolation. Separate compiler baseline cost from additional analysis work, with runtime and checker concurrency explicit.
+D328 bounds supported analysis; general callable closure is not acceptance. Prioritize D320 eligibility, native tools and declaration bridges. Measure supported commands, explicit unresolved outcomes and reuse separately from compiler baseline cost.
 
 Keep TS6 analysis and park TS7 benchmarks and adapter work. Follow the [native occurrence-index design](../plans/native-occurrence-index/design.md) for persisted reference lookup without repeated bulk program searches. Shared facts preserve world-specific bindings, dependency invalidation and existing consumer judgments. Attribute invocation work separately.
 

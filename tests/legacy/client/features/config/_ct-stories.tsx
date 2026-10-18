@@ -23,7 +23,6 @@ import { bindConfigPaletteGroups, configPaletteSource } from "@orb/client/featur
 import type { CommandPaletteSource } from "@orb/client/lib";
 import type { ConfigGroupId } from "@orb/client/state";
 import {
-  __resetConfigGroupOpen,
   __resetConfigNav,
   CommandPaletteSourceRegistryProvider,
   clearCollectionSelection,
@@ -47,6 +46,7 @@ import { createAnchorFlasher } from "#client/features/config/lib/config-scroll-s
 import { makeConfigSection } from "#client/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "#client/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "#client/features/config/surfaces/config-list-surface.tsx";
+import { __resetConfigGroupOpen } from "#client/state/config-group-open-store.ts";
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {

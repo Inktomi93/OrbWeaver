@@ -18,11 +18,11 @@ Gates and `pnpm ast` read drizzle code two ways, so a `pnpm ast` verb finds what
 
 ## Done when
 
-One drizzle reader in the floor; the old readers are deleted; `pnpm ast columns` output and every caller gate's findings are unchanged or a recorded improvement. The tenancy gates read through the new reader, and it flags every by-id spelling the item 980 security review planted: a by-id helper inside an object, a table-parameter helper, a bound FK column inside or() or a sql leaf, a schema namespace table, a const table alias, a const relational receiver, a non-$dynamic builder escaping to a helper, a builder returned from a function, split builder bindings at any depth, and a subquery or CTE whose ownerId column is relabelled from another table.
+One Drizzle reader supplies supported facts to AST and gates. D328 bounds the query language instead of requiring arbitrary helper and builder closure. Classify every claimed read; partial coverage reports unsupported forms as unknown. Native restrictions and production-root ownership controls qualify before retiring old enforcement. No query-language rewrite by default. Record supported output parity and intentional unsupported results.
 
 ## Evidence
 
-AST consumers share column, row-shape, selection and SQL readers. Classification remains consumer-owned. Preserve native program identity, complete schema populations and unresolved outcomes; fixed traversal limits do not satisfy arbitrary-depth acceptance.
+AST consumers share column, row-shape, selection and SQL readers. Classification remains consumer-owned. Preserve native program identity, complete schema populations and explicit unresolved outcomes. D328 replaces arbitrary-depth acceptance with a closed supported contract.
 
 The native inventory item owns persistence and complete replay. This assignment owns Drizzle extraction and consumer judgments. Bounded programs and schema-presence checks do not establish repository-native equivalence or complete owner qualification. Preserve the deferred emit and population suites.
 

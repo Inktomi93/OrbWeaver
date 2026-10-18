@@ -26,12 +26,8 @@ import {
 import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandPaletteSource, ContributorRegistry, ToolRenderer } from "@orb/client/lib";
 import type { ChromeEntry } from "@orb/client/state";
 import {
-  __resetComposerDrafts,
-  __resetPluginCommandArgs,
-  __resetPluginDialog,
   ChromeRegistryProvider,
   CommandPaletteSourceRegistryProvider,
-  clearPluginPage,
   closeModal,
   openPluginCommandArgs,
   openPluginDialog,
@@ -81,6 +77,10 @@ import {
   useUninstallPlugin,
   useWithdrawPlugin,
 } from "#client/features/plugin/lib/plugin-mutations.ts";
+import { __resetComposerDrafts } from "#client/state/composer-draft-store.ts";
+import { __resetPluginCommandArgs } from "#client/state/plugin-command-args-store.ts";
+import { __resetPluginDialog } from "#client/state/plugin-dialog-store.ts";
+import { clearPluginPage } from "#client/state/plugin-page-selection-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { AppShellRealRoomStory } from "../app-shell/_ct-stories.tsx";
 import { CHAT_ID } from "../chat/fixtures.ts";

@@ -6,11 +6,12 @@
 // Driven through the non-hook snapshot (the reactive hooks need a React render — the
 // `message-selection-store.test.ts` posture).
 
-import { __readRegexBulkForTest, clearRegexBulkSelection, exitRegexBulkMode, toggleRegexBulkMode, toggleRegexScriptSelected } from "@orb/client/state";
+import { clearRegexBulkSelection, exitRegexBulkMode, toggleRegexBulkMode, toggleRegexScriptSelected } from "@orb/client/state";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readRegexBulkForTest } from "#client/state/regex-bulk-store.ts";
 
 const SCRIPT_A = castId<RegexScriptId>("regex_script_bulkaaaaaaaaaa");
 const SCRIPT_B = castId<RegexScriptId>("regex_script_bulkbbbbbbbbbb");

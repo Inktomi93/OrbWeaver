@@ -3,9 +3,10 @@
 // `useRecentSteers` needs a React render. Pins the ring semantics the wand's "Recent
 // steers" recall renders FROM: unshift (most-recent-first) · de-dupe on re-fire · cap · blank never stored.
 
-import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state";
+import { pushFiredSteer } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { __readRecentSteersForTest, __resetRecentSteers, STEER_RECOVERY_CAP } from "#client/state/steer-recovery-store.ts";
 
 describe("steer-recovery ring", () => {
   beforeEach(() => {

@@ -274,3 +274,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D325 | [Tooling tests follow the tooling posture](0325-tooling-tests-follow-the-tooling-posture.md) | active |
 | D326 | [Foundation env posture APIs have an owned contract](0326-foundation-env-posture-contract.md) | superseded by [0327-foundation-env-policy-contracts.md](0327-foundation-env-policy-contracts.md) |
 | D327 | [Foundation env policy APIs have an owned contract](0327-foundation-env-policy-contracts.md) | active |
+| D328 | [Bounded analysis and explicit security successors](0328-bounded-analysis-and-explicit-security-successors.md) | active |

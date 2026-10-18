@@ -6,11 +6,12 @@
 // creation click, so a rowless "chat that exists only in the composer" is unrepresentable. What replaced it
 // is a SERVER fact (an unclaimed husk), not a client phase — do not re-add an arm here to model it.
 
-import { committedChat, isCommitted, isLanding, landingChat } from "@orb/client/state";
+import { isLanding } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { committedChat, isCommitted, landingChat } from "#client/state/chat-handle.ts";
 
 const CHAT_ID = castId<ChatId>("chat_handle_unit");
 

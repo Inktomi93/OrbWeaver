@@ -1,7 +1,7 @@
 // Home tile memory: a gate that settled hidden and a moving tile's column, per device. Pins that settling hidden
 // drops the tile's remembered box and that settling visible clears the mark, since both decide a first paint.
 
-import { __readSurfaceBoxForTest, __resetSurfaceBoxes, rememberSurfaceBox } from "@orb/client/state";
+import { rememberSurfaceBox } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import {
@@ -11,6 +11,7 @@ import {
   rememberHomeRegion,
   rememberHomeTileSettledHidden,
 } from "#client/state/home-tile-memory-store.ts";
+import { __readSurfaceBoxForTest, __resetSurfaceBoxes } from "#client/state/surface-box-store.ts";
 
 const ROSTERS = "rosterPreset.rosters";
 const STARTER = "chat.quickPicks";

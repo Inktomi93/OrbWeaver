@@ -38,4 +38,4 @@ Isolated E2E stacks disable only the native checker HUD. Terminal lint diagnosti
 
 Synthetic cases pass across frozen matrix and recovery epochs, not a current aggregate. Preserve failures. Native-client conversation and sharing controls pass. Evidence: `reports/review/898-native-trpc-browser-qualification.md`, `reports/review/898-production-defect-controls.md`, `reports/review/898-v2-matrix-qualification.md` and `reports/review/898-v2-matrix-recovery.md`.
 
-Windowed World Info and file-backed Backup pass focused desktop/phone controls, retaining native ordering, workload ownership and exact restoration. Other styles, private/full matrix and hosted acceptance remain open. Evidence: `reports/review/898-large-library-upload-selection-independent.md`.
+Windowed World Info and file-backed Backup pass every style and width, retaining native ordering, workload ownership and exact restoration. Private/full matrix and hosted acceptance remain open. Evidence: `reports/review/898-large-library-upload-selection-independent.md`.
