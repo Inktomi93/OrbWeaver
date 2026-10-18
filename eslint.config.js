@@ -2711,8 +2711,7 @@ const typeHomeDeclarationRule = {
       if (!(direct || (nativeFactoryTypeHomePopulation(path) && nativeDeclarationExported(declaration, native.checker)))) {
         return;
       }
-      const wrapped = nativeWrappedNode(declaration, native);
-      if (serverFactoryTypeHome(wrapped, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
+      if (serverFactoryTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
         return;
       }
       context.report({
@@ -2755,7 +2754,7 @@ const serverFactoryTierReferenceRule = {
       return (
         terminals.length > 0 &&
         terminals.every((node) => {
-          const physical = canonicalCompilerPath(context.cwd, node.getSourceFile().getFilePath()).replaceAll("\\", "/");
+          const physical = canonicalCompilerPath(context.cwd, node.getSourceFile().fileName).replaceAll("\\", "/");
           const path = relative(context.cwd, physical).replaceAll("\\", "/");
           return physical.includes("/node_modules/") || TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern));
         })
@@ -2772,7 +2771,7 @@ const serverFactoryTierReferenceRule = {
       if (!ownership.has(declaration)) {
         ownership.set(
           declaration,
-          serverFactoryTypeHome(nativeWrappedNode(declaration, native), owner, {
+          serverFactoryTypeHome(declaration, owner, {
             kind: "parser",
             program: native.program,
             checker: native.checker,
@@ -2825,7 +2824,7 @@ const serverFactoryTierReferenceRule = {
         rootType: type,
         parser: { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
       });
-      const accused = reportSubjects([...roots, ...graph.trace.declarations.map((node) => node.compilerNode)], reported, seen);
+      const accused = reportSubjects([...roots, ...graph.trace.declarations], reported, seen);
       if (!accused && graph.kind === "unresolved") {
         context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: graph.detail } });
       }

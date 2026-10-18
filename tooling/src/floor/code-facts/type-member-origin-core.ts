@@ -1,9 +1,9 @@
 // Native declaration/identity primitives for type-member readers; graph/containment judgments stay consumers.
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { Node as MorphNode, Symbol as MorphSymbol, Type } from "ts-morph";
-import { Node, VariableDeclarationKind } from "ts-morph";
+import type { Node as MorphNode, Symbol as MorphSymbol, Signature, Type } from "ts-morph";
+import { ts as morphTs, Node, VariableDeclarationKind } from "ts-morph";
 import ts from "typescript";
-import type { TypeIdentityOrigin } from "./type-member-origin-contract.ts";
+import type { NativeParserTypeContext, TypeIdentityOrigin, TypeRealmOperations } from "./type-member-origin-contract.ts";
 import type { TypeObservationReader } from "./type-observations-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
 
@@ -76,8 +76,7 @@ export function nativeUncastReceiver(node: ts.Node, checker: ts.TypeChecker): ts
         ts.isVariableDeclaration(declaration) &&
         ts.isVariableDeclarationList(declaration.parent) &&
         ts.isVariableStatement(declaration.parent.parent) &&
-        // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript NodeFlags is a compiler-owned declaration bitfield.
-        (declaration.parent.flags & ts.NodeFlags.Const) !== 0 &&
+        compilerFlag(declaration.parent.flags, ts.NodeFlags.Const) &&
         declaration.initializer !== undefined
           ? [declaration.initializer]
           : [],
@@ -85,11 +84,11 @@ export function nativeUncastReceiver(node: ts.Node, checker: ts.TypeChecker): ts
   });
 }
 
-export function resolved<T>(value: T, origin: MorphNode, declarations: readonly MorphNode[]): ReferenceFact<T> {
+export function resolved<T, Anchor = MorphNode>(value: T, origin: Anchor, declarations: readonly Anchor[]): ReferenceFact<T, Anchor> {
   return { kind: "resolved", value, trace: { declarations: [...declarations], origin } };
 }
 
-export function unresolved(reason: ReferenceUnresolvedReason, node: MorphNode, detail: string): UnresolvedReferenceFact {
+export function unresolved<Anchor = MorphNode>(reason: ReferenceUnresolvedReason, node: Anchor, detail: string): UnresolvedReferenceFact<Anchor> {
   return { kind: "unresolved", reason, detail, node, trace: { declarations: [], origin: node } };
 }
 
@@ -195,4 +194,229 @@ export function unprovenTypeIdentity(origin: TypeIdentityOrigin, reason: Referen
 
 export function normalizedPath(node: MorphNode): string {
   return node.getSourceFile().getFilePath().replaceAll("\\", "/");
+}
+
+export type MorphTypeOperations = TypeRealmOperations<MorphNode, Type, MorphSymbol, Signature, morphTs.Type>;
+export type ParserTypeOperations = TypeRealmOperations<ts.Node, ts.Type, ts.Symbol, ts.Signature, ts.Type>;
+
+function compilerFlag(flags: number, flag: number): boolean {
+  // biome-ignore lint/suspicious/noBitwiseOperators: Compiler flag enums are native bitfields in both separate realms.
+  return (flags & flag) !== 0;
+}
+
+function parserTypeReference(type: ts.Type): type is ts.TypeReference {
+  return (
+    compilerFlag(type.flags, ts.TypeFlags.Object) &&
+    "objectFlags" in type &&
+    typeof type.objectFlags === "number" &&
+    compilerFlag(type.objectFlags, ts.ObjectFlags.Reference)
+  );
+}
+
+function parserIndexedType(type: ts.Type): type is ts.IndexedAccessType {
+  return compilerFlag(type.flags, ts.TypeFlags.IndexedAccess);
+}
+
+function morphIndexedType(type: morphTs.Type): type is morphTs.IndexedAccessType {
+  return compilerFlag(type.flags, morphTs.TypeFlags.IndexedAccess);
+}
+
+/** Bind only raw parser/compiler observations; no ts-morph wrapper accepts values from this realm. */
+export function parserTypeOperations(context: NativeParserTypeContext): ParserTypeOperations {
+  const { checker, program } = context;
+  return {
+    nodeIdentity: (node) => node,
+    typeIdentity: (type) => type,
+    parent: (node) => node.parent,
+    children: (node): readonly ts.Node[] => {
+      const values: ts.Node[] = [];
+      ts.forEachChild(node, (child) => {
+        values.push(child);
+      });
+      return values;
+    },
+    path: (node) => node.getSourceFile().fileName.replaceAll("\\", "/"),
+    text: (node) => node.getText(),
+    contains: (node) => program.getSourceFile(node.getSourceFile().fileName) === node.getSourceFile(),
+    forgotten: () => false,
+    identifier: ts.isIdentifier,
+    parameter: ts.isTypeParameterDeclaration,
+    variable: ts.isVariableDeclaration,
+    generic: (node): ReturnType<ParserTypeOperations["generic"]> => {
+      if (ts.isTypeAliasDeclaration(node)) {
+        return { kind: "alias", parameters: node.typeParameters ?? [], body: node.type };
+      }
+      if (ts.isInterfaceDeclaration(node)) {
+        return { kind: "interface", parameters: node.typeParameters ?? [], body: undefined };
+      }
+      if (ts.isClassDeclaration(node)) {
+        return { kind: "class", parameters: node.typeParameters ?? [], body: undefined };
+      }
+      return undefined;
+    },
+    reference: (node): ReturnType<ParserTypeOperations["reference"]> => {
+      if (ts.isTypeReferenceNode(node)) {
+        return { name: node.typeName, arguments: node.typeArguments ?? [] };
+      }
+      if (ts.isExpressionWithTypeArguments(node)) {
+        return { name: node.expression, arguments: node.typeArguments ?? [] };
+      }
+      return undefined;
+    },
+    mapped: (node) =>
+      ts.isMappedTypeNode(node)
+        ? {
+            parameter: node.typeParameter,
+            constraint: node.typeParameter.constraint,
+            value: node.type,
+            remap: node.nameType,
+            optional: node.questionToken?.kind === ts.SyntaxKind.QuestionToken,
+            readonly: node.readonlyToken !== undefined,
+          }
+        : undefined,
+    indexedNode: (node) => (ts.isIndexedAccessTypeNode(node) ? { object: node.objectType, index: node.indexType } : undefined),
+    operatorType: (node) => (ts.isTypeOperatorNode(node) ? node.type : undefined),
+    query: (node) => (ts.isTypeQueryNode(node) ? node.exprName : undefined),
+    conditional: (node) => (ts.isConditionalTypeNode(node) ? { check: node.checkType, extends: node.extendsType, selected: node.trueType } : undefined),
+    template: (node) =>
+      ts.isTemplateLiteralTypeNode(node)
+        ? { head: node.head.text, spans: node.templateSpans.map((span) => ({ type: span.type, tail: span.literal.text })) }
+        : undefined,
+    literalNode: (node) => (ts.isLiteralTypeNode(node) && ts.isStringLiteral(node.literal) ? node.literal.text : undefined),
+    type: (node) => checker.getTypeAtLocation(node),
+    symbol: (node) => checker.getSymbolAtLocation(node),
+    alias: (symbol) => (compilerFlag(symbol.flags, ts.SymbolFlags.Alias) ? checker.getAliasedSymbol(symbol) : symbol),
+    declarations: (symbol) => symbol.declarations ?? [],
+    symbolName: (symbol) => symbol.getName(),
+    symbolType: (symbol, at) => checker.getTypeOfSymbolAtLocation(symbol, at),
+    typeSymbol: (type) => type.getSymbol(),
+    aliasSymbol: (type) => type.aliasSymbol,
+    flags: (type) => ({
+      any: compilerFlag(type.flags, ts.TypeFlags.Any),
+      unknown: compilerFlag(type.flags, ts.TypeFlags.Unknown),
+      never: compilerFlag(type.flags, ts.TypeFlags.Never),
+      parameter: compilerFlag(type.flags, ts.TypeFlags.TypeParameter),
+      object: compilerFlag(type.flags, ts.TypeFlags.Object),
+    }),
+    unions: (type) => (type.isUnion() ? type.types : []),
+    intersections: (type) => (type.isIntersection() ? type.types : []),
+    tuple: (type) => (checker.isTupleType(type) && parserTypeReference(type) ? checker.getTypeArguments(type) : undefined),
+    element: (type) => (checker.isArrayType(type) ? checker.getIndexTypeOfType(type, ts.IndexKind.Number) : undefined),
+    indexes: (type) =>
+      [checker.getIndexTypeOfType(type, ts.IndexKind.String), checker.getIndexTypeOfType(type, ts.IndexKind.Number)].filter((value) => value !== undefined),
+    properties: (type) => checker.getPropertiesOfType(type),
+    property: (type, name) => checker.getPropertyOfType(type, name),
+    arguments: (type) => (parserTypeReference(type) ? checker.getTypeArguments(type) : []),
+    aliasArguments: (type) => type.aliasTypeArguments ?? [],
+    nonnullable: (type) => checker.getNonNullableType(type),
+    awaited: (type) => checker.getAwaitedType(type),
+    signatures: (type, kind) => checker.getSignaturesOfType(type, kind === "call" ? ts.SignatureKind.Call : ts.SignatureKind.Construct),
+    signatureDeclaration: (signature) => signature.declaration,
+    signatureParameters: (signature) => signature.parameters,
+    signatureReturn: (signature) => checker.getReturnTypeOfSignature(signature),
+    indexedType: (type) => (parserIndexedType(type) && type.indexType.isStringLiteral() ? { object: type.objectType, key: type.indexType.value } : undefined),
+    literalType: (type) => (type.isStringLiteral() ? type.value : undefined),
+    assignable: (left, right) => checker.isTypeAssignableTo(left, right),
+    defaultLibrary: (node) => program.isSourceFileDefaultLibrary(node.getSourceFile()),
+  };
+}
+
+/** Morph consumers keep their own compiler, wrappers, Program and declaration identities. */
+export function morphTypeOperations(program: morphTs.Program): MorphTypeOperations {
+  return {
+    nodeIdentity: (node) => node.compilerNode,
+    typeIdentity: (type) => type.compilerType,
+    parent: (node) => node.getParent(),
+    children: (node) => node.getChildren(),
+    path: normalizedPath,
+    text: (node) => node.getText(),
+    contains: (node) => program.getSourceFile(node.getSourceFile().getFilePath()) === node.getSourceFile().compilerNode,
+    forgotten: (node) => node.wasForgotten(),
+    identifier: Node.isIdentifier,
+    parameter: Node.isTypeParameterDeclaration,
+    variable: Node.isVariableDeclaration,
+    generic: (node): ReturnType<MorphTypeOperations["generic"]> => {
+      if (Node.isTypeAliasDeclaration(node)) {
+        return { kind: "alias", parameters: node.getTypeParameters(), body: node.getTypeNode() };
+      }
+      if (Node.isInterfaceDeclaration(node)) {
+        return { kind: "interface", parameters: node.getTypeParameters(), body: undefined };
+      }
+      if (Node.isClassDeclaration(node)) {
+        return { kind: "class", parameters: node.getTypeParameters(), body: undefined };
+      }
+      return undefined;
+    },
+    reference: (node): ReturnType<MorphTypeOperations["reference"]> => {
+      if (Node.isTypeReference(node)) {
+        return { name: node.getTypeName(), arguments: node.getTypeArguments() };
+      }
+      if (Node.isExpressionWithTypeArguments(node)) {
+        return { name: node.getExpression(), arguments: node.getTypeArguments() };
+      }
+      return undefined;
+    },
+    mapped: (node) =>
+      Node.isMappedTypeNode(node)
+        ? {
+            parameter: node.getTypeParameter(),
+            constraint: node.getTypeParameter().getConstraint(),
+            value: node.getTypeNode(),
+            remap: node.getNameTypeNode(),
+            optional: node.getQuestionToken()?.getKind() === morphTs.SyntaxKind.QuestionToken,
+            readonly: node.getReadonlyToken() !== undefined,
+          }
+        : undefined,
+    indexedNode: (node) => (Node.isIndexedAccessTypeNode(node) ? { object: node.getObjectTypeNode(), index: node.getIndexTypeNode() } : undefined),
+    operatorType: (node) => (Node.isTypeOperatorTypeNode(node) ? node.getTypeNode() : undefined),
+    query: (node) => (Node.isTypeQuery(node) ? node.getExprName() : undefined),
+    conditional: (node) =>
+      Node.isConditionalTypeNode(node) ? { check: node.getCheckType(), extends: node.getExtendsType(), selected: node.getTrueType() } : undefined,
+    template: (node): ReturnType<MorphTypeOperations["template"]> => {
+      if (!Node.isTemplateLiteralTypeNode(node)) {
+        return;
+      }
+      const spans = node.getTemplateSpans().flatMap((span) => {
+        const type = span.getFirstChildByKind(morphTs.SyntaxKind.TypeReference);
+        const tail = span.getLastChildIfKind(morphTs.SyntaxKind.TemplateTail);
+        return type === undefined || tail === undefined ? [] : [{ type, tail: tail.getLiteralText() }];
+      });
+      return spans.length === node.getTemplateSpans().length ? { head: node.getHead().getLiteralText(), spans } : undefined;
+    },
+    literalNode: (node): string | undefined => {
+      const literal = Node.isLiteralTypeNode(node) ? node.getLiteral() : undefined;
+      return literal !== undefined && Node.isStringLiteral(literal) ? literal.getLiteralValue() : undefined;
+    },
+    type: (node) => node.getType(),
+    symbol: (node) => node.getSymbol(),
+    alias: (symbol) => symbol.getAliasedSymbol() ?? symbol,
+    declarations: (symbol) => symbol.getDeclarations(),
+    symbolName: (symbol) => symbol.getName(),
+    symbolType: (symbol, at) => symbol.getTypeAtLocation(at),
+    typeSymbol: (type) => type.getSymbol(),
+    aliasSymbol: (type) => type.getAliasSymbol(),
+    flags: (type) => ({ any: type.isAny(), unknown: type.isUnknown(), never: type.isNever(), parameter: type.isTypeParameter(), object: type.isObject() }),
+    unions: (type) => type.getUnionTypes(),
+    intersections: (type) => type.getIntersectionTypes(),
+    tuple: (type) => (type.isTuple() ? type.getTupleElements() : undefined),
+    element: (type) => type.getArrayElementType(),
+    indexes: (type) => [type.getStringIndexType(), type.getNumberIndexType()].filter((value) => value !== undefined),
+    properties: (type) => type.getProperties(),
+    property: (type, name) => type.getProperty(name),
+    arguments: (type) => type.getTypeArguments(),
+    aliasArguments: (type) => type.getAliasTypeArguments(),
+    nonnullable: (type) => type.getNonNullableType(),
+    awaited: (type) => type.getAwaitedType(),
+    signatures: (type, kind) => (kind === "call" ? type.getCallSignatures() : type.getConstructSignatures()),
+    signatureDeclaration: (signature) => signature.getDeclaration(),
+    signatureParameters: (signature) => signature.getParameters(),
+    signatureReturn: (signature) => signature.getReturnType(),
+    indexedType: (type) => (morphIndexedType(type) && type.indexType.isStringLiteral() ? { object: type.objectType, key: type.indexType.value } : undefined),
+    literalType: (type): string | undefined => {
+      const value = type.getLiteralValue();
+      return type.isStringLiteral() && typeof value === "string" ? value : undefined;
+    },
+    assignable: (left, right) => program.getTypeChecker().isTypeAssignableTo(left.compilerType, right.compilerType),
+    defaultLibrary: (node) => program.isSourceFileDefaultLibrary(node.getSourceFile().compilerNode),
+  };
 }

@@ -2,7 +2,8 @@ import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
-import { Project, ScriptTarget } from "ts-morph";
+import { Project } from "ts-morph";
+import ts from "typescript";
 import { serverFactoryTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
 import type { TypeHomeNativeSource } from "../../../../tooling/src/floor/code-facts/type-home-contract.ts";
 import { createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
@@ -76,12 +77,15 @@ test("ownership evidence does not turn package categories or false paths into pe
 
 const POLICIES = [inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces];
 
-test("server factory ownership follows local signatures without admitting wire data or shadowed names", () => {
-  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { target: ScriptTarget.ES2022 } });
+test("server factory ownership follows local signatures without admitting wire data or shadowed names", ({ scratch }) => {
+  const paths: { readonly path: string; readonly target: string }[] = [];
   for (const tier of ["entry", "transport", "infra", "foundation"]) {
     const path = `packages/server/src/${tier}/factory.ts`;
-    const source = project.createSourceFile(
-      `/factory-home/${path}`,
+    const target = join(scratch, path);
+    paths.push({ path, target });
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(
+      target,
       `
 export interface Options { readonly enabled: boolean; }
 export interface Dependency { readonly run: () => void; }
@@ -113,19 +117,39 @@ export function ignored(value: Ignore<Erased>): void {}
 export function ignoredReturn() { const value: Ignore<Erased> = { kind: "ignored" }; return value; }
 `,
     );
+  }
+  const program = ts.createProgram(
+    paths.map(({ target }) => target),
+    { target: ts.ScriptTarget.ES2022, types: [] },
+  );
+  for (const { path, target } of paths) {
+    const source = program.getSourceFile(target);
+    if (source === undefined) {
+      throw new Error("native factory source missing");
+    }
+    const declaration = (name: string): ts.InterfaceDeclaration | ts.TypeAliasDeclaration => {
+      const found = source.statements.find(
+        (node): node is ts.InterfaceDeclaration | ts.TypeAliasDeclaration =>
+          (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) && node.name.text === name,
+      );
+      if (found === undefined) {
+        throw new Error(`native fixture declaration ${name} missing`);
+      }
+      return found;
+    };
     const factory = {
       kind: "parser" as const,
-      program: project.getProgram().compilerObject,
-      source: source.compilerNode,
-      checker: project.getTypeChecker().compilerObject,
+      program,
+      source,
+      checker: program.getTypeChecker(),
     };
     for (const name of ["Options", "Dependency", "Handle", "Supporting", "CallableResult", "InferredHandle", "AsyncHandle", "Recursive"]) {
-      expect(serverFactoryTypeHome(source.getInterfaceOrThrow(name), path, factory), `${tier}/${name}`).toBe(true);
+      expect(serverFactoryTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(true);
     }
-    expect(serverFactoryTypeHome(source.getTypeAliasOrThrow("NestedOptions"), path, factory)).toBe(true);
-    expect(serverFactoryTypeHome(source.getTypeAliasOrThrow("DataResponse"), path, factory)).toBe(false);
+    expect(serverFactoryTypeHome(declaration("NestedOptions"), path, factory)).toBe(true);
+    expect(serverFactoryTypeHome(declaration("DataResponse"), path, factory)).toBe(false);
     for (const name of ["Unused", "Shadow", "BodyOnly", "PayloadResponse", "Erased"]) {
-      expect(serverFactoryTypeHome(source.getInterfaceOrThrow(name), path, factory), `${tier}/${name}`).toBe(false);
+      expect(serverFactoryTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(false);
     }
   }
 });

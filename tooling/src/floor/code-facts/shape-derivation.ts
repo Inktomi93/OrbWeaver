@@ -1,15 +1,26 @@
 // Declaration provenance for shape comparisons; matching types never establish a shared origin.
-import type { Identifier, Node as MorphNode, Type } from "ts-morph";
-import { createWrappedNode, Node, SyntaxKind, ts } from "ts-morph";
-import { readAssignabilityChecker } from "./assignability.ts";
+import type { Identifier, Node as MorphNode, Symbol as MorphSymbol, ts as MorphTs, Signature, Type } from "ts-morph";
+import { Node } from "ts-morph";
+import nativeTs from "typescript";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import { INVENTORY_KEY_SEPARATOR } from "./semantic-inventory-contract.ts";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
-import type { NativeGenericArgumentContribution, NativeGenericArgumentInput } from "./shape-derivation-contract.ts";
+import type {
+  NativeGenericArgumentContribution,
+  NativeGenericArgumentInput,
+  ParserGenericArgumentInput,
+  ParserGenericDeclaration,
+} from "./shape-derivation-contract.ts";
 import { shapeFactsOf } from "./shape-facts.ts";
-import { readNativeMappedProjection, readNativeSubstitutedTypeSlots, readParserSignatureTypeIdentities } from "./type-member-origin.ts";
-import type { NativeParserTypeContext, NativeTypeIdentityGraphInput, TypeIdentityOrigin } from "./type-member-origin-contract.ts";
-import { annotationReferenceOrigin, resolved, resolveTypePropertyValue, unresolved } from "./type-member-origin-core.ts";
+import { readParserSignatureTypeIdentities, readRealmMappedProjection, readRealmSubstitution } from "./type-member-origin.ts";
+import type {
+  NativeParserTypeContext,
+  NativeTypeIdentityGraphInput,
+  TypeIdentityOrigin,
+  TypeRealmMapped,
+  TypeRealmOperations,
+} from "./type-member-origin-contract.ts";
+import { morphTypeOperations, parserTypeOperations, resolved, unresolved } from "./type-member-origin-core.ts";
 
 /** Origin declarations named by a bare alias (`type X = Y`), resolved through import/re-export hops. */
 function bareAliasTargetKeys(decl: MorphNode): Set<string> {
@@ -95,22 +106,54 @@ const NATIVE_GENERIC_UTILITIES = [
   { name: "NonNullable", arity: 1, secondArgument: "retained" },
 ] as const;
 
-function nativeParts(type: Type): readonly Type[] {
-  return type.isUnion() ? type.getUnionTypes() : [type];
+interface ContributionInput<N extends object, T, S, G, I extends object, U extends N> {
+  readonly reference: N;
+  readonly argument: N;
+  readonly binding?: N;
+  readonly ops: TypeRealmOperations<N, T, S, G, I>;
+  readonly definition: (node: N) => node is U;
+  readonly owned: (node: N) => boolean;
 }
 
-/** A type argument owns supporting vocabulary only when the native instantiated output retains that binding. */
-export function nativeGenericReferenceContributes(identifier: Identifier, native: Pick<NativeGenericArgumentInput, "program" | "source" | "parser">): boolean {
-  const ancestors = identifier.getAncestors();
-  if (ancestors.some(Node.isTypeParameterDeclaration)) {
+function ancestorsCore<N extends object, T, S, G, I extends object>(node: N, ops: TypeRealmOperations<N, T, S, G, I>): readonly N[] {
+  const values: N[] = [];
+  const seen = new Set<object>();
+  for (let parent = ops.parent(node); parent !== undefined && !seen.has(ops.nodeIdentity(parent)); parent = ops.parent(parent)) {
+    values.push(parent);
+    seen.add(ops.nodeIdentity(parent));
+  }
+  return values;
+}
+
+function originCore<N extends object, T, S, G, I extends object>(node: N, ops: TypeRealmOperations<N, T, S, G, I>): ReferenceFact<TypeIdentityOrigin<N>, N> {
+  const symbol = ops.symbol(node);
+  const target = symbol === undefined ? undefined : ops.alias(symbol);
+  const declarations = target === undefined ? [] : ops.declarations(target);
+  return target === undefined || declarations.length === 0
+    ? unresolved("missing", node, "the checker resolved no type reference declaration")
+    : resolved(
+        { name: ops.symbolName(target), node, aliased: declarations.some((declaration) => ops.generic(declaration)?.kind === "alias"), declarations },
+        node,
+        declarations,
+      );
+}
+
+function contributionReferencesCore<N extends object, T, S, G, I extends object, U extends N>(
+  node: N,
+  input: Omit<ContributionInput<N, T, S, G, I, U>, "reference" | "argument" | "binding">,
+): boolean {
+  const { ops } = input;
+  const ancestors = ancestorsCore(node, ops);
+  if (ancestors.some(ops.parameter)) {
     return false;
   }
-  for (const reference of ancestors.filter((node) => Node.isTypeReference(node) || Node.isExpressionWithTypeArguments(node))) {
-    const argument = reference.getTypeArguments().find((type) => ancestors.includes(type));
+  for (const reference of ancestors) {
+    const selected = ops.reference(reference);
+    const argument = selected?.arguments.find((candidate) => ancestors.some((ancestor) => ops.nodeIdentity(ancestor) === ops.nodeIdentity(candidate)));
     if (argument === undefined) {
       continue;
     }
-    const contribution = readNativeGenericArgumentContribution({ reference, argument, binding: identifier, ...native });
+    const contribution = genericContributionCore({ ...input, reference, argument, binding: node });
     if (contribution.kind !== "resolved" || !contribution.value.contributes) {
       return false;
     }
@@ -118,317 +161,280 @@ export function nativeGenericReferenceContributes(identifier: Identifier, native
   return true;
 }
 
-/** Bind parser observations to their actual Program without acquiring or impersonating a Project. */
-export function parserGenericReferenceContributes(identifier: ts.Identifier, parser: NativeParserTypeContext): boolean {
+/** Morph callers retain their actual Project/compiler ownership; no parser compiler is substituted. */
+export function nativeGenericReferenceContributes(identifier: Identifier, native: Pick<NativeGenericArgumentInput, "program" | "source">): boolean {
+  if (identifier.wasForgotten()) {
+    return false;
+  }
+  const source = identifier.getSourceFile();
   if (
-    parser.checker !== parser.program.getTypeChecker() ||
-    identifier.getSourceFile() !== parser.source ||
+    source.compilerNode !== native.source ||
+    source.getProject().getProgram().compilerObject !== native.program ||
+    native.program.getSourceFile(source.getFilePath()) !== native.source
+  ) {
+    return false;
+  }
+  const context = morphContributionContext(identifier, native.program);
+  return contributionReferencesCore(identifier, context);
+}
+
+/** Actual parser observations use only raw values from that same Program/checker/source epoch. */
+export function parserGenericReferenceContributes(identifier: nativeTs.Identifier, parser: NativeParserTypeContext): boolean {
+  assertParserEpoch(identifier, parser);
+  return contributionReferencesCore(identifier, parserContributionContext(parser));
+}
+
+function assertParserEpoch(node: nativeTs.Node, parser: NativeParserTypeContext): void {
+  if (
+    parser.program.getTypeChecker() !== parser.checker ||
+    node.getSourceFile() !== parser.source ||
     parser.program.getSourceFile(parser.source.fileName) !== parser.source
   ) {
     throw new Error("generic contribution parser source/checker is foreign or stale");
   }
-  const wrapped = createWrappedNode(identifier, { typeChecker: parser.checker, sourceFile: parser.source });
-  return nativeGenericReferenceContributes(wrapped, { program: parser.program, source: parser.source, parser });
 }
 
-function signatureAnnotations(declaration: MorphNode): readonly ts.TypeNode[] {
-  const raw = declaration.compilerNode;
-  return ts.isFunctionLike(raw)
-    ? [...raw.parameters.flatMap((parameter) => (parameter.type === undefined ? [] : [parameter.type])), ...(raw.type === undefined ? [] : [raw.type])]
-    : [];
+function morphContributionContext(
+  reference: MorphNode,
+  program: MorphTs.Program,
+): Pick<
+  ContributionInput<MorphNode, Type, MorphSymbol, Signature, MorphTs.Type, NativeGenericArgumentContribution["utility"]>,
+  "ops" | "owned" | "definition"
+> {
+  const project = reference.getProject();
+  const ops = morphTypeOperations(program);
+  const owned = (node: MorphNode): boolean => !node.wasForgotten() && node.getProject() === project && ops.contains(node);
+  const definition = (node: MorphNode): node is NativeGenericArgumentContribution["utility"] =>
+    (Node.isTypeAliasDeclaration(node) || Node.isInterfaceDeclaration(node) || Node.isClassDeclaration(node)) && owned(node);
+  return { ops, owned, definition };
 }
 
-function signatureAnnotationOrigin(binding: Identifier, parser: NativeParserTypeContext): ReferenceFact<TypeIdentityOrigin> | undefined {
-  const origin = annotationReferenceOrigin(binding);
-  if (
-    origin.kind !== "resolved" ||
-    !origin.value.declarations.some((declaration) => Node.isInterfaceDeclaration(declaration) || Node.isTypeAliasDeclaration(declaration))
-  ) {
-    return;
-  }
-  if (parserGenericReferenceContributes(binding.compilerNode, parser)) {
-    return origin;
-  }
-  return origin.value.declarations.some(Node.isTypeAliasDeclaration)
-    ? unresolved("unsupported", binding, "an authored signature alias has no qualified native generic contribution")
-    : undefined;
+function parserContributionContext(
+  parser: NativeParserTypeContext,
+): Pick<
+  ContributionInput<nativeTs.Node, nativeTs.Type, nativeTs.Symbol, nativeTs.Signature, nativeTs.Type, ParserGenericDeclaration>,
+  "ops" | "owned" | "definition"
+> {
+  const ops = parserTypeOperations(parser);
+  const owned = ops.contains;
+  const definition = (node: nativeTs.Node): node is ParserGenericDeclaration =>
+    (nativeTs.isTypeAliasDeclaration(node) || nativeTs.isInterfaceDeclaration(node) || nativeTs.isClassDeclaration(node)) && owned(node);
+  return { ops, owned, definition };
 }
 
-/** Compose actual signature annotations with the same native data graph and canonical generic contribution. */
-export function readParserSignatureTypeExposures(input: NativeTypeIdentityGraphInput): ReferenceFact<readonly TypeIdentityOrigin[]> {
-  const graph = readParserSignatureTypeIdentities(input);
-  const annotations: TypeIdentityOrigin[] = [];
-  let refusal: string | undefined;
-  for (const raw of graph.trace.declarations.flatMap(signatureAnnotations)) {
-    const source = raw.getSourceFile();
-    if (input.parser.program.getSourceFile(source.fileName) !== source) {
-      refusal = "signature annotations belong to a foreign or stale native source";
-      continue;
-    }
-    const parser = { ...input.parser, source };
-    const root = createWrappedNode(raw, { typeChecker: parser.checker, sourceFile: source });
-    for (const binding of root.getDescendantsOfKind(SyntaxKind.Identifier)) {
-      const origin = signatureAnnotationOrigin(binding, parser);
-      if (origin?.kind === "resolved") {
-        annotations.push(origin.value);
-      } else if (origin?.kind === "unresolved") {
-        refusal = origin.detail;
-      }
-    }
-  }
-  const declarations = [...graph.trace.declarations, ...annotations.flatMap((origin) => origin.declarations)];
-  if (graph.kind === "unresolved") {
-    return { ...graph, trace: { ...graph.trace, declarations } };
-  }
-  return refusal === undefined
-    ? resolved([...graph.value, ...annotations], graph.trace.origin, declarations)
-    : { ...unresolved("unsupported", graph.trace.origin, refusal), trace: { ...graph.trace, declarations } };
-}
-
-function parserGenericInput(input: NativeGenericArgumentInput): NativeGenericArgumentInput | undefined {
-  const parser = input.parser;
-  if (parser === undefined || parser.program !== input.program || parser.source !== input.source || parser.checker !== input.program.getTypeChecker()) {
-    return;
-  }
-  const nodes = [input.reference, input.argument, ...(input.binding === undefined ? [] : [input.binding])];
-  if (
-    nodes.some((node) => node.wasForgotten() || node.getSourceFile().compilerNode !== input.source) ||
-    input.program.getSourceFile(input.source.fileName) !== input.source
-  ) {
-    return;
-  }
-  const reference = createWrappedNode(input.reference.compilerNode, { typeChecker: parser.checker, sourceFile: parser.source });
-  const argument = reference.getTypeArguments().find((node) => node.compilerNode === input.argument.compilerNode);
-  const binding = input.binding === undefined ? undefined : reference.getDescendants().find((node) => node.compilerNode === input.binding?.compilerNode);
-  if (argument === undefined || (input.binding !== undefined && binding === undefined)) {
-    return;
-  }
-  return { reference, argument, ...(binding === undefined ? {} : { binding }), program: input.program, source: input.source, parser };
-}
-
-/** Observe binding-specific native constituents, substituted declaration slots and selected output projections. */
+/** Observe the canonical contribution in the Morph realm only. */
 export function readNativeGenericArgumentContribution(input: NativeGenericArgumentInput): ReferenceFact<NativeGenericArgumentContribution> {
-  if (input.parser !== undefined) {
-    const delivered = parserGenericInput(input);
-    return delivered === undefined
-      ? unresolved("unsupported", input.reference, "generic contribution parser source/checker is foreign or stale")
-      : genericArgumentContribution(delivered);
-  }
-  return genericArgumentContribution(input);
-}
-
-function genericUtilityOwned(
-  input: NativeGenericArgumentInput,
-  utility: import("ts-morph").Node | undefined,
-): utility is NativeGenericArgumentContribution["utility"] {
-  return (
-    utility !== undefined &&
-    (Node.isTypeAliasDeclaration(utility) || Node.isInterfaceDeclaration(utility) || Node.isClassDeclaration(utility)) &&
-    (input.parser !== undefined || utility.getProject() === input.reference.getProject()) &&
-    input.program.getSourceFile(utility.getSourceFile().getFilePath()) === utility.getSourceFile().compilerNode
-  );
-}
-
-function genericArgumentContribution(input: NativeGenericArgumentInput): ReferenceFact<NativeGenericArgumentContribution> {
   const { reference, argument, program, source } = input;
   if (reference.wasForgotten() || argument.wasForgotten()) {
     return unresolved("unsupported", reference, "generic contribution received a forgotten native node");
   }
   const file = reference.getSourceFile();
-  if (
-    file.compilerNode !== source ||
-    (input.parser === undefined && file.getProject().getProgram().compilerObject !== program) ||
-    program.getSourceFile(file.getFilePath()) !== source
-  ) {
+  if (file.compilerNode !== source || file.getProject().getProgram().compilerObject !== program || program.getSourceFile(file.getFilePath()) !== source) {
     return unresolved("unsupported", reference, "generic contribution belongs to a foreign world or stale native epoch");
   }
-  const arguments_ = reference.getTypeArguments();
-  const index = arguments_.indexOf(argument);
-  const first = arguments_[0];
-  const origin = annotationReferenceOrigin(genericReferenceName(reference));
-  if (origin.kind === "unresolved") {
-    return origin;
-  }
-  if (origin.value.declarations.length > 1) {
-    return mergedGenericContribution(input, origin.value.declarations, index);
-  }
-  const utility = origin.value.declarations[0];
-  if (!genericUtilityOwned(input, utility)) {
-    return unresolved("unsupported", reference, "opaque generic has no single canonical native declaration");
-  }
-  const definition =
-    Node.isTypeAliasDeclaration(utility) && program.isSourceFileDefaultLibrary(utility.getSourceFile().compilerNode)
-      ? NATIVE_GENERIC_UTILITIES.find((candidate) => candidate.name === utility.getName())
-      : undefined;
-  if (definition === undefined) {
-    return nativeSubstitutionContribution(input, utility, index);
-  }
-  if (first === undefined || index < 0 || arguments_.length !== definition.arity) {
-    return unresolved("unsupported", reference, "opaque generic utility or argument grammar is outside supported native contribution facts");
-  }
-  const contribution = nativeArgumentWitness(
-    { utility, argument, contributes: false, witnesses: [], detail: "" },
-    { initial: first.getType(), argument: argument.getType(), output: reference.getType(), secondArgument: definition.secondArgument, index },
-  );
-  if (input.binding === undefined || contribution.kind !== "resolved") {
-    return contribution;
-  }
-  return nativeBindingWitness(contribution.value, input.binding);
+  return genericContributionCore({
+    reference,
+    argument,
+    ...(input.binding === undefined ? {} : { binding: input.binding }),
+    ...morphContributionContext(reference, program),
+  });
 }
 
-// Merged native interfaces contribute through their own formal declarations, never through a shared name.
-function mergedGenericContribution(
-  input: NativeGenericArgumentInput,
-  declarations: readonly MorphNode[],
-  index: number,
-): ReferenceFact<NativeGenericArgumentContribution> {
-  const interfaces = declarations.filter(Node.isInterfaceDeclaration);
+/** The same canonical contribution uses the parser's actual native compiler, never a Morph wrapper. */
+export function readParserGenericArgumentContribution(
+  input: ParserGenericArgumentInput,
+): ReferenceFact<NativeGenericArgumentContribution<nativeTs.Node, nativeTs.Type, ParserGenericDeclaration>, nativeTs.Node> {
+  const { reference, argument, parser } = input;
   if (
-    interfaces.length === 0 ||
-    !declarations.every((declaration) =>
-      Node.isVariableDeclaration(declaration)
-        ? (input.parser !== undefined || declaration.getProject() === input.reference.getProject()) &&
-          input.program.getSourceFile(declaration.getSourceFile().getFilePath()) === declaration.getSourceFile().compilerNode
-        : genericUtilityOwned(input, declaration),
-    )
+    parser.checker !== parser.program.getTypeChecker() ||
+    reference.getSourceFile() !== parser.source ||
+    argument.getSourceFile() !== parser.source ||
+    parser.program.getSourceFile(parser.source.fileName) !== parser.source
   ) {
-    return unresolved("unsupported", input.reference, "merged generic has a foreign or non-interface native declaration");
+    return unresolved("unsupported", reference, "generic contribution parser source/checker is foreign or stale");
   }
-  for (const utility of interfaces) {
-    const contribution = nativeSubstitutionContribution(input, utility, index);
-    if (contribution.kind === "resolved" && contribution.value.contributes) {
-      return contribution;
-    }
-  }
-  return unresolved("unsupported", input.reference, "merged native formals have no substituted contribution to this binding");
+  return genericContributionCore({
+    reference,
+    argument,
+    ...(input.binding === undefined ? {} : { binding: input.binding }),
+    ...parserContributionContext(parser),
+  });
 }
 
-interface NativeGenericEffect {
-  readonly initial: Type;
-  readonly argument: Type;
-  readonly output: Type;
-  readonly secondArgument: (typeof NATIVE_GENERIC_UTILITIES)[number]["secondArgument"];
-  readonly index: number;
+function partsCore<N extends object, T, S, G, I extends object>(type: T, ops: TypeRealmOperations<N, T, S, G, I>): readonly T[] {
+  const parts = ops.unions(type);
+  return parts.length === 0 ? [type] : parts;
 }
 
-function nativeArgumentWitness(fact: NativeGenericArgumentContribution, effect: NativeGenericEffect): ReferenceFact<NativeGenericArgumentContribution> {
-  const { initial, argument, output, secondArgument, index } = effect;
-  const types = [initial, argument, output];
-  if (types.some((type) => type.isAny() || type.isUnknown() || type.isTypeParameter())) {
-    return unresolved("unsupported", fact.argument, "generic contribution has any, unknown or uninstantiated native types");
+function genericContributionCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> {
+  const { ops, reference, argument } = input;
+  const selected = ops.reference(reference);
+  const index = selected?.arguments.findIndex((node) => ops.nodeIdentity(node) === ops.nodeIdentity(argument)) ?? -1;
+  if (selected === undefined || index < 0) {
+    return unresolved("unsupported", reference, "generic argument is outside the actual reference");
   }
-  if (types.some((type) => type.isNever())) {
-    return resolved({ ...fact, detail: "never supplies no retained/removed value-type constituent" }, fact.argument, [fact.utility]);
-  }
-  const inputs = nativeParts(initial);
-  const outputs = nativeParts(output);
-  const inputIdentities = new Set(inputs.map((type) => type.compilerType));
-  if (!outputs.every((type) => inputIdentities.has(type.compilerType))) {
-    return unresolved("unsupported", fact.argument, "native output has no complete input-constituent identity witness");
-  }
-  let witnesses: readonly Type[] = outputs;
-  if (index === 1) {
-    const argumentIdentities = new Set(nativeParts(argument).map((type) => type.compilerType));
-    const outputIdentities = new Set(outputs.map((type) => type.compilerType));
-    const candidates = {
-      removed: inputs.filter((type) => !outputIdentities.has(type.compilerType)),
-      retained: outputs,
-    } satisfies Readonly<Record<NativeGenericEffect["secondArgument"], readonly Type[]>>;
-    witnesses = candidates[secondArgument].filter((type) => argumentIdentities.has(type.compilerType));
-  }
-  return witnesses.length === 0
-    ? unresolved("unsupported", fact.argument, "native utility argument has no retained or removed constituent witness")
-    : resolved({ ...fact, contributes: true, witnesses, detail: "native retained/removed constituents witness this supplied argument" }, fact.argument, [
-        fact.utility,
-      ]);
-}
-
-/** Narrow value witnesses to one actual authored binding; another member of a union cannot lend it an effect. */
-function nativeBindingWitness(fact: NativeGenericArgumentContribution, binding: MorphNode): ReferenceFact<NativeGenericArgumentContribution> {
-  if (binding.wasForgotten() || binding.getSourceFile() !== fact.argument.getSourceFile() || !binding.getAncestors().includes(fact.argument)) {
-    return unresolved("unsupported", binding, "generic contribution binding is not inside the supplied native argument");
-  }
-  const origin = annotationReferenceOrigin(binding);
+  const origin = originCore(selected.name, ops);
   if (origin.kind !== "resolved") {
     return origin;
   }
-  const type = binding.getType();
-  if (type.isAny() || type.isUnknown() || type.isNever() || type.isTypeParameter()) {
-    return unresolved("unsupported", binding, "generic contribution binding has no resolved native value constituents");
+  const declarations = origin.value.declarations;
+  if (declarations.length > 1) {
+    return mergedContributionCore(input, declarations, index);
   }
-  const identities = new Set(nativeParts(type).map((part) => part.compilerType));
-  const witnesses = fact.witnesses.filter((witness) => identities.has(witness.compilerType));
-  return witnesses.length === 0
-    ? unresolved("unsupported", binding, "generic contribution witness does not link to this authored binding")
-    : resolved({ ...fact, binding, witnesses, detail: "native constituents and authored origin link this binding to the actual utility effect" }, binding, [
-        fact.utility,
-        ...origin.value.declarations,
-      ]);
+  const utility = declarations[0];
+  if (utility === undefined || !input.definition(utility)) {
+    return unresolved("unsupported", reference, "opaque generic has no single canonical native declaration");
+  }
+  const definition =
+    ops.generic(utility)?.kind === "alias" && ops.defaultLibrary(utility)
+      ? NATIVE_GENERIC_UTILITIES.find((candidate) => candidate.name === origin.value.name)
+      : undefined;
+  if (definition === undefined) {
+    return substitutionContributionCore(input, utility, index);
+  }
+  return utilityContributionCore(input, utility, { definition, index, arguments: selected.arguments });
 }
 
-function nativeSubstitutionContribution(
-  input: NativeGenericArgumentInput,
-  utility: NativeGenericArgumentContribution["utility"],
+function mergedContributionCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  declarations: readonly N[],
   index: number,
-): ReferenceFact<NativeGenericArgumentContribution> {
-  const { reference, argument, binding } = input;
-  const parameter = utility.getTypeParameters()[index];
-  if (parameter === undefined || index < 0) {
-    return unresolved("unsupported", reference, "generic argument has no native formal parameter");
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> {
+  const { ops, reference } = input;
+  if (!declarations.every((node) => input.definition(node) || (ops.variable(node) && input.owned(node)))) {
+    return unresolved("unsupported", reference, "merged generic has a foreign or non-interface native declaration");
   }
-  if (Node.isTypeQuery(argument)) {
-    return nativeQueryOutputContribution(input, utility, parameter);
+  for (const utility of declarations.filter(input.definition).filter((node) => ops.generic(node)?.kind === "interface")) {
+    const fact = substitutionContributionCore(input, utility, index);
+    if (fact.kind === "resolved" && fact.value.contributes) {
+      return fact;
+    }
   }
-  const candidate = binding?.getType() ?? argument.getType();
-  if ([candidate, argument.getType(), reference.getType()].some((type) => type.isAny() || type.isUnknown() || type.isNever() || type.isTypeParameter())) {
-    return unresolved("unsupported", argument, "substituted contribution has any, unknown, never or uninstantiated types");
+  return unresolved("unsupported", reference, "merged native formals have no substituted contribution to this binding");
+}
+
+function utilityContributionCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  selection: { readonly definition: (typeof NATIVE_GENERIC_UTILITIES)[number]; readonly index: number; readonly arguments: readonly N[] },
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> {
+  const { ops, reference, argument } = input;
+  const { definition, index, arguments: arguments_ } = selection;
+  const first = arguments_[0];
+  if (first === undefined || arguments_.length !== definition.arity) {
+    return unresolved("unsupported", reference, "opaque generic utility or argument grammar is outside supported native contribution facts");
   }
-  const origins = genericBindingOrigins(input);
-  if (origins.kind !== "resolved") {
-    return origins;
+  const initial = ops.type(first);
+  const supplied = ops.type(argument);
+  const output = ops.type(reference);
+  if (
+    [initial, supplied, output].some((type) => {
+      const flags = ops.flags(type);
+      return flags.any || flags.unknown || flags.parameter;
+    })
+  ) {
+    return unresolved("unsupported", argument, "generic contribution has any, unknown or uninstantiated native types");
   }
-  const keyed = nativeMappedKeyContribution(input, utility, parameter, origins.value);
-  if (keyed !== undefined) {
-    return keyed;
+  const fact = { utility, argument, contributes: false, witnesses: [], detail: "never supplies no retained/removed value-type constituent" };
+  if ([initial, supplied, output].some((type) => ops.flags(type).never)) {
+    return resolved(fact, argument, [utility]);
   }
-  const identities = new Set(nativeParts(candidate).map((type) => type.compilerType));
-  const substitution = readNativeSubstitutedTypeSlots({
-    witnessLocation: binding ?? argument,
-    parameter,
-    templateLocation: utility,
-    actualLocation: reference,
-    program: input.program,
-    source: input.source,
-    ...(input.parser === undefined ? {} : { parser: input.parser }),
-  });
-  if (substitution.kind !== "resolved") {
-    return substitution;
+  const inputs = partsCore(initial, ops);
+  const outputs = partsCore(output, ops);
+  const inputIds = new Set(inputs.map(ops.typeIdentity));
+  if (!outputs.every((type) => inputIds.has(ops.typeIdentity(type)))) {
+    return unresolved("unsupported", argument, "native output has no complete input-constituent identity witness");
   }
-  const slots = substitution.value;
-  const witnesses = slots.flatMap((slot) => nativeParts(slot.actual).filter((type) => slot.projection !== undefined || identities.has(type.compilerType)));
-  const mapped = mappedFormalProjection({ utility, parameter, argument, reference, candidate, native: input });
-  witnesses.push(...mapped);
+  let witnesses = outputs;
+  if (index === 1) {
+    const suppliedIds = new Set(partsCore(supplied, ops).map(ops.typeIdentity));
+    const outputIds = new Set(outputs.map(ops.typeIdentity));
+    witnesses = (definition.secondArgument === "removed" ? inputs.filter((type) => !outputIds.has(ops.typeIdentity(type))) : outputs).filter((type) =>
+      suppliedIds.has(ops.typeIdentity(type)),
+    );
+  }
+  const bound = boundWitnessesCore(input, utility, witnesses);
+  if (bound.kind === "unresolved") {
+    return bound;
+  }
+  witnesses = bound.value;
   return witnesses.length === 0
-    ? unresolved("unsupported", binding ?? argument, "native formal has no substituted member/signature contribution to this binding")
+    ? unresolved("unsupported", input.binding ?? argument, "native utility argument has no retained or removed constituent witness")
     : resolved(
         {
-          utility,
-          argument,
-          ...(binding === undefined ? {} : { binding }),
+          ...fact,
+          ...(input.binding === undefined ? {} : { binding: input.binding }),
           contributes: true,
           witnesses,
-          detail: "native formal substitution and member/signature declarations witness this authored binding",
+          detail: "native constituents and authored origin link this binding to the actual utility effect",
         },
-        binding ?? argument,
-        [utility, parameter, ...origins.value, ...slots.flatMap((slot) => slot.declarations)],
+        input.binding ?? argument,
+        bound.trace.declarations,
       );
 }
 
-function finiteNativeStrings(type: Type): readonly string[] | undefined {
+function boundWitnessesCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  initial: readonly T[],
+): ReferenceFact<readonly T[], N> {
+  const { ops, argument } = input;
+  let witnesses = initial;
+  const binding = input.binding;
+  if (binding === undefined) {
+    return resolved(witnesses, argument, [utility]);
+  }
+  if (ops.forgotten(binding) || !ancestorsCore(binding, ops).some((node) => ops.nodeIdentity(node) === ops.nodeIdentity(argument))) {
+    return unresolved("unsupported", binding, "generic contribution binding is not inside the supplied native argument");
+  }
+  const origin = originCore(binding, ops);
+  if (origin.kind !== "resolved") {
+    return origin;
+  }
+  const flags = ops.flags(ops.type(binding));
+  if (flags.any || flags.unknown || flags.never || flags.parameter) {
+    return unresolved("unsupported", binding, "generic contribution binding has no resolved native value constituents");
+  }
+  const ids = new Set(partsCore(ops.type(binding), ops).map(ops.typeIdentity));
+  witnesses = witnesses.filter((type) => ids.has(ops.typeIdentity(type)));
+
+  return resolved(witnesses, binding, [utility, ...origin.value.declarations]);
+}
+
+function bindingOriginsCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+): ReferenceFact<readonly N[], N> {
+  const { binding, argument, ops } = input;
+  if (binding === undefined) {
+    return resolved([], argument, []);
+  }
+  if (ops.forgotten(binding) || !ancestorsCore(binding, ops).some((node) => ops.nodeIdentity(node) === ops.nodeIdentity(argument))) {
+    return unresolved("unsupported", binding, "substituted binding is outside the delivered argument");
+  }
+  const origin = originCore(binding, ops);
+  return origin.kind === "unresolved" ? origin : resolved(origin.value.declarations, binding, origin.value.declarations);
+}
+
+function sameFormalCore<N extends object, T, S, G, I extends object>(node: N, parameter: N, ops: TypeRealmOperations<N, T, S, G, I>): boolean {
+  const reference = ops.reference(node);
+  if (reference === undefined || reference.arguments.length > 0) {
+    return false;
+  }
+  const origin = originCore(reference.name, ops);
+  return (
+    origin.kind === "resolved" &&
+    origin.value.declarations.length === 1 &&
+    origin.value.declarations.some((declaration) => ops.nodeIdentity(declaration) === ops.nodeIdentity(parameter))
+  );
+}
+
+function finiteStringsCore<N extends object, T, S, G, I extends object>(type: T, ops: TypeRealmOperations<N, T, S, G, I>): readonly string[] | undefined {
   const values: string[] = [];
-  for (const part of nativeParts(type)) {
-    const value = part.getLiteralValue();
-    if (!part.isStringLiteral() || typeof value !== "string") {
+  for (const part of partsCore(type, ops)) {
+    const value = ops.literalType(part);
+    if (value === undefined) {
       return;
     }
     values.push(value);
@@ -436,226 +442,169 @@ function finiteNativeStrings(type: Type): readonly string[] | undefined {
   return values;
 }
 
-function exactNativeKeys(type: Type, keys: readonly string[]): boolean {
-  const names = type.getProperties().map((property) => property.getName());
-  return (
-    names.length === keys.length &&
-    names.every((name) => keys.includes(name)) &&
-    type.getStringIndexType() === undefined &&
-    type.getNumberIndexType() === undefined
-  );
+function exactKeysCore<N extends object, T, S, G, I extends object>(type: T, keys: readonly string[], ops: TypeRealmOperations<N, T, S, G, I>): boolean {
+  const names = ops.properties(type).map(ops.symbolName);
+  return names.length === keys.length && names.every((name) => keys.includes(name)) && ops.indexes(type).length === 0;
 }
 
-function mappedTemplateKeyWitnesses(input: NativeGenericArgumentInput): readonly Type[] | undefined {
-  const { argument, binding, reference } = input;
-  if (!Node.isTemplateLiteralTypeNode(argument) || binding === undefined) {
+function mappedKeyCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  parameter: N,
+  origins: readonly N[],
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> | undefined {
+  const { ops, argument, reference, binding } = input;
+  const body = ops.generic(utility)?.body;
+  const mapped = body === undefined ? undefined : ops.mapped(body);
+  if (mapped === undefined || !ops.defaultLibrary(utility) || binding === undefined || mapped.remap !== undefined) {
     return;
   }
-  const spans = argument.getTemplateSpans();
-  const span = spans[0];
-  const named = span?.getFirstChildByKind(SyntaxKind.TypeReference);
-  const tail = span?.getLastChildIfKind(SyntaxKind.TemplateTail);
-  if (spans.length !== 1 || named === undefined || named.getTypeArguments().length > 0 || named.getTypeName() !== binding || tail === undefined) {
-    return;
+  if (mapped.constraint !== undefined && sameFormalCore(mapped.constraint, parameter, ops)) {
+    const template = ops.template(argument);
+    const span = template?.spans[0];
+    const name = span === undefined ? undefined : ops.reference(span.type);
+    const values = finiteStringsCore(ops.type(binding), ops);
+    const actual = finiteStringsCore(ops.type(argument), ops);
+    if (
+      template === undefined ||
+      template.spans.length !== 1 ||
+      span === undefined ||
+      name === undefined ||
+      name.arguments.length > 0 ||
+      ops.nodeIdentity(name.name) !== ops.nodeIdentity(binding) ||
+      values === undefined ||
+      actual === undefined ||
+      values.length === 0
+    ) {
+      return unresolved("unsupported", binding, "native mapped key has no finite binding-specific template/declaration witness");
+    }
+    const keys = values.map((value) => `${template.head}${value}${span.tail}`);
+    if (keys.length !== actual.length || !keys.every((key) => actual.includes(key)) || !exactKeysCore(ops.type(reference), keys, ops)) {
+      return unresolved("unsupported", binding, "native mapped key has no finite binding-specific template/declaration witness");
+    }
+    return resolved(
+      {
+        utility,
+        argument,
+        binding,
+        contributes: true,
+        witnesses: partsCore(ops.type(argument), ops),
+        detail: "native mapped key formal and instantiated properties retain this exact authored template binding",
+      },
+      binding,
+      [utility, parameter, mapped.parameter, ...origins],
+    );
   }
-  const values = finiteNativeStrings(binding.getType());
-  const actual = finiteNativeStrings(argument.getType());
-  if (values === undefined || actual === undefined || values.length === 0) {
-    return;
-  }
-  const keys = values.map((value) => `${argument.getHead().getLiteralText()}${value}${tail.getLiteralText()}`);
-  return keys.length !== actual.length || !keys.every((key) => actual.includes(key)) || !exactNativeKeys(reference.getType(), keys)
-    ? undefined
-    : nativeParts(argument.getType());
+  return optionalKeyCore(input, utility, parameter, mapped);
 }
 
-function nativeMappedKeyContribution(
-  input: NativeGenericArgumentInput,
-  utility: NativeGenericArgumentContribution["utility"],
-  parameter: import("ts-morph").TypeParameterDeclaration,
-  origins: readonly MorphNode[],
-): ReferenceFact<NativeGenericArgumentContribution> | undefined {
-  const mapped = Node.isTypeAliasDeclaration(utility) ? utility.getTypeNode() : undefined;
+function optionalKeyCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  parameter: N,
+  mapped: TypeRealmMapped<N>,
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> | undefined {
+  const { ops, argument, reference, binding } = input;
+  if (binding === undefined) {
+    return undefined;
+  }
+  const selected = ops.reference(argument);
+  const keyArgument = selected?.arguments[0];
   if (
-    mapped === undefined ||
-    !Node.isMappedTypeNode(mapped) ||
-    !input.program.isSourceFileDefaultLibrary(utility.getSourceFile().compilerNode) ||
-    input.binding === undefined ||
-    mapped.getNameTypeNode() !== undefined
+    !mapped.optional ||
+    mapped.readonly ||
+    selected === undefined ||
+    selected.arguments.length !== 2 ||
+    keyArgument === undefined ||
+    !ancestorsCore(binding, ops).some((node) => ops.nodeIdentity(node) === ops.nodeIdentity(keyArgument))
   ) {
     return;
   }
-  const constraint = mapped.getTypeParameter().getConstraint();
-  if (constraint !== undefined && sameFormalBinding(constraint, parameter)) {
-    const witnesses = mappedTemplateKeyWitnesses(input);
-    return witnesses === undefined
-      ? unresolved("unsupported", input.binding, "native mapped key has no finite binding-specific template/declaration witness")
-      : resolved(
-          {
-            utility,
-            argument: input.argument,
-            binding: input.binding,
-            contributes: true,
-            witnesses,
-            detail: "native mapped key formal and instantiated properties retain this exact authored template binding",
-          },
-          input.binding,
-          [utility, parameter, mapped.getTypeParameter(), ...origins],
-        );
-  }
-  return nativeOptionalKeyContribution({ ...input, binding: input.binding }, utility, parameter, mapped);
-}
-
-function nativeKeyDefinition(utility: NativeGenericArgumentContribution["utility"], program: import("ts-morph").ts.Program): boolean {
-  const parameter = utility.getTypeParameters()[0];
-  const body = Node.isTypeAliasDeclaration(utility) ? utility.getTypeNode() : undefined;
-  const constraint = body !== undefined && Node.isMappedTypeNode(body) ? body.getTypeParameter().getConstraint() : undefined;
-  return (
-    parameter !== undefined &&
-    constraint !== undefined &&
-    sameFormalBinding(constraint, parameter) &&
-    program.isSourceFileDefaultLibrary(utility.getSourceFile().compilerNode)
-  );
-}
-
-function nativeOptionalKeyContribution(
-  input: NativeGenericArgumentInput & { readonly binding: MorphNode },
-  utility: NativeGenericArgumentContribution["utility"],
-  parameter: import("ts-morph").TypeParameterDeclaration,
-  mapped: import("ts-morph").MappedTypeNode,
-): ReferenceFact<NativeGenericArgumentContribution> | undefined {
-  if (mapped.getQuestionToken()?.getKind() !== SyntaxKind.QuestionToken || mapped.getReadonlyToken() !== undefined || !Node.isTypeReference(input.argument)) {
-    return;
-  }
-  const argument = input.argument;
-  const keyArgument = argument.getTypeArguments()[0];
-  if (keyArgument === undefined || argument.getTypeArguments().length !== 2 || !input.binding.getAncestors().includes(keyArgument)) {
-    return;
-  }
-  const inner = readNativeGenericArgumentContribution({ ...input, reference: argument, argument: keyArgument });
+  const inner = genericContributionCore({ ...input, reference: argument, argument: keyArgument });
   if (inner.kind !== "resolved") {
     return inner;
   }
-  if (!nativeKeyDefinition(inner.value.utility, input.program)) {
-    return unresolved("unsupported", input.binding, "the optional argument is not a native mapped key contribution");
-  }
-  const projected = mappedFormalProjection({
-    utility,
-    parameter,
-    argument,
-    reference: input.reference,
-    candidate: argument.getType(),
-    nativeKeys: true,
-    native: input,
-  });
+  const innerGeneric = ops.generic(inner.value.utility);
+  const innerBody = innerGeneric?.body;
+  const innerMapped = innerBody === undefined ? undefined : ops.mapped(innerBody);
+  const innerParameter = innerGeneric?.parameters[0];
   if (
-    projected.length === 0 ||
-    !exactNativeKeys(
-      input.reference.getType(),
-      argument
-        .getType()
-        .getProperties()
-        .map((property) => property.getName()),
-    )
+    innerParameter === undefined ||
+    innerMapped?.constraint === undefined ||
+    !sameFormalCore(innerMapped.constraint, innerParameter, ops) ||
+    !ops.defaultLibrary(inner.value.utility)
   ) {
-    return unresolved("unsupported", input.binding, "native optional mapped projection does not retain the actual argument properties");
+    return unresolved("unsupported", binding, "the optional argument is not a native mapped key contribution");
+  }
+  const projected = readRealmMappedProjection({ parameter, template: utility, actual: reference, witness: argument, ops }, true);
+  if (
+    projected.kind !== "resolved" ||
+    projected.value.length === 0 ||
+    !exactKeysCore(ops.type(reference), ops.properties(ops.type(argument)).map(ops.symbolName), ops)
+  ) {
+    return unresolved("unsupported", binding, "native optional mapped projection does not retain the actual argument properties");
   }
   return resolved(
-    {
-      ...inner.value,
-      utility,
-      argument,
-      binding: input.binding,
-      detail: "native optional mapped projection retains the binding-specific native key contribution",
-    },
-    input.binding,
+    { ...inner.value, utility, argument, binding, detail: "native optional mapped projection retains the binding-specific native key contribution" },
+    binding,
     [utility, parameter, ...inner.trace.declarations],
   );
 }
 
-interface NativeMappedProjectionInput {
-  readonly utility: NativeGenericArgumentContribution["utility"];
-  readonly parameter: import("ts-morph").TypeParameterDeclaration;
-  readonly argument: import("ts-morph").TypeNode;
-  readonly reference: NativeGenericArgumentInput["reference"];
-  readonly candidate: Type;
-  readonly nativeKeys?: true;
-  readonly native: NativeGenericArgumentInput;
+function formalNodePathCore<N extends object, T, S, G, I extends object>(
+  node: N,
+  parameter: N,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): readonly string[] | undefined {
+  const indexed = ops.indexedNode(node);
+  if (indexed === undefined) {
+    return sameFormalCore(node, parameter, ops) ? [] : undefined;
+  }
+  const key = ops.literalNode(indexed.index);
+  const parent = formalNodePathCore(indexed.object, parameter, ops);
+  return key === undefined || parent === undefined ? undefined : [...parent, key];
 }
 
-function mappedFormalProjection(input: NativeMappedProjectionInput): readonly Type[] {
-  if (input.candidate.compilerType !== input.argument.getType().compilerType) {
-    return [];
-  }
-  const result = readNativeMappedProjection(
-    {
-      witnessLocation: input.argument,
-      parameter: input.parameter,
-      templateLocation: input.utility,
-      actualLocation: input.reference,
-      program: input.native.program,
-      source: input.native.source,
-      ...(input.native.parser === undefined ? {} : { parser: input.native.parser }),
-    },
-    input.nativeKeys,
-  );
-  return result.kind === "resolved" ? result.value : [];
-}
-
-function genericBindingOrigins(input: NativeGenericArgumentInput): ReferenceFact<readonly MorphNode[]> {
-  const { binding, argument } = input;
-  if (binding === undefined) {
-    return resolved([], argument, []);
-  }
-  if (binding.wasForgotten() || binding.getSourceFile() !== argument.getSourceFile() || !binding.getAncestors().includes(argument)) {
-    return unresolved("unsupported", binding, "substituted binding is outside the delivered argument");
-  }
-  const origin = annotationReferenceOrigin(binding);
-  return origin.kind !== "resolved" ? origin : resolved(origin.value.declarations, binding, origin.value.declarations);
-}
-
-function formalIndexedPath(node: MorphNode, parameter: import("ts-morph").TypeParameterDeclaration): readonly string[] | undefined {
-  if (!Node.isIndexedAccessTypeNode(node)) {
-    return sameFormalBinding(node, parameter) ? [] : undefined;
-  }
-  const index = node.getIndexTypeNode();
-  const literal = Node.isLiteralTypeNode(index) ? index.getLiteral() : undefined;
-  const parent = formalIndexedPath(node.getObjectTypeNode(), parameter);
-  return parent === undefined || literal === undefined || !Node.isStringLiteral(literal) ? undefined : [...parent, literal.getLiteralValue()];
-}
-
-function nativeQueryOutputContribution(
-  input: NativeGenericArgumentInput,
-  utility: NativeGenericArgumentContribution["utility"],
-  parameter: import("ts-morph").TypeParameterDeclaration,
-): ReferenceFact<NativeGenericArgumentContribution> {
-  const { argument, reference, binding } = input;
-  const body = Node.isTypeAliasDeclaration(utility) ? utility.getTypeNode() : undefined;
-  if (!Node.isTypeQuery(argument) || body === undefined || !Node.isConditionalTypeNode(body) || binding !== argument.getExprName()) {
+function queryContributionCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  parameter: N,
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> {
+  const { ops, argument, reference, binding } = input;
+  const body = ops.generic(utility)?.body;
+  const conditional = body === undefined ? undefined : ops.conditional(body);
+  const name = ops.query(argument);
+  if (name === undefined || conditional === undefined || binding === undefined || ops.nodeIdentity(binding) !== ops.nodeIdentity(name)) {
     return unresolved("unsupported", argument, "schema output requires the actual query binding and selected native conditional projection");
   }
-  const supplied = argument.getType();
-  const path = formalIndexedPath(body.getTrueType(), parameter);
-  const checker = input.parser?.checker ?? readAssignabilityChecker(reference.getProject().getTypeChecker());
-  if (supplied.isAny() || supplied.isUnknown() || supplied.isNever() || supplied.isUnion() || supplied.isTypeParameter()) {
+  const supplied = ops.type(argument);
+  const flags = ops.flags(supplied);
+  const path = formalNodePathCore(conditional.selected, parameter, ops);
+  if (flags.any || flags.unknown || flags.never || flags.parameter || ops.unions(supplied).length > 0) {
     return unresolved("unsupported", argument, "native schema query is any, unknown, never, union or uninstantiated");
   }
-  if (!sameFormalBinding(body.getCheckType(), parameter) || path === undefined || path.length === 0) {
+  if (!sameFormalCore(conditional.check, parameter, ops) || path === undefined || path.length === 0) {
     return unresolved("unsupported", argument, "native schema true branch does not retain the same formal indexed property");
   }
-  if (checker?.isTypeAssignableTo(supplied.compilerType, body.getExtendsType().getType().compilerType) !== true) {
+  if (!ops.assignable(supplied, ops.type(conditional.extends))) {
     return unresolved("unsupported", argument, "native schema query does not select the projected conditional branch");
   }
-  const origin = genericBindingOrigins(input);
-  const projected = resolveTypePropertyValue(argument, path);
+  const origin = bindingOriginsCore(input);
   if (origin.kind !== "resolved") {
     return origin;
   }
-  if (projected.kind !== "resolved") {
-    return projected;
+  let output = supplied;
+  let declarations: readonly N[] = [];
+  for (const key of path) {
+    const property = ops.property(ops.nonnullable(output), key);
+    if (property === undefined || ops.declarations(property).length === 0) {
+      return unresolved("missing", argument, `the checker resolved no property ${key}`);
+    }
+    declarations = ops.declarations(property);
+    output = ops.symbolType(property, argument);
   }
-  const output = projected.value.type;
-  if (output.isAny() || output.isUnknown() || output.isNever() || output.compilerType !== reference.getType().compilerType) {
+  const outputFlags = ops.flags(output);
+  if (outputFlags.any || outputFlags.unknown || outputFlags.never || ops.typeIdentity(output) !== ops.typeIdentity(ops.type(reference))) {
     return unresolved("unsupported", argument, "native projected property is not this generic's actual output type");
   }
   return resolved(
@@ -668,18 +617,144 @@ function nativeQueryOutputContribution(
       detail: "native selected conditional output retains the actual schema query property projection",
     },
     binding,
-    [utility, parameter, ...origin.value, ...projected.value.declarations],
+    [utility, parameter, ...origin.value, ...declarations],
   );
 }
 
-function sameFormalBinding(node: MorphNode, parameter: import("ts-morph").TypeParameterDeclaration): boolean {
-  if (!Node.isTypeReference(node) || node.getTypeArguments().length > 0) {
-    return false;
+function substitutionContributionCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  index: number,
+): ReferenceFact<NativeGenericArgumentContribution<N, T, U>, N> {
+  const { ops, argument, reference, binding } = input;
+  const parameter = ops.generic(utility)?.parameters[index];
+  if (parameter === undefined || index < 0) {
+    return unresolved("unsupported", reference, "generic argument has no native formal parameter");
   }
-  const origin = annotationReferenceOrigin(node.getTypeName());
-  return origin.kind === "resolved" && origin.value.declarations.length === 1 && origin.value.declarations[0]?.compilerNode === parameter.compilerNode;
+  if (ops.query(argument) !== undefined) {
+    return queryContributionCore(input, utility, parameter);
+  }
+  const candidate = ops.type(binding ?? argument);
+  if (
+    [candidate, ops.type(argument), ops.type(reference)].some((type) => {
+      const flags = ops.flags(type);
+      return flags.any || flags.unknown || flags.never || flags.parameter;
+    })
+  ) {
+    return unresolved("unsupported", argument, "substituted contribution has any, unknown, never or uninstantiated types");
+  }
+  const origins = bindingOriginsCore(input);
+  if (origins.kind !== "resolved") {
+    return origins;
+  }
+  const keyed = mappedKeyCore(input, utility, parameter, origins.value);
+  if (keyed !== undefined) {
+    return keyed;
+  }
+  const slots = readRealmSubstitution({ parameter, template: utility, actual: reference, witness: binding ?? argument, ops });
+  if (slots.kind !== "resolved") {
+    return slots;
+  }
+  const identities = new Set(partsCore(candidate, ops).map(ops.typeIdentity));
+  const witnesses = slots.value.flatMap((slot) =>
+    partsCore(slot.actual, ops).filter((type) => slot.projection !== undefined || identities.has(ops.typeIdentity(type))),
+  );
+  witnesses.push(...mappedWitnessesCore(input, utility, parameter, candidate));
+  return witnesses.length === 0
+    ? unresolved("unsupported", binding ?? argument, "native formal has no substituted member/signature contribution to this binding")
+    : resolved(
+        {
+          utility,
+          argument,
+          ...(binding === undefined ? {} : { binding }),
+          contributes: true,
+          witnesses,
+          detail: "native formal substitution and member/signature declarations witness this authored binding",
+        },
+        binding ?? argument,
+        [utility, parameter, ...origins.value, ...slots.value.flatMap((slot) => slot.declarations)],
+      );
 }
 
-function genericReferenceName(reference: NativeGenericArgumentInput["reference"]): MorphNode {
-  return Node.isTypeReference(reference) ? reference.getTypeName() : reference.getExpression();
+function mappedWitnessesCore<N extends object, T, S, G, I extends object, U extends N>(
+  input: ContributionInput<N, T, S, G, I, U>,
+  utility: U,
+  parameter: N,
+  candidate: T,
+): readonly T[] {
+  const { ops, reference, argument } = input;
+  if (ops.typeIdentity(candidate) !== ops.typeIdentity(ops.type(argument))) {
+    return [];
+  }
+  const mapped = readRealmMappedProjection({ parameter, template: utility, actual: reference, witness: argument, ops });
+  return mapped.kind === "resolved" ? mapped.value : [];
+}
+
+function signatureAnnotationNodes(declaration: nativeTs.Node): readonly nativeTs.TypeNode[] {
+  if (!nativeTs.isFunctionLike(declaration)) {
+    return [];
+  }
+  return [
+    ...declaration.parameters.flatMap((parameter) => (parameter.type === undefined ? [] : [parameter.type])),
+    ...(declaration.type === undefined ? [] : [declaration.type]),
+  ];
+}
+
+function signatureAnnotationOrigins(
+  node: nativeTs.TypeNode,
+  context: NativeParserTypeContext,
+): {
+  readonly annotations: readonly TypeIdentityOrigin<nativeTs.Node>[];
+  readonly refusal?: string;
+} {
+  const parser = { ...context, source: node.getSourceFile() };
+  const ops = parserTypeOperations(parser);
+  const annotations: TypeIdentityOrigin<nativeTs.Node>[] = [];
+  if (!ops.contains(node)) {
+    return { annotations, refusal: "signature annotations belong to a foreign or stale native source" };
+  }
+  let refusal: string | undefined;
+  const pending = [...ops.children(node)];
+  for (const binding of pending) {
+    pending.push(...ops.children(binding));
+    if (!nativeTs.isIdentifier(binding)) {
+      continue;
+    }
+    const origin = originCore(binding, ops);
+    if (
+      origin.kind !== "resolved" ||
+      !origin.value.declarations.some((candidate) => nativeTs.isInterfaceDeclaration(candidate) || nativeTs.isTypeAliasDeclaration(candidate))
+    ) {
+      continue;
+    }
+    if (parserGenericReferenceContributes(binding, parser)) {
+      annotations.push(origin.value);
+    } else if (origin.value.declarations.some(nativeTs.isTypeAliasDeclaration)) {
+      refusal = "an authored signature alias has no qualified native generic contribution";
+    }
+  }
+  return { annotations, ...(refusal === undefined ? {} : { refusal }) };
+}
+
+/** Compose actual raw-parser signature annotations with the canonical graph and contribution algorithm. */
+export function readParserSignatureTypeExposures(
+  input: NativeTypeIdentityGraphInput,
+): ReferenceFact<readonly TypeIdentityOrigin<nativeTs.Node>[], nativeTs.Node> {
+  const graph = readParserSignatureTypeIdentities(input);
+  const annotations: TypeIdentityOrigin<nativeTs.Node>[] = [];
+  let refusal: string | undefined;
+  for (const declaration of graph.trace.declarations) {
+    for (const node of signatureAnnotationNodes(declaration)) {
+      const fact = signatureAnnotationOrigins(node, input.parser);
+      annotations.push(...fact.annotations);
+      refusal = fact.refusal ?? refusal;
+    }
+  }
+  const declarations = [...graph.trace.declarations, ...annotations.flatMap((origin) => origin.declarations)];
+  if (graph.kind === "unresolved") {
+    return { ...graph, trace: { ...graph.trace, declarations } };
+  }
+  return refusal === undefined
+    ? resolved([...graph.value, ...annotations], graph.trace.origin, declarations)
+    : { ...unresolved("unsupported", graph.trace.origin, refusal), trace: { ...graph.trace, declarations } };
 }

@@ -10,27 +10,27 @@ export const REFERENCE_UNRESOLVED_REASONS = ["unsupported", "dynamic", "write", 
 export type ReferenceUnresolvedReason = (typeof REFERENCE_UNRESOLVED_REASONS)[number];
 
 /** The proof path for a reference fact, ordered from the queried binding toward its terminal origin. */
-interface ReferenceTrace {
-  readonly declarations: readonly Node[];
-  readonly origin: Node;
+interface ReferenceTrace<Anchor = Node> {
+  readonly declarations: readonly Anchor[];
+  readonly origin: Anchor;
 }
 
-export interface ResolvedReferenceFact<T> {
+export interface ResolvedReferenceFact<T, Anchor = Node> {
   readonly kind: "resolved";
   readonly value: T;
-  readonly trace: ReferenceTrace;
+  readonly trace: ReferenceTrace<Anchor>;
 }
 
-export interface UnresolvedReferenceFact {
+export interface UnresolvedReferenceFact<Anchor = Node> {
   readonly kind: "unresolved";
   readonly reason: ReferenceUnresolvedReason;
   readonly detail: string;
-  readonly node: Node;
-  readonly trace: ReferenceTrace;
+  readonly node: Anchor;
+  readonly trace: ReferenceTrace<Anchor>;
 }
 
 /** A positive value with its proof, or one precise refusal. Absence is never a reader verdict. */
-export type ReferenceFact<T> = ResolvedReferenceFact<T> | UnresolvedReferenceFact;
+export type ReferenceFact<T, Anchor = Node> = ResolvedReferenceFact<T, Anchor> | UnresolvedReferenceFact<Anchor>;
 
 /** A reader admits the use or supplies an exact proven alias whose actual uses must still close. */
 export type ReferenceUseAdmission = boolean | Identifier;

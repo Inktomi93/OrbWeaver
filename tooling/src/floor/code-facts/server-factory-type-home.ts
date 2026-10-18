@@ -1,7 +1,6 @@
 // Factory signature ownership stays within the declaring source; function bodies grant no type home.
-import type { InterfaceDeclaration, TypeAliasDeclaration } from "ts-morph";
-import { createWrappedNode, ts } from "ts-morph";
-import { isPlainDataShape, WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
+import ts from "typescript";
+import { isParserPlainDataShape, WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
 import { parserGenericReferenceContributes } from "./shape-derivation.ts";
 
 import { SERVER_FACTORY_TYPE_HOME_ROOTS } from "./type-home.ts";
@@ -32,11 +31,11 @@ function sourceFactoryDeclarations(parser: NativeParserTypeContext): ReadonlySet
 }
 
 /** D324 applies to local factory signatures, never to an unrelated shape or plain wire data. */
-export function serverFactoryTypeHome(node: InterfaceDeclaration | TypeAliasDeclaration, path: string, parser: NativeParserTypeContext): boolean {
+export function serverFactoryTypeHome(node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration, path: string, parser: NativeParserTypeContext): boolean {
   if (!SERVER_FACTORY_TYPE_HOME_ROOTS.some((root) => path.startsWith(root))) {
     return false;
   }
-  const raw = node.compilerNode;
+  const raw = node;
   if (
     parser.source !== raw.getSourceFile() ||
     parser.checker !== parser.program.getTypeChecker() ||
@@ -44,9 +43,8 @@ export function serverFactoryTypeHome(node: InterfaceDeclaration | TypeAliasDecl
   ) {
     throw new Error("factory placement parser source/checker is foreign or stale");
   }
-  const observed = createWrappedNode(raw, { typeChecker: parser.checker, sourceFile: parser.source });
   return (
-    !(WIRE_SHAPE_SUFFIXES.some((suffix) => observed.getName().endsWith(suffix)) && isPlainDataShape(observed)) && sourceFactoryDeclarations(parser).has(raw)
+    !(WIRE_SHAPE_SUFFIXES.some((suffix) => raw.name.text.endsWith(suffix)) && isParserPlainDataShape(raw, parser)) && sourceFactoryDeclarations(parser).has(raw)
   );
 }
 
@@ -145,8 +143,8 @@ function serverFactoryTypeDeclarations(parser: NativeParserTypeContext, contribu
       return;
     }
     for (const declaration of graph.value.flatMap((origin) => origin.declarations)) {
-      if (ts.isInterfaceDeclaration(declaration.compilerNode) || ts.isTypeAliasDeclaration(declaration.compilerNode)) {
-        admit(checker.getSymbolAtLocation(declaration.compilerNode.name));
+      if (ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration)) {
+        admit(checker.getSymbolAtLocation(declaration.name));
       }
     }
   };

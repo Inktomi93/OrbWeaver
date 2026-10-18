@@ -1,8 +1,9 @@
 // Native member and type declaration facts; receiver and member refusal anchors remain distinct.
 import { readMemberReference } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";
-import type { CallExpression, Node as MorphNode, SourceFile, Type, TypeAliasDeclaration, TypeParameterDeclaration } from "ts-morph";
-import { createWrappedNode, Node, SyntaxKind, ts } from "ts-morph";
+import type { CallExpression, Node as MorphNode, SourceFile, Type, ts } from "ts-morph";
+import { Node } from "ts-morph";
+import nativeTs from "typescript";
 import { resolveCallableDeclaration } from "./reference-fact-call.ts";
 import type {
   CallMemberDeclarationOrigin,
@@ -12,10 +13,12 @@ import type {
   NativeSubstitutedTypeInput,
   NativeSubstitutedTypeSlot,
   NativeTypeIdentityGraphInput,
+  ParserSubstitutedTypeInput,
   TypeIdentityOrigin,
   TypeMemberOrigin,
+  TypeRealmOperations,
 } from "./type-member-origin-contract.ts";
-import { annotationReferenceOrigin, normalizedPath, resolved, resolveTypePropertyValue, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
+import { morphTypeOperations, normalizedPath, parserTypeOperations, resolved, symbolDeclarations, unresolved } from "./type-member-origin-core.ts";
 import type { TypeObservationReader } from "./type-observations-contract.ts";
 import { nodeTypeSelector } from "./type-projection-contract.ts";
 
@@ -152,26 +155,6 @@ export function resolveReturnTypeIdentityOrigin(node: MorphNode): ReferenceFact<
   return result.kind === "unresolved" ? result : typeIdentityOrigin(result.value, node);
 }
 
-// Only actual data members carry a nested value; function signatures and phantom type arguments do not.
-function returnedDataChildren(type: Type, node: MorphNode): readonly Type[] {
-  const parts = [...type.getUnionTypes(), ...type.getIntersectionTypes()];
-  if (parts.length > 0) {
-    return parts;
-  }
-  if (type.isTuple()) {
-    return type.getTupleElements();
-  }
-  const element = type.getArrayElementType();
-  if (element !== undefined) {
-    return [element];
-  }
-  if (!type.isObject()) {
-    return [];
-  }
-  const indexed = [type.getStringIndexType(), type.getNumberIndexType()].filter((member) => member !== undefined);
-  return [...type.getProperties().map((property) => property.getTypeAtLocation(node)), ...indexed];
-}
-
 /** Named identities physically carried by the callable's returned data, including wrappers and containers.
  * Callable parameters/results and erased generic arguments are not carried data. An optional declaration
  * home ends the query when that identity is proven, without expanding the service's remaining type universe. */
@@ -182,134 +165,217 @@ export function resolveReturnTypeIdentityGraph(node: MorphNode, stopAtDeclaratio
 
 type IdentityGraphMode =
   | { readonly kind: "returned-data"; readonly stopAtDeclarationHome: string | undefined }
-  | { readonly kind: "parser-returned-data"; readonly parser: NativeParserTypeContext }
-  | { readonly kind: "signature-exposure"; readonly parser: NativeParserTypeContext };
+  | { readonly kind: "parser-returned-data" | "signature-exposure" };
 
-function signatureTypeChildren(type: Type, node: MorphNode): readonly Type[] {
-  const signatures = [...type.getCallSignatures(), ...type.getConstructSignatures()];
-  const awaited = type.getAwaitedType();
-  return [
-    ...(awaited === undefined || awaited.compilerType === type.compilerType ? [] : [awaited]),
-    ...signatures.flatMap((signature) => [...signature.getParameters().map((parameter) => parameter.getTypeAtLocation(node)), signature.getReturnType()]),
-  ];
-}
-
-function graphRefusal(node: MorphNode, detail: string, declarations: readonly MorphNode[]): ReferenceFact<readonly TypeIdentityOrigin[]> {
-  return { ...unresolved("unsupported", node, detail), trace: { origin: node, declarations } };
-}
-
-function graphChain(type: Type, node: MorphNode, mode: IdentityGraphMode): readonly TypeIdentityOrigin[] {
-  if (mode.kind !== "signature-exposure" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
+function graphOrigin<N extends object, T, S, G, I extends object>(type: T, node: N, ops: TypeRealmOperations<N, T, S, G, I>): readonly TypeIdentityOrigin<N>[] {
+  const alias = ops.aliasSymbol(type);
+  const symbol = alias ?? ops.typeSymbol(type);
+  if (symbol === undefined || ops.declarations(symbol).length === 0) {
     return [];
   }
-  const identity = typeIdentityOrigin(type, node);
-  return identity.kind === "resolved" ? identityChain(identity.value) : [];
+  const first = { name: ops.symbolName(symbol), node, aliased: alias !== undefined, declarations: ops.declarations(symbol) };
+  return identityChainCore(first, (origin) => realmAliasStep(origin, false, ops), ops.nodeIdentity);
 }
 
-function graphChildren(type: Type, node: MorphNode, mode: IdentityGraphMode): readonly Type[] {
-  if (mode.kind !== "signature-exposure" && (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0)) {
-    return [];
-  }
-  return [...returnedDataChildren(type, node), ...(mode.kind === "signature-exposure" ? signatureTypeChildren(type, node) : [])];
-}
-
-function nativeGraphRefusal(
-  type: Type,
-  chain: readonly TypeIdentityOrigin[],
-  ancestors: ReadonlySet<object>,
-  parser: NativeParserTypeContext,
-): string | undefined {
-  if (type.isAny() || type.isUnknown() || type.isTypeParameter()) {
-    return "signature exposure has an unresolved native type";
-  }
-  const declarations = chain.flatMap((identity) => identity.declarations);
-  if (
-    declarations.some((declaration) => parser.program.getSourceFile(declaration.getSourceFile().getFilePath()) !== declaration.getSourceFile().compilerNode)
-  ) {
-    return "signature exposure contains a foreign or stale declaration";
-  }
-  return declarations.some((declaration) => ancestors.has(declaration.compilerNode)) ? "signature exposure recursively expands a declaration" : undefined;
-}
-
-function typeIdentityGraph(root: Type, node: MorphNode, mode: IdentityGraphMode): ReferenceFact<readonly TypeIdentityOrigin[]> {
-  const pending: { readonly type: Type; readonly ancestors: ReadonlySet<object> }[] = [{ type: root, ancestors: new Set() }];
-  const visited = new Set<object>();
-  const identities: TypeIdentityOrigin[] = [];
-  const declarations: MorphNode[] = [];
-  const refusals = new Set<string>();
-  for (const { type, ancestors } of pending) {
-    if (visited.has(type.compilerType)) {
+function aliasStepCore<N>(
+  origin: TypeIdentityOrigin<N>,
+  directOnly: boolean,
+  reference: (declaration: N) => { readonly name: N; readonly arguments: readonly N[] } | undefined,
+  target: (name: N) => TypeIdentityOrigin<N> | undefined,
+): TypeIdentityOrigin<N> | undefined {
+  for (const declaration of origin.declarations) {
+    const selected = reference(declaration);
+    if (selected === undefined || (directOnly && selected.arguments.length > 0)) {
       continue;
     }
-    visited.add(type.compilerType);
-    const chain = graphChain(type, node, mode);
-    identities.push(...chain);
-    declarations.push(...chain.flatMap((identity) => identity.declarations));
-    if (mode.kind === "signature-exposure") {
-      declarations.push(...[...type.getCallSignatures(), ...type.getConstructSignatures()].map((signature) => signature.getDeclaration()));
+    const next = target(selected.name);
+    if (next !== undefined) {
+      return next;
     }
-    if (
-      mode.kind === "returned-data" &&
-      chain.some((origin) => origin.declarations.some((declaration) => normalizedPath(declaration) === mode.stopAtDeclarationHome))
-    ) {
+  }
+  return undefined;
+}
+
+function realmAliasStep<N extends object, T, S, G, I extends object>(
+  origin: TypeIdentityOrigin<N>,
+  direct: boolean,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): TypeIdentityOrigin<N> | undefined {
+  return aliasStepCore(
+    origin,
+    direct,
+    (node) => {
+      const generic = ops.generic(node);
+      return generic?.kind === "alias" && generic.body !== undefined ? ops.reference(generic.body) : undefined;
+    },
+    (name) => {
+      const symbol = ops.symbol(name);
+      const target = symbol === undefined ? undefined : ops.alias(symbol);
+      return target === undefined || ops.declarations(target).length === 0
+        ? undefined
+        : { name: ops.symbolName(target), node: name, aliased: true, declarations: ops.declarations(target) };
+    },
+  );
+}
+
+function dataChildren<N extends object, T, S, G, I extends object>(type: T, node: N, ops: TypeRealmOperations<N, T, S, G, I>): readonly T[] {
+  const parts = [...ops.unions(type), ...ops.intersections(type)];
+  if (parts.length > 0) {
+    return parts;
+  }
+  const tuple = ops.tuple(type);
+  if (tuple !== undefined) {
+    return tuple;
+  }
+  const element = ops.element(type);
+  if (element !== undefined) {
+    return [element];
+  }
+  return ops.flags(type).object ? [...ops.properties(type).map((property) => ops.symbolType(property, node)), ...ops.indexes(type)] : [];
+}
+
+function graphRefusalCore<N extends object, T, S, G, I extends object>(
+  type: T,
+  origins: readonly N[],
+  ancestors: ReadonlySet<object>,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): string | undefined {
+  const flags = ops.flags(type);
+  if (flags.any || flags.unknown || flags.parameter) {
+    return "signature exposure has an unresolved native type";
+  }
+  if (origins.some((origin) => !ops.contains(origin))) {
+    return "signature exposure contains a foreign or stale declaration";
+  }
+  return origins.some((origin) => ancestors.has(ops.nodeIdentity(origin))) ? "signature exposure recursively expands a declaration" : undefined;
+}
+
+function graphChildrenCore<N extends object, T, S, G, I extends object>(
+  type: T,
+  node: N,
+  mode: IdentityGraphMode,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): readonly T[] {
+  const identity = ops.typeIdentity(type);
+  const signatures = [...ops.signatures(type, "call"), ...ops.signatures(type, "construct")];
+  const children = [...dataChildren(type, node, ops)];
+  if (mode.kind === "signature-exposure") {
+    const awaited = ops.awaited(type);
+    if (awaited !== undefined && ops.typeIdentity(awaited) !== identity) {
+      children.push(awaited);
+    }
+    for (const signature of signatures) {
+      children.push(...ops.signatureParameters(signature).map((parameter) => ops.symbolType(parameter, node)), ops.signatureReturn(signature));
+    }
+  }
+
+  return children;
+}
+
+function graphSignatureDeclarations<N extends object, T, S, G, I extends object>(
+  signatures: readonly G[],
+  mode: IdentityGraphMode,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): readonly N[] {
+  return mode.kind !== "signature-exposure"
+    ? []
+    : signatures.flatMap((signature) => {
+        const declaration = ops.signatureDeclaration(signature);
+        return declaration === undefined ? [] : [declaration];
+      });
+}
+
+function typeIdentityGraphCore<N extends object, T, S, G, I extends object>(
+  root: T,
+  node: N,
+  mode: IdentityGraphMode,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): ReferenceFact<readonly TypeIdentityOrigin<N>[], N> {
+  const pending: { readonly type: T; readonly ancestors: ReadonlySet<object> }[] = [{ type: root, ancestors: new Set() }];
+  const visited = new Set<I>();
+  const identities: TypeIdentityOrigin<N>[] = [];
+  const declarations: N[] = [];
+  const refusals = new Set<string>();
+  for (const { type, ancestors } of pending) {
+    const identity = ops.typeIdentity(type);
+    if (visited.has(identity)) {
+      continue;
+    }
+    visited.add(identity);
+    const signatures = [...ops.signatures(type, "call"), ...ops.signatures(type, "construct")];
+    if (mode.kind !== "signature-exposure" && signatures.length > 0) {
+      continue;
+    }
+    const chain = graphOrigin(type, node, ops);
+    const origins = chain.flatMap((origin) => origin.declarations);
+    identities.push(...chain);
+    declarations.push(...origins);
+    declarations.push(...graphSignatureDeclarations(signatures, mode, ops));
+    if (mode.kind === "returned-data" && origins.some((origin) => ops.path(origin) === mode.stopAtDeclarationHome)) {
       break;
     }
-    const refusal = mode.kind === "returned-data" ? undefined : nativeGraphRefusal(type, chain, ancestors, mode.parser);
+    const refusal = mode.kind === "returned-data" ? undefined : graphRefusalCore(type, origins, ancestors, ops);
     if (refusal !== undefined) {
       refusals.add(refusal);
       continue;
     }
-    const lineage = new Set([...ancestors, ...chain.flatMap((identity) => identity.declarations.map((declaration) => declaration.compilerNode))]);
-    for (const child of graphChildren(type, node, mode)) {
-      pending.push({ type: child, ancestors: lineage });
-    }
+    const children = graphChildrenCore(type, node, mode, ops);
+    const lineage = new Set([...ancestors, ...origins.map(ops.nodeIdentity)]);
+    pending.push(...children.map((child) => ({ type: child, ancestors: lineage })));
   }
-  return refusals.size > 0 ? graphRefusal(node, [...refusals].join("; "), declarations) : resolved(identities, node, declarations);
+  return refusals.size > 0
+    ? { ...unresolved("unsupported", node, [...refusals].join("; ")), trace: { origin: node, declarations } }
+    : resolved(identities, node, declarations);
 }
 
-/** Inspect signature/data exposure using only the supplied parser Program, never callable/value resolution. */
-export function readParserSignatureTypeIdentities(input: NativeTypeIdentityGraphInput): ReferenceFact<readonly TypeIdentityOrigin[]> {
-  const { node, rootType, parser } = input;
-  const source = node.getSourceFile();
-  const wrapped = createWrappedNode(node, { typeChecker: parser.checker, sourceFile: source });
-  if (
-    source !== parser.source ||
-    parser.program.getSourceFile(source.fileName) !== source ||
-    parser.program.getTypeChecker() !== parser.checker ||
-    parser.checker.getTypeAtLocation(node) !== rootType
-  ) {
-    return unresolved("unsupported", wrapped, "signature exposure parser node/type/checker belongs to a foreign or stale epoch");
-  }
-  return typeIdentityGraph(wrapped.getType(), wrapped, { kind: "signature-exposure", parser });
+function typeIdentityGraph(root: Type, node: MorphNode, mode: IdentityGraphMode): ReferenceFact<readonly TypeIdentityOrigin[]> {
+  return typeIdentityGraphCore(root, node, mode, morphTypeOperations(node.getProject().getProgram().compilerObject));
 }
 
-/** Observe a declaration's actual returned data through the canonical graph, without callable resolution. */
-export function readParserReturnedTypeIdentities(input: NativeTypeIdentityGraphInput): ReferenceFact<readonly TypeIdentityOrigin[]> {
-  const { node, rootType, parser } = input;
-  const source = node.getSourceFile();
-  const wrapped = createWrappedNode(node, { typeChecker: parser.checker, sourceFile: source });
+function parserGraphEpoch(input: NativeTypeIdentityGraphInput): boolean {
+  const { node, parser } = input;
+  return (
+    node.getSourceFile() === parser.source &&
+    parser.program.getSourceFile(parser.source.fileName) === parser.source &&
+    parser.program.getTypeChecker() === parser.checker
+  );
+}
+
+/** Inspect signature/data exposure in the parser's actual compiler realm, without foreign wrappers. */
+export function readParserSignatureTypeIdentities(
+  input: NativeTypeIdentityGraphInput,
+): ReferenceFact<readonly TypeIdentityOrigin<nativeTs.Node>[], nativeTs.Node> {
+  if (!parserGraphEpoch(input) || input.parser.checker.getTypeAtLocation(input.node) !== input.rootType) {
+    return unresolved("unsupported", input.node, "signature exposure parser node/type/checker belongs to a foreign or stale epoch");
+  }
+  return typeIdentityGraphCore(input.rootType, input.node, { kind: "signature-exposure" }, parserTypeOperations(input.parser));
+}
+
+/** Observe the actual native signature return; a parser Program never becomes a Morph Program. */
+export function readParserReturnedTypeIdentities(
+  input: NativeTypeIdentityGraphInput,
+): ReferenceFact<readonly TypeIdentityOrigin<nativeTs.Node>[], nativeTs.Node> {
+  const { node, parser } = input;
   if (
-    source !== parser.source ||
-    parser.program.getSourceFile(source.fileName) !== source ||
-    parser.program.getTypeChecker() !== parser.checker ||
     !(
-      Node.isFunctionDeclaration(wrapped) ||
-      Node.isFunctionExpression(wrapped) ||
-      Node.isArrowFunction(wrapped) ||
-      Node.isMethodDeclaration(wrapped) ||
-      Node.isConstructorDeclaration(wrapped)
+      parserGraphEpoch(input) &&
+      (nativeTs.isFunctionDeclaration(node) ||
+        nativeTs.isFunctionExpression(node) ||
+        nativeTs.isArrowFunction(node) ||
+        nativeTs.isMethodDeclaration(node) ||
+        nativeTs.isConstructorDeclaration(node))
     )
   ) {
-    return unresolved("unsupported", wrapped, "returned data parser declaration/checker belongs to a foreign or stale epoch");
+    return unresolved("unsupported", node, "returned data parser declaration/checker belongs to a foreign or stale epoch");
   }
-  const result = wrapped.getReturnType();
-  if (result.compilerType !== rootType) {
-    return unresolved("unsupported", wrapped, "returned data root does not match the actual native signature");
+  const signature = parser.checker.getSignatureFromDeclaration(node);
+  if (signature === undefined || parser.checker.getReturnTypeOfSignature(signature) !== input.rootType) {
+    return unresolved("unsupported", node, "returned data root does not match the actual native signature");
   }
-  const awaited = result.getAwaitedType();
+  const awaited = parser.checker.getAwaitedType(input.rootType);
   return awaited === undefined
-    ? unresolved("unsupported", wrapped, "returned data has no native awaited type")
-    : typeIdentityGraph(awaited, wrapped, { kind: "parser-returned-data", parser });
+    ? unresolved("unsupported", node, "returned data has no native awaited type")
+    : typeIdentityGraphCore(awaited, node, { kind: "parser-returned-data" }, parserTypeOperations(parser));
 }
 
 /** Resolve the direct array element's named identity, never a type nested inside that element. */
@@ -328,24 +394,20 @@ export function resolveArrayElementTypeIdentityOrigin(node: MorphNode): Referenc
 /** One step UP a declared type-alias chain: `type MyHook = GatedStoreHook<T>` steps from `MyHook` to
  *  `GatedStoreHook`, following an import specifier to the real declaration on the way. */
 function aliasStep(origin: TypeIdentityOrigin, directOnly = false): TypeIdentityOrigin | undefined {
-  let step: TypeIdentityOrigin | undefined;
-  for (const declaration of origin.declarations) {
-    if (step !== undefined || !Node.isTypeAliasDeclaration(declaration)) {
-      continue;
-    }
-    const typeNode = declaration.getTypeNode();
-    if (typeNode === undefined || !Node.isTypeReference(typeNode) || (directOnly && typeNode.getTypeArguments().length > 0)) {
-      continue;
-    }
-    const nameNode = typeNode.getTypeName();
-    const symbol = nameNode.getSymbol();
-    const target = symbol?.getAliasedSymbol() ?? symbol;
-    const declarations = target?.getDeclarations() ?? [];
-    if (target !== undefined && declarations.length > 0) {
-      step = { name: target.getName(), node: nameNode, aliased: true, declarations };
-    }
-  }
-  return step;
+  return aliasStepCore(
+    origin,
+    directOnly,
+    (declaration) => {
+      const body = Node.isTypeAliasDeclaration(declaration) ? declaration.getTypeNode() : undefined;
+      return body !== undefined && Node.isTypeReference(body) ? { name: body.getTypeName(), arguments: body.getTypeArguments() } : undefined;
+    },
+    (nameNode) => {
+      const symbol = nameNode.getSymbol();
+      const target = symbol?.getAliasedSymbol() ?? symbol;
+      const declarations = target?.getDeclarations() ?? [];
+      return target === undefined || declarations.length === 0 ? undefined : { name: target.getName(), node: nameNode, aliased: true, declarations };
+    },
+  );
 }
 
 /** Every type identity a node's type resolves through, OUTERMOST FIRST, walking declared type aliases to
@@ -370,16 +432,28 @@ export function resolveTypeIdentityChain(node: MorphNode): ReferenceFact<readonl
 }
 
 function identityChain(first: TypeIdentityOrigin, directOnly = false): readonly TypeIdentityOrigin[] {
-  const chain: TypeIdentityOrigin[] = [first];
-  const visited = new Set<object>(first.declarations.map((declaration) => declaration.compilerNode));
-  let current: TypeIdentityOrigin = first;
+  return identityChainCore(
+    first,
+    (origin) => aliasStep(origin, directOnly),
+    (node) => node.compilerNode,
+  );
+}
+
+function identityChainCore<N>(
+  first: TypeIdentityOrigin<N>,
+  step: (origin: TypeIdentityOrigin<N>) => TypeIdentityOrigin<N> | undefined,
+  identity: (node: N) => object,
+): readonly TypeIdentityOrigin<N>[] {
+  const chain: TypeIdentityOrigin<N>[] = [first];
+  const visited = new Set<object>(first.declarations.map(identity));
+  let current = first;
   for (;;) {
-    const next: TypeIdentityOrigin | undefined = aliasStep(current, directOnly);
-    if (next === undefined || next.declarations.some((declaration) => visited.has(declaration.compilerNode))) {
+    const next = step(current);
+    if (next === undefined || next.declarations.some((declaration) => visited.has(identity(declaration)))) {
       break;
     }
     for (const declaration of next.declarations) {
-      visited.add(declaration.compilerNode);
+      visited.add(identity(declaration));
     }
     chain.push(next);
     current = next;
@@ -389,27 +463,29 @@ function identityChain(first: TypeIdentityOrigin, directOnly = false): readonly 
 
 /** Normalize only transparent alias spellings through the same native origin chain, not generic transformations. */
 export function readParserTransparentAliasOrigin(
-  declaration: ts.TypeAliasDeclaration,
+  declaration: nativeTs.TypeAliasDeclaration,
   parser: NativeParserTypeContext,
-): ReferenceFact<readonly TypeIdentityOrigin[]> {
+): ReferenceFact<readonly TypeIdentityOrigin<nativeTs.Node>[], nativeTs.Node> {
   const source = declaration.getSourceFile();
-  const wrapped = createWrappedNode(declaration, { sourceFile: source, typeChecker: parser.checker });
   if (source !== parser.source || parser.program.getSourceFile(source.fileName) !== source || parser.program.getTypeChecker() !== parser.checker) {
-    return unresolved("unsupported", wrapped, "transparent alias belongs to a foreign or stale parser epoch");
+    return unresolved("unsupported", declaration, "transparent alias belongs to a foreign or stale parser epoch");
   }
-  const body = wrapped.getTypeNodeOrThrow();
-  if (!Node.isTypeReference(body) || body.getTypeArguments().length > 0) {
-    return unresolved("unsupported", wrapped, "the alias is not a direct zero-argument type reference");
+  const ops = parserTypeOperations(parser);
+  const reference = ops.reference(declaration.type);
+  if (reference === undefined || reference.arguments.length > 0) {
+    return unresolved("unsupported", declaration, "the alias is not a direct zero-argument type reference");
   }
-  const origin = annotationReferenceOrigin(body.getTypeName());
-  if (origin.kind === "unresolved") {
-    return origin;
+  const selected = ops.symbol(reference.name);
+  const symbol = selected === undefined ? undefined : ops.alias(selected);
+  if (symbol === undefined || ops.declarations(symbol).length === 0) {
+    return unresolved("missing", reference.name, "the checker resolved no transparent alias declaration");
   }
-  const chain = identityChain(origin.value, true);
+  const first = { name: ops.symbolName(symbol), node: reference.name, aliased: true, declarations: ops.declarations(symbol) };
+  const chain = identityChainCore(first, (origin) => realmAliasStep(origin, true, ops), ops.nodeIdentity);
   const declarations = chain.flatMap((entry) => entry.declarations);
-  return declarations.some((node) => parser.program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
-    ? unresolved("unsupported", wrapped, "transparent alias target belongs to a foreign or stale native source")
-    : resolved(chain, wrapped, declarations);
+  return declarations.some((node) => !ops.contains(node))
+    ? unresolved("unsupported", declaration, "transparent alias target belongs to a foreign or stale native source")
+    : resolved(chain, declaration, declarations);
 }
 
 /** Is EVERY declaration in this fact declared by the named npm package's own type surface? The fragment is
@@ -454,183 +530,207 @@ export function declaredByAnyPackage(declarations: readonly MorphNode[], package
   return packageNames.some((packageName) => declaredByPackage(declarations, packageName));
 }
 
-function sameTypeDeclaration(left: Type, right: Type): boolean {
-  const origins = (left.getAliasSymbol() ?? left.getSymbol())?.getDeclarations() ?? [];
-  const targets = new Set(((right.getAliasSymbol() ?? right.getSymbol())?.getDeclarations() ?? []).map((node) => node.compilerNode));
-  return origins.length > 0 && origins.some((node) => targets.has(node.compilerNode));
+interface NativeSlotPair<T, N> {
+  readonly template: T;
+  readonly actual: T;
+  readonly declarations: readonly N[];
+}
+export interface SubstitutionQuery<N extends object, T, S, G, I extends object> {
+  readonly parameter: N;
+  readonly template: N;
+  readonly actual: N;
+  readonly witness: N;
+  readonly ops: TypeRealmOperations<N, T, S, G, I>;
 }
 
-interface NativeSlotPair {
-  readonly template: Type;
-  readonly actual: Type;
-  readonly declarations: readonly MorphNode[];
-}
-
-function nativeUnionSlots(pair: NativeSlotPair, formal: Type): readonly NativeSlotPair[] | undefined {
-  const templates = [...pair.template.getUnionTypes(), ...pair.template.getIntersectionTypes()];
-  const actuals = [...pair.actual.getUnionTypes(), ...pair.actual.getIntersectionTypes()];
-  if (templates.length === 0 && actuals.length === 0) {
-    return;
-  }
-  return (templates.length === 0 ? [pair.template] : templates).flatMap((left) =>
-    (actuals.length === 0 ? [pair.actual] : actuals)
-      .filter((right) => nativeFormalIndexedPath(left.compilerType, formal.compilerType) !== undefined || sameTypeDeclaration(left, right))
-      .map((right) => ({ template: left, actual: right, declarations: pair.declarations })),
+/** Internal canonical operation entry; callers first validate their actual realm's ownership. */
+export function readRealmSubstitution<N extends object, T, S, G, I extends object>(
+  input: SubstitutionQuery<N, T, S, G, I>,
+): ReferenceFact<readonly NativeSubstitutedTypeSlot<T, N>[], N> {
+  const slots = collectSubstitutedSlotsCore(input);
+  return resolved(
+    slots,
+    input.actual,
+    slots.flatMap((slot) => slot.declarations),
   );
 }
 
-// Candidate arguments prune irrelevant instantiation; only the actual declaration-paired slots below prove contribution.
-function nativeFormalCandidate(type: Type, input: NativeSubstitutedTypeInput, visited = new Set<object>()): boolean {
-  if (nativeFormalIndexedPath(type.compilerType, input.parameter.getType().compilerType) !== undefined) {
-    return true;
-  }
-  if (visited.has(type.compilerType) || type.isAny() || type.isUnknown() || type.isTypeParameter()) {
-    return false;
-  }
-  visited.add(type.compilerType);
-  const arguments_ = [...type.getAliasTypeArguments(), ...type.getTypeArguments(), ...type.getUnionTypes(), ...type.getIntersectionTypes()];
-  if (arguments_.length > 0) {
-    return arguments_.some((argument) => nativeFormalCandidate(argument, input, visited));
-  }
-  const declarations = (type.getAliasSymbol() ?? type.getSymbol())?.getDeclarations() ?? [];
-  return declarations.some((declaration) =>
-    declaration.getDescendantsOfKind(SyntaxKind.Identifier).some((identifier) => {
-      const origin = annotationReferenceOrigin(identifier);
-      return origin.kind === "resolved" && origin.value.declarations.some((node) => node.compilerNode === input.parameter.compilerNode);
-    }),
-  );
+/** Internal mapped operation entry shared by both admitted realm adapters. */
+export function readRealmMappedProjection<N extends object, T, S, G, I extends object>(
+  input: SubstitutionQuery<N, T, S, G, I>,
+  nativeKeys?: true,
+): ReferenceFact<readonly T[], N> {
+  return mappedProjectionQuery(input, nativeKeys);
 }
 
-function nativeIndexedAccess(type: ts.Type): type is ts.IndexedAccessType {
-  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is the compiler-owned type discriminator.
-  return (type.flags & ts.TypeFlags.IndexedAccess) !== 0;
+function realmDescendants<N extends object, T, S, G, I extends object>(node: N, ops: TypeRealmOperations<N, T, S, G, I>): readonly N[] {
+  const pending = [...ops.children(node)];
+  for (const child of pending) {
+    pending.push(...ops.children(child));
+  }
+  return pending;
 }
 
-function nativeFormalIndexedPath(type: ts.Type, formal: ts.Type, visited = new Set<ts.Type>()): readonly string[] | undefined {
+function sameTypeDeclarationCore<N extends object, T, S, G, I extends object>(left: T, right: T, ops: TypeRealmOperations<N, T, S, G, I>): boolean {
+  const leftSymbol = ops.aliasSymbol(left) ?? ops.typeSymbol(left);
+  const rightSymbol = ops.aliasSymbol(right) ?? ops.typeSymbol(right);
+  const targets = new Set(rightSymbol === undefined ? [] : ops.declarations(rightSymbol).map(ops.nodeIdentity));
+  return leftSymbol !== undefined && ops.declarations(leftSymbol).some((node) => targets.has(ops.nodeIdentity(node)));
+}
+
+function formalIndexedPathCore<N extends object, T, S, G, I extends object>(
+  type: I,
+  formal: I,
+  ops: TypeRealmOperations<N, T, S, G, I>,
+  visited = new Set<I>(),
+): readonly string[] | undefined {
   if (type === formal) {
     return [];
   }
-  if (visited.has(type) || !nativeIndexedAccess(type) || !type.indexType.isStringLiteral()) {
+  if (visited.has(type)) {
     return;
   }
   visited.add(type);
-  const parent = nativeFormalIndexedPath(type.objectType, formal, visited);
-  return parent === undefined ? undefined : [...parent, type.indexType.value];
+  const indexed = ops.indexedType(type);
+  if (indexed === undefined) {
+    return;
+  }
+  const parent = formalIndexedPathCore(indexed.object, formal, ops, visited);
+  return parent === undefined ? undefined : [...parent, indexed.key];
 }
 
-function nativeProjectedSlot(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): NativeSubstitutedTypeSlot | undefined {
-  const formal = input.parameter.getType();
-  const path = nativeFormalIndexedPath(pair.template.compilerType, formal.compilerType);
+function formalCandidateCore<N extends object, T, S, G, I extends object>(type: T, input: SubstitutionQuery<N, T, S, G, I>, visited = new Set<I>()): boolean {
+  const { ops } = input;
+  const identity = ops.typeIdentity(type);
+  if (formalIndexedPathCore(identity, ops.typeIdentity(ops.type(input.parameter)), ops) !== undefined) {
+    return true;
+  }
+  const flags = ops.flags(type);
+  if (visited.has(identity) || flags.any || flags.unknown || flags.parameter) {
+    return false;
+  }
+  visited.add(identity);
+  const arguments_ = [...ops.aliasArguments(type), ...ops.arguments(type), ...ops.unions(type), ...ops.intersections(type)];
+  if (arguments_.length > 0) {
+    return arguments_.some((argument) => formalCandidateCore(argument, input, visited));
+  }
+  const symbol = ops.aliasSymbol(type) ?? ops.typeSymbol(type);
+  return (
+    symbol !== undefined &&
+    ops.declarations(symbol).some((declaration) =>
+      realmDescendants(declaration, ops).some((node) => {
+        if (!ops.identifier(node)) {
+          return false;
+        }
+        const target = ops.symbol(node);
+        return (
+          target !== undefined && ops.declarations(ops.alias(target)).some((candidate) => ops.nodeIdentity(candidate) === ops.nodeIdentity(input.parameter))
+        );
+      }),
+    )
+  );
+}
+
+function propertyValueCore<N extends object, T, S, G, I extends object>(
+  node: N,
+  path: readonly string[],
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): { readonly type: T; readonly declarations: readonly N[] } | undefined {
+  let type = ops.type(node);
+  let declarations: readonly N[] = [];
+  for (const name of path) {
+    const symbol = ops.property(ops.nonnullable(type), name);
+    if (symbol === undefined || ops.declarations(symbol).length === 0) {
+      return;
+    }
+    declarations = ops.declarations(symbol);
+    type = ops.symbolType(symbol, node);
+  }
+  return { type, declarations };
+}
+
+function projectedSlotCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): NativeSubstitutedTypeSlot<T, N> | undefined {
+  const { ops } = input;
+  const formal = ops.type(input.parameter);
+  const path = formalIndexedPathCore(ops.typeIdentity(pair.template), ops.typeIdentity(formal), ops);
   if (path === undefined || path.length === 0) {
     return;
   }
-  const index = input.templateLocation.getTypeParameters().findIndex((node) => node.compilerNode === input.parameter.compilerNode);
-  const argument = input.actualLocation.getTypeArguments()[index];
-  if (argument?.getType().compilerType !== input.witnessLocation.getType().compilerType) {
+  const index = ops.generic(input.template)?.parameters.findIndex((node) => ops.nodeIdentity(node) === ops.nodeIdentity(input.parameter)) ?? -1;
+  const argument = ops.reference(input.actual)?.arguments[index];
+  if (argument === undefined || ops.typeIdentity(ops.type(argument)) !== ops.typeIdentity(ops.type(input.witness))) {
     return;
   }
-  const selected = resolveTypePropertyValue(input.witnessLocation, path);
-  if (
-    selected.kind !== "resolved" ||
-    selected.value.type.compilerType !== pair.actual.compilerType ||
-    pair.actual.isAny() ||
-    pair.actual.isUnknown() ||
-    pair.actual.isNever() ||
-    selected.value.declarations.some((node) => input.program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
-  ) {
-    return;
-  }
-  return { formal, actual: pair.actual, projection: path, declarations: [...pair.declarations, ...selected.value.declarations] };
+  const selected = propertyValueCore(input.witness, path, ops);
+  const flags = ops.flags(pair.actual);
+  return selected === undefined ||
+    ops.typeIdentity(selected.type) !== ops.typeIdentity(pair.actual) ||
+    flags.any ||
+    flags.unknown ||
+    flags.never ||
+    selected.declarations.some((node) => !ops.contains(node))
+    ? undefined
+    : { formal, actual: pair.actual, projection: path, declarations: [...pair.declarations, ...selected.declarations] };
 }
 
-function nativePropertySlots(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): readonly NativeSlotPair[] {
-  return pair.template.getProperties().flatMap((property) => {
-    const template = property.getTypeAtLocation(input.templateLocation);
-    if (!nativeFormalCandidate(template, input)) {
+function mappedDefinitionCore<N extends object, T, S, G, I extends object>(utility: N, parameter: N, ops: TypeRealmOperations<N, T, S, G, I>): boolean {
+  const body = ops.generic(utility)?.body;
+  const mapped = body === undefined ? undefined : ops.mapped(body);
+  if (mapped?.constraint === undefined || mapped.value === undefined) {
+    return false;
+  }
+  const constraint = ops.operatorType(mapped.constraint);
+  const value = ops.indexedNode(mapped.value);
+  if (constraint === undefined || value === undefined || mapped.remap !== undefined) {
+    return false;
+  }
+  const formal = ops.typeIdentity(ops.type(parameter));
+  const key = ops.typeSymbol(ops.type(value.index));
+  if (
+    ops.typeIdentity(ops.type(constraint)) !== formal ||
+    ops.typeIdentity(ops.type(value.object)) !== formal ||
+    key === undefined ||
+    !ops.declarations(key).some((node) => ops.nodeIdentity(node) === ops.nodeIdentity(mapped.parameter))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function mappedProjectionCore<N extends object, T, S, G, I extends object>(
+  input: {
+    readonly utility: N;
+    readonly parameter: N;
+    readonly supplied: T;
+    readonly output: T;
+    readonly suppliedAt: N;
+    readonly outputAt: N;
+    readonly nativeKeys?: true;
+  },
+  ops: TypeRealmOperations<N, T, S, G, I>,
+): readonly T[] {
+  if (!mappedDefinitionCore(input.utility, input.parameter, ops)) {
+    return [];
+  }
+  const witnesses: T[] = [];
+  for (const property of ops.properties(input.output)) {
+    const origin = ops.property(input.supplied, ops.symbolName(property));
+    const declarations = ops.declarations(property);
+    const origins = new Set(origin === undefined ? [] : ops.declarations(origin).map(ops.nodeIdentity));
+    if (
+      origin === undefined ||
+      (declarations.length === 0 && input.nativeKeys !== true) ||
+      !declarations.every((node) => origins.has(ops.nodeIdentity(node)))
+    ) {
       return [];
     }
-    const target = pair.actual.getProperty(property.getName());
-    const declarations = property.getDeclarations();
-    const targetNodes = new Set(target?.getDeclarations().map((node) => node.compilerNode));
-    return target !== undefined && declarations.length > 0 && declarations.every((node) => targetNodes.has(node.compilerNode))
-      ? [{ template, actual: target.getTypeAtLocation(input.actualLocation), declarations }]
-      : [];
-  });
-}
-
-function nativeSignatureSlots(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): readonly NativeSlotPair[] {
-  const slots: NativeSlotPair[] = [];
-  for (const signature of [...pair.template.getCallSignatures(), ...pair.template.getConstructSignatures()]) {
-    const declaration = signature.getDeclaration();
-    for (const target of [...pair.actual.getCallSignatures(), ...pair.actual.getConstructSignatures()]) {
-      if (target.getDeclaration().compilerNode !== declaration.compilerNode) {
-        continue;
-      }
-      const targets = target.getParameters();
-      slots.push(
-        ...signature.getParameters().flatMap((parameter, index) => {
-          const supplied = targets[index];
-          const declarations = parameter.getDeclarations();
-          const targetNodes = new Set(supplied?.getDeclarations().map((node) => node.compilerNode));
-          return supplied !== undefined && declarations.length > 0 && declarations.every((node) => targetNodes.has(node.compilerNode))
-            ? [{ template: parameter.getTypeAtLocation(input.templateLocation), actual: supplied.getTypeAtLocation(input.actualLocation), declarations }]
-            : [];
-        }),
-      );
-      slots.push({ template: signature.getReturnType(), actual: target.getReturnType(), declarations: [declaration] });
-    }
-  }
-  return slots;
-}
-
-interface NativeMappedEffect {
-  readonly utility: TypeAliasDeclaration;
-  readonly parameter: TypeParameterDeclaration;
-  readonly supplied: Type;
-  readonly output: Type;
-  readonly suppliedLocation: MorphNode;
-  readonly outputLocation: MorphNode;
-  readonly nativeKeys?: true;
-}
-
-// Authored and instantiated entrypoints share this exact mapped syntax, declaration and native field identity proof.
-function mappedNativeProjection(input: NativeMappedEffect): readonly Type[] {
-  const { utility, parameter, supplied, output, suppliedLocation, outputLocation } = input;
-  const mapped = utility.getTypeNode();
-  if (mapped === undefined || !Node.isMappedTypeNode(mapped)) {
-    return [];
-  }
-  const key = mapped.getTypeParameter();
-  const constraint = key.getConstraint();
-  const value = mapped.getTypeNode();
-  if (constraint === undefined || !Node.isTypeOperatorTypeNode(constraint) || value === undefined || !Node.isIndexedAccessTypeNode(value)) {
-    return [];
-  }
-  if (
-    constraint.getTypeNode().getType().compilerType !== parameter.getType().compilerType ||
-    value.getObjectTypeNode().getType().compilerType !== parameter.getType().compilerType ||
-    value
-      .getIndexTypeNode()
-      .getType()
-      .getSymbol()
-      ?.getDeclarations()
-      .some((declaration) => declaration.compilerNode === key.compilerNode) !== true ||
-    mapped.getNameTypeNode() !== undefined
-  ) {
-    return [];
-  }
-  const witnesses: Type[] = [];
-  for (const property of output.getProperties()) {
-    const origin = supplied.getProperty(property.getName());
-    const declarations = property.getDeclarations();
-    const originNodes = new Set(origin?.getDeclarations().map((node) => node.compilerNode));
-    // Native key maps have no property declaration; only the authored key-map entrypoint supplies its existing evidence.
-    if (origin === undefined || (declarations.length === 0 && input.nativeKeys !== true) || !declarations.every((node) => originNodes.has(node.compilerNode))) {
-      return [];
-    }
-    const initial = origin.getTypeAtLocation(suppliedLocation);
-    const actual = property.getTypeAtLocation(outputLocation).getNonNullableType();
-    if (actual.compilerType !== initial.getNonNullableType().compilerType || actual.isAny() || actual.isUnknown() || actual.isNever()) {
+    const initial = ops.nonnullable(ops.symbolType(origin, input.suppliedAt));
+    const actual = ops.nonnullable(ops.symbolType(property, input.outputAt));
+    const flags = ops.flags(actual);
+    if (ops.typeIdentity(actual) !== ops.typeIdentity(initial) || flags.any || flags.unknown || flags.never) {
       return [];
     }
     witnesses.push(actual);
@@ -638,215 +738,322 @@ function mappedNativeProjection(input: NativeMappedEffect): readonly Type[] {
   return witnesses;
 }
 
-function nativeMappedSubstitutionSlots(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): readonly NativeSlotPair[] {
-  const declarations = pair.template.getAliasSymbol()?.getDeclarations() ?? [];
-  const targets = new Set(
-    pair.actual
-      .getAliasSymbol()
-      ?.getDeclarations()
-      .map((node) => node.compilerNode),
-  );
+function substitutionChildrenCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] {
+  const union = unionSlotsCore(pair, input);
+  return union ?? [...mappedSlotsCore(pair, input), ...propertySlotsCore(pair, input), ...signatureSlotsCore(pair, input)];
+}
+
+function unionSlotsCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] | undefined {
+  const { ops } = input;
+  const templates = [...ops.unions(pair.template), ...ops.intersections(pair.template)];
+  const actuals = [...ops.unions(pair.actual), ...ops.intersections(pair.actual)];
+  if (templates.length > 0 || actuals.length > 0) {
+    return (templates.length === 0 ? [pair.template] : templates).flatMap((left) =>
+      (actuals.length === 0 ? [pair.actual] : actuals)
+        .filter(
+          (right) =>
+            formalIndexedPathCore(ops.typeIdentity(left), ops.typeIdentity(ops.type(input.parameter)), ops) !== undefined ||
+            sameTypeDeclarationCore(left, right, ops),
+        )
+        .map((right) => ({ template: left, actual: right, declarations: pair.declarations })),
+    );
+  }
+
+  return undefined;
+}
+
+function mappedSlotsCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] {
+  const { ops } = input;
+  const children: NativeSlotPair<T, N>[] = [];
+  const alias = ops.aliasSymbol(pair.template);
+  const targetAlias = ops.aliasSymbol(pair.actual);
+  const declarations = alias === undefined ? [] : ops.declarations(alias);
+  const targets = new Set(targetAlias === undefined ? [] : ops.declarations(targetAlias).map(ops.nodeIdentity));
   const utility = declarations[0];
-  if (
-    declarations.length !== 1 ||
-    !Node.isTypeAliasDeclaration(utility) ||
-    !targets.has(utility.compilerNode) ||
-    input.program.getSourceFile(utility.getSourceFile().getFilePath()) !== utility.getSourceFile().compilerNode
-  ) {
+  const generic = utility === undefined ? undefined : ops.generic(utility);
+  if (utility === undefined || declarations.length !== 1 || generic?.kind !== "alias" || !targets.has(ops.nodeIdentity(utility)) || !ops.contains(utility)) {
     return [];
   }
-  const templateArguments = pair.template.getAliasTypeArguments();
-  const actualArguments = pair.actual.getAliasTypeArguments();
-  const parameters = utility.getTypeParameters();
-  if (templateArguments.length !== parameters.length || actualArguments.length !== parameters.length) {
+  const left = ops.aliasArguments(pair.template);
+  const right = ops.aliasArguments(pair.actual);
+  if (left.length !== generic.parameters.length || right.length !== generic.parameters.length) {
     return [];
   }
-  return parameters.flatMap((parameter, index) => {
-    const template = templateArguments[index];
-    const actual = actualArguments[index];
-    if (template === undefined || actual === undefined || !nativeFormalCandidate(template, input) || actual.isAny() || actual.isUnknown() || actual.isNever()) {
-      return [];
+  for (const [index, parameter] of generic.parameters.entries()) {
+    const template = left[index];
+    const actual = right[index];
+    if (template === undefined || actual === undefined || !formalCandidateCore(template, input)) {
+      continue;
     }
-    const witnesses = mappedNativeProjection({
-      utility,
-      parameter,
-      supplied: actual,
-      output: pair.actual,
-      suppliedLocation: input.actualLocation,
-      outputLocation: input.actualLocation,
-    });
-    return witnesses.length === 0 ? [] : [{ template, actual, declarations: [...pair.declarations, utility, parameter] }];
-  });
+    const flags = ops.flags(actual);
+    if ([flags.any, flags.unknown, flags.never].some(Boolean)) {
+      continue;
+    }
+    const witnesses = mappedProjectionCore(
+      { utility, parameter, supplied: actual, output: pair.actual, suppliedAt: input.actual, outputAt: input.actual },
+      ops,
+    );
+    if (witnesses.length > 0) {
+      children.push({ template, actual, declarations: [...pair.declarations, utility, parameter] });
+    }
+  }
+  return children;
 }
 
-function concreteNativeSlotType(type: Type): boolean {
-  return type.isObject() || type.isUnion() || type.isIntersection();
+function propertySlotsCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] {
+  const { ops } = input;
+  const children: NativeSlotPair<T, N>[] = [];
+  for (const property of ops.properties(pair.template)) {
+    const template = ops.symbolType(property, input.template);
+    if (!formalCandidateCore(template, input)) {
+      continue;
+    }
+    const target = ops.property(pair.actual, ops.symbolName(property));
+    const declarations = ops.declarations(property);
+    const targets = new Set(target === undefined ? [] : ops.declarations(target).map(ops.nodeIdentity));
+    if (target !== undefined && declarations.length > 0 && declarations.every((node) => targets.has(ops.nodeIdentity(node)))) {
+      children.push({ template, actual: ops.symbolType(target, input.actual), declarations });
+    }
+  }
+
+  return children;
 }
 
-interface NativeSlotStep {
-  readonly pair: NativeSlotPair;
-  readonly ancestors: ReadonlySet<object>;
+function signatureSlotsCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] {
+  const { ops } = input;
+  const children: NativeSlotPair<T, N>[] = [];
+  for (const kind of ["call", "construct"] as const) {
+    for (const signature of ops.signatures(pair.template, kind)) {
+      const declaration = ops.signatureDeclaration(signature);
+      if (declaration === undefined) {
+        continue;
+      }
+      for (const target of ops.signatures(pair.actual, kind)) {
+        const targetDeclaration = ops.signatureDeclaration(target);
+        if (targetDeclaration === undefined || ops.nodeIdentity(targetDeclaration) !== ops.nodeIdentity(declaration)) {
+          continue;
+        }
+        children.push(...pairedSignatureSlotsCore(signature, target, declaration, input));
+      }
+    }
+  }
+
+  return children;
 }
 
-function nativeConstituents(type: Type): readonly Type[] {
-  return type.isUnion() ? type.getUnionTypes() : [type];
+function pairedSignatureSlotsCore<N extends object, T, S, G, I extends object>(
+  signature: G,
+  target: G,
+  declaration: N,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSlotPair<T, N>[] {
+  const { ops } = input;
+  const children: NativeSlotPair<T, N>[] = [];
+  const parameters = ops.signatureParameters(target);
+  for (const [index, parameter] of ops.signatureParameters(signature).entries()) {
+    const supplied = parameters[index];
+    const declarations = ops.declarations(parameter);
+    const targets = new Set(supplied === undefined ? [] : ops.declarations(supplied).map(ops.nodeIdentity));
+    if (supplied !== undefined && declarations.length > 0 && declarations.every((node) => targets.has(ops.nodeIdentity(node)))) {
+      children.push({ template: ops.symbolType(parameter, input.template), actual: ops.symbolType(supplied, input.actual), declarations });
+    }
+  }
+
+  children.push({ template: ops.signatureReturn(signature), actual: ops.signatureReturn(target), declarations: [declaration] });
+  return children;
 }
 
-function nativeSubstitutedSlot(pair: NativeSlotPair, input: NativeSubstitutedTypeInput): NativeSubstitutedTypeSlot | undefined {
-  const formal = input.parameter.getType();
-  return pair.template.compilerType === formal.compilerType
-    ? { formal, actual: pair.actual, declarations: pair.declarations }
-    : nativeProjectedSlot(pair, input);
-}
-
-function nativeSubstitutionChildren({ pair, ancestors }: NativeSlotStep, input: NativeSubstitutedTypeInput): readonly NativeSlotStep[] {
-  const origins = (pair.template.getAliasSymbol() ?? pair.template.getSymbol())?.getDeclarations().map((node) => node.compilerNode) ?? [];
+function substitutionStepChildrenCore<N extends object, T, S, G, I extends object>(
+  pair: NativeSlotPair<T, N>,
+  ancestors: ReadonlySet<object>,
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly { readonly pair: NativeSlotPair<T, N>; readonly ancestors: ReadonlySet<object> }[] {
+  const { ops } = input;
+  const template = ops.typeIdentity(pair.template);
+  const actual = ops.typeIdentity(pair.actual);
+  const symbol = ops.aliasSymbol(pair.template) ?? ops.typeSymbol(pair.template);
+  const origins = symbol === undefined ? [] : ops.declarations(symbol).map(ops.nodeIdentity);
+  const typeFlags = ops.flags(pair.template);
   if (
     origins.some((origin) => ancestors.has(origin)) ||
-    !concreteNativeSlotType(pair.template) ||
-    pair.template.compilerType === pair.actual.compilerType ||
-    !nativeFormalCandidate(pair.template, input)
+    !(typeFlags.object || ops.unions(pair.template).length > 0 || ops.intersections(pair.template).length > 0) ||
+    template === actual ||
+    !formalCandidateCore(pair.template, input)
   ) {
     return [];
   }
-  // Recursive expansion is not a finite declaration witness.
   const lineage = new Set([...ancestors, ...origins]);
-  const children = nativeUnionSlots(pair, input.parameter.getType()) ?? [
-    ...nativeMappedSubstitutionSlots(pair, input),
-    ...nativePropertySlots(pair, input),
-    ...nativeSignatureSlots(pair, input),
-  ];
-  return children.map((child) => ({ pair: child, ancestors: lineage }));
+
+  return substitutionChildrenCore(pair, input).map((child) => ({ pair: child, ancestors: lineage }));
 }
 
-function collectNativeSubstitutedSlots(input: NativeSubstitutedTypeInput): readonly NativeSubstitutedTypeSlot[] {
-  const candidate = input.witnessLocation.getType();
-  const identities = new Set(nativeConstituents(candidate).map((type) => type.compilerType));
-  const pending: NativeSlotStep[] = [
-    {
-      pair: { template: input.templateLocation.getType(), actual: input.actualLocation.getType(), declarations: [input.templateLocation] },
-      ancestors: new Set(),
-    },
+function collectSubstitutedSlotsCore<N extends object, T, S, G, I extends object>(
+  input: SubstitutionQuery<N, T, S, G, I>,
+): readonly NativeSubstitutedTypeSlot<T, N>[] {
+  const { ops } = input;
+  const parts = (type: T): readonly T[] => {
+    const union = ops.unions(type);
+    return union.length === 0 ? [type] : union;
+  };
+  const identities = new Set(parts(ops.type(input.witness)).map(ops.typeIdentity));
+  const pending: { readonly pair: NativeSlotPair<T, N>; readonly ancestors: ReadonlySet<object> }[] = [
+    { pair: { template: ops.type(input.template), actual: ops.type(input.actual), declarations: [input.template] }, ancestors: new Set() },
   ];
-  const visited = new Map<object, Set<object>>();
-  const slots: NativeSubstitutedTypeSlot[] = [];
+  const visited = new Map<I, Set<I>>();
+  const slots: NativeSubstitutedTypeSlot<T, N>[] = [];
   for (const { pair, ancestors } of pending) {
-    const seen = visited.get(pair.template.compilerType) ?? new Set<object>();
-    if (seen.has(pair.actual.compilerType)) {
+    const template = ops.typeIdentity(pair.template);
+    const actual = ops.typeIdentity(pair.actual);
+    const seen = visited.get(template) ?? new Set<I>();
+    if (seen.has(actual)) {
       continue;
     }
-    seen.add(pair.actual.compilerType);
-    visited.set(pair.template.compilerType, seen);
-    if (pair.actual.isAny() || pair.actual.isUnknown() || pair.actual.isNever() || pair.actual.isTypeParameter()) {
+    seen.add(actual);
+    visited.set(template, seen);
+    const flags = ops.flags(pair.actual);
+    if (flags.any || flags.unknown || flags.never || flags.parameter) {
       continue;
     }
-    const slot = nativeSubstitutedSlot(pair, input);
+    const formal = ops.type(input.parameter);
+    const slot = template === ops.typeIdentity(formal) ? { formal, actual: pair.actual, declarations: pair.declarations } : projectedSlotCore(pair, input);
     if (slot !== undefined) {
       slots.push(slot);
-      if (slot.projection !== undefined || nativeConstituents(pair.actual).some((type) => identities.has(type.compilerType))) {
+      if (slot.projection !== undefined || parts(pair.actual).some((type) => identities.has(ops.typeIdentity(type)))) {
         return slots;
       }
       continue;
     }
-    for (const child of nativeSubstitutionChildren({ pair, ancestors }, input)) {
-      pending.push(child);
-    }
+    pending.push(...substitutionStepChildrenCore(pair, ancestors, input));
   }
   return slots;
 }
 
-function parserSubstitutionInput(input: NativeSubstitutedTypeInput): NativeSubstitutedTypeInput | undefined {
-  const parser = input.parser;
-  if (parser === undefined || parser.program !== input.program || parser.source !== input.source || parser.checker !== input.program.getTypeChecker()) {
-    return;
-  }
-  const nodes = [input.parameter, input.templateLocation, input.actualLocation, input.witnessLocation];
-  if (
-    input.actualLocation.getSourceFile().compilerNode !== input.source ||
-    input.witnessLocation.getSourceFile().compilerNode !== input.source ||
-    nodes.some((node) => node.wasForgotten() || input.program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
-  ) {
-    return;
-  }
-  const templateLocation = createWrappedNode(input.templateLocation.compilerNode, {
-    typeChecker: parser.checker,
-    sourceFile: input.templateLocation.compilerNode.getSourceFile(),
-  });
-  const parameter = templateLocation.getTypeParameters().find((node) => node.compilerNode === input.parameter.compilerNode);
-  if (parameter === undefined || input.parameter.compilerNode.parent !== input.templateLocation.compilerNode) {
-    return;
-  }
-  return {
-    ...input,
-    parameter,
-    templateLocation,
-    witnessLocation: createWrappedNode(input.witnessLocation.compilerNode, { typeChecker: parser.checker, sourceFile: input.source }),
-    actualLocation: createWrappedNode(input.actualLocation.compilerNode, { typeChecker: parser.checker, sourceFile: input.source }),
-  };
-}
-
-function nativeSubstitutionInput(input: NativeSubstitutedTypeInput): ReferenceFact<NativeSubstitutedTypeInput> {
-  const { parameter, templateLocation, actualLocation, program, source } = input;
-  const nodes = [parameter, templateLocation, actualLocation, input.witnessLocation];
+function nativeSubstitutionInput(
+  input: NativeSubstitutedTypeInput,
+): ReferenceFact<SubstitutionQuery<MorphNode, Type, import("ts-morph").Symbol, import("ts-morph").Signature, ts.Type>> {
+  const { parameter, templateLocation, actualLocation, program, source, witnessLocation } = input;
+  const nodes = [parameter, templateLocation, actualLocation, witnessLocation];
   if (nodes.some((node) => node.wasForgotten())) {
     return unresolved("unsupported", actualLocation, "native substitution received a forgotten declaration");
   }
-  let delivered = input;
-  if (input.parser !== undefined) {
-    const parserInput = parserSubstitutionInput(input);
-    if (parserInput === undefined) {
-      return unresolved("unsupported", actualLocation, "native substitution parser source/checker belongs to a foreign or stale epoch");
-    }
-    delivered = parserInput;
-  } else {
-    const project = actualLocation.getProject();
-    if (
-      project.getProgram().compilerObject !== program ||
-      actualLocation.getSourceFile().compilerNode !== source ||
-      input.witnessLocation.getSourceFile().compilerNode !== source ||
-      parameter.getParent() !== templateLocation ||
-      nodes.some((node) => node.getProject() !== project || program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
-    ) {
-      return unresolved("unsupported", actualLocation, "native substitution belongs to a foreign or stale declaration/program epoch");
-    }
+  const project = actualLocation.getProject();
+  if (
+    project.getProgram().compilerObject !== program ||
+    actualLocation.getSourceFile().compilerNode !== source ||
+    witnessLocation.getSourceFile().compilerNode !== source ||
+    parameter.getParent() !== templateLocation ||
+    nodes.some((node) => node.getProject() !== project || program.getSourceFile(node.getSourceFile().getFilePath()) !== node.getSourceFile().compilerNode)
+  ) {
+    return unresolved("unsupported", actualLocation, "native substitution belongs to a foreign or stale declaration/program epoch");
   }
-  return resolved(delivered, actualLocation, nodes);
+  return resolved(
+    { parameter, template: templateLocation, actual: actualLocation, witness: witnessLocation, ops: morphTypeOperations(program) },
+    actualLocation,
+    nodes,
+  );
 }
 
-/** The existing mapped-property proof with the same parser/morph epoch guards as ordinary substitution. */
+function parserSubstitutionQuery(
+  input: ParserSubstitutedTypeInput,
+): ReferenceFact<SubstitutionQuery<nativeTs.Node, nativeTs.Type, nativeTs.Symbol, nativeTs.Signature, nativeTs.Type>, nativeTs.Node> {
+  const { parser, parameter, templateLocation, actualLocation, witnessLocation } = input;
+  const ops = parserTypeOperations(parser);
+  const nodes = [parameter, templateLocation, actualLocation, witnessLocation];
+  if (
+    parser.checker !== parser.program.getTypeChecker() ||
+    parser.program.getSourceFile(parser.source.fileName) !== parser.source ||
+    actualLocation.getSourceFile() !== parser.source ||
+    witnessLocation.getSourceFile() !== parser.source ||
+    parameter.parent !== templateLocation ||
+    nodes.some((node) => !ops.contains(node))
+  ) {
+    return unresolved("unsupported", actualLocation, "native substitution parser source/checker belongs to a foreign or stale epoch");
+  }
+  return resolved({ parameter, template: templateLocation, actual: actualLocation, witness: witnessLocation, ops }, actualLocation, nodes);
+}
+
+function mappedProjectionQuery<N extends object, T, S, G, I extends object>(
+  input: SubstitutionQuery<N, T, S, G, I>,
+  nativeKeys?: true,
+): ReferenceFact<readonly T[], N> {
+  const { ops } = input;
+  const generic = ops.generic(input.template);
+  const index = generic?.parameters.findIndex((node) => ops.nodeIdentity(node) === ops.nodeIdentity(input.parameter)) ?? -1;
+  const supplied = ops.reference(input.actual)?.arguments[index];
+  if (generic?.kind !== "alias" || supplied === undefined || ops.nodeIdentity(supplied) !== ops.nodeIdentity(input.witness)) {
+    return resolved([], input.actual, []);
+  }
+  return resolved(
+    mappedProjectionCore(
+      {
+        utility: input.template,
+        parameter: input.parameter,
+        supplied: ops.type(input.witness),
+        output: ops.type(input.actual),
+        suppliedAt: input.witness,
+        outputAt: input.actual,
+        ...(nativeKeys === undefined ? {} : { nativeKeys }),
+      },
+      ops,
+    ),
+    input.actual,
+    [input.template, input.parameter],
+  );
+}
+
+/** The canonical mapped-property proof in the Morph consumer's own compiler realm. */
 export function readNativeMappedProjection(input: NativeSubstitutedTypeInput, nativeKeys?: true): ReferenceFact<readonly Type[]> {
   const delivered = nativeSubstitutionInput(input);
-  if (delivered.kind === "unresolved") {
-    return delivered;
-  }
-  const { templateLocation: utility, parameter, witnessLocation, actualLocation } = delivered.value;
-  const index = utility.getTypeParameters().findIndex((node) => node.compilerNode === parameter.compilerNode);
-  if (!Node.isTypeAliasDeclaration(utility) || actualLocation.getTypeArguments()[index]?.compilerNode !== witnessLocation.compilerNode) {
-    return resolved([], actualLocation, []);
-  }
-  const witnesses = mappedNativeProjection({
-    utility,
-    parameter,
-    supplied: witnessLocation.getType(),
-    output: actualLocation.getType(),
-    suppliedLocation: witnessLocation,
-    outputLocation: actualLocation,
-    ...(nativeKeys === undefined ? {} : { nativeKeys }),
-  });
-  return resolved(witnesses, actualLocation, [utility, parameter]);
+  return delivered.kind === "unresolved" ? delivered : mappedProjectionQuery(delivered.value, nativeKeys);
 }
 
-/** Seek a candidate identity in concrete declaration-paired slots; recursive or unresolved templates grant no witness. */
+/** Seek paired slots in the Morph consumer's actual Program; parser values cannot enter this API. */
 export function readNativeSubstitutedTypeSlots(input: NativeSubstitutedTypeInput): ReferenceFact<readonly NativeSubstitutedTypeSlot[]> {
   const delivered = nativeSubstitutionInput(input);
   if (delivered.kind === "unresolved") {
     return delivered;
   }
-  const slots = collectNativeSubstitutedSlots(delivered.value);
-
+  const slots = collectSubstitutedSlotsCore(delivered.value);
   return resolved(
     slots,
     input.actualLocation,
     slots.flatMap((slot) => slot.declarations),
   );
+}
+
+/** The same canonical slot algorithm over the raw parser's actual native values. */
+export function readParserSubstitutedTypeSlots(
+  input: ParserSubstitutedTypeInput,
+): ReferenceFact<readonly NativeSubstitutedTypeSlot<nativeTs.Type, nativeTs.Node>[], nativeTs.Node> {
+  const delivered = parserSubstitutionQuery(input);
+  if (delivered.kind === "unresolved") {
+    return delivered;
+  }
+  const slots = collectSubstitutedSlotsCore(delivered.value);
+  return resolved(
+    slots,
+    input.actualLocation,
+    slots.flatMap((slot) => slot.declarations),
+  );
+}
+
+/** Mapped projections keep identical syntax/property checks in both actual compiler realms. */
+export function readParserMappedProjection(input: ParserSubstitutedTypeInput, nativeKeys?: true): ReferenceFact<readonly nativeTs.Type[], nativeTs.Node> {
+  const delivered = parserSubstitutionQuery(input);
+  return delivered.kind === "unresolved" ? delivered : mappedProjectionQuery(delivered.value, nativeKeys);
 }

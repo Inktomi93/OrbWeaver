@@ -1,8 +1,11 @@
 // Declaration and data-shape recognition over delivered nodes; population and reporting belong to consumers.
-import type { InterfaceDeclaration, Node as MorphNode, SourceFile, Type, TypeAliasDeclaration, TypeNode } from "ts-morph";
+import type { InterfaceDeclaration, Node as MorphNode, SourceFile, TypeAliasDeclaration, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type nativeTs from "typescript";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import { shapeExports } from "./shape-facts.ts";
+import type { NativeParserTypeContext, TypeRealmOperations } from "./type-member-origin-contract.ts";
+import { morphTypeOperations, parserTypeOperations } from "./type-member-origin-core.ts";
 import { isFactoryCallFromPackage, ZOD_PACKAGE } from "./zod-origin.ts";
 
 export const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input", "Request", "Response", "Wire"] as const;
@@ -11,29 +14,39 @@ export const WIRE_SHAPE_SUFFIXES = ["View", "Result", "Summary", "Row", "Input",
  *  result, a service bundle or a deps record carries behaviour and cannot cross a wire; a wire shape cannot.
  *  Scalars (anything that is neither an object nor a union or intersection of them) are data. */
 export function isPlainDataShape(node: InterfaceDeclaration | TypeAliasDeclaration): boolean {
-  const seen = new Set<unknown>();
-  const holdsBehaviour = (type: Type): boolean => {
-    if (seen.has(type.compilerType)) {
+  return plainDataShapeCore(node, morphTypeOperations(node.getProject().getProgram().compilerObject));
+}
+
+/** The same data/behaviour predicate over the parser's actual native declarations. */
+export function isParserPlainDataShape(node: nativeTs.InterfaceDeclaration | nativeTs.TypeAliasDeclaration, parser: NativeParserTypeContext): boolean {
+  return plainDataShapeCore(node, parserTypeOperations(parser));
+}
+
+function plainDataShapeCore<N extends object, T, S, G, I extends object>(node: N, ops: TypeRealmOperations<N, T, S, G, I>): boolean {
+  const seen = new Set<I>();
+  const holdsBehaviour = (type: T): boolean => {
+    const identity = ops.typeIdentity(type);
+    if (seen.has(identity)) {
       return false;
     }
-    seen.add(type.compilerType);
-    const parts = [...type.getUnionTypes(), ...type.getIntersectionTypes()];
+    seen.add(identity);
+    const parts = [...ops.unions(type), ...ops.intersections(type)];
     if (parts.length > 0) {
       return parts.some(holdsBehaviour);
     }
-    if (!type.isObject()) {
+    if (!ops.flags(type).object) {
       return false;
     }
-    if (type.isArray() || type.isReadonlyArray() || type.isTuple()) {
-      return [...type.getTypeArguments(), ...type.getTupleElements()].some(holdsBehaviour);
+    const tuple = ops.tuple(type);
+    if (ops.element(type) !== undefined || tuple !== undefined) {
+      return [...ops.arguments(type), ...(tuple ?? [])].some(holdsBehaviour);
     }
-    if (type.getCallSignatures().length > 0 || type.getConstructSignatures().length > 0) {
+    if (ops.signatures(type, "call").length > 0 || ops.signatures(type, "construct").length > 0) {
       return true;
     }
-    const indexed = [type.getStringIndexType(), type.getNumberIndexType()].filter((member) => member !== undefined);
-    return type.getProperties().some((property) => holdsBehaviour(property.getTypeAtLocation(node))) || indexed.some(holdsBehaviour);
+    return ops.properties(type).some((property) => holdsBehaviour(ops.symbolType(property, node))) || ops.indexes(type).some(holdsBehaviour);
   };
-  return !holdsBehaviour(node.getType());
+  return !holdsBehaviour(ops.type(node));
 }
 
 const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "discriminatedUnion"]);
