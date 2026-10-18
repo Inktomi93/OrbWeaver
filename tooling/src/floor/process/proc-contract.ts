@@ -17,6 +17,9 @@ export interface SpawnNicedOptions {
   readonly env?: Readonly<Record<string, string>>;
   /** Wall-clock ceiling; on expiry the child gets SIGKILL and `timedOut` is true. */
   readonly timeoutMs?: number;
+  /** Run the child under the `niced-exec.ts` launcher, which stops and joins it if this caller dies. The
+   *  child leads its own group, so a caller's death would otherwise orphan it. */
+  readonly supervised?: boolean;
 }
 
 export interface SpawnNicedResult {

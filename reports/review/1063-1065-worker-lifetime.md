@@ -34,3 +34,39 @@ host contention, not this change: those tests use a fixed timeout that is not lo
 finish, which cover exit codes 0, 1 and 2 through the real runner, pass with the launcher in place.
 
 `pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome on the 3 changed files: clean.
+
+## 1064: async compiler children
+
+Design (recorded in the `tooling/src/verify/cli.ts` header): the CLI installs no SIGTERM handler. Async
+children opt into the same supervised launcher as sync ones (`supervised: true` on `spawnNiced`). The
+launcher leads the child's process group, so the timeout group kill still reaches the compiler.
+
+Why not a CLI handler: while the CLI is blocked in a sync spawn, a JS handler cannot run until the spawn
+returns. Installing one would also turn the CLI's default death into a deferred no-op, so the sync launcher
+would never see its caller die. The launcher also covers SIGKILL of the CLI. Script mode is unchanged:
+package.json launches relay TERM with no KILL deadline.
+
+Stop tests, one per launch path:
+- sync supervised: `semantic-inventory-worker-lifetime.int.test.ts` (1055) and `eslint-stop.int.test.ts` (1063);
+- async: `tests/tooling/verify/ops/typecheck-stop.int.test.ts`, the real `executeTypecheckPrograms` on a
+  one-file fixture, with the real `scripts/ts7.ts` frozen.
+
+Red (source unmodified):
+
+```
+   × SIGTERM to a typecheck run ends and joins its async compiler child 56673ms
+AssertionError: every process the stopped typecheck run started: expected [ 825844 ] to deeply equal []
+```
+
+Green:
+
+```
+   ✓ SIGTERM to a typecheck run ends and joins its async compiler child 19660ms
+```
+
+Related:
+- proc (6), proc.int (14), niced-exec.int (7): pass.
+- typecheck.int: 19 of 20 pass, including "a signaled native child stays a tool error through the real
+  wrapper", which checks exit semantics through the launcher. One cold-start case timed out at 32 s at load
+  average 20 and passed alone at 23 s once load dropped.
+- `pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome: clean.

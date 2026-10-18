@@ -402,9 +402,10 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
  *  (never rejects on a non-zero code — the CALLER judges codes against the exit contract). */
 export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNicedOptions = {}): Promise<SpawnNicedResult> {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = DOORS.spawn(cmd, [...args], {
+    const spawned = opts.supervised === true ? launcherCommand(cmd, args) : { command: cmd, args };
+    const child = DOORS.spawn(spawned.command, [...spawned.args], {
       cwd: opts.cwd,
-      env: inheritedProcessEnv(opts.env),
+      env: opts.supervised === true ? supervisedEnv(inheritedProcessEnv(opts.env)) : inheritedProcessEnv(opts.env),
       stdio: ["ignore", "pipe", "pipe"],
       // Its own process group, the `spawnNicedChild`/`spawnFullPriorityChild` shape — see the timeout below.
       detached: DETACHED_GROUP_LEADER,

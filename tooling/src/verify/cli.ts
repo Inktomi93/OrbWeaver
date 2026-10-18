@@ -25,6 +25,13 @@
 //   typecheck                → cli.ts typecheck [--config <paths>…]
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
 //   lint:eslint (scoped)     → cli.ts eslint-scoped <paths…>  (the same isolation over a verify selection)
+//
+// STOPPING: this CLI installs no SIGTERM handler, by design. A heavy child (inventory worker, ESLint worker,
+// compiler) runs under a supervised `niced-exec.ts` launcher (`supervised: true` on runNicedSync or
+// spawnNiced) that guards this process's pid, then TERM-then-KILL escalates its child and joins it once
+// this process is gone. A handler here could not help a sync spawn: the JS callback waits until spawnSync
+// returns, and catching TERM would only stop this process from dying, so the launcher would never notice.
+// The launcher also covers SIGKILL, which no handler can. Stage children keep their own group-kill teardown.
 import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
 import type { VerifyVerb } from "./index.ts";

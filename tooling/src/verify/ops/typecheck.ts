@@ -313,7 +313,8 @@ export async function executeTypecheckPrograms(
     throw new Error(`typecheck TS7 wrapper is missing: ${TS7_WRAPPER}`);
   }
   const runner =
-    options.runner ?? (async (config: string): Promise<SpawnNicedResult> => await spawnNiced(process.execPath, typecheckCompilerArgv(config), { cwd: root }));
+    options.runner ??
+    (async (config: string): Promise<SpawnNicedResult> => await spawnNiced(process.execPath, typecheckCompilerArgv(config), { cwd: root, supervised: true }));
   return {
     discovered: discovered.length,
     requested,
@@ -339,7 +340,8 @@ export async function runTypecheck(root: string, args: readonly string[]): Promi
     ? await withApplicationPrograms(root, async ({ programs, canonicalPrograms }) => {
         const concurrency = readConcurrencyProfile().pnpmWorkspaceConcurrency;
         const configs = new Map(programs.map((program) => [program.owner.config, program.config]));
-        const runner = async (config: string): Promise<SpawnNicedResult> => await spawnNiced(process.execPath, typecheckCompilerArgv(config), { cwd: root });
+        const runner = async (config: string): Promise<SpawnNicedResult> =>
+          await spawnNiced(process.execPath, typecheckCompilerArgv(config), { cwd: root, supervised: true });
         return {
           discovered: canonicalPrograms.length,
           requested: null,
