@@ -4,6 +4,7 @@
 // tiers/scoping/exit classification), and the standalone reconciliation stages (type/execution membership,
 // the db baseline, the orphan-export ratchet).
 
+export { readCompilerPrograms } from "../floor/compiler/compiler-programs.ts";
 export type { NativeDurationShardCollection } from "./contract/application-partitions.ts";
 export type {
   BaseUiBinding,
@@ -143,7 +144,6 @@ export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
 export { runPolicyPass } from "./lib/policy-pass.ts";
 export { planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
 export { executePolicyPlan } from "./lib/policy-plan-execute.ts";
-export { readCompilerPrograms } from "./lib/policy-program-membership.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";
 export { planTypecheckPrograms } from "./lib/program-routing.ts";

@@ -225,5 +225,4 @@ export function scopeParentsOfDerivedTables(model: SchemaProjectedModel): Readon
   return parents;
 }
 
-// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting reportBlindWhenEmpty to a sibling
 export { reportBlindWhenEmpty } from "./tenancy-scope-blind.ts";

@@ -4,12 +4,9 @@ import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { readCompilerPrograms } from "@orb/tooling/verify";
+import { readCompilerConfigEntries } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import type { PolicyProgramMembership } from "../../../../tooling/src/verify/contract/policy-scope.ts";
-import {
-  readAvailablePolicyPrograms,
-  readCompilerConfigEntries,
-  readPolicyProgramGraph,
-} from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
+import { readAvailablePolicyPrograms, readPolicyProgramGraph } from "../../../../tooling/src/verify/lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../../../../tooling/src/verify/lib/policy-repo-inventory.ts";
 
 function plant(root: string, files: Readonly<Record<string, string>>): void {

@@ -463,6 +463,3 @@ export function operationIdentity(context: BusReadContext, call: CallExpression,
   }
   return { kind: "injected", owner: bus, memberPath: [callName(context, call) ?? "<call>"] };
 }
-
-// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting typeDiscriminators to a sibling
-export { typeDiscriminators } from "./bus-fact-read-discriminators.ts";

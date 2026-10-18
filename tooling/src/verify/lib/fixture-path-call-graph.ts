@@ -36,7 +36,6 @@ function functionOfDeclaration(declaration: MorphNode): FunctionNode | undefined
     const initializer = declaration.getInitializer();
     return initializer !== undefined && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer)) ? initializer : undefined;
   }
-  // biome-ignore lint/complexity/noUselessUndefined: tsconfig enables noImplicitReturns.
   return undefined;
 }
 

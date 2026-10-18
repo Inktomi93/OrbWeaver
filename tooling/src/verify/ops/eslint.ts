@@ -8,7 +8,7 @@ import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs.ts";
-import { compilerConfigRoster } from "../../floor/compiler/compiler-programs.ts";
+import { compilerConfigRoster, readCompilerProgramsFromInventory } from "../../floor/compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
 import { BASE_UI_DATA_RULE, BASE_UI_HANDLER_RULE, BASE_UI_NATIVE_INPUT_PATHS, BASE_UI_STATE_RULE } from "../contract/baseui.ts";
 import type { EslintFileAdmission, EslintNativeMetadataFamily as NativeMetadataFamily } from "../contract/config-snapshot.ts";
@@ -21,7 +21,6 @@ import { affectsClientMapNativeLint, CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_N
 import { DISCOVERY_MAX_BUFFER_BYTES, readAdmittedEslintPopulation, readDiscoveredPopulation, readTypedEslintAdmissions } from "../lib/config-snapshot.ts";
 import { affectsContextNativeLint, CONTEXT_NATIVE_INPUT_PATHS, CONTEXT_NATIVE_RULES } from "../lib/context-definition-shape.ts";
 import { eslintScheme } from "../lib/exit-classifiers.ts";
-import { readCompilerProgramsFromInventory } from "../lib/policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import {
   affectsSourceTypeSuppressionNativeLint,

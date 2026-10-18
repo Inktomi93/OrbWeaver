@@ -348,7 +348,6 @@ export function createFixturePathOriginReader(read?: FixturePathNativeRead): Fix
         return { kind: "scratch", depth: 0, carrier: expression };
       }
     }
-    // biome-ignore lint/complexity/noUselessUndefined: tsconfig enables noImplicitReturns.
     return undefined;
   }
 

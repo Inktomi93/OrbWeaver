@@ -33,7 +33,6 @@ function propertyName(binding: BindingElement): string | undefined {
   if (Node.isIdentifier(property) || Node.isStringLiteral(property) || Node.isNoSubstitutionTemplateLiteral(property)) {
     return Node.isIdentifier(property) ? property.getText() : property.getLiteralText();
   }
-  // biome-ignore lint/complexity/noUselessUndefined: tsconfig enables noImplicitReturns.
   return undefined;
 }
 
@@ -73,7 +72,6 @@ export function createFixtureAuthoredRecordReader(services: FixtureAuthoredRecor
       return current;
     }
     if (!Node.isIdentifier(current)) {
-      // biome-ignore lint/complexity/noUselessUndefined: tsconfig enables noImplicitReturns.
       return undefined;
     }
     const stable = fixtureStable(current, services.native);

@@ -8,12 +8,12 @@ import { fileURLToPath } from "node:url";
 import { authorProgramWorld, isTypeWorldSource, PACKAGE_NAMES, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import { ambientRootsForProgram, ambientScopeOf } from "@orb/tooling/floor/compiler/type-config-intent";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
+import { readCompilerProgramsFromInventory } from "../../floor/compiler/compiler-programs.ts";
 import type { ApplicationPopulation, ApplicationProgram, ApplicationSubjects } from "../contract/application.ts";
 import type { CompilerProgram } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../contract/population.ts";
 import { applicationBuildRoots } from "./application-build-roots.ts";
 import { applicationTestRoots } from "./application-test-roots.ts";
-import { readCompilerProgramsFromInventory } from "./policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
 import { populationIncludes } from "./population-resolver.ts";
 

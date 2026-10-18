@@ -73,7 +73,6 @@ function localHandler(expression: Expression, source: SourceFile): FunctionNode 
       }
     }
   }
-  // biome-ignore lint/complexity/noUselessUndefined: tooling/tsconfig enables noImplicitReturns.
   return undefined;
 }
 

@@ -7,7 +7,6 @@ import { dirname, join, posix, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DevToolsAssetEntry, DevToolsAssetManifest, DevToolsAssetPin, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
-// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting these shared types to a sibling leaf
 export type { DevToolsAssetEntry, DevToolsAssetManifest, DevToolsAssetPin, DevToolsAssetServer, VerifiedDevToolsAssets } from "./devtools-assets-types.ts";
 
 const SHA256_RE = /^[a-f0-9]{64}$/u;
@@ -371,6 +370,3 @@ function verifyExactInventory(inventory: ReadonlyMap<string, DevToolsClosureFile
     throw new Error("DevTools asset root contains missing or unexpected resources");
   }
 }
-
-// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting the server to a sibling
-export { startDevToolsAssetServer } from "./devtools-assets-server.ts";

@@ -6,14 +6,15 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { isLegacyTestProgram, isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
-import { runGit } from "@orb/tooling/floor/git/git";
+import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { isLegacyTestPath } from "@orb/tooling/floor/testing/test-population";
+import { readCompilerProgramsFromInventory } from "../../floor/compiler/compiler-programs.ts";
 import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject } from "../contract/typecheck-plan.ts";
-import { readCompilerProgramsFromInventory, resolvePolicyPathOwnership } from "./policy-program-membership.ts";
+import { resolvePolicyPathOwnership } from "./policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
-import { GIT_READ_PREFIX, gitLsFiles } from "./repo-paths.ts";
+import { gitLsFiles } from "./repo-paths.ts";
 
 const TSCONFIG_RE = /(?:^|\/)tsconfig(?:[.-][^/]*)?\.json$/u;
 const LIST_FILES_MAX_BUFFER = 67_108_864;

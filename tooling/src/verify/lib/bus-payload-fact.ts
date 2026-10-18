@@ -88,9 +88,6 @@ import {
 } from "./bus-payload-fact-resolve.ts";
 import { scanNotificationSchema } from "./bus-payload-fact-schema.ts";
 
-// biome-ignore lint/performance/noBarrelFile: re-export preserves the original module's public API after extracting the schema-arm reader to a sibling leaf
-export { NOTIFICATION_SCHEMA_NAME } from "./bus-payload-fact-resolve.ts";
-
 /** The bus event UNION declarations, by their one-home paths. The provider reads these files and picks out
  *  the named declarations below — it does NOT flag every property in these large contract files.
  *

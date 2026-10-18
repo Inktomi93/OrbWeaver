@@ -230,7 +230,6 @@ function firstStaticWord(text: string): { readonly token: string; readonly offse
       return { token: match[0], offset: i };
     }
   }
-  // biome-ignore lint/complexity/noUselessUndefined: tsconfig.base.json enables noImplicitReturns.
   return undefined;
 }
 
@@ -245,7 +244,6 @@ function seamProseSites(seen: Set<number>, lit: Node): ProseSite | undefined {
   seen.add(top.getStart());
   const text = unitText(top);
   const qualifies = !alreadySeen && wordCount(text) >= PROSE_MIN_WORDS && LOWER_RUN_RE.test(text) && !isOperatorFacing(top);
-  // biome-ignore lint/complexity/noUselessUndefined: tsconfig.base.json enables noImplicitReturns.
   return qualifies ? { top } : undefined;
 }
 

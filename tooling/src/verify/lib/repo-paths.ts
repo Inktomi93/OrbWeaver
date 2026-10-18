@@ -13,10 +13,6 @@ import { candidateIndexGitEnvironment } from "../ops/resource-index.ts";
 
 export const ROOT = process.cwd();
 
-// biome-ignore lint/performance/noBarrelFile: compatibility front door keeps existing verifier imports stable after the shared path extraction.
-export { GIT_READ_PREFIX, repoGitEnvironment } from "@orb/tooling/floor/git/git";
-export { FIXTURE_GIT_CONFIG_ARGS, fixtureGitEnvironment } from "@orb/tooling/floor/git/git-fixture";
-
 function changedPath(path: string, status: ChangedPathStatus, previousPath: string | null = null): ChangedPath {
   return { path, status, previousPath };
 }
