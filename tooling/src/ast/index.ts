@@ -81,5 +81,5 @@ export {
 } from "./ops/subset-callers.ts";
 export { collectSwallowedCandidates, isSwallowedExempt } from "./ops/swallowed.ts";
 export { collectTypeOnlyCandidates, isTypeOnlyExempt } from "./ops/typeonly.ts";
-export { ARGLESS_VERBS, INVENTORY_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";
+export { ARGLESS_VERBS, INVENTORY_VERB_FAMILIES, INVENTORY_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";
 export { collectClientConsumed, collectServerProcedures, isUnwiredExempt } from "./ops/wiring.ts";

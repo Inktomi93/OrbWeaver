@@ -1,5 +1,8 @@
 // The verb dispatch tables — what the cli routes through (re-exported via index.ts).
+
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { InventoryFamily } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import { DEFAULT_INVENTORY_FAMILIES } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags } from "../contract/types.ts";
 import { cmdApiSurface } from "./apisurface.ts";
@@ -80,8 +83,20 @@ export const TYPED_VERBS = new Set([
   "rot",
 ]);
 
-/** These readers use stored native identities and syntax, never syntax-carrier types. */
-export const INVENTORY_VERBS = new Set(["dead", "orphans", "testonly", "swallowed", "typeonly-alive", "chains", "apisurface", "rot"]);
+/** Liveness includes checked witness origins and carrier references, not only import edges. */
+export const INVENTORY_VERB_FAMILIES: ReadonlyMap<string, readonly InventoryFamily[]> = new Map<string, readonly InventoryFamily[]>([
+  ["dead", DEFAULT_INVENTORY_FAMILIES],
+  ["orphans", DEFAULT_INVENTORY_FAMILIES],
+  ["testonly", DEFAULT_INVENTORY_FAMILIES],
+  ["swallowed", DEFAULT_INVENTORY_FAMILIES],
+  ["typeonly-alive", ["exports", "references"]],
+  ["chains", DEFAULT_INVENTORY_FAMILIES],
+  ["apisurface", DEFAULT_INVENTORY_FAMILIES],
+  ["rot", DEFAULT_INVENTORY_FAMILIES],
+]);
+
+/** Inventory routing cannot admit a verb without its explicit fact demand. */
+export const INVENTORY_VERBS = new Set(INVENTORY_VERB_FAMILIES.keys());
 
 // Verbs that load searchGlobs WITHOUT the type graph — purely syntactic walks over the wide corpus.
 export const WIDE_SYNTACTIC_VERBS = new Set(["aliases", "exports", "ident", "literal"]);

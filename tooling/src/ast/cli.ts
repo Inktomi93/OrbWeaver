@@ -35,6 +35,7 @@ const {
   CORPUS_WIDE_SYNTACTIC,
   DEPCRUISE_VERBS,
   finishRun,
+  INVENTORY_VERB_FAMILIES,
   INVENTORY_VERBS,
   loadInventoryProject,
   loadProject,
@@ -128,7 +129,8 @@ function invocationCorpus(verb: string, typed: boolean, wide: boolean): ReturnTy
   if (verb === "respell") {
     return loadProject(false);
   }
-  return INVENTORY_VERBS.has(verb) ? loadInventoryProject() : loadProject(typed, wide);
+  const families = INVENTORY_VERB_FAMILIES.get(verb);
+  return families === undefined ? loadProject(typed, wide) : loadInventoryProject(families);
 }
 
 function dispatchCorpus(verb: string, corpus: ReturnType<typeof loadProject>, arg: string, flags: Flags): void {
