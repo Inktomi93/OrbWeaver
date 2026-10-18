@@ -28,6 +28,8 @@ Follow D328 before analysis dispatch. The [bottleneck research](../../../reports
 
 The original driver retains its signal-origin refusal; the full owner-policy run is stopped without a verdict. Neither qualifies the bounded successor. Item 1016 replaces the expensive reader with useful owner-read coverage and explicit limits. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md` and `reports/review/1002-owner-read-native-partial-addendum.md`.
 
+The bounded owner-policy run also remains unqualified. Its profile identifies repeated stored-schema decoding, not nominal authority lookup. Correct pinned-reader reuse while preserving currentness and disposal. Evidence: `reports/review/1016-schema-decode-cost.md`.
+
 Dispatch the corpus smoke matrix independently. Its native shape and clone checks are available; callable resolution, store cost and gate migration do not block item 898. Complete its provider, authentication, width, style and flow acceptance before general legacy suite ports.
 
 Migrate qualified ESLint-only MOVE rows and DELETE scaffolding before registries. Security rows wait for behavioral successors. Prototype lint lands before shared ESLint edits. Preserve KEEP data and necessary missing-data refusal in its producer or consumer when deleting health twins.
@@ -68,7 +70,7 @@ Legacy isolation, native lint, explicit exports, native integers and domain-owne
 
 Testkit exists as a world-split package. The client mounting foundation delegates to production composition and supports named primitive isolation. The server root delegates to production composition. Native HTTP completion joins ordinary peer disconnects and retains unexpected stream faults. The selected notification lifecycle and capsule clone controls pass. Shared facts remain work. Canonical row builders and output suppliers meet their declared contracts. Wire-output boundary accounting and allocated native supplier qualification are established. The committed corpus serves each test layer. Tooling tests stay outside the application legacy migration; existing e2e files do not establish corpus adoption.
 
-Corpus and builders qualify; selected consumers use production entries. Item 898 owns provider, auth, style, width and flow acceptance. Local evidence composes passing cases. Private intake qualifies on a disposable owner-data clone. The private browser matrix fails; diagnose its recorded failures before retrying. Snapshot and hosted acceptance remain open. Migrate the clone before seeding and capture. Keep source and personal artifacts outside Git, publication and CI. Item 977 owns UI findings. Shared readers block general ports, not smoke.
+Corpus and builders qualify; selected consumers use production entries. Item 898 owns provider, auth, style, width and flow acceptance. Local evidence composes passing cases. Private intake qualifies on a disposable owner-data clone. Private Backup reaches native ZIP size refusal; qualify full-content folder restoration and shared native/ST classification before recovery. Owner-copy rendered flows and hosted acceptance remain open. Migrate the clone before seeding and capture. Keep source and personal artifacts outside Git, publication and CI. Item 977 owns UI findings. Shared readers block general ports, not smoke.
 
 SDK execution joins native Query and observed direct-child completion, not arbitrary executable sandboxing or universal descendant containment.
 
@@ -289,16 +291,6 @@ D317 owns the pre-push check. Follow the orchestrator and lane skills; protect t
 `entry/compose` builds the graph. A decision that runs once while the graph is built, on config, mode or which dependencies exist, is wiring. A decision inside any business operation compose hands out (an op, a port method, a business callback, a handler) runs per call on live data, so it lives in its owning domain. Native graph disposal follows entry lifecycle ownership in Tier-5-Entry. Compose calls no drizzle query. The only exemption is the forward-if-set idiom for optional fields. Item 964 builds the gate and moves the rules; item 958 builds the test composition root on the result, so every rule is reachable from its domain.
 
 `compose-wiring-only` judges compose and the entry helpers it reaches, not arbitrary test assemblies. The server harness work item must enforce one test composition home that delegates to production. Reject copied domain assemblies outside that home while admitting production-derived builders and external-edge adapters. Use existing import and clone checks or native restrictions where they express the boundary; add no certification framework.
-
-### What carries over from the retrofit
-
-- Product moved to its home: wire schemas into contracts, one home for the present-host read, kit helpers, exported production seams, rules shared by client and server in contracts or kit.
-- Testkit world doors, builders and typed responders feed item 959.
-- Gates and readers: the keyed waiver budget, tenancy through joins, the shared shape comparer and member reader: the first slices of items 953 to 955.
-- The CT door, typed story ids and the shared width builder: the start of item 960.
-- The seed and clone path for side-eye: part of the corpus.
-
-Retrofits inside legacy test files (vanity aliases, casts, waiver bookkeeping, file splits) leave with those files.
 
 ### Each layer answers one question
 

@@ -25,6 +25,19 @@ function failedResponse(response) {
   return typeof response === "string" && /^(apply_patch verification failed|Failed|Error:|Invalid patch)/u.test(response);
 }
 
+// The checker is advisory: its findings and non-verdicts arrive as exit-0 PostToolUse context on stdout.
+function checkerContext(stdout) {
+  try {
+    const message = JSON.parse(stdout)?.hookSpecificOutput?.additionalContext;
+    if (typeof message === "string" && message !== "") {
+      return message;
+    }
+  } catch {
+    // Falls through to the named non-verdict below.
+  }
+  return `Edit advisory was NOT completed: checker printed unreadable context. ${stdout.trim()}`;
+}
+
 function changedPaths(patch) {
   const lines = patch.trim().split(/\r?\n/u);
   if (lines[0] !== "*** Begin Patch" || lines.at(-1) !== "*** End Patch") {
@@ -100,10 +113,10 @@ function main() {
   const messages = [];
   if (result.error !== undefined) {
     messages.push(`Edit advisory was NOT completed: ${result.error.message}`);
-  } else if (result.status === 2) {
-    messages.push(result.stderr.trim() || "Edit advisory was NOT completed: checker returned no diagnostics.");
   } else if (result.status !== 0 || result.stderr !== "") {
     messages.push(`Edit advisory was NOT completed: checker exited ${String(result.status)}. ${result.stderr.trim()}`);
+  } else if (result.stdout !== "") {
+    messages.push(checkerContext(result.stdout));
   }
   if (messages.length > 0) {
     context(messages.join("\n\n"));

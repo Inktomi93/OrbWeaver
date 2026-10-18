@@ -12,7 +12,6 @@
 // PROMPT pair (D121-G), where the same binding decides whether the rack's bars carry the bound chat's REAL
 // materialized costs or the chat-free `~—` floor.
 
-import { PresetReadout } from "@orb/client/features/preset";
 import {
   goToLanding,
   selectChat,
@@ -32,6 +31,7 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { makeCachePolicy, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { PresetReadout } from "#client/features/preset/components/readout/preset-readout.tsx";
 import { PromptReadout } from "#client/features/preset/components/readout/prompt-readout.tsx";
 import { CapabilityCard, EffectiveProfile } from "#client/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "#client/features/preset/components/readout/transforms-readout.tsx";

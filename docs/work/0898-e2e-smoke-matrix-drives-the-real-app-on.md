@@ -24,13 +24,13 @@ The smoke specs pass headless in CI on the seeded corpus, and locally on an owne
 
 ## Evidence
 
-Corpus flows, provider/authentication modes, widths, styles and CI admission are integrated. Settings include About and Backup. Hosted and owner-copy execution remain open; collection is not execution.
+Corpus flows, provider modes and CI admission are integrated. Hosted and owner-copy execution remain open; collection is not execution.
 
 Navigation, canon and persona freshness have scoped production evidence. Preserve source epochs and failures. Evidence: `reports/review/898-qualification-leg.md` and `reports/review/898-qualification-case-evidence.json`.
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
-Private intake qualifies on a disposable, schedule-quarantined copy. Prepared input remains unchanged. Private matrix execution fails with confirmed retirement. Diagnose the recorded failures before retrying. Browser, snapshot and hosted acceptance remain open. Keep personal data outside Git, publication and CI. Evidence: `reports/review/898-private-matrix-current-qualification.md`. Intake evidence: `reports/review/898-private-current-intake-verdict.md`.
+Private intake qualifies on an unchanged disposable, schedule-quarantined copy. The matrix fails with confirmed retirement. Keep personal data outside Git, publication and CI. Evidence: `reports/review/898-private-matrix-current-qualification.md` and `reports/review/898-private-current-intake-verdict.md`.
 
 Request-sensitive corpus publication passes its seed and native boundary controls. Evidence: `reports/review/898-v2-publication.md`.
 
@@ -39,3 +39,5 @@ Isolated E2E stacks disable only the native checker HUD. Terminal lint diagnosti
 Synthetic cases pass across frozen matrix and recovery epochs, not a current aggregate. Preserve failures. Native-client conversation and sharing controls pass. Evidence: `reports/review/898-native-trpc-browser-qualification.md`, `reports/review/898-production-defect-controls.md`, `reports/review/898-v2-matrix-qualification.md` and `reports/review/898-v2-matrix-recovery.md`.
 
 Windowed World Info and file-backed Backup pass every style and width, retaining native ordering, workload ownership and exact restoration. Private/full matrix and hosted acceptance remain open. Evidence: `reports/review/898-large-library-upload-selection-independent.md`.
+
+Native ZIP size admission refuses the private Backup selection. Qualify complete folder restoration and shared native/ST classification before recovery. Evidence: `reports/review/898-private-backup-response-diagnosis.md`.

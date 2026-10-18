@@ -31,7 +31,7 @@ Reference storage and native lifetimes pass review. Evidence: `reports/review/na
 
 The generation prototype census is integrated. Its driver retains a non-prototype signal refusal. D328 ends general callable qualification and helper-specific repair. Evidence: `reports/review/1002-d323-original-census-result.md`.
 
-Native source admission and captured reuse preserve world identity. Sparse-env remains unqualified; no retained demand justifies expansion. Evidence: `reports/review/1002-native-source-currentness-ordinary.md` and `reports/review/1002-retained-env-failure-purpose.md`.
+Source admission preserves world identity. Repeated full schema decoding blocks owner-policy cost qualification; pinned-reader reuse must preserve currentness and disposal. Evidence: `reports/review/1016-schema-decode-cost.md`.
 
 Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
 
