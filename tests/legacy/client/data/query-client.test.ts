@@ -8,12 +8,13 @@
 // invariant" test class (Spine-Testing §6), not a tautology over a constructor call.
 
 // @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-import { createAppQueryClient, retryUnlessBadRequest } from "@orb/client/data";
+import { createAppQueryClient } from "@orb/client/data";
 import type { Notify, NotifyInput } from "@orb/client/lib";
 import { bindNotify, toNotice } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MutationObserver, QueryObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
+import { retryUnlessBadRequest } from "#client/data/query-client.ts";
 
 /** A spy Notify bound via the real `bindNotify` composition seam — never `vi.mock()` of the module. */
 function spyNotify(): Notify & { readonly errorCalls: string[] } {

@@ -53,7 +53,8 @@ worktree with its own `CT_PORT`.
 
 ## Stories and seeds
 
-- A `_ct-stories` module exports only components. Stories import through `@orb/client/*` aliases.
+- A `_ct-stories` module exports only components.
+- Rebuilt stories import client modules through declared `@orb/client/*` doors. Legacy stories may use the existing root raw-reach map.
 - Seed first-run state with `addInitScript` and `page.reload()`.
 - A lane touching app-shell, the first-run persona gate, the home launcher, or the ambient-route feed runs
   `app-root.ct.tsx` and `route-pending.ct.tsx`.

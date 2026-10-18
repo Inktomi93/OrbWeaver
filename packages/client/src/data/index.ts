@@ -24,12 +24,9 @@ export {
   useRenderPolicyFloor,
   useUploadCaps,
 } from "./auth-config.ts";
-export type { ChatBusDeps, RoomTransport } from "./bus/index.ts";
+export type { ChatBusDeps } from "./bus/index.ts";
 export {
-  applyChatBusEvent,
-  createRoomRegistry,
   markTurnStopping,
-  PostEventSource,
   recoverTurnAfterStopFailure,
   useBusRoom,
   useChatBus,
@@ -45,7 +42,7 @@ export { createEntityMutation } from "./create-entity-mutation.ts";
 export { readAutomationFires } from "./fetch-automation-fires.ts";
 export { fetchPluginUiSource } from "./fetch-plugin-ui-source.ts";
 export { readFresh } from "./fresh-read.ts";
-export { throwHttpError } from "./http-error.ts";
+export {} from "./http-error.ts";
 export { importBundle } from "./import-bundle.ts";
 export type { CardImportResult } from "./import-characters.ts";
 export { importCharacters } from "./import-characters.ts";
@@ -55,41 +52,39 @@ export { importTree, relativePathOf, reviewTreePersonas } from "./import-tree.ts
 export type { TreeImportCaps, TreeImportPlan } from "./import-tree-plan.ts";
 export { plannedFiles, planTreeImport, skippedByReason } from "./import-tree-plan.ts";
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
-export { createInvalidation } from "./invalidation.ts";
-export { applyCanonView } from "./invalidation-carrier.ts";
+export {} from "./invalidation.ts";
+export {} from "./invalidation-carrier.ts";
 export { connectionWriteReads, personaWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { usePresenceRead, useSendAvailabilityRead } from "./live-fact-reads.ts";
 export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
-export { createAppQueryClient, retryUnlessBadRequest, trpcErrorCode } from "./query-client.ts";
+export { createAppQueryClient, trpcErrorCode } from "./query-client.ts";
 export { QueryErrorState } from "./query-error-state.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";
 export { restoreCardLorebook } from "./restore-card-lorebook.ts";
-export { __resetSessionFreshness, markSessionFresh, sessionFreshnessAgeMs, startSessionFreshness } from "./session-freshness.ts";
-export { clearJoinStash, peekJoinStash, takeSessionResume, writeSessionResume } from "./session-resume.ts";
+export {} from "./session-freshness.ts";
+export { clearJoinStash, peekJoinStash } from "./session-resume.ts";
 export { skeletonRowCountFor } from "./skeleton-row-metrics.ts";
 export { SkeletonRows } from "./skeleton-rows.tsx";
-export { completeReauth, recoverIfUnauthorizedCode } from "./stale-session.ts";
+export { completeReauth } from "./stale-session.ts";
 export type { Trpc, TrpcClient, TrpcReadError } from "./trpc.ts";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc.ts";
-export { UploadRefusedError, uploadAsset } from "./upload-asset.ts";
+export { UploadRefusedError } from "./upload-asset.ts";
 export { uploadDocument } from "./upload-document.ts";
-export type { CardFrameRequest } from "./use-card-frame.ts";
-export { cardFrameMintBody, mintCardFrame, useCardFrameSrc } from "./use-card-frame.ts";
+export { useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearance } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
 export { DISPLAY_PLACEMENT, useDisplayScripts, usePrefetchDisplayScripts } from "./use-display-scripts.ts";
 export { useDecisionQuery, useGatedQuery } from "./use-gated-query.ts";
 export { useHuskReaper } from "./use-husk-reaper.ts";
 export { useInvalidation } from "./use-invalidation.ts";
-export { useOnlineStatus } from "./use-online-status.ts";
+export {} from "./use-online-status.ts";
 export { useOpenRefinery } from "./use-open-refinery.ts";
 export type { PluginDisplayRow } from "./use-plugin-display-text.ts";
 export { usePluginDisplayText } from "./use-plugin-display-text.ts";
-export type { PluginFrameRequest } from "./use-plugin-frame.ts";
-export { mintPluginFrame, pluginFrameMintBody, revokePluginFrame, usePluginFrameSrc } from "./use-plugin-frame.ts";
+export { usePluginFrameSrc } from "./use-plugin-frame.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
 export { useReattributePersona } from "./use-reattribute-persona.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";

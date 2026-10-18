@@ -7,7 +7,7 @@
 
 import { ListPaneHeaderHost, QueryBoundary } from "@orb/client/components";
 import type { ChatBusDeps } from "@orb/client/data";
-import { applyChatBusEvent, createInvalidation, QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
+import { QueryErrorState, useOrbSocket, useTRPC } from "@orb/client/data";
 import { shellContentWidth } from "@orb/client/features/app-shell";
 import { automationActivityTab, automationQuickReplySource, automationSuggestionSource } from "@orb/client/features/automation";
 import type { GoToSection } from "@orb/client/features/chat";
@@ -135,6 +135,8 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
+import { applyChatBusEvent } from "#client/data/bus/apply-chat-bus-event.ts";
+import { createInvalidation } from "#client/data/invalidation.ts";
 import { SectionContextHeader, SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
 import { CharacterGalleryDialog } from "#client/features/chat/anchors/character-gallery-dialog.tsx";
 import { AddChatBookDialog } from "#client/features/chat/components/add-chat-book-dialog.tsx";

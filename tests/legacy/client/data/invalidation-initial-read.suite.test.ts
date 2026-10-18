@@ -1,5 +1,5 @@
 // A committed bus event cannot disappear beneath an older initial HTTP response.
-import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { __resetBusDupBursts } from "@orb/client/lib";
 import type { MessageView } from "@orb/contracts/chat";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QueryExecuteOptions } from "@tanstack/react-query";
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { vi } from "vitest";
+import { createInvalidation } from "#client/data/invalidation.ts";
 import { runAfterViewTransition, withViewTransition } from "#client/lib/view-transition.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 

@@ -38,4 +38,4 @@ Reviewed non-macro kit cleanup removes obsolete exports and dead implementations
 
 Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
 
-Reviewed client doors preserve module evaluation and direct CT exports. Scoped checks pass; legacy DOM remains red and unattributed. Only exact stale keys leave. Evidence: `reports/review/989-client-components-independent.md`.
+Reviewed client data doors preserve module evaluation and legacy cases. Native consumer roles stay explicit; scoped legacy failures remain red. Only exact stale keys leave. Evidence: `reports/review/989-client-data-independent.md`.

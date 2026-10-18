@@ -16,13 +16,13 @@
 // The retire grace is a TIMER, so every test that wants a real detach advances past it (`PAST_RETIRE_GRACE_MS`
 // is "well past", not the constant itself — the tests pin the BEHAVIOUR, not the tuning).
 
-import type { RoomTransport } from "@orb/client/data";
-import { createRoomRegistry } from "@orb/client/data";
 import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
+import type { RoomTransport } from "#client/data/bus/room-registry.ts";
+import { createRoomRegistry } from "#client/data/bus/room-registry.ts";
 
 const CHAT = castId<ChatId>("chat_reg_1");
 const USER_ROOM: StreamRoomRef = { channel: "user" };

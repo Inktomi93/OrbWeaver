@@ -30,7 +30,7 @@ Navigation, canon and persona freshness have scoped production evidence. Preserv
 
 The corpus smoke matrix is independent of callable resolution, store cost and gate migration. Native shape and clone checks judge its specs. Only general legacy suite ports wait for shared-reader completion.
 
-Private intake qualifies on a disposable, schedule-quarantined copy. Prepared input remains unchanged. Synthetic Chromium/container retirement qualifies; the private matrix is in flight, not accepted. Browser, snapshot and hosted qualification remain open. Keep personal data outside Git, publication and CI. Recover the existing handle from `reports/review/898-private-matrix-current-qualification.md`. Intake evidence: `reports/review/898-private-current-intake-verdict.md`.
+Private intake qualifies on a disposable, schedule-quarantined copy. Prepared input remains unchanged. Private matrix execution fails with confirmed retirement. Diagnose the recorded failures before retrying. Browser, snapshot and hosted acceptance remain open. Keep personal data outside Git, publication and CI. Evidence: `reports/review/898-private-matrix-current-qualification.md`. Intake evidence: `reports/review/898-private-current-intake-verdict.md`.
 
 Request-sensitive corpus publication passes its seed and native boundary controls. Evidence: `reports/review/898-v2-publication.md`.
 

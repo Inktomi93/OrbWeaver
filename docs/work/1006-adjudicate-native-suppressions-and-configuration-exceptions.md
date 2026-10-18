@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-10-18
 priority: P2
 area: tooling
-lane: codex/native-exception-remainder-1006
 plan: test-foundation
 ---
 
@@ -50,4 +49,4 @@ Source error-suppression retirement is integrated with validated browser imports
 
 Production and tooling permissions narrow to actual subjects. Sessions policy binds once per graph. Evidence: `reports/review/1006-production-native-exceptions-claude.md`, `reports/review/1006-tooling-native-exceptions-claude.md` and `reports/review/1048-session-role-policy-security-independent.md`.
 
-Reviewed cleanup preserves lifetimes; prior source reds remain. Complete suppression qualification retains a budget alarm without tool errors. Hook config narrows to diagnostic-bearing files; remaining exceptions and type negatives stay open. Evidence: `reports/review/1006-current-suppression-authority.md` and `reports/review/1006-hook-config-exceptions.md`.
+Suppression qualification retains its budget alarm. Hook permissions narrow; script type-definition exemptions are removed. Remaining config and type-negative decisions stay open. Evidence: `reports/review/1006-current-suppression-authority.md`, `reports/review/1006-hook-config-exceptions.md` and `reports/review/1006-script-config-exceptions.md`.
