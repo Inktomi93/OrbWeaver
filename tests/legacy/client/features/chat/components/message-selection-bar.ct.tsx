@@ -8,6 +8,7 @@
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MessageSelectionBarStory } from "../_ct-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 const DELETE_PROC = "chat.deleteMessages";
 const BAR = '[data-slot="selection-bar-root"]';
@@ -60,7 +61,7 @@ test("Delete → confirm fires ONE chat.deleteMessages with the whole selected s
   await expect
     .poll(() => trpc.lastInput(DELETE_PROC))
     .toMatchObject({
-      chatId: "chat_ct_keystone",
+      chatId: CHAT_ID,
       messageIds: ["msg_ct_sel_a", "msg_ct_sel_b"],
     });
   // Success leaves select mode → the bar unmounts.

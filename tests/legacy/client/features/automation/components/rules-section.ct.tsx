@@ -20,12 +20,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { ChatId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { ModelId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { hitExtent, touchFloorPx } from "@orb/testkit/browser/touch-floor.ts";
-import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeResolvedView } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { HOST_BAND, openContextSections } from "@orb/testkit/node/open-context-sections.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -36,7 +36,8 @@ import type { Locator, Page } from "@playwright/test";
 import { ROLE_STATUS_LABELS } from "#client/lib/connection-roles.ts";
 import { RulesActivityFreshnessStory, RulesInThisChatTabStory, RulesSectionStory, RulesSectionToastStory } from "../_ct-stories.tsx";
 
-const CHAT = castId<ChatId>("chat_ct_rules_0001");
+const CHAT = makeChatId();
+const TAB_CHAT = makeChatId();
 
 // A nested disclosure is pressed while the outer row's CollapsiblePanel is still folding open. Under load Playwright's
 // scroll-into-view shifts that clipped panel and the press lands in the gap beside the trigger, which is a test artefact:
@@ -750,7 +751,7 @@ test("#616: the host's 'This chat' tab renders the grafted Rules section after h
     "chat.getVariablePicks": () => ({ variables: [], values: {} }),
     "chat.getChat": () =>
       makeChatDetail({
-        id: "chat_ct",
+        id: TAB_CHAT,
         viewerIsHost: true,
         toolRecurseLimit: 7,
         hostDisplayScripts: false,

@@ -74,7 +74,7 @@ test("the editor's Start door reports what it applied and names the room after t
   const trpc = await routeTrpc(page, {
     "rosterPreset.get": ROSTER_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
-    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_started_ct" }) }),
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail() }),
     // `startChat` already seated every member, so the apply that follows classifies each one as present.
     "rosterPreset.applyToChat": {
       added: [],
@@ -282,7 +282,7 @@ test("turning the campaign toggle off clears the template, and the next Start st
     "rosterPreset.get": CAMPAIGN_VIEW,
     "automation.listRulePresets": [PACING_PRESET],
     "rosterPreset.update": ROSTER_VIEW,
-    "chat.startChat": makeStartChatResult({ chat: makeChatDetail({ id: "chat_started_ct" }) }),
+    "chat.startChat": makeStartChatResult({ chat: makeChatDetail() }),
     "rosterPreset.applyToChat": {
       added: [],
       alreadyPresent: ["character_ct_1", "character_ct_2"],

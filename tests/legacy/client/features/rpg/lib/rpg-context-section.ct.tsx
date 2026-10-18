@@ -31,7 +31,7 @@ import { EXTRACTION_CONTEXT_LABEL } from "#client/features/rpg/lib/host-console-
 import { RPG_SEED_HP_MAX } from "#contracts/rpg/profile.ts";
 import { deriveEffectiveDelivery } from "#server/domain/rpg/index.ts";
 import { revealActionName } from "#ui/lib/action-names.ts";
-import { makeMessageView } from "../../chat/fixtures.ts";
+import { CHAT_ID, makeMessageView } from "../../chat/fixtures.ts";
 import {
   RpgTakeoverDockedStory,
   RpgTakeoverFloorStory,
@@ -74,7 +74,7 @@ function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): TrpcWireOu
 function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "cheap"): TrpcWireOutput<"rpg.getGame"> {
   return {
     id: GAME_ID,
-    chatId: "chat_ct_keystone",
+    chatId: CHAT_ID,
     mode: "lite",
     status: "active",
     trackersReadOnly,
@@ -1190,7 +1190,7 @@ test("R4: an offstage npc can be PROMOTED to the room's characters — two-step,
 
   await expect.poll(() => trpc.count("rpg.promoteActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): settled by the poll above (see the `patchActor` payload read for the same reasoning). The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
-  expect(trpc.lastInput("rpg.promoteActor")).toEqual({ chatId: "chat_ct_keystone", targetRef: { kind: "npc", npcKey: "vesna" } });
+  expect(trpc.lastInput("rpg.promoteActor")).toEqual({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "vesna" } });
 });
 
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
@@ -1233,8 +1233,8 @@ test("existing quest name and description editors send the quest identity and ke
   await expect
     .poll(() => trpc.inputs("rpg.upsertQuest"), { intervals: [20, 50, 100] })
     .toEqual([
-      { chatId: "chat_ct_keystone", questId: "q1", name: "Guard the bone key" },
-      { chatId: "chat_ct_keystone", questId: "q1", name: "Keep the bone key", description: "Hidden beneath the old chapel" },
+      { chatId: CHAT_ID, questId: "q1", name: "Guard the bone key" },
+      { chatId: CHAT_ID, questId: "q1", name: "Keep the bone key", description: "Hidden beneath the old chapel" },
     ]);
 });
 
@@ -1286,9 +1286,9 @@ test("quest objective gestures send objective-ID operations, never a stale whole
   await expect
     .poll(() => trpc.inputs("rpg.editQuestObjective"))
     .toEqual([
-      { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "setCompleted", objectiveId: "o1", completed: false } },
-      { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "add", text: "Open the reliquary" } },
-      { chatId: "chat_ct_keystone", questId: "q1", op: { kind: "delete", objectiveId: "o1" } },
+      { chatId: CHAT_ID, questId: "q1", op: { kind: "setCompleted", objectiveId: "o1", completed: false } },
+      { chatId: CHAT_ID, questId: "q1", op: { kind: "add", text: "Open the reliquary" } },
+      { chatId: CHAT_ID, questId: "q1", op: { kind: "delete", objectiveId: "o1" } },
     ]);
 });
 
@@ -1827,7 +1827,7 @@ function d20Game(): TrpcWireOutput<"rpg.getGame"> {
   return {
     ...base,
     id: GAME_ID,
-    chatId: "chat_ct_keystone",
+    chatId: CHAT_ID,
     mode: "lite",
     status: "active",
     trackersReadOnly: false,

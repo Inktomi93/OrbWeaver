@@ -6,7 +6,7 @@
 
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -17,6 +17,7 @@ import { QuickPicksResumeStory } from "./home-quick-picks-tile-body.fixtures.tsx
 
 // "Start with" reads the room list to pick its column, so every drive routes a house with no rooms.
 const NO_ROOMS = { "chat.listChats": chatListResponder([]) };
+const NEW_CHAT_ID = makeChatId();
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
@@ -29,7 +30,7 @@ test("a returning character resumes its latest room; New chat remains a separate
     "character.list": characterListResponder([makeCharacterSummary({ id: "char_aria", name: "Aria", lastChatId: castId<ChatId>("chat_latest") })]),
     "chat.startChat": () => {
       creates += 1;
-      return startChatResult("chat_new");
+      return startChatResult(NEW_CHAT_ID);
     },
   });
   const home = await mount(<QuickPicksResumeStory />);
@@ -37,7 +38,7 @@ test("a returning character resumes its latest room; New chat remains a separate
   await expect(home.getByRole("status", { name: "Active chat" })).toHaveText("chat_latest");
   expect(creates).toBe(0);
   await home.getByRole("button", { name: "New chat with Aria", exact: true }).click();
-  await expect(home.getByRole("status", { name: "Active chat" })).toHaveText("chat_new");
+  await expect(home.getByRole("status", { name: "Active chat" })).toHaveText(NEW_CHAT_ID);
   expect(creates).toBe(1);
 });
 /** The two-line GLOSS of the long-name fixture below, matched by its head so the clamp can do its work. */
@@ -82,7 +83,7 @@ test("P2-7 picking a face keeps focus on the cell until the room exists, then mo
   await expect(probe).not.toHaveText("section=chats");
   await expect(cell).toBeFocused();
 
-  started.release(startChatResult("chat_bolt"));
+  started.release(startChatResult(makeChatId()));
   await expect(probe).toHaveText("section=chats");
 });
 

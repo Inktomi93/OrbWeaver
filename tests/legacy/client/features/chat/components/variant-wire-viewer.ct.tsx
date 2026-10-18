@@ -23,7 +23,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { MessageRowStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";
@@ -125,7 +125,7 @@ test("opening fires exactly one fetch keyed by the shown swipe's variantId and r
 
   await expect.poll(() => trpc.count(WIRE_PROC), { intervals: [20, 50, 100] }).toBe(1);
   // Scoped to the SELECTED variant (the shown swipe), not the slot — a swipe has its own sent prompt.
-  await expect.poll(() => trpc.lastInput(WIRE_PROC)).toMatchObject({ chatId: "chat_ct_keystone", variantId: "mv_ct_1" });
+  await expect.poll(() => trpc.lastInput(WIRE_PROC)).toMatchObject({ chatId: CHAT_ID, variantId: "mv_ct_1" });
 
   const dialog = page.locator('[data-testid="variant-wire-viewer"]');
   await expect(dialog).toBeVisible();

@@ -9,9 +9,7 @@
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import type { TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -302,7 +300,7 @@ test("typing reaches the WHOLE library — a character past the first page is fi
 //     next session inherits a stranger's unsent text. Keyed by the real ChatId the collision is
 //     unrepresentable — there is no counter left to collide.
 
-const CREATED_CHAT_ID = castId<ChatId>("chat_ct_created_on_start");
+const CREATED_CHAT_ID = makeChatId();
 
 const CREATED_CHAT_DETAIL = makeChatDetail({
   id: CREATED_CHAT_ID,

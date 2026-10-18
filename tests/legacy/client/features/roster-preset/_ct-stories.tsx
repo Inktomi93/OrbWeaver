@@ -26,12 +26,12 @@ import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify } from "@orb/client/lib";
 import type { HomeTileContribution } from "@orb/client/state";
 import { rememberHomeTileSettledHidden, rememberSurfaceBox, selectChat, useHomeTileSettledHidden } from "@orb/client/state";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { CONTENT_COLUMN_NARROW_PANE, CONTENT_COLUMN_WIDE_PANE } from "@orb/testkit/browser/measure-content-column.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
+import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso/ids.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -45,7 +45,7 @@ import { __readSurfaceBoxForTest } from "#client/state/surface-box-store.ts";
 
 // The stories' active-chat id — the `.ct.tsx` stubs `chat.getChat`/`automation.listRules` for this same id
 // (a plain module-const, not an export: a story module exports components ONLY).
-const HOST_CHAT_ID = castId<ChatId>("chat_roster_ct");
+const HOST_CHAT_ID = mintTypeId(ID_PREFIX.chat, createSeededIds(FIXTURE_ID_CURSOR).next);
 
 /** The DOM sink for `notify` — the picker's apply doors report through it, and `bindNotify` is main.tsx's
  *  in production, so a CT that does not bind observes silence whether or not the code speaks. */

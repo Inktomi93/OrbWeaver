@@ -28,7 +28,7 @@ import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { makeChatDetail, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeBrowseCharactersPage, makeHomeView } from "@orb/testkit/node/factories/discovery-view.ts";
 import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";
 import { makePluginRow } from "@orb/testkit/node/factories/plugin-view.ts";
@@ -166,7 +166,7 @@ const IDENTITY_STUB: TrpcRoutes<"persona.listConnectedToCharacter"> = {
 // journeys needs the room's own reads stubbed: the response row (which `useStartChat` also SEEDS into
 // `getChat`), that same row on the read, the seeded greeting as REAL CANON, and the divider's fit preview
 // (an unlisted-proc `null` is out-of-contract there and crashes the transcript).
-const CREATED_CHAT_ID = "chat_home_created";
+const CREATED_CHAT_ID = makeChatId();
 
 function createdChat(temporary: boolean): TrpcWireOutput<"chat.getChat"> {
   return makeChatDetail({
@@ -742,7 +742,7 @@ const CENSUS_DOCS = [
 ] satisfies TrpcWireOutput<"databank.list">["items"];
 const CENSUS_BANK_HEALTH = { ...EMPTY_BANK_HEALTH, ready: 2, chunks: 51, passages: 51, total: CENSUS_DOCS.length };
 /** Two registered extension pages, joined to their plugin's display name by `usePluginPages`. */
-const CENSUS_PLUGIN = makePluginRow({ id: "plugin_census", slug: "census-kit", name: "Census Kit" });
+const CENSUS_PLUGIN = makePluginRow({ slug: "census-kit", name: "Census Kit" });
 const CENSUS_SURFACES = [
   { pluginId: CENSUS_PLUGIN.id, id: "board_page", anchor: "page", title: "The Board", tier: "frame" },
   { pluginId: CENSUS_PLUGIN.id, id: "ledger_page", anchor: "page", title: "The Ledger", tier: "frame" },

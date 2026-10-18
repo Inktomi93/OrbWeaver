@@ -14,10 +14,8 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame } from "@orb/contracts/stream";
-import type { ChatId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { SIGNED_IN_OWNER_ME, SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
-import { makeChatDetail } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeImpersonateStream } from "@orb/testkit/node/route-impersonate-stream.ts";
 import type { SubscriptionErrorPayload } from "@orb/testkit/node/route-orb-socket.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
@@ -28,9 +26,9 @@ import type { Page } from "@playwright/test";
 import { RpgBusStory, SocketFaultToastStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
 import { STREAM_MUTATION_ROUTES } from "./fixtures.ts";
 
-const GAME_CHAT = castId<ChatId>("chat_ct_game_01");
-const PLAIN_CHAT = castId<ChatId>("chat_ct_plain_01");
-const DISENGAGED_CHAT = castId<ChatId>("chat_ct_off_01");
+const GAME_CHAT = makeChatId();
+const PLAIN_CHAT = makeChatId();
+const DISENGAGED_CHAT = makeChatId();
 
 /** `chat.getChat` shaped for the pointer gate's THREE states: a live game, a chat with no pointer at all,
  *  and — the case the old re-spelled null-check got wrong — a chat whose game is present but TOGGLED OFF. */

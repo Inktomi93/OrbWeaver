@@ -28,7 +28,7 @@ import type { Locator, Page } from "@playwright/test";
 import { testId } from "#client/lib/test-ids.ts";
 import { characterListResponder } from "../../character/fixtures.ts";
 import { ChatContextPanelStory, ChatContextTabContributorStory, ChatDeletedWhileOpenStory, RoomActivityTabStory } from "../_ct-stories.tsx";
-import { CHAT_AMBIENT_ROUTES } from "../fixtures.ts";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID } from "../fixtures.ts";
 
 // #629 — the "This chat" tab's OWN section reads, which this file never stubbed. An unlisted proc answers
 // `null`, which is NOT a view: MacroPicksSection (two suspending reads, `useSuspenseQueries`) and the
@@ -533,7 +533,7 @@ test("capable HOST: Members lists the humans (host chip) and the invite dialog m
   await expect.poll(() => trpc.count("invites.createInvite"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const readInputAtAssertion = async (): Promise<typeof input> => trpc.requireLastInput("invites.createInvite");
   const input = trpc.requireLastInput("invites.createInvite");
-  await expect.poll(async () => (await readInputAtAssertion()).chatId).toBe("chat_ct_keystone");
+  await expect.poll(async () => (await readInputAtAssertion()).chatId).toBe(CHAT_ID);
   await expect.poll(async () => (await readInputAtAssertion()).input?.invitedHandle).toBe("frodo");
 });
 
@@ -847,7 +847,7 @@ function activityFire(over: Partial<ActivityFire>): ActivityFire {
   return {
     id: "automation_fire_ct",
     ruleId: "automation_rule_ct",
-    chatId: "chat_ct_keystone",
+    chatId: CHAT_ID,
     triggerType: "messageCommitted",
     outcome: "fired",
     detail: null,

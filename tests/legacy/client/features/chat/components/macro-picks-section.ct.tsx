@@ -10,6 +10,7 @@ import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MacroPicksSectionStory, MacroPicksSectionToastStory } from "../_ct-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
 // inputs + the authoring home, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type
@@ -225,7 +226,7 @@ test("Use default UNSETS a stored pick — the select item drops the key, the bu
   await component.getByRole("button", { name: "Use default" }).click();
   await expect.poll(() => trpc.count("chat.setUserMacroValues")).toBe(2);
   // Both picks gone ⇒ the emptied macro entry is dropped, so the bag is the never-picked shape.
-  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: {} });
+  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: CHAT_ID, values: {} });
 });
 
 test("neither knob family declared ⇒ a teaching empty state, never a blank section", async ({ mount, page }) => {
@@ -287,7 +288,7 @@ test("picking a variable fires setVariables with the rebuilt map — orphan keys
   await page.getByRole("option", { name: "First", exact: true }).click();
 
   await expect.poll(() => trpc.count("chat.setVariables")).toBe(1);
-  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: { retired: "kept", pov: "first person" } });
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: CHAT_ID, values: { retired: "kept", pov: "first person" } });
 });
 
 test("a multi-select variable stores its picks SEPARATOR-JOINED, and unchecking the last one unsets the key", async ({ mount, page }) => {
@@ -311,7 +312,7 @@ test("a multi-select variable stores its picks SEPARATOR-JOINED, and unchecking 
   // "no checkboxes" is the unset arm (no separate "Use default" button, unlike the macro-input array family).
   await component.getByRole("checkbox", { name: "Clear" }).click();
   await expect.poll(() => trpc.count("chat.setVariables")).toBe(3);
-  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: {} });
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: CHAT_ID, values: {} });
 });
 
 test("Use default UNSETS a stored variable pick; a value the preset no longer offers still shows", async ({ mount, page }) => {
@@ -329,7 +330,7 @@ test("Use default UNSETS a stored variable pick; a value the preset no longer of
 
   await page.getByRole("combobox", { name: "Narration POV" }).click();
   await page.getByRole("option", { name: "Use default (third person)", exact: true }).click();
-  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: "chat_ct_keystone", values: {} });
+  await expect.poll(() => trpc.lastInput("chat.setVariables")).toEqual({ chatId: CHAT_ID, values: {} });
 });
 
 // ── #1582 · A STORED PICK OUTLIVES ITS DEFINITION ─────────────────────────────────────────────────────
@@ -369,7 +370,7 @@ test("…and the next edit's whole-bag flush does not carry the dead value back 
   await expect.poll(() => trpc.count("chat.setUserMacroValues")).toBe(1);
   // `tone` is ABSENT — a surviving `tone: "bleak"` is the whole defect: the server refuses the flush the
   // user's unrelated pool edit just produced, and the pool edit is lost with it.
-  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: { mood: { weather: ["storm"] } } });
+  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: CHAT_ID, values: { mood: { weather: ["storm"] } } });
 });
 
 test("a multi-select keeps the SURVIVING picks and drops only the dead ones (#1582)", async ({ mount, page }) => {
@@ -387,7 +388,7 @@ test("a multi-select keeps the SURVIVING picks and drops only the dead ones (#15
   await expect(component.getByText("The checked options, joined.")).toBeVisible();
 
   await component.getByRole("checkbox", { name: "Lush" }).click();
-  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: "chat_ct_keystone", values: { prose: { texture: ["terse", "lush"] } } });
+  await expect.poll(() => trpc.lastInput("chat.setUserMacroValues")).toEqual({ chatId: CHAT_ID, values: { prose: { texture: ["terse", "lush"] } } });
 });
 
 test("a multi-select nothing survives reads as UNPICKED — the resolver's own ladder (#1582)", async ({ mount, page }) => {

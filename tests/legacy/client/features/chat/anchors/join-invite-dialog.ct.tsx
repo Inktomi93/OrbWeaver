@@ -6,13 +6,13 @@
 // text). A bad token renders the ONE flat "invalid or expired" state — leak-free, no oracle.
 
 import { DEAD_INVITE_SENTENCE } from "@orb/client/lib";
-import { makeChatDetail, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
+import { makeChatDetail, makeChatId, makeRedeemInviteResult } from "@orb/testkit/node/factories/chat-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { JoinInviteDialogStory } from "../_ct-stories.tsx";
 
 const PREVIEW = {
-  chatId: "chat_ct_join",
+  chatId: makeChatId(),
   roomName: "Tavern Night",
   hostHandle: "alex",
   memberCount: 3,

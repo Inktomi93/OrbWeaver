@@ -20,11 +20,11 @@ import { userSettingsView } from "@orb/testkit/node/user-settings-view.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { CommittedSettingsTabStory } from "../_ct-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
 const CHAT_DETAIL = makeChatDetail({
-  id: "chat_ct",
   viewerIsHost: true,
   toolRecurseLimit: 7,
   hostDisplayScripts: false,
@@ -1107,9 +1107,7 @@ test("#640 host: attaching from the picker fires attachToChat with THAT book and
   await expect(picker.getByRole("button", { name: "Attach Ashfall Canon to this chat", exact: true })).toHaveCount(0);
   await offer.click();
 
-  await expect
-    .poll(() => trpc.lastInput(ATTACH_BOOK), { intervals: [20, 50, 100] })
-    .toEqual({ bookId: "worldbook_ct_0000000000002", chatId: "chat_ct_keystone" });
+  await expect.poll(() => trpc.lastInput(ATTACH_BOOK), { intervals: [20, 50, 100] }).toEqual({ bookId: "worldbook_ct_0000000000002", chatId: CHAT_ID });
 });
 
 test("#640 host: the row's overflow menu detaches THIS book from THIS room", async ({ mount, page }) => {
@@ -1120,9 +1118,7 @@ test("#640 host: the row's overflow menu detaches THIS book from THIS room", asy
   await component.getByRole("button", { name: rowActionsName("Ashfall Canon") }).click();
   await page.getByRole("menuitem", { name: "Detach from this chat" }).click();
 
-  await expect
-    .poll(() => trpc.lastInput(DETACH_BOOK), { intervals: [20, 50, 100] })
-    .toEqual({ bookId: "worldbook_ct_0000000000001", chatId: "chat_ct_keystone" });
+  await expect.poll(() => trpc.lastInput(DETACH_BOOK), { intervals: [20, 50, 100] }).toEqual({ bookId: "worldbook_ct_0000000000001", chatId: CHAT_ID });
 });
 
 test("#640 member: the rows are visible, and there is NO attach and NO detach (permission-OMIT, not disabled)", async ({ mount, page }) => {
