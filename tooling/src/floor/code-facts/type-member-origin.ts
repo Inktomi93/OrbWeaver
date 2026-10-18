@@ -251,16 +251,15 @@ function graphRefusalCore<N extends object, T, S, G, I extends object>(
 }
 
 function graphChildrenCore<N extends object, T, S, G, I extends object>(
-  type: T,
-  node: N,
+  observed: { readonly type: T; readonly node: N; readonly signatures: readonly G[] },
   mode: IdentityGraphMode,
   ops: TypeRealmOperations<N, T, S, G, I>,
 ): readonly T[] {
+  const { type, node, signatures } = observed;
   const identity = ops.typeIdentity(type);
-  const signatures = [...ops.signatures(type, "call"), ...ops.signatures(type, "construct")];
   const children = [...dataChildren(type, node, ops)];
   if (mode.kind === "signature-exposure") {
-    const awaited = ops.awaited(type);
+    const awaited = ops.property(type, "then") === undefined ? undefined : ops.awaited(type);
     if (awaited !== undefined && ops.typeIdentity(awaited) !== identity) {
       children.push(awaited);
     }
@@ -319,7 +318,7 @@ function typeIdentityGraphCore<N extends object, T, S, G, I extends object>(
       refusals.add(refusal);
       continue;
     }
-    const children = graphChildrenCore(type, node, mode, ops);
+    const children = graphChildrenCore({ type, node, signatures }, mode, ops);
     const lineage = new Set([...ancestors, ...origins.map(ops.nodeIdentity)]);
     pending.push(...children.map((child) => ({ type: child, ancestors: lineage })));
   }
@@ -613,6 +612,16 @@ function formalCandidateCore<N extends object, T, S, G, I extends object>(type: 
   const arguments_ = [...ops.aliasArguments(type), ...ops.arguments(type), ...ops.unions(type), ...ops.intersections(type)];
   if (arguments_.length > 0) {
     return arguments_.some((argument) => formalCandidateCore(argument, input, visited));
+  }
+  const signatures = [...ops.signatures(type, "call"), ...ops.signatures(type, "construct")];
+  if (
+    signatures.some((signature) =>
+      [...ops.signatureParameters(signature).map((parameter) => ops.symbolType(parameter, input.template)), ops.signatureReturn(signature)].some((member) =>
+        formalCandidateCore(member, input, visited),
+      ),
+    )
+  ) {
+    return true;
   }
   const symbol = ops.aliasSymbol(type) ?? ops.typeSymbol(type);
   return (

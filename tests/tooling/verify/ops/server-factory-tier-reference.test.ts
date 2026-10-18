@@ -7,7 +7,11 @@ import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { vi } from "vitest";
 import { readParserSignatureTypeExposures } from "../../../../tooling/src/floor/code-facts/shape-derivation.ts";
-import { readParserReturnedTypeIdentities, readParserTransparentAliasOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
+import {
+  readParserReturnedTypeIdentities,
+  readParserSignatureTypeIdentities,
+  readParserTransparentAliasOrigin,
+} from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
 import type { NativeTypeIdentityGraphInput } from "../../../../tooling/src/floor/code-facts/type-member-origin-contract.ts";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
 import { TYPED_NATIVE_COMPILER_CONTEXT_ENV } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
@@ -213,6 +217,64 @@ test("isolated private inferred return carriers establish ownership without borr
   }
 }, 30_000);
 
+test("signature exposure observes each native signature once and awaits only actual thenables", ({ scratch }) => {
+  const path = join(scratch, "thenable.ts");
+  writeFileSync(
+    path,
+    `interface Handle {readonly close:()=>void}
+interface Thenable<T> {then(resolve:(value:T)=>void):void}
+export function ordinary(value:{readonly n:number}):Handle{return {close(){}}}
+export function promised():Thenable<Handle>{return {then(resolve){resolve({close(){}})}}}
+export function mixed():Thenable<Handle>|number{return 1}
+`,
+  );
+  const program = ts.createProgram([path], { strict: true, noLib: true, types: [] });
+  const source = program.getSourceFile(path);
+  if (source === undefined) {
+    throw new Error("thenable source missing");
+  }
+  const checker = program.getTypeChecker();
+  const parser = { kind: "parser" as const, program, source, checker };
+  const awaitType = checker.getAwaitedType.bind(checker);
+  const awaited = vi.spyOn(checker, "getAwaitedType").mockImplementation((type, ...rest) => {
+    expect(checker.getPropertyOfType(type, "then")).toBeDefined();
+    return awaitType(type, ...rest);
+  });
+  const signatureCounts = new Map<ts.Type, Map<ts.SignatureKind, number>>();
+  const signatureTypes = checker.getSignaturesOfType.bind(checker);
+  const signatures = vi.spyOn(checker, "getSignaturesOfType").mockImplementation((type, kind) => {
+    const kinds = signatureCounts.get(type) ?? new Map<ts.SignatureKind, number>();
+    kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+    signatureCounts.set(type, kinds);
+    return signatureTypes(type, kind);
+  });
+  try {
+    const calls: number[] = [];
+    for (const name of ["ordinary", "promised", "mixed"]) {
+      const node = source.statements.find(
+        (candidate): candidate is ts.FunctionDeclaration => ts.isFunctionDeclaration(candidate) && candidate.name?.text === name,
+      );
+      if (node === undefined) {
+        throw new Error("thenable signature missing");
+      }
+      signatureCounts.clear();
+      const graph = readParserSignatureTypeIdentities({ node, rootType: checker.getTypeAtLocation(node), parser });
+      expect(
+        graph.trace.declarations.some((declaration) => ts.isInterfaceDeclaration(declaration) && declaration.name.text === "Handle"),
+        name,
+      ).toBe(true);
+      expect([...signatureCounts.values()].flatMap((kinds) => [...kinds.values()]).every((count) => count === 1)).toBe(true);
+      calls.push(awaited.mock.calls.length);
+    }
+    expect(calls[0]).toBe(0);
+    expect(calls[1]).toBeGreaterThan(0);
+    expect(calls[2]).toBeGreaterThan(calls[1] ?? 0);
+  } finally {
+    signatures.mockRestore();
+    awaited.mockRestore();
+  }
+});
+
 test("native signature exposure refuses foreign checker, source, stale roots and expanding recursive aliases without inventing erased ownership", ({
   scratch,
 }) => {
@@ -226,6 +288,7 @@ interface Recursive<T>{readonly next:Recursive<readonly [T]>}
 export function positive(value:Name):Handle{return {close(){}}}
 export function erased():Ignore<Handle>{return {stamp:1}}
 export function recursive():Recursive<Handle>{throw new Error()}
+export function partial(unreadable:unknown,retained:Handle):void{}
 `;
   writeFileSync(path, text);
   const options = { strict: true, noLib: true, types: [] };
@@ -258,6 +321,9 @@ export function recursive():Recursive<Handle>{throw new Error()}
     const erased = readParserSignatureTypeExposures(observe("erased"));
     expect(erased.kind).toBe("resolved");
     expect(erased.trace.declarations.some((node) => node.getText().startsWith("export interface Handle"))).toBe(false);
+    const partial = readParserSignatureTypeExposures(observe("partial"));
+    expect(partial).toMatchObject({ kind: "unresolved", detail: expect.stringContaining("unresolved native type") });
+    expect(partial.trace.declarations.some((node) => ts.isInterfaceDeclaration(node) && node.name.text === "Handle")).toBe(true);
     const recursive = readParserSignatureTypeExposures(observe("recursive"));
     expect(recursive).toMatchObject({ kind: "unresolved", detail: expect.stringContaining("recursively expands") });
     const returnedInput = (name: string): NativeTypeIdentityGraphInput => {
