@@ -608,6 +608,10 @@ const NO_LITERAL_RESERVATION = {
   message: "A direct static SkeletonRows count guesses the settled box. Add reserveKey to QueryBoundary.",
 };
 const MEMO_NATIVE_SRC = rootSources("@client", "@ui", "@tests");
+// Native brace unions preserve OR membership without multiplying the AND alternatives below.
+const CALLER_SRC_UNION = `{${CALLER_SRC.join(",")}}`;
+const AUTHORED_SRC_UNION = `{${AUTHORED_SRC.join(",")}}`;
+const MEMO_NATIVE_SRC_UNION = `{${MEMO_NATIVE_SRC.join(",")}}`;
 
 // Flat config replaces rule arrays. Repeat the applicable native layers in each existing override partition.
 function syntaxBlocks(files, selectors, ignores = []) {
@@ -616,17 +620,17 @@ function syntaxBlocks(files, selectors, ignores = []) {
     { files, ...(ignores.length === 0 ? {} : { ignores }), rules: { "no-restricted-syntax": ["error", ...selectors] } },
     { files, ignores: [...ignores, ...STRICT_SYNTAX_IGNORES], rules: { "no-restricted-syntax": ["error", ...base] } },
     {
-      files: files.flatMap((file) => CALLER_SRC.map((caller) => [file, caller])),
+      files: files.map((file) => [file, CALLER_SRC_UNION]),
       ignores: [...ignores, ...CALLER_IGNORES],
       rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID] },
     },
     {
-      files: files.flatMap((file) => AUTHORED_SRC.map((authored) => [file, authored])),
+      files: files.map((file) => [file, AUTHORED_SRC_UNION]),
       ignores: [...ignores, ...GROUP_IGNORES],
       rules: { "no-restricted-syntax": ["error", ...base, NO_GROUP_BRANCH] },
     },
     {
-      files: files.flatMap((file) => CALLER_SRC.map((caller) => [file, caller])),
+      files: files.map((file) => [file, CALLER_SRC_UNION]),
       ignores: [...ignores, ...CALLER_IGNORES, ...GROUP_IGNORES],
       rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID, NO_GROUP_BRANCH] },
     },
@@ -634,7 +638,7 @@ function syntaxBlocks(files, selectors, ignores = []) {
   const layered = blocks.flatMap((block) => [
     block,
     {
-      files: block.files.flatMap((file) => AUTHORED_SRC.map((authored) => [...(Array.isArray(file) ? file : [file]), authored])),
+      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), AUTHORED_SRC_UNION]),
       ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, "**/*.test.{ts,tsx}", ...QUERY_HOMES],
       rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_RAW_QUERY_HOOKS] },
     },
@@ -643,7 +647,7 @@ function syntaxBlocks(files, selectors, ignores = []) {
     block,
     {
       ...block,
-      files: block.files.flatMap((file) => MEMO_NATIVE_SRC.map((source) => [...(Array.isArray(file) ? file : [file]), source])),
+      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), MEMO_NATIVE_SRC_UNION]),
       ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, ...Object.values(MANUAL_MEMO_CUSTOM_HOMES)],
       rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_MANUAL_MEMO_IMPORT] },
     },
