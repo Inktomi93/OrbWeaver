@@ -35,10 +35,6 @@
 // as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
 // PRODUCES, so either works as a route value or as a function's return.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(TrpcInput<P>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(TrpcInput<P> | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(TrpcInput<P>[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
@@ -424,7 +420,7 @@ function unwrapTrpcWireEscape(value: unknown): unknown {
 // Inputs: queries carry `?input=` (batched or not — getUrl always URL-encodes query input);
 // mutations and subscriptions carry the POST body. Batched payloads are index-keyed (`{"0":…}`); non-batched carry
 // the raw input, normalized to index "0".
-function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, unknown> {
+function decodeInputs(req: Request, url: URL, isBatch: boolean): object {
   let raw: unknown;
   const inputParam = url.searchParams.get("input");
   if (inputParam !== null) {
@@ -436,11 +432,14 @@ function decodeInputs(req: Request, url: URL, isBatch: boolean): Record<string, 
       raw = undefined;
     }
   }
-  return isBatch ? ((raw as Record<string, unknown> | null | undefined) ?? {}) : { 0: raw };
+  if (!isBatch) {
+    return { 0: raw };
+  }
+  return typeof raw === "object" && raw !== null ? raw : {};
 }
 
 export interface TrpcRecorder {
-  /** Decoded inputs recorded per procedure, in call order, typed by the procedure's AppRouter input. */
+  /** Unvalidated, unnormalized request JSON correlated by AppRouter procedure path; never server-parsed input. */
   readonly inputs: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>[];
   /** The most recent decoded input for a procedure (or undefined). */
   readonly lastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P> | undefined;
@@ -507,7 +506,8 @@ export async function routeTrpc<const TRoutes extends object>(
     const accept = req.headers()["accept"] ?? "";
     if (accept.includes("text/event-stream")) {
       for (const [i, proc] of procs.entries()) {
-        record(proc, byIndex[String(i)]);
+        const input: unknown = Reflect.get(byIndex, String(i));
+        record(proc, input);
       }
       await route.fulfill({ status: 204, body: "" });
       return;
@@ -519,7 +519,7 @@ export async function routeTrpc<const TRoutes extends object>(
     // delivery waits. Without the hold arm this stays exactly as synchronous as it was.
     const results = await Promise.all(
       procs.map(async (proc, i) => {
-        const input = byIndex[String(i)];
+        const input: unknown = Reflect.get(byIndex, String(i));
         record(proc, input);
         noteUnstubbed(proc);
         const responder: unknown = Reflect.get(routes, proc);
@@ -542,15 +542,17 @@ export async function routeTrpc<const TRoutes extends object>(
   });
 
   return {
-    // The wire decode is untyped JSON; the procedure path is the only handle on its shape, so the cast
-    // lives here once instead of at every call site.
+    // These observations preserve client bytes, including malformed inputs; parsing would add defaults or transform them.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Procedure-keyed raw input history is unvalidated and unnormalized; parsing would alter malformed/default/transform-sensitive bytes. Ends when a native typed wire recorder preserves these observations.
     inputs: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P>[] => (calls.get(proc) ?? []) as TrpcInput<P>[],
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- The last observation is correlated by procedure path, not validated or normalized by a server parser. Ends when a native typed wire recorder preserves these observations.
     lastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> | undefined => (calls.get(proc) ?? []).at(-1) as TrpcInput<P> | undefined,
     requireLastInput: <P extends TrpcProcedurePath>(proc: P): TrpcInput<P> => {
       const recorded = calls.get(proc) ?? [];
       if (recorded.length === 0) {
         throw new Error(`routeTrpc: ${proc} has not been called`);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- The nonempty procedure-keyed history proves an observation exists, not that its raw bytes are validated or normalized. Ends when a native typed wire recorder preserves these observations.
       return recorded.at(-1) as TrpcInput<P>;
     },
     count: (proc): number => (calls.get(proc) ?? []).length,

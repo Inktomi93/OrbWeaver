@@ -1,4 +1,5 @@
 // Probes the actual CT data and registry door without replacing a feature or transport implementation.
+import { createTrpcClient } from "@orb/client/data";
 import { CommandPaletteSourceRegistryContext, MessageToolsRendererRegistryContext, SlashCommandRegistryContext, useSectionRegistry } from "@orb/client/state";
 import { CtAppDataProviders, CtClientProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { CtIsolation } from "@orb/testkit/browser/ct-isolated-subject.tsx";
@@ -108,6 +109,30 @@ export function RuntimeTeardownStory(): ReactElement {
       ) : (
         <RetiredRuntime client={retired} />
       )}
+    </CtIsolation>
+  );
+}
+
+/** Drives the production client while preserving the recorder's pre-parse wire observations. */
+export function RawTrpcObservationStory({ backgroundUrl, videoUrl }: { readonly backgroundUrl: string; readonly videoUrl: string }): ReactElement {
+  const [client] = useState(() => createTrpcClient());
+  const [settled, setSettled] = useState(false);
+  return (
+    <CtIsolation subject="Raw tRPC observations" isolates="isolates the protocol recorder from domain execution and server parsing">
+      <Stack>
+        <Button
+          onClick={(): void => {
+            void Promise.allSettled([
+              client.settings.addExternalBackground.mutate({ url: backgroundUrl }),
+              client.databank.scrapeYoutube.mutate({ url: videoUrl }),
+              client.settings.resetUserConfig.mutate(),
+            ]).then(() => setSettled(true));
+          }}
+        >
+          Send observed batch
+        </Button>
+        <Text>{settled ? "Observed batch settled" : "Observed batch idle"}</Text>
+      </Stack>
     </CtIsolation>
   );
 }

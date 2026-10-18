@@ -1,6 +1,8 @@
 import { auditRenderedTextContrast } from "@orb/testkit/browser/pixel-contrast.ts";
 import { routeOrbSocket } from "@orb/testkit/node/route-orb-socket.ts";
+import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
 
 test("socket frames wait for completed attaches", async ({ page }) => {
   await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
@@ -144,4 +146,89 @@ test("a deferred successful attach cannot release frames before the HTTP request
   }
   expect(await attach).toBe(200);
   expect(await stream).toContain('"type":"serverReady"');
+});
+
+test("socket observations preserve malformed IDs and raw cursors but ignore missing refs without claiming admission", async ({ page }) => {
+  await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
+  await page.goto("http://orb.test/");
+  const trpc = await routeTrpc(page, { "stream.attach": null, "stream.detach": null });
+  const recorder = await routeOrbSocket(page);
+  await page.evaluate(async () => {
+    for (const body of [
+      { ref: { channel: "user" }, sinceSeq: 0 },
+      { ref: { channel: "chat", chatId: "invalid" } },
+      { ref: { channel: "unknown" } },
+      { ref: { channel: "user" }, sinceSeq: "wrong" },
+      {},
+      null,
+    ]) {
+      await fetch("/api/trpc/stream.attach", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    }
+    await fetch("/api/trpc/stream.attach,stream.detach?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ 0: { ref: { channel: "notifications" } }, 1: { ref: { channel: "user" } } }),
+    });
+    await fetch("/api/trpc/stream.attach,stream.detach?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([{ ref: { channel: "chat", chatId: "array-malformed" }, sinceSeq: "array-raw" }, { ref: { channel: "notifications" } }]),
+    });
+  });
+  expect(recorder.attachRequests()).toEqual([
+    { ref: { channel: "user" }, sinceSeq: 0 },
+    { ref: { channel: "chat", chatId: "invalid" }, sinceSeq: null },
+    { ref: { channel: "unknown" }, sinceSeq: null },
+    { ref: { channel: "user" }, sinceSeq: "wrong" },
+    { ref: { channel: "notifications" }, sinceSeq: null },
+    { ref: { channel: "chat", chatId: "array-malformed" }, sinceSeq: "array-raw" },
+  ]);
+  expect(recorder.detaches()).toEqual([{ channel: "user" }, { channel: "notifications" }]);
+  expect(trpc.unstubbed()).toEqual([]);
+});
+
+test("the production typed client keeps batch inputs raw, path-correlated and distinct from missing calls", async ({ mount, page }) => {
+  const backgroundUrl = "  https://example.test/art.png  ";
+  const videoUrl = "https://example.test/watch";
+  const recorder = await routeTrpc(page, {
+    "settings.addExternalBackground": trpcError(),
+    "databank.scrapeYoutube": trpcError(),
+    "settings.resetUserConfig": trpcError(),
+  });
+  expect(recorder.inputs("settings.addExternalBackground")).toEqual([]);
+  expect(recorder.lastInput("settings.resetUserConfig")).toBeUndefined();
+  expect(() => recorder.requireLastInput("settings.resetUserConfig")).toThrow("has not been called");
+  await mount(<RawTrpcObservationStory backgroundUrl={backgroundUrl} videoUrl={videoUrl} />);
+  const batched = page.waitForRequest((request) => request.url().includes("settings.addExternalBackground,databank.scrapeYoutube,settings.resetUserConfig"));
+  await page.getByRole("button", { name: "Send observed batch", exact: true }).click();
+  expect((await batched).method()).toBe("POST");
+  await expect(page.getByText("Observed batch settled", { exact: true })).toBeVisible();
+  expect(recorder.inputs("settings.addExternalBackground")).toEqual([{ url: backgroundUrl }]);
+  expect(recorder.lastInput("databank.scrapeYoutube")).toEqual({ url: videoUrl });
+  expect(recorder.requireLastInput("databank.scrapeYoutube")).toEqual({ url: videoUrl });
+  expect(recorder.inputs("settings.resetUserConfig")).toEqual([undefined]);
+  expect(recorder.requireLastInput("settings.resetUserConfig")).toBeUndefined();
+  expect(recorder.count("settings.resetUserConfig")).toBe(1);
+
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/settings.addExternalBackground", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: 41, forwardField: true }),
+    });
+  });
+  expect(recorder.requireLastInput("settings.addExternalBackground")).toEqual({ url: 41, forwardField: true });
+  expect(recorder.inputs("settings.addExternalBackground")).toEqual([{ url: backgroundUrl }, { url: 41, forwardField: true }]);
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/settings.addExternalBackground,databank.scrapeYoutube?batch=1", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify([
+        { url: 42, arrayField: true },
+        { url: "  array-video  ", lang: null },
+      ]),
+    });
+  });
+  expect(recorder.requireLastInput("settings.addExternalBackground")).toEqual({ url: 42, arrayField: true });
+  expect(recorder.requireLastInput("databank.scrapeYoutube")).toEqual({ url: "  array-video  ", lang: null });
 });

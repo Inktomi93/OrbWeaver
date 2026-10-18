@@ -21,9 +21,7 @@
 // (`route.fallback()`) to routeTrpc for everything else — including answering the attach mutations, which
 // routeTrpc resolves to `null` exactly as the real void-returning procedure does.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ ref?: StreamRoomRef; sinceSeq?: number | null } | undefined): baselined when the gate widened to value casts; burn-down item 906.
-import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
+import type { StreamAttachInput, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request, Route } from "@playwright/test";
 
@@ -64,13 +62,13 @@ function socketBody(frames: readonly ScriptedFrame[], includeReturn: boolean): s
   return out.join("");
 }
 
-/** One recorded `stream.attach` — the room AND its replay request. `sinceSeq: 0` is a durable room asking to
- *  replay from the beginning (the chat bus's draft→committed seed); `null`/absent is live-only. */
+/** Unvalidated, unnormalized `stream.attach` wire observations; neither the ref nor cursor proves server admission. */
 export interface AttachRequest {
   readonly ref: StreamRoomRef;
   readonly sinceSeq: number | null;
 }
 
+/** Passive, unvalidated and unnormalized wire observations; no method proves server admission or valid IDs. */
 export interface OrbSocketRecorder {
   /** How many `stream.connect` EventSource requests were served. ONE per page is the invariant. */
   readonly connects: () => number;
@@ -118,13 +116,16 @@ function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach
     return [];
   }
   const isBatch = url.searchParams.get("batch") === "1";
-  const byIndex = isBatch ? ((body as Record<string, unknown> | null | undefined) ?? {}) : { 0: body };
+  const inputBody = isBatch ? body : { 0: body };
+  const byIndex = typeof inputBody === "object" && inputBody !== null ? inputBody : {};
   const attaches: AttachRequest[] = [];
   for (const [i, proc] of procs.entries()) {
     if (proc !== `stream.${wanted}`) {
       continue;
     }
-    const input = byIndex[String(i)] as { ref?: StreamRoomRef; sinceSeq?: number | null } | undefined;
+    const rawInput: unknown = Reflect.get(byIndex, String(i));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Passive stream protocol observations preserve unvalidated refs and unnormalized cursors; canonical parsing would reject malformed wire this recorder must observe. Ends when a native typed wire recorder preserves these observations.
+    const input = rawInput as Partial<Pick<StreamAttachInput, "ref" | "sinceSeq">> | null | undefined;
     if (input?.ref !== undefined) {
       attaches.push({ ref: input.ref, sinceSeq: input.sinceSeq ?? null });
     }
