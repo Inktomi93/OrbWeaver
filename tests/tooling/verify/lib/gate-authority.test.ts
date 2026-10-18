@@ -114,7 +114,9 @@ test("an owner result without a known coverage is refused before any grant is ju
 });
 
 test("raw findings cannot spoof policy identity or severity", () => {
-  const spoofed = { ...finding("spoof.ts"), policyId: "other", severity: "warning" };
+  const spoofed = finding("spoof.ts");
+  Reflect.set(spoofed, "policyId", "other");
+  Reflect.set(spoofed, "severity", "warning");
   const result = coordinate({
     selectedPolicies: [POLICIES[0] as SelectedGatePolicy],
     ownerResults: [owner("hard-policy", [spoofed])],

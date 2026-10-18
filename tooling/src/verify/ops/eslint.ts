@@ -16,11 +16,11 @@ import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
+import type { CompilerProgramMembership } from "../../floor/compiler/compiler-programs.ts";
 import { compilerConfigRoster } from "../../floor/compiler/compiler-programs.ts";
 import { isTypeWorldSource, predictedProgram } from "../../floor/compiler/project-worlds.ts";
 import { BASE_UI_DATA_RULE, BASE_UI_HANDLER_RULE, BASE_UI_NATIVE_INPUT_PATHS, BASE_UI_STATE_RULE } from "../contract/baseui.ts";
 import type { EslintFileAdmission, EslintNativeMetadataFamily as NativeMetadataFamily } from "../contract/config-snapshot.ts";
-import type { CompilerProgram } from "../contract/policy-scope.ts";
 import { POPULATION_ROOTS } from "../contract/population.ts";
 import type { JsonValue } from "../contract/resource-json.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
@@ -84,7 +84,7 @@ function ownerFor(path: string, owners: readonly string[]): string {
 
 export function partitionEslintFiles(
   paths: readonly string[],
-  programs: readonly CompilerProgram[],
+  programs: readonly CompilerProgramMembership[],
   typedPaths?: ReadonlySet<string>,
 ): ReadonlyMap<string, readonly string[]> {
   if (paths.length === 0) {

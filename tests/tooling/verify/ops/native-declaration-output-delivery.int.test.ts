@@ -205,12 +205,11 @@ export const concrete={value:0};
       partition.modules,
       partition.bindings,
       partition.witnesses,
-      partition.casts,
       partition.brands,
       partition.runtimeExports,
       partition.shapes,
       partition.pairs,
-    ]).toEqual(Array.from({ length: 10 }, () => []));
+    ]).toEqual(Array.from({ length: 9 }, () => []));
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("declaration-outputs");
   } finally {
     service.mockRestore();
