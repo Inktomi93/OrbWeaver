@@ -18,7 +18,7 @@ import { rememberMultiHumanCapable, useMultiHumanCapableHint } from "#state";
 
 export type { AuthConfig } from "@orb/contracts/auth-config";
 
-export const AUTH_CONFIG_KEY = ["auth", "config"] as const;
+const AUTH_CONFIG_KEY = ["auth", "config"] as const;
 
 /** Fetch the deployment auth config. MEMOIZED for the session — the mode is boot-env, immutable while
  *  the server runs; a failed fetch clears the memo so the next caller retries. */

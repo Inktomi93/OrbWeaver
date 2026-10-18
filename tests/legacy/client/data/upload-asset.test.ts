@@ -7,11 +7,12 @@
 // @orb-waive-file no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
 // @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
-import { UploadRefusedError, uploadAsset } from "@orb/client/data";
+import { UploadRefusedError } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
+import { uploadAsset } from "#client/data/upload-asset.ts";
 
 const SAMPLE_ASSET_ID = mintTypeId(ID_PREFIX.asset);
 const SAMPLE_HASH = "ab".repeat(32);

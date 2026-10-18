@@ -5,13 +5,11 @@
 // exports. This file is the template every client feature agent copies.
 
 import { QueryBoundary } from "@orb/client/components";
-import type { CardFrameRequest, PluginDisplayRow, PluginFrameRequest } from "@orb/client/data";
+import type { PluginDisplayRow } from "@orb/client/data";
 import {
-  __resetSessionFreshness,
   createCollectionSurface,
   createEntityMutation,
   SkeletonRows,
-  sessionFreshnessAgeMs,
   skeletonRowCountFor,
   useCardFrameSrc,
   useCarriedAppearance,
@@ -20,7 +18,6 @@ import {
   useGatedQuery,
   useHuskReaper,
   useInvalidation,
-  useOnlineStatus,
   useOpenRefinery,
   usePluginDisplayText,
   usePluginFrameSrc,
@@ -57,6 +54,10 @@ import type { TrpcInput, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts"
 import { useQuery, useQueryClient, useSuspenseQueries, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { __resetSessionFreshness, sessionFreshnessAgeMs } from "#client/data/session-freshness.ts";
+import type { CardFrameRequest } from "#client/data/use-card-frame.ts";
+import { useOnlineStatus } from "#client/data/use-online-status.ts";
+import type { PluginFrameRequest } from "#client/data/use-plugin-frame.ts";
 import { AppRootSessionBoundary } from "#client/routes/app-root-session-boundary/index.ts";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`

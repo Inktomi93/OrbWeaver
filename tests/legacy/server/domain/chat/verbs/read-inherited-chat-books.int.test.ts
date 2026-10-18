@@ -1,6 +1,6 @@
 // Composed world-book rack: real membership, owned-card resolution, runtime scope pool and world-info verb.
 
-import { createInvalidation, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import { __resetBusDupBursts } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
@@ -19,6 +19,7 @@ import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { eq } from "drizzle-orm";
+import { createInvalidation } from "#client/data/invalidation.ts";
 import { can } from "#server/domain/admin/index.ts";
 import { createPersonaService } from "#server/domain/persona/index.ts";
 import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";

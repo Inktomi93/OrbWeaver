@@ -9,13 +9,14 @@
 // `turnCompleted` closes the turn slot synchronously, the ghost unmounts, and the canon row underneath is
 // still the OLD variant until the wire answers.
 
-import { applyCanonView, createTrpcClient, createTrpcProxy } from "@orb/client/data";
+import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
+import { applyCanonView } from "#client/data/invalidation-carrier.ts";
 import { makeMessageView } from "../features/chat/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_carriertest_0001");

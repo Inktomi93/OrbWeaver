@@ -4,7 +4,7 @@
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path
 // without a navigation harness.
 
-import { recoverIfUnauthorizedCode, useSessionRecovery, useTRPC } from "@orb/client/data";
+import { useSessionRecovery, useTRPC } from "@orb/client/data";
 import { LoginShellAnchor } from "@orb/client/features/auth";
 import { closeModal, useActiveChatId, useActiveSection, useOpenModal } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
@@ -16,6 +16,7 @@ import { StrictMode, useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "#client/data/auth-config.ts";
+import { recoverIfUnauthorizedCode } from "#client/data/stale-session.ts";
 // The shell's modal HOST — the seam that owns the re-auth prompt's dismissal verdict.
 import { ModalHost } from "#client/features/app-shell/components/modal-host.tsx";
 import { LoginFirstRunForm } from "#client/features/auth/components/login-first-run-form.tsx";

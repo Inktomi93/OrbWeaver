@@ -2,20 +2,16 @@
 // adapter (UI-Gates §11.1). Nothing else may translate bus events into state.
 
 export type { ChatBusDeps } from "./apply-chat-bus-event.ts";
-export { applyChatBusEvent } from "./apply-chat-bus-event.ts";
+export {} from "./apply-chat-bus-event.ts";
 export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./chat-bus-writes.ts";
-export { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
-export { PostEventSource } from "./post-event-source.ts";
-export type { RoomSubscriber, RoomTransport } from "./room-registry.ts";
-export { createRoomRegistry } from "./room-registry.ts";
+export {} from "./chat-event-seq-guard.ts";
+export {} from "./post-event-source.ts";
+export {} from "./room-registry.ts";
 
 export {} from "./socket-id.ts";
 
-export type { BusRoomHandlers } from "./use-bus-room.ts";
 export { useBusRoom } from "./use-bus-room.ts";
 export { useChatBus } from "./use-chat-bus.ts";
 export { useOrbSocket } from "./use-orb-socket.ts";
-export type { RpgBusDeps } from "./use-rpg-bus.ts";
 export { useRpgBus } from "./use-rpg-bus.ts";
-export type { UserBusDeps } from "./use-user-bus.ts";
 export { useUserBus } from "./use-user-bus.ts";

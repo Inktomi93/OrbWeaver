@@ -1,12 +1,13 @@
 // The mirror for `packages/client/src/data/bus/post-event-source.ts`: the SSE grammar, the terminal answers
 // that must never reconnect, and the reconnect a body end must make. The stubbed fetch is the wire; the
 // reconnect timer is the injected seam, so a `retry:` delay is an exact observation, not a wait.
-import { PostEventSource } from "@orb/client/data";
+
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { ManualTimer } from "@orb/testkit/iso/clock.ts";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
+import { PostEventSource } from "#client/data/bus/post-event-source.ts";
 
 interface SentRequest {
   readonly url: string;

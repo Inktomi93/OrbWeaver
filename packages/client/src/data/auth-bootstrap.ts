@@ -29,7 +29,7 @@ import type { z } from "zod";
 import { postSessionMessage, sessionDocument } from "#lib";
 import { clearJoinStash } from "./session-resume.ts";
 
-export const AUTH_ME_KEY = ["auth", "me"] as const;
+const AUTH_ME_KEY = ["auth", "me"] as const;
 
 /** Thrown by `login` with the server's user-safe message (generic "invalid credentials" — the server
  *  never enumerates, and neither do we). */
