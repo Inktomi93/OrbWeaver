@@ -22,15 +22,23 @@
 // absence assertion (`not.toContain(<the hidden truth>)`) passed on a stream that delivered nothing. Values
 // that feed an assertion are read through `requireSatisfied`, which refuses every other verdict by name.
 
-// @orb-waive-file no-test-fabrication(ChatFrame): the socket frame is parsed JSON of a known shape; there is no frame schema to parse it with.
 import type { StreamFrameFor } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
-import type { StreamValue } from "@orb/testkit/browser/trpc-wire.ts";
+import { pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 
-export type { StreamValue } from "@orb/testkit/browser/trpc-wire.ts";
+/** The observed cursor and unvalidated event; collection retains the original parsed frame object. */
+export type StreamValue = Pick<StreamFrameFor<"chat">, "seq"> & { readonly event: unknown };
 
-/** One frame off the socket before it is known to be this room's: every `chat` field may be absent. */
-type ChatFrame = { readonly channel: string } & Partial<Omit<StreamFrameFor<"chat">, "channel">>;
+/** Read the event only when a caller needs its fields; raw collection does not certify a bus event. */
+export function readStreamEvent(value: StreamValue): Record<string, unknown> {
+  const event = pageObject(value.event, "chat SSE event");
+  pageString(event["type"], 'chat SSE event field "type"');
+  return event;
+}
+
+function hasObservedValue(value: object): value is StreamValue {
+  return "seq" in value && typeof value.seq === "number" && "event" in value && value.event !== undefined;
+}
 
 /** How a collection stopped. `satisfied` is the only arm under which the values are evidence: `timed-out` (the
  *  timer fired first) and `stream-ended` (the server closed the socket first) both mean `until` never held. */
@@ -191,12 +199,11 @@ function readFrame(frame: string, chatId: ChatId): FrameReading {
   if (typeof payload !== "object" || payload === null) {
     return MALFORMED;
   }
-  const parsed = payload as ChatFrame;
-  if (parsed.channel !== "chat" || parsed.chatId !== chatId) {
+  if (!("channel" in payload) || payload.channel !== "chat" || !("chatId" in payload) || payload.chatId !== chatId) {
     return SKIP;
   }
-  if (parsed.event === undefined || typeof parsed.seq !== "number") {
+  if (!hasObservedValue(payload)) {
     return MALFORMED;
   }
-  return { kind: "value", value: { seq: parsed.seq, event: parsed.event } };
+  return { kind: "value", value: payload };
 }

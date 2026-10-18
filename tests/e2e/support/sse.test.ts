@@ -12,7 +12,7 @@ import { createServer } from "node:http";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, expect, test } from "vitest";
-import { collectChatRoomFrames, requireSatisfied } from "./sse.ts";
+import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./sse.ts";
 
 const CHAT = castId<ChatId>("chat-under-test");
 const OTHER_CHAT = castId<ChatId>("a-different-chat");
@@ -82,7 +82,7 @@ describe("collectChatRoomFrames verdict", () => {
       timeoutMs: SATISFIED_TIMEOUT_MS,
     });
     expect(collection.outcome).toBe("satisfied");
-    expect(collection.values).toEqual([{ seq: 2, event: { type: "messageCommitted" } }]);
+    expect(collection.values).toEqual([JSON.parse(roomFrame(2, "messageCommitted"))]);
     expect(collection.malformedFrames).toBe(0);
     expect(requireSatisfied(collection, "planted satisfied")).toBe(collection.values);
   });
@@ -127,8 +127,51 @@ describe("collectChatRoomFrames verdict", () => {
       timeoutMs: SATISFIED_TIMEOUT_MS,
     });
     expect(collection.outcome).toBe("satisfied");
-    expect(collection.values).toEqual([{ seq: 4, event: { type: "messageCommitted" } }]);
+    expect(collection.values).toEqual([JSON.parse(roomFrame(4, "messageCommitted"))]);
     expect(collection.malformedFrames).toBe(3);
     expect(() => requireSatisfied(collection, "member replay")).toThrow(/member replay.*3 malformed/u);
+  });
+
+  test("raw frame and event extras survive collection without schema stripping", async () => {
+    const observed = {
+      channel: "chat",
+      chatId: CHAT,
+      seq: 1,
+      unexpectedOuterField: "outer-hidden-marker",
+      event: { type: "sparse-event", unexpectedEventField: { text: "event-hidden-marker" } },
+    };
+    const baseUrl = await scriptedRoom([JSON.stringify(observed)], "hold");
+    const collection = await collectChatRoomFrames({
+      baseUrl,
+      headers: {},
+      chatId: CHAT,
+      until: (values) => values.length > 0,
+      timeoutMs: SATISFIED_TIMEOUT_MS,
+    });
+    const delivered = requireSatisfied(collection, "raw extras");
+    expect(delivered).toEqual([observed]);
+    expect(JSON.stringify(delivered)).toContain("outer-hidden-marker");
+    expect(JSON.stringify(delivered)).toContain("event-hidden-marker");
+    const first = delivered[0];
+    if (first === undefined) {
+      throw new Error("the satisfied raw-frame collection delivered no value");
+    }
+    expect(readStreamEvent(first)["type"]).toBe("sparse-event");
+  });
+
+  test("an unreadable observed event type refuses instead of becoming a clean absence before a positive commit", async () => {
+    const baseUrl = await scriptedRoom(
+      [JSON.stringify({ channel: "chat", chatId: CHAT, seq: 1, event: { type: 7 } }), roomFrame(2, "messageCommitted")],
+      "hold",
+    );
+    await expect(
+      collectChatRoomFrames({
+        baseUrl,
+        headers: {},
+        chatId: CHAT,
+        until: (values) => values.some((value) => readStreamEvent(value)["type"] === "messageCommitted"),
+        timeoutMs: SATISFIED_TIMEOUT_MS,
+      }),
+    ).rejects.toThrow(/chat SSE event.*type.*not a string/u);
   });
 });
