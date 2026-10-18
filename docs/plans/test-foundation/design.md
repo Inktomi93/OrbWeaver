@@ -6,6 +6,8 @@ updated: 2026-10-18
 
 # Tests on one harness and one code-facts engine
 
+**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. The orchestrator skill owns rigorous briefs and official inbox monitoring.
+
 ## Goal
 
 Run production through one harness without copied rules. Share one code-facts engine across codemods, `pnpm ast` and gates. Enforce rebuilt files through native types and tools where possible.
@@ -280,7 +282,7 @@ Registry implementation helpers and bookkeeping types remain outside this named 
 
 ### Execution and verification
 
-Follow the orchestrator and lane skills for dispatch, scoped checks and review. Claude primary adds optional capacity; the orchestrator skill owns peer briefs and inbox monitoring. D317 owns the pre-push check. Protect the release container.
+D317 owns the pre-push check. Follow the orchestrator and lane skills; protect the release container.
 
 ### Compose holds wiring only
 

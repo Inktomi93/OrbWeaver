@@ -6,6 +6,8 @@ updated: 2026-10-18
 
 # Tests run the product
 
+**Dispatch:** Claude primary adds capacity beyond the Codex lane cap. The orchestrator skill owns rigorous briefs and official inbox monitoring.
+
 ## Goal
 
 Preserve useful migration cases and production contract concerns for the test-foundation program. Tests call production, derive types and inputs, mount the real door and prove exercised behavior. Spine-Testing section 10 owns the law; test-foundation owns execution order.
