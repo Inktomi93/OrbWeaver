@@ -42,6 +42,7 @@ import { testId } from "#client/lib/test-ids.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
+import { stubAuthConfig } from "../features/user-admin/auth-config-fixtures.ts";
 import { HomePagePendingStory, HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
@@ -532,13 +533,7 @@ const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHan
 
 /** A multi-human deployment and a join token the signed-out visit stashed, both in place before the app boots. */
 async function arriveWithInvite(page: Page): Promise<void> {
-  await page.route("**/api/auth/config", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ mode: "local", multiHumanCapable: true, share: { state: "off", url: null } }),
-    }),
-  );
+  await stubAuthConfig(page, "local");
   await page.addInitScript((token) => sessionStorage.setItem("orb:join-token", token), JOIN_TOKEN);
   await page.reload();
 }
