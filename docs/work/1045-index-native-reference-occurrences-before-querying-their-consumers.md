@@ -24,4 +24,6 @@ Complete native reference controls preserve aliases, declarations, contextual an
 
 ## Evidence
 
-Reference-family attribution identifies separate bulk, exact and invocation query owners. The existing SQLite relation already indexes declaration references. Native occurrence production and parity remain open; binding-row inversion does not establish complete coverage. Evidence: `reports/review/1045-reference-family-attribution.md`.
+Reference-family attribution identifies separate bulk, exact and invocation query owners. The existing SQLite relation indexes declaration references. Evidence: `reports/review/1045-reference-family-attribution.md`.
+
+Reviewed occurrence production indexes eligible function-local declarations and retains explicit native fallback for unsupported relationships. Ordinary SDK delivery preserves reference projections, dependency invalidation, overlays and reader lifetimes. Broad occurrence coverage and complete-world cost remain open. Evidence: `reports/review/1045-native-occurrence-ordinary.md` and `reports/review/1045-native-occurrence-independent.md`.

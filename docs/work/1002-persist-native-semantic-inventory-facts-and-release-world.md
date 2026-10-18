@@ -1,7 +1,7 @@
 ---
 kind: tooling
 status: doing
-updated: 2026-10-17
+updated: 2026-10-18
 priority: P1
 area: tooling
 lane: codex/inventory-implementation-inputs-1002-types
@@ -40,4 +40,4 @@ Executing-input currentness, sealed consumer adoption and the reviewed ABI corre
 
 Replay batching and dependency overlays preserve independent reads, fresh validation, projected bytes and separate authored membership. Public membership controls pass. Reviewed coalescing preserves expectations within each unchanged validation boundary. Shape and public codemod deadlines still fail. Cold acquisition and executing-input replay dominate codemod cost, not query evaluation. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
 
-The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk reference changes. Attribute invocation and currentness replay separately. Complete demand, dependency closure, concurrency and hosted cost remain open.
+The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Local occurrence production passes ordinary delivery and lifecycle controls; unsupported relationships retain native search. Evidence: `reports/review/1045-native-occurrence-ordinary.md`. Attribute invocation and replay separately. Complete demand, closure, concurrency and hosted cost remain open.
