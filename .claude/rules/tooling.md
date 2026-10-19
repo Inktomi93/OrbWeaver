@@ -56,6 +56,10 @@ Gate authoring and the lying-instrument fix contract live in `rules/verify-and-g
 not restate them. Retiring a command or flag: delete it and grep-fix every spelling across code, docs
 and rules in the same change; never add a refusal path or alias shim.
 
+## Shared code facts and readers
+
+Before you fold two readers or code facts into one, compare every version case by case. Keep the most correct recognition, or write one merged reader that is better than each. A parity proof alone does not qualify a fold, because it keeps a weaker version's gaps. Record each case where the versions differed, the behavior kept and why, in the change's report.
+
 ## Workspace packages
 
 Declare `sideEffects` on every new workspace `package.json` at birth, or prod tree-shaking cannot reach
