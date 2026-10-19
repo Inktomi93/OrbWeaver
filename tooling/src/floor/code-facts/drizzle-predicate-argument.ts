@@ -3,6 +3,7 @@ import { Node } from "ts-morph";
 import { innerReadAnchorsOf } from "./drizzle-query.ts";
 import { transparentNativeSqlOperand } from "./drizzle-sql-native.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { resolveStableExpression } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
@@ -16,7 +17,7 @@ function boundParameter(node: Node, bindings: ReadonlyMap<Node, Node>): Node | u
 
 function nativeInitializer(node: Node): boolean {
   if (Node.isTaggedTemplateExpression(node)) {
-    return drizzleExportOf(node.getTag()) === "sql";
+    return drizzleExportOf(node.getTag()) === DRIZZLE_SQL_EXPORT;
   }
   if (!Node.isCallExpression(node) || innerReadAnchorsOf(node).length === 0) {
     return false;

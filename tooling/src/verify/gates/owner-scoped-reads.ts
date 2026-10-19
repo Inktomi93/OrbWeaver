@@ -5,6 +5,7 @@ import type { AsExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence-contract.ts";
 import { drizzleExportOf } from "../../floor/code-facts/drizzle-table-ref.ts";
+import { DRIZZLE_SQL_EXPORT } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -118,7 +119,7 @@ export const gate = defineGate({
               return;
             }
             if (Node.isTaggedTemplateExpression(node)) {
-              if (drizzleExportOf(node.getTag()) === "sql") {
+              if (drizzleExportOf(node.getTag()) === DRIZZLE_SQL_EXPORT) {
                 rawSql.push(node);
               }
               return;

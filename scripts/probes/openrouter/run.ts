@@ -9,7 +9,9 @@
 //
 // ⚠️ Live spend against OpenRouter (`anthropic/claude-sonnet-5`) and, for F5's native reference arms,
 // the Anthropic Messages API. Full batch ≈ $0.5. Keys are read from the repo `.env` and never printed.
+// or12 and or13 compose the server graph, so the batch runs only under ORB_ENV_NO_FILE=1.
 
+import "../_composed-env.ts";
 import { jsonl, readEnvKey, totalSpend } from "./_kit.ts";
 import * as f4 from "./f4-tool-description-cache.ts";
 import * as f4a from "./f4a-effort-cache.ts";

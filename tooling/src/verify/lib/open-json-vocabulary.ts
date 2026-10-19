@@ -7,6 +7,7 @@
 
 import type { BinaryExpression, PropertyAssignment, Node as TsNode } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { DRIZZLE_UPSERT_VERB, DRIZZLE_WRITE_ARGUMENT_VERBS } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { SchemaProjectedColumn, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { NativeTypeVocabulary } from "../../floor/code-facts/type-projection-contract.ts";
 import type {
@@ -153,7 +154,7 @@ function unionKeys(a: ReadonlySet<string> | undefined, b: ReadonlySet<string> | 
 
 // ── writer collection ───────────────────────────────────────────────────────────────────────────────────
 /** The write methods whose argument carries a column's value; a `select({…})` projection carries none. */
-const WRITE_CALLEES: ReadonlySet<string> = new Set(["set", "values", "onConflictDoUpdate"]);
+const WRITE_CALLEES: ReadonlySet<string> = new Set([...DRIZZLE_WRITE_ARGUMENT_VERBS, DRIZZLE_UPSERT_VERB]);
 
 /** The drizzle write a property assignment sits in (`.set({…})` / `.values({…})` / `onConflictDoUpdate({ set: {…} })`):
  *  the enclosing call's own drizzle write, `resolved(null)` when that call is no drizzle write, or the refusal. */

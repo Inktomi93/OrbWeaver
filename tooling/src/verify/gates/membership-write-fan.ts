@@ -32,6 +32,7 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { DRIZZLE_MUTATION_VERBS } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { NativeCallMemberOrigin } from "../../floor/code-facts/type-member-origin-contract.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
@@ -43,7 +44,7 @@ import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 /** The drizzle write verbs whose first argument is the table. `insert` is IN (unlike `owner-scoped-writes`,
  *  whose question is a WHERE predicate `insert` cannot carry): attaching a row to a room is precisely the
  *  member-visible change this policy is about. */
-const WRITE_VERBS: ReadonlySet<string> = new Set(["insert", "update", "delete"]);
+const WRITE_VERBS: ReadonlySet<string> = new Set(DRIZZLE_MUTATION_VERBS);
 
 /** The emits that address ONE human. `emitUserEvent` is the per-person user-bus op every single-owner domain
  *  verb closes over; `emitNotification` is per-RECIPIENT by construction (the durable inbox is delivered to a

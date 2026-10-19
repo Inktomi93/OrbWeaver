@@ -4,7 +4,6 @@
 // fires updateUserSettingsSection("imagery") with the nested {templates,captions} patch, and CLEARING an
 // override sends the leaf `null` (reset-to-default). Asserts the fired patch shape (assert-the-mutation-fired).
 
-
 import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

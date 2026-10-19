@@ -11,7 +11,7 @@ import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { Query, QueryClient } from "@tanstack/react-query";
-import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition } from "#lib";
+import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition, surfaceDeferredFailure } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
@@ -265,9 +265,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
         if (IS_DEV) {
           busDupCheck(filterKeyName(filter));
         }
-        // Without `throwOnError` the aggregate promise never rejects; a failed refetch lands on the query's own error state and the QueryCache `onError`.
+        // Without `throwOnError` the aggregate promise does not reject on a failed refetch (it lands on the query's own error state and the QueryCache `onError`); `.catch` owns anything else.
         // eslint-disable-next-line orb/client-cache-surgery-only-in-data, orb/no-inline-invalidate-outside-seam -- This event-to-filter seam issues the central invalidation call; remove when the query client consumes the event mapping directly.
-        void deps.queryClient.invalidateQueries(filter);
+        deps.queryClient.invalidateQueries(filter).catch(surfaceDeferredFailure);
       }
     });
   };

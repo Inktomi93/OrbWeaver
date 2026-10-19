@@ -1,4 +1,3 @@
-
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 import { buildChatToolOps } from "#server/entry/compose/chat.ts";
 // verbs/turn — the turn-running front doors (.int: real libSQL for the lock + the D26 canon persist + a REAL

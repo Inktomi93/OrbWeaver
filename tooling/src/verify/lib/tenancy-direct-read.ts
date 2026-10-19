@@ -5,7 +5,7 @@ import { literalMemberAccess } from "@orb/tooling/floor/code-facts/reference-fac
 import { unwrapTarget } from "@orb/tooling/floor/code-facts/reference-fact-alias";
 import type { CallExpression, Identifier, Node } from "ts-morph";
 import { Node as N, SyntaxKind, VariableDeclarationKind } from "ts-morph";
-import { RELATIONAL_VERBS } from "../../floor/code-facts/drizzle-operators.ts";
+import { DRIZZLE_CTE_VERB, DRIZZLE_FROM_VERB, DRIZZLE_RELATIONAL_VERBS, DRIZZLE_SELECT_VERBS } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { enclosingFn } from "../../floor/code-facts/function-context.ts";
 import type { DirectOwnerRead, DirectOwnerReadInputs, DirectOwnerReadScope, ReadAnchor } from "../contract/tenancy.ts";
 import { classifyDrizzleClientCall } from "./drizzle-client-call.ts";
@@ -13,7 +13,8 @@ import { hasPostFetchFilter } from "./tenancy-read.ts";
 import { callsAround, filterArguments, imported, JOINS, predicateColumns, statementGap } from "./tenancy-read-chain.ts";
 import { EDGE_ARROW, foreignKeyColumnKey } from "./tenancy-scope.ts";
 
-const QUERY_ROOTS = new Set(["select", "selectDistinct", "from", "$with"]);
+const QUERY_ROOTS: ReadonlySet<string> = new Set([...DRIZZLE_SELECT_VERBS, DRIZZLE_FROM_VERB, DRIZZLE_CTE_VERB]);
+const RELATIONAL_VERBS: ReadonlySet<string> = new Set(DRIZZLE_RELATIONAL_VERBS);
 const FILTERS = new Set(["eq", "inArray", "ne", "gt", "gte", "lt", "lte", "like", "notLike", "isNull", "isNotNull"]);
 const NAKED = "a direct by-id READ of an ownerId-scoped table has no owner predicate in the visible local filter";
 const UNJOINED = "a direct join binds an ownerId-scoped table without an owner predicate or a declared FK pointing at it";
@@ -32,7 +33,7 @@ export function directOwnerReadAnchor(node: CallExpression): ReadAnchor | undefi
   if (table === undefined) {
     return;
   }
-  if (member.name === "from") {
+  if (member.name === DRIZZLE_FROM_VERB) {
     return { kind: "from", call: node, table };
   }
   return JOINS.has(member.name) ? { kind: "join", call: node, table, on: node.getArguments()[1] } : undefined;
@@ -52,7 +53,9 @@ interface PredicateObservation {
   readonly edges: ReadonlySet<string>;
 }
 
-type OwnerValue = "plain" | "column" | "opaque";
+/** Owner-term value classes, least to most uncertain; {@link worstValue} keeps the latest any operand reaches. */
+const OWNER_VALUES = ["plain", "column", "opaque"] as const;
+type OwnerValue = (typeof OWNER_VALUES)[number];
 
 function unknown(reason: string): DirectOwnerRead {
   return { kind: "unknown", reason };
@@ -217,10 +220,7 @@ function ownerValue(operand: Node, scope: DirectOwnerReadScope): OwnerValue {
 }
 
 function worstValue(values: readonly OwnerValue[]): OwnerValue {
-  if (values.includes("opaque")) {
-    return "opaque";
-  }
-  return values.includes("column") ? "column" : "plain";
+  return values.reduce<OwnerValue>((worst, value) => (OWNER_VALUES.indexOf(value) > OWNER_VALUES.indexOf(worst) ? value : worst), "plain");
 }
 
 // Imported members that are not resolved schema columns are foreign values; local data members are plain.

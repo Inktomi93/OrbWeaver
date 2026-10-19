@@ -7,7 +7,8 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node } from "ts-morph";
-import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
+import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { readDrizzleWriteRoots } from "../../floor/code-facts/drizzle-write-chain.ts";
 import { readDrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source.ts";
 import type { DrizzleWriterMember, DrizzleWriterSource } from "../../floor/code-facts/drizzle-writer-source-contract.ts";
@@ -28,7 +29,7 @@ export interface JsonColumnWriter {
 }
 
 /** The bound schema table a fluent write targets; a namespace or alias retains declaration identity. */
-export function updatedTable(setCallee: TsNode, schema: SchemaProjectedModel, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
+export function updatedTable(setCallee: TsNode, schema: SchemaProjectedModel, chainVerb: DrizzleWriteRootVerb = DRIZZLE_UPDATE_VERB): string | undefined {
   const tables = new Map(schema.tables.map((candidate) => [schemaDeclarationKey(candidate.declaration), candidate]));
   return updatedTableWith(
     setCallee,
@@ -43,7 +44,11 @@ export function updatedTable(setCallee: TsNode, schema: SchemaProjectedModel, ch
 }
 
 /** Shared writer traversal retains native table resolution rather than reconstructing declaration meaning. */
-export function updatedTableWith(setCallee: TsNode, readers: JsonColumnWriterReaders, chainVerb: DrizzleWriteRootVerb = "update"): string | undefined {
+export function updatedTableWith(
+  setCallee: TsNode,
+  readers: JsonColumnWriterReaders,
+  chainVerb: DrizzleWriteRootVerb = DRIZZLE_UPDATE_VERB,
+): string | undefined {
   const targets = readers.roots(setCallee, chainVerb);
   if (targets.kind === "unresolved") {
     throw new Error(`json-column-writes: cannot establish write target: ${targets.detail}`);
@@ -130,7 +135,7 @@ function jsonTableOf(
   context: JsonColumnOriginContext,
 ): { readonly table: string; readonly cols: ReadonlySet<string> } | undefined {
   const callee = context.schemaReaders.member(call.getExpression());
-  if (callee?.name !== "set") {
+  if (callee?.name !== DRIZZLE_SET_VERB) {
     return;
   }
   const table = context.writerReaders === undefined ? updatedTable(callee.receiver, context.schema) : updatedTableWith(callee.receiver, context.writerReaders);

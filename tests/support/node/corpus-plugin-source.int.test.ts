@@ -2,10 +2,11 @@
 import "@orb/testkit/node/composed-real.ts";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import { pluginGitPreviewSchema, pluginUpdateCheckSchema, pluginUrlPreviewSchema } from "@orb/server/domain/plugin";
-import { readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { requireShowcaseManifest } from "@orb/testkit/node/showcase-bundle.ts";
 import { strToU8 } from "fflate";
 import { CORPUS_PLUGIN_GIT_URL, createCorpusPluginGit } from "./corpus-plugin-git.ts";
 import { CORPUS_PLUGIN_SOURCE_URL, createCorpusPluginDownloads, seedCorpusPluginSource } from "./corpus-plugin-source.ts";
@@ -58,10 +59,7 @@ test("native Git previews and HEAD changes retain exact revision consent through
 });
 
 test("the showcase update variant derives its version from the native shipped bundle, never the uploaded source", async () => {
-  const shipped = await readShowcaseManifest(SHOWCASE_PLUGIN_SLUGS[0]);
-  if (shipped === null) {
-    throw new Error("the released showcase bundle is required for native update qualification");
-  }
+  const shipped = await requireShowcaseManifest(SHOWCASE_PLUGIN_SLUGS[0]);
   await using root = await createServerHarness();
   const caller = await root.principalFor(root.ownerId);
   const rpc = await root.internalCallerFor(root.ownerId);

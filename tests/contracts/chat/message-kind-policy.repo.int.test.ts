@@ -6,8 +6,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import type { Node, SourceFile } from "ts-morph";
-import { Project, SyntaxKind } from "ts-morph";
+import type { ElementAccessExpression, PropertyAccessExpression, SourceFile } from "ts-morph";
+import { Node, Project, SyntaxKind } from "ts-morph";
 
 const HOME = "packages/contracts/src/chat/participants.ts";
 const RECORD = "MESSAGE_KIND_POLICY";
@@ -25,11 +25,8 @@ function dispatchingAxes(policy: PolicyRecord): readonly string[] {
   return [...axes].filter((axis) => new Set(cells.map((cell) => JSON.stringify(cell.get(axis)))).size > 1);
 }
 
-function isMemberAccess(node: Node | undefined, receiver: Node): boolean {
-  return (
-    (node?.isKind(SyntaxKind.PropertyAccessExpression) === true || node?.isKind(SyntaxKind.ElementAccessExpression) === true) &&
-    node.getExpression() === receiver
-  );
+function isMemberAccess(node: Node | undefined, receiver: Node): node is PropertyAccessExpression | ElementAccessExpression {
+  return (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) && node.getExpression() === receiver;
 }
 
 /** Every property name read above one record reference, across dotted and indexed spellings. */
@@ -37,10 +34,10 @@ function accessedNames(identifier: Node): readonly string[] {
   const names: string[] = [];
   let current: Node = identifier;
   for (let parent = current.getParent(); isMemberAccess(parent, current); parent = current.getParent()) {
-    if (parent?.isKind(SyntaxKind.PropertyAccessExpression) === true) {
+    if (Node.isPropertyAccessExpression(parent)) {
       names.push(parent.getName());
     }
-    current = parent as Node;
+    current = parent;
   }
   return names;
 }

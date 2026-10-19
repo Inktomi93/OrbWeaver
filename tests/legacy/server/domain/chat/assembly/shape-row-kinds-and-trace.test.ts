@@ -120,15 +120,14 @@ describe("shape — the delivered-row trace", () => {
 // tag-absence is the same claim as "not narrator", and the name-stamp put ONE identity's label on a
 // multi-speaker narrator block.
 
-const KIND_CTX: AssembleContext =
-  {
-    character: { name: "Aria", description: "" },
-    characters: [{ name: "Group", description: "" }],
-    characterIds: [GROUP_ID],
-    recentMessages: [],
-    promptConfig: DEFAULT_PROMPT_CONFIG,
-    activePersonaUserId: null,
-  } as unknown as AssembleContext;
+const KIND_CTX: AssembleContext = {
+  character: { name: "Aria", description: "" },
+  characters: [{ name: "Group", description: "" }],
+  characterIds: [GROUP_ID],
+  recentMessages: [],
+  promptConfig: DEFAULT_PROMPT_CONFIG,
+  activePersonaUserId: null,
+} as unknown as AssembleContext;
 
 const KIND_NAMES: HistoryMacroNames = {
   characterNamesById: new Map<CharacterId, RowCharacterName>([[GROUP_ID, { name: "Group" }]]),

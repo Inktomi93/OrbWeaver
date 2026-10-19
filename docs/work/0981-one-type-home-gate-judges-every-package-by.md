@@ -26,9 +26,9 @@ Canonical placement and factory-origin readers keep component-owned APIs beside 
 
 Component contributions support native rendering, substituted members, schema output and supporting type imports. StatusChip metadata ownership and reachable fuzzy-search options have discriminating controls; dead contributions refuse. Opaque generics, unknown spreads, smooth-text lifetimes and complete UI activation remain unqualified. Evidence: `5909ff0d60`.
 
-The UI token-authoring Node contract keeps supported type exports. Generated vocabulary uses native world owners, output freshness and local identity; foreign, borrowed, missing and stale inputs refuse. Generic delivery, other generated homes, lower-data trust and component lifetimes remain open under 1027. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/981-generated-node-homes.md` and its independent review.
+The UI token-authoring Node contract keeps supported type exports. Generated vocabulary uses native world owners, output freshness and local identity; foreign, borrowed, missing and stale inputs refuse. Generic delivery, other generated homes, lower-data trust and component lifetimes remain open under 1027. Evidence: the 981-generated-node-homes review (report not retained) and its independent review.
 
-`5d7417fc59` moves client-only declarations into component, hook and model owners and removes illegal feature-root contract buckets. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/981-client-declarations-independent-review.md`. It does not establish complete coverage.
+`5d7417fc59` moves client-only declarations into component, hook and model owners and removes illegal feature-root contract buckets. Evidence: the 981-client-declarations-independent-review review (report not retained). It does not establish complete coverage.
 
 Sandbox limits use the canonical `PluginBudgets`; the duplicate, its reexport and stale Knip entry are removed. Evidence: `reports/review/canonical-plugin-budgets-independent-review.md`.
 

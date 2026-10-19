@@ -1,6 +1,6 @@
 // Test-family reach follows admitted helpers and value origins, excluding mocks and erased-only edges.
 // The first product module ends traversal; called-export credit requires canonical binding identity.
-import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
+import type { ImportDeclaration, Node as MorphNode, Symbol as MorphSymbol, SourceFile, TypeChecker } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
 import type { TestFamily, TestKindDefinition } from "../testing/test-kinds.ts";
 import { classifyTestFilename } from "../testing/test-kinds.ts";
@@ -14,6 +14,7 @@ import {
   subjectHeader,
 } from "./module-reach.ts";
 import type { DeclaredSubject, TestReach } from "./module-reach-contract.ts";
+import { RELATIVE_MODULE_SUFFIXES, staticModuleEdges } from "./module-target.ts";
 import { resolveModuleMemberOrigin } from "./reference-fact.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "./semantic-inventory-reader.ts";
@@ -21,7 +22,6 @@ import { inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "./
 const TEST_ROOT = "tests/";
 /** `vi` members that replace a module's exports for the file that calls them. */
 const VI_MOCK_MEMBERS: ReadonlySet<string> = new Set(["mock", "doMock"]);
-const SPECIFIER_SUFFIXES: readonly string[] = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
 
 interface WalkInput {
   readonly files: readonly SourceFile[];
@@ -77,13 +77,11 @@ class Walker {
       return cached;
     }
     const file = this.fileByPath.get(path);
-    const declarations: readonly (ImportDeclaration | ExportDeclaration)[] =
-      file === undefined ? [] : [...file.getImportDeclarations(), ...file.getExportDeclarations()];
-    const helpers = declarations.flatMap((declaration) => {
+    const helpers = (file === undefined ? [] : staticModuleEdges(file)).flatMap(({ declaration, target: module }) => {
       if (declaration.isTypeOnly()) {
         return [];
       }
-      const target = this.pathOf(inventoryStaticTarget(declaration));
+      const target = this.pathOf(module);
       return target?.startsWith(TEST_ROOT) === true ? [target] : [];
     });
     for (const call of file?.getDescendantsOfKind(SyntaxKind.CallExpression) ?? []) {
@@ -359,7 +357,7 @@ class Walker {
       return inventoryStaticTarget(imported);
     }
     const base = specifierPath(this.input.relativePath(file), specifier);
-    return base === undefined ? undefined : SPECIFIER_SUFFIXES.map((suffix) => this.fileByPath.get(`${base}${suffix}`)).find((hit) => hit !== undefined);
+    return base === undefined ? undefined : RELATIVE_MODULE_SUFFIXES.map((suffix) => this.fileByPath.get(`${base}${suffix}`)).find((hit) => hit !== undefined);
   }
 }
 

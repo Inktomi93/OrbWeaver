@@ -6,6 +6,7 @@ import { readDrizzleSelection } from "./drizzle-select.ts";
 import type { SqlFragmentsReader, SqlReadContext, SqlSelectContainment, SqlSelectionCallback } from "./drizzle-sql-contract.ts";
 import { runtimeDrizzleOrigin, sqlDialect } from "./drizzle-sql-native.ts";
 import { columnType, nativeTableFragment, readSqlValueSources } from "./drizzle-sql-origin.ts";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_CTE_VERB } from "./drizzle-vocabulary.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
 import type { ReturnedValueSource } from "./reference-fact-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
@@ -60,10 +61,16 @@ export function readNativeColumnFragments(
 function selectedQueries(source: ReturnedValueSource, context: SqlReadContext): readonly ReturnedValueSource[] | undefined {
   const value = source.value;
   const as = Node.isCallExpression(value) ? staticMemberAccess(value.getExpression()) : undefined;
-  if (!source.present || source.path.length > 0 || !Node.isCallExpression(value) || as?.name !== "as" || !runtimeDrizzleOrigin(value.getExpression())) {
+  if (
+    !source.present ||
+    source.path.length > 0 ||
+    !Node.isCallExpression(value) ||
+    as?.name !== DRIZZLE_ALIAS_VERB ||
+    !runtimeDrizzleOrigin(value.getExpression())
+  ) {
     return;
   }
-  const cte = Node.isCallExpression(as.receiver) && staticMemberAccess(as.receiver.getExpression())?.name === "$with";
+  const cte = Node.isCallExpression(as.receiver) && staticMemberAccess(as.receiver.getExpression())?.name === DRIZZLE_CTE_VERB;
   const query = cte ? value.getArguments()[0] : as.receiver;
   if (query === undefined) {
     return;

@@ -11,7 +11,6 @@
 //    crown however many rows CLAIM default in user prose; Duplicate/Export/Delete in the editor footer, and a
 //    deleted default names where the crown went; the band's From-character door.
 
-
 import { rowActionsName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { makePersonaView } from "@orb/testkit/node/factories/persona-view.ts";

@@ -33,6 +33,8 @@ Reviewed `cb26ce442e` extends supplied formals, finite actual callable bodies an
 
 Native wrapper, default-normalization, runtime-sharing and unsafe controls pass. Tooling types and exact lint pass; root types retain off-owned errors. Matching checks remain reusable.
 
-Reviewed `849095f170` qualifies finite generic table alternatives, imported destructured CTE lifetimes, INNER JOIN correlations and finite supplied callback consumers. Unknown, mutable and opaque alternatives refuse. Scalar metadata does not erase SQL-carrier obligations. Path-local cycle refusal replaces the CTE depth cutoff. Final affected controls and tooling types pass; superseded aggregate failures remain recorded. Evidence: `.claude/worktrees/codex-drizzle-native-953/reports/review/953-native-drizzle-independent-review.md`. Containment supplies no authority. Complete repository equivalence and schema qualification remain open.
+Reviewed `849095f170` qualifies finite generic table alternatives, imported destructured CTE lifetimes, INNER JOIN correlations and finite supplied callback consumers. Unknown, mutable and opaque alternatives refuse. Scalar metadata does not erase SQL-carrier obligations. Path-local cycle refusal replaces the CTE depth cutoff. Final affected controls and tooling types pass; superseded aggregate failures remain recorded. Evidence: the 953-native-drizzle-independent-review review (report not retained). Containment supplies no authority. Complete repository equivalence and schema qualification remain open.
 
-Reviewed `5423bfb5d9` stops fluent extraction at delivered await values. Native execution, mutable SQL lifetime and owner predicates remain separate judgments. Native policy positives and unsafe controls pass; complete equivalence remains open.
+Reviewed `5423bfb5d9` stops fluent extraction at delivered await values; complete equivalence remains open.
+
+Owed before landing: a per-case version table for each folded reader (.claude/rules/tooling.md); the vocabulary commit proved parity only.

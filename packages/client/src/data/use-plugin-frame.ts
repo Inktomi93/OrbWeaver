@@ -20,6 +20,7 @@ import type { PluginFrameMintRequest, PluginFrameMintResponse, pluginFrameMintRe
 import { PLUGIN_FRAME_ROUTE, pluginFrameMintResponseSchema } from "@orb/contracts/plugin";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
+import { surfaceDeferredFailure } from "#lib";
 
 export type PluginFrameRequest = Readonly<z.input<typeof pluginFrameMintRequestSchema>> & Pick<PluginFrameMintRequest, "pluginId">;
 
@@ -65,8 +66,7 @@ export async function revokePluginFrame(url: string): Promise<void> {
 }
 
 function revokeFrameInBackground(url: string): void {
-  // `revokePluginFrame` contains its own network failure, so this promise never rejects.
-  void revokePluginFrame(url);
+  revokePluginFrame(url).catch(surfaceDeferredFailure);
 }
 
 /**
@@ -87,15 +87,17 @@ export function usePluginFrameSrc(request: PluginFrameRequest | undefined): stri
     let live = true;
     let handle: string | undefined;
     const pending = mintPluginFrame(body);
-    // `pending` never rejects: `mintPluginFrame` collapses every failure to `undefined`.
-    void pending.then((url) => {
-      handle = url;
-      if (live) {
-        setResolved({ body, url });
-      } else if (url !== undefined) {
-        revokeFrameInBackground(url);
-      }
-    });
+    // `mintPluginFrame` collapses every mint failure to `undefined`; `.catch` owns a throw from the callback.
+    pending
+      .then((url) => {
+        handle = url;
+        if (live) {
+          setResolved({ body, url });
+        } else if (url !== undefined) {
+          revokeFrameInBackground(url);
+        }
+      })
+      .catch(surfaceDeferredFailure);
     return (): void => {
       live = false;
       if (handle !== undefined) {

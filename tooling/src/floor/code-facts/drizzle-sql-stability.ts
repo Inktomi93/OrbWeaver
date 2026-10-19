@@ -9,12 +9,16 @@ import { AGGREGATE_OPERATORS, runtimeDrizzleOrigin } from "./drizzle-sql-native.
 import { columnType, nativeArrayInvocation, readSqlValueSources, sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
 import { readSqlSelectionCallback } from "./drizzle-sql-projection.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_EXECUTE_VERBS, DRIZZLE_SELECT_VERBS, DRIZZLE_SQL_EXPORT, DRIZZLE_SQL_RAW_MEMBER } from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
 import { inspectReferenceWrites, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import type { CallReturnProgram } from "./reference-fact-contract.ts";
 import { unprovenReferenceUse } from "./reference-fact-writes.ts";
 import { isIdentityObservation } from "./value-carrier.ts";
+
+const EXECUTE_VERBS: ReadonlySet<string> = new Set(DRIZZLE_EXECUTE_VERBS);
+const SELECT_VERBS: ReadonlySet<string> = new Set(DRIZZLE_SELECT_VERBS);
 export const CONTAINED_OPERATORS = [
   "and",
   "or",
@@ -58,10 +62,7 @@ function transparentSqlParent(parent: MorphNode, value: MorphNode): boolean {
 function executedSelectionCall(call: import("ts-morph").CallExpression): boolean {
   const member = readCalledMember(call);
   return (
-    member.kind === "resolved" &&
-    ["all", "get", "run", "execute"].includes(member.value.name) &&
-    member.value.declarations.length > 0 &&
-    declaredInDrizzle(member.value.declarations)
+    member.kind === "resolved" && EXECUTE_VERBS.has(member.value.name) && member.value.declarations.length > 0 && declaredInDrizzle(member.value.declarations)
   );
 }
 
@@ -126,7 +127,7 @@ function nativeProjectionUse(property: import("ts-morph").PropertyAssignment, ac
       Node.isObjectLiteralExpression(object) &&
       Node.isCallExpression(call) &&
       call.getArguments()[0] === object &&
-      ["select", "selectDistinct"].includes(member?.name ?? "") &&
+      SELECT_VERBS.has(member?.name ?? "") &&
       runtimeDrizzleOrigin(call.getExpression())
     )
   ) {
@@ -161,7 +162,7 @@ function nativeSqlCallUse(value: MorphNode, call: import("ts-morph").CallExpress
     return runtimeDrizzleOrigin(call.getExpression()) && sqlAliasUseStable(call, active, program);
   }
   const constructs =
-    ["join", "identifier", "raw"].some((name) => sqlMethod(call, name)) ||
+    ["join", "identifier", DRIZZLE_SQL_RAW_MEMBER].some((name) => sqlMethod(call, name)) ||
     (Object.keys(AGGREGATE_OPERATORS).some((name) => callsDrizzleOperator(call, name)) && runtimeDrizzleOrigin(call.getExpression()));
   if (constructs) {
     return sqlAliasUseStable(call, active, program);
@@ -194,7 +195,7 @@ function nativeSqlMemberUse(parent: MorphNode, value: MorphNode, active: Readonl
     return true;
   }
   return (
-    ["as", "getSQL"].includes(member.name) &&
+    [DRIZZLE_ALIAS_VERB, "getSQL"].includes(member.name) &&
     Node.isCallExpression(call) &&
     runtimeDrizzleOrigin(call.getExpression()) &&
     sqlAliasUseStable(call, active, program)
@@ -204,7 +205,7 @@ function nativeSqlTemplateUse(span: import("ts-morph").TemplateSpan, active: Rea
   const template = span.getParent().getParent();
   return (
     Node.isTaggedTemplateExpression(template) &&
-    drizzleExportOf(template.getTag()) === "sql" &&
+    drizzleExportOf(template.getTag()) === DRIZZLE_SQL_EXPORT &&
     runtimeDrizzleOrigin(template.getTag()) &&
     sqlAliasUseStable(template, active, program)
   );

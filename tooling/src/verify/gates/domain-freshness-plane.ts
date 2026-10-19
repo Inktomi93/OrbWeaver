@@ -78,6 +78,7 @@ import type { RoomEntityKind } from "@orb/contracts/chat";
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { DRIZZLE_BATCH_VERB, DRIZZLE_MUTATION_VERBS, DRIZZLE_SELECT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { resolveAuthoredComposite } from "../../floor/code-facts/static-authored-value.ts";
 import { defineGate } from "../contract/policy.ts";
 import type { SchemaColumnIdentity, SchemaModel } from "../contract/schema-fact.ts";
@@ -331,7 +332,7 @@ const SEATING_STALE_ANCHOR = "packages/db/src/schema/relations.ts";
 const DB_IMPORT = "@orb/db";
 /** The drizzle write verbs. Read off the CALLEE, so the receiver is deliberately unconstrained — the
  *  `@orb/db` import in the same file is the half that keeps a `Map.delete(` out of the derivation. */
-const WRITE_METHODS: ReadonlySet<string> = new Set(["insert", "update", "delete", "batch"]);
+const WRITE_METHODS: ReadonlySet<string> = new Set([...DRIZZLE_MUTATION_VERBS, DRIZZLE_BATCH_VERB]);
 
 function isSelectStatement(expression: MorphNode): boolean {
   const resolved = resolveAuthoredComposite(expression);
@@ -347,7 +348,7 @@ function isSelectStatement(expression: MorphNode): boolean {
     if (member === undefined || readDrizzleClientCall(current).kind !== "drizzle") {
       return false;
     }
-    if (member.name === "select") {
+    if (member.name === DRIZZLE_SELECT_VERB) {
       return true;
     }
     current = member.receiver;
@@ -692,7 +693,7 @@ export const gate = defineGate({
             if (name === undefined) {
               return;
             }
-            if (WRITE_METHODS.has(name) && !(name === "batch" && isReadOnlyBatch(node))) {
+            if (WRITE_METHODS.has(name) && !(name === DRIZZLE_BATCH_VERB && isReadOnlyBatch(node))) {
               facts.write ??= Node.isPropertyAccessExpression(node.getExpression())
                 ? node.getExpression().asKindOrThrow(SyntaxKind.PropertyAccessExpression).getNameNode()
                 : node;

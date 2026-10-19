@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 // contracts/refinery/schema-authoring — the SF0 document belt (lift + refinery tightenings + the
 // well-known core) and the render-hint vocabulary. The belt's REFUSALS are the contract: each arm is

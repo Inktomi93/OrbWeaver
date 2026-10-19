@@ -4,15 +4,6 @@ import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
   {
-    id: "suppressions:source-format",
-    policyId: "suppressions",
-    subject: "format",
-    operation: "source",
-    why: "RULING — a byte blob kept on ONE line on purpose — the formatter's wrap would make it unreadable and diff-noisy (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `format` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-jsx-a11y-control-has-associated-label",
     policyId: "suppressions",
     subject: "jsx-a11y/control-has-associated-label",
@@ -112,15 +103,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
       "the ruling itself is reversed, or the last governed source site under `lint/complexity/noExcessiveCognitiveComplexity` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
-    id: "suppressions:source-lint-complexity-no-useless-return",
-    policyId: "suppressions",
-    subject: "lint/complexity/noUselessReturn",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — the explicit fallthrough return satisfies TypeScript noImplicitReturns because sibling branches return values (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `lint/complexity/noUselessReturn` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
     id: "suppressions:source-lint-complexity-use-max-params",
     policyId: "suppressions",
     subject: "lint/complexity/useMaxParams",
@@ -137,15 +119,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
     why: "TOOL FALSE POSITIVE — value-keyed deps — inline array literals are fresh refs each render and would re-arm every render (the measured keystroke regression) (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 3 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/correctness/useExhaustiveDependencies` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-lint-correctness-use-yield",
-    policyId: "suppressions",
-    subject: "lint/correctness/useYield",
-    operation: "source",
-    why: "RULING — an empty async generator IS the held-open no-turn prompt (the agent-sdk catalog's designed shape) (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 2 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/correctness/useYield` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
     id: "suppressions:source-lint-nursery-no-component-hook-factories",
@@ -173,15 +146,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
     why: "RULING — an explicit probe/golden-harness observation mode asks for bounded network quiet; it is not a test readiness guess (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 2 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/nursery/noPlaywrightNetworkidle` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-lint-nursery-no-playwright-wait-for-selector",
-    policyId: "suppressions",
-    subject: "lint/nursery/noPlaywrightWaitForSelector",
-    operation: "source",
-    why: "RULING — the foreign ST golden harness has no owned semantic locator contract, so its dynamic DOM selector is the integration boundary (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 3 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/nursery/noPlaywrightWaitForSelector` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
     id: "suppressions:source-lint-nursery-no-playwright-wait-for-timeout",
@@ -254,15 +218,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_A: readonly ReviewedGateGrant[] = [
     why: "RULING — wire vocabulary — the snake_case key IS the protocol/format (ST cards, OpenAI-compatible bodies, the mode literals); renaming forks the wire (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 52 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/style/useNamingConvention` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-lint-performance-no-barrel-file",
-    policyId: "suppressions",
-    subject: "lint/performance/noBarrelFile",
-    operation: "source",
-    why: "RULING — a re-export at the ORIGINAL module's own path preserves that module's public API after a slice of it was extracted to a sibling leaf (tooling-size splits); it is a compatibility seam for the module's existing importers, not the fan-out barrel the rule polices.",
-    endsWhen:
-      "the last governed source site under `lint/performance/noBarrelFile` disappears, or a split module's re-export is dropped in favor of repointing every importer directly.",
   },
   {
     id: "suppressions:source-orb-no-arbitrary-tw-values",

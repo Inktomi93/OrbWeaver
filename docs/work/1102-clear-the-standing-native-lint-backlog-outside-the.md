@@ -22,4 +22,4 @@ Each rule's findings are fixed at the site, or, for a verified false positive su
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner ruling: fix false positives, never excuse them; the waiver budget does not rise. valid-expect is fixed by a patched plugin rule, fault plants move to fixture modules, casts become real narrowing, and cellTest is registered in rule options.

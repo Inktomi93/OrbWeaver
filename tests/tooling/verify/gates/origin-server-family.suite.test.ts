@@ -18,7 +18,6 @@ import { gate as noHandwrittenWireJsonSchema } from "../../../../tooling/src/ver
 import { gate as noHardcodedSideGenSampling } from "../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
-import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -39,7 +38,6 @@ test(
         noHardcodedSideGenSampling,
         persistenceNoInMemoryState,
         testMockDoctrine,
-        turnIdentity,
       ]),
     ).toEqual([]);
   },

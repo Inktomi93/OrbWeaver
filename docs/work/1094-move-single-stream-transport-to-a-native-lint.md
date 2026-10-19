@@ -21,4 +21,4 @@ An eslint selector in the router restrictions refuses a second stream transport,
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+A runtime test already exists, unmerged: e2522b05f2 "pin the one-subscription tRPC transport at runtime" on branch wt/wf_d99749a9-c7a-46. Review and cherry-pick it as the successor before the single-stream-transport gate is deleted.

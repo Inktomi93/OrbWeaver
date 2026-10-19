@@ -1,4 +1,3 @@
-
 import { defineVersionedConfig, tolerantArray } from "@orb/contracts/versioned-config";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";

@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: doing
+updated: 2026-10-19
 priority: P1
 area: tooling
+lane: wt/agent-a1f19683428ee1d4b
 plan: native-occurrence-index
 ---
 

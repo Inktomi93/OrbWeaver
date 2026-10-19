@@ -139,10 +139,15 @@ export const NATIVE_MODEL = process.env["NATIVE_MODEL"] ?? "claude-sonnet-5";
  *  `cache_control` entirely and would read as a cache "bust" that is really a routing hop (findings §2). */
 export const ANTHROPIC_PIN = { order: ["Anthropic"], allow_fallbacks: false };
 
+/** The value the probe's own launcher set, never a `.env` line. An admission check reads only this. */
+export function processEnvKey(name: string): string | undefined {
+  return process.env[name];
+}
+
 /** Walks up from this file for the repo `.env` — this harness runs from git worktrees, which do not carry
  *  their own `.env`. `process.env` wins when set. */
 export function readEnvKey(name: string): string {
-  const preset = process.env[name];
+  const preset = processEnvKey(name);
   if (preset !== undefined && preset !== "") {
     return preset;
   }

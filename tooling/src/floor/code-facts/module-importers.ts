@@ -1,24 +1,22 @@
 // Authored exact imports and native substring/target queries retain separate caller admissions.
-import type { ExportDeclaration, ImportDeclaration, SourceFile } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ModuleImporterQuery, ModuleImporters, ModuleImportHit } from "./module-reach-contract.ts";
-import { importerModulePath } from "./module-target.ts";
+import { importerModulePath, staticModuleEdges } from "./module-target.ts";
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
-import { inventoryStaticTarget, semanticInventoryOf } from "./semantic-inventory-reader.ts";
+import { semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
 function staticImporterHits(sf: SourceFile, spec: string): ModuleImportHit[] {
   const out: ModuleImportHit[] = [];
-  const decls: Array<ImportDeclaration | ExportDeclaration> = [...sf.getImportDeclarations(), ...sf.getExportDeclarations()];
-  for (const d of decls) {
+  for (const { declaration: d, target } of staticModuleEdges(sf)) {
     // Two independent match strategies, OR'd: (1) the raw specifier text — catches package/#alias specs
     // the caller quotes verbatim (`@orb/ui/badge`); (2) the RESOLVED target file's path — catches relative
     // specs (`../assembly/shape`, `./context`) that share no substring with a file-path query at all. Without
     // (2), querying by file path silently misses every relative importer (a false "0 importers" dead-code
-    // signal) — resolution handles relative/#alias/@orb subpath uniformly (same technique as resolvedGraph).
+    // signal) — the native target handles relative/#alias/@orb subpath uniformly.
     const raw = d.getModuleSpecifierValue();
     const rawHit = raw?.includes(spec);
-    const resolved = inventoryStaticTarget(d)?.getFilePath();
-    const resolvedHit = resolved?.includes(spec);
+    const resolvedHit = target?.getFilePath().includes(spec);
     if (rawHit === true || resolvedHit === true) {
       out.push({ node: d, kind: "import" });
     }
@@ -46,8 +44,8 @@ function dynamicImporterHits(sf: SourceFile, spec: string, targets: ReadonlySet<
 
 function staticResolvedTargets(sf: SourceFile, spec: string): string[] {
   const targets: string[] = [];
-  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
+  for (const { declaration, target } of staticModuleEdges(sf)) {
+    const resolved = target?.getFilePath();
     if (resolved !== undefined && (declaration.getModuleSpecifierValue()?.includes(spec) === true || resolved.includes(spec))) {
       targets.push(resolved);
     }
@@ -80,8 +78,8 @@ function resolvedTargets(files: readonly SourceFile[], spec: string): Set<string
 
 function resolvedImporterHits(sf: SourceFile, targets: ReadonlySet<string>): ModuleImportHit[] {
   const hits: ModuleImportHit[] = [];
-  for (const declaration of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const resolved = inventoryStaticTarget(declaration)?.getFilePath();
+  for (const { declaration, target } of staticModuleEdges(sf)) {
+    const resolved = target?.getFilePath();
     if (resolved !== undefined && targets.has(resolved)) {
       hits.push({ node: declaration, kind: "import" });
     }

@@ -33,6 +33,7 @@ import type { Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { callsDrizzleOperator } from "./drizzle-operators.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 export const sqlDialect = new SQLiteSyncDialect();
 const runtimeDrizzleRoot = dirname(fileURLToPath(import.meta.resolve("drizzle-orm")));
 const BINARY_OPERATORS = { eq, ne, gt, gte, lt, lte, inArray, notInArray, like, notLike, ilike, notIlike } as const;
@@ -56,7 +57,7 @@ export function runtimeDrizzleOrigin(node: MorphNode): boolean {
 
 /** A native template with one interpolation and no authored grammar carries that exact operand. */
 export function transparentNativeSqlOperand(node: MorphNode): MorphNode | undefined {
-  if (!Node.isTaggedTemplateExpression(node) || drizzleExportOf(node.getTag()) !== "sql" || !runtimeDrizzleOrigin(node.getTag())) {
+  if (!Node.isTaggedTemplateExpression(node) || drizzleExportOf(node.getTag()) !== DRIZZLE_SQL_EXPORT || !runtimeDrizzleOrigin(node.getTag())) {
     return;
   }
   const template = node.getTemplate();

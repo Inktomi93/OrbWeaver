@@ -43,6 +43,7 @@
 // still reported, and each carries its own row.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeOriginPass } from "../lib/native-origin.ts";
@@ -72,14 +73,7 @@ function fetchCandidate(node: MorphNode): boolean {
   if (Node.isIdentifier(node)) {
     return node.getText() === FETCH;
   }
-  if (Node.isPropertyAccessExpression(node)) {
-    return node.getName() === FETCH;
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return false;
-  }
-  const argument = node.getArgumentExpression();
-  return argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) && argument.getLiteralText() === FETCH;
+  return literalMemberAccess(node, true)?.name === FETCH;
 }
 
 /** A `typeof globals.fetch === "function"` capability probe reads whether the environment HAS the api, and
@@ -213,7 +207,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/verbs/template.ts": 'export const load = async (): Promise<unknown> => await globalThis[`fetch`]("https://x");\n',
       },
       expect: { count: 1 },
-      why: 'THE TEMPLATE-LITERAL HALF of the computed spelling, which the `"fetch"` row beside it cannot reach: `fetchCandidate` accepts a StringLiteral OR a NoSubstitutionTemplateLiteral argument, and only this fixture exercises the second disjunct. DIRECTION: dropping `Node.isNoSubstitutionTemplateLiteral(argument)` makes the policy flag LESS — a backtick respelling walks past a D61 egress ban — so the row that dies is a `mustFlag`',
+      why: 'THE TEMPLATE-LITERAL HALF of the computed spelling, which the `"fetch"` row beside it cannot reach: `fetchCandidate` reads the key through `literalMemberAccess(node, true)`, which admits a StringLiteral OR a NoSubstitutionTemplateLiteral, and only this fixture exercises the second. DIRECTION: dropping the `true` template flag makes the policy flag LESS — a backtick respelling walks past a D61 egress ban — so the row that dies is a `mustFlag`',
     },
     {
       mode: "types",

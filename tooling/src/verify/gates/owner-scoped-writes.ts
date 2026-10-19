@@ -35,6 +35,7 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { DRIZZLE_DELETE_VERB, DRIZZLE_UPDATE_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
@@ -46,7 +47,7 @@ import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 const OWNER_COL = "ownerId";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is
  *  only which statement the reader anchors on, and both anchor the same way. */
-const WRITE_VERBS = new Set(["update", "delete"]);
+const WRITE_VERBS: ReadonlySet<string> = new Set([DRIZZLE_UPDATE_VERB, DRIZZLE_DELETE_VERB]);
 
 /** The finding message of the third arm — the UNRESOLVABLE class, so the arm reads distinctly from the by-
  *  id/unbounded arms even though its token (the binding itself) can collide with theirs. */

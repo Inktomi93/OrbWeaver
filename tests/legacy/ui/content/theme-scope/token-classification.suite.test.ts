@@ -1,4 +1,3 @@
-
 // The theme-integrity CLASSIFICATION ratchet (owner defect #2 widening — "make sure literally nothing
 // is hardcoded to our old themes"). Every `--color-*` design token must fall into EXACTLY ONE class:
 //

@@ -1,6 +1,8 @@
 // The existing invocation atom graph validates every ordinary captured question and returned source.
 import { SyntaxKind } from "ts-morph";
 import { z } from "zod";
+import type { DrizzleWriteRootVerb } from "./drizzle-vocabulary.ts";
+import { DRIZZLE_WRITE_ROOT_VERBS } from "./drizzle-vocabulary.ts";
 import type { OrdinaryObservationDemand } from "./ordinary-observations-contract.ts";
 import type { InventoryTypeProjection, InventoryTypeSelections } from "./projection-inventory-contract.ts";
 import { typeProjectionSchema, typeSelectionsSchema } from "./projection-inventory-contract.ts";
@@ -93,7 +95,7 @@ export function ordinaryObservationsSchema(
           z.strictObject({ kind: z.literal("refusal"), message: z.string() }),
         ]),
         writer,
-        roots: z.array(z.strictObject({ verb: z.enum(["update", "insert"]), fact: reference(z.array(root)) })),
+        roots: z.array(z.strictObject({ verb: z.enum(DRIZZLE_WRITE_ROOT_VERBS), fact: reference(z.array(root)) })),
       }),
     ),
     calls: z.array(
@@ -176,7 +178,7 @@ export interface InventoryOrdinaryObservations {
     readonly rowIdentity: { readonly kind: "value"; readonly value: InventorySpan | null } | { readonly kind: "refusal"; readonly message: string };
     readonly writer: WireWriter;
     readonly roots: readonly {
-      readonly verb: "update" | "insert";
+      readonly verb: DrizzleWriteRootVerb;
       readonly fact: InventoryInvocationReference<
         readonly { readonly node: InventorySpan; readonly member: InventoryInvocationReference<InventoryOrdinaryMember>; readonly table: InventorySpan }[]
       >;

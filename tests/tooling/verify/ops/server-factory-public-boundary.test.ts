@@ -9,43 +9,46 @@ import { readServerPublicBoundary } from "../../../../tooling/src/floor/code-fac
 
 const RULE = "orb/server-factory-tier-reference";
 
-test("public declaration boundaries refuse inference and reflection, retain erased arguments and inspect nested external augmentation without type expansion", async ({
+// Declarations outside the walked tier (lib, node_modules, packages, augmentations) are stops: vendor and package
+// declarations cannot import server source, and an augmentation is judged at its own site below.
+test("public declaration boundaries read inferred and reflected syntax, retain erased arguments, stop at foreign declarations and judge augmentations at their site", async ({
   scratch,
   repoRoot,
 }) => {
   const factory = "packages/server/src/infra/adapter/factory.ts";
+  const augmentation = "packages/server/src/infra/adapter/augmentation.ts";
   const cases = [
-    ["entry/inferred", "inferred", "unreadableFactoryExposure"],
+    ["entry/inferred", "inferred", null],
     ["entry/platform", "platform", null],
     ["entry/actual", "actual", "crossTierFactoryType"],
     ["entry/erased", "erased", null],
-    ["entry/augmented", "augmented", "crossTierFactoryType"],
-    ["entry/reflected", "reflected", "unreadableFactoryExposure"],
+    ["entry/augmented", "augmented", null],
+    ["entry/reflected", "reflected", null],
     ["infra/local", "inferred", null],
     ["entry/actual", "repeated", "crossTierFactoryType"],
     ["entry/actual", "callback", "crossTierFactoryType"],
     ["entry/actual", "inherited", "crossTierFactoryType"],
-    ["entry/inferred", "getter", "unreadableFactoryExposure"],
+    ["entry/inferred", "getter", null],
     ["entry/erased", "shadow", null],
     ["entry/erased", "constrained", null],
     ["entry/erased", "complexErased", "unreadableFactoryExposure"],
     ["entry/reflected", "partial", "crossTierFactoryType"],
     ["entry/augmented", "Contaminated", "crossTierFactoryType"],
     ["entry/erased", "inheritedErased", "unreadableFactoryExposure"],
-    ["entry/reflected", "reflectedValue", "unreadableFactoryExposure"],
-    ["entry/erased", "externalErased", "unreadableFactoryExposure"],
+    ["entry/reflected", "reflectedValue", null],
+    ["entry/erased", "externalErased", null],
     ["entry/erased", "boxedErased", "unreadableFactoryExposure"],
-    ["entry/reflected", "externalInferred", "unreadableFactoryExposure"],
+    ["entry/reflected", "externalInferred", null],
     ["entry/erased", "privateClass", null],
     ["entry/erased", "PrivateClass", null],
     ["entry/actual", "PublicClass", "crossTierFactoryType"],
     ["entry/inferred", "parameterClass", "unreadableFactoryExposure"],
-    ["entry/augmented", "opaqueAugmented", "unreadableFactoryExposure"],
+    ["entry/augmented", "opaqueAugmented", null],
     ["entry/platform", "opaqueSafe", null],
-    ["entry/augmented", "mixed", "finding-and-refusal"],
+    ["entry/augmented", "mixed", null],
     ["entry/platform", "opaqueNativeSafe", null],
-    ["entry/augmented", "opaqueKey", "unreadableFactoryExposure"],
-    ["entry/inferred", "inferredField", "unreadableFactoryExposure"],
+    ["entry/augmented", "opaqueKey", null],
+    ["entry/inferred", "inferredField", "crossTierFactoryType"],
     ["entry/inferred", "inferredProperty", "finding-and-refusal"],
     ["entry/actual", "defaultActual", "crossTierFactoryType"],
     ["entry/erased", "replacedDefault", null],
@@ -55,16 +58,16 @@ test("public declaration boundaries refuse inference and reflection, retain eras
     ["entry/inferred", "dependentDefault", "unreadableFactoryExposure"],
     ["entry/platform", "nativeBytes", null],
     ["entry/platform", "canonicalVocabulary", null],
-    ["entry/augmented", "canonicalContamination", "unreadableFactoryExposure"],
-    ["entry/actual", "canonicalDirect", "crossTierFactoryType"],
-    ["entry/actual", "mergedPrivateDefault", "crossTierFactoryType"],
+    ["entry/augmented", "canonicalContamination", null],
+    ["entry/actual", "canonicalDirect", null],
+    ["entry/actual", "mergedPrivateDefault", null],
     ["entry/erased", "mergedReplacement", null],
     ["entry/platform", "opaqueInputs", null],
     ["entry/platform", "forwardedPhantom", null],
     ["entry/platform", "nativeGenericNeutral", null],
     ["entry/augmented", "outerPrivate", "unreadableFactoryExposure"],
-    ["entry/augmented", "unsafeGenericAugmentation", "unreadableFactoryExposure"],
-    ["entry/inferred", "unknownLexicalOwner", "unreadableFactoryExposure"],
+    ["entry/augmented", "unsafeGenericAugmentation", null],
+    ["entry/inferred", "unknownLexicalOwner", null],
   ] as const;
   const files = new Map<string, string>([
     [
@@ -144,7 +147,7 @@ export function unknownLexicalOwner():UnknownBox<UnknownLexical>{return {ignored
       'import {privateKey} from "../../packages/server/src/infra/adapter/factory.ts";import type {Handle} from "../../packages/server/src/infra/adapter/factory.ts";type Ignored<T>={readonly stamp:number};type Delegated<T>=Ignored<T>;export type PublicErased=Delegated<Handle>;type Extracted<T>=T extends {value:infer V}?V:never;type Hidden={readonly value:Handle};export type PublicInferred=Extracted<Hidden>;export interface Public {readonly nested:Nested}\nexport interface Nested {readonly value:string}export interface Neutral{readonly value:number}export interface Keyed{readonly [privateKey]:string}export type UnknownLexical={x:1} extends {x:infer V}?V:never;',
     ],
     [
-      "packages/server/src/infra/adapter/augmentation.ts",
+      augmentation,
       'import type {Handle} from "./factory.ts";import "boundary-package";declare module "boundary-package" {interface Nested {readonly owned:Handle}interface Neutral{readonly extra:(value:number)=>void}}declare global{interface Map<K,V>{neutralForward(value:K):V}interface WeakMap<K extends WeakKey,V>{readonly unsafe:Handle}}',
     ],
   ]);
@@ -200,7 +203,7 @@ export function unknownLexicalOwner():UnknownBox<UnknownLexical>{return {ignored
       readonly messages: readonly string[];
     }[] = [];
     const results = new Map<string, readonly Linter.LintMessage[]>();
-    for (const path of new Set(rows.map((row) => row.path))) {
+    for (const path of new Set([...rows.map((row) => row.path), augmentation])) {
       const text = files.get(path);
       if (text === undefined) {
         throw new Error("public boundary fixture source missing");
@@ -235,6 +238,11 @@ export function unknownLexicalOwner():UnknownBox<UnknownLexical>{return {ignored
       JSON.stringify(observations),
     ).toEqual(observations.map(({ name, expected }) => ({ name, verdicts: expected })));
     expect(observations.flatMap(({ messages }) => messages).some((message) => message.includes("Unrelated"))).toBe(false);
+    // Both ambient blocks name the local Handle: the module augmentation of Nested and the global WeakMap member.
+    expect(results.get(augmentation)?.map(({ messageId, message, line }) => ({ messageId, line, handle: message.includes("Factory type Handle") }))).toEqual([
+      { messageId: "crossTierFactoryType", line: 1, handle: true },
+      { messageId: "crossTierFactoryType", line: 1, handle: true },
+    ]);
     expect(properties).not.toHaveBeenCalled();
     const source = program.getSourceFile(join(scratch, factory));
     if (source === undefined) {

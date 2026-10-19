@@ -48,11 +48,7 @@ export function VariablesTabStory(): ReactElement {
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <VariablesTab
-            form={
-              session.form as AppFormInstance<PromptConfig>
-            }
-          />
+          <VariablesTab form={session.form as AppFormInstance<PromptConfig>} />
         </>
       )}
     </StoryForm>
@@ -111,12 +107,7 @@ export function UserMacrosTabStory(): ReactElement {
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <UserMacrosTab
-            form={
-              session.form as AppFormInstance<PromptConfig>
-            }
-            presetId={STORY_PRESET}
-          />
+          <UserMacrosTab form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
         </>
       )}
     </StoryForm>

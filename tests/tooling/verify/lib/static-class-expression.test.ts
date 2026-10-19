@@ -344,6 +344,23 @@ test("collects createLucideIcon IconNode className writers only through the exac
   expect(result.opaque).toEqual([]);
 });
 
+test("reads a lucide namespace factory member through its authored key, never an identifier key's spelling", () => {
+  const p = project({
+    "packages/ui/src/icons.ts": `
+      import * as Lucide from "lucide-react";
+      const createLucideIcon = "Icon";
+      export const C = Lucide[createLucideIcon]("C", [["path", { className: "orb:identifier-key" }]]);
+      export const T = Lucide[\`createLucideIcon\`]("T", [["path", { className: "orb:template-key" }]]);
+      export const E = Lucide["create\\u004CucideIcon"]("E", [["path", { className: "orb:escaped-key" }]]);
+    `,
+  });
+  expect(
+    walkStaticClassExpressions(p.getSourceFiles())
+      .candidates.map((candidate) => candidate.value)
+      .sort(),
+  ).toEqual(["orb:escaped-key", "orb:template-key"]);
+});
+
 test("keeps counterfeit factories and uncertain lucide IconNode mutations opaque", () => {
   const cases = [
     'import { createLucideIcon } from "other"; createLucideIcon("X", [["path", { className: "orb:counterfeit" }]]);',

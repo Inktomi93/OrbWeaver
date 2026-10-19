@@ -78,6 +78,9 @@ export const E2E_PORTS: Readonly<Record<"singleUser" | "forwardHeader" | "local"
  *  local stack's egress allowlist can name it. Not an orbweaver server, so it has no vite side. */
 export const E2E_FIXTURE_PROVIDER_PORT = 8797;
 
+/** The port a test server binds to let the OS pick a free one; it reserves nothing. */
+export const OS_ASSIGNED_PORT = 0;
+
 /** The playwright-ct vite. A CT run has no orbweaver server: this is the whole of its port surface. */
 export const CT_VITE_PORT = 3100;
 

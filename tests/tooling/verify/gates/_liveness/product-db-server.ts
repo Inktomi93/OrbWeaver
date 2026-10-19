@@ -11,10 +11,8 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
-import { gate as onePrincipalMintPopulation } from "../../../../../tooling/src/verify/gates/one-principal-mint-population.ts";
 import { gate as ownerRoleSplit } from "../../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as platformSpellings } from "../../../../../tooling/src/verify/gates/platform-spellings.ts";
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
@@ -34,16 +32,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 
 export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
   {
-    policy: entrySyntheticRoleIsUser,
-    overlays: [
-      add(
-        "packages/server/src/domain/chat/verbs/liveness-synthetic.ts",
-        'import type { Principal } from "@orb/contracts/identity";\nconst livenessPrincipal: Principal = { userId: "x", role: "user", handle: "x", externalId: null, via: "fallback" };\nexport const livenessSynthetic = livenessPrincipal;\n',
-      ),
-    ],
-    messageIncludes: 'hardcoded `role: "user"`',
-  },
-  {
     policy: noRawEgress,
     overlays: [add(`${DOMAIN}/liveness-egress.ts`, 'export const livenessLoad = async (): Promise<unknown> => await fetch("https://liveness.invalid");\n')],
     messageIncludes: "raw `fetch` in server source",
@@ -52,16 +40,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noVanityAlias,
     overlays: [add(`${DOMAIN}/liveness-alias.ts`, 'import { castId as livenessCastId } from "@orb/kit/ids";\nexport const livenessUse = livenessCastId;\n')],
     messageIncludes: "vanity rename",
-  },
-  {
-    policy: onePrincipalMintPopulation,
-    overlays: [
-      add(
-        "packages/server/src/domain/chat/verbs/liveness-mint-principal.ts",
-        'import type { Principal } from "@orb/contracts/identity";\nconst livenessHost = (id: string): Principal => ({ userId: id, role: "owner", handle: id, externalId: null, via: "fallback" });\nexport const livenessMint = livenessHost;\n',
-      ),
-    ],
-    messageIncludes: "Principal mint site",
   },
   {
     policy: ownerRoleSplit,

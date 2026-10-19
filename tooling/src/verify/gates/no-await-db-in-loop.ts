@@ -33,6 +33,13 @@
 // showcase and default-content are now judged with the rest of the shipped source tree.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import {
+  DRIZZLE_BATCH_VERB,
+  DRIZZLE_MUTATION_VERBS,
+  DRIZZLE_RELATIONAL_ROOT,
+  DRIZZLE_SELECT_VERB,
+  DRIZZLE_STATEMENT_EXECUTE_VERBS,
+} from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { GatePolicyNodeFindingDetails } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
@@ -40,7 +47,15 @@ import { readDrizzleClientCall } from "../lib/drizzle-client-call.ts";
 /** The legacy `DB_QUERY_RE` verb vocabulary, retained ONLY as the fail-closed backstop below: when the
  *  checker cannot bind the called member at all, a method spelled like a query verb is reported rather than
  *  silently admitted. A resolved NON-drizzle declaration is acquitted — that is the identity claim. */
-const QUERY_VERBS = new Set(["query", "select", "insert", "update", "delete", "run", "execute", "executeMultiple", "batch", "transaction"]);
+const QUERY_VERBS: ReadonlySet<string> = new Set([
+  DRIZZLE_RELATIONAL_ROOT,
+  DRIZZLE_SELECT_VERB,
+  ...DRIZZLE_MUTATION_VERBS,
+  ...DRIZZLE_STATEMENT_EXECUTE_VERBS,
+  "executeMultiple",
+  DRIZZLE_BATCH_VERB,
+  "transaction",
+]);
 
 const LOOP_KINDS = new Set([SyntaxKind.ForStatement, SyntaxKind.ForOfStatement, SyntaxKind.ForInStatement, SyntaxKind.WhileStatement, SyntaxKind.DoStatement]);
 

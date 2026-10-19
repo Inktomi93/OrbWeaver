@@ -23,3 +23,5 @@ A red-first plan-size bound on the caught-failure plan passes, the plan asks onl
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner ruling: caught-failure-ownership stays, bounded under D328 to what fits 16 GB; past the bound it reports unresolved, never clean. Its census and health siblings are deleted and detached-work-traced and policy-fixture-substrate move (their own items), so the closure serves one gate.

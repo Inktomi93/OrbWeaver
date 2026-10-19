@@ -1,6 +1,7 @@
 // Ordinary captured call cohorts retain raw leaves and native questions, never consumer verdicts.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import type { DrizzleSelection } from "./drizzle-select-contract.ts";
+import type { DrizzleWriteRootVerb } from "./drizzle-vocabulary.ts";
 import type { CalledMember, DrizzleWriteRoot } from "./drizzle-write-chain-contract.ts";
 import type { DrizzleWriterSource } from "./drizzle-writer-source-contract.ts";
 import type { CallableDeclaration, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
@@ -30,7 +31,7 @@ export interface NativeOrdinaryNode {
   readonly rowIdentity: { readonly kind: "value"; readonly value: Node | null } | { readonly kind: "refusal"; readonly message: string };
   readonly writer: DrizzleWriterSource;
   readonly roots: readonly {
-    readonly verb: "update" | "insert";
+    readonly verb: DrizzleWriteRootVerb;
     readonly fact: ReferenceFact<readonly DrizzleWriteRoot[]>;
   }[];
 }

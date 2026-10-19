@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ruleMessages } from "./native-rule-probe.ts";
 
+const SUB_FLOOR_NATIVE_BASE_MS = 60_000;
 const SUB_FLOOR = "orb/sub-floor-disclosure";
 const CLIENT = "packages/client/src/features/a/probe.tsx";
 const RPG_HOME = "packages/client/src/features/rpg/components/rpg-beat-row.tsx";
@@ -49,7 +51,7 @@ for (const [name, source, path, count] of [
   ["an empty home is stale", "export const G = null;", "packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx", 1],
   ["a file that is not a home owes no mount", "export const G = null;", "packages/client/src/features/rpg/components/rpg-other-row.tsx", 0],
 ] as const) {
-  test(`native sub-floor disclosure ${name}`, { timeout: 60_000 }, async ({ repoRoot }) => {
+  test(`native sub-floor disclosure ${name}`, { timeout: scaledBudget(SUB_FLOOR_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
     expect(await ruleMessages(repoRoot, SUB_FLOOR, source, path)).toHaveLength(count);
   });
 }

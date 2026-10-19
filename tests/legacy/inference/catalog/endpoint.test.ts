@@ -1,4 +1,3 @@
-
 import type { ModelInfoApi } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";

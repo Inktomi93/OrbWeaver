@@ -3,6 +3,7 @@
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page } from "@playwright/test";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { charactersRailButton, renameOpenChat, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
@@ -14,6 +15,9 @@ import { batchResultData, listCanon, mintFreshCharacter, removeCharacter } from 
 
 const CHARACTER = "Smoke Wire Character";
 const GREETING = "A known greeting from the smoke-owned character.";
+// A case loads the app four times (page fixture, open, reload) and types two scripted turns: 52 to 66 s per case on a quiet
+// box, against the 60 s default test budget. Twice the measurement.
+const SCRIPTED_CHAT_CASE_BASE_MS = 120_000;
 const TITLE = "Smoke wire conversation";
 const FIRST = { userMessage: "SMOKE_FIRST: explain the synthetic lantern.", prefix: "The synthetic lantern ", suffix: "glows amber." };
 const SECOND = { userMessage: "SMOKE_SECOND: describe its synthetic switch.", prefix: "Its synthetic switch ", suffix: "is brass." };
@@ -107,6 +111,7 @@ function scriptedChatTitle(stopped: boolean): string {
 
 for (const stopped of [false, true]) {
   test(`${scriptedChatTitle(stopped)}`, { tag: "@smoke" }, async ({ page, baseURL }) => {
+    test.setTimeout(budget(SCRIPTED_CHAT_CASE_BASE_MS));
     const host = ownerActor(baseURL ?? "");
     let restoreProvider: (() => Promise<void>) | undefined;
     const fixture = await startFixtureProvider(0, stopped ? [STOP] : [FIRST, SECOND]);

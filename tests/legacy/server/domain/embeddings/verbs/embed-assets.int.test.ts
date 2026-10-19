@@ -10,7 +10,6 @@
 //   • cooperative abort: an aborted signal does no work.
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 
-
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";

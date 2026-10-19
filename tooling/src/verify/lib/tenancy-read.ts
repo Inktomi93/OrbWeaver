@@ -16,6 +16,13 @@ import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
+import {
+  DRIZZLE_CONFLICT_VERBS,
+  DRIZZLE_RETURNING_VERB,
+  DRIZZLE_UPSERT_VERB,
+  DRIZZLE_WHERE_VERB,
+  DRIZZLE_WRITE_ARGUMENT_VERBS,
+} from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
@@ -29,7 +36,12 @@ const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id
  *  identifier the resolver cannot trace is a finding only when the statement is provably a drizzle write —
  *  `cache.delete(key)` / `hash.update(bytes)` are the SAME AST shape, and 72 of them live in
  *  `packages/server/src` (measured 2026-08-27), every one of them chain-free. */
-const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
+const DRIZZLE_WRITE_CHAIN: ReadonlySet<string> = new Set([
+  ...DRIZZLE_WRITE_ARGUMENT_VERBS,
+  DRIZZLE_RETURNING_VERB,
+  DRIZZLE_WHERE_VERB,
+  ...DRIZZLE_CONFLICT_VERBS,
+]);
 
 /** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. */
 function namesSchemaTable(text: string, index: SchemaTableIndex): boolean {
@@ -149,7 +161,7 @@ export function predicatesTableColumn(predicate: Node, tableIdent: string, colum
  *  which means a LIST read on the read side and an UNBOUNDED write on the write side; the two halves judge
  *  that differently, so this reader only reports the absence). */
 export function whereArgOf(anchor: Node): Node | undefined {
-  const whereCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === "where");
+  const whereCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_WHERE_VERB);
   return whereCall?.getArguments()[0];
 }
 
@@ -158,7 +170,7 @@ export function whereArgOf(anchor: Node): Node | undefined {
  *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
  *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
 export function upsertConfigOf(anchor: Node): Node | undefined {
-  const upsertCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === "onConflictDoUpdate");
+  const upsertCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_UPSERT_VERB);
   return upsertCall?.getArguments()[0];
 }
 

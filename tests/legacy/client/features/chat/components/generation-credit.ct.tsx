@@ -4,7 +4,6 @@
 // reads through its provenance: `recorded` means the connection was deleted, `unrecorded` means none was ever
 // recorded (an import or an edited reply). The #167 posture holds: the glyph is the only rendering and the sentence lives on `title` and in sr-only text.
 
-
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

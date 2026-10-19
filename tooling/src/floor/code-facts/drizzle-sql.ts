@@ -27,10 +27,11 @@ import { readNativeColumnFragments, readSelectedSqlSource, readSqlSelectionCallb
 import { CONTAINED_OPERATORS, sqlBindingStable, sqlSelectionCallbackUsesStable } from "./drizzle-sql-stability.ts";
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_SELECT_VERBS, DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
 import type { CallReturnObservations, CallReturnProgram, ModuleMemberOrigin, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
-import { sameFileMergedCallableValueOrigin } from "./reference-fact-same-file-merge.ts";
+import { sameFileMergedCallableValueOrigin, sameFileMergedExportOrigin } from "./reference-fact-same-file-merge.ts";
 import { moduleState } from "./reference-fact-state.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
@@ -41,28 +42,26 @@ export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<objec
   return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active, program);
 }
 
-/** A tag is a callee, so a function merged with a namespace of its own name (drizzle's `sql`) is one origin
- *  there, though the module-origin reader refuses it as two declarations. */
-function taggedOrigin(tag: MorphNode): ReferenceFact<ModuleMemberOrigin> {
-  const origin = resolveModuleMemberOrigin(tag);
-  if (origin.kind === "resolved" || origin.reason !== "ambiguous") {
-    return origin;
-  }
-  return sameFileMergedCallableValueOrigin(tag, moduleState(referenceResolutionServices)) ?? origin;
+/** A callee naming a function merged with a namespace of its own name (drizzle's `sql`) is one origin there,
+ *  though the module-origin reader refuses it as two declarations. The fallback reaches it through a namespace
+ *  import and through a sibling's re-export too. */
+function mergedOrigin(callee: MorphNode, merge: typeof sameFileMergedCallableValueOrigin): ReferenceFact<ModuleMemberOrigin> {
+  const origin = resolveModuleMemberOrigin(callee);
+  return origin.kind === "resolved" || origin.reason !== "ambiguous" ? origin : (merge(callee, moduleState(referenceResolutionServices)) ?? origin);
 }
 
 /** Template carrier provenance; consumers choose the accepted constructor exports and the SQL obligation. */
 export function readSqlTemplateCarrier(node: MorphNode): SqlTemplateCarrier | undefined {
   if (Node.isTaggedTemplateExpression(node)) {
     const callee = node.getTag();
-    return { kind: "tagged", template: node.getTemplate(), callee, origin: taggedOrigin(callee) };
+    return { kind: "tagged", template: node.getTemplate(), callee, origin: mergedOrigin(callee, sameFileMergedCallableValueOrigin) };
   }
   if (Node.isCallExpression(node)) {
     const template = node.getArguments()[0];
     const callee = node.getExpression();
     return template === undefined
       ? undefined
-      : { kind: "call", template, callee, origin: resolveModuleMemberOrigin(callee), member: readMemberReference(callee) };
+      : { kind: "call", template, callee, origin: mergedOrigin(callee, sameFileMergedExportOrigin), member: readMemberReference(callee) };
   }
   return Node.isNoSubstitutionTemplateLiteral(node) || Node.isTemplateExpression(node) ? { kind: "bare", template: node } : undefined;
 }
@@ -83,7 +82,7 @@ export function sqlTemplateText(template: TaggedTemplateExpression): string {
 }
 
 function templateFragments(node: TaggedTemplateExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
-  if (drizzleExportOf(node.getTag()) !== "sql" || !runtimeDrizzleOrigin(node.getTag())) {
+  if (drizzleExportOf(node.getTag()) !== DRIZZLE_SQL_EXPORT || !runtimeDrizzleOrigin(node.getTag())) {
     return;
   }
   const template = node.getTemplate();
@@ -199,11 +198,11 @@ function authoredCallFragments(
 
 function wrappedSelectFragments(call: import("ts-morph").CallExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
   const member = staticMemberAccess(call.getExpression());
-  if (member === undefined || !["as", "getSQL"].includes(member.name) || !runtimeDrizzleOrigin(call.getExpression())) {
+  if (member === undefined || ![DRIZZLE_ALIAS_VERB, "getSQL"].includes(member.name) || !runtimeDrizzleOrigin(call.getExpression())) {
     return;
   }
   let sources: readonly ReturnedValueSource[] | undefined;
-  if (member.name === "as") {
+  if (member.name === DRIZZLE_ALIAS_VERB) {
     sources = readSelectedSqlSource(call, context);
   } else {
     const receivers = readSqlValueSources(member.receiver, context);
@@ -412,7 +411,7 @@ function selectionCallContained(
   sources: ReadonlySet<object>,
 ): boolean {
   const member = staticMemberAccess(call.getExpression());
-  if (member?.name === "select" || member?.name === "selectDistinct") {
+  if (DRIZZLE_SELECT_VERBS.some((verb) => verb === member?.name)) {
     return true;
   }
   const first = call.getArguments()[0];

@@ -1,4 +1,3 @@
-
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { makeOwnerStats, makeWrappedSummary } from "@orb/testkit/node/factories/stats-view.ts";

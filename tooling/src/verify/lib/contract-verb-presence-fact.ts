@@ -1,6 +1,8 @@
 // Visitor-fed service-contract and domain-test call reconciliation for contract verb coverage.
 import type { CallExpression, InterfaceDeclaration, Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { unwrapTarget } from "../../floor/code-facts/reference-fact-alias.ts";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import type { NativeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
@@ -34,15 +36,8 @@ function factoryName(verb: string): string {
  *  `create*` service bundle, or its exact `create<Verb>` factory. A same-named helper/declaration/comment is
  *  not evidence that the service boundary ran. */
 function calledName(node: CallExpression): string | undefined {
-  const expression = node.getExpression();
-  if (MorphNode.isIdentifier(expression)) {
-    return expression.getText();
-  }
-  if (MorphNode.isPropertyAccessExpression(expression)) {
-    return expression.getName();
-  }
-  const argument = MorphNode.isElementAccessExpression(expression) ? expression.getArgumentExpression() : undefined;
-  return argument !== undefined && MorphNode.isStringLiteral(argument) ? argument.getLiteralText() : undefined;
+  const expression = unwrapTarget(node.getExpression());
+  return MorphNode.isIdentifier(expression) ? expression.getText() : literalMemberAccess(expression, true)?.name;
 }
 
 /** A bare identifier is a service invocation only when it was destructured from a runtime service factory.

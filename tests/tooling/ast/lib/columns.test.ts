@@ -278,6 +278,24 @@ db.run(sql\`INSERT INTO executed_raw DEFAULT VALUES\`); const batchStatement=sql
   ).toEqual(names.slice(4));
 });
 
+test('an executed bracketed `sql["raw"]` INSERT header writes like `sql.raw`, the spelling the raw-SQL blob already reads', async ({
+  plantedTree,
+  repoRoot,
+}) => {
+  const workspace = await nativeColumns(
+    { plantedTree, repoRoot },
+    {
+      [SCHEMA]: 'import {sqliteTable,text} from "drizzle-orm/sqlite-core"; export const bracketed=sqliteTable("bracketed",{seen:text("seen")});',
+      "packages/db/src/use.ts": `import {drizzle} from "drizzle-orm/libsql"; import {sql} from "drizzle-orm"; import * as schema from "./schema/widgets.js";
+const db=drizzle.mock({schema}); export const read=schema.bracketed.seen;
+db.run(sql["raw"]("INSERT INTO bracketed (seen) VALUES ('x')"));`,
+    },
+  );
+  const audit = auditOf(workspace.sourceCorpus());
+  expect(audit.candidates.find((candidate) => candidate.column.jsProp === "seen")).toMatchObject({ klass: "read-write", rawSql: true });
+  expect(audit.candidates.find((candidate) => candidate.column.jsProp === "seen")?.writes).toHaveLength(1);
+});
+
 test("native raw INSERT headers attribute only their target columns; raw reads and decoy constructors do not write", async ({ plantedTree, repoRoot }) => {
   const workspace = await nativeColumns(
     { plantedTree, repoRoot },
