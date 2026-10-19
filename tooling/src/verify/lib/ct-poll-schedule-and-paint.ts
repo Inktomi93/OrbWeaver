@@ -2,8 +2,8 @@
 // §12.3): the poll-options reader, the schedule-freshness test, the paint-barrier vocabulary, the
 // untrusted-trigger test and the motion-poll test — the questions both halves ask IDENTICALLY.
 //
-// WHY IT IS HERE AND NOT IN A GATE MODULE. `ct-poll-schedule-and-paint` judges each occurrence (a shared
-// `intervals` schedule; an `evaluate`-driven trigger with no painted barrier before a motion poll).
+// WHY IT IS HERE AND NOT IN A GATE MODULE. `ct-poll-schedule-and-paint` judges each occurrence (an
+// `evaluate`-driven trigger with no painted barrier before a motion poll).
 // `ct-poll-schedule-and-paint-health` is the BLINDNESS TRIPWIRE over the founding CT file — it proves that
 // file still exercises every shape the occurrence policy matches on. That claim is only meaningful while
 // both modules match with the SAME predicates: a drifted copy in the tripwire would certify a vocabulary
@@ -14,8 +14,8 @@
 //
 // THE BOUNDARY IS THE DEPENDENCY CLOSURE, NOT A LINE RANGE. A first carve took a contiguous span and `tsc`
 // caught it immediately: owner-only helpers came along while `PAINT_API` was stranded behind. So the split
-// is by what the predicates CLOSE OVER — and four of those (`EVALUATE`, `ancestorContains`,
-// `isBarrierCall`, `reportSharedSchedule`) are exported rather than private because the occurrence
+// is by what the predicates CLOSE OVER — and three of those (`EVALUATE`, `ancestorContains`,
+// `isBarrierCall`) are exported rather than private because the occurrence
 // policy's own descriptor still calls them. `TEST_CALLEE`/`testBodyOf` and this family's `MESSAGE`/`FIX`
 // deliberately did NOT move: the first is the test-body walk, and the second is one policy's diagnostic
 // voice — the `-health` sibling reports a different thing in different words, so sharing them would make
@@ -46,55 +46,6 @@ export function pollOptionsArg(call: CallExpression): TsNode | undefined {
   }
   const isExpectPoll = callee.getName() === POLL && callee.getExpression().getText() === EXPECT;
   return isExpectPoll ? call.getArguments()[1] : undefined;
-}
-
-/** A MODULE-SCOPE `const X = …` initializer in this file, by name. Deliberately module-scope only: that is
- *  the shared-across-calls shape ARM A is about, and `getVariableDeclaration` reads exactly that tier. */
-function moduleConstInit(sf: SourceFile, name: string): TsNode | undefined {
-  return sf.getVariableDeclaration(name)?.getInitializer();
-}
-
-/** Does this identifier name a module-scope object literal that carries an `intervals` key? */
-function namesSharedSchedule(sf: SourceFile, id: TsNode): boolean {
-  const init = moduleConstInit(sf, id.getText());
-  return init !== undefined && Node.isObjectLiteralExpression(init) && init.getProperty(INTERVALS) !== undefined;
-}
-
-/** The node to report for ONE options property, or undefined when that property is legal. Three spellings
- *  of the same shared reference: `intervals: IDENT`, `{ intervals }`, and `{ ...SHARED }` (a spread copies
- *  the object, never the array inside it). */
-function sharedScheduleNode(prop: TsNode, sf: SourceFile): TsNode | undefined {
-  if (Node.isShorthandPropertyAssignment(prop) && prop.getName() === INTERVALS) {
-    return prop;
-  }
-  if (Node.isPropertyAssignment(prop) && prop.getName() === INTERVALS) {
-    const value = prop.getInitializerOrThrow();
-    return Node.isIdentifier(value) ? value : undefined;
-  }
-  if (!Node.isSpreadAssignment(prop)) {
-    return;
-  }
-  const expr = prop.getExpression();
-  return Node.isIdentifier(expr) && namesSharedSchedule(sf, expr) ? expr : undefined;
-}
-
-/** ARM A — every identifier-carried route to a shared interval array in one options argument. */
-export function reportSharedSchedule(options: TsNode, sf: SourceFile, report: (node: TsNode, token: string) => void): void {
-  if (Node.isIdentifier(options)) {
-    if (namesSharedSchedule(sf, options)) {
-      report(options, options.getText());
-    }
-    return;
-  }
-  if (!Node.isObjectLiteralExpression(options)) {
-    return;
-  }
-  for (const prop of options.getProperties()) {
-    const hit = sharedScheduleNode(prop, sf);
-    if (hit !== undefined) {
-      report(hit, Node.isShorthandPropertyAssignment(hit) ? INTERVALS : hit.getText());
-    }
-  }
 }
 
 /** Is this options argument a FRESH mint — an inline array literal or a factory call? (the health arm's

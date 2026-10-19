@@ -18,7 +18,6 @@ import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
 import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/gates/density-tier-slot-map.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
-import { gate as macroResolutionHome } from "../../../../../tooling/src/verify/gates/macro-resolution-home.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
@@ -86,11 +85,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: integerLineBoxes,
     overlays: [featureClass("unpaired-leading", "text-label")],
     messageIncludes: "A line box off the integer-px grid",
-  },
-  {
-    policy: macroResolutionHome,
-    overlays: [add("packages/client/src/features/preset/liveness-editor.tsx", 'import { processMacros } from "@orb/kit/macro";\nprocessMacros();\n')],
-    messageIncludes: "processMacros",
   },
   {
     policy: noOffTokenInlineStyle,

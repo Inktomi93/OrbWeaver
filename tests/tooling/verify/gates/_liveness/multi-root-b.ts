@@ -33,7 +33,6 @@ import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
 import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
-import { gate as structuredPlanOneHome } from "../../../../../tooling/src/verify/gates/structured-plan-one-home.ts";
 
 import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
@@ -43,7 +42,6 @@ import { gate as toolingInstrumentProof } from "../../../../../tooling/src/verif
 import { gate as toolingPortRegistry } from "../../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
-import { gate as wireSchemaVocabOneHome } from "../../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { probeGate } from "./tooling-tests.ts";
 
 const DOMAIN = "packages/server/src/domain/character";
@@ -161,12 +159,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "edit-session",
   },
   {
-    policy: structuredPlanOneHome,
-    overlays: [add(`${DOMAIN}/liveness-structured.ts`, 'export const livenessRequest = { tools: [], toolChoice: { mode: "required" } };\n')],
-    messageIncludes: "a structured-output or tool-call spelling outside the structured planner",
-  },
-
-  {
     policy: testPresenceClient,
     // The standing contrast CT leaves both views; the absence is reported at the room it covers.
     overlays: [
@@ -233,10 +225,5 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     // A probe two levels below the chat feature root climbing back to its front door: the same-module arm.
     overlays: [add("packages/server/src/domain/chat/liveness/deep/probe.ts", 'export { chatLiveness } from "../../index.ts";\n')],
     messageIncludes: "Use #src/domain/chat/index.ts.",
-  },
-  {
-    policy: wireSchemaVocabOneHome,
-    overlays: [add("packages/inference/src/backends/livenessvendor/schema.ts", 'export const DROP = ["minLength", "maxLength", "$schema"];\n')],
-    messageIncludes: "spelled outside the one scrub engine",
   },
 ];

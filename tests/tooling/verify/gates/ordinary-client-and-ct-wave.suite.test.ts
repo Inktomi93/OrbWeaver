@@ -1,5 +1,5 @@
-// Conformance entry for the ORDINARY CLIENT-AND-CT wave (#1584): five legacy `GateDescriptor` modules
-// converted into SEVEN final policies. They are grouped here by CONVERSION WAVE and nothing else — the
+// Conformance entry for the ORDINARY CLIENT-AND-CT wave (#1584): legacy `GateDescriptor` modules
+// converted into final policies. They are grouped here by CONVERSION WAVE and nothing else — the
 // header says so plainly rather than inventing a shared theme, because §5b.4 of
 // docs/law/gate-runtime-standardization.md is explicit that a theme is not a family. Three real
 // families are represented:
@@ -9,7 +9,7 @@
 //                                tooling/src/verify/lib/editor-form-factory.ts.
 //   context-definition-shape   — context-definition-shape · context-definition-shape-health (the two
 //                                COUNT arms, split out because their execution is entire-population).
-//   state-files / route-trpc-lifo-order — declared singletons; each module's header records why.
+//   state-files                — a declared singleton; the module's header records why.
 //
 // WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER. Every declared
 // `mustFlag`/`mustPass` row already executes on the static bar (`structure:policy-conformance`). What a
@@ -27,7 +27,7 @@
 // through the PRODUCTION dispatcher instead, which is a strictly stronger driver: the old pin could not
 // have caught the unwaivable-token defect it was asserting.
 //
-// §4.3 (reviewed grants) does not apply: all seven declare `facts: []` and `resources: []` and no policy
+// §4.3 (reviewed grants) does not apply: all of them declare `facts: []` and `resources: []` and no policy
 // here is `authority: "reviewed-grant"`. §4.5's refusal control applies to `no-form-reset-in-autosave-
 // health` and `context-definition-shape-health`, whose verdicts depend on a derived population; both are
 // pinned below.
@@ -41,7 +41,6 @@ import { gate as contextDefinitionShapeHealth } from "../../../../tooling/src/ve
 import { gate as formFactoryForMultifield } from "../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as noFormResetInAutosave } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
-import { gate as routeTrpcLifoOrder } from "../../../../tooling/src/verify/gates/route-trpc-lifo-order.ts";
 import { gate as stateFiles } from "../../../../tooling/src/verify/gates/state-files.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -57,7 +56,6 @@ const WAVE: readonly GatePolicy[] = [
   formFactoryForMultifield,
   noFormResetInAutosave,
   noFormResetInAutosaveHealth,
-  routeTrpcLifoOrder,
   stateFiles,
 ];
 
@@ -76,7 +74,7 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
 const tokensOf = (pass: ReturnType<typeof runPolicyPass>): readonly (string | undefined)[] => pass.authority.effectiveFindings.map((finding) => finding.token);
 
 test(
-  "the wave's seven policies keep their founding, near-miss, fence and identity fixtures",
+  "the wave's policies keep their founding, near-miss, fence and identity fixtures",
   () => {
     expect(verifyPolicyProofs(WAVE)).toEqual([]);
   },
@@ -121,17 +119,6 @@ test(
 // finding is gone, exactly one marker was CONSUMED, and no authority alarm fired. Two of the three
 // assertions are invisible to the module's own `mustPass` twin, which is why they live here.
 // ---------------------------------------------------------------------------------------------------
-test("a waiver at `page.route` binds the route-trpc-lifo-order finding", () => {
-  const waived = passOf(routeTrpcLifoOrder, {
-    "tests/client/features/g/g.ct.tsx":
-      'import { test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  // @orb-waive route-trpc-lifo-order(page.route): the proof\'s stand-in reason; ends when this fixture stops flagging.\n  await page.route("**/api/trpc/**", () => undefined);\n  await routeTrpc(page, {});\n});\n',
-  });
-
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 test("a waiver at the exported handle's NAME binds the state-files finding", () => {
   const waived = passOf(stateFiles, {
     "packages/client/src/state/leak.ts":

@@ -61,13 +61,15 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noHardcodedModelProse,
+    // The dead-catalog arm reads a fixed catalog path, so the real catalog is swapped for one dead const.
     overlays: [
-      add(
-        "packages/server/src/domain/rpg/substrate/liveness-teach.ts",
-        'export const LIVENESS_TEACH =\n  "When the scene calls for it, teach the model to answer in the voice of the narrator and keep it steady.";\n',
-      ),
+      {
+        kind: "neutralise",
+        path: "packages/contracts/src/discovery/prose.ts",
+        source: 'export const LIVENESS_DEAD_PROSE =\n  "This catalog line is referenced by nothing and has enough words to trip the twelve word floor.";\n',
+      },
     ],
-    messageIncludes: "model-facing prose",
+    messageIncludes: "DEAD catalog prose",
   },
   {
     policy: noRawId,

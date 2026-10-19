@@ -1,4 +1,39 @@
 {
+  "packages/server/src/domain/automation/engine/analysis-arm.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 1
+    }
+  },
+  "packages/server/src/domain/automation/engine/arm-executors.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 5
+    }
+  },
+  "packages/server/src/domain/rpg/substrate/actor-ops.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 1
+    }
+  },
+  "packages/server/src/domain/rpg/substrate/actor-rekey.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 2
+    }
+  },
+  "packages/server/src/domain/rpg/tools/rounds/populate.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 2
+    }
+  },
+  "packages/server/src/domain/rpg/tools/rounds/promotion.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 2
+    }
+  },
+  "packages/server/src/domain/rpg/tools/rounds/resync.ts": {
+    "orb/no-hardcoded-model-prose": {
+      "count": 4
+    }
+  },
   "tests/tooling/_ct-stories.tsx": {
     "max-lines": {
       "count": 1
@@ -30,11 +65,6 @@
     }
   },
   "tests/tooling/ui-audit/index.test.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
-  "tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts": {
     "max-lines": {
       "count": 1
     }

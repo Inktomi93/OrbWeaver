@@ -16,7 +16,7 @@
 //
 // So the spelling is homed HERE, once, and both readers import it. A renderer is a sanctioned home for
 // macro DISPLAY (the tokenizer `scanMacroRuns` is explicitly not a resolver — see
-// tooling/src/verify/gates/macro-resolution-home.ts): this file chips a template AS a template and resolves
+// the `orb/macro-resolution-home` restriction in eslint.config.js): this file chips a template AS a template and resolves
 // nothing.
 //
 // THE CHIP IS QUIET (crunch-list item 14, "THE BLUE PROBLEM"): `tone="soft"`, never the solid arm. A macro

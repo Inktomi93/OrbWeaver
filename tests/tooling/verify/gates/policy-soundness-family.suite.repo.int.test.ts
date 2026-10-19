@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind, Type } from "ts-morph";
+import { Project, Type } from "ts-morph";
 import { vi } from "vitest";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -29,7 +29,6 @@ import {
   POLICY_CONTRACT_PATH,
   POLICY_CONTRACT_STUB,
 } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
-import { gate as policyBindingResolution } from "../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
@@ -43,7 +42,6 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [
-  policyBindingResolution,
   policyFixtureSubstrate,
   policyLegacyImports,
   policyProofExpectations,
@@ -79,31 +77,6 @@ const EXEMPTION_CONST_RE = (binding: string): RegExp => new RegExp(`^export cons
 const FAMILY_TESTS_DIR = "tests/tooling/verify/gates/";
 const DISPATCHER_NAME = "runPolicyPass";
 const GATE_MODULE_IMPORT_RE = /from "(?:\.\.\/)+tooling\/src\/verify\/gates\/([a-z0-9-]+)\.ts"/gu;
-/** `policy-binding-resolution`: the members whose NAME alone is unambiguous (every one is declared only on a
- *  ts-morph node or symbol), so a module CALLING one must be accused; `getDeclarations` is ambiguous by name
- *  (`VariableStatement#getDeclarations` is a syntax accessor) and joins only the SUPERSET side. The census is
- *  SYNTACTIC — a member call in code position — because a text regex counts the member spelled inside fixture
- *  strings and comments (this very arm's own rows), the same overcount the guide records for `defineGate`. */
-const UNAMBIGUOUS_RESOLUTION_MEMBERS: ReadonlySet<string> = new Set([
-  "getDefinitionNodes",
-  "getDefinitions",
-  "findReferences",
-  "findReferencesAsNodes",
-  "getImplementations",
-  "getAliasedSymbol",
-  "getAliasedSymbolOrThrow",
-  "getValueDeclaration",
-  "getValueDeclarationOrThrow",
-]);
-const ANY_RESOLUTION_MEMBERS: ReadonlySet<string> = new Set([...UNAMBIGUOUS_RESOLUTION_MEMBERS, "getDeclarations"]);
-/** Does the module CALL a member of `names` — `x.<name>(…)` in code position, never in a string or a comment? */
-function callsMemberNamed(sourceFile: SourceFile, names: ReadonlySet<string>): boolean {
-  return sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression).some((call) => {
-    const callee = call.getExpression();
-    return Node.isPropertyAccessExpression(callee) && names.has(callee.getName());
-  });
-}
-
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
 const PER_ROW_TIMEOUT_MS = scaledBudget(120_000);
 /** The real-corpus arm parses ~330 files with types, resolves every `defineGate` callee to its import origin
@@ -847,67 +820,6 @@ test("policy-waiver-identity REFUSES a corpus in which it recognises no final mo
   expect(legacyOnly.authority.effectiveFindings).toEqual([]);
 });
 
-/** Keep the binding-resolution detector live now that production has finished migrating its last violation
- *  (`dangling-refs.ts` is final and already reads through `resolveStableExpression` — its own header, "BINDING
- *  RESOLUTION (#2163)"). With no live violation left to reuse, this control PLANTS one: a `getDefinitionNodes()`
- *  call on an `Identifier`-typed receiver — that member lives on ts-morph's `CommonIdentifierBase` mixin, NOT on
- *  the base `Node` the module already imports, so a `Node`-typed probe is refused by the real checker and plants
- *  nothing. Do not "simplify" the receiver type. It then proves the shared-reader swap clears the finding. The control still joins the real typed project — same contract identity,
- *  population resolver and ts-morph declarations as the live-corpus pass — and still never writes the checkout;
- *  the planted text lives only in the in-memory `Project` and is restored verbatim in `finally`. */
-async function assertLiveBindingResolution(project: Project, repoRoot: string, populationCount: number): Promise<void> {
-  const { gates: knownPolicies } = await loadGateCorpus(repoRoot);
-  const path = `${GATES_DIR}dangling-refs.ts`;
-  const subject = project.getSourceFileOrThrow(`${repoRoot}/${path}`);
-  const original = subject.getFullText();
-  const drive = (expected: readonly { readonly token: string }[]): void => {
-    const result = runPolicyPass({
-      knownPolicies,
-      policies: [policyBindingResolution],
-      root: repoRoot,
-      project,
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.factErrors).toEqual([]);
-    expect(result.toolErrors).toEqual([]);
-    expect(result.authority.toolErrors).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.withheldPolicyIds).toEqual([]);
-    expect(result.authority.waivedFindings).toEqual([]);
-    expect(result.authority.grantedFindings).toEqual([]);
-    const owner = result.policies.find(({ id }) => id === policyBindingResolution.id);
-    expect(owner?.owner).toEqual({ status: "success", population: "complete" });
-    expect(owner?.receipts).toEqual([]);
-    expect(owner?.population.requestedPaths).toBeNull();
-    expect(owner?.population.effectiveSourcePaths).toHaveLength(populationCount);
-    expect(owner?.population.effectiveSourcePaths).toContain(path);
-    expect(result.authority.effectiveFindings.filter(({ file }) => file === path).map(({ token }) => ({ token }))).toEqual(expected);
-  };
-  try {
-    // `resolveStableExpression` is already imported by production (`dangling-refs.ts:35`), so the acquitting
-    // swap needs no import. Planting needs no defineGate re-wrap either — the module is already final — only
-    // one type-only import and a fresh call site the detector can accuse and then acquit.
-    // `getDefinitionNodes` lives on ts-morph's `CommonIdentifierBase` mixin (real `ts-morph.d.ts`), not on the
-    // base `Node` the module already imports — the receiver must be typed `Identifier` for the real checker to
-    // admit the member, so the plant adds that one type-only import beside the module's existing `ts-morph` one.
-    subject.getImportDeclarationOrThrow("ts-morph").addNamedImport({ name: "Identifier", isTypeOnly: true });
-    subject.addStatements("function __policyBindingResolutionProbe(n: Identifier): unknown {\n  return n.getDefinitionNodes();\n}\n");
-    drive([{ token: "getDefinitionNodes" }]);
-    const plantedCall = subject.getDescendantsOfKind(SyntaxKind.CallExpression).find((call) => {
-      const callee = call.getExpression();
-      return Node.isPropertyAccessExpression(callee) && callee.getName() === "getDefinitionNodes";
-    });
-    if (plantedCall === undefined) {
-      throw new Error("binding-resolution control lost its planted getDefinitionNodes call");
-    }
-    plantedCall.replaceWithText("resolveStableExpression(n)");
-    drive([]);
-  } finally {
-    subject.replaceWithText(original);
-  }
-}
-
 // ---------------------------------------------------------------------------------------------------
 // THE REAL CORPUS. Conformance runs on virtual projects with no real layout; a meta-policy over the gate
 // corpus can be green there and blind here. The recognizer's live count is compared against the guide's own
@@ -936,12 +848,11 @@ test(
     const identity = result.policies.find(({ id }) => id === policyWaiverIdentity.id);
     expect(identity?.receipts).toEqual([{ kind: "population", source: "final policy modules", members: shapeCount, unresolved: 0 }]);
 
-    // `policy-legacy-imports` and `policy-binding-resolution` are the error policies whose classes were OPEN on the
-    // tree when this was written (#1922's migration set + #2155; #2096's split families; #2097's local resolvers);
-    // `policy-legacy-imports`' three are all DRAINED as of #2414, which the block below records. Their live findings are
-    // compared against SECOND OPINIONS — text tests over the same corpus — so each arm's real-tree bite is measured
-    // by something it did not compute, and a hardcoded count never rots into a false pin (#1969). A migration that
-    // lands moves both sides together.
+    // `policy-legacy-imports` is the error policy whose classes were OPEN on the tree when this was written (#1922's
+    // migration set + #2155; #2096's split families); its three are all DRAINED as of #2414, which the block below
+    // records. Its live findings are compared against SECOND OPINIONS — text tests over the same corpus — so each arm's
+    // real-tree bite is measured by something it did not compute, and a hardcoded count never rots into a false pin
+    // (#1969). A migration that lands moves both sides together.
     const finals = project
       .getSourceFiles()
       .filter((sourceFile) => sourceFile.getFilePath().startsWith(`${repoRoot}/${GATES_DIR}`) && !sourceFile.getFilePath().includes("/_proof/"))
@@ -1015,28 +926,6 @@ test(
     } finally {
       project.removeSourceFile(plantedLib);
     }
-    // The resolution arm is two-sided by CONTAINMENT, not equality: every module the unambiguous spellings name must
-    // be accused (the arm is not blind), and every accused module must carry some member's spelling (the arm is not
-    // inventing) — `getDeclarations` alone cannot be judged by text, which is the whole reason the arm reads types.
-    const resolutionAccused = accusedBy(policyBindingResolution.id);
-    const unambiguous = finals
-      .filter((sourceFile) => callsMemberNamed(sourceFile, UNAMBIGUOUS_RESOLUTION_MEMBERS))
-      .map(relative)
-      .toSorted();
-    const anySpelling = new Set(finals.filter((sourceFile) => callsMemberNamed(sourceFile, ANY_RESOLUTION_MEMBERS)).map(relative));
-    expect(unambiguous.filter((path) => !resolutionAccused.includes(path))).toEqual([]);
-    expect(resolutionAccused.filter((path) => !anySpelling.has(path))).toEqual([]);
-    expect(resolutionAccused.length).toBeGreaterThanOrEqual(unambiguous.length);
-    const bindingOwner = result.policies.find(({ id }) => id === policyBindingResolution.id);
-    if (bindingOwner === undefined) {
-      throw new Error("policy-binding-resolution produced no owner result");
-    }
-    expect(bindingOwner.population.requestedPaths).toBeNull();
-    expect(bindingOwner.population.effectiveSourcePaths).toEqual(bindingOwner.population.declaredSourcePaths);
-    await assertLiveBindingResolution(project, repoRoot, bindingOwner.population.effectiveSourcePaths.length);
-    // And the family's own modules are CLEAN under the resolution arm: the enforcer never reds its host (#2097 —
-    // `policy-soundness`'s three former chains read through the shared readers now).
-    expect(resolutionAccused.filter((path) => FAMILY.some((policy) => path === `${GATES_DIR}${policy.id}.ts`))).toEqual([]);
 
     // ── EVERY MEMBER IS ACCOUNTED FOR (#2208's actual lesson) ──────────────────────────────────────────
     //
@@ -1047,7 +936,7 @@ test(
     //
     // OPEN = a class with live findings and a SECOND OPINION above (never a hardcoded count, #1969).
     // CLOSED = the tree itself is the proof the class is at zero.
-    const openWithOpinion: ReadonlySet<string> = new Set([policyLegacyImports.id, policyBindingResolution.id, policyRefusalCoverage.id]);
+    const openWithOpinion: ReadonlySet<string> = new Set([policyLegacyImports.id, policyRefusalCoverage.id]);
     const closedAtZero: ReadonlySet<string> = new Set([policySoundness.id, policyFixtureSubstrate.id, policyProofExpectations.id, policyWaiverIdentity.id]);
     expect(FAMILY.map(({ id }) => id).filter((id) => !(openWithOpinion.has(id) || closedAtZero.has(id)))).toEqual([]);
     for (const id of closedAtZero) {

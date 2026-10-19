@@ -1,14 +1,13 @@
 // THE PLANTED CONTROL for the member-identity reader every policing policy asks "is this ts-morph's member?"
 // through (#2202, found while fixing #2199's twins growth).
 //
-// `isTsMorphMember` sits on the ACCUSING side of `policy-binding-resolution` and E2 of `policy-soundness`, so
-// a false NO is a silent green on the exact shape those policies exist to catch. It had two doors and one
-// spelling closed both at once: `member.nameNode.getSymbol()` is nothing for a bracket read (the nameNode is a
+// `isTsMorphWalk` sits on the ACCUSING side of E2 of `policy-soundness`, so a false NO is a silent green on the
+// exact shape that policy exists to catch. Its member identity had two doors and one spelling closed both at once: `member.nameNode.getSymbol()` is nothing for a bracket read (the nameNode is a
 // STRING LITERAL, which carries no symbol of the member it names), and `receiver.getType().getProperty(name)`
 // answers `undefined` for ANY union type — which is exactly what an optional chain produces
 // (`node.getSymbol()?.…` types its receiver `Symbol | undefined`). So `node.getSymbol()?.getDeclarations()` was
 // caught, `node["getDefinitionNodes"]()` was caught, and `node.getSymbol()?.["getDeclarations"]()` — the same
-// binding resolution, one spelling over — was not.
+// member, one spelling over — was not.
 //
 // THE CONTROL IS THE MATRIX, NOT THE FIXED CASE. Each spelling is asserted against BOTH polarities: the
 // ts-morph member must be recognised however written, and the same-named member on a NON-ts-morph owner must
@@ -18,11 +17,11 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node, Project, SyntaxKind } from "ts-morph";
 import { resolveModuleMemberOrigin } from "../../../../tooling/src/floor/code-facts/reference-fact.ts";
-import { isCanonicalDefineGate, isTsMorphMember, resolveCallableMember } from "../../../../tooling/src/verify/lib/gate-contract-origin.ts";
+import { isCanonicalDefineGate, isTsMorphWalk, resolveCallableMember } from "../../../../tooling/src/verify/lib/gate-contract-origin.ts";
 
 const ROOT = "/gate-contract-origin";
 
-/** The ambient stub for the two ts-morph shapes the readers judge by OWNER: a `Node` whose `getSymbol()` is
+/** The ambient stub for the two ts-morph shapes the readers judge: a `Node` whose `getSymbol()` is
  *  optional-returning (the union the type door used to lose) and the `Symbol` that owns the resolution
  *  members. Declared here rather than imported from the gate `_proof` tree so this control cannot pass
  *  because a fixture elsewhere changed. */
@@ -51,15 +50,15 @@ function project(): Project {
 
 let seq = 0;
 
-/** Is the OUTERMOST call in `body` a ts-morph member of `owner`? The body is parsed in its own file so no
- *  case inherits another's language-service state. */
-function readsTsMorphMember(body: string, owner?: string): boolean {
+/** Is the OUTERMOST call in `body` a ts-morph member? The body is parsed in its own file so no case inherits
+ *  another's language-service state. */
+function readsTsMorphMember(body: string): boolean {
   seq += 1;
   const sourceFile = project().createSourceFile(`${ROOT}/probe-${seq}.ts`, body);
   const call = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)[0];
   expect(call, "the probe body must contain a call to judge").toBeDefined();
   const member = call === undefined ? undefined : resolveCallableMember(call.getExpression());
-  return member !== undefined && isTsMorphMember(member, owner);
+  return member !== undefined && isTsMorphWalk(member);
 }
 
 const TS_MORPH_IMPORT = 'import type { Node } from "ts-morph";\n';
@@ -73,17 +72,14 @@ test("a ts-morph member is recognised in EVERY spelling, including through the u
   // The OWNED member behind an optional chain — the receiver type is `Symbol | undefined`. The dotted form
   // survived on the nameNode door alone; the bracket form is the one that was blind, and is the regression
   // this row exists to catch.
-  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.getDeclarations();`, "Symbol")).toBe(true);
-  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.["getDeclarations"]();`, "Symbol")).toBe(true);
-  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n["getSymbol"]()?.["getAliasedSymbol"]();`, "Symbol")).toBe(true);
+  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.getDeclarations();`)).toBe(true);
+  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.["getDeclarations"]();`)).toBe(true);
+  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n["getSymbol"]()?.["getAliasedSymbol"]();`)).toBe(true);
 });
 
 test("the same member NAME on a non-ts-morph owner is refused in every spelling — identity, not spelling (#2202)", () => {
-  expect(readsTsMorphMember(`${LOOKALIKE_IMPORT}export const a = (h: Holder): unknown => h.getSymbol()?.getDeclarations();`, "Symbol")).toBe(false);
-  expect(readsTsMorphMember(`${LOOKALIKE_IMPORT}export const a = (h: Holder): unknown => h.getSymbol()?.["getDeclarations"]();`, "Symbol")).toBe(false);
-  // …and the OWNER half still bites: a genuine ts-morph member judged against the wrong owner is not a match,
-  // which is what separates `Symbol#getDeclarations` from a syntax accessor of the same name.
-  expect(readsTsMorphMember(`${TS_MORPH_IMPORT}export const a = (n: Node): unknown => n.getSymbol()?.["getDeclarations"]();`, "Project")).toBe(false);
+  expect(readsTsMorphMember(`${LOOKALIKE_IMPORT}export const a = (h: Holder): unknown => h.getSymbol()?.getDeclarations();`)).toBe(false);
+  expect(readsTsMorphMember(`${LOOKALIKE_IMPORT}export const a = (h: Holder): unknown => h.getSymbol()?.["getDeclarations"]();`)).toBe(false);
 });
 
 test("canonical policy declaration identity excludes source-file trace carriers across direct, alias, namespace and re-export doors", () => {

@@ -479,8 +479,7 @@ function runModelPass(
           prompt:
             correction === undefined
               ? args.userPrompt
-              : // @orb-waive no-hardcoded-model-prose(n): the bounded-retry correction frame — structural validation plumbing around the zod issue summary (the runStructuredTurn convention), never host voice
-                `${args.userPrompt}\n\nYour previous reply failed validation (${correction}). Return a corrected JSON object.`,
+              : `${args.userPrompt}\n\nYour previous reply failed validation (${correction}). Return a corrected JSON object.`,
           posture: "rule_analysis",
           responseFormat,
         })

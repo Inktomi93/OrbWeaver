@@ -20,7 +20,6 @@ import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/server-vendors.ts";
-import { gate as contentPartSeam } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as ownerRoleSplit } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as scrubberHome } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as singleStreamTransport } from "../../../../tooling/src/verify/gates/single-stream-transport.ts";
@@ -33,7 +32,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 const ROOT = "/home-server-family";
 
-const FAMILY: readonly GatePolicy[] = [contentPartSeam, ownerRoleSplit, scrubberHome, singleStreamTransport, soleEnvReader, twoClassRoleAuthority];
+const FAMILY: readonly GatePolicy[] = [ownerRoleSplit, scrubberHome, singleStreamTransport, soleEnvReader, twoClassRoleAuthority];
 
 test(
   "every sanctioned-home policy judges declaration homes and vocabularies rather than written names",
@@ -59,9 +58,6 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>, gra
   });
 }
 
-const CONTENT_PART = "export type ChatContentPart = { readonly type: string };\n";
-const CONSUMER = 'import type { ChatContentPart } from "../../../../../contracts/src/chat/bus.ts";\nexport type T = ChatContentPart;\n';
-
 // The two role vocabularies share ONE declaration home, which is the whole reason the `role-vocabulary`
 // family judges the AXIS by type rather than the tuple by path.
 const IDENTITY_HOME = "packages/contracts/src/identity/index.ts";
@@ -86,12 +82,6 @@ interface GrantCase {
 }
 
 const GRANT_CASES: readonly GrantCase[] = [
-  {
-    policy: contentPartSeam,
-    files: { "packages/contracts/src/chat/bus.ts": CONTENT_PART, "packages/server/src/domain/chat/verbs/reach.ts": CONSUMER },
-    subject: "packages/server/src/domain/chat/verbs/reach.ts",
-    operation: "chat-content-part-reference",
-  },
   {
     policy: ownerRoleSplit,
     files: { [IDENTITY_HOME]: USER_VOCABULARY, "packages/server/src/domain/hub/x.ts": LATTICE_COMPARISON },
@@ -197,27 +187,6 @@ test.each(GRANT_ROWS)("%s: a grant whose SUBJECT was renamed licenses nothing an
   expect(renamed.authority.authorityAlarms).toMatchObject([
     { kind: "stale-reviewed-grant", policyId: input.policy.id, grantId: `${input.policy.id}:family-fixture` },
   ]);
-});
-
-test("the D51 seam WITHHOLDS its verdict when the content-part declaration leaves its home", () => {
-  const healthy = passOf(contentPartSeam, {
-    "packages/contracts/src/chat/bus.ts": CONTENT_PART,
-    "packages/server/src/domain/chat/verbs/reach.ts": CONSUMER,
-  });
-  expect(healthy.toolErrors).toEqual([]);
-  expect(healthy.policies[0]?.receipts).toEqual([{ kind: "population", source: "ChatContentPart declaration home", members: 1, unresolved: 0 }]);
-  expect(healthy.authority.effectiveFindings).toMatchObject([{ policyId: "content-part-seam", subject: "packages/server/src/domain/chat/verbs/reach.ts" }]);
-
-  // The declaration moved OUT of the chat contracts home: every reference now resolves foreign, so the
-  // policy would find nothing and render a clean pass over a rule that has no subject left.
-  const moved = passOf(contentPartSeam, {
-    "packages/contracts/src/wire/bus.ts": CONTENT_PART,
-    "packages/server/src/domain/chat/verbs/reach.ts":
-      'import type { ChatContentPart } from "../../../../../contracts/src/wire/bus.ts";\nexport type T = ChatContentPart;\n',
-  });
-  expect(moved.toolErrors).toMatchObject([{ policyId: "content-part-seam", phase: "receipt", message: expect.stringContaining("declaration home") }]);
-  expect(moved.authority.withheldPolicyIds).toEqual(["content-part-seam"]);
-  expect(moved.authority.effectiveFindings).toEqual([]);
 });
 
 test.each([

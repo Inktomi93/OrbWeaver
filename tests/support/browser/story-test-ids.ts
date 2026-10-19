@@ -1,5 +1,5 @@
 // The typed id registry for CT story markup (the story-side twin of the client `TEST_IDS`). A story stamps
-// `data-testid={storyTestId("key")}`; `testid-typed-only-stories` reds a raw string, and `testid-liveness` reads
+// `data-testid={storyTestId("key")}`; `orb/testid-typed-only-stories` reds a raw string, and `testid-liveness` reads
 // these rows as producers and reds a row no story spends. Add a row here with the story that stamps it.
 export const STORY_TEST_IDS = {
   abort: "abort",

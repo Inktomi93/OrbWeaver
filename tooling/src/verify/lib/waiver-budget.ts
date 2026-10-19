@@ -10,7 +10,6 @@ const APPLICATION = Object.freeze({
   "caught-failure-ownership": 680,
   "chat-stream-writes-in-bus-only": 1,
   "chat-viewer-plane-canon-reads": 3,
-  "content-part-seam": 5,
   "contract-structural-copy": 87,
   "contract-verb-presence": 3,
   "css-family-direct-client-mechanism": 3,
@@ -25,10 +24,8 @@ const APPLICATION = Object.freeze({
   "integer-line-boxes": 4,
   "json-column-write-parity": 6,
   "knob-wire-coverage": 4,
-  "macro-resolution-home": 4,
   "membership-enforcer": 6,
   "no-await-db-in-loop": 13,
-  "no-hardcoded-model-prose": 17,
   "no-inline-package-interface": 206,
   "no-inline-types": 5,
   "no-inline-wire-interface": 31,
@@ -67,7 +64,6 @@ const APPLICATION = Object.freeze({
   "tooling-project-home": 5,
   "two-class-role-authority": 2,
   "ui-primitive-permissions": 6,
-  "wire-schema-vocab-one-home": 1,
   "zod-error-issues-home": 8,
 });
 

@@ -18,12 +18,10 @@ import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/g
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
-import { gate as policyBindingResolution } from "../../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFixtureSubstrate } from "../../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policySoundness } from "../../../../../tooling/src/verify/gates/policy-soundness.ts";
-import { gate as routeTrpcLifoOrder } from "../../../../../tooling/src/verify/gates/route-trpc-lifo-order.ts";
 import { gate as routeTrpcNoBroadSpread } from "../../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as testDeterminism } from "../../../../../tooling/src/verify/gates/test-determinism.ts";
 import { gate as testWorldBrowserContracts } from "../../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
@@ -94,8 +92,8 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: ctPollScheduleAndPaint,
     overlays: [
       add(
-        "tests/client/features/chat/components/liveness-shared-array.ct.tsx",
-        'import { expect, test } from "@playwright/experimental-ct-react";\nconst SCHEDULE = [50, 100, 250];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: SCHEDULE, timeout: 10_000 }).toBe(1);\n});\n',
+        "tests/client/features/chat/components/liveness-unbarriered.ct.tsx",
+        'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const button = page.getByRole("button");\n  await button.evaluate((el) => (el as HTMLButtonElement).click());\n  await expect.poll(async () => (await read(page)).observedCls, { intervals: [50], timeout: 10_000 }).toBeGreaterThan(0);\n});\n',
       ),
     ],
     messageIncludes: "Playwright poll idiom",
@@ -129,18 +127,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noOpaqueTestFixture,
     overlays: [add("tests/client/features/rpg/liveness.fixtures.ts", 'export function makeLivenessGame(): unknown {\n  return { ruleset: "d20" };\n}\n')],
     messageIncludes: "typed `unknown`",
-  },
-  {
-    policy: policyBindingResolution,
-    // On the real ts-morph `getDefinitionNodes` lives on the reference-findable nodes (an `Identifier`), not on
-    // the base `Node` the row's stub declares it on, so the probe walks an `Identifier` as a real gate would.
-    overlays: [
-      probeGate({
-        id: "liveness-binding",
-        head: 'import type { Identifier } from "ts-morph";\nexport const probe = (node: Identifier): unknown => node.getDefinitionNodes();\n',
-      }),
-    ],
-    messageIncludes: "Member: `getDefinitionNodes`.",
   },
   {
     policy: policyFixtureSubstrate,
@@ -180,16 +166,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: policySoundness,
     overlays: [probeGate({ id: "liveness-soundness", population: '{ in: ["@client"], ext: ["ts", "tsx"] }' })],
     messageIncludes: "INERT",
-  },
-  {
-    policy: routeTrpcLifoOrder,
-    overlays: [
-      add(
-        "tests/client/features/chat/liveness-lifo.ct.tsx",
-        'import { test } from "@playwright/experimental-ct-react";\nimport { routeTrpc } from "../../../support/node/route-trpc.ts";\ntest("g", async ({ page }) => {\n  await page.route("**/api/trpc/**", () => new Promise(() => undefined));\n  await routeTrpc(page, {});\n});\n',
-      ),
-    ],
-    messageIncludes: "BEFORE `routeTrpc",
   },
   {
     policy: routeTrpcNoBroadSpread,

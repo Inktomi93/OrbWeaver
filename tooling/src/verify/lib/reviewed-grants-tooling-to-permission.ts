@@ -256,12 +256,4 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     why: "The virtual wrapper delegates row styling to the caller renderItem.",
     endsWhen: "the subject is removed or satisfies this obligation without the exception; zero consumption makes this grant stale.",
   },
-  {
-    id: "wire-schema-vocab-one-home:inverse-lift",
-    policyId: "wire-schema-vocab-one-home",
-    subject: "packages/kit/src/json-schema/lift.ts",
-    operation: "wire-schema-vocabulary-home",
-    why: "lift.ts is the inverse reader paired with the canonical wire-subset scrub engine in D93 and must recognize the same keyword vocabulary.",
-    endsWhen: "the inverse lift delegates to the engine vocabulary without spelling a table, or the inverse reader is removed.",
-  },
 ];
