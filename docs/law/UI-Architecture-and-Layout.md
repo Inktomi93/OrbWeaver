@@ -86,7 +86,7 @@ neo enforced the UI boundaries with lint. orbweaver makes them **resolver physic
 
 A workspace package = the "one home"; the *package* IS the registry (shadcn's external registry mechanism is not used; components are hand-authored over Base UI).
 
-**The code is the doc.** Tree + per-primitive structure: `packages/ui/src` (`primitives/` · `layout/` · `charts/` · `markdown/` · `stream/` · `content/` · `code-editor/` · `diff/` · `tokens/` · `lib/` · `styles/`). Public surface: the **explicit `exports` map** in `packages/ui/package.json` — one subpath per group, deliberately **no root barrel** (a flat `@orb/ui` import would defeat tree-shaking and blur the seal boundaries). Deps (the sealed satellites) live only in that package.json; structure is gate-enforced (`tooling/src/verify/gates/ui-primitive-structure.ts`, §13.7). Per-primitive file contract + authoring rules: §13.7–§13.8.
+**The code is the doc.** Tree + per-primitive structure: `packages/ui/src` (`primitives/` · `layout/` · `charts/` · `markdown/` · `stream/` · `content/` · `code-editor/` · `diff/` · `tokens/` · `lib/` · `styles/`). Public surface: the **explicit `exports` map** in `packages/ui/package.json` — one subpath per group, deliberately **no root barrel** (a flat `@orb/ui` import would defeat tree-shaking and blur the seal boundaries). Deps (the sealed satellites) live only in that package.json; structure is enforced by `orb/ui-*` lint and the primitive topology test (§13.7). Per-primitive file contract + authoring rules: §13.7–§13.8.
 
 The law that survives any file-level churn:
 

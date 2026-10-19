@@ -24,8 +24,6 @@ import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/ver
 import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as uiAccnameSurvivesSpread } from "../../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
-import { gate as uiPrimitiveOverlayHealth } from "../../../../../tooling/src/verify/gates/ui-primitive-overlay-health.ts";
-import { gate as uiPrimitiveStructure } from "../../../../../tooling/src/verify/gates/ui-primitive-structure.ts";
 import { gate as uiVariantAxesStamped } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
 import { gate as uiVariantAxesStampedHealth } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped-health.ts";
 
@@ -152,16 +150,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "AFTER the caller-props spread",
-  },
-  {
-    policy: uiPrimitiveOverlayHealth,
-    overlays: [neutralise(`${UI}/dialog/dialog.tsx`, "export const X = () => <D.Popup />;\n")],
-    messageIncludes: ".Backdrop + .Popup",
-  },
-  {
-    policy: uiPrimitiveStructure,
-    overlays: [add(`${UI}/liveness-thing/index.ts`, 'export * from "./variants";\n')],
-    messageIncludes: "re-exports private variants",
   },
   {
     policy: uiVariantAxesStampedHealth,

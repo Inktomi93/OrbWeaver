@@ -97,9 +97,9 @@ Factory column = the factory each surface uses TODAY (code is the truth). D66 A4
 
 The §13.2 map is the cold-agent contract: a surface not using its primitive is the review flag. The primitives + their gates shipped BEFORE the feature lanes (born-compliant) precisely so a feature can never land ahead of the gates that enforce it.
 
-### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT — gate `ui-primitive-structure`)
+### 13.7 The `@orb/ui` primitive & CT structural contract (BUILT)
 
-`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tooling/src/verify/gates/ui-primitive-structure.ts`** (8 clauses — the gate file is the enforcer; this § is the WHY a clause exists). `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is fixed; do not renumber it.
+`@orb/ui` drifted into competing micro-conventions across parallel builds; this contract is the reconciled canonical shape, **machine-enforced by `tests/ui/primitives/primitive-topology.test.ts`** (file trio, variants naming, `data-slot`, co-located CT; its exemption tables are the variants-exempt and CT-exempt allowlists below) **and the `orb/ui-*` rules in `eslint.config.js`** (private variants barrel, inline SVG, CT colors and providers, overlay anatomy). This § is the WHY a clause exists. `ui-package-design.md` points here as the canonical home of the structural contract — the §-numbering is fixed; do not renumber it.
 
 - **The primitive trio.** `primitives/<name>/` = `<name>.tsx` (named export, no default) + `index.ts` (the ONLY consumer import) + `variants.ts`, plus optional `handle.ts` (imperative `createHandle`). Variants-exempt allowlist: `icons`, `virtual-list`, `message-list`, `aria-announcer`, `file-trigger` (sealed satellites/barrels with no skin of their own); `code-editor`/`content/*`/`markdown`/`lib` live outside `primitives/`; `layout/` shares one `variants.ts` for the kit.
 - **Variants naming:** exactly one `tv()` export named **`{camelName}Variants`** (greppable, reserved-word-safe — `switch` forced the suffix anyway).

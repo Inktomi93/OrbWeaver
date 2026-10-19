@@ -1,5 +1,5 @@
 // CT: the text/heading seal — token size/tone land as computed style (asserted via TOKENS, never a
-// literal — gate ui-primitive-structure clause 5), and <Heading> renders a REAL semantic h1-h6 while
+// literal — rule orb/ui-ct-no-color-literal), and <Heading> renders a REAL semantic h1-h6 while
 // <Text> renders its body intrinsic (the a11y/semantic-element correctness the seal exists for).
 
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";

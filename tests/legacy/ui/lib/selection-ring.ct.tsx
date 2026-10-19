@@ -41,8 +41,8 @@ function paints(layer: string): boolean {
     return false;
   }
   // A fully TRANSPARENT layer paints nothing whatever its extent — read the alpha out of the serialized
-  // colour rather than matching a colour LITERAL (the `ui-primitive-structure` gate reds a hardcoded colour
-  // in a `tests/legacy/ui` CT, and rightly: a literal is a second home for a value the page already resolves).
+  // colour rather than matching a colour LITERAL (`orb/ui-ct-no-color-literal` reds a hardcoded colour
+  // in a rebuilt `tests/ui` CT, and rightly: a literal is a second home for a value the page already resolves).
   const alpha = /\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/u.exec(layer);
   if (alpha !== null && Number.parseFloat(alpha[1] ?? "1") === 0) {
     return false;
@@ -77,7 +77,7 @@ async function outerShadow(node: Locator): Promise<string> {
 }
 
 /** The serialization of a fully transparent background, RESOLVED in the page — never spelled as a colour
- *  literal (`ui-primitive-structure` reds a hardcoded colour in a `tests/legacy/ui` CT, and a literal would also
+ *  literal (`orb/ui-ct-no-color-literal` reds a hardcoded colour in a rebuilt `tests/ui` CT, and a literal would also
  *  be a second home for a value the browser already prints). A bare, unstyled `<div>` is the reference. */
 async function transparent(page: Page): Promise<string> {
   return await page.evaluate(() => {

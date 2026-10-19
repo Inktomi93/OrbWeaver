@@ -33,22 +33,14 @@ import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/v
 
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
 import { gate as testidLiveness } from "../../../../../tooling/src/verify/gates/testid-liveness.ts";
-import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { probeGate } from "./tooling-tests.ts";
 
 const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
-const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
-}
-
-/** A new source file planted in BOTH views: the project, and the ResourceHost a resource-analysis policy lists
- *  the tree through. Planted in one view alone, the two denominators disagree and the policy refuses. */
-function planted(path: string, source: string): readonly [RealCorpusOverlay, RealCorpusOverlay] {
-  return [add(path, source), { kind: "resource", path, source }];
 }
 
 function edit(path: string, search: string, replacement: string): RealCorpusOverlay {
@@ -147,16 +139,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "A1: nothing on the tree mints",
-  },
-  {
-    policy: uiPrimitivePermissions,
-    overlays: [
-      ...planted(`${PRIMITIVE}/livenessthing.tsx`, 'export const LivenessThing = () => <div data-slot="livenessthing" />;\n'),
-      ...planted(`${PRIMITIVE}/index.ts`, 'export { LivenessThing } from "./livenessthing";\n'),
-      ...planted("tests/ui/primitives/livenessthing/livenessthing.ct.tsx", "export const proof = true;\n"),
-    ],
-    reportsAt: [PRIMITIVE],
-    messageIncludes: "missing variants.ts",
   },
   {
     policy: warningCodeCoverage,

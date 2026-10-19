@@ -1,7 +1,7 @@
 // CT: the kbd seal — a shortcut chip on the `<kbd>` intrinsic; mono + micro-caps on the MUTED
 // surface (PP2 un-overloaded --color-accent: accent is hover/interaction only; a static chip rides
 // the muted pair). Token color/size land as computed style (asserted via TOKENS, never a literal —
-// gate ui-primitive-structure clause 5). Inert (no interactive state), like Badge.
+// rule orb/ui-ct-no-color-literal). Inert (no interactive state), like Badge.
 
 import { Kbd } from "@orb/ui/kbd";
 import { TOKENS } from "@orb/ui/tokens";

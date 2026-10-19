@@ -28,7 +28,7 @@ const DOMAIN_DIR = "domain/";
 const STATE_HOME = "state/";
 /** Direct children of these client owners are composed independently by every feature; bound fields keep their shared CT home. */
 const CLIENT_SEAL_HOMES: readonly string[] = ["data/", "forms/", "forms/editor/", STATE_HOME];
-/** Non-primitive `@orb/ui` logic groups; bare `primitives/` are covered by `ui-primitive-structure`'s CT clause. */
+/** Non-primitive `@orb/ui` logic groups; bare `primitives/` are covered by the primitive topology test's CT clause. */
 const UI_LOGIC_GROUPS: readonly string[] = ["charts/", "markdown/", "stream/", "content/", "code-editor/", "diff/", "fuzzy-search/"];
 /** A `state/` file mints its own store only when it calls one of these factory doors. */
 const STATE_STORE_FACTORY_RE = /\b(?:createGatedStore|createPersistedStore|createEntityDraftStore)(?:<[^(]*>)?\(/u;
@@ -1128,7 +1128,7 @@ export const gate = defineGate({
         "packages/ui/src/primitives/button/button.tsx": "export function build(): number {\n  return 1;\n}\n",
         "tests/ui/markdown/markdown.ct.tsx": "export {};\n",
       },
-      why: "DECLARED LIMIT — bare primitives/ are covered by ui-primitive-structure's CT clause, not demanded here. THE `UI_LOGIC_GROUPS` NARROWING: replacing the prefix test with `true` reds this row",
+      why: "DECLARED LIMIT — bare primitives/ are covered by the primitive topology test's CT clause, not demanded here. THE `UI_LOGIC_GROUPS` NARROWING: replacing the prefix test with `true` reds this row",
     },
     {
       mode: "resource",

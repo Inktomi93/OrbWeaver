@@ -2258,6 +2258,122 @@ const RETIRED_GATE_MARKER = { terms: ["@orb-gate-ignore"], location: "start" };
 // The node helper executables are `.mjs`; the retired gate's harness corpus loaded them beside the TS sources.
 const RETIRED_GATE_MARKER_FILES = ["packages/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
 
+// ── UI primitive walls ─────────────────────────────────────────────────────────────────────────────────
+// Variant constructors stay private and SVG geometry goes through the icon API: ordinary rules. CT color, CT inline
+// providers and overlay anatomy are HARD: the retired gate took its exceptions as central reviewed grants, so no
+// inline disable may excuse them. They are registered with the plugin below and enabled only in `hardConfig`.
+// The retired gate judged a CT color per source line: a color call opened on a line whose text reaches a digit before
+// any `)`, or a hex literal. A line-text test follows a call split across concatenation operands, template chunks or a
+// `.join` array, which no node-shaped selector can. Comments and test narration (a title, an `expect` message) are
+// blanked first; template substitutions stay executable evidence.
+const CT_COLOR_LINE = /(?:oklch|\brgba?)\\?\((?=[^)\n]*\d)|#[0-9a-fA-F]{3,8}\b/u;
+const CT_NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
+const calleeRoot = (callee) => {
+  let node = callee;
+  while (node.type === "MemberExpression" && !node.computed) {
+    node = node.object;
+  }
+  return node.type === "Identifier" ? node.name : undefined;
+};
+const narrationArgIndex = (root) => {
+  if (root === "expect") {
+    return 1;
+  }
+  return CT_NARRATION_CALLEES.has(root) ? 0 : -1;
+};
+const uiCtColorRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const blanked = sourceCode.getAllComments().map(({ range }) => range);
+    return {
+      "CallExpression[arguments.length>0]"(call) {
+        const arg = call.arguments[narrationArgIndex(calleeRoot(call.callee))];
+        if (arg?.type === "Literal" && typeof arg.value === "string") {
+          blanked.push(arg.range);
+        } else if (arg?.type === "TemplateLiteral") {
+          blanked.push(...arg.quasis.map(({ range }) => range));
+        }
+      },
+      "Program:exit"() {
+        let text = sourceCode.text;
+        for (const [start, end] of blanked) {
+          text = text.slice(0, start) + text.slice(start, end).replace(/[^\r\n]/gu, " ") + text.slice(end);
+        }
+        text.split(/\r?\n/u).forEach((line, index) => {
+          const column = line.search(CT_COLOR_LINE);
+          if (column >= 0) {
+            context.report({ loc: { line: index + 1, column }, message: "A hardcoded color in a CT: assert colors through TOKENS." });
+          }
+        });
+      },
+    };
+  },
+};
+const OVERLAY_PART = (part) => `:matches(MemberExpression[computed=false], JSXMemberExpression)[property.name='${part}']`;
+const OVERLAY_DIRS = { anchored: ["popover", "menu", "select", "autocomplete", "tooltip"], modal: ["dialog", "alert-dialog", "drawer"] };
+const overlayScope = (names) => names.map((name) => `packages/ui/src/primitives/${name}/${name}.tsx`);
+const UI_PRIMITIVE_RESTRICTIONS = [
+  {
+    id: "ui-variants-barrel-private",
+    scope: ["packages/ui/src/**/index.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(ExportAllDeclaration, ExportNamedDeclaration)[source.value=/(^|\\u002F)variants$/]",
+        message: "A barrel never re-exports its private variants: a feature composing raw variants bypasses the component skin.",
+      },
+    ],
+  },
+  {
+    id: "ui-no-inline-svg",
+    scope: ["packages/ui/src/**/*.tsx"],
+    notUnder: ["packages/ui/src/**/charts/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name='svg']",
+        message: "No inline <svg> outside the chart layer: render the governed Icon component.",
+      },
+    ],
+  },
+];
+const UI_CT_COLOR_RESTRICTION = { id: "ui-ct-no-color-literal", scope: ["tests/ui/**/*.ct.tsx"] };
+const UI_HARD_RESTRICTIONS = [
+  {
+    id: "ui-ct-no-inline-provider",
+    scope: ["tests/ui/**/*.ct.tsx", "tests/ui/**/*.fixtures.tsx"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          "JSXOpeningElement:matches([name.type='JSXIdentifier'][name.name=/Provider$/], [name.type='JSXMemberExpression'][name.property.name=/Provider$/])",
+        message: "An inline provider in a test: global providers live in CtProviders.",
+      },
+    ],
+  },
+  {
+    id: "ui-overlay-anchored-anatomy",
+    scope: overlayScope(OVERLAY_DIRS.anchored),
+    homes: [],
+    selectors: [
+      {
+        selector: `Program:has(${OVERLAY_PART("Popup")}):not(:has(${OVERLAY_PART("Positioner")}))`,
+        message: "An anchored overlay with a .Popup needs its .Positioner.",
+      },
+    ],
+  },
+  {
+    id: "ui-overlay-modal-anatomy",
+    scope: overlayScope(OVERLAY_DIRS.modal),
+    homes: [],
+    selectors: [
+      { selector: `Program:not(:has(${OVERLAY_PART("Backdrop")}):has(${OVERLAY_PART("Popup")}))`, message: "A modal overlay must use .Backdrop + .Popup." },
+      { selector: `Program:has(${OVERLAY_PART("Positioner")})`, message: "A modal overlay must NOT have a .Positioner." },
+    ],
+  },
+];
+
 const RESTRICTIONS = [
   {
     id: "no-test-fabrication",
@@ -2285,6 +2401,7 @@ const RESTRICTIONS = [
   ...DB_SCHEMA_RESTRICTIONS,
   ...Z_INDEX_RESTRICTIONS,
   ...BASEUI_RESTRICTIONS,
+  ...UI_PRIMITIVE_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
@@ -5345,6 +5462,8 @@ const restrictionPlugin = {
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -6230,6 +6349,11 @@ export const hardConfig = [
     },
   },
   { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
+  ...[UI_CT_COLOR_RESTRICTION, ...UI_HARD_RESTRICTIONS].map(({ id, scope }) => ({
+    files: scope,
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  })),
   ...IDENTITY_WRITER_RESTRICTIONS.map(({ id, scope, notUnder = [], homes }) => ({
     files: scope,
     ...(notUnder.length + homes.length === 0 ? {} : { ignores: [...notUnder, ...homes.map(({ path }) => path)] }),

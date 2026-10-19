@@ -58,7 +58,6 @@ const APPLICATION = Object.freeze({
   "tooling-process-exit-home": 1,
   "tooling-project-home": 5,
   "two-class-role-authority": 2,
-  "ui-primitive-permissions": 6,
   "zod-error-issues-home": 8,
 });
 
