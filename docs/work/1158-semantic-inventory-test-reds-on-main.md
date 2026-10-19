@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-19
 priority: P2
+plan: test-foundation
 ---
 
 # semantic-inventory test reds on main
