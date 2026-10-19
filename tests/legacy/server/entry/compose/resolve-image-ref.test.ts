@@ -3,7 +3,7 @@
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ImageRefAssets, ResolvedMediaRef } from "@orb/server/domain/chat";
+import type { ImageRefAssets, MediaRoomAccess, ResolvedMediaRef } from "@orb/server/domain/chat";
 import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
@@ -34,6 +34,8 @@ const present =
   (ids: readonly UserId[]) =>
   (userId: UserId, chatId: ChatId): Promise<boolean> =>
     Promise.resolve(chatId === CHAT && ids.includes(userId));
+/** Placement granted: these cases pin presence and byte handling; the composed media-placement suite proves placement. */
+const inRoom = (ownerIsPresent: MediaRoomAccess["ownerIsPresent"]): MediaRoomAccess => ({ ownerIsPresent, isPlacedInRoom: () => Promise.resolve(true) });
 
 describe("resolveImageRefToUrl", () => {
   test("static GIF is an image while animated GIF is converted before data URI encoding", async () => {
@@ -42,14 +44,14 @@ describe("resolveImageRefToUrl", () => {
     const prepare = vi.fn(() => Promise.resolve(transformed));
     const media = { frameCount: () => Promise.resolve(1), prepareVideo: prepare };
     const params = { ownerId: HOST, chatId: CHAT, ref: assetRef() };
-    expect(await resolveImageRefToUrl({ ...assetsOwnedBy(HOST, "image/gif", bytes), ...media }, present([]), false, params)).toEqual({
+    expect(await resolveImageRefToUrl({ ...assetsOwnedBy(HOST, "image/gif", bytes), ...media }, inRoom(present([])), false, params)).toEqual({
       media: "image",
       url: dataUri("image/gif", bytes),
     });
     expect(prepare).not.toHaveBeenCalled();
     const animated = await resolveImageRefToUrl(
       { ...assetsOwnedBy(HOST, "image/gif", bytes), ...media, frameCount: () => Promise.resolve(2) },
-      present([]),
+      inRoom(present([])),
       false,
       params,
     );
@@ -58,7 +60,7 @@ describe("resolveImageRefToUrl", () => {
     expect(prepare).toHaveBeenCalledWith(bytes, "image/gif", "720", { signal: undefined });
   });
   test("external ref passes through when NOT forbidden (assets never touched)", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), inRoom(present([])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: { kind: "external", url: "https://example.com/x.png" },
@@ -68,7 +70,7 @@ describe("resolveImageRefToUrl", () => {
 
   test("F7a: external ref is BLOCKED → null when forbidExternalMedia is set (D44 §12.3)", async () => {
     const gate = vi.fn(present([]));
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), gate, true, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), inRoom(gate), true, {
       ownerId: HOST,
       chatId: CHAT,
       ref: { kind: "external", url: "https://example.com/x.png" },
@@ -80,7 +82,7 @@ describe("resolveImageRefToUrl", () => {
 
   test("host-owned asset resolves WITHOUT a membership read (owner === host short-circuit)", async () => {
     const gate = vi.fn(present([]));
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), gate, false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), inRoom(gate), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -90,7 +92,7 @@ describe("resolveImageRefToUrl", () => {
   });
 
   test("asset ref is unaffected by forbidExternalMedia (the gate is external-only)", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), present([]), true, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST), inRoom(present([])), true, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -102,7 +104,7 @@ describe("resolveImageRefToUrl", () => {
     const gate = vi.fn(present([MEMBER]));
     const gifBytes = Uint8Array.from(Buffer.from("GIF89a"));
     const assets = assetsOwnedBy(MEMBER, "image/gif", gifBytes);
-    const url = await resolveImageRefToUrl(assets, gate, false, {
+    const url = await resolveImageRefToUrl(assets, inRoom(gate), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -119,7 +121,7 @@ describe("resolveImageRefToUrl", () => {
 
   test("a video/mp4 asset classifies media:'video' (the data URI keeps the stored mime)", async () => {
     const bytes = new Uint8Array([9, 9, 9]);
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "video/mp4", bytes), present([]), false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "video/mp4", bytes), inRoom(present([])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -128,7 +130,7 @@ describe("resolveImageRefToUrl", () => {
   });
 
   test("a video/webm asset classifies media:'video'", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "video/webm"), present([]), false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "video/webm"), inRoom(present([])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -139,7 +141,7 @@ describe("resolveImageRefToUrl", () => {
   test("an animated GIF uses the video preparation path and MP4 wire label", async () => {
     // Real GIF magic so kit's sniff recognizes it ("GIF89a" + trailing bytes).
     const gifBytes = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0, 0, 0, 0, 0]);
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "image/gif", gifBytes), present([]), false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "image/gif", gifBytes), inRoom(present([])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -148,7 +150,7 @@ describe("resolveImageRefToUrl", () => {
   });
 
   test("a claimed-gif mime whose BYTES are not a gif stays media:'image' (the sniff, not the label, decides motion)", async () => {
-    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "image/gif", new Uint8Array([7])), present([]), false, {
+    const url = await resolveImageRefToUrl(assetsOwnedBy(HOST, "image/gif", new Uint8Array([7])), inRoom(present([])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -158,7 +160,7 @@ describe("resolveImageRefToUrl", () => {
 
   test("a non-participant owner's asset is refused → null (no cross-chat oracle)", async () => {
     const assets = assetsOwnedBy(STRANGER, "image/gif", Uint8Array.from(Buffer.from("GIF89a")));
-    const url = await resolveImageRefToUrl(assets, present([MEMBER]), false, {
+    const url = await resolveImageRefToUrl(assets, inRoom(present([MEMBER])), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),
@@ -172,7 +174,7 @@ describe("resolveImageRefToUrl", () => {
   test("a gone asset (no row) → null, without a membership read", async () => {
     const gate = vi.fn(present([MEMBER]));
     const assets = assetsOwnedBy(undefined, "image/gif", Uint8Array.from(Buffer.from("GIF89a")));
-    const url = await resolveImageRefToUrl(assets, gate, false, {
+    const url = await resolveImageRefToUrl(assets, inRoom(gate), false, {
       ownerId: HOST,
       chatId: CHAT,
       ref: assetRef(),

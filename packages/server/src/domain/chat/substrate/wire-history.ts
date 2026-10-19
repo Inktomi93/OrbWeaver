@@ -69,6 +69,8 @@ function displayOnlyImageText(alt: string): string {
  *  `userAuthored` predicate additionally rejects the SCOPED-FOLD demotion — `shape.scopeToSpeaker` re-roles
  *  another character's assistant row to a `Name: …` USER line, and those images are still character-authored
  *  (a narrator/`/imagine` post carries real `asset:` refs, so the scheme alone would let them through).
+ *  Class 1 only names the candidate. Any author can spell any id, so the injected resolver
+ *  (`verbs/resolve-media-ref`) still refuses an asset the room has not placed itself.
  *
  *  CLASS 2 — THE MODEL'S OWN INLINE REPLY PICTURE (§6.7), and this relaxation is PER-ASSET, never per-row.
  *  The row it admits is the very row class the old rule refused wholesale, and that refusal was not

@@ -48,7 +48,7 @@ import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVaria
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, getTableColumns, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
@@ -709,6 +709,31 @@ export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<R
     }
   }
   return out;
+}
+
+/** Whether a `message_assets` link of any origin places `assetId` on a message of `chatId`. Chat-scoped through
+ *  the `messages` join, so a link in another room never answers for this one. */
+export async function hasMessageAssetLinkInChat(db: Db, chatId: ChatId, assetId: AssetId): Promise<boolean> {
+  const rows = await db
+    .select({ id: messageAssets.id })
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .where(and(eq(messages.chatId, chatId), eq(messageAssets.assetId, assetId)))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/** The whole `message_assets` rows on `messageIds`, chat-scoped through the `messages` join (the copy verbs' source). */
+export async function loadMessageAssetLinks(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<(typeof messageAssets.$inferSelect)[]> {
+  if (messageIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select(getTableColumns(messageAssets))
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .where(and(eq(messages.chatId, chatId), inArray(messageAssets.messageId, [...messageIds])))
+    .orderBy(asc(messageAssets.createdAt), asc(messageAssets.id));
 }
 
 /** The system-prompt cost the newest reply's turn recorded (`VariantMetadata.systemTokens`), or 0 when it recorded

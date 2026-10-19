@@ -1,8 +1,10 @@
 // @subject packages/server/src/entry/compose/imagery.ts
 import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
+import { INLINE_REPLY_ORIGIN } from "@orb/contracts/chat";
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
-import { chatParticipants } from "@orb/db";
+import { chatParticipants, messageAssets } from "@orb/db";
+import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { isAdmin, isOwner } from "@orb/server/domain/admin";
 import type { ImageryRoomAccessDeps, ResolveMediaRefDeps } from "@orb/server/domain/chat";
@@ -14,6 +16,7 @@ import {
   isCharacterSeated,
   loadPresentHostUserId,
 } from "@orb/server/domain/chat";
+import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedChat } from "@orb/testkit/node/factories/chat.ts";
 import { seedMessage } from "@orb/testkit/node/factories/message.ts";
@@ -23,6 +26,8 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
+
+const PNG = "image/png";
 
 test("composed imagery card reads carry the row-derived host role rather than a synthetic user role", async ({ harness, db, services, ids, clock }) => {
   const room = await seedChat(db);
@@ -220,6 +225,15 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   });
   const bytes = new Uint8Array([9, 8, 7]);
   const asset = await services.assets.store({ principal: await principal(harness, member.id), bytes, kind: "attachment", mime: "video/webm" });
+  // The member's own attachment link places the clip in the room; this case pins presence and deferral.
+  const attachedIn = await seedMessage(db, { chatId: room.id, seq: 1, role: "user", authorUserId: member.id, content: `![clip](asset:${asset.assetId})` });
+  await db.insert(messageAssets).values({
+    id: typeIdSchema(ID_PREFIX.messageAsset).parse(ids.next(ID_PREFIX.messageAsset)),
+    messageId: attachedIn.id,
+    assetId: asset.assetId,
+    origin: "attached",
+    createdAt: clock.now(),
+  });
   const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
   const read = vi.spyOn(services.assets, "loadAssetBytes");
   let forbidden = false;
@@ -266,4 +280,58 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
     media: "image",
     url: "https://cdn.example/image",
   });
+});
+
+test("a present member's picture the room never placed reads no bytes, while an inline-reply link places the host's", async ({
+  harness,
+  db,
+  services,
+  ids,
+  clock,
+}) => {
+  const room = await seedChat(db);
+  const host = await seedUser(db);
+  const member = await seedUser(db);
+  await db.insert(chatParticipants).values(
+    [host, member].map((user, index) => ({
+      id: typeIdSchema(ID_PREFIX.chatParticipant).parse(ids.next(ID_PREFIX.chatParticipant)),
+      chatId: room.id,
+      kind: "human" as const,
+      userId: user.id,
+      role: index === 0 ? ("host" as const) : ("member" as const),
+      joinedAt: clock.now(),
+      joinSeq: 0,
+    })),
+  );
+  const picture = (owner: typeof host): Promise<{ readonly assetId: AssetId }> =>
+    principal(harness, owner.id).then((caller) =>
+      services.assets.store({
+        principal: caller,
+        bytes: makeAssetBytes(typeIdSchema(ID_PREFIX.asset).parse(ids.next(ID_PREFIX.asset))),
+        kind: "attachment",
+        mime: PNG,
+      }),
+    );
+  const membersPicture = await picture(member);
+  const drawn = await picture(host);
+  const reply = await seedMessage(db, { chatId: room.id, seq: 1, content: `![drawn](asset:${drawn.assetId})` });
+  await db.insert(messageAssets).values({
+    id: typeIdSchema(ID_PREFIX.messageAsset).parse(ids.next(ID_PREFIX.messageAsset)),
+    messageId: reply.id,
+    assetId: drawn.assetId,
+    origin: INLINE_REPLY_ORIGIN,
+    createdAt: clock.now(),
+  });
+  const read = vi.spyOn(services.assets, "loadAssetBytes");
+  const resolve = createResolveMediaRef({
+    db: databaseHandle(db),
+    assets: services.assets,
+    mediaProcessing: { frameCount: () => Promise.resolve(1), prepareVideo: () => Promise.reject(new Error("a still image never prepares motion")) },
+    forbidExternalMedia: () => false,
+  });
+
+  expect(await resolve({ ownerId: host.id, chatId: room.id, ref: { kind: "asset", assetId: membersPicture.assetId } })).toBeNull();
+  expect(read).not.toHaveBeenCalled();
+  expect((await resolve({ ownerId: host.id, chatId: room.id, ref: { kind: "asset", assetId: drawn.assetId } }))?.media).toBe("image");
+  expect(read).toHaveBeenCalledExactlyOnceWith(drawn.assetId);
 });

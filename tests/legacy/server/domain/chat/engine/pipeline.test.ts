@@ -428,7 +428,14 @@ describe("runTurnPipeline — request shaping + fit", () => {
           attachmentQuality: quality,
           chatId,
           signal,
-          resolveImageUrl: (ref) => resolveImageRefToUrl(assets, memberGate, false, { ownerId: host, chatId, ref, quality, signal }),
+          resolveImageUrl: (ref) =>
+            resolveImageRefToUrl(assets, { ownerIsPresent: memberGate, isPlacedInRoom: () => Promise.resolve(true) }, false, {
+              ownerId: host,
+              chatId,
+              ref,
+              quality,
+              signal,
+            }),
           canon: [rowOf("assistant", "previous reply"), userRow("![a clip](asset:ast_9)")],
         }).args,
       );
@@ -454,7 +461,12 @@ describe("runTurnPipeline — request shaping + fit", () => {
     };
     const { args } = baseArgs({
       connection: makeResolved({ generation: makeGenerationCapability({ ...CAPABILITY, input: ["text", "image", "video"] }) }),
-      resolveImageUrl: (ref) => resolveImageRefToUrl(assets, () => Promise.resolve(false), false, { ownerId: host, chatId, ref }),
+      resolveImageUrl: (ref) =>
+        resolveImageRefToUrl(assets, { ownerIsPresent: () => Promise.resolve(false), isPlacedInRoom: () => Promise.resolve(true) }, false, {
+          ownerId: host,
+          chatId,
+          ref,
+        }),
       canon: [userRow("![a clip](asset:ast_9)")],
     });
     await expect(runTurnPipeline(args)).rejects.toBe(failure);

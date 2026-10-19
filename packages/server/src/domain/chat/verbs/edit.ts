@@ -15,7 +15,8 @@
 // deleteMessages gates each target's author independently (the host clears any; a member clears only their own).
 //
 // reattributeMessages/reattributePersona deliberately emit one messageEdited per slot (an attribution
-// re-stamp is a slot edit). duplicateMessage copies the selected variant's content + economics; params/
+// re-stamp is a slot edit). duplicateMessage copies the selected variant's content + economics and the slot's
+// asset links that content cites; params/
 // promptSnapshot are not carried onto the copy (a duplicate is a fresh slot); its source generation window is retained.
 //
 // THE §3.6 RETURN BELT (D110 §3.6 / D106 one-verdict). Every verb here that hands a `MessageView` back to its
@@ -41,6 +42,7 @@ import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { assetIdsInContent } from "@orb/kit/content";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze } from "@orb/kit/macro";
 import type { RegexPlacement } from "@orb/kit/regex";
@@ -81,6 +83,7 @@ import {
   editToolCallsCasStatement,
   freezeVariantContentStatement,
   insertCanonMessageStatements,
+  insertMessageAssetStatements,
   reattributeMessagesStatement,
   reattributePersonaStatement,
   selectActiveVariantStatement,
@@ -99,6 +102,7 @@ import {
   loadAuthoredUserMessageIds,
   loadHasUserMessage,
   loadMaxMessageSeq,
+  loadMessageAssetLinks,
   loadMessageSeqs,
   loadMessageView,
   loadSlotTarget,
@@ -115,6 +119,7 @@ import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assemb
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
+import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
@@ -573,6 +578,17 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       editedAt: now,
       toolCalls: slot.toolCalls,
     });
+    // A picture the edit newly cites is placed in the room only when the EDITOR owns it: a host editing a
+    // member's row must not place that member's unplaced picture under the member's authorship.
+    const linked = (await loadMessageAssetLinks(ctx.db, chatId, [messageId])).map((link) => link.assetId);
+    const placed = await ownedCitedAssetIds(ctx, principal.userId, clean, linked);
+    statements.push(
+      ...insertMessageAssetStatements(ctx.db, {
+        rows: placed.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
+        origin: "attached",
+        now,
+      }),
+    );
     // The net word/byte change rides the same batch as the edit, bucketed on the slot's original day.
     statsDeltas.push(
       editMessageDelta({
@@ -1118,6 +1134,14 @@ function createDuplicateMessage(ctx: ChatContext, emit: EmitChatEvent): ChatServ
     // variant, so a rebuild folds the copy too; mirrored live to keep live == rebuild.
     const statsDeltas: StatsDelta[] = [];
     const statements = insertCanonMessageStatements(ctx.db, params);
+    // The copy carries the source slot's links for the pictures its copied body cites: they are the render
+    // grant for members and the room's placement of the picture for the model.
+    const cited = assetIdsInContent(slot.content);
+    const links = (await loadMessageAssetLinks(ctx.db, chatId, [slot.id])).filter((link) => cited.includes(link.assetId));
+    for (const [origin, rows] of Map.groupBy(links, (link) => link.origin)) {
+      const copies = rows.map((link) => ({ id: ctx.newMessageAssetId(), messageId: params.messageId, assetId: link.assetId }));
+      statements.push(...insertMessageAssetStatements(ctx.db, { rows: copies, origin, now: params.now }));
+    }
     const ownerId = principal.userId;
     statsDeltas.push(
       ...canonMessageDelta({

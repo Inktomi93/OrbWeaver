@@ -104,6 +104,7 @@ import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../
 import { isBelowHistoryFloor } from "../substrate/auth/index.ts";
 import { commitHostFencedWrite } from "../substrate/host-fenced-write.ts";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
@@ -1669,9 +1670,12 @@ async function commitUserTurn(
   // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
   const priorCanon = isFirstUserTurn ? await loadCanonHistory(ctx.db, chatId) : [];
 
+  const body = composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments);
+  // A picture typed into the text rather than attached is placed only when the sender owns it, like an edit.
+  const typed = await ownedCitedAssetIds(ctx, principal.userId, body, attachments);
   const userView = await persistUserMessage(ctx, deps.emit, {
     chatId,
-    content: composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments),
+    content: body,
     // D129-F provenance: `content` above is the draft after the freeze, the `user_input` transform, the
     // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
     // collapses it to NULL whenever none of those legs changed a byte.
@@ -1681,7 +1685,7 @@ async function commitUserTurn(
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
     personaId: personaId !== undefined ? personaId : membership.activePersonaId,
     hostUserId: room.hostUserId,
-    attachmentAssetIds: attachments,
+    attachmentAssetIds: [...attachments, ...typed],
   });
 
   if (isFirstUserTurn) {

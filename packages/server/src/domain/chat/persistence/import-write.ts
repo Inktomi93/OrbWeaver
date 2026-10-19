@@ -25,10 +25,9 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
 import { batchHandle, databaseForOwner, databaseHandle } from "@orb/db/wiring-owner";
-import { tokenizeContent } from "@orb/kit/content";
+import { assetIdsInContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 import type { BulkImportChats, ChatImportAssemblyContext, ChatImportContext } from "../contract/import.ts";
@@ -42,15 +41,7 @@ const SCOPED_FILTER_BIND_BUDGET = 2;
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
   // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for asset refs in a message. Ends if it outlives the call.
-  const ids = new Set<string>();
-  for (const v of message.variants) {
-    for (const span of tokenizeContent(v.content, { committed: true })) {
-      if (span.kind === "image" && span.ref.kind === "asset") {
-        ids.add(span.ref.assetId);
-      }
-    }
-  }
-  return [...ids].map((id) => castId<AssetId>(id));
+  return [...new Set(message.variants.flatMap((v) => assetIdsInContent(v.content)))];
 }
 
 interface PendingParent {
