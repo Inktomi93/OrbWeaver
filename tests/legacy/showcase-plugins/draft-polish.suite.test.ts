@@ -1,4 +1,3 @@
-
 import { join } from "node:path";
 import vm from "node:vm";
 import { packPluginDirectory } from "@orb/plugin-toolchain";

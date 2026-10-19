@@ -2299,9 +2299,7 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
   test("EVERY router procedure is classified as either a PROBE or an EXEMPT(reason)", () => {
     // tRPC v11 has no public procedure-enumeration API — reading `_def.procedures` (the flat
     // path→procedure record) is the sanctioned introspection seam for a router-completeness gate.
-    const all = Object.keys(
-      (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures,
-    ).sort();
+    const all = Object.keys((appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures).sort();
     const covered = new Set([...PROBES.map((p) => p.path), ...Object.keys(EXEMPT)]);
     const uncovered = all.filter((p) => !covered.has(p));
     expect(uncovered, `unclassified procedure(s) — add each to PROBES (id-taking, cross-tenant) or EXEMPT (with a reason): ${uncovered.join(", ")}`).toEqual(

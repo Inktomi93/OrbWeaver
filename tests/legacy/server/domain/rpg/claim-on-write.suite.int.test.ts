@@ -59,9 +59,7 @@ const NOT_CLAIMING: Readonly<Record<string, { readonly reason: string; readonly 
   },
 };
 
-const mutations = Object.entries(
-  (rpgRouter as unknown as { _def: { procedures: Record<string, { _def: { type: string } }> } })._def.procedures,
-)
+const mutations = Object.entries((rpgRouter as unknown as { _def: { procedures: Record<string, { _def: { type: string } }> } })._def.procedures)
   .filter(([, proc]) => proc._def.type === "mutation")
   .map(([name]) => name);
 

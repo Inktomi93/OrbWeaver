@@ -1,4 +1,3 @@
-
 // Unit: <Histogram>'s pure `buildHistogramOption` builder. A mounted ECharts instance does not
 // survive the Playwright component-test RPC boundary
 // with its methods intact, so the resolved-color/flush-bar/bucket-order wiring is proven here as

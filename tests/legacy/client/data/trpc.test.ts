@@ -1,4 +1,3 @@
-
 // The mirror for `packages/client/src/data/trpc.ts` (#2103). It exists because the gate exclusion it
 // replaces asserted the opposite: the retired presence gate's `CLIENT_EXCLUDE_FILES` row said the module's
 // two exports were "thin `@trpc/client` constructors with no bespoke logic of their own to unit-test in

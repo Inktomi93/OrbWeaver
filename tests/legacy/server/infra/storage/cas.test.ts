@@ -1,4 +1,3 @@
-
 // CAS failure ownership: only ENOENT is absence. Stat and readdir failures must remain loud so GC cannot
 // mistake unreadable state for missing state, and a directory-fsync FAULT (EIO/EACCES/…) must still reject
 // the put rather than claim crash durability. The one exception is the #2410 owner ruling: a filesystem

@@ -1,4 +1,3 @@
-
 import type { TagTargetType } from "@orb/contracts/tag";
 // CT: the Corpus Labels mode (D271) — the tag library's ONE home. Mounted through the mode contribution the
 // door hands the Corpus section, so every pin runs on production wiring: the finder (filter · sort · overflow

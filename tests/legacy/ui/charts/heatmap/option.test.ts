@@ -1,4 +1,3 @@
-
 // Unit: <Heatmap>'s pure `buildHeatmapOption` builder. A mounted ECharts instance does not survive the
 // Playwright component-test RPC boundary with its methods intact, so the resolved-color / VisualMap
 // gradient / cell-encoding wiring is proven here as plain data (heatmap.ct.tsx covers what IS

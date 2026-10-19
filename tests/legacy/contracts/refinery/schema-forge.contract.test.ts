@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 // contracts/refinery/schema-forge — the forge's WIRE GRAMMAR + its transpiler (task #36, the owner's
 // structured-output veto). The contract these pin is the MIRROR OBLIGATION: everything the grammar can

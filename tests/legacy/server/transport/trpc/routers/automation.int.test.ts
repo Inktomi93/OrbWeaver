@@ -1,4 +1,3 @@
-
 // Strict authoring routes over the real composed graph. The response-loss case drops the HTTP response
 // only after the actual tRPC handler has committed and built it; retry must recover, not mint again.
 import { databaseHandle } from "@orb/db/wiring-driver";

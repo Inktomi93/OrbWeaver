@@ -11,7 +11,6 @@
 // Seeds the FK parents (`users` → `characters` / `assets`) directly — a fixture may read/write `users` (the
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
-
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";

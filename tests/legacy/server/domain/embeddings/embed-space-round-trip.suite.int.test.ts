@@ -21,7 +21,6 @@
 // empty vector read is ambiguous between "no vectors" and "asked as the wrong principal", so each
 // assertion below is preceded by a row-count read that proves vectors EXIST for this owner.
 
-
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";

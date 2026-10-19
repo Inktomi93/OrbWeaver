@@ -1,4 +1,3 @@
-
 // Socket lifecycle metadata precedes every room frame, including sockets with no rooms attached.
 import type { StreamFrame } from "@orb/contracts/stream";
 import { expect } from "@orb/testkit/node/fixtures.ts";
