@@ -16,7 +16,7 @@ Keep TS6 analysis and park TS7 benchmarks and adapter work. Follow the [native o
 
 ## Why
 
-Public checks must fit hosted runners and contributor machines.
+Public checks must fit hosted runners and contributor machines. The standard hosted Linux runner has 16 GB of memory, which is the budget for every measured peak.
 
 ## Done when
 
