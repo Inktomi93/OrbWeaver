@@ -53,7 +53,14 @@ export const SERVER_EXACT_CONTRACT_HOMES = [
   "packages/server/src/entry/contract/portability.ts",
   "packages/server/src/entry/http/contract/request-env.ts",
 ] as const;
-export const SERVER_FACTORY_TYPE_HOME_ROOTS = ["entry", "transport", "infra", "foundation"].map((tier) => `packages/server/src/${tier}/`);
+const SERVER_FACTORY_TIERS = ["entry", "transport", "infra", "foundation"] as const;
+export const SERVER_FACTORY_TYPE_HOME_ROOTS = SERVER_FACTORY_TIERS.map((tier) => `packages/server/src/${tier}/`);
+
+/** Only these tiers declare factory shapes; a domain or primitives file can expose one only through its own judged import. */
+export function serverFactoryTier(path: string): boolean {
+  const tier = serverTypeTier(path);
+  return SERVER_FACTORY_TIERS.some((candidate) => candidate === tier);
+}
 
 function packageRoot(name: PackageName): string {
   return `packages/${name}/`;

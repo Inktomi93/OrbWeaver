@@ -38,10 +38,18 @@ export function terminalDeclaration(node: ts.Node): boolean {
   return ts.isTypeParameterDeclaration(node) || ts.isEnumDeclaration(node) || ts.isEnumMember(node);
 }
 
-export function authoredAnnotationRefusal(node: ts.Node): string | undefined {
-  return reflectedAnnotation(node)
-    ? "an authored reflected, conditional, mapped or indexed boundary is not qualified by explicit declaration edges"
-    : undefined;
+/** Every operand a conditional, mapped or indexed annotation names; walking all of them can only add findings. */
+export function reflectedOperands(node: ts.Node): readonly ts.Node[] | undefined {
+  if (ts.isConditionalTypeNode(node)) {
+    return [node.checkType, node.extendsType, node.trueType, node.falseType];
+  }
+  if (ts.isMappedTypeNode(node)) {
+    return [node.typeParameter.constraint, node.nameType, node.type].filter((child) => child !== undefined);
+  }
+  if (ts.isIndexedAccessTypeNode(node)) {
+    return [node.objectType, node.indexType];
+  }
+  return undefined;
 }
 
 export function declarationHasMeaning(declaration: ts.Declaration, meaning: DeclarationMeaning): boolean {
@@ -50,7 +58,13 @@ export function declarationHasMeaning(declaration: ts.Declaration, meaning: Decl
   }
   return meaning === "type"
     ? ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration) || ts.isTypeParameterDeclaration(declaration)
-    : valueDeclaration(declaration) || isPublicSignature(declaration) || ts.isModuleDeclaration(declaration) || ts.isEnumMember(declaration);
+    : valueDeclaration(declaration) ||
+        isPublicSignature(declaration) ||
+        ts.isModuleDeclaration(declaration) ||
+        ts.isEnumMember(declaration) ||
+        ts.isParameter(declaration) ||
+        ts.isBindingElement(declaration) ||
+        ts.isSourceFile(declaration);
 }
 
 export function genericDeclaration(node: ts.Node): node is ts.TypeAliasDeclaration | ts.InterfaceDeclaration | ts.ClassDeclaration {
@@ -68,11 +82,90 @@ export function primitiveLiteral(node: ts.Node | undefined): boolean {
   );
 }
 
-export function completeSignature(declaration: ts.SignatureDeclaration): boolean {
+/** An expression whose type is a primitive or a literal, whatever it names. */
+export function closedExpression(node: ts.Expression): boolean {
   return (
-    declaration.parameters.every((parameter) => parameter.type !== undefined) &&
-    (declaration.type !== undefined || ts.isConstructorDeclaration(declaration) || ts.isSetAccessorDeclaration(declaration))
+    primitiveLiteral(node) ||
+    ts.isNoSubstitutionTemplateLiteral(node) ||
+    ts.isTemplateExpression(node) ||
+    ts.isBigIntLiteral(node) ||
+    ts.isRegularExpressionLiteral(node) ||
+    ts.isOmittedExpression(node) ||
+    node.kind === ts.SyntaxKind.NullKeyword ||
+    ts.isPrefixUnaryExpression(node) ||
+    ts.isPostfixUnaryExpression(node) ||
+    ts.isTypeOfExpression(node) ||
+    ts.isVoidExpression(node) ||
+    ts.isDeleteExpression(node)
   );
+}
+
+function objectLiteralOperands(node: ts.ObjectLiteralExpression): readonly ts.Node[] {
+  return node.properties.map((property) => {
+    if (ts.isPropertyAssignment(property)) {
+      return property.initializer;
+    }
+    return ts.isSpreadAssignment(property) ? property.expression : property;
+  });
+}
+
+function callOperands(node: ts.CallExpression | ts.NewExpression | ts.TaggedTemplateExpression): readonly ts.Node[] {
+  const callee = ts.isTaggedTemplateExpression(node) ? node.tag : node.expression;
+  const supplied = ts.isTaggedTemplateExpression(node) ? [] : (node.arguments ?? []);
+  return [callee, ...(node.typeArguments ?? []), ...supplied];
+}
+
+/**
+ * The syntax an inferred expression type derives from: wrapped operands, assertion types, callees with their
+ * type and value arguments, and object or array members. Undefined for an expression kind with no qualified reading.
+ */
+export function inferredOperands(node: ts.Expression): readonly ts.Node[] | undefined {
+  if (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)) {
+    return [ts.isConstTypeReference(node.type) ? node.expression : node.type];
+  }
+  if (
+    ts.isParenthesizedExpression(node) ||
+    ts.isNonNullExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isAwaitExpression(node) ||
+    ts.isSpreadElement(node) ||
+    ts.isPropertyAccessExpression(node) ||
+    ts.isElementAccessExpression(node)
+  ) {
+    return [node.expression];
+  }
+  if (ts.isIdentifier(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node)) {
+    return [node];
+  }
+  if (ts.isCallExpression(node) || ts.isNewExpression(node) || ts.isTaggedTemplateExpression(node)) {
+    return callOperands(node);
+  }
+  if (ts.isObjectLiteralExpression(node)) {
+    return objectLiteralOperands(node);
+  }
+  if (ts.isArrayLiteralExpression(node)) {
+    return node.elements;
+  }
+  if (ts.isConditionalExpression(node)) {
+    return [node.whenTrue, node.whenFalse];
+  }
+  return ts.isBinaryExpression(node) ? [node.left, node.right] : undefined;
+}
+
+/** The returned and yielded expressions of one function body, excluding nested functions and classes. */
+export function returnedExpressions(body: ts.Block): readonly ts.Expression[] {
+  const returned: ts.Expression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isFunctionLike(node) || ts.isClassLike(node)) {
+      return;
+    }
+    if ((ts.isReturnStatement(node) || ts.isYieldExpression(node)) && node.expression !== undefined) {
+      returned.push(node.expression);
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(body, visit);
+  return returned;
 }
 
 export function publicClassMember(node: ts.Node, meaning: DeclarationMeaning): boolean {
