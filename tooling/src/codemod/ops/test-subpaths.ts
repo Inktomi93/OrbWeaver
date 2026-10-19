@@ -7,6 +7,7 @@ import { ts } from "ts-morph";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
+import { packageFileOf } from "../../floor/code-facts/module-specifier.ts";
 import { readAuthoredRepositoryPathnames } from "../../floor/compiler/authored-repository.ts";
 import type { RelocateNote } from "../contract/relocate.ts";
 import type { TestSubpathsResult } from "../contract/test-subpaths.ts";
@@ -18,12 +19,11 @@ refuseDirectInvocation(import.meta.url, "pnpm codemod <verb>");
 const USAGE = "usage: pnpm codemod test-subpaths [--apply]";
 const ROOT_MANIFEST = "package.json";
 const TEST_ROOT = "tests/";
-const PACKAGE_SOURCE = /^packages\/([^/]+)\/src\/(.+)$/u;
 const CODE = /\.(ts|tsx|mts)$/u;
 
 /** `#<dir>/*` → `./packages/<dir>/src/*` for every workspace package that has a `src/`. */
 function rootImports(tracked: readonly string[]): Readonly<Record<string, string>> {
-  const dirs = [...new Set(tracked.map((path) => /^packages\/([^/]+)\/src\//u.exec(path)?.[1]).filter((dir) => dir !== undefined))].toSorted();
+  const dirs = [...new Set(tracked.map((path) => packageFileOf(path)?.pkg).filter((dir) => dir !== undefined))].toSorted();
   return Object.fromEntries(dirs.map((dir) => [`#${dir}/*`, `./packages/${dir}/src/*`]));
 }
 
@@ -34,8 +34,8 @@ export function testSubpathOf(
   world: { readonly files: ReadonlySet<string>; readonly dirs: ReadonlySet<string> },
 ): string | undefined {
   const entity = literalEntity(posix.normalize(posix.join(posix.dirname(file), spec)), { ...world, packages: [] });
-  const match = entity === undefined ? undefined : PACKAGE_SOURCE.exec(entity.path);
-  return match?.[1] === undefined || match[2] === undefined ? undefined : `#${match[1]}/${match[2]}`;
+  const target = entity === undefined ? undefined : packageFileOf(entity.path);
+  return target === undefined ? undefined : `#${target.pkg}/${target.path}`;
 }
 
 function rewriteFile(

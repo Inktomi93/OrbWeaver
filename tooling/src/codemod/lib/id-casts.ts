@@ -1,50 +1,50 @@
 // ID branding, the cast arms: object-literal / comparison / diagnostic-driven castId insertion.
+// Drizzle tables and operators are floor facts read in every native world that owns the file; a file no world
+// owns, or worlds that disagree, gets no cast from those arms.
 
 import type { CallExpression, Diagnostic, DiagnosticMessageChain, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { DRIZZLE_INSERT_VERB, DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB, DRIZZLE_VALUES_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
+import { DRIZZLE_SET_VERB, DRIZZLE_VALUES_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { readDrizzleWriteTable } from "../../floor/code-facts/drizzle-write-chain.ts";
 import type { SemanticWorkspace } from "../../floor/compiler/ts-workspace.ts";
 import type { CastByDiagnosticOptions, CastIdComparisonsOptions, CastIdLiteralsOptions, CodemodContext, Plan } from "../contract/types.ts";
 import { addNamedImport } from "./imports.ts";
 import { assertPathString, composePlans, isTestFile } from "./plans.ts";
 import { applyTextReplacements, replacementsForNodes } from "./text.ts";
 
-function insertTargetTable(pa: Node): string | undefined {
+/** One answer from every native world that owns `node`'s file, or undefined when none does or any two differ. */
+function agreedInEveryWorld<T>(node: Node, semantic: SemanticWorkspace, read: (local: Node) => T | undefined): T | undefined {
+  const answers = semantic.sourceViews(node.getSourceFile().getFilePath()).map(({ sourceFile }) => {
+    const local = sourceFile.getDescendantAtStartWithWidth(node.getStart(), node.getWidth());
+    return local === undefined ? undefined : read(local);
+  });
+  const [first] = answers;
+  return first !== undefined && answers.every((answer) => answer === first) ? first : undefined;
+}
+
+/** The receiver of the `.values()` / `.set()` call whose payload holds this property, single-row or multi-row. */
+function writePayloadReceiver(pa: PropertyAssignment): Node | undefined {
   const objLit = pa.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
-  if (objLit === undefined) {
+  const wrapper = objLit?.getParent();
+  const call = Node.isArrayLiteralExpression(wrapper) ? wrapper.getParentIfKind(SyntaxKind.CallExpression) : objLit?.getParentIfKind(SyntaxKind.CallExpression);
+  const access = call?.getExpression();
+  if (!Node.isPropertyAccessExpression(access)) {
     return;
   }
-  // `.values({...})` (single row) or `.values([{...}, {...}])` (multi-row) — climb past an
-  // optional array literal so both forms resolve to the same `insert(<table>)` call.
-  const wrapper = objLit.getParent();
-  const valuesCall =
-    wrapper.getKind() === SyntaxKind.ArrayLiteralExpression
-      ? wrapper.getParentIfKind(SyntaxKind.CallExpression)
-      : objLit.getParentIfKind(SyntaxKind.CallExpression);
-  if (valuesCall === undefined) {
-    return;
-  }
-  const valuesAccess = valuesCall.getExpression();
-  if (!Node.isPropertyAccessExpression(valuesAccess)) {
-    return;
-  }
-  const method = valuesAccess.getName();
-  if (method !== DRIZZLE_VALUES_VERB && method !== DRIZZLE_SET_VERB) {
-    return;
-  }
-  const insertCall = valuesAccess.getExpression();
-  if (!Node.isCallExpression(insertCall)) {
-    return;
-  }
-  const insertAccess = insertCall.getExpression();
-  if (!Node.isPropertyAccessExpression(insertAccess)) {
-    return;
-  }
-  const verb = insertAccess.getName();
-  if (verb !== DRIZZLE_INSERT_VERB && verb !== DRIZZLE_UPDATE_VERB) {
-    return;
-  }
-  return insertCall.getArguments()[0]?.getText();
+  const method = access.getName();
+  return method === DRIZZLE_VALUES_VERB || method === DRIZZLE_SET_VERB ? access.getExpression() : undefined;
+}
+
+/** The table text of the Drizzle `insert()` / `update()` chain the property's payload is written through. */
+function writeTargetTable(pa: PropertyAssignment, semantic: SemanticWorkspace): string | undefined {
+  const receiver = writePayloadReceiver(pa);
+  return receiver === undefined
+    ? undefined
+    : agreedInEveryWorld(receiver, semantic, (local) => {
+        const table = readDrizzleWriteTable(local);
+        return table.kind === "resolved" && table.value !== null ? table.value.getText() : undefined;
+      });
 }
 
 /**
@@ -60,23 +60,29 @@ function isCastTargetProperty(
   pa: PropertyAssignment,
   always: ReadonlySet<string>,
   tableScoped: readonly { readonly table: string; readonly prop: string }[],
+  semantic: SemanticWorkspace | undefined,
 ): boolean {
   const name = pa.getName();
   if (always.has(name)) {
     return true;
   }
-  const scoped = tableScoped.find((t) => t.prop === name);
-  return scoped !== undefined && insertTargetTable(pa) === scoped.table;
+  const scoped = tableScoped.filter((t) => t.prop === name);
+  if (scoped.length === 0 || semantic === undefined) {
+    return false;
+  }
+  const table = writeTargetTable(pa, semantic);
+  return scoped.some((t) => t.table === table);
 }
 
 /** The node to wrap in `castFn<brand>(...)` for a matched property, or undefined if this
  *  property's initializer isn't eligible (already cast, wrong type, or vars disabled). */
 function plainStringInEveryWorld(node: Node, semantic: SemanticWorkspace): boolean {
-  const types = semantic.sourceViews(node.getSourceFile().getFilePath()).flatMap(({ sourceFile }) => {
-    const local = sourceFile.getDescendantAtStartWithWidth(node.getStart(), node.getWidth());
-    return local === undefined ? [] : [local.getType()];
-  });
-  return types.length > 0 && types.every((type) => type.isString() || type.isStringLiteral());
+  return (
+    agreedInEveryWorld(node, semantic, (local) => {
+      const type = local.getType();
+      return type.isString() || type.isStringLiteral();
+    }) === true
+  );
 }
 
 function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOptions, semantic: SemanticWorkspace | undefined): Node | undefined {
@@ -108,11 +114,16 @@ function resolveCastCandidate(pa: PropertyAssignment, opts: CastIdLiteralsOption
   return semantic !== undefined && plainStringInEveryWorld(expr, semantic) ? expr : undefined;
 }
 
+/** Only the table-scoped and string-variable arms ask a type question; a syntax-only cast builds no native world. */
+function objectLiteralSemantic(ctx: CodemodContext, opts: CastIdLiteralsOptions): SemanticWorkspace | undefined {
+  return opts.includeStringVars === true || (opts.tableScopedIdProps?.length ?? 0) > 0 ? ctx.semantic() : undefined;
+}
+
 function scanObjectLiteralCastTargets(ctx: CodemodContext, opts: CastIdLiteralsOptions): { targets: Node[]; files: Set<string> } {
   const always = new Set(opts.alwaysProps);
   const tableScoped = opts.tableScopedIdProps ?? [];
   const testOnly = opts.testFilesOnly ?? true;
-  const semantic = opts.includeStringVars === true ? ctx.semantic() : undefined;
+  const semantic = objectLiteralSemantic(ctx, opts);
   const targets: Node[] = [];
   const files = new Set<string>();
   for (const sf of ctx.project.getSourceFiles()) {
@@ -121,7 +132,7 @@ function scanObjectLiteralCastTargets(ctx: CodemodContext, opts: CastIdLiteralsO
       continue;
     }
     for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAssignment)) {
-      if (!isCastTargetProperty(pa, always, tableScoped)) {
+      if (!isCastTargetProperty(pa, always, tableScoped, semantic)) {
         continue;
       }
       const candidate = resolveCastCandidate(pa, opts, semantic);
@@ -224,9 +235,15 @@ function collectComparisonTargets(call: CallExpression, opts: CastIdComparisonsO
   return operands.filter((operand) => isUnwrappedComparisonLiteral(operand, opts.castFn));
 }
 
+/** Is `call` one of the named drizzle-orm operators in every native world, by its import rather than its spelling? */
+function callsDrizzleOperatorInEveryWorld(call: CallExpression, ops: readonly string[], semantic: SemanticWorkspace): boolean {
+  return agreedInEveryWorld(call, semantic, (local) => Node.isCallExpression(local) && ops.some((op) => callsDrizzleOperator(local, op))) === true;
+}
+
 function scanComparisonCastTargets(ctx: CodemodContext, opts: CastIdComparisonsOptions): { targets: Node[]; files: Set<string> } {
-  const ops = new Set(opts.ops ?? ["eq", "ne", "gt", "gte", "lt", "lte", "inArray", "notInArray"]);
+  const ops = opts.ops ?? ["eq", "ne", "gt", "gte", "lt", "lte", "inArray", "notInArray"];
   const testOnly = opts.testFilesOnly ?? true;
+  const semantic = ctx.semantic();
   const targets: Node[] = [];
   const files = new Set<string>();
   for (const sf of ctx.project.getSourceFiles()) {
@@ -235,11 +252,11 @@ function scanComparisonCastTargets(ctx: CodemodContext, opts: CastIdComparisonsO
       continue;
     }
     for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const callee = call.getExpression();
-      if (!(Node.isIdentifier(callee) && ops.has(callee.getText()))) {
+      const operands = collectComparisonTargets(call, opts);
+      if (operands.length === 0 || !callsDrizzleOperatorInEveryWorld(call, ops, semantic)) {
         continue;
       }
-      for (const operand of collectComparisonTargets(call, opts)) {
+      for (const operand of operands) {
         targets.push(operand);
         files.add(fp);
       }
