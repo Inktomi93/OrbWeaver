@@ -47,7 +47,7 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { declaredTablesOf, predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
@@ -119,17 +119,17 @@ function upsertCandidateOf(node: Node): UpsertCandidate | undefined {
   return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === DRIZZLE_INSERT_VERB ? { node } : undefined;
 }
 
-/** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires the qualified
- *  `<tableIdent>.ownerId` — a bare `ownerId` or some OTHER table's owner column scopes nothing here. FAILS
- *  CLOSED on any config the reader cannot see through (a spread, an identifier, a call), because an
- *  unreadable guard is an unproven one. */
-function guardsOwner(config: Node | undefined, ident: string): boolean {
-  if (config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true) {
+/** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires an owner-column
+ *  read whose receiver names the insert target's one declared table — a bare `ownerId` or some OTHER table's
+ *  owner column scopes nothing here. FAILS CLOSED on any config the reader cannot see through (a spread, an
+ *  identifier, a call), because an unreadable guard is an unproven one. */
+function guardsOwner(config: Node | undefined, table: string | undefined, index: SchemaTableIndex): boolean {
+  if (config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true || table === undefined) {
     return false;
   }
   return GUARD_PROPS.some((name) => {
     const prop = config.getProperty(name);
-    return prop !== undefined && predicatesTableColumn(prop, ident, OWNER_COL);
+    return prop !== undefined && predicatesTableColumn(prop, table, OWNER_COL, index);
   });
 }
 
@@ -154,7 +154,9 @@ function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>
     // unreadable is the whole finding: no conflict guard can be verified against a table nobody named.
     return { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` };
   }
-  return guardsOwner(config, target.ident) ? undefined : { argNode: arg, message: `${MESSAGE} — Spine-Identity-and-Auth.md` };
+  const tables = declaredTablesOf(arg, allTableIdents);
+  const [sole] = tables.size === 1 ? tables : [];
+  return guardsOwner(config, sole, allTableIdents) ? undefined : { argNode: arg, message: `${MESSAGE} — Spine-Identity-and-Auth.md` };
 }
 
 export const gate = defineGate({
@@ -321,6 +323,19 @@ export const gate = defineGate({
       expect: { count: 1, token: "a", messageIncludes: UNRESOLVABLE },
       why: "the CYCLE/depth refusal REPORTS rather than exempts: terminating the alias walk with 'I could not read it' must not read as 'nothing here'",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv, themes } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(themes.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "Another owner-scoped table's owner column scopes nothing here: the guard must name the insert target's own declared table",
+    },
   ],
   mustPass: [
     {
@@ -351,7 +366,7 @@ export const gate = defineGate({
         "packages/server/src/domain/character/persistence/card.ts":
           'import * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema.characters).values(row).onConflictDoUpdate({ target: schema.characters.id, setWhere: eq(schema.characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
       },
-      why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `predicatesTableColumn` must compare the full `schema.characters` receiver text; reducing it to Identifier-only falsely accuses this correctly belted upsert",
+      why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `predicatesTableColumn` must resolve the full `schema.characters` receiver to its declared table; reducing it to Identifier-only falsely accuses this correctly belted upsert",
     },
     {
       mode: "types",
@@ -484,6 +499,16 @@ export const gate = defineGate({
           "export async function putAny(db: Db, table: AnyTable, entry: E) {\n  return db.insert(table).values(entry);\n}\n",
       },
       why: "a plain insert through an unresolvable target has no DO UPDATE arm to judge at all — `upsertConfigOf` returns undefined before the target's resolvability is even asked",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      why: "A guard spelled on the canonical binding scopes an upsert through its alias: both name the one declared table, so the receiver's spelling is not evidence",
     },
   ],
 });

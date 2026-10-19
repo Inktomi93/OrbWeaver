@@ -14,6 +14,9 @@ import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess 
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
+import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.ts";
+import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
+import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import {
@@ -43,9 +46,11 @@ const DRIZZLE_WRITE_CHAIN: ReadonlySet<string> = new Set([
   ...DRIZZLE_CONFLICT_VERBS,
 ]);
 
-/** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. */
+/** Does raw SQL text name any schema table by its SQL name? Only a constant that names none reads none. Raw SQL
+ *  text carries no declaration, so this stays a text judgment; SQLite resolves identifiers case-insensitively,
+ *  so the match does too. */
 function namesSchemaTable(text: string, index: SchemaTableIndex): boolean {
-  return [...index.identBySqlName.keys()].some((sqlName) => new RegExp(String.raw`\b${sqlName}\b`, "u").test(text));
+  return [...index.identBySqlName.keys()].some((sqlName) => new RegExp(String.raw`\b${RegExp.escape(sqlName)}\b`, "iu").test(text));
 }
 
 /** The declared schema identifier one floor answer names, or undefined when it names none. */
@@ -141,20 +146,91 @@ export function sameReadReceiver(left: Node, right: Node | string): boolean {
   return a !== undefined && b !== undefined && a.node.compilerNode === b.node.compilerNode && a.member === b.member;
 }
 
-/** Does this predicate name the exact local table binding's column? Text elsewhere in the expression is not
- *  evidence: only a property access rooted at the write target can scope that target. */
-export function predicatesTableColumn(predicate: Node, tableIdent: string, column: string): boolean {
-  const descendants = MEMBER_ACCESS_KINDS.flatMap((kind) => predicate.getDescendantsOfKind(kind));
-  const candidates = MEMBER_ACCESS_KINDS.some((kind) => predicate.isKind(kind)) ? [predicate, ...descendants] : descendants;
-  return candidates.some((candidate) => {
+/** The declared schema tables a reference can name, through the same floor resolver `tableTargetOf` uses. */
+export function declaredTablesOf(node: Node, index: SchemaTableIndex): ReadonlySet<string> {
+  return new Set(tableRefsOf(node, index).flatMap((ref) => (ref.kind === "table" ? [ref.ident] : [])));
+}
+
+interface PredicateSite {
+  readonly node: Node;
+  readonly bindings: ReadonlyMap<Node, Node>;
+}
+
+interface ColumnRead {
+  readonly name: string;
+  readonly receiver: Node;
+  readonly bindings: ReadonlyMap<Node, Node>;
+}
+
+/** The value a binding was declared from, on the floor binding fact's terms: a stable value, or the call or
+ *  computed expression a `dynamic` binding holds. */
+function boundInitializer(identifier: Node): Node | undefined {
+  const fact = resolveStableExpression(identifier);
+  if (fact.kind === "resolved") {
+    return fact.value === identifier ? undefined : fact.value;
+  }
+  const computed = fact.reason === "dynamic" && fact.node !== identifier && !Node.isVariableDeclaration(fact.node) && !Node.isParameterDeclaration(fact.node);
+  return computed ? fact.node : undefined;
+}
+
+/** Where a predicate can name a column: its own syntax, and every term the floor predicate fact reaches through a
+ *  bound predicate or a helper's return, with the helper's parameter bindings. The floor leaves a bound SQL value
+ *  opaque unless every use of it is provably native; `followOpaque` still reads its initializer, which only the
+ *  accusing half may do, because a value that can change after binding can lose a column but not prove one. */
+function predicateSites(predicate: Node, followOpaque: boolean): readonly PredicateSite[] {
+  const terms = (fact: DrizzlePredicate): readonly PredicateSite[] => {
+    if (fact.kind === "and" || fact.kind === "or" || fact.kind === "choice") {
+      return fact.terms.flatMap(terms);
+    }
+    if (fact.kind === "empty") {
+      return [];
+    }
+    const site = { node: fact.node, bindings: fact.kind === "leaf" ? fact.bindings : new Map<Node, Node>() };
+    const initializer = followOpaque && fact.kind === "unresolved" && Node.isIdentifier(fact.node) ? boundInitializer(fact.node) : undefined;
+    return initializer === undefined ? [site] : [site, { node: initializer, bindings: site.bindings }];
+  };
+  return [{ node: predicate, bindings: new Map() }, ...terms(readDrizzlePredicate(predicate))];
+}
+
+/** The column reads a site names: its written member accesses, and a call operand bound to a column elsewhere. */
+function columnReadsOf({ node, bindings }: PredicateSite): readonly ColumnRead[] {
+  const descendants = MEMBER_ACCESS_KINDS.flatMap((kind) => node.getDescendantsOfKind(kind));
+  const written = MEMBER_ACCESS_KINDS.some((kind) => node.isKind(kind)) ? [node, ...descendants] : descendants;
+  const bound = Node.isCallExpression(node)
+    ? node.getArguments().flatMap((argument) => {
+        const column = readPredicateColumn(argument, bindings);
+        return column.kind === "resolved" ? [unwrapExpression(column.value)] : [];
+      })
+    : [];
+  return [...written, ...bound].flatMap((candidate) => {
     const read = staticMemberAccess(candidate);
-    // The RECEIVER is compared by TEXT rather than required to be an Identifier (#2199): the write target is
-    // whatever `tableTargetOf` named it, which for a namespace-spelled table is `schema.characters`. Requiring
-    // an identifier receiver here would have ACQUITTED nothing and ACCUSED everything on the namespace side —
-    // the owner predicate that is plainly there (`eq(schema.characters.ownerId, callerId)`) would read as
-    // absent, turning a spelling into a false finding on code that is correctly scoped.
-    return read !== undefined && read.name === column && read.receiver.getText() === tableIdent;
+    return read === undefined ? [] : [{ name: read.name, receiver: read.receiver, bindings }];
   });
+}
+
+/** The tables a column read's receiver names, after mapping a helper parameter to the argument it was handed. */
+function receiverTables({ receiver, bindings }: ColumnRead, index: SchemaTableIndex): readonly TableRef[] {
+  const actual = readPredicateArgument(receiver, bindings);
+  return tableRefsOf(actual.kind === "resolved" ? actual.value : receiver, index);
+}
+
+/** The accusing half: does this predicate read `column` on any of `tables`? Judged on the receiver's declared
+ *  table, so an alias, a namespace, a bracket key or a bound predicate cannot hide the read. */
+export function readsTableColumn(predicate: Node, tables: ReadonlySet<string>, column: string, index: SchemaTableIndex): boolean {
+  return predicateSites(predicate, true).some((site) =>
+    columnReadsOf(site).some((read) => read.name === column && receiverTables(read, index).some((ref) => ref.kind === "table" && tables.has(ref.ident))),
+  );
+}
+
+/** The acquitting half: does this predicate read `column` on exactly `table`, every arm of the receiver naming
+ *  that one declared table? A conditional or unreadable receiver proves nothing. */
+export function predicatesTableColumn(predicate: Node, table: string, column: string, index: SchemaTableIndex): boolean {
+  return predicateSites(predicate, false).some((site) =>
+    columnReadsOf(site).some((read) => {
+      const refs = receiverTables(read, index);
+      return read.name === column && refs.length > 0 && refs.every((ref) => ref.kind === "table" && ref.ident === table);
+    }),
+  );
 }
 
 /** The `.where(…)` argument of the statement this table anchor starts, or undefined (NO where clause at all —
@@ -172,15 +248,6 @@ export function whereArgOf(anchor: Node): Node | undefined {
 export function upsertConfigOf(anchor: Node): Node | undefined {
   const upsertCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_UPSERT_VERB);
   return upsertCall?.getArguments()[0];
-}
-
-/** Does this WHERE constrain the table's OWN id — `eq(T.id, x)` or `inArray(T.id, ids)`? That is the shape
- *  whose answer is "whatever id the caller supplies, whoever owns it"; a predicate on any other column is a
- *  different (unenforced-here) question. */
-export function predicatesOwnId(whereText: string, tableIdent: string): boolean {
-  // The ident is ESCAPED because it is no longer always a bare word: a namespace-spelled target is
-  // `schema.characters`, whose `.` would otherwise match any character (#2199).
-  return new RegExp(String.raw`\b${tableIdent.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`)}\.id\b`, "u").test(whereText);
 }
 
 /** Owner-member attribution is a consumer judgment over real member/lineage observations. */
