@@ -97,6 +97,7 @@ const TYPE_HOME_INPUTS = [
   "tooling/src/floor/code-facts/type-member-origin.ts",
   "tooling/src/floor/code-facts/type-member-origin-contract.ts",
   "tooling/src/floor/code-facts/assignability.ts",
+  "tooling/src/floor/code-facts/zod-origin.ts",
 ];
 
 export const TYPED_NATIVE_POLICIES = [

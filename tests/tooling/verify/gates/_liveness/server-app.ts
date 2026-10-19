@@ -127,9 +127,7 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noInlineDomainInterface,
-    overlays: [
-      add(`${SERVER}/domain/character/verbs/liveness-shape.ts`, "interface LivenessShape {\n  readonly x: string;\n}\nexport type { LivenessShape };\n"),
-    ],
+    overlays: [add(`${SERVER}/domain/character/verbs/liveness-shape.gen.ts`, "export interface LivenessShape {\n  readonly x: string;\n}\n")],
     messageIncludes: "exported interface in a server domain",
   },
   {

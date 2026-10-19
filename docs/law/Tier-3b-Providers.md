@@ -105,7 +105,7 @@ packages/inference/src/
 
 This split matters: `ResolvedConnectionView` must stay importable by a bus contract, and the secret-bearing half must not (D16 confines secret-bearing shapes to `#credentials`).
 
-`packages/inference/src/deps.ts` is the exact D15 package-root composition seam. It re-exports the port shapes owned by `contract/runtime.ts`; it is not permission for another root module or another type home. `package-layout` and `no-inline-types` enforce both halves.
+`packages/inference/src/deps.ts` is the exact D15 package-root composition seam. It re-exports the port shapes owned by `contract/runtime.ts`; it is not permission for another root module or another type home. `package-layout` and ESLint `orb/type-home-direct-export` enforce both halves.
 
 ## 7. The composition seam
 

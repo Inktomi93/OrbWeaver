@@ -81,12 +81,7 @@ import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
-import {
-  nativeFactoryTypeHomePopulation,
-  SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
-  serverTypeTier,
-  TYPE_HOME_NATIVE_POLICY_ID,
-} from "@orb/tooling/floor/code-facts/type-home";
+import { SERVER_FACTORY_TIER_REFERENCE_POLICY_ID, serverTypeTier, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
@@ -121,6 +116,7 @@ import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
 import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
 import { readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
+import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
   declaredByPackage,
@@ -2726,30 +2722,39 @@ function verifyNativeCompilerContext(context, native) {
 }
 
 const typeHomeDeclarationRule = {
-  meta: { type: "problem", schema: [] },
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      misplacedType:
+        "An exported type belongs in its canonical domain, wire, package or foundation contract home unless its local factory signature owns it (D324; Spine-TypeScript §7.4).",
+      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package or foundation contract home (Spine-TypeScript §7.4).",
+    },
+  },
   create(context) {
     const native = nativeDeclarationContext(context);
     verifyNativeCompilerContext(context, native);
     const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const check = (node) => {
+    const checkType = (node) => {
       const declaration = native.esTreeNodeToTSNodeMap.get(node);
-      if (!(ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration))) {
-        return;
-      }
-      const direct = declaration.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) === true;
-      if (!(direct || (nativeFactoryTypeHomePopulation(path) && nativeDeclarationExported(declaration, native.checker)))) {
+      const shape = ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration);
+      if (!(shape && nativeDeclarationExported(declaration, native.checker))) {
         return;
       }
       if (serverFactoryTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
         return;
       }
-      context.report({
-        node: native.tsNodeToESTreeNodeMap.get(declaration.name),
-        message:
-          "An exported type belongs in its canonical domain, wire, package or foundation contract home unless its local factory signature owns it (D324; Spine-TypeScript §7.4).",
-      });
+      context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedType" });
     };
-    return { TSInterfaceDeclaration: check, TSTypeAliasDeclaration: check };
+    const checkSchema = (node) => {
+      const declaration = native.esTreeNodeToTSNodeMap.get(node);
+      const candidate = ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name) && declaration.initializer !== undefined;
+      if (!(candidate && nativeDeclarationExported(declaration, native.checker) && isZodShapeCall(nativeWrappedNode(declaration.initializer, native)))) {
+        return;
+      }
+      context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedSchema" });
+    };
+    return { TSInterfaceDeclaration: checkType, TSTypeAliasDeclaration: checkType, VariableDeclarator: checkSchema };
   },
 };
 

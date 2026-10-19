@@ -84,12 +84,12 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
   },
   {
     policy: noInlinePackageInterface,
-    overlays: [add("packages/server/src/infra/liveness-shape.ts", "export interface LivenessShape {\n  readonly x: string;\n}\n")],
-    messageIncludes: "exported interface in server entry, transport, infra, foundation or inference",
+    overlays: [add("packages/server/src/infra/liveness-shape.gen.ts", "export interface LivenessShape {\n  readonly x: string;\n}\n")],
+    messageIncludes: "exported interface outside its canonical type home",
   },
   {
     policy: noInlineTypes,
-    overlays: [add(`${DOMAIN}/verbs/liveness-verb.ts`, "export type LivenessInline = string;\n")],
+    overlays: [add(`${FEATURE}/lib/liveness-inline.ts`, "export type LivenessInline = string;\n")],
     messageIncludes: "outside a type home",
   },
   {

@@ -1,6 +1,6 @@
 // Policy: no-inline-types (Spine-TypeScript-and-Patterns.md §7.4) — a shape has ONE home, decided by who
-// needs it. Shared reporting subtracts qualified native declaration populations while retaining other
-// local alias exports and proven zod object/enum/discriminatedUnion schema origins.
+// needs it. Shared reporting subtracts the native placement population, which owns every plane there, while
+// retaining alias exports and proven zod object/enum/discriminatedUnion schema origins everywhere else.
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`
@@ -132,21 +132,21 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "resource",
-      files: { "packages/inference/src/backends/probe.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n" },
+      files: { "packages/client/src/features/x/view.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n" },
       expect: { count: 1, token: "ProbeResult" },
-      why: "an inference local export list retains the semantic placement owner; native syntax owns direct exports only",
+      why: "a client export list stays with this owner; native placement owns export lists only in its admitted population",
     },
     {
       mode: "resource",
-      files: { "packages/server/src/domain/x/verb.ts": "type Foo = string;\nexport type { Foo };\n" },
+      files: { "tooling/src/snap/ops/capture.ts": "type Foo = string;\nexport type { Foo };\n" },
       expect: { count: 1, token: "Foo" },
-      why: "a locally export-listed alias in a verb retains the custom placement obligation; native syntax owns direct declarations",
+      why: "a locally export-listed alias in a tool's ops/ retains the custom placement obligation outside the native population",
     },
     {
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
-        "packages/server/src/domain/x/schema.ts": 'import { z } from "zod";\nexport const Foo = z.object({});\n',
+        "packages/client/src/features/x/schema.ts": 'import { z } from "zod";\nexport const Foo = z.object({});\n',
       },
       expect: { count: 1, token: "Foo" },
       why: "the founding schema shape: an exported zod object outside a type home — a declared shape wearing a const",
@@ -155,7 +155,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
-        "packages/server/src/domain/x/schema.ts": 'import { z as s } from "zod";\nexport const Foo = s.object({});\n',
+        "packages/client/src/features/x/schema.ts": 'import { z as s } from "zod";\nexport const Foo = s.object({});\n',
       },
       expect: { count: 1, token: "Foo" },
       why: "THE ALIAS RED: the same factory imported under another local name. The legacy check compared the callee TEXT to `z.object`, so every alias, namespace and named-import spelling was silently exempt",
@@ -164,7 +164,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare function discriminatedUnion(key: string, arms: unknown): unknown;\n",
-        "packages/server/src/domain/x/schema.ts": 'import { discriminatedUnion } from "zod";\nexport const Foo = discriminatedUnion("kind", []);\n',
+        "packages/client/src/features/x/schema.ts": 'import { discriminatedUnion } from "zod";\nexport const Foo = discriminatedUnion("kind", []);\n',
       },
       expect: { count: 1, token: "Foo" },
       why: "the NAMED-IMPORT spelling of the same factory — no `z.` receiver exists at all, so a text match had nothing to see",
@@ -173,7 +173,7 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
-        "packages/server/src/domain/x/schema.ts": 'import * as zod from "zod";\nexport const Foo = zod.z["object"]({});\n',
+        "packages/client/src/features/x/schema.ts": 'import * as zod from "zod";\nexport const Foo = zod.z["object"]({});\n',
       },
       expect: { count: 1, token: "Foo" },
       why: "the NAMESPACE import plus the COMPUTED-LITERAL member spelling — two respellings of one identity, both invisible to the legacy text compare",
@@ -183,12 +183,6 @@ export const gate = defineGate({
       files: { "tooling/src/snap/ops/capture.ts": "export type Foo = string;\n" },
       expect: { count: 1, token: "Foo" },
       why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (Core-Tooling-Law.md §2.5)",
-    },
-    {
-      mode: "resource",
-      files: { "packages/server/src/domain/regex/verbs/scripts/create.ts": "type Foo = string;\nexport type { Foo };\n" },
-      expect: { count: 1, token: "Foo" },
-      why: "THE #408 STRING ACCIDENT, closed on the same reasoning as the deleted `/tools/` clause: the legacy `/scripts/` type-home clause matched exactly ONE directory inside the judged roots — the regex SCRIPT library's verbs — and exempted a domain subsystem by pure substring luck. The repo's own `scripts/` tree is out of the population by root, so nothing is lost by not reproducing it",
     },
     {
       mode: "resource",
@@ -203,8 +197,8 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "packages/client/src/features/x/fixtures.ts": "export type A = string;\n",
-        "packages/server/src/domain/x/seed-fixtures.ts": "type B = string;\nexport type { B };\n",
-        "packages/server/src/domain/x/_support.ts": "type C = string;\nexport type { C };\n",
+        "packages/client/src/features/x/seed-fixtures.ts": "type B = string;\nexport type { B };\n",
+        "packages/client/src/features/x/_support.ts": "type C = string;\nexport type { C };\n",
         "tooling/src/snap/lib/run.fixtures.ts": "export type D = string;\n",
       },
       expect: { count: 4 },
@@ -230,7 +224,7 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { "packages/server/src/domain/x/verb.ts": "type Foo = string;\nexport const use = (value: Foo): Foo => value;\n" },
+      files: { "packages/client/src/features/x/view.ts": "type Foo = string;\nexport const use = (value: Foo): Foo => value;\n" },
       why: "an UNEXPORTED alias is file-local and has no second home to collide with",
     },
     {
@@ -252,7 +246,7 @@ export const gate = defineGate({
     {
       mode: "resource",
       files: {
-        "packages/server/src/domain/x/local.ts":
+        "packages/client/src/features/x/local.ts":
           "const z = {\n  object(shape: unknown): unknown {\n    return shape;\n  },\n};\nexport const Foo = z.object({});\n",
       },
       why: "THE COUNTERFACTUAL: a project object with an `object` method, called through a receiver spelled `z`. The text the legacy reader compared is IDENTICAL; the origin is a local declaration, so this is a different identity and passes",
@@ -261,13 +255,13 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare const z: { string: () => unknown };\n",
-        "packages/server/src/domain/x/schema.ts": 'import { z } from "zod";\nexport const Foo = z.string();\n',
+        "packages/client/src/features/x/schema.ts": 'import { z } from "zod";\nexport const Foo = z.string();\n',
       },
       why: "a zod call that is NOT one of the three shape factories — `z.string()` declares no object shape, and the arm is deliberately narrow",
     },
     {
       mode: "resource",
-      files: { "packages/server/src/domain/x/opaque.ts": "export const Foo = makeSchema.object({});\n" },
+      files: { "packages/client/src/features/x/opaque.ts": "export const Foo = makeSchema.object({});\n" },
       why: "THE DECLARED LIMIT, written down rather than left silent: the schema arm is not fail-closed. `makeSchema` binds nothing this workspace can read, and reporting every unreadable factory-named call would accuse the whole unreadable tail of three roots rather than a bounded candidate set. The type-alias arm carries the law where a schema read cannot place the call",
     },
     {
@@ -324,17 +318,26 @@ export const gate = defineGate({
       mode: "resource",
       files: {
         "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
-        "packages/server/src/domain/x/local.ts": 'import { z } from "zod";\nconst Foo = z.object({});\nexport const use = (): unknown => Foo;\n',
+        "packages/client/src/features/x/local.ts": 'import { z } from "zod";\nconst Foo = z.object({});\nexport const use = (): unknown => Foo;\n',
       },
       why: "AN UNEXPORTED SCHEMA CONST is the zod twin of `mustPass[1]`'s unexported alias: a file-local shape has no second home to collide with, and §7.4 is about the module's EXPORTED surface. The statement is delivered to the visitor either way, so only the export-keyword test on the VariableStatement arm keeps it silent — cut `node.hasExportKeyword()` there and this row reds while the type-alias arm's own test stays untouched",
     },
     {
       mode: "resource",
       files: {
-        "packages/server/src/domain/x/shapes.ts": "export const object = (shape: unknown): unknown => shape;\n",
-        "packages/server/src/domain/x/schema.ts": 'import { object } from "./shapes.ts";\nexport const Foo = object({});\n',
+        "packages/client/src/features/x/shapes.ts": "export const object = (shape: unknown): unknown => shape;\n",
+        "packages/client/src/features/x/schema.ts": 'import { object } from "./shapes.ts";\nexport const Foo = object({});\n',
       },
       why: "THE DOOR TEST, the other half of the identity claim `mustFlag[1..4]` make from the flagging side: a PROJECT module exporting a function named `object`, imported and called — the prefilter accepts the name and the origin reader RESOLVES it, to `shapes.ts` rather than to the `zod` door. `mustPass[4]`'s counterfactual uses a local object literal, which the origin reader refuses outright; this one resolves and is still not zod, so it is the row that dies when the door test in `floor/code-facts/zod-origin.ts#isFactoryCallFromPackage` goes",
+    },
+    {
+      mode: "resource",
+      files: {
+        "node_modules/zod/index.d.ts": "export declare const z: { object: (shape: unknown) => unknown };\n",
+        "packages/server/src/domain/x/verb.ts": 'import { z } from "zod";\ntype Foo = string;\nexport type { Foo };\nexport const Bar = z.object({});\n',
+        "packages/inference/src/backends/probe.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n",
+      },
+      why: "native `orb/type-home-direct-export` owns direct, export-list and zod-shape placement in its admitted population; this owner subtracts the population rather than accusing it twice",
     },
   ],
 });

@@ -98,8 +98,8 @@ export function packageTypeHome(path: string): PackageTypeHomeClassification | u
   };
 }
 
-/** Effective native syntax admission; generated declarations retain their semantic owner. */
-export function nativeTypeHomeDirectExport(path: string): boolean {
+/** Native placement owns every exported type and zod shape here; generated declarations retain their semantic owner. */
+export function nativeTypeHomeAdmission(path: string): boolean {
   return (
     TYPE_HOME_NATIVE_SOURCE_GLOBS.some((pattern) => matchesGlob(path, pattern)) &&
     !TYPE_HOME_NATIVE_CONTRACT_GLOBS.some((pattern) => matchesGlob(path, pattern)) &&
@@ -109,5 +109,5 @@ export function nativeTypeHomeDirectExport(path: string): boolean {
 
 /** D324's existing server-tier population delegates both direct and local export lists. */
 export function nativeFactoryTypeHomePopulation(path: string): boolean {
-  return SERVER_FACTORY_TYPE_HOME_ROOTS.some((root) => path.startsWith(root)) && nativeTypeHomeDirectExport(path);
+  return SERVER_FACTORY_TYPE_HOME_ROOTS.some((root) => path.startsWith(root)) && nativeTypeHomeAdmission(path);
 }

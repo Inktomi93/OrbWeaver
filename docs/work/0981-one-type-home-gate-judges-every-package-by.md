@@ -22,18 +22,20 @@ One canonical home table has qualified native or test enforcement for every pack
 
 ## Evidence
 
-Canonical placement and factory-origin readers preserve component-owned APIs beside components while deriving lower-owned data. Reviewed package-home moves and native syntax restrictions retain distinct hard service-presence and ledger-field claims. Complete package coverage and lower-data derivation remain open.
+Canonical placement and factory-origin readers keep component-owned APIs beside components and derive lower-owned data. Package-home moves and native syntax restrictions keep distinct hard service-presence and ledger-field claims. Complete package coverage and lower-data derivation remain open.
 
-Reviewed component contributions support native rendering, substituted members, schema output and supporting type imports. Metadata-only StatusChip ownership and reachable fuzzy-search options have discriminating controls. Dead contributions refuse; opaque generics, unknown spreads, smooth-text lifetimes and complete UI activation remain unqualified. Evidence for the cached API is `5909ff0d60`.
+Component contributions support native rendering, substituted members, schema output and supporting type imports. StatusChip metadata ownership and reachable fuzzy-search options have discriminating controls; dead contributions refuse. Opaque generics, unknown spreads, smooth-text lifetimes and complete UI activation remain unqualified. Evidence: `5909ff0d60`.
 
-The UI token-authoring Node contract preserves supported type exports. Generated vocabulary uses native world owners, output freshness and local identity; foreign, borrowed, missing and stale inputs refuse. Entry, producer and mixed-policy controls pass. Generic delivery, other generated homes, lower-data trust and component lifetimes remain open under 1027. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/981-generated-node-homes.md` and its independent review.
+The UI token-authoring Node contract keeps supported type exports. Generated vocabulary uses native world owners, output freshness and local identity; foreign, borrowed, missing and stale inputs refuse. Generic delivery, other generated homes, lower-data trust and component lifetimes remain open under 1027. Evidence: `.claude/worktrees/codex-type-homes-981/reports/review/981-generated-node-homes.md` and its independent review.
 
-Reviewed `5d7417fc59` consolidates client-only declarations into existing component, hook and model owners. Illegal feature-root contract buckets are removed. Wire/native derivation, owner exports and runtime initialization remain unchanged. Client types, exact lint and the complete named placement gate pass. Independent review confirms declaration origins and runtime edges. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/981-client-declarations-independent-review.md`. This production repair does not establish complete home-table coverage.
+`5d7417fc59` moves client-only declarations into component, hook and model owners and removes illegal feature-root contract buckets. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/981-client-declarations-independent-review.md`. It does not establish complete coverage.
 
-Sandbox limits use the canonical `PluginBudgets` directly. The empty duplicate and unused re-export are removed with their stale Knip baseline entry. Server types, exact lint, scoped placement and independent runtime-erasure comparison pass. Plugin-authoring declarations remain unchanged. Evidence: `reports/review/canonical-plugin-budgets-independent-review.md`.
+Sandbox limits use the canonical `PluginBudgets`; the duplicate, its reexport and stale Knip entry are removed. Evidence: `reports/review/canonical-plugin-budgets-independent-review.md`.
 
-Native placement covers server domains and foundation observability. Contracts derive lower-owned data; runtime bodies and public diagnostics stay unchanged. Coupled qualification, budget reconciliation and other packages remain open. Evidence: `reports/review/981-observability-type-home-delivery.md`.
+Native placement covers server domains and foundation observability; contracts derive lower-owned data. Coupled qualification and budget reconciliation remain open. Evidence: `reports/review/981-observability-type-home-delivery.md`.
 
-Client-error telemetry derives the canonical diagnostics schema without changing public admission or logging. Root controls and the cross-tenant sweep pass. Evidence: `reports/review/981-client-error-contract-ordinary.md`.
+Client-error telemetry derives the canonical diagnostics schema; root controls and the cross-tenant sweep pass. Evidence: `reports/review/981-client-error-contract-ordinary.md`.
 
-Reviewed adapter contract homes preserve runtime bodies and raw wire boundaries. Original placement findings are gone; remaining home coverage stays open. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
+Adapter contract homes keep runtime bodies and raw wire boundaries; their original placement findings are gone. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
+
+Native placement owns export-listed aliases and interfaces and proven zod shape schemas in its whole admitted population. Custom owners subtract that population and keep generated, client, tooling, test and UI-authoring claims. The census found no live finding. Evidence: `reports/review/981-type-home-slice.md`.

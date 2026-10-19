@@ -43,10 +43,10 @@ A server factory shape is owned by its production signature: it is a parameter, 
 
 | Gate | What it judges |
 | - | - |
-| ESLint `orb/type-home-direct-export` | direct exported aliases/interfaces outside contract homes in inference, default-content, plugin-toolchain, server domains and foundation observability; generated declarations and domain test mirrors retain custom ownership |
-| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in its existing populations, excluding qualified native direct aliases; local export origins and generated token ownership remain custom |
-| `no-inline-domain-interface` | server-domain interface origins outside contract homes, excluding qualified native direct declarations; local export lists and unadmitted generated declarations remain custom |
-| `no-inline-package-interface` | generated, inference local-export and token-authoring interfaces retain custom placement; qualified server factory declarations delegate to native lint under D324 |
+| ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside contract homes in inference, default-content, plugin-toolchain and every server tier except primitives; generated declarations and domain test mirrors retain custom ownership |
+| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations; the native population is subtracted |
+| `no-inline-domain-interface` | generated server-domain interface declarations outside contract homes; native lint owns authored domain declarations |
+| `no-inline-package-interface` | generated and token-authoring interfaces retain custom placement; authored server and inference declarations delegate to native lint, with D324 factory ownership |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |

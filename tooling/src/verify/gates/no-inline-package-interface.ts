@@ -1,6 +1,6 @@
 // Interface placement outside sanctioned homes; qualified server declarations delegate to native lint.
 // D324 factory ownership is judged only in the parser-owned native Program, never the syntax workspace.
-// Generated, inference export-list and UI-authoring claims retain this owner.
+// Generated and UI-authoring claims retain this owner; native placement owns authored export lists.
 import { SyntaxKind } from "ts-morph";
 import { UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -47,12 +47,6 @@ export const gate = defineGate({
       expect: { count: 1, token: "Generated" },
       why: "Unadmitted generated declarations retain the custom owner rather than receiving a syntax-checker factory grant.",
     },
-    {
-      mode: "source",
-      files: { "packages/inference/src/backends/probe.ts": "interface Probe {\n  readonly a: string;\n}\nexport { Probe };\n" },
-      expect: { count: 1, token: "Probe" },
-      why: "an inference local export list retains the semantic placement owner; native syntax owns direct exports only",
-    },
   ],
   mustPass: [
     {
@@ -89,6 +83,11 @@ export const gate = defineGate({
       mode: "source",
       files: { "packages/server/src/infra/storage/cas.ts": "export interface PutResult {readonly hash:string}" },
       why: "Native type-home lint owns this server interface; its native positional-authority control is retained in the factory-placement suite.",
+    },
+    {
+      mode: "source",
+      files: { "packages/inference/src/backends/probe.ts": "interface Probe {\n  readonly a: string;\n}\nexport { Probe };\n" },
+      why: "native type-home lint owns an inference export list, so this owner does not accuse it twice",
     },
   ],
 });
