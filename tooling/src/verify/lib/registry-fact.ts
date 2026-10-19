@@ -26,11 +26,6 @@ const EXPORT_PLAN: TypeProjectionPlan = { facets: ["declaration-export"], proper
 
 const TYPE_NAMES = {
   section: "SectionDefinition",
-  modal: "ModalDefinition",
-  "home-tile": "HomeTileContribution",
-  "config-group": "ConfigGroupDefinition",
-  collection: "CollectionContribution",
-  chrome: "ChromeEntry",
 } as const satisfies Readonly<Record<RegistryDefinitionKind, string>>;
 
 const REGISTRY_DEFINITION_VISITOR_KINDS = [
@@ -110,8 +105,8 @@ function authoredObject(
   const authoredValue = projection.value;
   // Object PROVENANCE and field READABILITY are independent facts. Every live registry definition carries
   // imported icons, components, and hooks, so the complete JSON-like value legitimately refuses; inheriting
-  // that refusal as a provenance refusal made this fact report zero members for section/modal/home-tile/
-  // config-group on the real tree while their definitions were all sitting at their sanctioned paths.
+  // that refusal as a provenance refusal would report zero members for definitions sitting at their
+  // sanctioned paths.
   const stable = projection.composite;
   if (stable.kind === "unresolved") {
     return { object: stable, authoredValue };
@@ -207,9 +202,6 @@ function factsFor(kind: RegistryDefinitionKind, state: MutableRegistryFacts, ctx
   const definitions: RegistryDefinitionFact[] = [];
   if (target.kind === "resolved") {
     for (const candidate of state.candidates) {
-      if (candidate.shape === "factory" && kind !== "section") {
-        continue;
-      }
       const origin = typeOrigin(candidate.typeNode, ctx);
       if (origin.kind === "unresolved" || !sameDeclaration(origin.value.declaration, target.value.declaration)) {
         continue;
@@ -314,39 +306,15 @@ function createRegistryDefinitionFacts(ctx: GateFactContext): {
   };
 }
 
-/** One PROVIDER per registry kind, because a provider is the runtime's atomic failure unit.
+/** One PROVIDER per registry kind, because a provider is the runtime's atomic failure unit: a fact receipt
+ *  refuses on `unresolved > 0`, so a provider summing several kinds would withhold every consumer whenever its
+ *  population legitimately declares only some of the registry types.
  *
- *  WHY NOT ONE PROVIDER OVER ALL SEVEN KINDS: it was, until 2026-09-11. A single provider emitted ONE
- *  receipt whose `members`/`unresolved` were sums across every kind, and a fact receipt refuses on
- *  `unresolved > 0` (`lib/policy-pass.ts` `factReceiptFailures`). `factsFor` scores an absent registry TYPE
- *  as one unresolved, so any invocation whose population legitimately declares only some of the seven types
- *  — every isolated conformance fixture, and any real scope narrower than the whole client — summed to a
- *  nonzero refusal and withheld EVERY consumer, including the ones reading a kind that resolved perfectly.
- *  That is how 95 proof rows across eight policies went dark for five days (#1953).
- *
- *  The fix is not a weaker refusal and not reading an unresolved kind as absent (the gate-runtime guide
- *  §12.3: unsupported syntax "never returns absence"; `factsFor` cannot tell "unreferenced" from "renamed",
- *  so collapsing them would blind the rename tripwire). Per-subject failure semantics require per-subject
- *  PROVIDERS: a policy declares only the kinds it reads, only those instantiate, and only their own failure
- *  withholds it. §12.3's one-walk guarantee is unaffected — the pass instantiates each unique provider once
- *  and feeds them all in the same physical walk, and the per-kind scoring work is identical to the seven
- *  `forKind` calls the aggregate already made.
- *
- *  AND THE RECEIPT IS THE OTHER HALF OF THAT FIX, landed 2026-09-11 (#1962). #1953 split the provider per
- *  kind but did not change WHAT each one counts: `members: facts.members` plus `unresolved: facts.unresolved`
- *  is still a CENSUS, so each per-kind provider went on refusing its own empty corpus — `members === 0`
- *  (`lib/policy-pass.ts:631`) for a kind that declares no definition, `unresolved > 0` (`:635`) for one whose
- *  registry TYPE is missing or ambiguous — and `withholdFactDependents` (`:679`) still dropped that kind's
- *  consumers BEFORE `evaluate`. A receipt states the denominator the provider WALKED, never what it found
- *  (§12.3). It now states `ctx.files.length`.
- *
- *  THE RENAME TRIPWIRE SURVIVES, one phase later and per consumer. `target` is delivered on the fact, and a
- *  missing or ambiguous registry TYPE yields zero definitions (`factsFor` admits a definition only through a
- *  RESOLVED target), so every consumer's own `members: <view>.definitions.length` receipt refuses — the
- *  sanctioned blindness door every registry consumer's header names. Measured 2026-09-11: no
- *  gate module reads `view.target`, so §12.3's discriminator ("if no consumer expresses its dependency
- *  through the provider's `unresolved`, the provider must not publish one") applies exactly, and the pins are
- *  in `tests/tooling/verify/lib/registry-fact.test.ts`. */
+ *  The receipt states the denominator the provider WALKED (`ctx.files.length`), never what it found (§12.3).
+ *  The census is DELIVERED on the fact instead, and the rename tripwire fires one phase later at the
+ *  consumer's own `members: <view>.definitions.length` receipt: a missing or ambiguous registry TYPE yields
+ *  zero definitions, so the consumer refuses. No gate module reads `view.target`, so the provider must not
+ *  publish an `unresolved` of its own; the pins are in `tests/tooling/verify/lib/registry-fact.test.ts`. */
 function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<RegistryDefinitionKindFacts> {
   return defineFact({
     id: `registry-definitions-${kind}`,
@@ -375,11 +343,6 @@ function defineRegistryDefinitionFact(kind: RegistryDefinitionKind): GateFact<Re
 /** The closed per-kind provider table; a new `RegistryDefinitionKind` fails `tsc` here until it has one. */
 export const registryDefinitionFacts = {
   section: defineRegistryDefinitionFact("section"),
-  modal: defineRegistryDefinitionFact("modal"),
-  "home-tile": defineRegistryDefinitionFact("home-tile"),
-  "config-group": defineRegistryDefinitionFact("config-group"),
-  collection: defineRegistryDefinitionFact("collection"),
-  chrome: defineRegistryDefinitionFact("chrome"),
 } satisfies Readonly<Record<RegistryDefinitionKind, GateFact<RegistryDefinitionKindFacts>>>;
 
 /** Normalize opening/self-closing JSX tags and resolve their canonical imported component origin. */

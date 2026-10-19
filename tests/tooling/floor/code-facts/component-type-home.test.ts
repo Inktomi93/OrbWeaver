@@ -272,21 +272,33 @@ function fixture(root: string, repoRoot: string): ComponentHomeFixture {
   return { path, workspace, sourceFile, view, read };
 }
 
+// Production reads every declaration inside one reference pass; outside it each read rebuilds the pass-scoped caches (about 1 s per read).
+function inReferencePass(run: () => void): void {
+  beginReferencePass();
+  try {
+    run();
+  } finally {
+    endReferencePass();
+  }
+}
+
 test("native DOM origins establish arbitrary names, supporting variants, render callbacks, generic and aliased/default APIs", ({ scratch, repoRoot }) => {
   const { read } = fixture(scratch, repoRoot);
-  for (const name of ["Arbitrary", "Dimension", "Renderer", "GenericApi", "AliasApi", "DefaultApi"]) {
-    const result = read(name);
-    expect(result.kind, name).toBe("owned");
-    if (result.kind !== "owned") {
-      throw new Error("missing render origin");
+  inReferencePass(() => {
+    for (const name of ["Arbitrary", "Dimension", "Renderer", "GenericApi", "AliasApi", "DefaultApi"]) {
+      const result = read(name);
+      expect(result.kind, name).toBe("owned");
+      if (result.kind !== "owned") {
+        throw new Error("missing render origin");
+      }
+      expect(result.component.parameter.getSourceFile(), name).toBe(result.component.callable.getSourceFile());
+      expect(
+        result.component.supportingDeclarations.map((declaration) => declaration.getName()),
+        name,
+      ).toContain(name);
+      expect(result.lowerData.kind, name).toBe("unqualified");
     }
-    expect(result.component.parameter.getSourceFile(), name).toBe(result.component.callable.getSourceFile());
-    expect(
-      result.component.supportingDeclarations.map((declaration) => declaration.getName()),
-      name,
-    ).toContain(name);
-    expect(result.lowerData.kind, name).toBe("unqualified");
-  }
+  });
 });
 
 test("names, unused declarations, wrappers and known lower-data overlaps never manufacture ownership", ({ scratch, repoRoot }) => {
@@ -525,12 +537,14 @@ test("actual conditional and immutable bound rendering plus inline parameter ori
   repoRoot,
 }) => {
   const { read } = fixture(scratch, repoRoot);
-  for (const name of ["ConditionalApi", "InlineDimension"]) {
-    expect(read(name), name).toMatchObject({ kind: "owned" });
-  }
-  for (const name of ["StringBranchApi", "InlineErased", "ErasedHeritage", "ConstrainedOnly"]) {
-    expect(read(name), name).toMatchObject({ kind: "unqualified" });
-  }
+  inReferencePass(() => {
+    for (const name of ["ConditionalApi", "InlineDimension"]) {
+      expect(read(name), name).toMatchObject({ kind: "owned" });
+    }
+    for (const name of ["StringBranchApi", "InlineErased", "ErasedHeritage", "ConstrainedOnly"]) {
+      expect(read(name), name).toMatchObject({ kind: "unqualified" });
+    }
+  });
 });
 
 test("cross-source support follows actual native alias origins only within the delivered owner boundary", ({ scratch, repoRoot }) => {
@@ -733,10 +747,12 @@ test(
 
 test("actual returned installed BaseUI rendering contributes a native DOM root, unlike shadow, disabled or unused calls", ({ scratch, repoRoot }) => {
   const { read } = fixture(scratch, repoRoot);
-  expect(read("NativeRenderApi").kind).toBe("owned");
-  for (const name of ["FakeRenderApi", "DisabledRenderApi", "UnusedRenderApi"]) {
-    expect(read(name).kind, name).toBe("unqualified");
-  }
+  inReferencePass(() => {
+    expect(read("NativeRenderApi").kind).toBe("owned");
+    for (const name of ["FakeRenderApi", "DisabledRenderApi", "UnusedRenderApi"]) {
+      expect(read(name).kind, name).toBe("unqualified");
+    }
+  });
 });
 
 test("schema generic output effect follows the actual selected native formal property projection", ({ scratch, repoRoot }) => {
@@ -871,12 +887,23 @@ test("returned attribute API follows exact producer and final JSX spread, not ov
   }
   const contribution = readNativeGenericArgumentContribution({ reference: outer, argument, binding, program: view.nativeProgram, source: view.nativeSource });
   expect(contribution.kind, contribution.kind === "unresolved" ? contribution.detail : "actual key contribution").toBe("resolved");
-  for (const name of ["DisplayedMap", "KeptMap", "DisplayKeys"]) {
-    expect(read(name).kind, name).toBe("owned");
-  }
-  for (const name of ["DroppedMap", "UnknownMap", "UnusedMap", "TvShapedUnused", "UnusedDisplayKeys", "ErasedDisplayKeys", "MixedDisplayKeys", "WrongKeyMap"]) {
-    expect(read(name).kind, name).toBe("unqualified");
-  }
+  inReferencePass(() => {
+    for (const name of ["DisplayedMap", "KeptMap", "DisplayKeys"]) {
+      expect(read(name).kind, name).toBe("owned");
+    }
+    for (const name of [
+      "DroppedMap",
+      "UnknownMap",
+      "UnusedMap",
+      "TvShapedUnused",
+      "UnusedDisplayKeys",
+      "ErasedDisplayKeys",
+      "MixedDisplayKeys",
+      "WrongKeyMap",
+    ]) {
+      expect(read(name).kind, name).toBe("unqualified");
+    }
+  });
 });
 
 test(
