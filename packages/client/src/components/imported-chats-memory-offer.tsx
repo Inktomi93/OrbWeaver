@@ -75,9 +75,8 @@ export function ImportedChatsMemoryOffer({ scope, onStarted, nested }: ImportedC
     onStarted?.();
   };
   const build = (): void => {
-    // @orb-waive caught-failure-ownership(confirmThen): the start mutation's errorToast surfaces a failed run, a
-    // conflict renders as the already-running note, and `confirmThen` toasts a failed count. Ends if any of those
-    // stops surfacing its own failure.
+    // @orb-waive caught-failure-ownership(confirmThen): `confirmThen` toasts a failed estimate (use-model-run-confirm.ts `notify.error`); a failed run is toasted by
+    // `useStartImportedChatsMemory`'s errorToast and a conflict becomes ALREADY_RUNNING_NOTE in `runBuild`. Ends if any of those stops surfacing its failure.
     paidRun
       .confirmThen({ title: "Build memory for the imported chats?", confirmLabel: "Build memory", estimates: [{ input, mode: "singular" }], run: runBuild })
       .catch(() => undefined);

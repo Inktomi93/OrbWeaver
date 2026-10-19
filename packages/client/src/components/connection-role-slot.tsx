@@ -236,8 +236,8 @@ export function ConnectionRoleSlot({
             setChecking(checksEmbedder ? { embedder } : null);
             const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
             toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
-            // @orb-waive caught-failure-ownership(bound): a refusal becomes the row's alert; any other failure keeps the
-            // draft (the row says "not applied yet") and toasts through the mutation's errorToast. Ends if that toast goes.
+            // @orb-waive caught-failure-ownership(bound): an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
+            // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
             void bound.catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder }))).finally((): void => setChecking(null));
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.

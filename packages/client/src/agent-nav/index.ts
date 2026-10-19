@@ -146,7 +146,7 @@ async function resolveDirectChatId(idOrTitle: string, trpc: Trpc, queryClient: Q
   }
   // The real tRPC boundary validates the complete TypeID. Prefix routing here only decides whether the
   // caller named an opaque id or a display title; an invalid id simply falls through to the honest miss.
-  // @orb-waive caught-failure-ownership(queryClient.query): a fetch failure is indistinguishable from an invalid id here — both collapse to the honest "not found" the caller already handles. Ends if this arm stops sharing its miss path with the invalid-id case.
+  // @orb-waive caught-failure-ownership(queryClient.query): null sends `openChat` on to `resolveListedChat`, whose failed list query and whose miss both return an `ok:false` NavResult the caller reads (the `page === null` and "no chat matches" returns). Ends if `openChat` stops falling through to the list arm.
   const chat = await queryClient.query(trpc.chat.getChat.queryOptions({ chatId: idOrTitle as ChatId })).catch(() => null);
   return chat?.id ?? null;
 }
@@ -170,7 +170,7 @@ function resolveActiveChat(): NavResult {
 async function resolveListedChat(idOrTitle: string, trpc: Trpc, queryClient: QueryClient): Promise<NavResult> {
   // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
   // query the chat list uses, so this reads/populates the identical cache entry.
-  // @orb-waive caught-failure-ownership(queryClient.query): the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.
+  // @orb-waive caught-failure-ownership(queryClient.query): the `page === null` check on the next line returns `{ ok: false, reason: "chat list query failed — …" }`, the NavResult the caller reads as the verdict. Ends if that null check stops returning the failure.
   const page = await queryClient.query(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
   if (page === null) {
     return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
@@ -330,7 +330,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
       // harness run that uses this bridge. Prefix routing decides id-vs-name; the tRPC boundary still
       // validates the complete TypeID, and an invalid id falls through to the honest name arm.
       if (idOrName.startsWith(`${ID_PREFIX.character}_`)) {
-        // @orb-waive caught-failure-ownership(queryClient.query): a fetch failure is indistinguishable from an invalid id — the id arm falls through to the honest name-search arm below, same as resolveDirectChatId. Ends if this arm stops sharing its miss path with the invalid-id case.
+        // @orb-waive caught-failure-ownership(queryClient.query): null skips the id arm and falls into the name-search read below, whose `page === null` check returns `{ ok: false, reason: "character list query failed — …" }` as the NavResult the caller reads. Ends if the id arm stops falling through to that search.
         const byId = await queryClient.query(trpc.character.get.queryOptions({ characterId: idOrName as CharacterId })).catch(() => null);
         if (byId !== null) {
           markAgentNavigation();
@@ -339,7 +339,7 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient, resolveConfi
           return OK;
         }
       }
-      // @orb-waive caught-failure-ownership(queryClient.query): the rejection is converted into an explicit `ok:false` NavResult the caller consumes as the verdict. Ends if this arm stops returning the failure as a NavResult.
+      // @orb-waive caught-failure-ownership(queryClient.query): the `page === null` check on the next lines returns `{ ok: false, reason: "character list query failed — …" }`, the NavResult the caller reads as the verdict. Ends if that null check stops returning the failure.
       const page = await queryClient.query(trpc.character.list.queryOptions({ limit: CHARACTER_NAV_PAGE_LIMIT, search: idOrName })).catch(() => null);
       if (page === null) {
         return { ok: false, reason: "character list query failed — cannot resolve the character" };
