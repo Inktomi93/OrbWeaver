@@ -9,7 +9,7 @@ priority: P2
 
 ## What
 
-tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts fails 'the family reads the REAL gate corpus' on main 27ec80e986: policy-fixture-substrate refuses at visit with 'native type fact context is unavailable'. Every other case in the suite passes.
+tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts fails 'the family reads the REAL gate corpus' on main 27ec80e986: policy-fixture-substrate refuses at visit with 'native type fact context is unavailable'. Every other case in the suite passes. The same refusal fails tests/tooling/verify/gates/trpc-output-declarations.repo.int.test.ts (trpc-output-declarations) and tests/tooling/verify/gates/identity-enforcement.repo.int.test.ts (two-class-role-authority, whose tuple-vocabularies fact also reports that native inventory requires pre-import implementation observation).
 
 ## Why
 
@@ -17,7 +17,7 @@ The real-corpus liveness case is the proof that the family judges the actual gat
 
 ## Done when
 
-The real-corpus case passes on main with no tool error and nothing withheld, and policy-fixture-substrate receives native type facts in that run, or states why it cannot as a declared limit under D328.
+The three named real-corpus cases pass on main with no tool error and nothing withheld, and policy-fixture-substrate receives native type facts in that run, or states why it cannot as a declared limit under D328.
 
 ## Evidence
 
