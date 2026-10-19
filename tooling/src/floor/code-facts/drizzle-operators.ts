@@ -3,9 +3,10 @@
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_RELATIONAL_VERBS, DRIZZLE_WHERE_VERB } from "./drizzle-vocabulary.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
-export const RELATIONAL_WHERE = "where";
-export const RELATIONAL_VERBS: ReadonlySet<string> = new Set(["findFirst", "findMany"]);
+
+const RELATIONAL_VERBS: ReadonlySet<string> = new Set(DRIZZLE_RELATIONAL_VERBS);
 
 /** Is this call's callee the drizzle-orm export `name`, by its import (named or namespace), never its spelling,
  *  or the same operator a relational-API `where` callback destructures from drizzle's operator argument? */
@@ -21,7 +22,7 @@ export function relationalWhereCallback(fn: Node): boolean {
   const call = config?.getParent();
   return (
     property?.isKind(SyntaxKind.PropertyAssignment) === true &&
-    property.getName() === RELATIONAL_WHERE &&
+    property.getName() === DRIZZLE_WHERE_VERB &&
     call?.isKind(SyntaxKind.CallExpression) === true &&
     call.getArguments()[0] === config &&
     RELATIONAL_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? "")

@@ -5,6 +5,7 @@
 
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleCallEvidence, InstanceMethodIdentity } from "../../floor/code-facts/drizzle-evidence-contract.ts";
+import { DRIZZLE_MUTATION_VERBS } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { DrizzleTableEvidence, SchemaIdentityModel, SchemaIdentityTable } from "../../floor/code-facts/schema-identity-contract.ts";
@@ -23,7 +24,7 @@ const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const DB_SPECIFIER_RE = /^@orb\/db(?:\/(?:schema|index))?$/u;
 const DOMAIN_OF_RE = /packages\/server\/src\/domain\/(?<name>[^/]+)\//u;
 const SCHEMA_FILE_RE = /packages\/db\/src\/schema\/(?<name>[^/]+)\.ts$/u;
-const WRITE_METHODS = new Set(["insert", "update", "delete"]);
+const WRITE_METHODS: ReadonlySet<string> = new Set(DRIZZLE_MUTATION_VERBS);
 const WRITE_INVOCATION_PLAN: InventoryInvocationPlan = { mode: "invocation", facets: [], arguments: [] };
 const GATE_SELF = "tooling/src/verify/gates/own-tables-only.ts";
 

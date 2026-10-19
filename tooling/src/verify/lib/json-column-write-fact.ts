@@ -4,7 +4,9 @@
 
 import type { Block, CallExpression, Statement, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-write-chain.ts";
+import { readUpsertSetArgument } from "../../floor/code-facts/drizzle-columns.ts";
+import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { DRIZZLE_INSERT_VERB, DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB, DRIZZLE_UPSERT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineFact } from "../contract/fact.ts";
@@ -20,8 +22,6 @@ const CONTRACTS_DIR = "/packages/contracts/src/";
 // ── ARM B: the versioned-config dominance arm (#879) ───────────────────────────────────────────────────
 const DEFINE_VERSIONED_CONFIG = "defineVersionedConfig";
 const GUARD_CALLEE = "requireIntactStoredConfig";
-const CONFLICT_UPDATE = "onConflictDoUpdate";
-const CONFLICT_SET_KEY = "set";
 /** The exemption-key name for a write with no enclosing function / no readable one. */
 const TOP_LEVEL_SITE = "(top-level)";
 const ANONYMOUS_SITE = "(anonymous)";
@@ -207,18 +207,11 @@ function guardTargetsOf(
     .map((w) => ({ node: w.node, token: jsonWriterColumn(w), key, dominated: dominates(w.node), opaque: false }));
 }
 
-/** The `set` object of an `onConflictDoUpdate({ target, set: { … } })` upsert — a whole-blob replace of an
+/** The write verb → the fluent chain verb that names its table. An upsert's `set` replaces the blob of an
  *  EXISTING row, so it owes the guard exactly as `.set()` does. */
-function conflictSetObject(call: CallExpression): TsNode | undefined {
-  const arg = unwrapArg(call.getArguments()[0]);
-  const prop = arg !== undefined && Node.isObjectLiteralExpression(arg) ? arg.getProperty(CONFLICT_SET_KEY) : undefined;
-  return Node.isPropertyAssignment(prop) ? prop.getInitializer() : undefined;
-}
-
-/** The write verb → the fluent chain verb that names its table. */
 const WRITE_VERBS: ReadonlyMap<string, DrizzleWriteRootVerb> = new Map([
-  ["set", "update"],
-  [CONFLICT_UPDATE, "insert"],
+  [DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB],
+  [DRIZZLE_UPSERT_VERB, DRIZZLE_INSERT_VERB],
 ]);
 
 /** The `set` object of ONE write call, when that call writes a table owning a versioned-config column. */
@@ -243,7 +236,7 @@ function versionedSetArg(
   if (cols === undefined || table === undefined) {
     return;
   }
-  return { arg: callee.name === CONFLICT_UPDATE ? conflictSetObject(call) : call.getArguments()[0], cols, table };
+  return { arg: callee.name === DRIZZLE_UPSERT_VERB ? readUpsertSetArgument(call.getArguments()[0]) : call.getArguments()[0], cols, table };
 }
 
 /** Every versioned-config write site in the domain corpus, classified. */

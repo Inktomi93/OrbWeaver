@@ -27,6 +27,7 @@
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readSqlTemplateCarrier } from "../../floor/code-facts/drizzle-sql.ts";
+import { DRIZZLE_SQL_EXPORT, DRIZZLE_SQL_RAW_MEMBER } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { readMemberReference, resolveModuleMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { readTemplateSkeleton } from "../../floor/code-facts/template-static-text.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -38,8 +39,6 @@ import { originModuleSpecifier } from "../lib/sealed-origin.ts";
 const DRIZZLE_SQLITE = "drizzle-orm/sqlite-core";
 const DRIZZLE_ORM = "drizzle-orm";
 const CHECK_EXPORT = "check";
-const SQL_EXPORT = "sql";
-const RAW_MEMBER = "raw";
 /** Byte intent is NAME-ONLY: a `*_BYTE`/`*_BYTES` constant is the tell. */
 const BYTES_NAME_RE = /BYTES?$/iu;
 /** The quasi immediately BEFORE a hole, when that hole is the cap of a `length(<x>) <=` comparison. The
@@ -93,7 +92,9 @@ function checkSqlTemplate(call: CallExpression): MorphNode | null {
   }
   const name = origin.value.memberPath.at(-1) ?? origin.value.exportedName;
   const matches =
-    carrier.kind === "tagged" ? name === SQL_EXPORT : name === RAW_MEMBER && carrier.member.kind === "resolved" && carrier.member.value.name === RAW_MEMBER;
+    carrier.kind === "tagged"
+      ? name === DRIZZLE_SQL_EXPORT
+      : name === DRIZZLE_SQL_RAW_MEMBER && carrier.member.kind === "resolved" && carrier.member.value.name === DRIZZLE_SQL_RAW_MEMBER;
   return matches ? carrier.template : null;
 }
 
@@ -169,11 +170,11 @@ interface FixtureOptions {
 function schemaFixture(options: FixtureOptions): string {
   const builder = options.builder ?? "text";
   const checkBinding = options.checkBinding ?? CHECK_EXPORT;
-  const sqlBinding = options.sqlBinding ?? SQL_EXPORT;
+  const sqlBinding = options.sqlBinding ?? DRIZZLE_SQL_EXPORT;
   const checkImport = checkBinding === CHECK_EXPORT ? CHECK_EXPORT : `${CHECK_EXPORT} as ${checkBinding}`;
-  const sqlImport = sqlBinding === SQL_EXPORT ? SQL_EXPORT : `${SQL_EXPORT} as ${sqlBinding}`;
+  const sqlImport = sqlBinding === DRIZZLE_SQL_EXPORT ? DRIZZLE_SQL_EXPORT : `${DRIZZLE_SQL_EXPORT} as ${sqlBinding}`;
   const body = `${TICK}${sqlText(options.capExpression, options.capHole)}${TICK}`;
-  const expression = options.tagged === true ? `${sqlBinding}${body}` : `${sqlBinding}.${RAW_MEMBER}(${body})`;
+  const expression = options.tagged === true ? `${sqlBinding}${body}` : `${sqlBinding}.${DRIZZLE_SQL_RAW_MEMBER}(${body})`;
   return (
     `import { ${sqlImport} } from "${DRIZZLE_ORM}";\n` +
     `import { ${checkImport}, sqliteTable, ${builder} } from "${DRIZZLE_SQLITE}";\n` +
@@ -343,7 +344,7 @@ export const gate = defineGate({
           `import { sqliteTable, text } from "${DRIZZLE_SQLITE}";\n` +
           BYTE_CONST +
           'export const t = sqliteTable("t", { value: text("value") });\n' +
-          `export const note = check("t_value_check", sql.${RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK}));\n`,
+          `export const note = check("t_value_check", sql.${DRIZZLE_SQL_RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK}));\n`,
       },
       why: "THE MODULE COUNTERFACTUAL, AND IT RESOLVES — a sibling project module exporting its own `check` and `sql`, with the byte-named cap and no cast. Both origins resolve cleanly and both exported-NAME tails are the right ones (`check`, `raw`); only `originModuleSpecifier(…) !== moduleSpecifier` rejects them. A LOCAL declaration never resolves to a module member, so the row above cannot reach this comparison (w9 D2, #2046)",
     },
@@ -368,7 +369,7 @@ export const gate = defineGate({
           `import { sql } from "${DRIZZLE_ORM}";\n` +
           `import { sqliteTable, text, unique } from "${DRIZZLE_SQLITE}";\n` +
           BYTE_CONST +
-          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  unique("t_value_check", sql.${RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK})),\n]);\n`,
+          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  unique("t_value_check", sql.${DRIZZLE_SQL_RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK})),\n]);\n`,
       },
       why: "THE EXPORTED-NAME COUNTERFACTUAL — the constraint builder is drizzle's `unique`, not its `check`, carrying the identical byte-named cap. The MODULE origin IS `drizzle-orm/sqlite-core`, so only `path.at(-1) === exportedName` rejects it. A UNIQUE constraint has no length predicate to get wrong; the subject is the CHECK (w9 D2, #2046)",
     },
@@ -379,7 +380,7 @@ export const gate = defineGate({
           `import { sql } from "${DRIZZLE_ORM}";\n` +
           `import { ${CHECK_EXPORT}, sqliteTable, text } from "${DRIZZLE_SQLITE}";\n` +
           BYTE_CONST +
-          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  ${CHECK_EXPORT}("t_value_check", sql.${RAW_MEMBER}(${TICK}json_array_length(value) <= ${BYTE_HOLE}${TICK})),\n]);\n`,
+          `export const t = sqliteTable("t", { value: text("value") }, () => [\n  ${CHECK_EXPORT}("t_value_check", sql.${DRIZZLE_SQL_RAW_MEMBER}(${TICK}json_array_length(value) <= ${BYTE_HOLE}${TICK})),\n]);\n`,
       },
       why: "DECLARED LIMIT, and the receipt for `LENGTH_CAP_TAIL_RE`'s leading character class — `json_array_length()` is a DIFFERENT SQLite function that counts ARRAY ELEMENTS, so its cap has no character-vs-byte gap to cast away. Dropping the `[^A-Za-z0-9_]` class makes the tail regex match the `_length(` suffix and reds this row (w9 :262, #2046)",
     },

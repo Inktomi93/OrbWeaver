@@ -2,6 +2,7 @@
 
 import type { CallExpression, Diagnostic, DiagnosticMessageChain, PropertyAssignment } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { DRIZZLE_INSERT_VERB, DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB, DRIZZLE_VALUES_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import type { SemanticWorkspace } from "../../floor/compiler/ts-workspace.ts";
 import type { CastByDiagnosticOptions, CastIdComparisonsOptions, CastIdLiteralsOptions, CodemodContext, Plan } from "../contract/types.ts";
 import { addNamedImport } from "./imports.ts";
@@ -28,7 +29,7 @@ function insertTargetTable(pa: Node): string | undefined {
     return;
   }
   const method = valuesAccess.getName();
-  if (method !== "values" && method !== "set") {
+  if (method !== DRIZZLE_VALUES_VERB && method !== DRIZZLE_SET_VERB) {
     return;
   }
   const insertCall = valuesAccess.getExpression();
@@ -40,7 +41,7 @@ function insertTargetTable(pa: Node): string | undefined {
     return;
   }
   const verb = insertAccess.getName();
-  if (verb !== "insert" && verb !== "update") {
+  if (verb !== DRIZZLE_INSERT_VERB && verb !== DRIZZLE_UPDATE_VERB) {
     return;
   }
   return insertCall.getArguments()[0]?.getText();

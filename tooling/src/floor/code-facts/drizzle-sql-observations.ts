@@ -1,9 +1,24 @@
 // Executed SQL and authored text observations; containment is judged by the canonical lexical reader.
-import type { Node as MorphNode, SourceFile, TaggedTemplateExpression } from "ts-morph";
+import type { CallExpression, Node as MorphNode, SourceFile, TaggedTemplateExpression } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { ExecutedSqlInsert } from "./drizzle-sql-contract.ts";
+import { DRIZZLE_BATCH_VERB, DRIZZLE_SQL_EXPORT, DRIZZLE_SQL_RAW_MEMBER, DRIZZLE_STATEMENT_EXECUTE_VERBS } from "./drizzle-vocabulary.ts";
 import { resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { rawInsertHeaders } from "./sql-insert-header.ts";
+
+const STATEMENT_EXECUTE_VERBS: ReadonlySet<string> = new Set(DRIZZLE_STATEMENT_EXECUTE_VERBS);
+
+/** An authored `sql` template by its tag spelling. Text observation only; native origin is `runtimeDrizzleOrigin`. */
+export function isAuthoredSqlTemplate(template: TaggedTemplateExpression): boolean {
+  const tag = template.getTag();
+  return Node.isIdentifier(tag) && tag.getText() === DRIZZLE_SQL_EXPORT;
+}
+
+/** An authored `sql.raw(…)` call by its spelling, under the same text-only contract as {@link isAuthoredSqlTemplate}. */
+function isAuthoredSqlRawCall(call: CallExpression): boolean {
+  const member = staticMemberAccess(call.getExpression());
+  return member?.name === DRIZZLE_SQL_RAW_MEMBER && member.receiver.getText() === DRIZZLE_SQL_EXPORT;
+}
 
 /** Resolve a const-bound expression through symbol identity. An unresolved/dynamic value returns no nodes,
  *  which is the honest result for a producer audit: text construction alone is never execution evidence. */
@@ -22,16 +37,11 @@ function resolvedInitializers(node: MorphNode, seen: Set<MorphNode>): readonly M
 /** Static raw SQL constructors reachable from one executed statement expression. */
 function rawSqlNodes(node: MorphNode, seen: Set<MorphNode>): readonly { node: MorphNode; text: string }[] {
   if (Node.isTaggedTemplateExpression(node)) {
-    const tag = node.getTag();
-    return Node.isIdentifier(tag) && tag.getText() === "sql" ? [{ node, text: node.getTemplate().getText() }] : [];
+    return isAuthoredSqlTemplate(node) ? [{ node, text: node.getTemplate().getText() }] : [];
   }
   if (Node.isCallExpression(node)) {
-    const expression = node.getExpression();
     const argument = node.getArguments()[0];
-    return Node.isPropertyAccessExpression(expression) &&
-      expression.getExpression().getText() === "sql" &&
-      expression.getName() === "raw" &&
-      (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))
+    return isAuthoredSqlRawCall(node) && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument))
       ? [{ node, text: argument.getLiteralText() }]
       : [];
   }
@@ -70,9 +80,9 @@ export function readExecutedSqlInserts(call: Node): readonly ExecutedSqlInsert[]
   }
   const method = expression.getName();
   let statements: readonly MorphNode[] = [];
-  if (method === "batch") {
+  if (method === DRIZZLE_BATCH_VERB) {
     statements = batchStatements(argument, new Set<MorphNode>());
-  } else if (method === "run" || method === "execute") {
+  } else if (STATEMENT_EXECUTE_VERBS.has(method)) {
     statements = [argument];
   }
   return statements.flatMap((statement) =>
@@ -84,13 +94,12 @@ export function readExecutedSqlInserts(call: Node): readonly ExecutedSqlInsert[]
 export function rawSqlTextIn(source: SourceFile): readonly string[] {
   const texts: string[] = [];
   for (const tagged of source.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
-    if (Node.isIdentifier(tagged.getTag()) && tagged.getTag().getText() === "sql") {
+    if (isAuthoredSqlTemplate(tagged)) {
       texts.push(tagged.getTemplate().getText());
     }
   }
   for (const call of source.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    const member = staticMemberAccess(call.getExpression());
-    if (member?.name === "raw" && member.receiver.getText() === "sql") {
+    if (isAuthoredSqlRawCall(call)) {
       texts.push(
         call
           .getArguments()

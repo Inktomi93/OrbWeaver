@@ -5,6 +5,7 @@ import { observeCallReturns, readCallBindings, readCallClosure, readCallReturns,
 import { columnReadAt, nativeRowReadServices, readsSelectRowWith, rowModels } from "./drizzle-row.ts";
 import { DrizzleRowOriginRefusal, schemaRowOriginIdentity } from "./drizzle-row-origin.ts";
 import { readDrizzleSelection } from "./drizzle-select.ts";
+import { DRIZZLE_WRITE_ROOT_VERBS } from "./drizzle-vocabulary.ts";
 import { readCalledMember, readDrizzleWriteRoots } from "./drizzle-write-chain.ts";
 import { readDrizzleWriterSource } from "./drizzle-writer-source.ts";
 import type {
@@ -264,7 +265,7 @@ function captureOrdinaryNode(node: MorphNode, state: SourceClosure, query: Schem
     valueDeclaration: (Node.isIdentifier(node) ? lexicalReferenceSymbol(node)?.getValueDeclaration() : node.getSymbol()?.getValueDeclaration()) ?? null,
     rowIdentity: capturedRowIdentity(node),
     writer: readDrizzleWriterSource(node),
-    roots: (["update", "insert"] as const).map((verb) => ({ verb, fact: readDrizzleWriteRoots(node, verb) })),
+    roots: DRIZZLE_WRITE_ROOT_VERBS.map((verb) => ({ verb, fact: readDrizzleWriteRoots(node, verb) })),
   };
 }
 function captureRowQuestions(demand: OrdinaryObservationDemand, state: SourceClosure, query: SchemaQuery | undefined): readonly NativeTypeSelector[] {

@@ -3,13 +3,13 @@
 // `contract/` derives its shapes and never re-spells one `@orb/contracts` or `db` owns.
 import type { Node, SourceFile } from "ts-morph";
 import { Node as N } from "ts-morph";
+import { SQLITE_TABLE } from "../../floor/code-facts/schema-value.ts";
 import { handWrittenShapeDeclarations } from "../../floor/code-facts/shape-declaration.ts";
 
 export const DOMAIN_CONTRACT_RE = /^packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 
 const DB_SCHEMA_DIR = "packages/db/src/schema/";
 const ROW_SUFFIX_RE = /(?<suffix>Row|Insert)$/u;
-const SQLITE_TABLE = "sqliteTable";
 
 export interface ContractShape {
   readonly name: string;

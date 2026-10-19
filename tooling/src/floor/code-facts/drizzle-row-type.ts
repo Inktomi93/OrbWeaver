@@ -4,6 +4,7 @@ import type { SourceFile, Node as TsNode, Type, TypeReferenceNode } from "ts-mor
 import { Node, SyntaxKind } from "ts-morph";
 
 import type { RowOrigin } from "./drizzle-row-contract.ts";
+import { DRIZZLE_SELECT_ROW_MODEL } from "./drizzle-vocabulary.ts";
 
 export function origin(kind: RowOrigin["kind"], sourceType: Type, table?: TsNode, dropsMembers = false): RowOrigin {
   return { sourceType, kind, table, dropsMembers };
@@ -76,7 +77,7 @@ export function typeOrigins(typeNode: TsNode, seen = new Set<TsNode>()): readonl
   if (Node.isTypeQuery(typeNode)) {
     const member = typeNode.getExprName();
     return [
-      Node.isQualifiedName(member) && member.getRight().getText() === "$inferSelect"
+      Node.isQualifiedName(member) && member.getRight().getText() === DRIZZLE_SELECT_ROW_MODEL
         ? origin("schema", typeNode.getType(), member.getLeft())
         : origin("plain", typeNode.getType()),
     ];

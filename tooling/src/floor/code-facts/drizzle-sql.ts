@@ -27,6 +27,7 @@ import { readNativeColumnFragments, readSelectedSqlSource, readSqlSelectionCallb
 import { CONTAINED_OPERATORS, sqlBindingStable, sqlSelectionCallbackUsesStable } from "./drizzle-sql-stability.ts";
 import { readStatementOf } from "./drizzle-statement.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_SELECT_VERBS, DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
 import type { CallReturnObservations, CallReturnProgram, ModuleMemberOrigin, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
@@ -83,7 +84,7 @@ export function sqlTemplateText(template: TaggedTemplateExpression): string {
 }
 
 function templateFragments(node: TaggedTemplateExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
-  if (drizzleExportOf(node.getTag()) !== "sql" || !runtimeDrizzleOrigin(node.getTag())) {
+  if (drizzleExportOf(node.getTag()) !== DRIZZLE_SQL_EXPORT || !runtimeDrizzleOrigin(node.getTag())) {
     return;
   }
   const template = node.getTemplate();
@@ -199,11 +200,11 @@ function authoredCallFragments(
 
 function wrappedSelectFragments(call: import("ts-morph").CallExpression, context: SqlReadContext, active: ReadonlySet<object>): readonly string[] | undefined {
   const member = staticMemberAccess(call.getExpression());
-  if (member === undefined || !["as", "getSQL"].includes(member.name) || !runtimeDrizzleOrigin(call.getExpression())) {
+  if (member === undefined || ![DRIZZLE_ALIAS_VERB, "getSQL"].includes(member.name) || !runtimeDrizzleOrigin(call.getExpression())) {
     return;
   }
   let sources: readonly ReturnedValueSource[] | undefined;
-  if (member.name === "as") {
+  if (member.name === DRIZZLE_ALIAS_VERB) {
     sources = readSelectedSqlSource(call, context);
   } else {
     const receivers = readSqlValueSources(member.receiver, context);
@@ -412,7 +413,7 @@ function selectionCallContained(
   sources: ReadonlySet<object>,
 ): boolean {
   const member = staticMemberAccess(call.getExpression());
-  if (member?.name === "select" || member?.name === "selectDistinct") {
+  if (DRIZZLE_SELECT_VERBS.some((verb) => verb === member?.name)) {
     return true;
   }
   const first = call.getArguments()[0];

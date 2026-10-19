@@ -42,6 +42,7 @@
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { DRIZZLE_INSERT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
@@ -51,7 +52,6 @@ import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.t
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 const OWNER_COL = "ownerId";
-const INSERT_VERB = "insert";
 /** The config properties that can CONSTRAIN which row the DO UPDATE arm touches: the conflict `target` (the
  *  unique index whose collision fires it), the `targetWhere` (a partial-index predicate) and the `setWhere`
  *  (the DO UPDATE's own WHERE — a non-matching row is skipped, not overwritten). `set` is deliberately NOT
@@ -116,7 +116,7 @@ function upsertCandidateOf(node: Node): UpsertCandidate | undefined {
     return;
   }
   const callee = node.getExpression();
-  return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === INSERT_VERB ? { node } : undefined;
+  return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === DRIZZLE_INSERT_VERB ? { node } : undefined;
 }
 
 /** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires the qualified

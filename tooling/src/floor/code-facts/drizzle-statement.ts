@@ -12,6 +12,14 @@ import { runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
 import { sqlValue } from "./drizzle-sql-origin.ts";
 import { nativeQueryThenable, sqlCarrierUseStable, sqlSelectionCallbackUsesStable } from "./drizzle-sql-stability.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import {
+  DRIZZLE_ALIAS_VERB,
+  DRIZZLE_DYNAMIC_VERB,
+  DRIZZLE_EXECUTE_VERBS,
+  DRIZZLE_INNER_JOIN_VERB,
+  DRIZZLE_SQL_EXPORT,
+  DRIZZLE_WHERE_VERB,
+} from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { enclosingFn } from "./function-context.ts";
 import { inspectReferenceWrites, resolveStableExpression } from "./reference-fact.ts";
@@ -20,10 +28,7 @@ import type { CallReturnObservations, CallReturnProgram, ReferenceFact, Unresolv
 import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
 import { referencesOf } from "./value-carrier.ts";
 
-const WHERE_VERB = "where";
-const INNER_JOIN_VERB = "innerJoin";
-const DYNAMIC_VERB = "$dynamic";
-const SEALED_VERBS: ReadonlySet<string> = new Set(["all", "get", "run", "execute"]);
+const SEALED_VERBS: ReadonlySet<string> = new Set(DRIZZLE_EXECUTE_VERBS);
 
 /** The outermost node of a read's own builder chain, and the calls applied along the way. */
 export function readFollowingBuilderChain(start: Node): DrizzleBuilderChain {
@@ -86,14 +91,14 @@ function nativeSqlCarrier(value: Node): boolean {
   const parent = value.getParent();
   if (N.isTemplateSpan(parent) && parent.getExpression() === value) {
     const template = parent.getParent().getParent();
-    return N.isTaggedTemplateExpression(template) && drizzleExportOf(template.getTag()) === "sql" && runtimeDrizzleOrigin(template.getTag());
+    return N.isTaggedTemplateExpression(template) && drizzleExportOf(template.getTag()) === DRIZZLE_SQL_EXPORT && runtimeDrizzleOrigin(template.getTag());
   }
   if (!(N.isCallExpression(parent) && parent.getArguments().includes(value) && runtimeDrizzleOrigin(parent.getExpression()))) {
     return false;
   }
   return (
     ["exists", "notExists", "inArray", "notInArray"].some((name) => callsDrizzleOperator(parent, name)) ||
-    staticMemberAccess(parent.getExpression())?.name === "as"
+    staticMemberAccess(parent.getExpression())?.name === DRIZZLE_ALIAS_VERB
   );
 }
 
@@ -254,8 +259,8 @@ function statementCalls(anchor: Node, before: BuilderFilterState, traversal: Sta
   const chain = readFollowingBuilderChain(anchor);
   const applied = [...priorCalls(anchor), ...(N.isCallExpression(anchor) ? [anchor] : []), ...chain.calls];
   const state = {
-    filtered: before.filtered || applied.some((call) => staticMemberAccess(call.getExpression())?.name === WHERE_VERB),
-    dynamic: before.dynamic || applied.some((call) => staticMemberAccess(call.getExpression())?.name === DYNAMIC_VERB),
+    filtered: before.filtered || applied.some((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_WHERE_VERB),
+    dynamic: before.dynamic || applied.some((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_DYNAMIC_VERB),
     origin: before.origin ?? nativeStatementOrigin(anchor),
   };
   const transition = builderTransition(chain.calls, state, traversal.observations);
@@ -314,7 +319,7 @@ export function readStatementOf(anchor: Node, observations?: CallReturnObservati
       const argument = staticMemberAccess(call.getExpression())?.name === verb ? call.getArguments()[position] : undefined;
       return argument === undefined ? [] : [argument];
     });
-  return { wheres: argumentsOf(WHERE_VERB, 0), innerOns: argumentsOf(INNER_JOIN_VERB, 1), escapes: after.escapes, refusals: after.refusals };
+  return { wheres: argumentsOf(DRIZZLE_WHERE_VERB, 0), innerOns: argumentsOf(DRIZZLE_INNER_JOIN_VERB, 1), escapes: after.escapes, refusals: after.refusals };
 }
 
 function predicateWrapper(parent: Node, value: Node): boolean {
@@ -338,8 +343,8 @@ function predicateCallUse(
   }
   const member = readCalledMember(parent);
   return member.kind === "resolved" &&
-    ((member.value.name === WHERE_VERB && parent.getArguments()[0] === value) ||
-      (member.value.name === INNER_JOIN_VERB && parent.getArguments()[1] === value)) &&
+    ((member.value.name === DRIZZLE_WHERE_VERB && parent.getArguments()[0] === value) ||
+      (member.value.name === DRIZZLE_INNER_JOIN_VERB && parent.getArguments()[1] === value)) &&
     member.value.declarations.length > 0 &&
     declaredInDrizzle(member.value.declarations)
     ? { kind: "resolved", value: [parent], trace: { declarations: [], origin: value } }

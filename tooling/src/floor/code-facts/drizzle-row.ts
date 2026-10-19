@@ -4,6 +4,7 @@ import { Node as N, SyntaxKind } from "ts-morph";
 import { readCallTarget } from "./call-returns.ts";
 import type { ColumnRead, RowModels, RowReadServices } from "./drizzle-row-contract.ts";
 import { ROW_PROJECTIONS } from "./drizzle-row-type.ts";
+import { DRIZZLE_INSERT_ROW_MODEL, DRIZZLE_SELECT_ROW_MODEL } from "./drizzle-vocabulary.ts";
 import { readStaticString, resolveLexicalValueDeclaration } from "./reference-fact.ts";
 import { literalString as readStringValue } from "./reference-fact-static.ts";
 import type { SchemaModel, SchemaQuery } from "./schema-model-contract.ts";
@@ -17,8 +18,8 @@ export function rowModels(model: SchemaModel): RowModels {
   const columns = new Set<unknown>(model.tables.flatMap((table) => table.columns.map((column) => column.declaration.compilerNode)));
   for (const { declaration } of model.tables) {
     const tableType = declaration.getType();
-    const selected = tableType.getProperty("$inferSelect")?.getTypeAtLocation(declaration);
-    const inserted = tableType.getProperty("$inferInsert")?.getTypeAtLocation(declaration);
+    const selected = tableType.getProperty(DRIZZLE_SELECT_ROW_MODEL)?.getTypeAtLocation(declaration);
+    const inserted = tableType.getProperty(DRIZZLE_INSERT_ROW_MODEL)?.getTypeAtLocation(declaration);
     if (selected !== undefined) {
       select.add(selected.compilerType);
     }

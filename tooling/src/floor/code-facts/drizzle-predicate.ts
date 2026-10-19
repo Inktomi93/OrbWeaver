@@ -10,6 +10,7 @@ import type { SqlReadContext } from "./drizzle-sql-contract.ts";
 import { driverParameter } from "./drizzle-sql-origin.ts";
 import { sqlBindingStable } from "./drizzle-sql-stability.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { enclosingFn } from "./function-context.ts";
 import { resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
@@ -279,7 +280,7 @@ function readPredicate(node: Node, context: SqlReadContext, active: ReadonlySet<
   if (Node.isBinaryExpression(value) && [SyntaxKind.QuestionQuestionToken, SyntaxKind.BarBarToken].includes(value.getOperatorToken().getKind())) {
     return collection("choice", value, [readPredicate(value.getLeft(), context, next), readPredicate(value.getRight(), context, next)]);
   }
-  if (Node.isTaggedTemplateExpression(value) && drizzleExportOf(value.getTag()) === "sql") {
+  if (Node.isTaggedTemplateExpression(value) && drizzleExportOf(value.getTag()) === DRIZZLE_SQL_EXPORT) {
     return opaque(value, context);
   }
   if (Node.isCallExpression(value)) {

@@ -33,8 +33,8 @@ import { resolveStableExpression } from "./reference-fact.ts";
 import type { UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import type { SchemaObjectEntry } from "./schema-object-contract.ts";
+import { SQLITE_TABLE } from "./schema-value.ts";
 
-const SQLITE_TABLE = "sqliteTable";
 const SQLITE_CORE_MODULE = "drizzle-orm/sqlite-core";
 /** `t.chatId` / `table.ownerId` → `chatId` / `ownerId`; a non-column argument keeps its own text. */
 const RECEIVER_PREFIX_RE = /^[A-Za-z_$][\w$]*\./u;

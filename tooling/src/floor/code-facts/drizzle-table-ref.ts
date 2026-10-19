@@ -5,6 +5,7 @@
 // Anything else is an honest `unresolved`.
 import type { CallExpression, Identifier, Node as MorphNode, Type, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_CTE_VERB, DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 
@@ -24,9 +25,6 @@ export type DrizzleTableRef =
 
 const DRIZZLE_SPECIFIER = "drizzle-orm";
 const ALIAS_EXPORTS: ReadonlySet<string> = new Set(["alias", "aliasedTable"]);
-const SUBQUERY_VERB = "as";
-const SQL_TAG = "sql";
-const CTE_VERB = "$with";
 const TABLE_META = "_";
 const TABLE_BRAND = "brand";
 const TABLE_BRAND_VALUE = "Table";
@@ -121,10 +119,10 @@ function callRefs(call: CallExpression, isTable: IsTable, active: ReadonlySet<ob
   if (exported !== undefined && ALIAS_EXPORTS.has(exported)) {
     return first === undefined ? [unresolved(call)] : walk(first, isTable, active);
   }
-  if (Node.isPropertyAccessExpression(callee) && callee.getName() === SUBQUERY_VERB) {
+  if (Node.isPropertyAccessExpression(callee) && callee.getName() === DRIZZLE_ALIAS_VERB) {
     const receiver = unwrapTarget(callee.getExpression());
     const cteHead = Node.isCallExpression(receiver) ? unwrapTarget(receiver.getExpression()) : undefined;
-    const isCte = Node.isPropertyAccessExpression(cteHead) && cteHead.getName() === CTE_VERB;
+    const isCte = Node.isPropertyAccessExpression(cteHead) && cteHead.getName() === DRIZZLE_CTE_VERB;
     const select = isCte ? first : receiver;
     return select === undefined ? [unresolved(call)] : [{ kind: "subquery", select }];
   }
@@ -220,7 +218,7 @@ function bindingRefs(name: Identifier, isTable: IsTable, active: ReadonlySet<obj
 
 /** A drizzle `sql` template used as a row source, or undefined for any other node. */
 function rawSqlRef(value: MorphNode): DrizzleTableRef | undefined {
-  if (!(Node.isTaggedTemplateExpression(value) && drizzleExportOf(unwrapTarget(value.getTag())) === SQL_TAG)) {
+  if (!(Node.isTaggedTemplateExpression(value) && drizzleExportOf(unwrapTarget(value.getTag())) === DRIZZLE_SQL_EXPORT)) {
     return;
   }
   const template = value.getTemplate();
