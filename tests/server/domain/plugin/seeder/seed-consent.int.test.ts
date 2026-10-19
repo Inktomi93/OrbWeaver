@@ -9,6 +9,7 @@ import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from 
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { requireShowcaseBundle } from "@orb/testkit/node/showcase-bundle.ts";
 import { eq, sql } from "drizzle-orm";
 import { vi } from "vitest";
 
@@ -19,6 +20,7 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
   db,
   services,
 }) => {
+  await requireShowcaseBundle(SLUG);
   const user = await seedUser(db);
   const actor = await principal(harness, user.id);
   const source = { missing: true };
@@ -54,6 +56,7 @@ test("a missing real showcase bundle remains retryable, then lands owned, disabl
 });
 
 test("real showcase deletion survives a cold seed, while another account receives its own copy and provenance", async ({ harness, db, services }) => {
+  await requireShowcaseBundle(SLUG);
   const first = await seedUser(db);
   const second = await seedUser(db);
   const actor = await principal(harness, first.id);
@@ -96,10 +99,7 @@ test("a failed real distributed install never latches; retry stays recipient-sco
 }) => {
   const publisher = await seedUser(db, { role: "admin" });
   const admin = await principal(harness, publisher.id);
-  const bundle = await packShowcaseBundle(SLUG);
-  if (bundle === null) {
-    throw new Error("the real showcase package did not produce its bundle");
-  }
+  const bundle = await requireShowcaseBundle(SLUG);
   await services.plugin.installForAllUsers({ caller: admin, bundle });
   const recipient = await seedUser(db);
   const actor = await principal(harness, recipient.id);

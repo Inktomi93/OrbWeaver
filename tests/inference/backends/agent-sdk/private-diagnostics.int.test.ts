@@ -8,6 +8,13 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult } from "@orb/testkit/node/sdk-process.ts";
 import { SDK_PRIVATE_DIAGNOSTIC_SINKS, SDK_SCRIPT_IDENTITY_TYPE, sdkPrivateDiagnosticResultSchema } from "@orb/testkit/node/sdk-process.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
+import { vi } from "vitest";
+
+// Every case is its own native SDK parent process, which cold-loads the inference graph before it asserts anything; that process is the subject,
+// so it cannot be shared between cases. Measured 4.3-10.2 s per case on a loaded 24-core box.
+const NATIVE_PARENT_TEST_BASE_MS = 30_000;
+vi.setConfig({ testTimeout: budget(NATIVE_PARENT_TEST_BASE_MS) });
 
 const TOKEN = 'private-sdk-"<opaque>\\credential-material';
 const JSON_TOKEN = JSON.stringify(TOKEN).slice(1, -1);

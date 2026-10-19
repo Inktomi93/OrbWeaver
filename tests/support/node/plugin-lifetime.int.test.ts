@@ -4,14 +4,19 @@ import { access } from "node:fs/promises";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { vi } from "vitest";
 
 const SOURCE = "const h = orb.host(1); h.log.info(JSON.stringify({ at: h.clock.nowEpochMs(), random: h.random.next(), id: h.ids.mint() }));";
 const CHILD_TIMEOUT_MS = 30_000;
+// A fresh server process and two harnesses with real guest workers cannot fit the 5 s default: measured 9.5 s and 5.5 s on a loaded 24-core box.
+// The first outlives its child timer so a hang reports the child transcript, not a bare timeout.
+const STANDALONE_CHILD_TEST_BASE_MS = CHILD_TIMEOUT_MS + 10_000;
+const TWO_ROOT_TEST_BASE_MS = 20_000;
 
-test("standalone native teardown joins a resident guest after the last outer listener closes", async () => {
+test("standalone native teardown joins a resident guest after the last outer listener closes", { timeout: budget(STANDALONE_CHILD_TEST_BASE_MS) }, async () => {
   const result = await spawnNicedTranscript(
     process.execPath,
     [
@@ -67,7 +72,9 @@ test("the real snippet gates ownership before a refused raw spawn and releases a
   expect(execute).toHaveBeenCalledTimes(2);
 });
 
-test("identical-ID roots own independent real watchdogs and guest entropy; closing one joins its child without stopping the other", async () => {
+test("identical-ID roots own independent real watchdogs and guest entropy; closing one joins its child without stopping the other", {
+  timeout: budget(TWO_ROOT_TEST_BASE_MS),
+}, async () => {
   const execute = vi.fn(spawn);
   await using first = await createServerHarness({ pluginSpawn: execute });
   await using second = await createServerHarness({ pluginSpawn: execute });
