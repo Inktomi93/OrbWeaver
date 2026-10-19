@@ -1,5 +1,5 @@
-// Launching a room from Home, Characters and the temp-chat tile, on the committed corpus and the real router.
-import { chatWithActionName } from "@orb/client/lib";
+// Home on the committed corpus: the first-run gate stays shut, and rooms launch from Characters and the temp-chat tile.
+import { chatWithActionName, testId } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Page, Response } from "@playwright/test";
@@ -47,6 +47,21 @@ async function openHome(page: Page): Promise<void> {
 
 test.describe("committed corpus room launches", () => {
   test.skip(SELECTED_CORPUS_FIXTURE === undefined, "Requires the committed corpus");
+
+  test("a user who owns a persona never sees the first-run gate", { tag: "@smoke" }, async ({ page, baseURL, isMobile }) => {
+    const host = ownerActor(baseURL ?? "");
+    const seeds = (await host.trpc.settings.getUserSettings.query()).config.seeds;
+    const current = (await host.trpc.persona.list.query()).find((persona) => persona.id === seeds.currentPersonaId);
+    if (current === undefined) {
+      throw new Error("Corpus owner has no current persona");
+    }
+    await openHome(page);
+    await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
+    // The gate renders only once persona.list and the settings seeds settle; the desktop rail-foot name resolves from
+    // those same reads, so it is the barrier that makes the absence below mean something. A phone has only the You tab.
+    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: `Playing as ${current.name}` })).toBeVisible();
+    await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
+  });
 
   test("the chats section's own no-selection state offers one new-chat door and no composer", { tag: "@smoke" }, async ({ page, isMobile }) => {
     // A phone opens Chats on its list screen; the content pane that carries this state is not a screen there.
