@@ -79,9 +79,9 @@ async function importEntity(
       break;
     }
     const path = `${entity.dir}${staged.filename}`;
-    // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded as an
-    // `ok: false` outcome (with message) pushed into `outcomes`, the function's own return value; one bad
-    // file never aborts the batch. Ends if `outcomes` stops being read by the caller.
+    // @orb-waive caught-failure-ownership(err): the catch pushes an `ok: false` outcome with the message onto
+    // `outcomes`, which `importEntity` returns; `tally` counts it as `failed` in the `BundleImportReport`.
+    // Ends if `outcomes` stops being returned or `tally` stops counting it.
     try {
       const bytes = await staged.read();
       outcomes.push(fileOutcome(entity, path, await entity.importFile(ownerId, { filename: staged.filename, bytes })));

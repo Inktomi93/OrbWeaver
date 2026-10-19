@@ -438,9 +438,9 @@ async function collectGroupChats(args: {
     const fileName = `${leaf}.jsonl`;
     const filePath = fs.join(dir, fileName);
     let bytes: Uint8Array;
-    // @orb-waive caught-failure-ownership(error): `rethrowInfraFailure` escalates real infra
-    // faults; a missing/unreadable leaf is recorded on `missingChatLeaves` (the function header: "a claimed
-    // leaf with no readable/parseable file is recorded on the group, never silent"), never dropped.
+    // @orb-waive caught-failure-ownership(error): the catch pushes the leaf onto `missingChatLeaves`, which
+    // `collectGroupChats` returns and `mergeRecords` copies to the report's `missingGroupChats`. Infra faults
+    // rethrow first. Ends if `missingChatLeaves` stops being returned.
     try {
       const sz = await statStagedFile(fs, filePath);
       if (sz.size > MAX_JSONL_BYTES) {

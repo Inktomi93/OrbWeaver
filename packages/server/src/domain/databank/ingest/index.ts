@@ -191,7 +191,7 @@ export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): D
     }
     acc.addDocument();
     touchedOwners.add(doc.ownerId);
-    // @orb-waive caught-failure-ownership(error): bookkeeping — the accumulator records this document's failure (`acc.addFailure`), surfaced to the caller via `acc.result()`; the pass continues so one bad document never aborts the batch. Ends if `addFailure` stops being read by the returned result.
+    // @orb-waive caught-failure-ownership(error): the failure is stored by `acc.addFailure(documentId, error)` in the catch below, which pushes onto `failed[]`; `acc.result()` returns that list as `IngestRunResult.failed` to the ingest/reindex caller. A cancelled pass drops it on purpose (the rerun resumes the document). Ends if `result()` stops returning `failed`.
     try {
       const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc, signal) : doc;
       if (!isAborted(signal)) {
