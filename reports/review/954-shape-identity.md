@@ -43,7 +43,7 @@ The assignability primitive is unchanged: `fieldTypesAgree` and `declarationType
 
 The verifier refuted the first commit on one P2. `typeQueryDerivationKeys` keyed a `typeof` operand on its resolved symbol. For `typeof aRoute.body` and `typeof bRoute.body`, both resolve to the one `body` declaration of `Route<B>`, so two different types shared one key. The exact tier already exempted such pairs wrongly. The shared `shapeDerivesFrom` spread the mistake to the near tier and to component lower data.
 
-The key now names the root value's declaration plus the member path. An instantiation-expression operand (`typeof f<A>`) produces no key. The stored native catalog reads the same function, so `INVENTORY_FORMAT` moves from 23 to 24. The database selects generations by format, so stored catalogs with the old keys are rebuilt rather than read.
+The key now names the root value's declaration plus the member path. An instantiation-expression operand (`typeof f<A>`) produces no key. The stored native catalog reads the same function, so `INVENTORY_FORMAT` moves to 25. Main had already taken 24 for another catalog change, so this change needs its own number. The database selects generations by format, so stored catalogs with the old keys are rebuilt rather than read.
 
 Changed findings from the fix:
 

@@ -45,7 +45,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 24;
+export const INVENTORY_FORMAT = 25;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
