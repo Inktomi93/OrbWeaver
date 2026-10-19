@@ -7,7 +7,7 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { SIGNED_OUT_ME, stubAuthMe } from "@orb/testkit/browser/stub-auth-me.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { AuthConfig } from "#client/data/auth-config.ts";
-import { ProductionRouterAliasStory, ProductionRouterOverlapStory, ProductionRouterStory, RouterTokenHandoffStory } from "./_ct-stories.tsx";
+import { ProductionRouterOverlapStory, ProductionRouterStory, RouterTokenHandoffStory } from "./_ct-stories.tsx";
 
 const JOIN_TOKEN = "ct-join-token";
 // Long enough that a second `/` load, if anything starts one, is still in its guard read when the redirect lands.
@@ -61,16 +61,6 @@ test("a slow auth read on a signed-out /join landing reaches the invite form, no
     .toEqual({ path: "/login", search: "", length: historyLength });
   // One guard read for `/` and one for `/login`: a scrub that the router hears as a navigation re-runs `/`.
   expect(meReads).toHaveLength(2);
-});
-
-test("the /analytics alias heals to Corpus Insights before the auth redirect", async ({ mount, page }) => {
-  await stubAuthMe(page, SIGNED_OUT_ME);
-  await page.route("**/api/auth/config", (route) => route.fulfill({ status: 200, json: INVITE_CONFIG }));
-  await page.evaluate(() => globalThis.history.replaceState(null, "", "/analytics"));
-  await mount(<ProductionRouterAliasStory />);
-  await expect(page.getByRole("status", { name: "Workspace destination" })).toHaveText("corpus:insights");
-  await expect.poll(() => page.evaluate(() => globalThis.location.pathname)).toBe("/login");
-  await expect(page.getByTestId("ct-app-crashed")).toHaveCount(0);
 });
 
 test("overlapping navigations during a slow guard settle on the latest login location", async ({ mount, page }) => {

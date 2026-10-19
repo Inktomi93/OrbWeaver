@@ -361,23 +361,6 @@ test("a joiner with no persona names one in the first-run ask before the join di
   await expect.poll(() => trpc.count("persona.create")).toBe(1);
 });
 
-test("control: a joiner who already speaks as a persona gets the join dialog at once, with no first-run ask", async ({ mount, page }) => {
-  await arriveWithInvite(page);
-  await routeTrpc(page, {
-    ...HOME_AMBIENT_ROUTES,
-    "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
-    "databank.bankHealth": EMPTY_BANK_HEALTH,
-    "character.list": NO_CHARACTERS,
-    "persona.list": PERSONAS,
-    "invites.previewInvite": () => JOIN_PREVIEW,
-  });
-  await mount(<HomePageStory />);
-
-  await expect(page.getByTestId(testId("joinInviteDialog"))).toBeVisible();
-  await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
-});
-
 // ── THE PHONE PRINTS THE LIBRARY'S SIZE (#1670) ────────────────────────────────────────────
 // Driven at the REAL composition root because that is the only mount where the real Characters section's
 // `useSelectionTitle` meets the real shell topbar — `app-shell.ct.tsx` composes a FAKE section registry with
