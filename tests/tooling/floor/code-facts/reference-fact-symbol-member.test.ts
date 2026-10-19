@@ -1,9 +1,25 @@
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
+import {
+  beginReferencePass,
+  endReferencePass,
+  inspectReferenceWrites,
+  readStaticString,
+  resolveGlobalMemberOrigin,
+  resolveStableExpression,
+} from "@orb/tooling/floor/code-facts/reference-fact";
 import { Project, SyntaxKind } from "ts-morph";
+import type { SymbolMemberValueServices } from "../../../../tooling/src/floor/code-facts/reference-fact-contract.ts";
 import { readSymbolMemberValue } from "../../../../tooling/src/floor/code-facts/reference-fact-symbol-member.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+// The floor's own resolvers answer in this server-world Project; the compose gate supplies native ones.
+const SERVER_WORLD: SymbolMemberValueServices = {
+  globalOrigin: resolveGlobalMemberOrigin,
+  stable: resolveStableExpression,
+  writes: inspectReferenceWrites,
+  staticString: (node) => readStaticString(node),
+};
 
 test("native symbol members resolve actual arrows/methods through aliases and ignore contextual signatures", { timeout: scaledBudget(30_000) }, ({
   repoRoot,
@@ -18,7 +34,7 @@ test("native symbol members resolve actual arrows/methods through aliases and ig
     }
     beginReferencePass();
     try {
-      return readSymbolMemberValue(member);
+      return readSymbolMemberValue(member, SERVER_WORLD);
     } finally {
       endReferencePass();
     }

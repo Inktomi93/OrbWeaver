@@ -1,26 +1,45 @@
 import { join } from "node:path";
-import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/compose-wiring-only.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
-import { ALL_ARMS } from "./_liveness/runner.ts";
 
 const ROOT = "/compose-wiring-only";
 const SUBJECT = "packages/server/src/entry/compose/x.ts";
 const OP = 'export function build(load: (id: string) => string) {\n  MARKER\n  return { read: (id: string) => (id.length > 0 ? load(id) : "") };\n}\n';
 
-function drive(source: string): ReturnType<typeof runPolicyPass> {
-  const project = new Project({ useInMemoryFileSystem: true });
-  project.createSourceFile(`${ROOT}/${SUBJECT}`, source);
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], project, root: ROOT, reviewedGrants: [], failOnWarnings: false });
+/** One pass over `project` with the isolated proof adapter standing in for the importing native world. */
+function judge(project: Project, root: string): ReturnType<typeof runPolicyPass> {
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    project,
+    root,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   expect(result.factErrors).toEqual([]);
   return result;
 }
+
+function drive(source: string): ReturnType<typeof runPolicyPass> {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/${SUBJECT}`, source);
+  return judge(project, ROOT);
+}
+
+test("an absent native world refuses instead of reading the syntax carrier", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  project.createSourceFile(`${ROOT}/${SUBJECT}`, OP.replace("MARKER", ""));
+  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], project, root: ROOT, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors.map(({ policyId }) => policyId)).toEqual([gate.id]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
+});
 
 test("every declared row holds through production conformance", { timeout: scaledBudget(30_000) }, () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
@@ -50,12 +69,7 @@ test("the actual native transport-policy owner is separate from compose-supplied
     'import { createRateLimitGate as createGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createGate>[0]) { return createGate(deps); }',
   );
   project.resolveSourceFileDependencies();
-  const run = (): ReturnType<typeof runPolicyPass> => {
-    const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], project, root: repoRoot, reviewedGrants: [], failOnWarnings: false });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.factErrors).toEqual([]);
-    return result;
-  };
+  const run = (): ReturnType<typeof runPolicyPass> => judge(project, repoRoot);
   expect(run().authority.effectiveFindings).toEqual([]);
   carrier.replaceWithText(
     'import { createRateLimitGate as createGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createGate>[0]) { return createGate({ ...deps, resolveRateLimits: () => deps.now() > 1 ? deps.resolveRateLimits() : deps.resolveRateLimits() }); }',
@@ -95,22 +109,18 @@ test("the real canonical mint is admitted while a reached admission helper besid
   repoRoot,
 }) => {
   const bridge = "return async (userId: UserId): Promise<Principal> => principalFromRow(userId, await sessions.loadUserById(userId));";
-  const arm: RealCorpusLivenessArm = {
-    policy: gate,
-    reportsAt: ["packages/server/src/entry/auth/seam.ts"],
-    overlays: [
-      {
-        kind: "edit",
-        path: "packages/server/src/entry/auth/seam.ts",
-        replace: [
-          bridge,
-          "function composeAdmission(fields: UserPrincipalFields | null): boolean { return fields?.enabled === true; }\n  return async (userId: UserId): Promise<Principal> => { const fields = await sessions.loadUserById(userId); composeAdmission(fields); return principalFromRow(userId, fields); };",
-        ],
-      },
-    ],
-    messageIncludes: "=== true",
-  };
-  const runner = openRealCorpusLiveness(repoRoot, [arm], [...ALL_ARMS.filter((known) => known.policy.id !== gate.id), arm]);
-  expect(runner.assertBaseline()).toEqual([gate.id]);
-  expect(assertArmVerdict(arm, runner.verdict(arm))).toHaveLength(1);
+  const admission =
+    "function composeAdmission(fields: UserPrincipalFields | null): boolean { return fields?.enabled === true; }\n  return async (userId: UserId): Promise<Principal> => { const fields = await sessions.loadUserById(userId); composeAdmission(fields); return principalFromRow(userId, fields); };";
+  // The real entry population under the server world's own options, judged in its importing world.
+  const project = new Project({ tsConfigFilePath: join(repoRoot, "packages/server/tsconfig.json"), skipAddingFilesFromTsConfig: true });
+  project.addSourceFilesAtPaths(join(repoRoot, "packages/server/src/entry/**/*.ts"));
+  project.resolveSourceFileDependencies();
+  const seam = project.getSourceFileOrThrow(join(repoRoot, "packages/server/src/entry/auth/seam.ts"));
+  const original = seam.getFullText();
+  expect(judge(project, repoRoot).authority.effectiveFindings).toEqual([]);
+  expect(original.split(bridge)).toHaveLength(2);
+  seam.replaceWithText(original.replace(bridge, admission));
+  const findings = judge(project, repoRoot).authority.effectiveFindings;
+  expect(findings.map(({ file, token }) => ({ file, token }))).toEqual([{ file: "packages/server/src/entry/auth/seam.ts", token: "composeAdmission" }]);
+  expect(findings[0]?.message).toContain("=== true");
 });
