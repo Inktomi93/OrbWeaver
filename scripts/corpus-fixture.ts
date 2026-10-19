@@ -15,12 +15,23 @@ import { describeRunMarkerSweep, joinRunMarkerSweep, mintRunMarker, runMarkerEnv
 import { privateCorpusExecutionEnv, privateCorpusExecutionSignal, privateCorpusTranscriptTeardown } from "./corpus-fixture-lifetime.ts";
 
 const CONSUMER_TIMEOUT_MS = 600_000;
+// One corpus e2e cell runs the whole single-user or local suite in one process. CI measured a signed-in cell at about
+// 35 s per test across 35 tests plus a one-minute warm-up, roughly 22 minutes, and a ten-minute budget killed every one of
+// them at the sixteenth test. Thirty minutes keeps about 35% headroom over that; the other consumers keep the base above.
+const E2E_CELL_TIMEOUT_MS = 1_800_000;
 const LOCAL_PASSWORD_BYTES = 32;
 const PRIVATE_OUTPUT_UMASK = 0o077;
 const USAGE =
   "corpus-fixture requires publish <new-directory>, private <snapshot-directory>, e2e|matrix [fixture-directory] [--] [native E2E arguments], or snap [fixture-directory] [--] [native Snap arguments]";
 
 const INTERRUPTED_EXIT = 130;
+
+async function consumerBaseMs(command: string): Promise<number> {
+  if (command === "matrix") {
+    return E2E_CELL_TIMEOUT_MS * (await import("../tests/e2e/support/modes.ts")).CORPUS_PROJECT_CELLS.length;
+  }
+  return command === "e2e" ? E2E_CELL_TIMEOUT_MS : CONSUMER_TIMEOUT_MS;
+}
 
 async function runPrivateCorpus(command: string, directory: string | undefined, args: readonly string[]): Promise<number | undefined> {
   if (directory === undefined || directory === "--" || command === "publish") {
@@ -47,9 +58,7 @@ async function runPrivateCorpus(command: string, directory: string | undefined, 
     assertPrivateCorpusOutput(parent, inherited);
     return;
   }
-  const timeoutMs = budget(
-    command === "matrix" ? CONSUMER_TIMEOUT_MS * (await import("../tests/e2e/support/modes.ts")).CORPUS_PROJECT_CELLS.length : CONSUMER_TIMEOUT_MS,
-  );
+  const timeoutMs = budget(await consumerBaseMs(command));
   const executionEnv = command === "private" ? privateCorpusExecutionEnv(timeoutMs) : inheritedProcessEnv();
   process.umask(PRIVATE_OUTPUT_UMASK);
   const runRoot = await mkdtemp(join(parent, "owner-corpus-run-"));
@@ -118,7 +127,7 @@ async function runCorpusMatrix(directory: string | undefined, args: readonly str
       {
         cwd: process.cwd(),
         env: inheritedProcessEnv({ ...runMarkerEnv(marker), E2E_CORPUS_REPORT_PREFIX: prefix }),
-        timeoutMs: budget(CONSUMER_TIMEOUT_MS),
+        timeoutMs: budget(E2E_CELL_TIMEOUT_MS),
         teardown: runMarkerTranscriptTeardown(marker),
         onChunk: (chunk, stream) => {
           process[stream].write(chunk);
@@ -355,7 +364,7 @@ async function runCorpusFixture(command: string, directory: string | undefined, 
         E2E_ALLOW_DEV_TARGET: "0",
         E2E_LIVE: "0",
       }),
-      timeoutMs: budget(CONSUMER_TIMEOUT_MS),
+      timeoutMs: budget(E2E_CELL_TIMEOUT_MS),
       teardown: {
         ...runMarkerTranscriptTeardown(marker),
         afterTimeoutKill: async (): Promise<string | null> => describeRunMarkerSweep(await joinEscaped()),
