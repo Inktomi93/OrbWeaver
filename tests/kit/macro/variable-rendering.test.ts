@@ -1,5 +1,5 @@
 import { processMacros } from "@orb/kit/macro";
-import { expect, test } from "vitest";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("macro reads preserve native variable coercion across literal, predicate and mutation paths", () => {
   const env = { list: ["a", "b"], object: { value: "data" }, custom: { toString: (): string => "named" } };
