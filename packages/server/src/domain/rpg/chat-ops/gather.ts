@@ -51,9 +51,9 @@ async function buildFoldedTurnSafely(
   baseState: RpgSnapshotState,
   prose: ProseOverrides,
 ): Promise<Awaited<ReturnType<RpgContext["buildFoldedTurn"]>> | null> {
-  // @orb-waive caught-failure-ownership(err): reported via `ctx.onFoldBuildFailed` (loud,
-  // per the function header's R1 doctrine) and returned as the consumed `null` terminal channel the flush's
-  // fallback post-commit round checks. Ends if the fold mount becomes a required precondition.
+  // @orb-waive caught-failure-ownership(err): `ctx.onFoldBuildFailed` is wired to the `logger.warn` at
+  // tools/rounds/observers.ts:44 (event `rpg.extraction.fold_build_failed`, carrying `err`), and the returned `null` is
+  // the terminal channel the flush's fallback post-commit round checks. Ends if that observer stops logging `err`.
   try {
     const reconcile = await isReconcileBeat(ctx.db, game);
     return await ctx.buildFoldedTurn({ chatId: game.chatId, baseState, reconcile, prose });

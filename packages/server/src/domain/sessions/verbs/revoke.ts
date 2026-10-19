@@ -39,7 +39,7 @@ function openIdTokenHint(ctx: SessionsContext, sealed: Sealed | null, sessionId:
   if (sealed === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect (the URL goes out bare, as it did before #141) and never the logout itself. The one reachable cause is a rotated SESSION_SECRET. Ends if the end-session hint becomes required for a correct logout.
+  // @orb-waive caught-failure-ownership(catch): the owner is the `getLog().warn` at revoke.ts:46 inside this catch, which records the failed open with the session id; the reader credits a log only when it carries the caught binding, and this catch is bindingless on purpose so the raw GCM error stays out of the record. Ends if that warn is removed or the end-session hint becomes required for a correct logout.
   try {
     return ctx.openIdToken(sealed, sessionId);
   } catch {

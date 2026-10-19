@@ -72,16 +72,11 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
   };
 
   const updateAppSettings = (params: UpdateAppSettingsParams): Promise<EffectiveAppConfig> => {
-    // @orb-waive caught-failure-ownership(writeChain): propagated — `run` is what this function
-    // RETURNS to the caller, so a failed write reaches the caller unmuted through `run`'s own rejection.
-    // Ends if `run` stops being the returned promise.
-    const run = writeChain.then(
-      () => updateSerialized(params),
-      () => updateSerialized(params),
-    );
-    // @orb-waive caught-failure-ownership(run): scaffolding only — the trailing comment states
-    // the contract: a failed write must not poison the CHAIN's next link. The real outcome the caller sees is
-    // `run`, not `writeChain`. Ends if `writeChain` is read anywhere but the chain-continuation plumbing.
+    // `writeChain` is `Promise.resolve()` or `run.catch(() => undefined)` below, so it never rejects and the write
+    // needs no rejection arm.
+    const run = writeChain.then(() => updateSerialized(params));
+    // @orb-waive caught-failure-ownership(run): a failed write must not poison the chain's next link. The caller owns
+    // the rejection: `return run` below hands it the write's own rejection.
     writeChain = run.catch(() => undefined); // a failed write must not poison the chain
     return run;
   };

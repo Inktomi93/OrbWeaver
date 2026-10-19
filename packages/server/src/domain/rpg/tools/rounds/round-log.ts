@@ -222,9 +222,9 @@ export function roundFailure(err: unknown): string {
 
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 export function safeJson(text: string): unknown {
-  // @orb-waive caught-failure-ownership(catch): client-input — the docstring states the
-  // contract: `null` on non-JSON, and the caller's schema parse then fails → empty delta. Ends if this
-  // stops feeding a schema-validated read.
+  // @orb-waive caught-failure-ownership(catch): `null` reaches the salvage decoders, which report it as a `root` drop, and
+  // each caller logs a non-empty drop with `logger.warn` (`rpg.extraction.unparseable`, rounds/extraction.ts:95; the
+  // other three callers log at their own sites). Ends if a caller stops logging a root drop.
   try {
     return JSON.parse(text);
   } catch {

@@ -80,9 +80,9 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
       signal,
     };
     let calls: readonly RpgToolCall[];
-    // @orb-waive caught-failure-ownership(err): errors-as-data — the structured arm's twin: a
-    // CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed
-    // by failedToolRoundDelta. Ends if its warn log is removed.
+    // @orb-waive caught-failure-ownership(err): `failedToolRoundDelta` (tool-round.ts:20) logs every non-cancel failure with
+    // `logger.warn` at tool-round.ts:29, rethrows a generation-observation failure, and returns the user-visible
+    // `failure` text at tool-round.ts:30. Ends if that warn or the `failure` field is removed.
     try {
       const result = await deps.executor.runChatTurn(toForcedToolRoundRequest(round));
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
