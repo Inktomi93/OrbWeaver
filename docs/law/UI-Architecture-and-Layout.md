@@ -94,7 +94,7 @@ The law that survives any file-level churn:
 - **`react` AND `react-dom` are peers** — Base UI requires the react-dom peer. The client remains the renderer; ui never bundles React.
 - **Variants are tailwind-variants union types** (`VariantProps<typeof xVariants>`; tv `slots` for multi-part primitives) — the ONLY styling-variation path; a bad variant is a `tsc` error. Ad-hoc `className` styling on a primitive is gate-banned. `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib`.
 - **Base-UI-vs-anything stays reversible** — the headless lib is an impl detail *inside* each primitive dir; swapping it is a `@orb/ui`-internal change, app untouched.
-- **tokens/ promotes to `@orb/tokens` only on a 2nd consumer.**
+- **tokens/ becomes a package of its own only on a 2nd consumer.**
 
 #### 2.1 `@orb/client` — the feature-slice tree
 

@@ -9,9 +9,6 @@
 // roster every roster-reading policy in the shared pass sees.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as danglingDocCite } from "../../../../../tooling/src/verify/gates/dangling-doc-cite.ts";
-import { gate as danglingRefCitations } from "../../../../../tooling/src/verify/gates/dangling-ref-citations.ts";
-import { gate as danglingRefs } from "../../../../../tooling/src/verify/gates/dangling-refs.ts";
 import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
@@ -25,30 +22,11 @@ import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verif
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
 import { gate as toolingSlotTemplate } from "../../../../../tooling/src/verify/gates/tooling-slot-template.ts";
 
-const LAW_DOC = "docs/law/Spine-Testing.md";
-
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
 }
 
 export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: danglingDocCite,
-    // TypeScript citers are read from the structure run's own project; a new module's comment cites a doc
-    // that does not exist.
-    overlays: [add("packages/kit/src/liveness-doc-cite.ts", "// See docs/design/liveness-gone-forever.md for the ruling.\nexport const livenessCite = 1;\n")],
-    messageIncludes: "docs/design/liveness-gone-forever.md",
-  },
-  {
-    policy: danglingRefCitations,
-    overlays: [{ kind: "resource", path: LAW_DOC, append: "\nSee `domain/__liveness_ghost__/x.ts` for the shape.\n" }],
-    messageIncludes: "__liveness_ghost__",
-  },
-  {
-    policy: danglingRefs,
-    overlays: [{ kind: "resource", path: LAW_DOC, append: "\nSee [the retired note](./__liveness-gone.md).\n" }],
-    messageIncludes: "__liveness-gone.md",
-  },
   {
     policy: evaluateNoScopeCapture,
     overlays: [

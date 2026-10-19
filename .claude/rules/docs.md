@@ -43,7 +43,7 @@ Supersede with `pnpm doc status superseded <path> --by <path>` and delete with `
 refuses while a link, a path or a `D<n>` citation still names the doc. For a path move, `git mv` the file, rewrite its full-path citers in the same commit with an exact prefix
 replacement, and fix the moved file's own relative links. Search `packages`, `tooling`, `tests`, `scripts`,
 `.claude`, `AGENTS.md`, the root configs and `docs/` with `rg`. Keep section numbers, because code cites
-them. `pnpm check:structure` (`dangling-doc-cite`, `dangling-refs`, `dangling-ref-citations`) proves the
+them. The citation suites in `tests/tooling/doc` prove the
 sweep. Dated records under a history or reviews tree keep the path that was true when they were written.
 
 ## Work items
@@ -62,7 +62,7 @@ overview` is the column view, and `--status` and `--area` narrow it; `pnpm doc d
 
 ## Checks
 
-`pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm check:structure`
+`pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm test:scoped tests/tooling/doc`
 (dangling references and D citations). A floor touching docs runs all three.
 
 ## Editing a formatted doc

@@ -40,7 +40,7 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
    embed runs.
 2. **Two cosine access patterns, two owners — never mixed.** Top-k retrieval = `search` only (the
    `vector_distance_cos` SQL appears solely in `search/persistence/`). All-pairs in-RAM analytics =
-   `discovery` only (`@orb/kit/vector-math.pairwiseCosine`). `memory` holds ZERO cosine of either kind —
+   `discovery` only (`pairwiseCosine` in `@orb/kit/vector-math`). `memory` holds ZERO cosine of either kind —
    it delegates the scan to the injected `searchDigests` op (wired at `entry/compose/chat.ts`). Note:
    discovery does NOT call `search` in the built slice — analytics is not retrieval.
 3. **The `hub_score` seam:** `discovery` computes the values (`verbs/compute-hub-scores.ts`) →

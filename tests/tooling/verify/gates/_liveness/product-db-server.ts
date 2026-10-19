@@ -12,7 +12,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as dCitationIntegrity } from "../../../../../tooling/src/verify/gates/d-citation-integrity.ts";
 import { gate as dbEnumFromTuple } from "../../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
 import { gate as dbStructure } from "../../../../../tooling/src/verify/gates/db-structure.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
@@ -39,8 +38,6 @@ const SCHEMA = "packages/db/src/schema";
 const DOMAIN = "packages/server/src/domain/character";
 const CONTRACTS = "packages/contracts/src";
 const SQLITE = 'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n';
-// Assembled so the dangling decision number never appears whole in this file.
-const DANGLING_DECISION = ["D", "999999"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -51,11 +48,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: assumesSingleReplica,
     overlays: [add(`${DOMAIN}/liveness-replica.ts`, "export const livenessReplica = new Map<string, number>();\n")],
     messageIncludes: "module-scope mutable per-process state",
-  },
-  {
-    policy: dCitationIntegrity,
-    overlays: [add(`${CONTRACTS}/liveness-cite.ts`, `// per ${DANGLING_DECISION}, a dangling citation above the ceiling.\nexport const livenessCite = 1;\n`)],
-    messageIncludes: DANGLING_DECISION,
   },
   {
     policy: dbEnumFromTuple,

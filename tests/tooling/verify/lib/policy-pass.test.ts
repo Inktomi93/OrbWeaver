@@ -367,7 +367,7 @@ test("a hybrid policy consumes one TS identity through both source and resource 
 // path that ANOTHER policy's source population admitted reached this owner's hooks, and its own
 // `ctx.relativePath` refused the file as outside its population. It was a tool error, not a finding. It
 // surfaced when work item 0036 widened the gate corpus to the repo-root files that `no-blanket-suppression`
-// and `dangling-doc-cite` read as tracked-file resources.
+// reads as a tracked-file resource.
 test("a resource-only path another policy walks as source is not dispatched to this owner's source hooks", () => {
   const own = "packages/client/src/a.ts";
   const foreign = "packages/server/src/b.ts";

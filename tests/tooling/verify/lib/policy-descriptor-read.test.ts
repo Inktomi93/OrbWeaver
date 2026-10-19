@@ -202,7 +202,7 @@ test("a marker LINE names a policy; a mention mid-sentence, in a fix or in a reg
   expect(markerFormIdsOf("{/* @orb-waive empty-state-has-action(Empty): reason */}\n")).toEqual(["empty-state-has-action"]);
   // The RESOURCE carriers' openers — the engine's `commentBody` reads a Markdown HTML comment and a SQL
   // line comment, so a resource fixture's marker-form line is spelled with them.
-  expect(markerFormIdsOf("<!-- @orb-waive ledger-symbol-liveness(domain/x.ts): reason -->\n- **D1** — `domain/x.ts`\n")).toEqual(["ledger-symbol-liveness"]);
+  expect(markerFormIdsOf("<!-- @orb-waive markdown-policy(domain/x.ts): reason -->\n- **D1** — `domain/x.ts`\n")).toEqual(["markdown-policy"]);
   expect(markerFormIdsOf("-- @orb-waive sql-policy(forbidden): reason\nSELECT forbidden;\n")).toEqual(["sql-policy"]);
   expect(markerFormIdsOf("waive with `@orb-waive no-inline-types(<name>): <reason>` on the line above")).toEqual([]);
   expect(markerFormIdsOf("// a comment that later says @orb-waive no-inline-types(Foo)")).toEqual([]);

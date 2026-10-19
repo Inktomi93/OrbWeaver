@@ -21,7 +21,6 @@ import { gate as dbStructureProducerHome } from "../../../../../tooling/src/veri
 import { gate as depcruiseGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
 import { gate as featureOwnsDefinition } from "../../../../../tooling/src/verify/gates/feature-owns-definition.ts";
 import { gate as featureStructure } from "../../../../../tooling/src/verify/gates/feature-structure.ts";
-import { gate as ledgerSymbolLiveness } from "../../../../../tooling/src/verify/gates/ledger-symbol-liveness.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
@@ -105,16 +104,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     overlays: [source("packages/server/src/domain/livenessbroken/index.ts", "export const livenessBroken = 1;\n")],
     reportsAt: ["packages/server/src/domain/livenessbroken"],
     messageIncludes: "missing template",
-  },
-  {
-    policy: ledgerSymbolLiveness,
-    overlays: [
-      append(
-        "docs/adr/0001-auth-seam-one-principal-construction-site.md",
-        "\n- **D1** — `domain/chat/verbs/liveness-nonexistent-file.ts` is a liveness probe.\n",
-      ),
-    ],
-    messageIncludes: "domain/chat/verbs/liveness-nonexistent-file.ts",
   },
   {
     policy: noFormStateInUseeffect,

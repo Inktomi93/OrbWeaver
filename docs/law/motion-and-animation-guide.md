@@ -201,7 +201,7 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
   reduced-motion `data-<track>-settle` twin); every distance is composed in `shell.css` from
   the two grid tracks, and the keyframes live there too, so CSS owns even the delta.
   **Prefer this shape whenever the distance is already a CSS value.** Renaming this file
-  requires updating this citation in the same commit — `dangling-doc-cite` has no waiver.
+  requires updating this citation in the same commit — `tests/tooling/doc/comment-doc-citations.suite.repo.int.test.ts` allows no exception.
 - `glideIndicator` in `packages/ui/src/primitives/tabs/tabs.tsx` — the tabs indicator glide
   (§4.2 item 2). The delta is the difference between two runtime boxes, so no CSS value
   expresses it: JS writes the inverse `transform` inline, flushes, and drops it, and the

@@ -5,8 +5,8 @@
 // (tooling/src/verify/gates/GATE-AUTHORING.md §5 literal-shape blindness). This module resolves the shapes it CAN prove and REFUSES
 // LOUDLY on every shape it cannot: `read()` returns resolved values AND an explicit `unresolved` list, and
 // the caller is obliged to turn a non-empty `unresolved` into a finding. Nothing here ever guesses, and an
-// unreadable shape is never silently dropped. The ordered-evaluation approach is `dangling-refs.ts`'s
-// `evalString` precedent, widened to arrays/spreads/identifiers with a cycle fence.
+// unreadable shape is never silently dropped. The ordered-evaluation approach joins `+`-concatenations, templates and
+// identifier aliases in order, widened to arrays/spreads/identifiers with a cycle fence.
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";

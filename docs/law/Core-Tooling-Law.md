@@ -198,7 +198,7 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | `tests/tooling/**` path literals | swept per move — but the `runCli` fixture (§5.1) kills the class going forward: tests name TOOLS, not paths |
 | `tooling/src/verify/lib/selection.ts` | the graph-tree classifier and `depcruisePaths` must both admit `tooling/` |
 | `floor/compiler/ts-workspace.ts` `harnessGlobs` | the shared walk's scope — §3.2 governs any widening |
-| law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the guards. Lanes never edit `.claude/` — flag those for the orchestrator |
+| law-doc + `.claude/` cites | `pnpm check:docs` + the citation suites in `tests/tooling/doc` are the guards. Lanes never edit `.claude/` — flag those for the orchestrator |
 | `tests/**/*.ct.tsx` importers | a moved file with test-side importers may affect compiler programs outside its nearest config; run every native program selected by affected-mode routing through `pnpm typecheck --config <path>` |
 | comment/prose cites of the moved BASENAME | live code + `status: active` docs are updated; dated reviews and `history/` are frozen evidence and are never rewritten |
 | a ZONE-KEYED EXCLUSION | a predicate that excludes a file's former zone (`startsWith("scripts/")`) is a path literal too. After any cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only for old file paths — these fail SILENTLY and in both directions (an exclusion starts reporting the corpus's own documentation, or stops scanning it at all) |

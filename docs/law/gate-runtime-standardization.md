@@ -177,7 +177,7 @@ any other new reading shape reopens the closed vocabulary and must satisfy the f
 an existing evidence contract does not authorize it. A different status, value, or evidence contract is a new kind and
 pays the same full admission cost.
 
-The authored-path absent variant may carry `ignoredBuildOutput: true` for `dangling-ref-citations` only. This exception preserves path statuses and containment. The shared Git predicate requires an ignored first missing segment and a nearest existing ancestor that Git does not ignore. Missing descendants of an existing ignored directory remain invalid citations. This field does not authorize other value-contract extensions or permit liveness policies to treat an absent path as existing.
+The authored-path absent variant may carry `ignoredBuildOutput: true` for `tests/tooling/doc/backticked-citations.suite.repo.int.test.ts` only. This exception preserves path statuses and containment. The shared Git predicate requires an ignored first missing segment and a nearest existing ancestor that Git does not ignore. Missing descendants of an existing ignored directory remain invalid citations. This field does not authorize other value-contract extensions or permit liveness policies to treat an absent path as existing.
 
 The contract distinguishes unpopulated requests (no authored path) from demand requests (subject supplied at the call).
 Consume those named classifications from `contract/resource-declaration.ts`, never silently skip an empty declaration.
