@@ -3,6 +3,7 @@
 // @orb/server/foundation/observability — erased at runtime, and a server-side shape change fails
 // `tsc` here instead of silently desyncing the renderer.
 import process from "node:process";
+import { stripVTControlCharacters } from "node:util";
 import type { RequestTrace, SerializedSpan } from "@orb/server/foundation/observability";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 
@@ -134,7 +135,7 @@ function renderRow(row: WaterfallRow, trace: RequestTrace, totalMs: number, barC
   const attrLine = attrs.length > 0 ? `  ${ANSI.dim(attrs.join(" "))}` : "";
 
   const labelTruncated = truncate(label, LABEL_COLS);
-  const ansiOverhead = label.length - stripAnsi(label).length;
+  const ansiOverhead = label.length - stripVTControlCharacters(label).length;
   return `${labelTruncated.padEnd(LABEL_COLS + ansiOverhead, " ")} ${ms}  ${bar}${attrLine}`;
 }
 
@@ -170,16 +171,8 @@ function pickInlineAttrs(span: SerializedSpan): string[] {
   return out;
 }
 
-// ESC is a control character and the regex's whole subject, so it is spelled by code point rather than as a regex escape.
-const ESC_CODE_POINT = 0x1b;
-const ANSI_RE = new RegExp(`${String.fromCodePoint(ESC_CODE_POINT)}\\[[0-9;]*m`, "gu");
-
-function stripAnsi(s: string): string {
-  return s.replace(ANSI_RE, "");
-}
-
 function truncate(s: string, max: number): string {
-  const visible = stripAnsi(s);
+  const visible = stripVTControlCharacters(s);
   if (visible.length <= max) {
     return s;
   }
