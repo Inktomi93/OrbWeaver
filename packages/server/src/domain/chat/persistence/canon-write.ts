@@ -353,7 +353,8 @@ export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageP
 }
 
 /** The `message_assets` retaining rows for a message's inline assets (one per structurally placed asset) —
- *  what the asset-ref registry sees for GC, since the body's `asset:<id>` refs are invisible text.
+ *  the reference GC and the room render grant honor for every viewer; a body `asset:<id>` ref retains only
+ *  for an owner seated in the room.
  *  Committed in the same atomic batch as the message slot + variant. Empty ids ⇒ no statements. */
 export function insertMessageAssetStatements(
   db: Db,

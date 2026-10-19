@@ -580,10 +580,10 @@ async function commitGeneration(args: {
   readonly streamDeltas: readonly ChatDeltaEvent[];
   /** §6.7 — the CAS ids of the pictures this generation emitted and the engine already stored, in the order
    *  their spans were spliced into `result.content`. Each gets a `message_assets` link stamped
-   *  `inline-reply`, in THIS batch: the body's `asset:` spans are invisible to `asset-refs.ts`
-   *  (`db/schema/chat.ts` header), so the link is the ONLY reference GC can see and a missing one gets the
-   *  blob reaped out from under a live transcript. It is also what the wire-history fence reads to let the
-   *  model see its own picture next turn — one row, two jobs, both load-bearing. */
+   *  `inline-reply`, in THIS batch: a body `asset:` span retains its blob only for an owner seated in the
+   *  room (`asset-refs.ts`), so the link is the reference that holds for every viewer and the room render
+   *  grant reads. It is also what the wire-history fence reads to let the model see its own picture next
+   *  turn — one row, two jobs, both load-bearing. */
   readonly inlineReplyAssetIds: readonly AssetId[];
 }): Promise<MessageView> {
   const { ctx, deps, prep, persist, target, nextSeq, genStartedAt, genFinishedAt } = args;

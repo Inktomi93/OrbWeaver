@@ -131,7 +131,8 @@ export interface TokenizeContentOptions {
 // `![alt](target)` — `alt` excludes `]`, `target` excludes whitespace + `)` (both linear, no backtracking →
 // ReDoS-safe). The title form `![a](u "t")` intentionally fails to match (the space) and falls through to text.
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/g;
-const ASSET_SCHEME = "asset:";
+/** The target scheme of an owned-asset image: `![alt](asset:<id>)`. */
+export const ASSET_SCHEME = "asset:";
 
 function parseTarget(target: string): ContentImageRef {
   if (target.startsWith(ASSET_SCHEME)) {
