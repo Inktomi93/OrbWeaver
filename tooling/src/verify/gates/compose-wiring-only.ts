@@ -23,6 +23,7 @@ const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
 const IDENTITY_CONTRACT = "packages/contracts/src/identity/index.ts";
 const PRINCIPAL_FIELDS = "packages/server/src/domain/sessions/contract/results.ts";
 const IDS_CONTRACT = "packages/kit/src/ids/index.ts";
+const ROLE_DATA = "packages/server/src/primitives/role-data/index.ts";
 const RATE_POLICY = "packages/server/src/entry/rate-limit-gate.ts";
 const RATE_LIMITER = "packages/server/src/transport/rate-limit.ts";
 const RATE_PORT = "packages/server/src/transport/trpc/context.ts";
@@ -552,6 +553,17 @@ function literalString(node: MorphNode | undefined, value: string): boolean {
   return Node.isStringLiteral(node) && node.getLiteralText() === value;
 }
 
+/** D135's absent-row floor: the role-data primitive's own capture of the literal `"user"` code. */
+function capturedUserFloor(node: MorphNode | undefined): boolean {
+  return (
+    Node.isCallExpression(node) &&
+    node.getTypeArguments().length === 0 &&
+    node.getArguments().length === 1 &&
+    literalString(node.getArguments()[0], "user") &&
+    canonicalReference(node.getExpression(), ROLE_DATA, "captureUserRole")
+  );
+}
+
 interface ProjectionParameters {
   readonly userId: MorphNode;
   readonly fields: MorphNode;
@@ -635,7 +647,7 @@ function canonicalPrincipalProjection(fn: MorphNode): boolean {
   if (
     byName.size !== PROJECTION_KEYS.length ||
     !referencesParameter(expression("userId"), userId) ||
-    !literalString(role, "user") ||
+    !capturedUserFloor(role) ||
     externalId?.getKind() !== SyntaxKind.NullKeyword ||
     !literalString(expression("via"), "fallback") ||
     !Node.isCallExpression(handle)
@@ -687,14 +699,16 @@ const PRINCIPAL_TYPE_FILES = {
   [IDS_CONTRACT]:
     'declare const brand: unique symbol;\nexport type UserId = string & { readonly [brand]: "UserId" };\nexport type Handle = string & { readonly [brand]: "Handle" };\nexport type ExternalId = string & { readonly [brand]: "ExternalId" };\nexport declare function castId<T extends string>(raw: string): T;\n',
   [IDENTITY_CONTRACT]:
-    'import type { UserId, Handle, ExternalId } from "../../../kit/src/ids/index.ts";\nexport type UserRole = "owner" | "admin" | "user";\nexport interface Principal { userId: UserId; role: UserRole; handle: Handle; externalId: ExternalId | null; via: "cookie" | "header" | "fallback"; }\n',
+    'import type { UserId, Handle, ExternalId } from "../../../kit/src/ids/index.ts";\nexport type UserRole = "owner" | "admin" | "user";\ndeclare const userRoleState: unique symbol;\nexport interface UserRoleState { readonly [userRoleState]: true; }\nexport interface Principal { userId: UserId; role: UserRoleState; handle: Handle; externalId: ExternalId | null; via: "cookie" | "header" | "fallback"; }\n',
   [PRINCIPAL_FIELDS]:
-    'import type { Handle, ExternalId } from "../../../../../kit/src/ids/index.ts";\nimport type { UserRole } from "../../../../../contracts/src/identity/index.ts";\nexport interface UserPrincipalFields { role: UserRole; handle: Handle; externalId: ExternalId | null; enabled: boolean; }\n',
+    'import type { Handle, ExternalId } from "../../../../../kit/src/ids/index.ts";\nimport type { UserRoleState } from "../../../../../contracts/src/identity/index.ts";\nexport interface UserPrincipalFields { role: UserRoleState; handle: Handle; externalId: ExternalId | null; enabled: boolean; }\n',
+  [ROLE_DATA]:
+    'import type { UserRole, UserRoleState } from "../../../../contracts/src/identity/index.ts";\nexport declare function captureUserRole(code: UserRole): UserRoleState;\n',
 };
 const PRINCIPAL_IMPORTS =
-  'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nimport type { UserId, Handle } from "../../../../kit/src/ids/index.ts";\nimport { castId } from "../../../../kit/src/ids/index.ts";\nimport type { UserPrincipalFields } from "../../domain/sessions/contract/results.ts";\n';
+  'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nimport type { UserId, Handle } from "../../../../kit/src/ids/index.ts";\nimport { castId } from "../../../../kit/src/ids/index.ts";\nimport { captureUserRole } from "../../primitives/role-data/index.ts";\nimport type { UserPrincipalFields } from "../../domain/sessions/contract/results.ts";\n';
 const PRINCIPAL_MAPPER =
-  'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return { userId, role: fields?.role ?? "user", handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" };\n}\n';
+  'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return { userId, role: fields?.role ?? captureUserRole("user"), handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" };\n}\n';
 const PRINCIPAL_BRIDGE = "export function bridge(userId: UserId, fields: UserPrincipalFields | null): Principal { return principalFromRow(userId, fields); }\n";
 const PRINCIPAL_COMPOSE = 'import { bridge } from "../auth/seam.ts";\nexport function build() { return { principal: bridge }; }\n';
 
@@ -939,11 +953,23 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...PRINCIPAL_TYPE_FILES,
-        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace('?? "user"', '?? "owner"')}${PRINCIPAL_BRIDGE}`,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace('captureUserRole("user")', 'captureUserRole("owner")')}${PRINCIPAL_BRIDGE}`,
         [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
       },
       expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
       why: "the canonical name/home cannot admit a changed authority grant instead of D135's absent-row user floor",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace('"../../primitives/role-data/index.ts"', '"./lookalike.ts"')}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        "packages/server/src/entry/auth/lookalike.ts":
+          'import type { UserRoleState } from "../../../../contracts/src/identity/index.ts";\nexport declare function captureUserRole(code: string): UserRoleState;\n',
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a same-named role capture outside the role-data primitive proves no absent-row user floor",
     },
     {
       mode: "types",

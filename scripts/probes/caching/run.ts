@@ -1,5 +1,6 @@
 // Headless persisted-app cache probe; every physical POST is guarded and captured before any retry.
 // A deliberate first-response transfer loss exercises the actual pre-commit prepared-request retry.
+import "../_composed-env.ts";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -32,9 +33,6 @@ const LIVE = process.argv.includes("--live");
 const OUT = LIVE ? "scripts/probes/caching/results.jsonl" : join(tmpdir(), `k-caching-scripted-${Date.now()}.jsonl`);
 const jsonObjectSchema = z.record(z.string(), jsonValueSchema);
 type JsonObject = z.infer<typeof jsonObjectSchema>;
-if (readEnvKey("ORB_ENV_NO_FILE") !== "1") {
-  throw new Error("The probe requires ORB_ENV_NO_FILE=1 so the headless app cannot load production configuration");
-}
 const { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } = await import("@orb/server/entry/compose");
 const { createHostPrincipalResolver } = await import("@orb/server/entry/auth");
 const SSE_DATA_PREFIX = "data: ";
