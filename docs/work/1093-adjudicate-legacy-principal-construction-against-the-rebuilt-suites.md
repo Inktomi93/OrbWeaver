@@ -23,4 +23,4 @@ A ruling records, per legacy domain, whether its cases are rebuilt in the mainta
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The root typecheck is green after 1119, but these call sites type-check and still fail at runtime. The 1119 leg saw tests/legacy/server/domain/connection/_support.ts line 185 (`root.principalFor is not a function`, reached by the embeddings binding-race support), and tests/legacy/inference/resolve/resolve-task.suite.test.ts, index.test.ts, role-clients.suite.test.ts and tests/legacy/server/entry/compose/embedding-connection.test.ts lines 24 and 53, which call the one-argument form and read `.userId` off a Promise. The embeddings and search harnesses now use `createHostPrincipalResolver(createLoadUserById({ db }))`, as target-move-rebuild.suite.int.test.ts does.
