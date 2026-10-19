@@ -5,22 +5,9 @@ export type { LifecycleChromeHome, LifecycleDoor, LifecycleDoors, NonPortableCan
 export { LIFECYCLE_CHROME_HOMES, NON_PORTABLE_CLASSES } from "../contract/portability.ts";
 export { createHttpApp } from "../http/app.ts";
 export { createConfiguredOidc } from "../http/oidc.ts";
-export {
-  activePersonaIdFor,
-  buildChatToolOps,
-  createGeneratePictureOp,
-  createRunChatTurnBridge,
-  createTaskWindowReaders,
-  createTurnPersonaResolver,
-  voicePersonaFor,
-} from "./chat.ts";
+export { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTurnPersonaResolver, voicePersonaFor } from "./chat.ts";
 export type { EffectiveConfigWiring } from "./effective-config.ts";
-export { createEffectiveConfigWiring } from "./effective-config.ts";
-export { createDomainEventBus } from "./event-bus.ts";
 export { LIFECYCLE_DOORS, NON_PORTABLE_CANON, PORTABLE_CANON_TABLES } from "./portability.ts";
-export { createDeleteReachCapture, createRoomEntityFan } from "./room-reach.ts";
-export { createRpgRestorePost } from "./rpg.ts";
 export type { ServicesDeps, ServicesResult, ShareComposeDeps } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
 export { createShareGraph } from "./share.ts";
-export { createUpstreamProbes } from "./update-check.ts";

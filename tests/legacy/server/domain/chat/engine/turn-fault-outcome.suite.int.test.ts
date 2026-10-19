@@ -20,13 +20,13 @@ import { ProviderError } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { recentTurnOutcomes } from "@orb/server/foundation/observability";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterAll, beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { createTurnEngine } from "#server/domain/chat/engine/engine.ts";
+import { recentTurnOutcomes } from "#server/foundation/observability/debug/wire-capture.ts";
 import { fakeRecallResult, makeChatContext, seedChat, stubRunCompaction, testConnection } from "../_support.ts";
 
 // biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `tests/legacy/server/foundation/observability/debug/wire-capture.suite.test.ts` uses.

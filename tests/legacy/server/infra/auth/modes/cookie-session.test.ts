@@ -1,6 +1,7 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { MODE_RESOLVERS, SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "#server/infra/auth/index.ts";
+import { MODE_RESOLVERS, SESSION_COOKIES, sessionCookieFor } from "#server/infra/auth/index.ts";
+import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/cookie-session.ts";
 import { headers, makeAuthConfig } from "../_support.ts";
 
 // Post-D40 (Route A) infra does NOT read or validate the session cookie — the seam validates it via

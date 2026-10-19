@@ -25,7 +25,7 @@ import { createDb, preCloseHousekeeping } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DataLayoutMigrationReport } from "@orb/server/entry/boot";
-import { LAYOUT_JOURNAL, migrateDataLayout } from "@orb/server/entry/boot";
+import { migrateDataLayout } from "@orb/server/entry/boot";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { DB_FILE_NAME, resolveDataLayout, SECRET_FILE_NAMES } from "@orb/server/foundation/data-layout";
 import { getLog } from "@orb/server/foundation/observability";
@@ -34,6 +34,7 @@ import type { NicedChild } from "@orb/tooling/floor/process/proc";
 import { spawnNicedChild } from "@orb/tooling/floor/process/proc";
 import { sql } from "drizzle-orm";
 import { afterEach, describe, vi } from "vitest";
+import { LAYOUT_JOURNAL } from "#server/entry/boot/migrate-data-layout.ts";
 import { createCas } from "#server/infra/storage/index.ts";
 
 const OWNER = castId<UserId>("user_layout_owner");

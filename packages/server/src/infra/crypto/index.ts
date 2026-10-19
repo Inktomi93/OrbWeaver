@@ -5,6 +5,6 @@
 // not infra crypto). NEVER imports @orb/db or any domain (the sealed-executor invariant).
 
 export type { BootSecretResolution, BootSecretSource, Sealed, SecretBox } from "./contract.ts";
-export { bootSecretProvenance, decode32Bytes, loadOrCreateKeyfile, readSessionSecretKeyfile, resolveCredentialsKey, resolveSessionSecret } from "./key.ts";
+export { bootSecretProvenance, loadOrCreateKeyfile, readSessionSecretKeyfile, resolveCredentialsKey, resolveSessionSecret } from "./key.ts";
 export { readSecretFile, removeSecretFile, writeSecretFile } from "./secret-file.ts";
 export { createSecretBox } from "./secrets.ts";

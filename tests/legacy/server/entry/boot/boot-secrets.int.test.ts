@@ -17,7 +17,7 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe } from "vitest";
 import type { BootSecretResolution } from "#server/infra/crypto/index.ts";
-import { decode32Bytes } from "#server/infra/crypto/index.ts";
+import { decode32Bytes } from "#server/infra/crypto/key.ts";
 
 const Hex64 = /^[0-9a-f]{64}$/u;
 const ids = createSeededIds();

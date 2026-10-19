@@ -30,9 +30,9 @@ import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fal
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "./private-ranges.ts";
 import { EnvRefusedError } from "./refusal/index.ts";
 
-export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
+export { publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
 export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "./bind.ts";
-export { CONTAINER_MARKER_FILES, fileReadCommand, runsInContainer, settingInstruction } from "./container.ts";
+export { fileReadCommand, settingInstruction } from "./container.ts";
 export type {
   AllowedHostsInput,
   BindPosture,

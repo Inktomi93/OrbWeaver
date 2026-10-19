@@ -13,15 +13,7 @@ import type { AssetId, CharacterId, ChatId, ChatTurnId, ImageryGenerationId, Mes
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
-import {
-  activePersonaIdFor,
-  buildChatToolOps,
-  createGeneratePictureOp,
-  createRunChatTurnBridge,
-  createTaskWindowReaders,
-  createTurnPersonaResolver,
-  voicePersonaFor,
-} from "@orb/server/entry/compose";
+import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { principal as principalOf } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -36,6 +28,7 @@ import type { ImageryService } from "#server/domain/imagery/index.ts";
 import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
+import { createGeneratePictureOp, createTaskWindowReaders } from "#server/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, makeResolved, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { defOf, execOf, makeHarness } from "../../domain/tool-use/_support.ts";
 

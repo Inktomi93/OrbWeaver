@@ -9,7 +9,7 @@ import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from 
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { automationFireRows } from "#server/foundation/observability/debug/index.ts";
+import { automationFireRows } from "#server/foundation/observability/debug/inspect/automation-fires.ts";
 
 const NOW = 1_700_000_000_000;
 const DEFAULT_LIMIT = 100;

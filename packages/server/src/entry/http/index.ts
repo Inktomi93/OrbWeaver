@@ -13,15 +13,7 @@ export type {
   SessionSocketEviction,
   SignupRouteDeps,
 } from "./auth-routes.ts";
-export {
-  deriveRedirectUri,
-  identityFromClaims,
-  oidcSessionIdentity,
-  ownerClaimLoginUrl,
-  registerAuthRoutes,
-  serializeClearedSessionCookies,
-  serializeSessionCookie,
-} from "./auth-routes.ts";
+export { identityFromClaims, ownerClaimLoginUrl, registerAuthRoutes, serializeSessionCookie } from "./auth-routes.ts";
 export type { BlobAssetsPort, BlobCasPort, BlobDeps } from "./blob.ts";
 export { registerBlob } from "./blob.ts";
 export type { CardFrameDeps, CardFrameParticipantsPort } from "./card-frame.ts";

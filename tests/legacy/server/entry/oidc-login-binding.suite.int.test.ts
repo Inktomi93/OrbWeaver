@@ -22,7 +22,9 @@ import { beforeEach, describe } from "vitest";
 import type { AuthRoutesDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import type { OidcVerifiedTokens } from "#server/infra/auth/index.ts";
-import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE, SESSION_COOKIE_NAME_SECURE } from "#server/infra/auth/index.ts";
+import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
+import { SESSION_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/cookie-session.ts";
+import { OIDC_BINDING_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/oidc.ts";
 
 const APP_HOST = "app.example";
 const CALLBACK_URI = `https://${APP_HOST}/api/auth/oidc/callback`;

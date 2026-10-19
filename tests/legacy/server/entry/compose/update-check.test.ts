@@ -10,9 +10,9 @@
 // The last one is the point of the whole op: every arm that cannot answer says so, because the verdict
 // layer above turns a missing reason into a verdict that looks like "you are current".
 
-import { createUpstreamProbes } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createUpstreamProbes } from "#server/entry/compose/update-check.ts";
 import type { SafeFetchOptions, SafeFetchResult } from "#server/infra/network/index.ts";
 import { parseLatestRelease, parseMainHead } from "#server/infra/upstream-update/index.ts";
 

@@ -1,9 +1,10 @@
 // foundation/env/allowed-hosts — the names the request guard admits: ALLOWED_HOSTS, the OIDC callback hosts and the
 // machine's own name on bare metal. The grammar itself is `@orb/kit/allowed-hosts` (tests/legacy/kit/allowed-hosts).
 
-import { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "@orb/server/foundation/env";
+import { publicAddresses, resolveAllowedHosts } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { machineHostnameFor } from "#server/foundation/env/allowed-hosts.ts";
 
 const OWNER_CALLBACK = "https://orbweaver.example.com/api/auth/oidc/callback";
 

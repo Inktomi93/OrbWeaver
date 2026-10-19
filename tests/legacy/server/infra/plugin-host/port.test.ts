@@ -12,20 +12,18 @@ import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, 
 import type { ChatId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
+import { PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES, Sandbox } from "@orb/server/infra/plugin-host";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe, vi } from "vitest";
 import {
-  createLocalPluginHost,
   EVENT_QUEUE_DEPTH,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
-  PLUGIN_LOG_RING_CHARS,
-  PLUGIN_LOG_RING_LINES,
   PLUGIN_MEMORY_LIMIT_BYTES,
   PLUGIN_SNIPPET_RUNTIME_MAX,
-  Sandbox,
-} from "@orb/server/infra/plugin-host";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe, vi } from "vitest";
+} from "#server/infra/plugin-host/budgets.ts";
+import { createLocalPluginHost } from "#server/infra/plugin-host/port.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT = "chat_test0000000000000000000" as ChatId;

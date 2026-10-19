@@ -57,7 +57,8 @@ import { Hono } from "hono";
 import { afterEach, beforeEach, describe } from "vitest";
 import { createAuthSeam } from "#server/entry/auth/index.ts";
 import type { PrincipalEnv } from "#server/entry/http/index.ts";
-import { recordWireCapture, registerDebugRoutes, resetWireCaptures } from "#server/foundation/observability/debug/index.ts";
+import { recordWireCapture, registerDebugRoutes } from "#server/foundation/observability/debug/index.ts";
+import { resetWireCaptures } from "#server/foundation/observability/debug/wire-capture.ts";
 import type { AuthConfig, ForwardJwtVerifier } from "#server/infra/auth/index.ts";
 import { sessionCookieFor } from "#server/infra/auth/index.ts";
 

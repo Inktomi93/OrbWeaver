@@ -22,25 +22,13 @@ import { beforeEach, describe, vi } from "vitest";
 // `castId` is type-only and carries no runtime guarantee, so what they must exercise is what production
 // actually writes into a cookie.
 import { mintSessionToken } from "#server/domain/sessions/tokens/tokens.ts";
+import { deriveRedirectUri, oidcSessionIdentity, serializeClearedSessionCookies } from "#server/entry/http/auth-routes.ts";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps, SessionSocketEviction } from "#server/entry/http/index.ts";
-import {
-  deriveRedirectUri,
-  identityFromClaims,
-  oidcSessionIdentity,
-  registerAuthRoutes,
-  serializeClearedSessionCookies,
-  serializeSessionCookie,
-} from "#server/entry/http/index.ts";
+import { identityFromClaims, registerAuthRoutes, serializeSessionCookie } from "#server/entry/http/index.ts";
 import type { OidcTransaction, OidcVerifiedTokens, OwnerClaimCode } from "#server/infra/auth/index.ts";
-import {
-  createOwnerClaimCode,
-  OIDC_BINDING_COOKIE_NAME_INSECURE,
-  OIDC_BINDING_COOKIE_NAME_SECURE,
-  OIDC_TRANSACTION_TTL_MS,
-  SESSION_COOKIE_NAME_INSECURE,
-  SESSION_COOKIE_NAME_SECURE,
-  SESSION_COOKIES,
-} from "#server/infra/auth/index.ts";
+import { createOwnerClaimCode, OIDC_TRANSACTION_TTL_MS, SESSION_COOKIES } from "#server/infra/auth/index.ts";
+import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/cookie-session.ts";
+import { OIDC_BINDING_COOKIE_NAME_INSECURE, OIDC_BINDING_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/oidc.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

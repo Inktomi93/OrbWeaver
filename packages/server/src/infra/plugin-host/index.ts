@@ -7,37 +7,8 @@
 // The evidence report lives in ./README.md. The full `PluginHostV1` surface is
 // `@orb/contracts/plugin`; lifecycle/registry/grants are this module's port/sandbox.
 
-export {
-  EVENT_QUEUE_DEPTH,
-  GUEST_MAX_STACK_BYTES,
-  HOST_CALLS_IN_FLIGHT_MAX,
-  HOST_FN_ARGS_MAX_BYTES,
-  HOST_FN_DEADLINE_MS,
-  HOST_FN_RESULT_CAP_BYTES,
-  LOG_BYTES_PER_INVOCATION,
-  LOG_LINES_PER_INVOCATION,
-  PLUGIN_INVOCATION_CPU_MS,
-  PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
-  PLUGIN_LOG_RING_CHARS,
-  PLUGIN_LOG_RING_LINES,
-  PLUGIN_MEMORY_LIMIT_BYTES,
-  PLUGIN_QUIET_PROMPT_MAX_CHARS,
-  PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
-  PLUGIN_SNIPPET_RUNTIME_MAX,
-  SNIPPET_WALL_MS,
-} from "./budgets.ts";
+export { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION, PLUGIN_LOG_RING_CHARS, PLUGIN_LOG_RING_LINES } from "./budgets.ts";
 export type { PluginHostSeamDeps } from "./contract/port.ts";
-export { getPluginQuickJS } from "./module.ts";
-export { createLocalPluginHost } from "./port.ts";
-export { formatPluginBrokerArguments } from "./process-argv.ts";
-export { pluginBrokerExecArgv } from "./process-permission.ts";
 export { createPluginHost } from "./process-runtime.ts";
-export { AMBIENT_STUBS, type HostSeams, installRealm, LogRing } from "./realm.ts";
-export { type EvalOutcome, type GuestError, PLUGIN_INVOCATION_ENDED, Sandbox } from "./sandbox.ts";
-export { PluginHostBusyError } from "./warm-runtime-pool.ts";
-export {
-  brokerWatchdogFailure,
-  PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
-  PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS,
-  PLUGIN_BROKER_STARTUP_TIMEOUT_MS,
-} from "./watchdog-policy.ts";
+export { AMBIENT_STUBS, type HostSeams } from "./realm.ts";
+export { type EvalOutcome, type GuestError, Sandbox } from "./sandbox.ts";

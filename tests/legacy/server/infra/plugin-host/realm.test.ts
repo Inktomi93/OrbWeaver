@@ -22,11 +22,12 @@
 
 import { estimateTokens } from "@orb/kit/tokens";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { getPluginQuickJS, installRealm, LogRing } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
+import { installRealm, LogRing } from "#server/infra/plugin-host/realm.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 

@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { characterListSummaries, chatListSummaries } from "#server/foundation/observability/debug/index.ts";
+import { characterListSummaries, chatListSummaries } from "#server/foundation/observability/debug/inspect/list.ts";
 
 test("chatListSummaries returns a row per chat with participant + message counts, newest-updated first", async () => {
   const db = await freshDb();

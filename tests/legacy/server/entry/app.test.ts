@@ -15,7 +15,7 @@ import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { getTraceByRequestId, initTracing, recentRequests } from "@orb/server/foundation/observability";
+import { getTraceByRequestId, initTracing } from "@orb/server/foundation/observability";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -25,6 +25,7 @@ import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
 import type { AuthSeam, AuthSeamResolution } from "#server/entry/auth/index.ts";
+import { recentRequests } from "#server/foundation/observability/logger.ts";
 import { versionIdentity } from "#server/foundation/version/index.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the

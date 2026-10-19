@@ -25,7 +25,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { inspectChatState } from "#server/foundation/observability/debug/index.ts";
+import { inspectChatState } from "#server/foundation/observability/debug/inspect/inspect-chat.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-inspect";

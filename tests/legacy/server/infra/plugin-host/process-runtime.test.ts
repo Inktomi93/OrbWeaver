@@ -1,4 +1,3 @@
-
 import { readdirSync, readFileSync, readlinkSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
@@ -8,14 +7,14 @@ import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contra
 import { PLUGIN_MAIN_ENTRY } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { createPluginHost, PLUGIN_MEMORY_LIMIT_BYTES } from "@orb/server/infra/plugin-host";
+import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "#server/foundation/env/index.ts";
 import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
-import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "#server/infra/plugin-host/budgets.ts";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS, PLUGIN_MEMORY_LIMIT_BYTES } from "#server/infra/plugin-host/budgets.ts";
 import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "#server/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,

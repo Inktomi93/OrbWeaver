@@ -10,7 +10,8 @@ import { freeLoopbackPort } from "@orb/testkit/node/free-port.ts";
 import { GENERAL_NAME_DNS_TAG, GENERAL_NAME_IP_TAG, ipBytes, readCsr } from "@orb/testkit/node/x509.ts";
 import { afterEach, describe } from "vitest";
 import type { AcmeIssuer } from "#server/infra/acme/index.ts";
-import { createAcmeIssuer, IP_IDENTIFIER_TYPE, openChallengeResponder, SHORTLIVED_PROFILE } from "#server/infra/acme/index.ts";
+import { createAcmeIssuer, openChallengeResponder } from "#server/infra/acme/index.ts";
+import { IP_IDENTIFIER_TYPE, SHORTLIVED_PROFILE } from "#server/infra/acme/issuer.ts";
 
 const ADDRESS = "81.2.69.160";
 const TOKEN = "tok_Abc123-xyz";

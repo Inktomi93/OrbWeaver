@@ -3,12 +3,12 @@
 //
 // Every arm drives a REAL QuickJS context — the interrupt is a runtime behavior, and a fake would pin nothing.
 
-import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "#server/infra/plugin-host/cpu-guard.ts";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
 
 /** Guest iterations that cost SECONDS of unbounded CPU (~2.3 s per 1e8 on this runtime) — far above every
  *  window below, so "interrupted" and "the loop simply finished" can never be confused. FINITE so a regressed

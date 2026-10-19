@@ -8,7 +8,8 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ParsedStTheme } from "#server/primitives/serde/theme/index.ts";
-import { parseThemeFile, stThemeFromJson, stThemeName } from "#server/primitives/serde/theme/index.ts";
+import { parseThemeFile, stThemeFromJson } from "#server/primitives/serde/theme/index.ts";
+import { stThemeName } from "#server/primitives/serde/theme/st.ts";
 
 /** The real `themes/Azure.json` from the corpus, verbatim (trimmed to the keys that matter here). */
 const AZURE = {

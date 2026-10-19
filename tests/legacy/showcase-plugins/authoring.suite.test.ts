@@ -1,11 +1,11 @@
 import { readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { HOST_FUNCTION_CAPABILITY, UI_PROXYABLE_HOST_FUNCTIONS } from "@orb/contracts/plugin";
-import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { compileShowcasePlugins, writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { isFail } from "quickjs-emscripten-core";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
 
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..");
 const BUNDLES_ROOT = join(REPO_ROOT, "packages", "showcase-plugins", "bundles");

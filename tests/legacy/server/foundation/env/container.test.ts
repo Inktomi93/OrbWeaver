@@ -2,8 +2,9 @@
 
 import { ENVIRONMENT_BLOCK_WINS, HOST_NETWORK_OVERLAY, signInModeEnvLines } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
-import { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "@orb/server/foundation/env";
+import { settingInstruction } from "@orb/server/foundation/env";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { CONTAINER_MARKER_FILES, runsInContainer } from "#server/foundation/env/container.ts";
 
 test.each(CONTAINER_MARKER_FILES)("%s alone means a container", (marker) => {
   expect(runsInContainer(false, (path) => path === marker)).toBe(true);
