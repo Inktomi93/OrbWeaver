@@ -1664,6 +1664,61 @@ const BUS_REGISTRY_RESTRICTIONS = [
   })),
 ];
 
+// A registry definition is declared in its owning feature's co-located `<id>-<slot>` file and nowhere else, and
+// there it is an object literal written in place. The subject is the annotation's type NAME, so an alias of the
+// type or a same-named local type is outside it.
+const annotatedAs = (path, name) => `[${path}.type='TSTypeReference'][${path}.typeName.name='${name}']`;
+const declaredAs = (type) => `VariableDeclarator[id.type='Identifier']${annotatedAs("id.typeAnnotation.typeAnnotation", type)}`;
+const DEFINITION_TYPES = [
+  { id: "chrome-definition-home", type: "ChromeEntry", slot: DEFINITION_SLOTS.chrome },
+  { id: "home-tile-definition-home", type: "HomeTileContribution", slot: DEFINITION_SLOTS.tile },
+  { id: "section-definition-home", type: "SectionDefinition", slot: DEFINITION_SLOTS.section, factory: true },
+  { id: "config-group-definition-home", type: "ConfigGroupDefinition", slot: DEFINITION_SLOTS.group },
+  { id: "collection-definition-home", type: "CollectionContribution", slot: DEFINITION_SLOTS.collection },
+].map((definition) => ({ ...definition, home: `packages/client/src/features/*/lib/*${definition.slot}.{ts,tsx}` }));
+const CLIENT_DEFINITION_HOME_RESTRICTIONS = DEFINITION_TYPES.map(({ id, type, slot, home, factory = false }) => ({
+  id,
+  scope: [CLIENT_SRC],
+  homes: [{ path: home, why: `The owning feature's co-located ${slot} file is the one home of a ${type} definition.` }],
+  selectors: [
+    { selector: declaredAs(type), message: `A ${type} is declared only in packages/client/src/features/<owner>/lib/<id>${slot}.{ts,tsx}.` },
+    ...(factory
+      ? [
+          {
+            selector: `:matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)${annotatedAs("returnType.typeAnnotation", type)}`,
+            message: `A ${type} factory is declared only in packages/client/src/features/<owner>/lib/<id>${slot}.{ts,tsx}.`,
+          },
+        ]
+      : []),
+  ],
+}));
+const CLIENT_DEFINITION_LITERAL_RESTRICTIONS = [
+  {
+    id: "registry-definition-literal",
+    scope: DEFINITION_TYPES.map(({ home }) => home),
+    homes: [],
+    selectors: DEFINITION_TYPES.map(({ type, slot }) => ({
+      selector: `${declaredAs(type)}:not([init.type='ObjectExpression'])`,
+      message: `A ${type} definition is an object literal written in its ${slot} file, not an imported or computed value.`,
+    })),
+  },
+];
+const CLIENT_CONFIG_HOST = "packages/client/src/features/config/surfaces/config-content-surface.tsx";
+const CLIENT_CONFIG_HOST_RESTRICTIONS = [
+  {
+    id: "config-host-no-feature-import",
+    scope: [CLIENT_CONFIG_HOST],
+    homes: [],
+    selectors: [
+      {
+        // `#features` door, or two relative hops: the only ways to leave `features/config/` for a sibling feature.
+        selector: "ImportDeclaration[source.value=/^(#features.|\\.\\.\\S\\.\\.\\S)/]",
+        message: "The config content host reads bodies off the registries; it does not import another feature's internals.",
+      },
+    ],
+  },
+];
+
 const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
 const CLASS_TOKEN_RESTRICTIONS = [
   {
@@ -2241,6 +2296,9 @@ const RESTRICTIONS = [
   ...SERVER_SCOPE_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...BUS_REGISTRY_RESTRICTIONS,
+  ...CLIENT_DEFINITION_HOME_RESTRICTIONS,
+  ...CLIENT_DEFINITION_LITERAL_RESTRICTIONS,
+  ...CLIENT_CONFIG_HOST_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,

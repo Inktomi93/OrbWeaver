@@ -10,3 +10,11 @@ test("a dormant home tile cannot expose an action", () => {
   const dishonest: HomeTileContribution = { ...base, action: "Open", body: { dormant: { reason: "Not built", teaser: "A real subject" } } };
   expectTypeOf([dormant, live, dishonest]).toEqualTypeOf<HomeTileContribution[]>();
 });
+
+test("a dormant home tile names what is missing and what it promises", () => {
+  // @ts-expect-error a doorway with no teaser promises the reader nothing
+  const noTeaser: HomeTileContribution = { ...base, body: { dormant: { reason: "Not built" } } };
+  // @ts-expect-error a doorway with no reason names nothing that must land first
+  const noReason: HomeTileContribution = { ...base, body: { dormant: { teaser: "A real subject" } } };
+  expectTypeOf([noTeaser, noReason]).toEqualTypeOf<HomeTileContribution[]>();
+});

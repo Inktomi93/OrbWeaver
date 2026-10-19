@@ -17,9 +17,7 @@
 // `ConfigSectionContribution`s at its anchor and nothing else — the host derives the LIST rows, the search
 // index, the scroll-spy targets and the render from ONE registry, so a LIST row can never point at an
 // anchor nothing renders and a body can never paint a section the LIST cannot reach. `tsc` is the wall
-// (an excess `subcategories:`/`kind: "surface"` on a group literal is a compile error); the
-// `config-group-completeness` gate covers the one hole tsc cannot see — a component stamping an anchor no
-// contribution renders.
+// (an excess `subcategories:`/`kind: "surface"` on a group literal is a compile error).
 //
 // `SettingsViewerView` keeps its name: it is the projection of who may SEE settings, consumed by a group's
 // and a section's `when`; `#data`'s `useSettingsViewerView` is its ONE derivation home (§5 rule 6).

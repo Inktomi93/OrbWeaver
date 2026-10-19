@@ -17,7 +17,7 @@
 // POPULATION PORT: an INTENTIONAL WIDENING. The legacy descriptor admitted only files matching its own
 // `SECTION_FILE_RE` (`*-section.{ts,tsx}`, 8b86eeec75^); the final population is `@client` and the subject is
 // the canonical SectionDefinition TYPE. A section declared outside its co-located home still owes distinct
-// copy — whether it is co-located at all is `section-registry-completeness`'s arm, not this one's, and
+// copy — whether it is co-located at all is the native `orb/section-definition-home` rule's, not this one's, and
 // filtering by FILENAME here let an uncolocated section duplicate another's copy unseen.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy

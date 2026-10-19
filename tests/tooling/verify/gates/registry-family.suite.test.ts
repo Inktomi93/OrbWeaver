@@ -1,16 +1,12 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as chromeRegistryCompleteness } from "../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
-import { gate as configGroupCompleteness } from "../../../../tooling/src/verify/gates/config-group-completeness.ts";
-import { gate as homeTileRegistryCompleteness } from "../../../../tooling/src/verify/gates/home-tile-registry-completeness.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
-import { gate as sectionRegistryCompleteness } from "../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -20,15 +16,11 @@ const ROOT = "/registry-family";
 test("registry definition policies keep their founding and nearest-legal fixtures", () => {
   expect(
     verifyPolicyProofs([
-      chromeRegistryCompleteness,
-      configGroupCompleteness,
-      homeTileRegistryCompleteness,
       messageKindPolicyCoverage,
       modalBodyNotPlaceholder,
       modalRegistryCompleteness,
       placeholderCopyRegistry,
       sectionFactoryContributionBundle,
-      sectionRegistryCompleteness,
       warningCodeCoverage,
     ]),
   ).toEqual([]);
@@ -146,14 +138,13 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
   // withheld id, same silence, same untouched sibling.
   const project = new Project({ useInMemoryFileSystem: true });
   project.createSourceFile(`${ROOT}/packages/client/src/state/section-registry.ts`, SECTION_TYPE);
-  project.createSourceFile(
-    `${ROOT}/packages/client/src/features/x/lib/not-a-section-file.ts`,
-    'import type { SectionDefinition } from "../../../state/section-registry.ts";\nexport const xSection: SectionDefinition = { id: "x", content: () => null };\n',
-  );
+  for (const [path, source] of Object.entries(DUPLICATE_COPY_PAIR)) {
+    project.createSourceFile(`${ROOT}/${path}`, source);
+  }
 
   const result = runPolicyPass({
-    knownPolicies: [modalRegistryCompleteness, sectionRegistryCompleteness],
-    policies: [modalRegistryCompleteness, sectionRegistryCompleteness],
+    knownPolicies: [modalRegistryCompleteness, placeholderCopyRegistry],
+    policies: [modalRegistryCompleteness, placeholderCopyRegistry],
     root: ROOT,
     project,
     nativeTypeFacts: () => isolatedTypeFacts(project),
@@ -169,11 +160,11 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
     { policyId: "modal-registry-completeness", phase: "receipt", message: expect.stringContaining("resolved zero members") },
   ]);
   expect(result.authority.withheldPolicyIds).toEqual(["modal-registry-completeness"]);
-  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "section-registry-completeness", token: "xSection" }]);
+  expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "placeholder-copy-registry", token: "bSection" }]);
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE SUCCESSOR PROOF for `home-tile-registry-completeness`'s RETIRED anti-god-map arm (guide §8 MERGE rule).
+// THE SUCCESSOR PROOF for the former home-tile gate's RETIRED anti-god-map arm (guide §8 MERGE rule).
 // The legacy gate flagged a `createContributorRegistry("home-tiles", …)` outside the door by CALLEE
 // SPELLING, justifying the overlap in its header as catching "the shape G8's file allowlist would miss".
 // That sentence described the LEGACY `registry-assembly-at-door-only` and became false at its conversion:
@@ -286,38 +277,9 @@ test("a warning vocabulary at its own home is read, so the withholding above is 
   ]);
 });
 
-test("a zone vocabulary that stops resolving withholds the chrome verdict instead of passing", () => {
-  const project = new Project({ useInMemoryFileSystem: true });
-  project.createSourceFile(`${ROOT}/packages/client/src/state/section-registry.ts`, 'export const RAIL_ZONES = ["rail.nav"] as const;\n');
-  project.createSourceFile(
-    `${ROOT}/packages/client/src/state/chrome-registry.ts`,
-    'import { RAIL_ZONES } from "./section-registry.ts";\nexport interface ChromeEntry { readonly id: string }\nexport const SHELL_ZONES = [...RAIL_ZONES] as const;\n',
-  );
-  project.createSourceFile(
-    `${ROOT}/packages/client/src/features/x/lib/x-chrome.tsx`,
-    'import type { ChromeEntry } from "../../../state/chrome-registry.ts";\nexport const xChrome: ChromeEntry = { id: "x", zone: "rail.nav", mobile: "sheet" };\n',
-  );
-
-  const result = runPolicyPass({
-    knownPolicies: [chromeRegistryCompleteness],
-    policies: [chromeRegistryCompleteness],
-    root: ROOT,
-    project,
-    nativeTypeFacts: () => isolatedTypeFacts(project),
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-
-  // The §4.6 blindness rule, expressed as the runtime's own refusal: CHROME_ZONES was renamed, so the zone
-  // arm has silently retired and the policy's second denominator is zero. It must not render a clean pass.
-  expect(result.toolErrors).toMatchObject([{ policyId: "chrome-registry-completeness", phase: "receipt", message: expect.stringContaining("CHROME_ZONES") }]);
-  expect(result.authority.withheldPolicyIds).toEqual(["chrome-registry-completeness"]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-});
-
 // ---------------------------------------------------------------------------------------------------
-// §4.5 refusal pins for the two registry-family policies whose denominators were sound but UNPINNED
-// (gate-runtime audit wave 2 D6). Both are INVENTED rows, so each carries a planted-break receipt in
+// §4.5 refusal pin for the registry-family policy whose denominator was sound but UNPINNED
+// (gate-runtime audit wave 2 D6). It is an INVENTED row, so it carries a planted-break receipt in
 // the landing commit: the module's receipt call was cut in a `cp`-backed copy and the pin went RED.
 // ---------------------------------------------------------------------------------------------------
 
@@ -340,44 +302,6 @@ function passOf(
     failOnWarnings: false,
   });
 }
-
-/** The config types plus one registered group/collection pair — everything except the content HOST. */
-const CONFIG_GROUP_PRELUDE = {
-  "packages/client/src/state/config-group-registry.ts": "export interface ConfigGroupDefinition { readonly id: string }\n",
-  "packages/client/src/lib/collection-contracts.ts": "export interface CollectionContribution { readonly create: unknown }\n",
-  "packages/client/src/features/base/lib/base-collection.tsx":
-    'import type { CollectionContribution } from "../../../lib/collection-contracts.ts";\nexport const baseCollection: CollectionContribution = { create: { label: "New base", useRun: () => () => undefined } };\n',
-  "packages/client/src/features/base/lib/base-group.tsx":
-    'import type { ConfigGroupDefinition } from "../../../state/config-group-registry.ts";\nimport { baseCollection } from "./base-collection.tsx";\nexport const baseGroup: ConfigGroupDefinition = { id: "base", body: { collection: baseCollection } };\n',
-} as const;
-const CONFIG_HOST = "packages/client/src/features/config/surfaces/config-content-surface.tsx";
-const HOST_IMPORTS_A_FEATURE = 'import { Panel } from "#features/persona";\nexport const ConfigContentSurface = (): unknown => Panel;\n';
-
-test("a RENAMED config content host withholds the verdict instead of retiring its import arm", () => {
-  // config-group-completeness declares THREE denominators, and the third exists for exactly this: the host
-  // is keyed BY PATH, so a renamed surface would leave the import arm with no file to judge and every other
-  // arm still green — a silently retired wall, which is the half-migration the doctrine bans. The byte-
-  // identical host body sits at a renamed path here; only the path differs from the control below.
-  const renamed = passOf(configGroupCompleteness, {
-    ...CONFIG_GROUP_PRELUDE,
-    "packages/client/src/features/config/surfaces/config-content-pane.tsx": HOST_IMPORTS_A_FEATURE,
-  });
-
-  expect(renamed.factErrors).toEqual([]);
-  expect(renamed.toolErrors).toMatchObject([
-    { policyId: "config-group-completeness", phase: "receipt", message: expect.stringContaining("config content host") },
-  ]);
-  expect(renamed.authority.withheldPolicyIds).toEqual(["config-group-completeness"]);
-  expect(renamed.authority.effectiveFindings).toEqual([]);
-
-  // THE CONTROL, proving the withholding is the RENAME and not the fixture: the same bytes at the real host
-  // path render a verdict, and the accusation that vanished above is present here.
-  const present = passOf(configGroupCompleteness, { ...CONFIG_GROUP_PRELUDE, [CONFIG_HOST]: HOST_IMPORTS_A_FEATURE });
-
-  expect(present.toolErrors).toEqual([]);
-  expect(present.authority.withheldPolicyIds).toEqual([]);
-  expect(present.authority.effectiveFindings).toMatchObject([{ policyId: "config-group-completeness", token: "import" }]);
-});
 
 const SECTION_TYPE_HOME = "packages/client/src/state/section-registry.ts";
 const DUPLICATE_COPY_PAIR = {
@@ -416,12 +340,11 @@ test("a renamed SectionDefinition withholds the placeholder verdict instead of c
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE §4.5 REFUSAL PINS for the two registry consumers that had none (#2327, the
-// `policy-refusal-coverage` warning debt): `home-tile-registry-completeness` and
-// `modal-body-not-placeholder`. Both derive their whole denominator from a per-kind
-// `registryDefinitionFacts` provider, and until now nothing drove either through the dispatcher — the
-// family's existing pins cover `section-factory-contribution-bundle`, `modal-registry-completeness`,
-// `placeholder-copy-registry` and `config-group-completeness`, and a pin binds to the module it DRIVES.
+// THE §4.5 REFUSAL PINS for the registry consumer that had none (#2327, the
+// `policy-refusal-coverage` warning debt): `modal-body-not-placeholder`. It derives its whole denominator
+// from a per-kind `registryDefinitionFacts` provider, and until now nothing drove it through the dispatcher — the
+// family's existing pins cover `section-factory-contribution-bundle`, `modal-registry-completeness` and
+// `placeholder-copy-registry`, and a pin binds to the module it DRIVES.
 //
 // WHERE THE REFUSAL LIVES, and it is not where the resource consumers' is. A registry fact publishes no
 // status union: since #1962 the provider receipts the sources it WALKED and always succeeds, so the
@@ -431,57 +354,6 @@ test("a renamed SectionDefinition withholds the placeholder verdict instead of c
 // renamed out from under the reader, and a corpus that honestly authors no definition. A verdict over
 // zero definitions would be a clean pass over an empty denominator either way.
 // ---------------------------------------------------------------------------------------------------
-
-const TILE_TYPE_HOME = "packages/client/src/state/home-tile-contracts.ts";
-const TILE_TYPE = "export interface HomeTileContribution { readonly id: string }\n";
-const CO_LOCATED_TILE = {
-  "packages/client/src/features/x/lib/x-tile.tsx":
-    'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const xTile: HomeTileContribution = { id: "x", body: () => null };\n',
-} as const;
-
-test("home-tile-registry-completeness: a RENAMED HomeTileContribution withholds the verdict instead of sweeping an empty corpus", () => {
-  const renamed = passOf(homeTileRegistryCompleteness, {
-    [TILE_TYPE_HOME]: "export interface HomeTileContract { readonly id: string }\n",
-    ...CO_LOCATED_TILE,
-  });
-
-  expect(renamed.factErrors).toEqual([]);
-  expect(renamed.toolErrors).toMatchObject([
-    { policyId: "home-tile-registry-completeness", phase: "receipt", message: expect.stringContaining("resolved zero members") },
-  ]);
-  expect(renamed.authority.withheldPolicyIds).toEqual(["home-tile-registry-completeness"]);
-  expect(renamed.authority.effectiveFindings).toEqual([]);
-});
-
-test("home-tile-registry-completeness: a corpus that authors NO tile refuses on the same door — the second cause of one status", () => {
-  const none = passOf(homeTileRegistryCompleteness, { [TILE_TYPE_HOME]: TILE_TYPE });
-
-  expect(none.toolErrors).toMatchObject([{ policyId: "home-tile-registry-completeness", phase: "receipt" }]);
-  expect(none.authority.withheldPolicyIds).toEqual(["home-tile-registry-completeness"]);
-  expect(none.authority.effectiveFindings).toEqual([]);
-});
-
-test("home-tile-registry-completeness: the healthy twin reaches a verdict and receipts the census it judged", () => {
-  const present = passOf(homeTileRegistryCompleteness, { [TILE_TYPE_HOME]: TILE_TYPE, ...CO_LOCATED_TILE });
-
-  expect(present.toolErrors).toEqual([]);
-  expect(present.authority.withheldPolicyIds).toEqual([]);
-  expect(present.authority.effectiveFindings).toEqual([]);
-  expect(present.policies.map(({ receipts }) => receipts)).toEqual([[{ kind: "population", source: "HomeTileContribution", members: 1, unresolved: 0 }]]);
-});
-
-test("home-tile-registry-completeness: the twin's silence is a READ — the same tile outside a *-tile file accuses", () => {
-  // The control for the control: one definition either way, so the receipt is unchanged and only the
-  // verdict moves. Without it the clean twin above could be green because nothing was ever judged.
-  const stray = passOf(homeTileRegistryCompleteness, {
-    [TILE_TYPE_HOME]: TILE_TYPE,
-    "packages/client/src/features/x/lib/not-a-tile-file.ts":
-      'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const strayTile: HomeTileContribution = { id: "x", body: () => null };\n',
-  });
-
-  expect(stray.toolErrors).toEqual([]);
-  expect(stray.authority.effectiveFindings).toMatchObject([{ policyId: "home-tile-registry-completeness", token: "strayTile" }]);
-});
 
 const MODAL_TYPE_HOME = "packages/client/src/state/modal-registry.ts";
 const MODAL_TYPE = "export interface ModalDefinition { readonly id: string }\n";

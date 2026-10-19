@@ -343,7 +343,7 @@ function createRegistryDefinitionFacts(ctx: GateFactContext): {
  *  THE RENAME TRIPWIRE SURVIVES, one phase later and per consumer. `target` is delivered on the fact, and a
  *  missing or ambiguous registry TYPE yields zero definitions (`factsFor` admits a definition only through a
  *  RESOLVED target), so every consumer's own `members: <view>.definitions.length` receipt refuses — the
- *  sanctioned blindness door `chrome-registry-completeness`'s header already names. Measured 2026-09-11: no
+ *  sanctioned blindness door every registry consumer's header names. Measured 2026-09-11: no
  *  gate module reads `view.target`, so §12.3's discriminator ("if no consumer expresses its dependency
  *  through the provider's `unresolved`, the provider must not publish one") applies exactly, and the pins are
  *  in `tests/tooling/verify/lib/registry-fact.test.ts`. */
