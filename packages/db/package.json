@@ -13,7 +13,8 @@
     "./wiring": "./src/client/wiring.ts",
     "./wiring-driver": "./src/client/wiring-driver.ts",
     "./wiring-owner": "./src/client/wiring-capabilities.ts",
-    "./schema": "./src/schema/index.ts"
+    "./schema": "./src/schema/index.ts",
+    "./tenancy": "./src/tenancy/index.ts"
   },
   "imports": {
     "#*": "./src/*/index.ts",

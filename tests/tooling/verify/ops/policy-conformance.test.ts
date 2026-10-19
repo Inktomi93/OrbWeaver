@@ -8,7 +8,7 @@ import { SyntaxKind } from "ts-morph";
 import { withProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate } from "../../../../tooling/src/verify/gates/ownerid-registry.ts";
+import { gate } from "../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
 import { POLICY_CONFORMANCE_TEMP_PREFIX, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const SOURCE_FLAG: GatePolicyProof = {
@@ -292,7 +292,7 @@ test("a countFrom row names a driver the policy's own module declares, and an un
   const failures = verifyPolicyProofs([forged]);
   expect(failures.map(({ arm, exampleIndex }) => `${arm}[${exampleIndex}]`)).toEqual(["mustFlag[0]"]);
   expect(failures[0]?.detail).toMatch(
-    /expect\.countFrom names NO_SUCH_DRIVER, which tooling\/src\/verify\/gates\/ownerid-registry\.ts declares nowhere at module scope/u,
+    /expect\.countFrom names NO_SUCH_DRIVER, which tooling\/src\/verify\/gates\/domain-freshness-plane\.ts declares nowhere at module scope/u,
   );
 });
 

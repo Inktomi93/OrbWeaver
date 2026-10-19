@@ -1,6 +1,6 @@
 // Gate: owner-scoped-upserts — the UPSERT half of the tenancy family (`owner-scoped-reads`/`-writes`). An
 // `onConflictDoUpdate` is an UPDATE in disguise whose predicate is the conflict TARGET (a unique index), not a
-// `.where`: on an `ownerId`-class table (table-scoping-class (a)) a target that omits the owner column lets a
+// `.where`: on an `ownerId`-class table (`TABLE_SCOPING` in `@orb/db/tenancy`) a target that omits the owner column lets a
 // caller's insert COLLIDE with a foreign row's unique key and overwrite it. The owner must appear in the
 // `target`/`targetWhere`/`setWhere`, or a central `// @orb-waive owner-scoped-upserts(<ident>): <reason>`
 // waiver must name who proved the target values are the caller's. An UNRESOLVABLE insert target (an
@@ -70,7 +70,7 @@ const MESSAGE =
   "is chosen by the UNIQUE INDEX it collides with, not by a `.where`. When that index omits the owner " +
   "column, an insert carrying caller-supplied key values collides with a FOREIGN owner's row and the DO " +
   "UPDATE arm overwrites it (the victim keeps its own `owner_id`, so the corruption is invisible to every " +
-  "owner-filtered read afterwards). An owner-scoped table (table-scoping-class class (a)) resolves tenancy " +
+  "owner-filtered read afterwards). An owner-scoped table (class `ownerId` in @orb/db/tenancy) resolves tenancy " +
   "through its `ownerId`, so the collision has to say so — or say who already proved the target is the " +
   "caller's. The sibling halves judge the `.where` of a read and of a write; the owner-scoped fetch they " +
   "all pair with is packages/db/src/query/fetch-owned.ts.";

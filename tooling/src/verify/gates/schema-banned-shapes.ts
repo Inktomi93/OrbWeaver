@@ -229,7 +229,7 @@ export const gate = defineGate({
         "packages/db/src/schema/other.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const rooms = sqliteTable("rooms", { ownerId: text("owner_id"), activePresetId: text("active_preset_id") });\n',
       },
-      why: "DECLARED LIMIT / no-false-positive: the bans are TABLE-SCOPED by SQL name — an `ownerId` or a `*presetId` on a table the ledger never ruled on is ordinary schema (`ownerid-registry` owns the ownership question)",
+      why: "DECLARED LIMIT / no-false-positive: the bans are TABLE-SCOPED by SQL name — an `ownerId` or a `*presetId` on a table the ledger never ruled on is ordinary schema (`TABLE_SCOPING` in `@orb/db/tenancy` owns the ownership question)",
     },
     {
       mode: "types",

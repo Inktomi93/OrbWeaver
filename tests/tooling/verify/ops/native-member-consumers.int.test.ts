@@ -31,6 +31,8 @@ const WRITE = "packages/server/src/domain/databank/persistence/scope.ts";
 const SERVICE = "packages/server/src/domain/databank/contract/service.ts";
 const SCHEMA = "packages/db/src/schema/databank.ts";
 const POLICIES = [plugin, membership];
+// A second tenancy-scope member keeps the loaded family from being a singleton named for another policy.
+const TENANCY_COMPANION = "owner-scoped-writes";
 
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const write = (path: string, text: string): void => {
@@ -54,9 +56,9 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   );
   write(
     "tooling/tsconfig.json",
-    JSON.stringify({ compilerOptions, files: [...POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`), "src/verify/gates/table-scoping-class.ts"] }),
+    JSON.stringify({ compilerOptions, files: [...POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`), `src/verify/gates/${TENANCY_COMPANION}.ts`] }),
   );
-  for (const id of [...POLICIES.map((policy) => policy.id), "table-scoping-class"]) {
+  for (const id of [...POLICIES.map((policy) => policy.id), TENANCY_COMPANION]) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,

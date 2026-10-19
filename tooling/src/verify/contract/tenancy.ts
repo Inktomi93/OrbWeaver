@@ -1,5 +1,5 @@
 // The typed surface of the tenancy READER (`lib/tenancy-read.ts`) — the shape the (a)-class tenancy gates
-// (`owner-scoped-reads`, `owner-scoped-writes`, `owner-scoped-upserts`, `table-scoping-class`) judge their
+// (`owner-scoped-reads`, `owner-scoped-writes`, `owner-scoped-upserts`) judge their
 // verdicts off. Homed in contract/ per the five-slot type law (docs/law/Core-Tooling-Law.md §2.5): `lib/` is plumbing, and an
 // exported shape declared there is `no-inline-types`-RED, exactly as a domain substrate exporting a type is.
 import type { Node } from "ts-morph";

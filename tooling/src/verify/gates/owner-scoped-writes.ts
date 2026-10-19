@@ -1,5 +1,5 @@
 // Gate: owner-scoped-writes — the WRITE half of `owner-scoped-reads`. An `update`/`delete` of an
-// `ownerId`-class table (table-scoping-class (a)) must put the owner IN THE WHERE, or carry a central
+// `ownerId`-class table (`TABLE_SCOPING` in `@orb/db/tenancy`) must put the owner IN THE WHERE, or carry a central
 // `// @orb-waive owner-scoped-writes(<ident>): <reason>` waiver naming WHO authorized the id. THREE shapes
 // bite: a by-id write (`eq(T.id, …)`/`inArray(T.id, …)` with no owner predicate), an UNBOUNDED write (no
 // `.where` at all — a whole-table mutation, which on a tenant table is every owner's rows), and an
@@ -64,7 +64,7 @@ const UNRESOLVABLE = "unresolvable-target";
 const MESSAGE =
   "an update/delete of an ownerId-scoped table with NO owner predicate — this is the cross-tenant WRITE " +
   "hole: whatever id the caller supplies gets mutated, whoever owns it (and with no `.where` at all, EVERY " +
-  "owner's rows do). An owner-scoped table (table-scoping-class class (a)) resolves tenancy through its " +
+  "owner's rows do). An owner-scoped table (class `ownerId` in @orb/db/tenancy) resolves tenancy through its " +
   "`ownerId`, so the write has to say so — or say who already proved it. The owner-scoped read this pairs " +
   "with is packages/db/src/query/fetch-owned.ts.";
 

@@ -11,7 +11,6 @@ import { gate as fkColumnsIndexed } from "../../../../tooling/src/verify/gates/f
 import { gate as fkOnDeleteStated } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as nullableColumnInequality } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as ownTablesOnly } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
-import { gate as ownerIdRegistry } from "../../../../tooling/src/verify/gates/ownerid-registry.ts";
 import { gate as schemaBannedShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
@@ -54,15 +53,15 @@ test(
   FAMILY_TIMEOUT_MS,
 );
 
-// The second wave: ownership classification, the D34 enum derive, and the D124 nullable-inequality reader.
-// All three consume the SAME `drizzleSchemaFact` and own no schema parsing of their own, which is why they
+// The second wave: the D34 enum derive and the D124 nullable-inequality reader.
+// Both consume the SAME `drizzleSchemaFact` and own no schema parsing of their own, which is why they
 // join this entry rather than growing a per-policy test file. Their ids are spelled quoted here because
-// `check:instrument-affected` reaches a family test by quoted id: "ownerid-registry", "db-enum-from-tuple",
+// `check:instrument-affected` reaches a family test by quoted id: "db-enum-from-tuple",
 // "nullable-column-inequality".
 test(
-  "the schema-fact consumer wave proves ownership, enum derivation, and nullable-inequality",
+  "the schema-fact consumer wave proves enum derivation and nullable-inequality",
   () => {
-    expect(verifyPolicyProofs([ownerIdRegistry, dbEnumFromTuple, nullableColumnInequality])).toEqual([]);
+    expect(verifyPolicyProofs([dbEnumFromTuple, nullableColumnInequality])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
@@ -247,7 +246,6 @@ for (const policy of [
   fkOnDeleteStated,
   nullableColumnInequality,
   ownTablesOnly,
-  ownerIdRegistry,
   schemaBannedShapes,
   tableExplicitPrimaryKey,
 ]) {
