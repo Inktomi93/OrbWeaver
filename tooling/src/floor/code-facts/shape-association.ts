@@ -203,6 +203,10 @@ function declarationLineage(node: MorphNode, read: IdentityRead): Lineage {
   if (!Node.isTypeAliasDeclaration(node)) {
     return "derived";
   }
+  // Only hand-population aliases have registered references; any other alias derives.
+  if (!read.isHand(node)) {
+    return "derived";
+  }
   const body = node.getTypeNode();
   if (body === undefined) {
     return "unknown";
@@ -210,7 +214,15 @@ function declarationLineage(node: MorphNode, read: IdentityRead): Lineage {
   if (Node.isTypeLiteral(body)) {
     return shapeLineage(node, read);
   }
+  if (isLiteralOnly(body)) {
+    return "derived";
+  }
   return Node.isTypeReference(body) ? referenceLineage(body, read) : "unknown";
+}
+
+// A literal or a union of literals names no shape.
+function isLiteralOnly(node: TypeNode): boolean {
+  return Node.isLiteralTypeNode(node) || (Node.isUnionTypeNode(node) && node.getTypeNodes().every(isLiteralOnly));
 }
 
 // An interface with heritage is a hand copy only when every base is itself a hand shape; a production base derives it.

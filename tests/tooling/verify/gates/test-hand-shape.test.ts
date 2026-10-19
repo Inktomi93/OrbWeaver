@@ -46,7 +46,12 @@ export function make(factory: () => Owner): void { void factory; }
 export function onRow(callback: (row: Owner) => void): void { void callback; }
 `;
 
-function pass(repoRoot: string, overrides: Partial<PolicyPassInput> = {}, helper = HELPER_SOURCE): PolicyPassResult {
+function pass(
+  repoRoot: string,
+  overrides: Partial<PolicyPassInput> = {},
+  helper = HELPER_SOURCE,
+  siblings: Readonly<Record<string, string>> = {},
+): PolicyPassResult {
   const root = join(repoRoot, ".orb-hand-shape-control");
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
@@ -59,6 +64,9 @@ function pass(repoRoot: string, overrides: Partial<PolicyPassInput> = {}, helper
     },
   });
   project.createSourceFile(join(root, OWNER), OWNER_SOURCE);
+  for (const [path, text] of Object.entries(siblings)) {
+    project.createSourceFile(join(root, path), text);
+  }
   const file = project.createSourceFile(join(root, HELPER), helper);
   expect(project.getPreEmitDiagnostics().filter((diagnostic) => diagnostic.getSourceFile() === file)).toEqual([]);
   return runPolicyPass({
@@ -105,7 +113,13 @@ declare const loose: any;
 const U = SHAPE_ASSOCIATION_UNKNOWN;
 
 // Each probe ends in the sites it judges; `findings` are the flagged hand names and `unknown` the UNKNOWN reasons.
-const PROBES: readonly { readonly name: string; readonly body: string; readonly findings: readonly string[]; readonly unknown: readonly string[] }[] = [
+const PROBES: readonly {
+  readonly name: string;
+  readonly body: string;
+  readonly siblings?: Readonly<Record<string, string>>;
+  readonly findings: readonly string[];
+  readonly unknown: readonly string[];
+}[] = [
   { name: "direct annotation", body: "export const seen: Owner = hand;", findings: ["Hand"], unknown: [] },
   { name: "local alias of a production type", body: "type Page = Owner;\nexport const seen: Page = hand;", findings: ["Hand"], unknown: [] },
   { name: "erased value at a local alias", body: "type Page = Owner;\nexport const seen: Page = loose;", findings: [], unknown: [U.erasedValue] },
@@ -273,6 +287,26 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
     unknown: [],
   },
   {
+    name: "interface extending an alias declared in tooling is judged, not read unregistered",
+    siblings: { "tooling/src/x/contract/types.ts": "export interface TBase {\n  readonly value: string;\n}\nexport type TA = TBase;\n" },
+    body: 'import type { TA } from "../../../tooling/src/x/contract/types";\ninterface D extends TA {\n  readonly extra: number;\n}\ndeclare const x: D;\nexport const seen: Owner = x;',
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending an alias declared in a legacy module is judged, not read unregistered",
+    siblings: { "tests/legacy/support/alias.ts": "export interface LBase {\n  readonly value: string;\n}\nexport type LA = LBase;\n" },
+    body: 'import type { LA } from "../../legacy/support/alias";\ninterface D extends LA {\n  readonly extra: number;\n}\ndeclare const x: D;\nexport const seen: Owner = x;',
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library generic over a literal-only alias stays derived",
+    body: 'type Keys = "value";\ninterface P extends Pick<Owner, Keys> {\n  readonly extra: number;\n}\ndeclare const p: P;\nexport const seen: Owner = p;',
+    findings: [],
+    unknown: [],
+  },
+  {
     name: "interface extending the production owner stays derived",
     body: "interface Derived extends Owner {\n  readonly extra: number;\n}\ndeclare const derived: Derived;\nexport const seen: Owner = derived;",
     findings: [],
@@ -309,9 +343,9 @@ test(
   scaledBudget(60_000),
 );
 
-for (const { name, body, findings, unknown } of PROBES) {
+for (const { name, body, siblings, findings, unknown } of PROBES) {
   test(`probe: ${name}`, ({ repoRoot }) => {
-    const result = pass(repoRoot, {}, `${PROBE_HEAD}${body}\n`);
+    const result = pass(repoRoot, {}, `${PROBE_HEAD}${body}\n`, siblings);
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(findings);
     expect(result.policies[0]?.analysis?.unknown.map((gap) => gap.reason) ?? []).toEqual(unknown);
