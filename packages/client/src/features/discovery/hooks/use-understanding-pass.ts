@@ -232,9 +232,9 @@ export function useUnderstandingPass(): UnderstandingPassView {
     }
     // THE WHOLE CHAIN IS ONE YES. Its size is every stage it will enqueue, counted before any row exists; the
     // themes stage is counted over today's digests, since the backfill that adds more has not run yet.
-    // @orb-waive caught-failure-ownership(confirmThen): useStartUnderstandingRun carries an errorToast with the server's
-    // reason — the surface for every mutation in this chain — and `confirmThen` owns a failed count. Ends if that
-    // mutation drops its errorToast.
+    // @orb-waive caught-failure-ownership(confirmThen): the only rejection left is a chain mutateAsync, owned by the
+    // errorToast on useStartUnderstandingRun above; a failed count is toasted inside useModelRunConfirm.confirmThen.
+    // Ends if either drops its toast.
     paidRun
       .confirmThen({
         title: "Sort your characters?",

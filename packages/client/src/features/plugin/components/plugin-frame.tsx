@@ -124,9 +124,9 @@ export function PluginFrame({
     // `args` is a no-argument call. Encoding runs inside the promise, so an unencodable value (a cycle, a
     // BigInt) becomes a refusal rather than a throw out of the message listener.
     const relay = async (): Promise<unknown> => JSON.parse(await hostCall(call.fn, JSON.stringify(call.args ?? []))) as unknown;
-    // @orb-waive caught-failure-ownership(relay): a rejection replies with the generic
-    // `refuse()` message by design (the contract's own note — the reason is an oracle a hostile document
-    // does not get for free). Ends if the refusal reply is ever dropped.
+    // @orb-waive caught-failure-ownership(relay): a rejected relay answers the frame through `refuse`, an `ok: false`
+    // result the frame script reads; the reason stays out by contract (PLUGIN_FRAME_CALL_REFUSED, contracts/plugin/frame.ts).
+    // Ends if `refuse` stops replying.
     relay()
       .then(
         (value) => reply(pluginFrameResultMessage({ callId: call.callId, ok: true, value })),

@@ -121,9 +121,8 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     let parsed: unknown;
-    // @orb-waive caught-failure-ownership(catch): a malformed tree kills the guest with a named
-    // reason (§4.9's fail-closed posture) — the failure is surfaced, not swallowed. Ends if `kill` stops being
-    // called on this path.
+    // @orb-waive caught-failure-ownership(catch): `kill` terminates the worker and calls options.events.onCrash, which collapses
+    // the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx). Ends if this catch stops calling `kill`.
     try {
       parsed = JSON.parse(treeJson);
     } catch {
@@ -146,9 +145,8 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // The relay. Note what is NOT here: any decision about whether the call is allowed. The server re-gates
     // every one against the caller's own row, and duplicating that judgment here would create a second,
     // divergeable copy of the rule — the client's view of its grants is display-only by design.
-    // @orb-waive caught-failure-ownership(err): the failure is relayed back to the guest as a
-    // rejected hostResult with the error's own message — fully propagated, never swallowed. Ends if the
-    // message stops being sent.
+    // @orb-waive caught-failure-ownership(err): the failure goes to the guest as an `ok: false` hostResult carrying the
+    // error's message; the worker's settleHostCall rejects the guest's pending promise with it. Ends if the send drops the message.
     try {
       const resultJson = await options.events.onHostCall(fn, argsJson);
       send({ kind: "hostResult", callId, ok: true, resultJson });
