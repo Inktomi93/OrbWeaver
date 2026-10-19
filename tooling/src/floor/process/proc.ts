@@ -369,7 +369,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     /** Settle, and NAME a teardown that itself failed — the promise must resolve on every path, or the one
      *  door written to end a hang becomes the hang. A failed teardown is `code: null` (a tool error). */
     const finish = (code: number | null): void => {
-      // @orb-waive caught-failure-ownership(settle): the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error.
+      // @orb-waive caught-failure-ownership(settle): the handler puts "[proc] teardown failed: …" in the transcript this door returns and settles with code null, which every stage classifier maps to a tool error (runOneStage writes the transcript to the stage log); the promise must settle here or the door that ends a hang becomes one. Ends if the handler stops resolving or stops naming the error.
       settle(code).catch((error: unknown) => {
         resolvePromise({ code: null, transcript: `${chunks.join("")}\n[proc] teardown failed: ${String(error)}\n` });
       });

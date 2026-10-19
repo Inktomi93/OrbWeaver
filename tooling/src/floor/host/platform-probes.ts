@@ -184,7 +184,7 @@ function readFileOrNull(path: string): string | null {
 }
 
 function readLinkOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable `/proc/<pid>/cwd` or fd link answers null, which every caller reads as "unknown" (no cwd, no socket owner), never as "not ours". Ends if null ever authorizes a signal.
+  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/cwd or fd link answers null and authorizes nothing: socketOwners leaves the socket unowned so listeningPids records the port as { kind: "unknown" } and dev-status and dev-down refuse on it, and pidIsStageRooted falls back to argv and answers false (no signal) when argv names no stage. Ends if null ever authorizes a signal.
   try {
     return readlinkSync(path);
   } catch {

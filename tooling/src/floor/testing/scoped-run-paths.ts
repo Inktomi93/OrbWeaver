@@ -104,7 +104,7 @@ export function toRepoRelative(root: string, file: string): string {
 function isFed(operand: ScopedOperand, collected: readonly string[]): boolean {
   if (operand.isPattern) {
     let re: RegExp | undefined;
-    // @orb-waive caught-failure-ownership(catch): an operand the runner would treat as a regex may not BE one; the substring fallback below is the runners' own degradation, and refusing here would refuse a filter the runner itself accepts. Ends if the preflight ever needs to refuse an unparseable pattern outright.
+    // @orb-waive caught-failure-ownership(catch): new RegExp throws only for an operand that is not a valid pattern, which is then tested as a plain substring of each collected path; an operand that matches nothing lands in barrenOperands, which preflight prints as UNFED PATH and ends as a tool error. Ends if the preflight must refuse an unparseable pattern outright.
     try {
       re = new RegExp(operand.raw, "u");
     } catch {
