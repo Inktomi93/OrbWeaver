@@ -31,7 +31,6 @@ export type {
   WorkloadReapReason,
   WorkloadRunnerAssemblyDeps as WorkloadRunnerDeps,
   WorkloadService,
-  WorkloadServiceAssemblyDeps as WorkloadServiceDeps,
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";

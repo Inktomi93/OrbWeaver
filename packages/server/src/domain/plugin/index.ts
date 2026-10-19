@@ -35,8 +35,6 @@ export type {
   PluginDisplayTransformView,
   PluginEventSubscription,
   PluginFanoutResult,
-  PluginFanoutSkip,
-  PluginFanoutSkipReason,
   PluginHandlerRef,
   PluginInstance,
   PluginLogView,

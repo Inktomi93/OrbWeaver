@@ -1,7 +1,7 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
-export type { CharacterAvatarLink, CharacterAvatarLinkAssemblyContext as CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link.ts";
+export type { CharacterAvatarLink, LinkCharacterAvatars } from "./contract/avatar-link.ts";
 export {
   AssetNotFoundError,
   CHARACTER_HANDLE_CONFLICT,

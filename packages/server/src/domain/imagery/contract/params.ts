@@ -3,7 +3,7 @@ import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, Pr
 import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
-export type { GeneratePictureParams, ReusePolicy } from "@orb/contracts/imagery";
+export type { GeneratePictureParams } from "@orb/contracts/imagery";
 
 // domain/imagery/contract/params — every verb's *Params, declared ONCE (§7.4 — one type home). The wire
 // input (`generatePictureRequestSchema`) lives in `@orb/contracts/imagery`; the verb params WRAP it with the

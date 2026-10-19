@@ -11,7 +11,6 @@ export type {
   CharacterStatsView,
   LatencyStats,
   LeaderboardPage,
-  LeaderboardRow,
   ModelStatRow,
   MomentumBucket,
   OwnerStatsView,

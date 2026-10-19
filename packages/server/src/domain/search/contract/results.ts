@@ -15,7 +15,6 @@ export type {
   CorpusHit,
   DigestSearchHit,
   DigestSourceHit,
-  DiscoverCharacter,
   DiscoverResult,
   DiscoverSegment,
   DocumentChunkHit,

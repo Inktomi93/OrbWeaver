@@ -36,11 +36,11 @@ import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
 import { viewerReadsHidden } from "#server/domain/chat/substrate/member-visibility.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";
+import type { RpgPopulateDelta } from "#server/domain/rpg/contract/service.ts";
 import { createRpgFlushBarrier } from "#server/domain/rpg/flush-barrier.ts";
 import type {
   RpgContext,
   RpgParticipantActor,
-  RpgPopulateDelta,
   RpgPostNarratorMessage,
   RpgResolveParticipants,
   RpgRunToolRound,
