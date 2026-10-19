@@ -9,7 +9,7 @@ const CGROUP_ROOT = "/sys/fs/cgroup";
 
 function readOptional(path: string): string | undefined {
   let result: string | undefined;
-  // @orb-waive caught-failure-ownership(catch): an unavailable cgroup controller supplies no quota; affinity still bounds the session. Ends if this read becomes required for model admission.
+  // @orb-waive caught-failure-ownership(catch): an unreadable cgroup file returns undefined, which `narrow` (cpu-budget.ts:30) turns into no quota; affinity still bounds the session. Ends if this read becomes required for model admission.
   try {
     result = readFileSync(path, "utf8");
   } catch {

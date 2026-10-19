@@ -1,0 +1,242 @@
+[
+  {
+    "site": "packages/inference/src/backends/agent-sdk/agent-runner.ts:85 catch",
+    "claimedOwner": "this optional control-channel diagnostic degrades to `undefined`; the turn result remains authoritative. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if MCP health becomes required for correctness.",
+    "verifiedOwner": "none (question: Is a silent loss of this optional control-channel diagnostic acceptable, or must the catch log a warning? No owner in the file reads the failure; the consumer treats undefined as no data.)",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/agent-runner.ts:85:5 | packages/inference/src/backends/agent-sdk/agent-runner.ts:86 | catch | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/catalog.ts:125 catch",
+    "claimedOwner": "account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.",
+    "verifiedOwner": "none (question: Is a silent loss of this optional control-channel diagnostic acceptable, or must the catch log a warning? No owner in the file reads the failure; the consumer treats undefined as no data.)",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/catalog.ts:125:5 | packages/inference/src/backends/agent-sdk/catalog.ts:126 | catch | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/catalog.ts:81 err",
+    "claimedOwner": "bounded best-effort teardown is owned by the warning log; the model-discovery result or primary failure remains authoritative. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same bounded teardown absorber. Ends if the warning disappears.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/catalog.ts:83 `log.warn({ err: new Error(lease.safeErrorMessage(err)) }`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/catalog.ts:81:7 | packages/inference/src/backends/agent-sdk/catalog.ts:82 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/catalog.ts:81: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/catalog.ts:83; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/executable.ts:16 catch",
+    "claimedOwner": "a MODULE-RESOLUTION miss IS the answer \u2014 the wire is unbuilt (the registry's `needs` predicate names it), not a failure to report. Ends if the SDK grows a second install shape.",
+    "verifiedOwner": "packages/inference/src/registry/backends.ts:47 `deps.env.claudeExecutable === undefined`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/executable.ts:16:3 | packages/inference/src/backends/agent-sdk/executable.ts:20 | catch | pe is a constant fallback \u2014 the behaviour changed and nobody was told.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/executable.ts:16: reason rewritten to name the owner at packages/inference/src/registry/backends.ts:47; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/index.ts:114 err",
+    "claimedOwner": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.",
+    "verifiedOwner": "packages/inference/src/backends/wire/model-listing.ts:53 `return { listed: false, reason: scrubbedReason(err, secrets) };`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/index.ts:114:9 | packages/inference/src/backends/agent-sdk/index.ts:115 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/index.ts:114: reason rewritten to name the owner at packages/inference/src/backends/wire/model-listing.ts:53; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/runner.ts:442 catch",
+    "claimedOwner": "context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.",
+    "verifiedOwner": "none (question: Is a silent loss of this optional control-channel diagnostic acceptable, or must the catch log a warning? No owner in the file reads the failure; the consumer treats undefined as no data.)",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/runner.ts:442:5 | packages/inference/src/backends/agent-sdk/runner.ts:443 | catch | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/runner.ts:456 error",
+    "claimedOwner": "the original stream failure is retained until completed facts are durably observed, then finishWithError rethrows it; ends if capture no longer precedes refusal.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/runner.ts:474 `return finishTurnWithError(acc, streamFailure);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/runner.ts:456:3 | packages/inference/src/backends/agent-sdk/runner.ts:465 | error | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/runner.ts:456: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/runner.ts:474; marker token `error` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/session/frames.ts:107 catch",
+    "claimedOwner": "malformed model-emitted arguments become `null`, which toSdkBlock maps to an empty object so the tool pair remains wire-valid. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null loses that owner.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/turn-input.ts:224 `isJsonObject(part.arguments)`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/session/frames.ts:107:5 | packages/inference/src/backends/agent-sdk/session/frames.ts:108 | catch | pe is a constant fallback \u2014 the behaviour changed and nobody was told.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/session/frames.ts:107: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/turn-input.ts:224; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/session/store.ts:59 err",
+    "claimedOwner": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/session/store.ts:61 `log.warn({ err, op: \"insert\"`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/session/store.ts:59:5 | packages/inference/src/backends/agent-sdk/session/store.ts:60 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/session/store.ts:59: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/session/store.ts:61; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/session/store.ts:73 err",
+    "claimedOwner": "this best-effort persistence failure is owned by the injected warning log; the in-memory session remains authoritative. Precedent: the gate mustPass fixture packages/server/src/domain/probe/logged.ts proves the same contextual warning owner. Ends if the warning or cache owner disappears.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/session/store.ts:75 `log.warn({ err, op: \"update\"`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/session/store.ts:73:5 | packages/inference/src/backends/agent-sdk/session/store.ts:74 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/session/store.ts:73: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/session/store.ts:75; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/terminal-tools.ts:44 err",
+    "claimedOwner": "the error is converted into the returned `unliftable` refusal, so callers mount no partial terminal-tool surface. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if that all-or-nothing refusal changes.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/terminal-tools.ts:75 `log.terminalTools({ turnId, mounted: false`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/terminal-tools.ts:44:7 | packages/inference/src/backends/agent-sdk/terminal-tools.ts:45 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/terminal-tools.ts:44: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/terminal-tools.ts:75; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/agent-sdk/turn-input.ts:251 catch",
+    "claimedOwner": "CLASSIFIER, not a failure \u2014 \"does this model-emitted blob parse to an object\" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.",
+    "verifiedOwner": "packages/inference/src/backends/agent-sdk/turn-input.ts:224 `isJsonObject(part.arguments)`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/agent-sdk/turn-input.ts:251:3 | packages/inference/src/backends/agent-sdk/turn-input.ts:254 | catch | pe is a constant fallback \u2014 the behaviour changed and nobody was told.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/agent-sdk/turn-input.ts:251: reason rewritten to name the owner at packages/inference/src/backends/agent-sdk/turn-input.ts:224; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/anthropic-messages/index.ts:76 err",
+    "claimedOwner": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.",
+    "verifiedOwner": "packages/inference/src/backends/wire/model-listing.ts:53 `return { listed: false, reason: scrubbedReason(err, secrets) };`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/anthropic-messages/index.ts:76:5 | packages/inference/src/backends/anthropic-messages/index.ts:77 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/anthropic-messages/index.ts:76: reason rewritten to name the owner at packages/inference/src/backends/wire/model-listing.ts:53; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/anthropic-messages/index.ts:87 err",
+    "claimedOwner": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.",
+    "verifiedOwner": "packages/inference/src/backends/anthropic-messages/index.ts:90 `{ status: \"revoked\", checkedAt, reason }`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/anthropic-messages/index.ts:87:5 | packages/inference/src/backends/anthropic-messages/index.ts:88 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/anthropic-messages/index.ts:87: reason rewritten to name the owner at packages/inference/src/backends/anthropic-messages/index.ts:90; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/google/index.ts:36 err",
+    "claimedOwner": "the credential probe returns revoked or unreachable with a scrubbed reason. Ends if health stops carrying the failure disposition.",
+    "verifiedOwner": "packages/inference/src/backends/google/index.ts:42 `status: AUTH_FAILURE.test(reason) ? \"revoked\" : \"unreachable\"`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/google/index.ts:36:3 | packages/inference/src/backends/google/index.ts:40 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/google/index.ts:36: reason rewritten to name the owner at packages/inference/src/backends/google/index.ts:42; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/http/error-classify.ts:137 catch",
+    "claimedOwner": "malformed provider prose fails closed to `null`, which cannot be classified as a moderation block. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null can begin authorizing a more specific classification.",
+    "verifiedOwner": "packages/inference/src/backends/http/error-classify.ts:148 `return Array.isArray(reasons) && reasons.length > 0;`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/http/error-classify.ts:137:5 | packages/inference/src/backends/http/error-classify.ts:138 | catch | pe is a constant fallback \u2014 the behaviour changed and nobody was told.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/http/error-classify.ts:137: reason rewritten to name the owner at packages/inference/src/backends/http/error-classify.ts:148; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/http/retry.ts:109 raw",
+    "claimedOwner": "the caught value is retained in lastError and either rethrown unchanged or followed by a span-recorded retry. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either terminal propagation path disappears.",
+    "verifiedOwner": "packages/inference/src/backends/http/retry.ts:120 `throw raw;` inside the guard `if (committed || !mapped.retryable || exhausted)`, where `mapped = classify(raw)` is derived from the caught binding; the loop ends with `throw lastError;` at :130. The reader's guardedRethrow (caught-failure-scope.ts) now proves this, hence the stale-waiver alarm.",
+    "toolOutput": "probe at 0e5f189e00: alarm: stale ordinary waiver at packages/inference/src/backends/http/retry.ts:109:7; no live caught-failure-ownership finding is bound to its comment carrier. After removing the marker, the same single-file probe over retry.ts printed no finding and no alarm.",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "packages/inference/src/backends/http/retry.ts: - // @orb-waive caught-failure-ownership(raw): the caught value is retained in lastError and... (marker line deleted; no code changed)"
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/cpu-budget.ts:12 catch",
+    "claimedOwner": "an unavailable cgroup controller supplies no quota; affinity still bounds the session. Ends if this read becomes required for model admission.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/cpu-budget.ts:30 `const q = Number(quota);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/cpu-budget.ts:12:3 | packages/inference/src/backends/local-light/cpu-budget.ts:15 | catch | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/cpu-budget.ts:12: reason rewritten to name the owner at packages/inference/src/backends/local-light/cpu-budget.ts:30; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/model-cache.ts:299 created",
+    "claimedOwner": "the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/model-cache.ts:329 `return await use(await entry.promise);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/model-cache.ts:299:5 | packages/inference/src/backends/local-light/model-cache.ts:300 | created | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/model-cache.ts:299: reason rewritten to name the owner at packages/inference/src/backends/local-light/model-cache.ts:329; marker token `created` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/model-worker.ts:114 run",
+    "claimedOwner": "the rejection arm posts the failure to the host thread, which rejects the waiting caller with the same error (ProviderError fields kept), so the failure propagates across the thread boundary. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if the failure message stops rejecting the host call.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/worker-cache.ts:163 `pending.reject(fromWorkerFailure(message.failure));`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/model-worker.ts:114:5 | packages/inference/src/backends/local-light/model-worker.ts:115 | run | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/model-worker.ts:114: reason rewritten to name the owner at packages/inference/src/backends/local-light/worker-cache.ts:163; marker token `run` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/model-worker.ts:91 fn",
+    "claimedOwner": "a detached model disposal inside the worker has no caller; the failure is logged as a structured warning that crosses to the host logger. Precedent: packages/inference/src/backends/local-light/prefetch.ts owns a speculative model failure through a warning. Ends if a disposal gains a caller.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/model-worker.ts:93 `log.warn({ name, err: String(err) }`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/model-worker.ts:91:7 | packages/inference/src/backends/local-light/model-worker.ts:92 | fn | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/model-worker.ts:91: reason rewritten to name the owner at packages/inference/src/backends/local-light/model-worker.ts:93; marker token `fn` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/prefetch.ts:51 preload",
+    "claimedOwner": "speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/prefetch.ts:56 `deps.log.warn({ slot, modelId, err: message }`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/prefetch.ts:51:7 | packages/inference/src/backends/local-light/prefetch.ts:52 | preload | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/prefetch.ts:51: reason rewritten to name the owner at packages/inference/src/backends/local-light/prefetch.ts:56; marker token `preload` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/scheduled-cache.ts:142 enqueue",
+    "claimedOwner": "each rejected batch rejects its waiting text callers below. Ends if text stops returning those promises.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/scheduled-cache.ts:145 `item.reject(error);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/scheduled-cache.ts:142:13 | packages/inference/src/backends/local-light/scheduled-cache.ts:143 | enqueue | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/scheduled-cache.ts:142: reason rewritten to name the owner at packages/inference/src/backends/local-light/scheduled-cache.ts:145; marker token `enqueue` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/scheduled-cache.ts:47 error",
+    "claimedOwner": "every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/scheduled-cache.ts:65 `item.reject(failure);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/scheduled-cache.ts:47:3 | packages/inference/src/backends/local-light/scheduled-cache.ts:62 | error | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/scheduled-cache.ts:47: reason rewritten to name the owner at packages/inference/src/backends/local-light/scheduled-cache.ts:65; marker token `error` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/local-light/scheduled-cache.ts:97 Promise.resolve",
+    "claimedOwner": "rejection is forwarded to the returned result.promise before the queue advances. Ends if enqueue stops returning that promise.",
+    "verifiedOwner": "packages/inference/src/backends/local-light/scheduled-cache.ts:106 `result.reject(error);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/local-light/scheduled-cache.ts:97:7 | packages/inference/src/backends/local-light/scheduled-cache.ts:98 | Promise.resolve | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/local-light/scheduled-cache.ts:97: reason rewritten to name the owner at packages/inference/src/backends/local-light/scheduled-cache.ts:106; marker token `Promise.resolve` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/openai-compat/diagnostics.ts:142 err",
+    "claimedOwner": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.",
+    "verifiedOwner": "packages/inference/src/backends/openai-compat/diagnostics.ts:144 `return failedListing(err, secrets);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/openai-compat/diagnostics.ts:142:5 | packages/inference/src/backends/openai-compat/diagnostics.ts:143 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/openai-compat/diagnostics.ts:142: reason rewritten to name the owner at packages/inference/src/backends/openai-compat/diagnostics.ts:144; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/openai-compat/diagnostics.ts:263 readBodyPreview",
+    "claimedOwner": "a preview read failure degrades to an explicit empty preview while status and headers remain inspectable. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same degraded inspection result. Ends if preview bytes become authoritative.",
+    "verifiedOwner": "none (question: Is an empty bodyPreview acceptable when the reply body read fails, or must the inspection say the preview was unreadable? Nothing reads the swallowed rejection; ok and status are computed independently.)",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/openai-compat/diagnostics.ts:263:3 | packages/inference/src/backends/openai-compat/diagnostics.ts:264 | readBodyPreview | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/inference/src/backends/openai-compat/diagnostics.ts:88 err",
+    "claimedOwner": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.",
+    "verifiedOwner": "packages/inference/src/backends/openai-compat/diagnostics.ts:93 `return { status: \"revoked\", checkedAt, reason };`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/openai-compat/diagnostics.ts:88:5 | packages/inference/src/backends/openai-compat/diagnostics.ts:89 | err | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/openai-compat/diagnostics.ts:88: reason rewritten to name the owner at packages/inference/src/backends/openai-compat/diagnostics.ts:93; marker token `err` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/openai-compat/ollama-native.ts:485 catch",
+    "claimedOwner": "a non-JSON error body is still the server's message; it is handed on as the error text, and the SDK raises it. Ends if a body here could be anything but an error.",
+    "verifiedOwner": "packages/inference/src/backends/openai-compat/ollama-native.ts:490 `new Response(JSON.stringify({ error: { message } })`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/openai-compat/ollama-native.ts:485:5 | packages/inference/src/backends/openai-compat/ollama-native.ts:487 | catch | THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/openai-compat/ollama-native.ts:485: reason rewritten to name the owner at packages/inference/src/backends/openai-compat/ollama-native.ts:490; marker token `catch` unchanged; no code changed."
+  },
+  {
+    "site": "packages/inference/src/backends/openai-compat/reachability.ts:113 flight.run",
+    "claimedOwner": "the rejection is forwarded to this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.",
+    "verifiedOwner": "packages/inference/src/backends/openai-compat/reachability.ts:121 `reject(err);`",
+    "toolOutput": "in-memory single-file probe at 0e5f189e00: packages/inference/src/backends/openai-compat/reachability.ts:113:5 | packages/inference/src/backends/openai-compat/reachability.ts:114 | flight.run | .md) THIS SITE: a promise rejection handler that discards the failure.",
+    "disposition": "KEEP",
+    "diff": "packages/inference/src/backends/openai-compat/reachability.ts:113: reason rewritten to name the owner at packages/inference/src/backends/openai-compat/reachability.ts:121; marker token `flight.run` unchanged; no code changed."
+  }
+]

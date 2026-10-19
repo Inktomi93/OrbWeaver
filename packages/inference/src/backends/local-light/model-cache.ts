@@ -296,7 +296,7 @@ function createMemo<T>(
     entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled, so the
     // next call retries the load.
-    // @orb-waive caught-failure-ownership(created): the rejection arm records the failure for the availability verdict and deletes the failed single-flight entry, while every awaiting caller still receives the original rejection. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if either behavior changes.
+    // @orb-waive caught-failure-ownership(created): every caller receives the original rejection through `entry.promise` (model-cache.ts:329); the rejection arm only records the failed id and evicts the entry. Ends if either behavior changes.
     void created.then(
       () => {
         failedIds.delete(id);

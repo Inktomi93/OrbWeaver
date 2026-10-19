@@ -85,7 +85,7 @@ export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps
   try {
     await authenticatedRead(deps, { connection, path, label: "credential probe", signal: req.signal });
     return { status: "ok", checkedAt };
-    // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
+    // @orb-waive caught-failure-ownership(err): the probe returns the failure as `revoked` or `unreachable` health with a sanitized reason at diagnostics.ts:93 and :96. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
     const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
@@ -139,7 +139,7 @@ export async function listOpenAiCompatModels(req: ListModelsRequest, deps: Diagn
             })
           ).map((row) => bareCatalogEntry(row));
     return listingOf(models);
-    // @orb-waive caught-failure-ownership(err): optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
+    // @orb-waive caught-failure-ownership(err): the failure becomes `{ listed: false, reason }` through failedListing at diagnostics.ts:144, which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
   } catch (err) {
     return failedListing(err, secrets);
   }

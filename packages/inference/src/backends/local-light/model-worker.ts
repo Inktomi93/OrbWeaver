@@ -88,7 +88,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
       post({ type: "progress", progress });
     },
     detach: (name, fn) => {
-      // @orb-waive caught-failure-ownership(fn): a detached model disposal inside the worker has no caller; the failure is logged as a structured warning that crosses to the host logger. Precedent: packages/inference/src/backends/local-light/prefetch.ts owns a speculative model failure through a warning. Ends if a disposal gains a caller.
+      // @orb-waive caught-failure-ownership(fn): a detached disposal has no caller; the `log.warn` at model-worker.ts:93 posts a structured log message to the host logger. Ends if a disposal gains a caller.
       fn().catch((err: unknown) => {
         log.warn({ name, err: String(err) }, "local-light: a detached model task failed");
       });
@@ -111,7 +111,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
     }
     const { id, call } = message;
     inFlight += 1;
-    // @orb-waive caught-failure-ownership(run): the rejection arm posts the failure to the host thread, which rejects the waiting caller with the same error (ProviderError fields kept), so the failure propagates across the thread boundary. Precedent: the gate mustFlag fixture packages/server/src/domain/probe/opaque-rethrow-helper.ts documents the same real but syntactically opaque propagation. Ends if the failure message stops rejecting the host call.
+    // @orb-waive caught-failure-ownership(run): the rejection arm posts a failure message (model-worker.ts:121) that worker-cache.ts:163 turns into `pending.reject(...)` for the waiting caller. Ends if the failure message stops rejecting the host call.
     run(cache, call)
       .then(
         (value) => {

@@ -13,8 +13,7 @@ export function resolveClaudeExecutable(): string | null {
   // `@packages` remains the frozen six-root composite. Keep the marker with the sound module-resolution reason
   // below: the policy now judges this site and the ordinary-waiver engine stale-checks the exact `catch` token.
   // Removing the population root would therefore raise the coverage hole as a stale-waiver authority alarm.
-  // @orb-waive caught-failure-ownership(catch): a MODULE-RESOLUTION miss IS the answer — the wire is unbuilt (the
-  // registry's `needs` predicate names it), not a failure to report. Ends if the SDK grows a second install shape.
+  // @orb-waive caught-failure-ownership(catch): a module-resolution miss is the answer: null reaches the registry `needs` predicate at registry/backends.ts:47, which names the unbuilt wire and surfaces `runtime-missing`. Ends if the SDK grows a second install shape.
   try {
     return createRequire(import.meta.url).resolve(SDK_PACKAGE);
   } catch {

@@ -44,7 +44,7 @@ function textBatches(items: readonly TextItem[]): TextItem[][] {
 }
 
 async function settleTextBatch(cache: LocalLightModelCache, group: TextGroup, batch: readonly TextItem[]): Promise<void> {
-  // @orb-waive caught-failure-ownership(error): every batch caller owns a promise rejected below; no failure is lost. Ends if batch promises stop being the caller's result.
+  // @orb-waive caught-failure-ownership(error): every batch item's promise is rejected with the failure at scheduled-cache.ts:65. Ends if batch promises stop being the caller's result.
   try {
     const texts = batch.map((item) => item.text);
     const vectors = await (group.method === "embedTexts"
@@ -94,7 +94,7 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
   function enqueue<T>(run: () => Promise<T>, isQuery = false): Promise<T> {
     const result = Promise.withResolvers<T>();
     (isQuery ? queries : background).push(() => {
-      // @orb-waive caught-failure-ownership(Promise.resolve): rejection is forwarded to the returned result.promise before the queue advances. Ends if enqueue stops returning that promise.
+      // @orb-waive caught-failure-ownership(Promise.resolve): the rejection is forwarded by `result.reject(error)` at scheduled-cache.ts:106 to the returned result.promise before the queue advances. Ends if enqueue stops returning that promise.
       void Promise.resolve()
         .then(run)
         .then(
@@ -139,7 +139,7 @@ export function createScheduledCache(cache: LocalLightModelCache): LocalLightMod
         queueMicrotask(() => {
           groups.delete(key);
           for (const batch of textBatches(captured.items)) {
-            // @orb-waive caught-failure-ownership(enqueue): each rejected batch rejects its waiting text callers below. Ends if text stops returning those promises.
+            // @orb-waive caught-failure-ownership(enqueue): `item.reject(error)` at scheduled-cache.ts:145 rejects each waiting text caller, whose promises are returned below. Ends if text stops returning those promises.
             enqueue(() => settleTextBatch(cache, captured, batch), isQuery).catch((error: Error) => {
               for (const item of batch) {
                 item.reject(error);
