@@ -235,10 +235,8 @@ Before adding or widening a reader:
 - search the shared reader/provider table first;
 - confirm the installed API in `ts-morph.d.ts` rather than inventing a plausible method;
 - decide syntax versus types before requesting the checker:
-  direct ts-morph type/symbol methods bypass the runtime `ctx.checker()` accessor fence. `gate-modernization` ARM E
-  source-enforces its closed compiler-read vocabulary in the gate module and one named relative-import hop.
-  Namespace/default imports, further hops, unresolved targets, and computed subscripts remain review limits,
-  never permission to evade the declaration. Proof `mode` must also match the declared analysis;
+  direct ts-morph type/symbol methods bypass the runtime `ctx.checker()` accessor fence, and no gate enforces
+  that fence statically; review owns it, and a bypass is never permission to evade the declaration. Proof `mode` must also match the declared analysis;
 - declare the provider population/resources exactly;
 - plant alias, re-export, namespace, destructuring, computed, wrapper, shadow, write, cycle, dynamic, missing, empty, and ambiguity controls that apply;
 - prove a candidate prefilter cannot exclude a valid subject;

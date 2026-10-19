@@ -192,11 +192,17 @@ function nativeDisposalKey(node: MorphNode | undefined): boolean {
 /** `Math.max(a, b)` / `Math.min(a, b)` on the ambient global: a clamp picks between values. */
 function ambientClamp(call: CallExpression): boolean {
   const callee = unwrapParens(call.getExpression());
-  if (!(Node.isPropertyAccessExpression(callee) && CLAMP_MEMBERS.has(callee.getName()))) {
+  if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return false;
   }
+  // The origin reader resolves `Math.min` and `Math["min"]` to the same member path.
   const origin = resolveGlobalMemberOrigin(callee);
-  return origin.kind === "resolved" && origin.value.globalName === MATH_GLOBAL && origin.value.memberPath.length === 1;
+  return (
+    origin.kind === "resolved" &&
+    origin.value.globalName === MATH_GLOBAL &&
+    origin.value.memberPath.length === 1 &&
+    CLAMP_MEMBERS.has(origin.value.memberPath[0] ?? "")
+  );
 }
 
 /** A function the code names and calls by that name: a function declaration, or a binding initialized with an arrow/function expression. */
@@ -1109,8 +1115,27 @@ export const gate = defineGate({
       expect: { count: 1, token: "cap", messageIncludes: "Math.min" },
       why: "CLAMP: the ambient Math.min picks between runtime values inside a handed-out op",
     },
+    {
+      mode: "types",
+      files: { [COMPOSE_FILE]: 'export function build() {\n  return { cap: (n: number) => Math["max"](n, 10) };\n}\n' },
+      expect: { count: 1, token: "cap", messageIncludes: "decides per call" },
+      why: 'CLAMP, bracket spelling: Math["max"] resolves to the same ambient member as Math.max',
+    },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        [COMPOSE_FILE]:
+          'const Math = { min: (a: number, _b: number) => a };\nexport function build() {\n  return { cap: (n: number) => Math["min"](n, 10) };\n}\n',
+      },
+      why: "A shadowed Math is not the ambient global, so its bracket-spelled min is no clamp",
+    },
+    {
+      mode: "types",
+      files: { [COMPOSE_FILE]: 'export function build() {\n  return { cap: (n: number) => Math["abs"](n) };\n}\n' },
+      why: "An ambient Math member that does not pick between values is wiring in either spelling",
+    },
     {
       mode: "types",
       files: {
