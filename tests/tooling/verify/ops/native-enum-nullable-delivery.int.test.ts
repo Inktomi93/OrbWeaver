@@ -7,15 +7,17 @@ import { Node, SyntaxKind } from "ts-morph";
 import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
-import { gate as enums } from "../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
 import { gate as nullable } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
+import { gate as schemaSibling } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
 import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const POLICIES = [enums, nullable];
+// A family of one policy must be named for it, so the fixture corpus carries a second drizzle-schema member that no check selects.
+const POLICIES = [nullable];
+const CORPUS = [...POLICIES, schemaSibling];
 const SCHEMA = "packages/db/src/schema/rows.ts";
 const READS = "packages/server/src/domain/example/persistence/reads.ts";
 
@@ -70,8 +72,8 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
       }),
     );
   }
-  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
-  for (const { id } of POLICIES) {
+  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: CORPUS.map(({ id }) => `src/verify/gates/${id}.ts`) }));
+  for (const { id } of CORPUS) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
@@ -110,7 +112,7 @@ function poisonSyntax(project: Project): Disposable {
 }
 
 test.for([false, true])(
-  "native enum and nullable commands preserve importing-world browser=$0 judgments without syntax Type/Symbol",
+  "native nullable command preserves importing-world browser=$0 judgments without syntax Type/Symbol",
   { timeout: scaledBudget(90_000) },
   async (browser, { scratch, repoRoot }) => {
     fixture(scratch, repoRoot, browser);
@@ -122,8 +124,8 @@ test.for([false, true])(
     for (const { id } of POLICIES) {
       exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads, workers }));
     }
-    expect.soft(exits).toEqual(browser ? [1, 1] : [0, 1]);
-    expect(syntaxReads).toEqual([0, 0]);
+    expect.soft(exits).toEqual([1]);
+    expect(syntaxReads).toEqual([0]);
     expect(workers.length).toBeGreaterThan(0);
     const result = runPolicyPass({
       root: scratch,
@@ -141,7 +143,6 @@ test.for([false, true])(
       expect.objectContaining({ kind: "population", source: "drizzle-schema", members: 3 }),
     ]);
     expect(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual([
-      { id: enums.id, findings: browser ? [{ file: "packages/db/src/schema/config-browser.ts", token: "'one'" }] : [] },
       { id: nullable.id, findings: [{ file: SCHEMA, token: "rows.value" }, ...(browser ? [] : [{ file: READS, token: "rows.value" }])] },
     ]);
     const acquire = context.nativeTypeFacts;

@@ -178,7 +178,7 @@ export const workloads = sqliteTable(
     // The owner FK's SET-NULL parent scan + the owner-scoped `list`. Both active-lock uniques LEAD with
     // `kind`, and SQLite only uses an index whose LEFTMOST column is the constrained one — plus both are
     // PARTIAL (terminal rows excluded), so neither can serve the delete that must touch every row of a
-    // never-deleted audit log (`fk-columns-indexed` gate).
+    // never-deleted audit log (FK-index test).
     index("workloads_owner_idx").on(table.ownerId),
     index("workloads_funder_idx").on(table.funderUserId),
     // SQL-side enum enforcement derived from the tuples (mirrors the drizzle `{ enum }` type-side).
@@ -234,7 +234,7 @@ export const workloadSchedules = sqliteTable(
   },
   (table) => [
     // The owner CASCADE parent + the per-owner schedule list: SQLite auto-indexes no child FK, so a user
-    // hard-delete would scan every schedule (`fk-columns-indexed` gate).
+    // hard-delete would scan every schedule (FK-index test).
     index("workload_schedules_owner_idx").on(table.ownerId),
     check("workload_schedules_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workload_schedules_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),

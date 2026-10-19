@@ -6,30 +6,23 @@
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE: new modules import the real
 // doors (`@orb/kit/ids`, `@orb/contracts/*`, `drizzle-orm/sqlite-core`, the real `chats` table) and new schema
 // files sit beside the real ones in `packages/db/src/schema/`. Several schema policies judge EVERY table, so a
-// schema arm's file also draws `db-structure` findings; the runner's entanglement check
+// schema arm's file can also draw findings from the other schema-population policies; the runner's entanglement check
 // proves those arms alone.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as dbEnumFromTuple } from "../../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
-import { gate as dbStructure } from "../../../../../tooling/src/verify/gates/db-structure.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
-import { gate as fkColumnsIndexed } from "../../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
-import { gate as fkOndeleteStated } from "../../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as noLooseIdCast } from "../../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
-import { gate as noUntypedSoftRef } from "../../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { gate as onePrincipalMintPopulation } from "../../../../../tooling/src/verify/gates/one-principal-mint-population.ts";
 import { gate as ownerRoleSplit } from "../../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as platformSpellings } from "../../../../../tooling/src/verify/gates/platform-spellings.ts";
-import { gate as schemaBannedShapes } from "../../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as scrubberHome } from "../../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as soleEnvReader } from "../../../../../tooling/src/verify/gates/sole-env-reader.ts";
-import { gate as tableExplicitPrimaryKey } from "../../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
 import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
@@ -48,21 +41,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: assumesSingleReplica,
     overlays: [add(`${DOMAIN}/liveness-replica.ts`, "export const livenessReplica = new Map<string, number>();\n")],
     messageIncludes: "module-scope mutable per-process state",
-  },
-  {
-    policy: dbEnumFromTuple,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-enum.ts`,
-        `${SQLITE}export const livenessEnum = sqliteTable("liveness_enum", { id: text("id").primaryKey(), k: text("k", { enum: ["a", "b"] }) });\n`,
-      ),
-    ],
-    messageIncludes: "INLINE ARRAY LITERAL",
-  },
-  {
-    policy: dbStructure,
-    overlays: [add(`${SCHEMA}/liveness-orphan.ts`, "export const livenessOrphan = 1;\n")],
-    messageIncludes: "not re-exported",
   },
   {
     policy: detachedWorkTraced,
@@ -85,26 +63,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: 'hardcoded `role: "user"`',
   },
   {
-    policy: fkColumnsIndexed,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-fk-index.ts`,
-        `${SQLITE}import { chats } from "./chat.ts";\nexport const livenessNotes = sqliteTable("liveness_notes", { id: text("id").primaryKey(), note: text("note"), chatId: text("chat_id").references(() => chats.id, { onDelete: "cascade" }) });\n`,
-      ),
-    ],
-    messageIncludes: "does not LEAD any B-tree index",
-  },
-  {
-    policy: fkOndeleteStated,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-fk-ondelete.ts`,
-        `${SQLITE}import { chats } from "./chat.ts";\nexport const livenessRefs = sqliteTable("liveness_refs", { id: text("id").primaryKey(), chatId: text("chat_id").references(() => chats.id) });\n`,
-      ),
-    ],
-    messageIncludes: "has no `onDelete` action",
-  },
-  {
     policy: noLooseIdCast,
     overlays: [add("packages/server/src/liveness-cast.ts", "export const livenessCast = value as never;\n")],
     messageIncludes: "bypasses branded-id type safety",
@@ -113,16 +71,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noRawEgress,
     overlays: [add(`${DOMAIN}/liveness-egress.ts`, 'export const livenessLoad = async (): Promise<unknown> => await fetch("https://liveness.invalid");\n')],
     messageIncludes: "raw `fetch` in server source",
-  },
-  {
-    policy: noUntypedSoftRef,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-soft-ref.ts`,
-        `${SQLITE}export const livenessWidgets = sqliteTable("liveness_widgets", { id: text("id").primaryKey(), widgetId: text("widget_id") });\n`,
-      ),
-    ],
-    messageIncludes: "carries NO `.references()` FK",
   },
   {
     policy: noVanityAlias,
@@ -160,17 +108,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "superseded pre-node-26 spelling",
   },
   {
-    policy: schemaBannedShapes,
-    // The ledger killed `chats.activePresetId` by name (D58): a table named `chats` carrying it again.
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-banned.ts`,
-        `${SQLITE}export const livenessChats = sqliteTable("chats", { id: text("id").primaryKey(), activePresetId: text("active_preset_id") });\n`,
-      ),
-    ],
-    messageIncludes: "D58",
-  },
-  {
     policy: schemaBranding,
     overlays: [
       add(`${SCHEMA}/liveness-unbranded.ts`, `${SQLITE}export const livenessThings = sqliteTable("liveness_things", { id: text("id").primaryKey() });\n`),
@@ -191,16 +128,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: soleEnvReader,
     overlays: [add(`${DOMAIN}/liveness-env.ts`, "export const livenessEnv = process.env.LIVENESS_VAR;\n")],
     messageIncludes: "process-env-read:LIVENESS_VAR",
-  },
-  {
-    policy: tableExplicitPrimaryKey,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-no-pk.ts`,
-        `${SQLITE}export const livenessLocks = sqliteTable("liveness_locks", { chatId: text("chat_id"), holder: text("holder") });\n`,
-      ),
-    ],
-    messageIncludes: "has no PRIMARY KEY",
   },
   {
     policy: typeidPrefixBoundary,

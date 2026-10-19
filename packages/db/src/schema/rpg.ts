@@ -1,8 +1,7 @@
 // schema/rpg — the RPG lite substrate's 5-table floor (producer: domain/rpg). Born
 // WHOLE: the full-mode shape ships as data/nullable columns from day one so full-mode arrival ADDS
 // siblings (7 tables, nullable columns, tool defs) and renames/re-types/migrates NOTHING lite shipped
-// (the graft-map invariant, §C). This is the schema floor; the domain/rpg producer lands later (until
-// then this file rides the BASELINE_RIDER_PRODUCERS entry in the db-structure gate).
+// (the graft-map invariant, §C). This is the schema floor; the domain/rpg producer lands later.
 //
 // D23-CLEAN: NO `ownerId` ANYWHERE. Authority derives through the chat FK chain — `rpg_games.chatId →
 // chat_participants` (D18/D20); the host participant is the authority, gated at the producer verb. Every
@@ -95,7 +94,7 @@ export const rpgGames = sqliteTable(
   (t) => [
     uniqueIndex("rpg_games_chat_unique").on(t.chatId),
     // Both nullable seat/knob FKs are SET NULL parents: a user or preset delete must find the games
-    // pointing at it, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    // pointing at it, and SQLite auto-indexes no child FK (FK-index test).
     index("rpg_games_gm_user_idx").on(t.gmUserId),
     index("rpg_games_gm_preset_idx").on(t.gmPresetId),
     check("rpg_games_mode_check", sql.raw(`mode in (${checkList(RPG_GAME_MODES)})`)),
@@ -199,10 +198,10 @@ export const rpgSnapshots = sqliteTable(
     uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId).where(sql`variant_id is not null`),
     index("rpg_snapshots_game_idx").on(t.gameId),
     // The message CASCADE parent — deleting a message must find its snapshots, and nothing here leads with
-    // `messageId` (`fk-columns-indexed` gate).
+    // `messageId` (FK-index test).
     index("rpg_snapshots_message_idx").on(t.messageId),
     // The as-of SET NULL parent — a message delete must find the hand rows stamped at it, and this column
-    // leads nothing else (`fk-columns-indexed` gate). Also the ladder's ordering join.
+    // leads nothing else (FK-index test). Also the ladder's ordering join.
     index("rpg_snapshots_as_of_message_idx").on(t.asOfMessageId),
     // THE TWO-ARM SHAPE (D124), the `rpg_sheets` actor-XOR idiom: message and variant are present together
     // or absent together (turn vs hand), and a TURN row never carries an as-of stamp (it IS its position).
@@ -242,7 +241,7 @@ export const rpgSheets = sqliteTable(
     uniqueIndex("rpg_sheets_game_user_unique").on(t.gameId, t.userId),
     // Both actor FKs sit SECOND in their (gameId, …) unique, and SQLite only uses an index whose LEFTMOST
     // column is the constrained one — so a character/user hard-delete scanned every sheet to CASCADE
-    // (`fk-columns-indexed` gate).
+    // (FK-index test).
     index("rpg_sheets_character_idx").on(t.characterId),
     index("rpg_sheets_user_idx").on(t.userId),
     // Exactly one of characterId/userId is set (the actor XOR — a sheet keys one durable identity).
@@ -291,7 +290,7 @@ export const rpgJournal = sqliteTable(
   (t) => [
     index("rpg_journal_game_variant_idx").on(t.gameId, t.variantId),
     // `variantId` leads nothing (it is second in the game index), and `sourceMessageId` leads nothing at
-    // all: a variant CASCADE and a message SET NULL both scanned the whole archive (`fk-columns-indexed`).
+    // all: a variant CASCADE and a message SET NULL both scanned the whole archive (FK-index test).
     index("rpg_journal_variant_idx").on(t.variantId),
     index("rpg_journal_source_message_idx").on(t.sourceMessageId),
     check("rpg_journal_type_check", sql.raw(`type in (${checkList(RPG_JOURNAL_TYPES)})`)),
@@ -364,7 +363,7 @@ export const rpgTurnToolCalls = sqliteTable(
     // The read is per-GAME, newest first (the transcript window).
     index("rpg_turn_tool_calls_game_idx").on(t.gameId),
     // The message CASCADE parent — a message delete must find its records, and `messageId` leads nothing
-    // else here (`fk-columns-indexed` gate).
+    // else here (FK-index test).
     index("rpg_turn_tool_calls_message_idx").on(t.messageId),
   ],
 );
@@ -400,7 +399,7 @@ export const rpgCheckpoints = sqliteTable(
   (t) => [
     index("rpg_checkpoints_game_idx").on(t.gameId),
     // The snapshot FK is RESTRICT: every snapshot delete must PROBE this table to decide whether to refuse,
-    // and without a leading index that probe is a full scan (`fk-columns-indexed` gate).
+    // and without a leading index that probe is a full scan (FK-index test).
     index("rpg_checkpoints_snapshot_idx").on(t.snapshotId),
     check("rpg_checkpoints_trigger_check", sql.raw(`trigger in (${checkList(RPG_CHECKPOINT_TRIGGERS)})`)),
   ],

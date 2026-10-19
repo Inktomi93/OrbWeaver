@@ -114,7 +114,7 @@ function killTree(pids: ChildPids | null): void {
     } catch {
       // The test owns these disposable pids and the door under test may already have reaped them — the
       // same cleanup posture as the stack fixtures. No `@orb-gate-ignore`: caught-failure-ownership does
-      // not scan tests/, so a marker here would suppress nothing and read STALE to gate-ignore-inventory.
+      // not scan tests/, so a marker here would suppress nothing and read as residue to the retired-marker lint rule.
     }
   }
 }

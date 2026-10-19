@@ -78,7 +78,7 @@ export const users = sqliteTable(
     uniqueIndex("users_single_owner_unique").on(table.role).where(sql`${table.role} = 'owner'`),
     // The agent-principal self-FK's CASCADE parent scan (D60: an owner hard-delete deletes their agent
     // rows) + "list my agents". SQLite auto-indexes no child FK, self-referential included
-    // (`fk-columns-indexed` gate).
+    // (FK-index test).
     index("users_owner_user_idx").on(table.ownerUserId),
     check("users_role_check", sql.raw(`role in (${ROLE_CHECK_LIST})`)),
     check("users_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),

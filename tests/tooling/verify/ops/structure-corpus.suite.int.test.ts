@@ -73,7 +73,7 @@ export const gate = defineGate({
 `;
 }
 
-/** A hard resource policy that reports one finding when its tree holds `docs/flag.md`; with no tree it never reaches `evaluate`. */
+/** A hard resource policy that reports one finding when its tree holds the planted flag file; with no tree it never reaches `evaluate`. */
 function resourcePolicy(repoRoot: string): string {
   const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
   return `import { defineGate } from ${JSON.stringify(contract)};
@@ -295,7 +295,7 @@ test("the artifact and both readers reconcile effective findings, warnings, and 
 //
 // The third routing arm — `@orb-gate-ignore` reaching only its legacy owner — retired with the suppressor at
 // #2176 Phase F. Its successor is not a second arm here: a final policy has NO inline door at all, which the
-// authority declaration itself carries, and `gate-ignore-inventory` reds every residual marker on the tree.
+// authority declaration itself carries, and the retired-marker lint rule reds every residual marker on the tree.
 
 test("@orb-waive reaches only a final ORDINARY policy: it waives there, alarms as unknown on an id nobody registers and as wrong-authority on a reviewed-grant policy", {
   timeout: RUN_TIMEOUT_MS,

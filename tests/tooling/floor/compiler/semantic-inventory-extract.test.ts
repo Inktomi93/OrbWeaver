@@ -1486,36 +1486,40 @@ test("readonly native result admission bounds the aggregate of individually smal
   }
 });
 
-test.for(["objects", "strings"] as const)("readonly native result %s saturation preserves complete native fallback", { timeout: 20_000 }, (dimension) => {
-  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
-  project.createSourceFile("/base.ts", "export const value=1;");
-  const files = dimension === "objects" ? 180 : 1;
-  for (let index = 0; index < files; index++) {
-    const name = dimension === "strings" ? "x".repeat(1_048_577) : `consumer${index}`;
-    project.createSourceFile(
-      `/${name}.ts`,
-      `import {value} from './base'; export const uses=[${Array.from({ length: dimension === "objects" ? 100 : 300 }, () => "value").join(",")}];`,
-    );
-  }
-  const service = project.getLanguageService().compilerObject;
-  const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
-  const position = source.text.indexOf("value");
-  const options = { includeDefinitionDisplay: false };
-  const expected = fixtureValue(service.findReferences(source.fileName, position, options));
-  expect(expected.flatMap((group) => group.references).length).toBeGreaterThan(dimension === "objects" ? 18_000 : 300);
-  const pass = service.createReadonlyReferencePass();
-  const lookup = vi.spyOn(source, "getChildren");
-  try {
-    expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
-    lookup.mockClear();
-    expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
-    expect(lookup.mock.calls.length).toBeGreaterThan(0);
-  } finally {
-    lookup.mockRestore();
-    pass.dispose();
-    service.dispose();
-  }
-});
+test.for(["objects", "strings"] as const)(
+  "readonly native result %s saturation preserves complete native fallback",
+  { timeout: scaledBudget(20_000) },
+  (dimension) => {
+    const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [] } });
+    project.createSourceFile("/base.ts", "export const value=1;");
+    const files = dimension === "objects" ? 180 : 1;
+    for (let index = 0; index < files; index++) {
+      const name = dimension === "strings" ? "x".repeat(1_048_577) : `consumer${index}`;
+      project.createSourceFile(
+        `/${name}.ts`,
+        `import {value} from './base'; export const uses=[${Array.from({ length: dimension === "objects" ? 100 : 300 }, () => "value").join(",")}];`,
+      );
+    }
+    const service = project.getLanguageService().compilerObject;
+    const source = fixtureValue(service.getProgram()?.getSourceFile("/base.ts"));
+    const position = source.text.indexOf("value");
+    const options = { includeDefinitionDisplay: false };
+    const expected = fixtureValue(service.findReferences(source.fileName, position, options));
+    expect(expected.flatMap((group) => group.references).length).toBeGreaterThan(dimension === "objects" ? 18_000 : 300);
+    const pass = service.createReadonlyReferencePass();
+    const lookup = vi.spyOn(source, "getChildren");
+    try {
+      expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
+      lookup.mockClear();
+      expect(pass.findReferences(source.fileName, position, options)).toEqual(expected);
+      expect(lookup.mock.calls.length).toBeGreaterThan(0);
+    } finally {
+      lookup.mockRestore();
+      pass.dispose();
+      service.dispose();
+    }
+  },
+);
 
 test("cancelled native import-map construction never survives into a later query", () => {
   const fixture = nativeReferenceFixture();
@@ -1895,10 +1899,12 @@ test("readonly native token lookups avoid repeated traversal without caching sym
   }
 });
 
-test("full-cap native token memo preserves fallback and releases its bounded retained representation", { timeout: 125_000 }, async ({ scratch }) => {
+test("full-cap native token memo preserves fallback and releases its bounded retained representation", { timeout: scaledBudget(125_000) }, async ({
+  scratch,
+}) => {
   const child = fileURLToPath(new URL("../../../support/node/native-token-memo-child.mjs", import.meta.url));
   const output = join(scratch, "native-token-memo.json");
-  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: 120_000 });
+  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: scaledBudget(120_000) });
   console.log(result.stdout);
   expect(result.code, result.stderr).toBe(0);
   expect(result.timedOut).toBe(false);
@@ -2234,11 +2240,13 @@ test("native lexical lists use source object identity and never retain an unadmi
   }
 });
 
-test("full-cap native lexical lists preserve all fallback dimensions and release combined retention", { timeout: 125_000 }, async ({ scratch }) => {
+test("full-cap native lexical lists preserve all fallback dimensions and release combined retention", { timeout: scaledBudget(125_000) }, async ({
+  scratch,
+}) => {
   const child = fileURLToPath(new URL("../../../support/node/native-lexical-memo-child.mjs", import.meta.url));
   const output = join(process.cwd(), "reports", "review", `native-lexical-memo-${basename(scratch)}.json`);
   mkdirSync(dirname(output), { recursive: true });
-  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: 120_000 });
+  const result = await spawnNiced(process.execPath, ["--expose-gc", child, output], { timeoutMs: scaledBudget(120_000) });
   writeFileSync(`${output}.stdout.log`, result.stdout);
   writeFileSync(`${output}.stderr.log`, result.stderr);
   console.log(result.stdout);

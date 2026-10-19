@@ -15,6 +15,7 @@ import { readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import type { CallExpression, FunctionDeclaration, Identifier, Node as MorphNode, ParameterDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { scaledBudget } from "../../_load-budget.ts";
 
 function actualMetadataCalls(repoRoot: string): {
   readonly target: FunctionDeclaration;
@@ -42,7 +43,7 @@ function actualMetadataCalls(repoRoot: string): {
   return { target, call, native, recipe, argument };
 }
 
-test("actual resolvedArm optional projection retains authored absence and native String separately from strict defaults", { timeout: 30_000 }, ({
+test("actual resolvedArm optional projection retains authored absence and native String separately from strict defaults", { timeout: scaledBudget(30_000) }, ({
   repoRoot,
 }) => {
   const { target, call, native, recipe, argument } = actualMetadataCalls(repoRoot);

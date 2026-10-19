@@ -18,9 +18,7 @@ import { gate as appearanceCarrierHealth } from "../../../../../tooling/src/veri
 import { gate as assetsSingleWriter } from "../../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as boundedListLimit } from "../../../../../tooling/src/verify/gates/bounded-list-limit.ts";
 
-import { gate as busBeltTotal } from "../../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as busConsumerBelt } from "../../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
-import { gate as busDefinitionBelts } from "../../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { gate as busPayloadAllowlistHealth } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as caughtFailureCensusRow } from "../../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
@@ -99,16 +97,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
   },
 
   {
-    policy: busBeltTotal,
-    overlays: [
-      add(
-        `${CONTRACTS}/liveness-belt/index.ts`,
-        'export type LivenessBeltBusEvent = { type: "livenessBeltA" } | { type: "livenessBeltB" };\nexport const LIVENESS_BELT_BUS_EVENT_TYPES = ["livenessBeltA"] as const satisfies readonly LivenessBeltBusEvent["type"][];\n',
-      ),
-    ],
-    messageIncludes: "livenessBeltB",
-  },
-  {
     policy: busConsumerBelt,
     overlays: [
       add(
@@ -117,13 +105,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "has NO consumer coverage",
-  },
-  {
-    policy: busDefinitionBelts,
-    overlays: [
-      add(`${CONTRACTS}/liveness-beltless/index.ts`, 'export type LivenessBeltlessBusEvent = { type: "livenessFired" } | { type: "livenessChanged" };\n'),
-    ],
-    messageIncludes: "NO `*_EVENT_TYPES` belt",
   },
   {
     policy: busPayloadAllowlistHealth,

@@ -357,7 +357,7 @@ export const chatDigests = sqliteTable(
     index("chat_digests_chat_idx").on(t.chatId),
     // The scope key's SECOND column is not usable for a character-keyed delete (SQLite only uses an index
     // whose LEFTMOST column is constrained), so a character delete scanned every digest to CASCADE
-    // (`fk-columns-indexed` gate).
+    // (FK-index test).
     index("chat_digests_scoped_character_idx").on(t.scopedCharacterId),
     index("chat_digests_generation_idx").on(t.generationId),
   ],

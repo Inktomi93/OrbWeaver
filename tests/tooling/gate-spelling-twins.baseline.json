@@ -13,7 +13,6 @@
     "domain-freshness-plane": ["bracket"],
     "duplicate-action-doors": ["bracket"],
     "evaluate-no-scope-capture": ["bracket"],
-    "external-id-single-writer": ["bracket"],
     "json-column-write-parity": ["bracket"],
     "list-row-adoption": ["bracket"],
     "no-form-reset-in-autosave": ["bracket"],

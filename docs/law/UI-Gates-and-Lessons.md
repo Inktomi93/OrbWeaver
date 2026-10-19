@@ -80,8 +80,8 @@ The UI enforcement families:
 - **Semantic token checks (ts-morph, `tooling/src/verify/gates/`).** `no-raw-spacing-in-features` and
   `no-raw-typography-in-features` retain their typed analysis. They apply to their declared client/UI
   populations without a `components/ui/`-style exemption (§11.0/§11.4).
-- **Z-index home health (`z-index-tier-health`).** The gate reports missing sanctioned implementation
-  homes; native ESLint restrictions own raw values and unknown semantic z utilities.
+- **Z-index home health (`tests/tooling/z-index-implementation-homes.test.ts`).** The test reports missing
+  sanctioned implementation homes; native ESLint restrictions own raw values and unknown semantic z utilities.
 - **Compose-only keystone (ESLint, `eslint.config.js`).** A feature ASSEMBLES `@orb/ui` primitives +
   the layout kit; it never PAINTS — no `className`/`style` on a raw intrinsic element anywhere in
   `packages/client/src`, three exact exemptions: `features/app-shell/**` (the SHELL-tier painter),

@@ -76,7 +76,7 @@ test("schemaScan reports the resolved population, so a collapsed denominator is 
 });
 
 // ── #1035: every member KIND is answered, none is skipped ───────────────────────────────────────────────
-// The founding measurement (v-gates, in-process): an FK written SHORTHAND made `fk-columns-indexed` GREEN
+// The founding measurement (v-gates, in-process): an FK written SHORTHAND made an FK-index check GREEN
 // where the byte-identical inline column RED'd — resolvedColumns 3 -> 2, no refusal anywhere. A member kind
 // this reader drops is a whole column's obligations leaving eight gates at once.
 test("a SHORTHAND member resolves through its binding, and reports at the binding's own site", () => {

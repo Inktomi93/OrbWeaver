@@ -1,4 +1,4 @@
-// Reviewed grants: tooling-argv-front-door, tooling-artifact-path-home, tooling-browser-door, tooling-child-process-door, tooling-port-registry....
+// Reviewed grants: tooling-argv-front-door, tooling-artifact-path-home, tooling-browser-door, tooling-child-process-door, tooling-process-exit-home....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -126,14 +126,6 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     endsWhen: "the prod spawn moves or drops the exception — the row is then consumed zero times and reds.",
   },
   {
-    id: "tooling-port-registry:ports",
-    policyId: "tooling-port-registry",
-    subject: "tooling/src/floor/host/ports.ts",
-    operation: "port-literal",
-    why: "THE port registry — the one home every reserved row and stage band is declared in, and the table the policy imports to know what a port number even is (the legacy PORT_HOME row).",
-    endsWhen: "the registry moves, or stops declaring ports — which is the day it stopped being the registry; the row is then consumed zero times and reds.",
-  },
-  {
     id: "tooling-process-exit-home:run-tool",
     policyId: "tooling-process-exit-home",
     subject: "tooling/src/floor/cli/run-tool.ts",
@@ -162,7 +154,7 @@ export const REVIEWED_GRANTS_TOOLING_TO_PERMISSION: readonly ReviewedGateGrant[]
     policyId: "tooling-project-home",
     subject: "tooling/src/verify/lib/config-static-read.ts",
     operation: "ts-morph-project-construction",
-    why: "ONE scratch parser (`useInMemoryFileSystem`) for exact code outside the governed workspace corpus: the root eslint/dep-cruiser configs, Playwright's CT bootstrap, and now the three root runner configs delivered as `exact-file` facts. Loading them into harnessGlobs would widen every gate's jurisdiction; separate parsers per consumer would violate the one-parser census (the legacy PROJECT_SITES row).",
+    why: "ONE scratch parser (`useInMemoryFileSystem`) for exact code outside the governed workspace corpus: the root eslint/dep-cruiser configs, Playwright's CT bootstrap, and the vitest config delivered as an `exact-file` fact. Loading them into harnessGlobs would widen every gate's jurisdiction; separate parsers per consumer would violate the one-parser census (the legacy PROJECT_SITES row).",
     endsWhen: "every such file joins the governed corpus or stops needing AST reads — the row is then consumed zero times and reds.",
   },
   {

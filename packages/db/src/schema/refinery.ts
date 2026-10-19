@@ -1,6 +1,5 @@
 // schema/refinery — card-refinery pipeline sessions + the append-only run log (producer: domain/refinery
-// — R1; rides the baseline as a BASELINE_RIDER until that domain lands, per the db-structure gate's
-// designed pre-producer mechanism). Design: D171; the owner-signed port study
+// — R1). Design: D171; the owner-signed port study
 // (2026-08-08, §5.2/§6) landed the shape below.
 //
 // OWNERSHIP IS DERIVED, NOT STAMPED (D23): a session is anchored by `character_id NOT NULL → characters`
@@ -89,7 +88,7 @@ export const refinerySessions = sqliteTable(
   },
   (t) => [
     // The per-character session listing + the characterId FK's cascade child scan (SQLite auto-indexes
-    // no child FK — `fk-columns-indexed` gate; the character_snapshots precedent).
+    // no child FK — FK-index test; the character_snapshots precedent).
     index("refinery_sessions_character_idx").on(t.characterId),
     check("refinery_sessions_status_check", sql.raw(`status in (${SESSION_STATUS_CHECK_LIST})`)),
   ],
@@ -130,8 +129,8 @@ export const refineryRuns = sqliteTable(
     // latest at the time" — false the moment step-back targets an earlier run.
     //
     // SELF-FK, not a bare id. The design doc proposed "nullable text, no FK constraint needed beyond the
-    // session scope"; D24 overrules it (boundaries are physics, FK-enforced) and the `no-untyped-soft-ref`
-    // gate makes that mechanical — an id-shaped column with no `.references()` is RED. It is also simply
+    // session scope"; D24 overrules it (boundaries are physics, FK-enforced) and the soft-reference
+    // test makes that mechanical — an id-shaped column with no `.references()` is RED. It is also simply
     // the better answer: the edge is now unforgeable rather than a convention the next writer must honor.
     // `set null` because a parent's disappearance means the edge is UNKNOWN, never that the child should
     // vanish — a run is independent append-only history whichever run it read (in practice the session
@@ -146,10 +145,10 @@ export const refineryRuns = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // sessionId LEADS (`fk-columns-indexed`: the cascade child scan) and the composite serves the
+    // sessionId LEADS (FK-index test: the cascade child scan) and the composite serves the
     // latest-run-per-(session, stage) read — the append-only log's ONE hot query.
     index("refinery_runs_session_stage_idx").on(t.sessionId, t.stage, t.createdAt),
-    // The self-FK's own child-scan index (`fk-columns-indexed`) — and the read the ledger's DAG view runs
+    // The self-FK's own child-scan index (FK-index test) — and the read the ledger's DAG view runs
     // to answer "what was derived FROM this run?".
     index("refinery_runs_source_idx").on(t.sourceRunId),
     check("refinery_runs_stage_check", sql.raw(`stage in (${RUN_STAGE_CHECK_LIST})`)),
@@ -187,7 +186,7 @@ export const refinerySchemas = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The owner's library list + the FK's child scan (`fk-columns-indexed`).
+    // The owner's library list + the FK's child scan (FK-index test).
     index("refinery_schemas_owner_idx").on(t.ownerId),
     check("refinery_schemas_stage_check", sql.raw(`stage in (${SCHEMA_STAGE_CHECK_LIST})`)),
   ],

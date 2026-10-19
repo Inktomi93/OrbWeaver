@@ -3,8 +3,11 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { beginReferencePass, endReferencePass } from "@orb/tooling/floor/code-facts/reference-fact";
 import { Project, SyntaxKind } from "ts-morph";
 import { readSymbolMemberValue } from "../../../../tooling/src/floor/code-facts/reference-fact-symbol-member.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
-test("native symbol members resolve actual arrows/methods through aliases and ignore contextual signatures", { timeout: 30_000 }, ({ repoRoot }) => {
+test("native symbol members resolve actual arrows/methods through aliases and ignore contextual signatures", { timeout: scaledBudget(30_000) }, ({
+  repoRoot,
+}) => {
   const project = new Project({ tsConfigFilePath: join(repoRoot, "packages/server/tsconfig.json"), skipAddingFilesFromTsConfig: true });
   const file = project.createSourceFile(join(repoRoot, "packages/server/src/entry/compose/__symbol-member.ts"), "");
   const read = (source: string): ReturnType<typeof readSymbolMemberValue> => {

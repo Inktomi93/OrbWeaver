@@ -1,10 +1,8 @@
 // Verdict, authority and home-refusal controls for the retained tooling plumbing policies.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { Project, SyntaxKind } from "ts-morph";
+import { Project } from "ts-morph";
 import { beforeEach, vi } from "vitest";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -13,11 +11,8 @@ import { gate as artifactPathHome } from "../../../../tooling/src/verify/gates/t
 import { gate as artifactRunSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as browserDoor } from "../../../../tooling/src/verify/gates/tooling-browser-door.ts";
 import { gate as childProcessDoor } from "../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
-import { gate as clockBudget } from "../../../../tooling/src/verify/gates/tooling-clock-budget.ts";
-import { gate as portRegistry } from "../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as processExitHome } from "../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
 import { gate as projectHome } from "../../../../tooling/src/verify/gates/tooling-project-home.ts";
-import { gate as runnerConfigLiterals } from "../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { REVIEWED_GRANTS, reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
@@ -36,9 +31,8 @@ beforeEach(async () => {
 
 const ROOT = "/tooling-plumbing-family";
 /** Retained source policies share the bounded plumbing controls. */
-const TREE: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, artifactRunSlot, processExitHome, childProcessDoor, portRegistry, clockBudget];
-const ALL: readonly GatePolicy[] = [...TREE, runnerConfigLiterals];
-const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor, portRegistry];
+const ALL: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, artifactRunSlot, processExitHome, childProcessDoor];
+const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor];
 // 19 at mint; 17 since `tooling-project-home:dangling-refs` (cb4c0feab1) and `:enforcement-registry-parity`
 // (c6e942b00e) retired with their gates' conversions — a converted policy owns no Project, so its grant died
 // with the act it licensed; 16 since `tooling-project-home:ops-conformance` died with the legacy conformance
@@ -49,8 +43,9 @@ const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifac
 // `tooling-child-process-door:dev` licensed `pnpm dev` (D252) for the `pnpm start` reason; 19 since
 // `:stack-dev-up` and `:stack-prod-up` licensed the Node stack supervisors, whose children are the dev and
 // production servers; 20 since `:platform-open-url` licensed `openUrl`'s opener, whose child becomes the
-// browser. The exact-subject arm below still pins every survivor to a live file.
-const PLUMBING_GRANT_COUNT = 20;
+// browser; 19 since `tooling-port-registry:ports` became the native rule's `homes` entry for the registry.
+// The exact-subject arm below still pins every survivor to a live file.
+const PLUMBING_GRANT_COUNT = 19;
 const REAL_TREE_BUDGET_MS = scaledBudget(300_000);
 
 const PROC_HOME = "tooling/src/floor/process/proc.ts";
@@ -101,19 +96,8 @@ function passOf(policies: readonly GatePolicy[], files: Readonly<Record<string, 
 
 const sorted = (lines: readonly string[]): readonly string[] => lines.toSorted((left, right) => left.localeCompare(right));
 
-test("retained plumbing policies preserve their founding fixtures", () => {
+test("retained plumbing policies preserve their founding fixtures", { timeout: scaledBudget(180_000) }, () => {
   expect(verifyPolicyProofs(ALL)).toEqual([]);
-});
-
-// ─── §4.2 ORDINARY IDENTITY — the one ordinary policy of the split ──────────────────────────────────────
-test("an ordinary waiver binds to tooling-clock-budget at the NUMERIC LITERAL it reports — the translated CLOCK_SITES shape", () => {
-  const waived = passOf([clockBudget], {
-    "tooling/src/ui-audit/ops/walk.ts":
-      "// @orb-waive tooling-clock-budget(30_000): the proof's stand-in reason and its end condition.\nexport const opts = { timeout: 30_000 };\n",
-  });
-  expect(waived.authority.authorityAlarms).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
 });
 
 // ─── §4.3 GRANT IDENTITY — the real rows ────────────────────────────────────────────────────────────────
@@ -172,13 +156,6 @@ const GRANT_CASES: readonly GrantCase[] = [
     },
     stopped: { [PROC_HOME]: PROC_STUB, "tooling/src/snap/ops/stage.ts": "export const boot = 1;\n" },
     wrongOperation: "child-process-import",
-  },
-  {
-    policy: portRegistry,
-    grantId: "tooling-port-registry:ports",
-    files: { "tooling/src/floor/host/ports.ts": "export const DEV_PORTS = { server: 8788, vite: 5173 };\n" },
-    stopped: { "tooling/src/floor/host/ports.ts": "export const DEV_PORTS = { server: 0, vite: 0 };\n" },
-    wrongOperation: "port-name",
   },
 ];
 
@@ -341,52 +318,6 @@ test("a RENAMED door leaves the home's receipt unresolved and refuses — the le
   expect(renamed.policies[0]?.receipts).toEqual([{ kind: "population", source: "child-process home: proc", members: 1, unresolved: 1 }]);
 });
 
-// ─── §4.5 THE EXACT-FILE DOOR — the root-config policy over a real root ─────────────────────────────────
-const CONFIGS: Readonly<Record<string, string>> = {
-  "vitest.config.ts": "export default { test: { testTimeout: budget(5000) } };\ndeclare function budget(n: number): number;\n",
-  "playwright.config.ts": 'export default { webServer: { command: "x", timeout: budget(180_000) } };\ndeclare function budget(n: number): number;\n',
-  "playwright-ct.config.ts": "export default { use: { ctPort: CT_VITE_PORT } };\ndeclare const CT_VITE_PORT: number;\n",
-};
-
-function plantConfigs(root: string, files: Readonly<Record<string, string>>): void {
-  for (const [rel, text] of Object.entries(files)) {
-    const absolute = join(root, rel);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, text);
-  }
-}
-
-function resourcePass(root: string, overlay?: Readonly<Record<string, string | null>>): ReturnType<typeof runPolicyPass> {
-  return runPolicyPass({
-    knownPolicies: ALL,
-    policies: [runnerConfigLiterals],
-    root,
-    project: new Project({ useInMemoryFileSystem: true }),
-    ...(overlay === undefined ? {} : { resourceOptions: { overlay } }),
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-}
-
-test("the three root configs read through their exact-file ids over a real root; a planted literal clock is the finding", ({ scratch }) => {
-  const root = join(scratch, "runner-configs");
-  plantConfigs(root, { ...CONFIGS, "vitest.config.ts": "export default { test: { testTimeout: 5000 } };\n" });
-  const result = resourcePass(root);
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map((finding) => `${finding.file}:${String(finding.line)} ${finding.token ?? ""}`)).toEqual([
-    "vitest.config.ts:1 5000",
-  ]);
-});
-
-test("a MISSING root config refuses the WHOLE fact at the population phase — the legacy blindness tripwire, now the door's own refusal", ({ scratch }) => {
-  const root = join(scratch, "runner-configs-missing");
-  plantConfigs(root, CONFIGS);
-  const missing = resourcePass(root, { "playwright.config.ts": null });
-  expect(missing.toolErrors.map((error) => [error.policyId, error.phase])).toEqual([[runnerConfigLiterals.id, "population"]]);
-  expect(missing.authority.withheldPolicyIds).toEqual([runnerConfigLiterals.id]);
-  expect(missing.authority.effectiveFindings).toEqual([]);
-});
-
 // ─── §4.5 DEFERRAL ──────────────────────────────────────────────────────────────────────────────────────
 test("a narrowed request DEFERS every entire-population policy instead of adjudicating a home or a row its scope cannot see", () => {
   const files = {
@@ -394,19 +325,12 @@ test("a narrowed request DEFERS every entire-population policy instead of adjudi
     "tooling/src/snap/lib/clean.ts": "export const clean = true;\n",
     "tooling/src/snap/ops/x.ts": 'import { chromium } from "@playwright/test";\nexport const b = chromium.launch();\n',
   };
-  for (const policy of TREE.filter(({ execution }) => execution === "entire-population")) {
+  for (const policy of ALL.filter(({ execution }) => execution === "entire-population")) {
     const narrowed = passOf([policy], files, { requestedPaths: ["tooling/src/snap/lib/clean.ts"] });
     expect(narrowed.toolErrors, policy.id).toEqual([]);
     expect(narrowed.policies.find(({ id }) => id === policy.id)?.owner, policy.id).toMatchObject({ status: "not-applicable", population: "complete" });
     expect(narrowed.authority.effectiveFindings, policy.id).toEqual([]);
   }
-  // The one selected-files policy judges exactly the file it was handed.
-  const selected = passOf(
-    [clockBudget],
-    { "tooling/src/a.ts": "export const a = { timeout: 30_000 };\n", "tooling/src/b.ts": "export const b = { timeout: 30_000 };\n" },
-    { requestedPaths: ["tooling/src/a.ts"] },
-  );
-  expect(selected.authority.effectiveFindings.map((finding) => finding.file)).toEqual(["tooling/src/a.ts"]);
 });
 
 // ─── §4.5 THE AMBIENT BRANCH of tooling-process-exit-home ───────────────────────────────────────────────
@@ -430,7 +354,7 @@ test("a bare `process.exit(` resolves through the AUGMENTED @types/node global o
 
 // ─── THE REAL TREE ──────────────────────────────────────────────────────────────────────────────────────
 test(
-  "the retained policies over this checkout: no findings, every plumbing grant consumed once, the translated clock waiver bound",
+  "the retained policies over this checkout: no findings, every plumbing grant consumed once",
   () => {
     const root = process.cwd();
     const context = projectCtx(root);
@@ -446,18 +370,6 @@ test(
     });
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings).toEqual([]);
-    const subject = "tests/tooling/tool-guard.int.test.ts";
-    const migratedLiteral = project
-      .getSourceFileOrThrow(join(root, subject))
-      .getVariableDeclarationOrThrow("AGENT_TIMEOUT")
-      .getInitializerOrThrow()
-      .getFirstDescendantByKindOrThrow(SyntaxKind.NumericLiteral);
-    // Pin the original declaration; later guard input/output fixtures have independent exact waivers.
-    expect(
-      result.authority.waivedFindings
-        .filter(({ finding }) => finding.file === subject && finding.line === migratedLiteral.getStartLineNumber())
-        .map(({ finding }) => `${finding.file} ${finding.token ?? ""}`),
-    ).toEqual(["tests/tooling/tool-guard.int.test.ts 120_000"]);
     expect(result.authority.reviewedGrantConsumption.filter((row) => row.count !== 1)).toEqual([]);
     expect(result.authority.reviewedGrantConsumption).toHaveLength(PLUMBING_GRANT_COUNT);
     // Only this run's retained policies are KNOWN to it, so every other policy's live `@orb-waive` marker reads as

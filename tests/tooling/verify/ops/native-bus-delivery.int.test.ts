@@ -8,12 +8,12 @@ import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/t
 import { inventoryQueryNode } from "../../../../tooling/src/floor/compiler/drizzle-inventory-extract.ts";
 import { captureInvocationEvidence } from "../../../../tooling/src/floor/compiler/invocation-evidence-extract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
+import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
-import { gate as beltTotal } from "../../../../tooling/src/verify/gates/bus-belt-total.ts";
 import { gate as consumerBelt } from "../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
-import { gate as definitionBelts } from "../../../../tooling/src/verify/gates/bus-definition-belts.ts";
 import { gate as payloadHealth } from "../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as producerCoverage } from "../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
+import { busDefinitionFact } from "../../../../tooling/src/verify/lib/bus-definition-fact.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { typeObservationPlan } from "../../../../tooling/src/verify/lib/type-observation-context.ts";
@@ -38,7 +38,7 @@ const NODE_ARM = "packages/contracts/src/native/node-arm.ts";
 const BROWSER_ARM = "packages/contracts/src/native/browser-arm.ts";
 const SHARED_ARM = "packages/contracts/src/native/shared.ts";
 const SOURCES = [NODE_BUS, BROWSER_BUS, NODE_ARM, BROWSER_ARM, SHARED_ARM];
-const POLICIES = [beltTotal, consumerBelt, definitionBelts, payloadHealth, producerCoverage];
+const POLICIES = [consumerBelt, payloadHealth, producerCoverage];
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -118,11 +118,11 @@ function poisonSyntax(project: Project): Disposable {
 }
 
 test(
-  "native bus fixture distinguishes Node and browser meanings while a missing tuple member remains compiler-legal",
+  "native bus fixture distinguishes Node and browser meanings",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     for (const [config, expected] of [
-      ["tsconfig.json", [beltTotal.id, consumerBelt.id, producerCoverage.id]],
+      ["tsconfig.json", [consumerBelt.id, producerCoverage.id]],
       ["tsconfig.tests-dom.json", [consumerBelt.id, producerCoverage.id]],
     ] as const) {
       const project = new Project({ tsConfigFilePath: join(scratch, config) });
@@ -139,11 +139,6 @@ test(
       expect(result.toolErrors).toEqual([]);
       expect(result.factErrors).toEqual([]);
       expect(result.authority.effectiveFindings.map(({ policyId }) => policyId).toSorted()).toEqual(expected.toSorted());
-      expect(
-        result.authority.effectiveFindings
-          .filter(({ policyId }) => policyId === beltTotal.id)
-          .map(({ message }) => message?.includes("missing: node; not in the union: none")),
-      ).toEqual(config === "tsconfig.json" ? [true] : []);
     }
   },
   scaledBudget(60_000),
@@ -164,7 +159,7 @@ test(
         structure.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }));
       }
       const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", SOURCES.join(",")], { forbidSyntax: true, syntaxReads: nativeSyntaxReads });
-      expect({ structure, scoped }).toEqual({ structure: [1, 1, 0, 0, 1], scoped: 1 });
+      expect({ structure, scoped }).toEqual({ structure: [1, 0, 1], scoped: 1 });
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -177,14 +172,8 @@ test(
       });
       expect(result.toolErrors).toEqual([]);
       expect(result.factErrors).toEqual([]);
-      expect(
-        result.authority.effectiveFindings
-          .filter(({ policyId }) => policyId === beltTotal.id)
-          .map(({ file, line, column, token }) => ({ file, line, column, token })),
-      ).toEqual([{ file: NODE_BUS, line: 3, column: 14, token: "CHAT_BUS_EVENT_TYPES" }]);
       expect(result.authority.effectiveFindings.map(({ policyId, file }) => ({ policyId, file }))).toEqual([
         { policyId: consumerBelt.id, file: NODE_BUS },
-        { policyId: beltTotal.id, file: NODE_BUS },
         { policyId: producerCoverage.id, file: NODE_BUS },
         { policyId: consumerBelt.id, file: BROWSER_BUS },
         { policyId: producerCoverage.id, file: BROWSER_BUS },
@@ -206,18 +195,46 @@ test(
     writeFileSync(join(scratch, BROWSER_ARM), 'export interface NativeArm {type:"node";apiKey:string}');
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
+    const discriminators = new Map<string, readonly string[]>();
+    const probe = defineGate({
+      id: "native-bus-world-probe",
+      family: "native-bus-world-probe",
+      authority: "hard",
+      severity: "error",
+      population: { in: ["@contracts", "@client", "@server"], ext: ["ts", "tsx"] },
+      analysis: "types",
+      execution: "entire-population",
+      facts: [busDefinitionFact],
+      resources: [],
+      message: "bus world identity probe",
+      create: (ctx) => ({
+        evaluate: () => {
+          for (const definition of ctx.fact(busDefinitionFact).definitions) {
+            discriminators.set(definition.union.exportName, definition.discriminators);
+          }
+          ctx.receipt({ kind: "population", source: "native-bus-world-probe", members: 1 });
+        },
+      }),
+      mustFlag: [{ mode: "types", files: { "packages/server/src/flag.ts": "export const flag = 1;\n" }, why: "descriptor proof control" }],
+      mustPass: [{ mode: "types", files: { "packages/server/src/pass.ts": "export const pass = 1;\n" }, why: "descriptor proof control" }],
+    });
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
       ...nativeTypeFactOptions(context),
-      knownPolicies: POLICIES,
-      policies: POLICIES,
+      knownPolicies: [probe],
+      policies: [probe],
       reviewedGrants: [],
       failOnWarnings: false,
     });
     expect(result.toolErrors).toEqual([]);
     expect(result.factErrors).toEqual([]);
-    expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === beltTotal.id).map(({ file }) => file)).toEqual([BROWSER_BUS]);
+    expect(discriminators).toEqual(
+      new Map([
+        ["ChatBusEvent", ["stable"]],
+        ["UserBusEvent", ["node", "stable"]],
+      ]),
+    );
   },
   scaledBudget(60_000),
 );

@@ -11,9 +11,7 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
-import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verify/gates/external-id-single-writer.ts";
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
-import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
@@ -60,27 +58,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       add(`${SERVER}/domain/discovery/persistence/liveness-rollup.ts`, 'import { ownerStats } from "@orb/db";\nexport const livenessRollup = ownerStats;\n'),
     ],
     messageIncludes: "stats rollup tables",
-  },
-  {
-    policy: externalIdSingleWriter,
-    overlays: [
-      add(
-        `${SERVER}/domain/sessions/verbs/liveness-second-link.ts`,
-        'import { updateUser } from "../persistence/users.ts";\nexport async function link(db: D, userId: U, externalId: E): Promise<void> {\n  await updateUser(db, userId, { externalId, updatedAt: 0 });\n}\n',
-      ),
-    ],
-    messageIncludes: "externalId",
-  },
-  {
-    policy: handleKeyWriter,
-    // D257: a users rename that drops the key must speak on the real tree, where every real rename carries it.
-    overlays: [
-      add(
-        `${SERVER}/domain/sessions/verbs/liveness-rename.ts`,
-        'import { users } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport const rename = (db: D, id: U, handle: H, at: number) => db.update(users).set({ handle, updatedAt: at }).where(eq(users.id, id));\n',
-      ),
-    ],
-    messageIncludes: "handleKey",
   },
   {
     policy: firehoseImportAllowlistHealth,

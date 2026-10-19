@@ -168,7 +168,7 @@ so the owner wins within the §4.3 boundary.
 `packages/client/src/styles/index.ts`, the one CSS front door: shell.css → UI globals → client globals.
 Client globals and shell contain overlapping selectors at identical specificity, so reversing them can
 silently change the winner. CT adds only its `tests/` Tailwind source root through `playwright/index.css`;
-it carries no product import or product source. `playwright-css-topology` derives and closes this graph. Moving an import changes
+it carries no product import or product source. `tests/client/styles/css-home-topology.suite.test.ts` derives and closes this graph. Moving an import changes
 the cascade contract and requires an explicit law change.
 
 ### 4.6 Polarity has one mechanism
@@ -184,9 +184,9 @@ defect, not a second supported path. Native ESLint rejects direct JSX class stri
 
 Every mechanism below is gated, floored, or tested — never merely documented:
 
-- The colour/value/motion gates constrain authored values; `playwright-css-topology` makes production and CT
-  share the ordered product CSS graph while keeping the CT-only source explicit; G14 (`sanctioned-css-homes`)
-  path-closes repository-owned product CSS to the six-home table and fails on a missing home; compose-only
+- The colour/value/motion gates constrain authored values; `tests/client/styles/css-home-topology.suite.test.ts`
+  makes production and CT share the ordered product CSS graph while keeping the CT-only source explicit, and
+  path-closes repository-owned product CSS to the six-home table (G14), failing on a missing home; compose-only
   keeps client intrinsic paint out of features; class-merge seals and tests preserve primitive ownership. The
   sanctioned homes are path permissions, not proof that every declaration inside them is correct.
 

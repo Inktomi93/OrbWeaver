@@ -1,9 +1,7 @@
 // THE CLIENT TOTAL MAP over `AutomationBusEvent` — the consumer-exhaustiveness belt this bus never had.
 //
-// Until A4 the automation bus had a producer belt (`AUTOMATION_BUS_EVENT_TYPES`) and NO client consumer at
-// all, so `bus-definition-belts` carried it on the SERVER_INTERNAL_REACH lane with a row that named its own
-// end condition: "ends the moment the quick-reply chips UI lands — the map becomes buildable, this row goes
-// RED, and it gets deleted." The S4 card is that consumer; the row is deleted; this is the map.
+// The automation bus has a producer belt (`AUTOMATION_BUS_EVENT_TYPES`); this map is its client consumer,
+// which `bus-consumer-belt` finds by shape.
 //
 // It is a REDUCER, not an invalidation seam, because this bus has nothing to invalidate: the automation room
 // is live-only (no cursor, no replay — `transport/trpc/stream/sources/automation.ts`) and a pending ask has

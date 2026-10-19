@@ -61,7 +61,7 @@ export const connectionBindings = sqliteTable(
   },
   (t) => [
     // One binding per (actor, task) — the fold's indexed lookup; each actor FK LEADS its own partial unique,
-    // so no second index is owed on it (`fk-columns-indexed`).
+    // so no second index is owed on it (FK-index test).
     uniqueIndex("connection_bindings_user_task_unique").on(t.userId, t.task).where(sql`${t.actorKind} = 'user'`),
     uniqueIndex("connection_bindings_rule_task_unique").on(t.ruleId, t.task).where(sql`${t.actorKind} = 'automation-rule'`),
     uniqueIndex("connection_bindings_plugin_task_unique").on(t.pluginId, t.task).where(sql`${t.actorKind} = 'plugin-grant'`),

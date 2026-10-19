@@ -8,8 +8,8 @@
 // the `sqliteTable(` calls its own reader could parse, and it saw exactly ONE side of each registry
 // (coverage), so a phantom row or a retaining/derived overlap was invisible to it. `getTableConfig` over
 // the exported schema module asks the SAME question of the object Drizzle actually runs, so a table reached
-// through any authoring shape is in the denominator, and `db-structure` already enforces that every schema
-// file is re-exported from the barrel (its header states that invariant).
+// through any authoring shape is in the denominator, and `tests/db/schema/module-structure.suite.test.ts` already enforces that every
+// schema module is re-exported from the barrel.
 //
 // ONE COMPARATOR, TWO CALLERS — the exact `compareSchemaBaseline`/`runDbBaselineParity` shape in
 // ops/db-baseline-parity.ts: this file's CLI (the `structure:asset-refs` stage) and

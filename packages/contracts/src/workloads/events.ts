@@ -11,7 +11,7 @@
 // still cannot, because its `run` takes an `AbortSignal`. Nothing about that changed here: these are plain
 // data shapes, and every producer stays inside the domain (`emitWorkloadEvent`).
 //
-// NO `*_EVENT_TYPES` BELT, deliberately. That suffix is the `bus-definition-belts` gate's marker for a bus
+// NO `*_EVENT_TYPES` BELT, deliberately. That suffix is the bus registry's marker for a bus
 // with a producer-coverage gate + a client mapped-type total map (the chat/user/rpg invalidation seams). This
 // union has neither shape of consumer: its client handler is a two-way split (a `progress` snapshot into a
 // row-local buffer, everything else into ONE `workloads.list` invalidation), so a per-member map would be a

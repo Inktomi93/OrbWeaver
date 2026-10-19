@@ -228,7 +228,7 @@ function declaringForOf(node: MorphNode, name: string): MorphNode | undefined {
 }
 
 /** THE LOOP HOP — the fifth authored shape, and a FALSE ACCUSATION until it was read (measured on this lane's
- *  own re-run: `bus-pair.suite.test.ts:162` drives three policies through `for (const policy of [a, b, c])` and two of
+ *  own re-run: a family test drove three policies through `for (const policy of [a, b, c])` and two of
  *  them stayed accused). A loop binding has no single authored value either, so the subject is the ITERATED
  *  expression — every member of it is driven, which is exactly what the loop does. */
 function hopIteration(node: MorphNode, subjects: Subjects): void {
@@ -441,7 +441,7 @@ const DRIVEN = driving("probe");
  *  hop exists for. The driven set is a PARAMETER; only its call site names the subject. */
 const DRIVEN_THROUGH_HELPER = `  function pass(policy: unknown): { authority: { toolErrors: unknown[] } } {\n    return ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n  }\n  expect(pass(probe).authority.toolErrors).toHaveLength(1);`;
 /** THE LOOP SHAPE — a for-of binding has no single authored value either, so the subject is the ITERATED
- *  expression (`bus-pair.suite.test.ts:162` drives three policies this way). */
+ *  expression. */
 const DRIVEN_THROUGH_LOOP = `  for (const policy of [probe]) {\n    const refused = ${DISPATCHER}({ knownPolicies: [policy], policies: [policy] });\n    expect(refused.authority.toolErrors).toHaveLength(1);\n  }`;
 /** THE ALIAS-AND-SPREAD SHAPE — a module const of the family, spread into the driven set. Two hops in one
  *  fixture on purpose: the spread element and the const alias behind it are separate branches of the walk. */
@@ -647,7 +647,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_LOOP) }),
-      why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. Live at `bus-pair.suite.test.ts:162`, where three policies share one loop and two of them stayed accused until the hop was read",
+      why: "THE LOOP SHAPE: a `for (const policy of […])` driving several policies through one dispatcher call. The binding has no single authored value, so the subject is the ITERATED expression — every member is driven, which is exactly what the loop does. A family test that drove three policies through one loop left two of them accused until the hop was read",
     },
     {
       mode: "types",

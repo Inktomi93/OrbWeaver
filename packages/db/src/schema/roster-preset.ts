@@ -52,7 +52,7 @@ export const rosterPresets = sqliteTable(
   },
   (t) => [
     // A preset is PICKED BY NAME in the new-chat flow — duplicate names are a UX trap, and the leading
-    // ownerId doubles as the owner-scoped list index (`fk-columns-indexed`: the FK LEADS this composite).
+    // ownerId doubles as the owner-scoped list index (FK-index test: the FK LEADS this composite).
     uniqueIndex("roster_presets_owner_name_unique").on(t.ownerId, t.name),
     // The anchor FK's SET-NULL parent scan (the `personas_avatar_asset_idx` shape): a persona delete
     // walks this table, and SQLite auto-indexes no child FK.
@@ -82,7 +82,7 @@ export const rosterPresetMembers = sqliteTable(
   (t) => [
     // One seat per character per roster; `presetId` LEADS, so the cascade + the members read are indexed.
     primaryKey({ columns: [t.presetId, t.characterId] }),
-    // The character-delete cascade's parent scan (`fk-columns-indexed`: characterId sits SECOND in the
+    // The character-delete cascade's parent scan (FK-index test: characterId sits SECOND in the
     // PK, which is unindexed for a predicate that knows only the characterId).
     index("roster_preset_members_character_idx").on(t.characterId),
   ],

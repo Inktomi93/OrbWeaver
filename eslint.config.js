@@ -84,6 +84,7 @@ import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import { SERVER_FACTORY_TIER_REFERENCE_POLICY_ID, serverTypeTier, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
+import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "@orb/tooling/floor/host/ports";
 import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
@@ -110,6 +111,7 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
+import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
 import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
@@ -851,6 +853,192 @@ const INSTRUMENT_VERDICT_RESTRICTIONS = [
   },
 ];
 
+// ── IDENTITY WRITERS: invariant 10's bind-once chokepoint and D257's key-beside-handle rule ─────────────────
+// HARD (`hardConfig` only): an inline directive cannot excuse a third subject writer. These rules match the users
+// table, its write verbs and the subject column by name and spelling, so `users-write-plain-spelling` refuses the
+// import alias, the type wrappers and the computed verbs that would hide a users write from them.
+const SESSIONS_SRC = "packages/server/src/domain/sessions";
+const USERS_PERSISTENCE = `${SESSIONS_SRC}/persistence/users.ts`;
+const LINK_CAPABILITY = `${SESSIONS_SRC}/verbs/link-external-id.ts`;
+const PROVISION_CAPABILITY = `${SESSIONS_SRC}/verbs/provision-identity.ts`;
+const PENDING_SIGNUP_CAPABILITY = `${SESSIONS_SRC}/verbs/pending-signup.ts`;
+const CLAIM_WRITER = "claimExternalIdIfUnbound";
+const PENDING_JOIN_WRITER = "insertPendingSignupUserStatement";
+const SUBJECT_WRITER_NAMES = alternation([CLAIM_WRITER, PENDING_JOIN_WRITER]);
+const SUBJECT_KEYS = alternation(["externalId", "external_id"]);
+const IDENTITY_WRITER_MESSAGE =
+  "Invariant 10: bind users.externalId only through the registered sessions capabilities (provisionIdentity, linkExternalId, the D259 pending-join confirm) and their writers in sessions/persistence/users.ts.";
+const PLAIN_SPELLING_MESSAGE =
+  "Spell the users table and its write chain plainly: an import alias, a type wrapper or a computed verb hides the write from the identity-writer rules.";
+const memberAt = (path, name) => memberNamed(name, path === "" ? "" : `${path}.`);
+// `value` is an esquery value, a quoted name or a regex. Each covers the plain, string and template spellings.
+const memberSpelledAt = (path, value) =>
+  `:matches([${path}.computed=false][${path}.property.name=${value}], [${path}.computed=true][${path}.property.type='Literal'][${path}.property.value=${value}], [${path}.computed=true][${path}.property.type='TemplateLiteral'][${path}.property.expressions.length=0][${path}.property.quasis.0.value.cooked=${value}])`;
+const keySpelled = (value) =>
+  `:matches([computed=false][key.type='Identifier'][key.name=${value}], [key.type='Literal'][key.value=${value}], [computed=true][key.type='TemplateLiteral'][key.expressions.length=0][key.quasis.0.value.cooked=${value}])`;
+const stringSpelled = (value) =>
+  `:matches(Literal[value=${value}]:not(TSLiteralType > Literal), TemplateLiteral[expressions.length=0]:not(TSLiteralType > TemplateLiteral) > TemplateElement[value.cooked=${value}])`;
+const TYPE_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSNonNullExpression, TSTypeAssertion)";
+const DATA_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion)";
+const usersTableAt = (path) => `:matches([${path}.type='Identifier'][${path}.name='users'], [${path}.type='MemberExpression']${memberAt(path, "users")})`;
+const USERS_TABLE_CALL = `CallExpression:matches(${memberAt("callee", "insert")}, ${memberAt("callee", "update")})${usersTableAt("arguments.0")}`;
+const USERS_INSERT_VALUES = `CallExpression${memberAt("callee", "values")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}`;
+const USERS_UPDATE_SET = `CallExpression${memberAt("callee", "set")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "update")}${usersTableAt("callee.object.arguments.0")}`;
+const USERS_ROW_WRITE = `:matches(${USERS_INSERT_VALUES}, ${USERS_UPDATE_SET})`;
+const USERS_UPSERT = `CallExpression${memberAt("callee", "onConflictDoUpdate")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "values")}[callee.object.callee.object.type='CallExpression']${memberAt("callee.object.callee.object.callee", "insert")}${usersTableAt("callee.object.callee.object.arguments.0")}`;
+const UPSERT_SET_KEY = `Property${keySpelled("'set'")}`;
+const USERS_POSITIONAL_INSERT = `CallExpression${memberAt("callee", "select")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}[arguments.length>0]`;
+const PERSISTENCE_VERB = (name) => `CallExpression:matches([callee.name='${name}'], ${memberAt("callee", name)})`;
+const USERS_DATA_CALL = `:matches(${USERS_ROW_WRITE}, ${USERS_UPSERT}, ${PERSISTENCE_VERB("insertUser")}, ${PERSISTENCE_VERB("updateUser")})`;
+// A key or member computed from a binding: a constant can carry the subject column or a write verb under no visible name.
+const DYNAMIC_KEY = "Property[computed=true]:not([key.type='Literal'], [key.type='TemplateLiteral'][key.expressions.length=0])";
+const DYNAMIC_KEY_WRITE = `${USERS_DATA_CALL} ObjectExpression > ${DYNAMIC_KEY}`;
+const DYNAMIC_CALLEE =
+  "[callee.type='MemberExpression'][callee.computed=true]:not([callee.property.type='Literal'], [callee.property.type='TemplateLiteral'][callee.property.expressions.length=0])";
+const USERS_WRITE_CALL = `CallExpression:matches([callee.name=/^(insertUser|updateUser)$/], ${["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"].map((name) => memberAt("callee", name)).join(", ")})`;
+// `externalId: null` and `= undefined` bind no subject (the local-user default).
+const nonNullish = (path) =>
+  `:not([${path}.type='Literal'][${path}.raw='null']):not([${path}.type='Identifier'][${path}.name='undefined']):not([${path}.type=/^TS(As|Satisfies)Expression$/][${path}.expression.raw='null'])`;
+const SUBJECT_KEYED_WRITE = `${USERS_WRITE_CALL} ObjectExpression > Property${keySpelled(SUBJECT_KEYS)}${nonNullish("value")}`;
+const SUBJECT_ASSIGNMENT = `AssignmentExpression:matches([operator='='], [operator='??='], [operator='||='], [operator='&&='])[left.type='MemberExpression']${memberSpelledAt("left", SUBJECT_KEYS)}${nonNullish("right")}`;
+const INSIDE_SUBJECT_WRITER = `:matches(FunctionDeclaration[id.name=${SUBJECT_WRITER_NAMES}], VariableDeclarator[id.name=${SUBJECT_WRITER_NAMES}]) *`;
+const SUBJECT_STRING_MESSAGE = `${IDENTITY_WRITER_MESSAGE} A string spelling of the subject column hides the bind from these rules.`;
+// A string spelling of a writer name reaches it through a bracket read, a string import name or a const key.
+const writerReference = (name) => [
+  { selector: `Identifier[name='${name}']`, message: IDENTITY_WRITER_MESSAGE },
+  { selector: stringSpelled(`'${name}'`), message: IDENTITY_WRITER_MESSAGE },
+];
+// Any string that reads as a users write: a `sql` template, a `sql.raw` argument, or a const either one reads.
+const RAW_USERS_WRITE_TEXT = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?users[`\"']?(?!\\w)/i";
+const RAW_USERS_WRITE_HEAD = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?$/i";
+const HANDLE_WITHOUT_KEY = `ObjectExpression:has(> Property${keySpelled("'handle'")}):not(:has(> Property${keySpelled("'handleKey'")}))`;
+const IDENTITY_WRITER_RESTRICTIONS = [
+  {
+    id: "external-id-claim-writer-callers",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [
+      { path: LINK_CAPABILITY, why: "the admin link capability hands its caller the unexecuted atomic claim" },
+      { path: PROVISION_CAPABILITY, why: "the SSO seam's owner-flip bind rides the same atomic claim" },
+    ],
+    selectors: writerReference(CLAIM_WRITER),
+  },
+  {
+    id: "external-id-pending-join-writer-callers",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PENDING_SIGNUP_CAPABILITY, why: "the D259 pending-join confirm plans through decideProvision and binds through this one statement" }],
+    selectors: writerReference(PENDING_JOIN_WRITER),
+  },
+  {
+    id: "external-id-writer-home",
+    scope: [USERS_PERSISTENCE],
+    homes: [],
+    selectors: [
+      {
+        selector: `Identifier[name=${SUBJECT_WRITER_NAMES}]:not(FunctionDeclaration > Identifier.id, VariableDeclarator > Identifier.id), ${stringSpelled(SUBJECT_WRITER_NAMES)}`,
+        message: `${IDENTITY_WRITER_MESSAGE} A wrapper here would expose a registered writer under a name no caller registry names.`,
+      },
+      { selector: `${SUBJECT_KEYED_WRITE}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Only a registered writer may bind here.` },
+      { selector: `${SUBJECT_ASSIGNMENT}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Only a registered writer may bind here.` },
+      { selector: stringSpelled(SUBJECT_KEYS), message: SUBJECT_STRING_MESSAGE },
+      { selector: `${DYNAMIC_KEY_WRITE}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Write users keys as plain names.` },
+      {
+        selector: `${USERS_POSITIONAL_INSERT}:has(Identifier[name=${SUBJECT_KEYS}]):not(${INSIDE_SUBJECT_WRITER})`,
+        message: `${IDENTITY_WRITER_MESSAGE} A positional insert that reads a subject is a registered writer.`,
+      },
+    ],
+  },
+  {
+    id: "external-id-subject-binds",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PROVISION_CAPABILITY, why: "provisionIdentity builds its users patch by hand, and its subject bind is the verb's bind-once decision" }],
+    selectors: [
+      { selector: SUBJECT_KEYED_WRITE, message: IDENTITY_WRITER_MESSAGE },
+      { selector: SUBJECT_ASSIGNMENT, message: IDENTITY_WRITER_MESSAGE },
+    ],
+  },
+  {
+    id: "external-id-opaque-users-writes",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PROVISION_CAPABILITY, why: "provisionIdentity builds its users patch by hand, and its subject bind is the verb's bind-once decision" }],
+    selectors: [
+      { selector: stringSpelled(SUBJECT_KEYS), message: SUBJECT_STRING_MESSAGE },
+      {
+        selector: `${USERS_ROW_WRITE}:matches([arguments.0.type!='ObjectExpression'], :has(> ObjectExpression:has(> SpreadElement)))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Write users data as a literal whose keys are visible.`,
+      },
+      { selector: DYNAMIC_KEY_WRITE, message: `${IDENTITY_WRITER_MESSAGE} Write users keys as plain names.` },
+      {
+        selector: `${USERS_UPSERT}:matches([arguments.0.type!='ObjectExpression'], :has(> ObjectExpression:not(:has(> ${UPSERT_SET_KEY}))), :has(> ObjectExpression:has(> ${UPSERT_SET_KEY}[value.type!='ObjectExpression'])), :has(> ObjectExpression:has(> ${UPSERT_SET_KEY}:has(> ObjectExpression:has(> SpreadElement)))))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Write the upsert set as a literal whose keys are visible.`,
+      },
+      {
+        selector: `:matches(${PERSISTENCE_VERB("insertUser")}[arguments.1.type!='ObjectExpression'], ${PERSISTENCE_VERB("updateUser")}[arguments.2.type!='ObjectExpression'], ${PERSISTENCE_VERB("insertUser")}:has(> ObjectExpression:has(> SpreadElement)), ${PERSISTENCE_VERB("updateUser")}:has(> ObjectExpression:has(> SpreadElement)))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Pass the users row or patch as a literal whose keys are visible.`,
+      },
+    ],
+  },
+  {
+    id: "external-id-raw-users-writes",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [],
+    selectors: [
+      { selector: USERS_POSITIONAL_INSERT, message: `${IDENTITY_WRITER_MESSAGE} A positional users insert binds external_id by column order.` },
+      {
+        selector: `:matches(Literal[value=${RAW_USERS_WRITE_TEXT}], TemplateElement[value.raw=${RAW_USERS_WRITE_TEXT}])`,
+        message: `${IDENTITY_WRITER_MESSAGE} Raw SQL cannot write users outside its persistence file.`,
+      },
+      {
+        selector: `TemplateLiteral:has(> TemplateElement[value.raw=${RAW_USERS_WRITE_HEAD}]):has(> :matches(Identifier[name='users'], MemberExpression${memberAt("", "users")}))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Raw SQL cannot write users outside its persistence file.`,
+      },
+    ],
+  },
+  {
+    id: "users-write-plain-spelling",
+    scope: rootSources("@server"),
+    homes: [],
+    selectors: [
+      {
+        selector:
+          "ImportDeclaration[source.value=/^@orb\\u002Fdb(\\u002F|$)/] > ImportSpecifier:matches([imported.name='users'], [imported.value='users'])[local.name!='users']",
+        message: PLAIN_SPELLING_MESSAGE,
+      },
+      { selector: `${TYPE_WRAPPER}${usersTableAt("expression")}`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `${TYPE_WRAPPER} > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES})`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `MemberExpression > ChainExpression > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES})`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `CallExpression${DYNAMIC_CALLEE}${usersTableAt("arguments.0")}`, message: PLAIN_SPELLING_MESSAGE },
+      {
+        selector: `CallExpression${DYNAMIC_CALLEE} > MemberExpression.callee > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES}).object`,
+        message: PLAIN_SPELLING_MESSAGE,
+      },
+    ],
+  },
+  {
+    id: "handle-key-writer",
+    scope: rootSources("@server"),
+    homes: [],
+    selectors: [
+      {
+        selector: [
+          `${USERS_ROW_WRITE} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_ROW_WRITE} > ${DATA_WRAPPER} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_INSERT_VALUES} > ArrayExpression > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ObjectExpression > ${UPSERT_SET_KEY} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ObjectExpression > ${UPSERT_SET_KEY} > ${DATA_WRAPPER} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ${DATA_WRAPPER} > ObjectExpression > ${UPSERT_SET_KEY} > ${HANDLE_WITHOUT_KEY}`,
+        ].join(", "),
+        message:
+          "D257: a users write that sets handle also writes handleKey, or the row keeps a stale key that admits a look-alike of the new handle. Write through the sessions persistence verbs, which derive it with handleKey().",
+      },
+    ],
+  },
+];
+
 const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
 const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
 const CLASS_SPAN_START = String.raw`(?:^|\s)`;
@@ -1418,6 +1606,64 @@ const CLIENT_REGISTRY_RESTRICTIONS = [
   })),
 ];
 
+// A bus event union is a root listed in `@orb/contracts/bus-registry` (it owns a belt there), a listed sub-union,
+// or an `Extract`/`Exclude` carve-out of a root. Any other `*BusEvent` / `DomainEvent` alias is unregistered, and so
+// is any belt-shaped `*_EVENT_TYPES` const (`satisfies Record<X["type"], …>` or `readonly X["type"][]`). A name
+// is identity only inside its registered file, so one `bus-home-<bus>` restriction per bus refuses the same
+// alias or belt name declared anywhere else in contracts.
+const BUS_ROOT_ALIASES = Object.values(BUSES).map(({ alias }) => alias);
+const BUS_ALIASES = [...BUS_ROOT_ALIASES, ...Object.values(BUS_SUBUNIONS).map(({ alias }) => alias)];
+const BUS_BELTS = Object.values(BUSES).map(({ belt }) => belt);
+const BUS_BELT_INDEX = "TSIndexedAccessType[indexType.type='TSLiteralType'][indexType.literal.value='type']";
+const BUS_BELT_SHAPE = `TSSatisfiesExpression :matches(TSTypeReference[typeName.name='Record'] > TSTypeParameterInstantiation > ${BUS_BELT_INDEX}, TSArrayType > ${BUS_BELT_INDEX})`;
+const BUS_REGISTRY_RESTRICTIONS = [
+  {
+    id: "bus-union-registered",
+    scope: rootSources("@contracts"),
+    homes: [],
+    selectors: [
+      {
+        selector:
+          `TSTypeAliasDeclaration[id.name=/^(?:DomainEvent|.*BusEvent)$/]:not([id.name=${alternation(BUS_ALIASES)}])` +
+          `:not([typeAnnotation.typeName.name=/^(?:Extract|Exclude)$/][typeAnnotation.typeArguments.params.0.typeName.name=${alternation(BUS_ROOT_ALIASES)}])`,
+        message:
+          "A bus event union in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts, which ties it to its `*_EVENT_TYPES` belt; add it there, or derive it with Extract/Exclude from a registered root.",
+      },
+      {
+        selector: `VariableDeclarator[id.name=/_EVENT_TYPES$/]:not([id.name=${alternation(BUS_BELTS)}]) > ${BUS_BELT_SHAPE}`,
+        message:
+          'A `*_EVENT_TYPES` belt over a `Union["type"]` in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts beside its union; an unregistered belt is invisible to the totality check.',
+      },
+    ],
+  },
+  ...Object.entries(BUSES).map(([name, { alias, belt, file }]) => ({
+    id: `bus-home-${name}`,
+    scope: rootSources("@contracts"),
+    homes: [{ path: file, why: `the registered home of \`${alias}\` and its belt \`${belt}\`` }],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
+        message: `\`${alias}\` is the registered ${name} bus union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
+      },
+      {
+        selector: `VariableDeclarator[id.name='${belt}']`,
+        message: `\`${belt}\` is the registered ${name} belt declared in ${file}; a same-named const elsewhere in @orb/contracts hides a bus from the registry.`,
+      },
+    ],
+  })),
+  ...Object.entries(BUS_SUBUNIONS).map(([name, { alias, file }]) => ({
+    id: `bus-home-${name}`,
+    scope: rootSources("@contracts"),
+    homes: [{ path: file, why: `the registered home of the \`${alias}\` sub-union` }],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
+        message: `\`${alias}\` is the registered sub-union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
+      },
+    ],
+  })),
+];
+
 const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
 const CLASS_TOKEN_RESTRICTIONS = [
   {
@@ -1898,6 +2144,65 @@ const VERIFY_HARD_RESTRICTIONS = [
   },
 ];
 
+// D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
+const DB_SCHEMA_RESTRICTIONS = [
+  {
+    id: "db-enum-from-tuple",
+    scope: ["packages/db/src/schema/**/*.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: "Property:matches([key.name='enum'], [key.value='enum']) :matches(ArrayExpression, CallExpression)",
+        message:
+          "A Drizzle column enum derives from a named tuple (an @orb/contracts or @orb/kit export, or a local `as const satisfies` tuple), never an inline array or a call result (D34).",
+      },
+    ],
+  },
+];
+
+// ── Tooling plumbing literals (Core-Tooling-Law §4.4): ONE port registry, ONE load-budget policy ──────────────
+// A number has no declaration to resolve, so both laws are syntax: a numeric literal and the NAME of its position.
+// The registry values are IMPORTED, so a new reserved row or stage band widens the port law without an edit here.
+// The root runner configs take the same selectors in the HARD profile (`hardConfig`).
+const PORT_POSITION_NAMES = String.raw`/^port$|Port$|_PORT$|^PORT$/`;
+const WALL_CLOCK_OPTION_NAMES = alternation(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
+const keyNamed = (names) => `:matches(Property[computed=false][key.type='Identifier'][key.name=${names}], Property[key.type='Literal'][key.value=${names}])`;
+const REGISTRY_PORT_VALUES = [...new Set([...RESERVED_PORT_NUMBERS, ...STAGE_BAND_PORT_NUMBERS])].map((port) => `[value=${port}]`).join(", ");
+const PORT_LITERAL_SELECTOR = `Literal[value=type(number)]:matches(${REGISTRY_PORT_VALUES}, ${keyNamed(PORT_POSITION_NAMES)} > .value, VariableDeclarator[id.type='Identifier'][id.name=${PORT_POSITION_NAMES}] > .init)`;
+const PORT_LITERAL_MESSAGE =
+  "A TCP port outside the one registry: read the named row from floor/host/ports.ts or allocate a stage band; a new port is a new reserved row there, never a number picked at the call site (Core-Tooling-Law §4.4).";
+// A name carrying BASE is the sanctioned quiet-box declaration; `*_BUDGET_MS` is a verdict threshold, not a clock.
+const WALL_CLOCK_SELECTORS = [
+  `${keyNamed(WALL_CLOCK_OPTION_NAMES)} > Literal.value[value=type(number)]`,
+  "VariableDeclarator[id.type='Identifier'][id.name=/(?:_TIMEOUT_MS|TimeoutMs)$/]:not([id.name=/BASE|Base/]) > Literal.init[value=type(number)]",
+  "CallExpression[callee.type='Identifier'][callee.name='setTimeout'][arguments.1.type='Literal'][arguments.1.value=type(number)][arguments.1.value>=5000]",
+];
+const WALL_CLOCK_MESSAGE =
+  "A fixed wall clock reads as a false red on a contended box: name the quiet-box literal <X>_BASE_MS and derive the ceiling with budget(<X>_BASE_MS) (tooling) or scaledBudget(<X>_BASE_MS) (tests/tooling/_load-budget.ts) (Core-Tooling-Law §4.4).";
+const VENDORED_DEVTOOLS = "tooling/src/snap/lib/devtools-frontend/**";
+const TOOLING_LITERAL_RESTRICTIONS = [
+  {
+    id: "tooling-clock-budget",
+    scope: ["tooling/src/**/*.{ts,tsx}", "tests/tooling/**/*.{ts,tsx}"],
+    notUnder: [VENDORED_DEVTOOLS],
+    homes: [],
+    selectors: WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
+  },
+  {
+    id: "tooling-port-registry",
+    scope: ["tooling/src/**/*.{ts,tsx}", "tests/e2e/support/**/*.{ts,tsx}"],
+    notUnder: [VENDORED_DEVTOOLS],
+    homes: [{ path: "tooling/src/floor/host/ports.ts", why: "the registry is the one module that spells port numbers; every other file reads a named row" }],
+    selectors: [{ selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE }],
+  },
+];
+const RUNNER_CONFIG_FILES = ["vitest.config.ts", "playwright*.config.ts"];
+// The retired `@orb-gate-ignore` grammar suppresses nothing; a comment that opens with it reads like protection it
+// no longer gives. `location: "start"` is the mention fence: prose and string fixtures that quote it stay inert.
+const RETIRED_GATE_MARKER = { terms: ["@orb-gate-ignore"], location: "start" };
+// The node helper executables are `.mjs`; the retired gate's harness corpus loaded them beside the TS sources.
+const RETIRED_GATE_MARKER_FILES = ["packages/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
+
 const RESTRICTIONS = [
   {
     id: "no-test-fabrication",
@@ -1922,6 +2227,7 @@ const RESTRICTIONS = [
     homes: [],
     selectors: PROTOTYPE_MUTATION_SELECTORS,
   },
+  ...DB_SCHEMA_RESTRICTIONS,
   ...Z_INDEX_RESTRICTIONS,
   ...BASEUI_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
@@ -1934,12 +2240,14 @@ const RESTRICTIONS = [
   ...TURN_IDENTITY_RESTRICTIONS,
   ...SERVER_SCOPE_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
+  ...BUS_REGISTRY_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,
   ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
   ...SERVER_ONE_HOME_RESTRICTIONS,
   ...CT_SPEC_RESTRICTIONS,
+  ...TOOLING_LITERAL_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -4698,6 +5006,7 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -5578,6 +5887,12 @@ export const hardConfig = [
     },
   },
   { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
+  ...IDENTITY_WRITER_RESTRICTIONS.map(({ id, scope, notUnder = [], homes }) => ({
+    files: scope,
+    ...(notUnder.length + homes.length === 0 ? {} : { ignores: [...notUnder, ...homes.map(({ path }) => path)] }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  })),
   {
     files: ["tests/**/*.{ts,tsx}"],
     ignores: [`${LEGACY_TEST_ROOT}/**`],
@@ -5585,6 +5900,17 @@ export const hardConfig = [
     languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
     rules: { "orb/ct-poll-intervals-shared": "error" },
   },
+  {
+    files: RUNNER_CONFIG_FILES,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
+        { selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE },
+      ],
+    },
+  },
+  { files: RETIRED_GATE_MARKER_FILES, rules: { "no-warning-comments": ["error", RETIRED_GATE_MARKER] } },
   {
     files: SOURCE_TYPE_SUPPRESSION_GLOBS,
     ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,

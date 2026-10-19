@@ -17,13 +17,10 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
-import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
-import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
-import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 const PRODUCT_SHEETS = [
@@ -42,10 +39,6 @@ function source(path: string, text: string): RealCorpusOverlay {
 
 function append(path: string, text: string): RealCorpusOverlay {
   return { kind: "resource", path, append: text };
-}
-
-function replace(path: string, search: string, replacement: string): RealCorpusOverlay {
-  return { kind: "resource", path, replace: [search, replacement] };
 }
 
 export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
@@ -70,14 +63,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "learned ZERO authored hooks",
   },
   {
-    policy: dbStructureProducerHome,
-    overlays: [
-      source("packages/db/src/schema/livenessnowhere.ts", "export const livenessNowhere = 1;\n"),
-      append("packages/db/src/schema/index.ts", 'export * from "./livenessnowhere.ts";\n'),
-    ],
-    messageIncludes: "no same-named producer domain",
-  },
-  {
     policy: noFormStateInUseeffect,
     overlays: [
       {
@@ -99,11 +84,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "light-dark()",
   },
   {
-    policy: sanctionedCssHomes,
-    overlays: [source("packages/client/src/features/chat/liveness.css", ".liveness { color: red; }\n")],
-    messageIncludes: "outside the path-closed six-home",
-  },
-  {
     policy: suppressions,
     // A suppression of a rule the repository has never ruled on, in a new kit module.
     overlays: [
@@ -119,10 +99,5 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: testLayout,
     overlays: [source("tests/ui/primitives/liveness-example.test.tsx", "export const livenessExample = 1;\n")],
     messageIncludes: "unregistered test kind",
-  },
-  {
-    policy: toolingRunnerConfigLiterals,
-    overlays: [replace("vitest.config.ts", "testTimeout: budget(5000),", "testTimeout: 5000,")],
-    messageIncludes: "Literal: `testTimeout: 5000`",
   },
 ];

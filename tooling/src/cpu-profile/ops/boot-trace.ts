@@ -18,6 +18,8 @@ interface TraceDataCollected {
 }
 
 const TRACE_COMPLETE_BASE_MS = 30_000;
+/** Playwright reads zero as "no inner timer"; the enclosing load-scaled race is the one clock. */
+const PLAYWRIGHT_TIMER_DISABLED = 0;
 const BOOT_LCP_STATE = "__orbBootLcpCandidates";
 
 interface BootLcpState {
@@ -75,8 +77,7 @@ async function awaitBootPresentation(page: Page): Promise<BootLcpState> {
       (async (): Promise<BootLcpState> => {
         // One owner for the whole endpoint: Playwright's inner timeout is disabled so load and the
         // presentation frames cannot race two differently classified clocks.
-        // @orb-waive tooling-clock-budget(0): Playwright uses zero to disable its inner timer; the enclosing load-scaled race bounds both load and presentation. Ends if that outer budget is removed.
-        await page.waitForLoadState("load", { timeout: 0 });
+        await page.waitForLoadState("load", { timeout: PLAYWRIGHT_TIMER_DISABLED });
         return await page.evaluate<BootLcpState>(
           `globalThis[${JSON.stringify(BOOT_LCP_STATE)}]?.presentation() ?? Promise.resolve({ count: 0, latestStartTime: null })`,
         );

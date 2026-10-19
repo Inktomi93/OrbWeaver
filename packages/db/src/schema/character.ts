@@ -148,7 +148,7 @@ export const characters = sqliteTable(
     // Owner-scoped list hot path (`fetchOwned`).
     index("characters_owner_idx").on(t.ownerId),
     // The avatar FK's SET-NULL parent scan: deleting an asset (GC included) walks `characters` to null the
-    // pointer, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    // pointer, and SQLite auto-indexes no child FK (FK-index test).
     index("characters_avatar_asset_idx").on(t.avatarAssetId),
   ],
 );

@@ -1,7 +1,6 @@
 // The PERMANENT PIN for the D12 arm of the ledger's banned shapes. The `@orb/contracts/sessions` ban is a
 // plain module-specifier ban, so biome's native `style/noRestrictedImports` owns it completely
-// (GATE-AUTHORING §10: never mirror an enabled native lint rule) — it retired out of the old
-// `schema-banned-shapes` gate with the #1584 split, and this file is what keeps that move honest.
+// (GATE-AUTHORING §10: never mirror an enabled native lint rule), and this file is what keeps that move honest.
 //
 // WHY A PIN AND NOT A GATE ROW: biome.json is data. A silently dropped pattern row, or one narrowed to a
 // single package, would leave the D12 cite enforced by nothing at all and nothing would go red — the exact
@@ -18,7 +17,7 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { CONTRACT_BANNED_SHAPES, SCHEMA_BANNED_SHAPES } from "@orb/tooling/verify";
+import { CONTRACT_BANNED_SHAPES } from "@orb/tooling/verify";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = "biome.json";
@@ -140,11 +139,10 @@ test("the row itself: one pattern group covering the specifier and its subpaths,
   expect(row.message, "the ban must carry its D-cite and where to contest it").toMatch(/D12/u);
 });
 
-test("the ledger vocabulary keeps both partitions non-empty and free of the retired import kind", () => {
-  // The two policies read these tables; an emptied partition is a silently unarmed policy, and an `import`
-  // row reappearing here would be the mirror of a native lint rule the split deliberately removed.
-  expect(SCHEMA_BANNED_SHAPES.length).toBeGreaterThan(0);
+test("the ledger vocabulary stays non-empty and free of the retired import kind", () => {
+  // An emptied table is a silently unarmed policy, and an `import` row reappearing here would be the mirror of
+  // a native lint rule that deliberately owns it.
   expect(CONTRACT_BANNED_SHAPES.length).toBeGreaterThan(0);
-  const kinds = new Set([...SCHEMA_BANNED_SHAPES, ...CONTRACT_BANNED_SHAPES].map((shape) => shape.kind));
-  expect([...kinds].sort()).toEqual(["column", "column-pattern", "interface-field", "schema-field", "table"]);
+  const kinds = new Set(CONTRACT_BANNED_SHAPES.map((shape) => shape.kind));
+  expect([...kinds].sort()).toEqual(["interface-field", "schema-field"]);
 });

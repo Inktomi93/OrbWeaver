@@ -1,4 +1,4 @@
-// @orb/db/schema — THE BARREL (the db-structure gate's source of truth). EVERY schema file MUST be
+// @orb/db/schema — THE BARREL (judged by tests/db/schema/module-structure.suite.test.ts). EVERY schema file MUST be
 // re-exported here: a file missing from this barrel is silently dropped from `typeof schema`, so its
 // tables vanish from migrations AND from the drizzle relational query API. When a Wave-1 slice replaces
 // a stub, its tables become live automatically through these re-exports — no edit needed here.

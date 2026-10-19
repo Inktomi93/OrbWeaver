@@ -7,7 +7,6 @@ export const NON_AUTHORED_DIRECTORIES: ReadonlySet<string> = new Set(["node_modu
 export const AUTHORED_TREE_PATHS = {
   "ui-primitive": "packages/ui/src/primitives",
   "tooling-slot": "tooling/src",
-  "db-schema": "packages/db/src/schema",
   server: "packages/server/src",
   packages: "packages",
   tests: "tests",

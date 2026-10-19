@@ -46,7 +46,7 @@ export const personas = sqliteTable(
     // Owner-scoped list (`fetchOwned`) — consistency with presets, which kept its owner idx.
     index("personas_owner_idx").on(t.ownerId),
     // The avatar FK's SET-NULL parent scan (same shape as `characters_avatar_asset_idx`): an asset delete
-    // walks this table, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    // walks this table, and SQLite auto-indexes no child FK (FK-index test).
     index("personas_avatar_asset_idx").on(t.avatarAssetId),
   ],
 );

@@ -120,7 +120,7 @@ const FIX =
 
 export const gate = defineGate({
   id: "duplicate-action-doors",
-  family: "action-doors",
+  family: "duplicate-action-doors",
   authority: "reviewed-grant",
   severity: "error",
   population: { in: ["@client"], under: ["packages/client/src/features/**", "packages/client/src/state/**"] },

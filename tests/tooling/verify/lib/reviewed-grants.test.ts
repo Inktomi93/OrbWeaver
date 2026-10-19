@@ -11,7 +11,6 @@ import type { ReviewedGateGrant, SelectedGatePolicy } from "../../../../tooling/
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { isDefinedGatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { nodeTypesProof } from "../../../../tooling/src/verify/gates/_proof/node-types.ts";
-import { gate as softReferences } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole-env-reader.ts";
 import { validateReviewedGrants } from "../../../../tooling/src/verify/lib/gate-authority-validation.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -92,44 +91,6 @@ function passFor(policy: GatePolicy, files: Readonly<Record<string, string>>, gr
     failOnWarnings: false,
   });
 }
-
-test("the four actual non-row execution identities license only their exact column, never an unclassified row reference", () => {
-  const subjects = [
-    "chat_generation_observations.turnId",
-    "chat_generation_observations.generationId",
-    "embedding_calls.invocationId",
-    "imagery_generations.callId",
-  ];
-  const grants = REVIEWED_GRANTS.filter((grant) => grant.policyId === softReferences.id && subjects.includes(grant.subject));
-  expect(grants.map((grant) => grant.subject).toSorted()).toEqual(subjects.toSorted());
-  const files = {
-    "packages/db/src/schema/chat.ts":
-      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const observations = sqliteTable("chat_generation_observations", { turnId: text("turn_id"), generationId: text("generation_id") });\n',
-    "packages/db/src/schema/embeddings.ts":
-      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const calls = sqliteTable("embedding_calls", { invocationId: text("invocation_id") });\n',
-    "packages/db/src/schema/imagery.ts":
-      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pictures = sqliteTable("imagery_generations", { callId: text("call_id"), foreignRowId: text("foreign_row_id") });\n',
-  };
-  const raw = passFor(softReferences, files, []);
-  expect(raw.toolErrors).toEqual([]);
-  expect(raw.authority.effectiveFindings.map((finding) => finding.subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
-    [...subjects, "imagery_generations.foreignRowId"].toSorted((left = "", right = "") => left.localeCompare(right)),
-  );
-  const admitted = passFor(softReferences, files, grants);
-  expect(admitted.toolErrors).toEqual([]);
-  expect(admitted.authority.grantedFindings).toHaveLength(4);
-  expect(admitted.authority.effectiveFindings.map((finding) => finding.subject)).toEqual(["imagery_generations.foreignRowId"]);
-  expect(admitted.authority.authorityAlarms).toEqual([]);
-  const wrong = passFor(
-    softReferences,
-    files,
-    grants.map((grant) => ({ ...grant, subject: `${grant.subject}Wrong` })),
-  );
-  expect(wrong.toolErrors).toEqual([]);
-  expect(wrong.authority.grantedFindings).toEqual([]);
-  expect(wrong.authority.effectiveFindings).toHaveLength(5);
-  expect(wrong.authority.authorityAlarms).toHaveLength(4);
-});
 
 test("the launcher provenance key belongs only to the actual sole env home", () => {
   const home = "packages/server/src/foundation/env/index.ts";

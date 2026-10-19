@@ -1,5 +1,4 @@
-// Shared drizzle-schema readers for the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
-// `table-explicit-primary-key`) — ONE home for "what does this `sqliteTable(...)` declare", the same way
+// Shared drizzle-schema readers for the db gates (`ownerid-registry`, `json-column-write-parity`) — ONE home for "what does this `sqliteTable(...)` declare", the same way
 // `ast-read.ts` is the one home for the value-unwrap readers.
 //
 // The shape every reader keys on is the drizzle SQLite table call:
@@ -21,7 +20,7 @@
 //
 // EVERY MEMBER KIND IS ANSWERED, NONE IS SKIPPED (#1035). The first cut accepted PropertyAssignment and
 // SpreadAssignment and silently DROPPED the rest, so one editor refactor — `const ownerId = text("owner_id")
-// .references(...); sqliteTable("x", { id, ownerId })` — made `fk-columns-indexed` green where the
+// .references(...); sqliteTable("x", { id, ownerId })` — made an FK-index check green where the
 // byte-identical inline column REDs, with no alarm anywhere (v-gates, measured: resolvedColumns 3 -> 2).
 // SHORTHAND resolves through the same local/imported binding an identifier does; a COMPUTED key resolves
 // when its expression is a string literal; every other member kind, an unresolvable shorthand, a

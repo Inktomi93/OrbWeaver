@@ -100,10 +100,10 @@ export const imageryGenerations = sqliteTable(
   (t) => [
     // The Phase-7 reuse lookup key (subject + mode + identity); harmless as a plain index in v1.
     index("imagery_generations_reuse_idx").on(t.subjectCharacterId, t.mode, t.identityHash),
-    // The SET-NULL parent scan on a connection delete (`fk-columns-indexed` gate).
+    // The SET-NULL parent scan on a connection delete (FK-index test).
     index("imagery_generations_connection_idx").on(t.connectionId),
     // The two remaining child FKs: an asset delete erases its provenance row and a chat delete nulls the
-    // room's `chat_id` — both scan this table without a LEADING index (`fk-columns-indexed` gate).
+    // room's `chat_id` — both scan this table without a LEADING index (FK-index test).
     index("imagery_generations_asset_idx").on(t.assetId),
     index("imagery_generations_chat_idx").on(t.chatId),
     uniqueIndex("imagery_generations_import_unique").on(t.assetId, t.importHash).where(sql`${t.importHash} is not null`),

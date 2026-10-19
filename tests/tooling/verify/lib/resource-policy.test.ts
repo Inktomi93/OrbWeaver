@@ -166,19 +166,19 @@ test("the exact-file door is fenced PER ID, so a widened argument cannot reach a
   // The declaration is per id while the call takes a LIST. Without a per-id check the policy below would
   // read a file no declaration ever named — and it would arrive fully receipted, which is worse than an
   // unfenced read: it would look measured.
-  const overlay = { [EXACT_RESOURCE_PATHS["ct-boot"]]: "boot\n", [EXACT_RESOURCE_PATHS["ct-extension-css"]]: ".ct {}\n" };
+  const overlay = { [EXACT_RESOURCE_PATHS["vitest-config"]]: "export default {};\n", [EXACT_RESOURCE_PATHS["playwright-ct-config"]]: "export default {};\n" };
   const invocation = createResourceHost({ root: scratch, overlay });
   const receipts: GatePolicyReceipt[] = [];
   const bound = bindPolicyResources({
     host: invocation.host,
-    context: { resourcePaths: [EXACT_RESOURCE_PATHS["ct-boot"]], receipt: (receipt) => receipts.push(receipt) },
-    declarations: [{ kind: "exact-file", id: "ct-boot" }],
+    context: { resourcePaths: [EXACT_RESOURCE_PATHS["vitest-config"]], receipt: (receipt) => receipts.push(receipt) },
+    declarations: [{ kind: "exact-file", id: "vitest-config" }],
   });
 
   // Positive control: the declared id is served.
-  expect(bound.exactFiles(["ct-boot"]).status).toBe("ready");
+  expect(bound.exactFiles(["vitest-config"]).status).toBe("ready");
   // Negative control: the same call widened by one id refuses, naming the ID rather than the kind.
-  expect(() => bound.exactFiles(["ct-boot", "ct-extension-css"])).toThrow("exact-file:ct-extension-css is undeclared");
+  expect(() => bound.exactFiles(["vitest-config", "playwright-ct-config"])).toThrow("exact-file:playwright-ct-config is undeclared");
   expect(() => bound.exactFiles([])).toThrow("zero ids");
   expect(receipts.at(-1)).toEqual({ kind: "resource", source: "exact-file", resources: 0, unresolved: 1 });
 });

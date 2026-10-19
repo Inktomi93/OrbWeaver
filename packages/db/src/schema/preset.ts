@@ -60,7 +60,7 @@ export const presets = sqliteTable(
   // `{mode:"new"}` fork intent), and uniqueness on this pair would refuse it.
   // `presets_forked_from_idx` is the fork self-FK's own SET-NULL parent scan: SQLite only uses an index
   // whose LEFTMOST column is the constrained one, so the (owner, forkedFrom) pair above cannot serve a
-  // delete that knows only the parent preset id (`fk-columns-indexed` gate).
+  // delete that knows only the parent preset id (FK-index test).
   (table) => [
     index("presets_owner_idx").on(table.ownerId),
     index("presets_owner_forked_from_idx").on(table.ownerId, table.forkedFrom),

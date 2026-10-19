@@ -19,8 +19,8 @@
 // LANDING A NEW DOMAIN IS ONE CHANGE ACROSS SIX SITES — the first two are the only ones `tsc` forces:
 // the `Services` type + its build here, the domain's own `entry/compose/<name>.ts` seam, the tRPC router
 // registration, the domain's `DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES` row if it carries a non-template root file
-// (`tests/server/layout.suite.test.ts`), its `BASELINE_RIDER_PRODUCERS` entry removed the moment the
-// real producer lands (`tooling/src/verify/gates/db-structure.ts` — the row is self-staling), and a PROBED-or-
+// (`tests/server/layout.suite.test.ts`), its schema module named for it
+// (`tests/db/schema/module-structure.suite.test.ts`), and a PROBED-or-
 // EXEMPT classification for every new procedure in `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`
 // (its completeness guard enumerates the live router, so the sweep grows with it).
 //

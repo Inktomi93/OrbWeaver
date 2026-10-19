@@ -155,7 +155,7 @@ export const chatTags = sqliteTable(
     index("chat_tags_tag_idx").on(t.tagId),
     // Same reason for the TAGGER FK: `ownerId` sits LAST in the PK, and SQLite only uses an index whose
     // leftmost column is the constrained one — so a user hard-delete scanned the whole overlay
-    // (`fk-columns-indexed` gate).
+    // (FK-index test).
     index("chat_tags_owner_idx").on(t.ownerId),
   ],
 );
