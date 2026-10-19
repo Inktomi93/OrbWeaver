@@ -529,6 +529,46 @@ test("invocation query validation refuses corrupt unread rows after another ordi
   }
 });
 
+test("invocation graph decoding compares sibling keys linearly and still refuses a duplicate key", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
+  const width = 32;
+  initialize(scratch);
+  // Each profile needs its own span, so both sources must be wider than the sibling count.
+  write(scratch, "a.ts", `export const a=1;\n//${"a".repeat(width)}\n`);
+  write(scratch, "b.ts", `export const b=2;\n//${"b".repeat(width)}\n`);
+  const data = invocationMetadataPartitions(scratch).map((captured) => ({
+    ...captured,
+    invocationEvidence: captured.invocationEvidence.map((captureFact) => ({
+      ...captureFact,
+      profiles: Array.from({ length: width }, (_, start) => ({ node: { ...captureFact.query.node, start, end: start + 1 }, undefined: true })),
+    })),
+  }));
+  using writer = openInventoryDatabase(join(scratch, "invocation.sqlite"));
+  const generation = publishInventoryGeneration(writer, data);
+  const id = readInventoryGeneration(writer, generation).find((entry) => entry.program === data[0]?.program)?.id;
+  const fact = data[0]?.invocationEvidence[0];
+  if (id === undefined || fact === undefined) {
+    throw new Error("wide invocation graph control missing");
+  }
+  // A sibling-key scan runs Array#some over the decoded [key, value] entries; count its predicate calls.
+  let siblingComparisons = 0;
+  const some = Array.prototype.some;
+  const scan = vi.spyOn(Array.prototype, "some").mockImplementation(function (this: unknown[], predicate, thisArg) {
+    const counted = Array.isArray(this[0]) && this[0].length === 2 && typeof this[0][0] === "string";
+    return some.call(this, (value, index, array) => {
+      siblingComparisons += counted ? 1 : 0;
+      return predicate.call(thisArg, value, index, array);
+    });
+  });
+  try {
+    expect([...readInventoryInvocationEvidence(writer, id, fact.query)]).toEqual([fact]);
+  } finally {
+    scan.mockRestore();
+  }
+  expect(siblingComparisons).toBeLessThan(width);
+  writer.prepare("UPDATE inventory_invocation_atom SET key='\"callee\"' WHERE partition=? AND owner=0 AND parent=0 AND key='\"invocation\"'").run(id);
+  expect(() => [...readInventoryInvocationEvidence(writer, id, fact.query)]).toThrow("container identity is ambiguous");
+});
+
 test("owned replay refuses a declaration available only in another native partition", ({ scratch }) => {
   initialize(scratch);
   const descriptors = readCompilerPrograms(scratch);

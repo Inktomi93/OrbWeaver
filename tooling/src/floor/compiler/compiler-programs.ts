@@ -121,14 +121,34 @@ function referenceConfigs(inventory: AuthoredRepositoryInventory, parsed: ts.Par
   return [...new Set(references)].toSorted(compare);
 }
 
+/** The inventory's lexical paths and their physical identities, resolved once per program-graph read. */
+interface AuthoredIdentity {
+  readonly root: string;
+  readonly authored: ReadonlySet<string>;
+  readonly physical: () => ReadonlySet<string>;
+}
+
+// Scoped to one graph read, never to the inventory object: a later read resolves symlinks afresh.
+function authoredIdentity(inventory: AuthoredRepositoryInventory): AuthoredIdentity {
+  let physical: ReadonlySet<string> | undefined;
+  return {
+    root: inventory.root,
+    authored: new Set(inventory.paths),
+    physical: (): ReadonlySet<string> => {
+      physical ??= new Set(inventory.paths.map((path) => realpathSync(resolve(inventory.root, path))));
+      return physical;
+    },
+  };
+}
+
 function authoredCompilerFiles(
-  inventory: AuthoredRepositoryInventory,
+  identity: AuthoredIdentity,
   parsed: ts.ParsedCommandLine,
   config: string,
   sourceReader?: CompilerSourceFilenameReader,
 ): readonly string[] {
-  const authored = new Set(inventory.paths);
-  const authoredPhysical = new Set(inventory.paths.map((path) => realpathSync(resolve(inventory.root, path))));
+  const { root, authored } = identity;
+  const authoredPhysical = identity.physical();
   const files: string[] = [];
   for (const file of parsed.fileNames) {
     if (sourceReader?.isDeleted(file) === true) {
@@ -144,8 +164,8 @@ function authoredCompilerFiles(
     } catch (error) {
       throw new Error(`compiler member from ${config} cannot be resolved: ${file}`, { cause: error });
     }
-    containedRelative(inventory.root, canonical, `compiler member target from ${config}`);
-    const lexical = relative(inventory.root, resolve(file)).split(sep).join("/");
+    containedRelative(root, canonical, `compiler member target from ${config}`);
+    const lexical = relative(root, resolve(file)).split(sep).join("/");
     assertRepoPath(lexical, `compiler member from ${config}`);
     if (sourceReader?.isAuthored(file) === true || authored.has(lexical) || authoredPhysical.has(canonical)) {
       files.push(lexical);
@@ -154,9 +174,14 @@ function authoredCompilerFiles(
   return [...new Set(files)].toSorted(compare);
 }
 
-function readProgramMembership(inventory: AuthoredRepositoryInventory, config: string, sourceReader?: CompilerSourceFilenameReader): CompilerProgramMembership {
+function readProgramMembership(
+  inventory: AuthoredRepositoryInventory,
+  identity: AuthoredIdentity,
+  config: string,
+  sourceReader?: CompilerSourceFilenameReader,
+): CompilerProgramMembership {
   const { canonical, parsed } = parseConfig(inventory, config, sourceReader);
-  const files = authoredCompilerFiles(inventory, parsed, config, sourceReader);
+  const files = authoredCompilerFiles(identity, parsed, config, sourceReader);
   const references = referenceConfigs(inventory, parsed);
   const configPaths = transitiveConfigPaths(inventory, config);
   return { id: canonical.relative, config: canonical.relative, files, references, configPaths };
@@ -170,19 +195,23 @@ function readProgramGraph(
 ): readonly CompilerProgramMembership[] {
   const pending = [...rootConfigs];
   const programs = new Map<string, CompilerProgramMembership>();
+  const identity = authoredIdentity(inventory);
   while (pending.length > 0) {
     const config = pending.shift();
     if (config === undefined || programs.has(config)) {
       continue;
     }
-    const program = readProgramMembership(inventory, config, sourceReader);
+    const program = readProgramMembership(inventory, identity, config, sourceReader);
     programs.set(program.id, program);
     pending.push(...program.references);
   }
   const result = [...programs.values()].toSorted((left, right) => compare(left.id, right.id));
   for (const program of result) {
     const physicallyNonEmpty =
-      allowEmptyPrograms && program.files.length === 0 && program.references.length === 0 && readProgramMembership(inventory, program.config).files.length > 0;
+      allowEmptyPrograms &&
+      program.files.length === 0 &&
+      program.references.length === 0 &&
+      readProgramMembership(inventory, identity, program.config).files.length > 0;
     if (program.files.length === 0 && program.references.length === 0 && !physicallyNonEmpty) {
       throw new Error(`project config resolved zero authored files: ${program.config}`);
     }

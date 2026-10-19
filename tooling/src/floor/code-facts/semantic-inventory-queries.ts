@@ -401,8 +401,8 @@ function assertInvocationContainer(row: InventoryInvocationAtom): void {
     throw new SemanticInventoryError("native invocation container carries scalar data");
   }
 }
-function assertInvocationChild(row: InventoryInvocationAtom, key: string, index: number, entries: readonly (readonly [string, JsonValue])[]): void {
-  if ((row.kind === "array" && key !== String(index)) || entries.some(([existing]) => existing === key)) {
+function assertInvocationChild(row: InventoryInvocationAtom, key: string, index: number, siblings: ReadonlySet<string>): void {
+  if ((row.kind === "array" && key !== String(index)) || siblings.has(key)) {
     throw new SemanticInventoryError("native invocation container identity is ambiguous");
   }
 }
@@ -416,10 +416,12 @@ function invocationValue(atoms: readonly InventoryInvocationAtom[]): JsonValue {
     if (row.kind === "array" || row.kind === "object") {
       assertInvocationContainer(row);
       const entries: (readonly [string, JsonValue])[] = [];
+      const keys = new Set<string>();
       for (let index = 0; index < row.size; index++) {
         const child = read(row.ordinal);
-        assertInvocationChild(row, child[0], index, entries);
+        assertInvocationChild(row, child[0], index, keys);
         entries.push(child);
+        keys.add(child[0]);
       }
       return [row.key, row.kind === "array" ? entries.map(([, value]) => value) : Object.fromEntries(entries)];
     }
