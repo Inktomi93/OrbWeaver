@@ -147,7 +147,7 @@ The two readers made identical judgments before and after, so one table covers b
 | numeric | n/a | n/a | n/a | (a): verbs are named |
 | paren key | no | no | floor | (b) owed A |
 | identifier key | no | no | floor | (b) owed B: a false finding, the safe direction |
-| wrapper on the callee | no | yes | floor with `unwrapTarget` | (b) adopted: "a parenthesized or asserted service callee is coverage like the bare call" |
+| wrapper on the callee | no | partial | `calledName` through `unwrapTarget` | Partial: `calledName` unwraps `()`, `as`, `satisfies` and `!`, but the two coverage checks do not. `isAssembledServiceCall` unwraps without `!`, and `isFactoryBoundVerb` does not unwrap. `service.coveredVerb!()` and `(coveredVerb as () => void)()` still report a false missing-contract-test. Only the `as` member case is proven, by "a parenthesized or asserted service callee is coverage like the bare call". Moot: item 1117 deletes this gate and its fact file. |
 | call result | yes | yes | floor | (a) |
 
 ### knob-wire (`readShapedNames`)
@@ -218,7 +218,7 @@ The old and new readers call the same key reader: `readStaticString`, or the nat
 - `regkeys` credits a template-keyed read in the registry's own file.
 - `registry-candidates` keys `a["b"]` and ``a[`b`]`` like `a.b`.
 - agent-bridge-lock flags a template-keyed or asserted-receiver `__orb` install.
-- contract-verb-presence credits template-keyed and wrapped service calls.
+- contract-verb-presence credits template-keyed service calls and an `as`-wrapped member callee. A `!` callee and a wrapped destructured verb are still missed; item 1117 deletes the gate.
 - knob-wire-coverage reads template-keyed leaves.
 - The lucide factory reader matches escaped and template keys and no longer matches an identifier key by its spelling.
 
