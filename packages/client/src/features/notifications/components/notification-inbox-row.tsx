@@ -102,8 +102,9 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
       return;
     }
     actionOwned.current = true;
-    // @orb-waive caught-failure-ownership(work): every `work` this wraps (accept/decline/
-    // dismiss) carries its own errorToast — the toast is the surface. Ends if a new `work` caller lacks an errorToast.
+    // @orb-waive caught-failure-ownership(work): every `work` is an accept, decline or dismiss mutateAsync; useAcceptInvite and
+    // useDeclineInvite (hooks/use-invite-actions.ts) and useDismissNotification (hooks/use-inbox.ts) each carry an errorToast.
+    // Ends if one drops its errorToast or a new `work` caller lacks one.
     void work()
       .catch(() => undefined)
       .finally(() => {

@@ -75,9 +75,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
   const [verdict, setVerdict] = useState<UpdateVerdict>({ kind: "idle" });
 
   const runCheck = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(check.mutateAsync): useCheckForUpdates carries
-    // errorToast: "Couldn't check for updates." — the toast is the surface; undefined just leaves the verdict
-    // as-is. Ends if that mutation drops its errorToast.
+    // @orb-waive caught-failure-ownership(check.mutateAsync): useCheckForUpdates (lib/plugin-mutations.ts) carries
+    // errorToast serverReason("Couldn't check for updates."); undefined just leaves the verdict as-is.
+    // Ends if that mutation drops its errorToast.
     const results = await check.mutateAsync(undefined).catch(() => undefined);
     if (results === undefined) {
       return;
@@ -130,8 +130,9 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
       }
       pending = upgradeStored.mutateAsync({ pluginId: plugin.id, expectedBundleHash: verdict.expectedBundleHash });
     }
-    // @orb-waive caught-failure-ownership(pending): each upgrade mutation carries errorToast:
-    // serverReason("Couldn't update that plugin."); the toast owns the failure. Ends if any mutation drops it.
+    // @orb-waive caught-failure-ownership(pending): `pending` is useUpgradePluginFromStoredGit (lib/plugin-distribution-mutations.ts),
+    // useUpgradePluginFromShowcase or useUpgradePluginFromStoredUrl (lib/plugin-mutations.ts); each carries an errorToast.
+    // Ends if any of them drops it.
     const updated = await pending.catch(() => undefined);
     if (updated === undefined) {
       return;
