@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-a5420dd1f6b7b31f3
 ---
 
 # Stop storing printed field type text in shape facts
