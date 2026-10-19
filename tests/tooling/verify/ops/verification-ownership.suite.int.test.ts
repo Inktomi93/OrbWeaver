@@ -80,7 +80,7 @@ test.for(["true", "false"] as const)(
     if (!Array.isArray(gate?.needs)) {
       throw new Error("missing product aggregate");
     }
-    expect(gate.needs).toEqual(["changes", "static", "node", "node-legacy", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus"]);
+    expect(gate.needs).toEqual(["changes", "static", "node", "node-legacy", "verb-coverage", "ct", "ct-legacy", "e2e-smoke", "e2e-corpus"]);
     const expected = code === "true" ? "success" : "skipped";
     for (const subject of gate.needs.slice(2)) {
       for (const result of ["success", "skipped", "cancelled", "failure", "missing"]) {

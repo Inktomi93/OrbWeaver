@@ -1,28 +1,56 @@
-// D321: every domain verb implementation executes in the server suite, proved by native V8 function coverage.
-// The thresholds hold only over the whole server suite (strict and legacy), so this run is their one home: a
-// scoped `--coverage` run would red on verbs that a test outside its scope executes.
+// D321: every verb an exported domain `*Service` interface exposes must execute in the server suite. The node
+// shards record V8 coverage (scripts/ci-shard.ts); this judge reads their reports and fails on a verb none ran.
+// Unjudged spellings (a verb read off a parameter, or computed by an expression such as `a ?? b`) are listed by name.
+import { existsSync, readFileSync } from "node:fs";
 import process from "node:process";
-import { runTool } from "@orb/tooling/floor/cli/run-tool";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { ownScheme } from "@orb/tooling/verify";
+import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
+import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
+import { readServiceVerbs } from "@orb/tooling/floor/testing/service-verbs";
+import type { VerbVerdict } from "@orb/tooling/floor/testing/verb-coverage";
+import { coverageReportSchema, judgeVerbCoverage } from "@orb/tooling/floor/testing/verb-coverage";
 
-const SERVER_SUITE = ["tests/server/", "tests/legacy/server/"] as const;
-// A service file wires every verb (inline arrows run only when the verb runs); verbs/ holds the factory bodies.
-const VERB_IMPLEMENTATIONS = ["packages/server/src/domain/*/service.ts", "packages/server/src/domain/*/verbs/**/*.ts"] as const;
-const REPORTS = "reports/verb-coverage";
+const SERVER_PROGRAM = "packages/server/tsconfig.json";
+const USAGE = "ci-verb-coverage requires one coverage-final.json per node shard";
+
+const label = (verdict: VerbVerdict): string => `${verdict.domain}.${verdict.verb} (declared on ${verdict.declaredIn})`;
 
 await runTool(() => {
-  const argv = [
-    "test:node",
-    ...SERVER_SUITE,
-    "--coverage.enabled",
-    ...VERB_IMPLEMENTATIONS.map((glob) => `--coverage.include=${glob}`),
-    "--coverage.thresholds.perFile",
-    "--coverage.thresholds.functions=100",
-    "--coverage.reporter=text-summary",
-    "--coverage.reporter=json",
-    `--coverage.reportsDirectory=${REPORTS}`,
-  ];
-  return ownScheme(runNicedSync("pnpm", argv, { cwd: process.cwd(), env: testProcessEnv(), stdio: "inherit" }).status);
+  const paths = process.argv.slice(2);
+  if (paths.length === 0) {
+    throw new UsageError(USAGE);
+  }
+  const missing = paths.filter((path) => !existsSync(path));
+  if (missing.length > 0) {
+    process.stderr.write(`[verb-coverage] missing shard coverage: ${missing.join(", ")}\n`);
+    return 2;
+  }
+  const reports = paths.map((path) => coverageReportSchema.parse(JSON.parse(readFileSync(path, "utf8"))));
+  const root = process.cwd();
+  const project = createSemanticWorkspace({ root }).program(SERVER_PROGRAM)?.project();
+  if (project === undefined) {
+    throw new Error(`${SERVER_PROGRAM} is not a semantic analysis program`);
+  }
+  const { verdicts, unjudged } = judgeVerbCoverage(readServiceVerbs(project), reports, root);
+  const misses = verdicts.filter(({ kind }) => kind === "uncollected" || kind === "unmatched");
+  const unexecuted = verdicts.filter(({ kind }) => kind === "not-executed");
+  for (const verdict of verdicts) {
+    if (verdict.kind === "uncollected") {
+      process.stderr.write(`[verb-coverage] uncollected: ${label(verdict)} — no shard reported ${verdict.file}\n`);
+    } else if (verdict.kind === "unmatched") {
+      process.stderr.write(`[verb-coverage] unmatched: ${label(verdict)} — no reported function starts at ${verdict.at}\n`);
+    }
+  }
+  for (const verdict of unexecuted) {
+    process.stdout.write(`[verb-coverage] NOT EXECUTED: ${label(verdict)}\n`);
+  }
+  for (const verb of unjudged) {
+    process.stdout.write(`[verb-coverage] unjudged: ${verb.domain}.${verb.verb} — ${verb.reason}\n`);
+  }
+  process.stdout.write(
+    `[verb-coverage] ${String(verdicts.length - unexecuted.length - misses.length)} executed · ${String(unexecuted.length)} not executed · ${String(misses.length)} unreadable · ${String(unjudged.length)} unjudged\n`,
+  );
+  if (misses.length > 0) {
+    return 2;
+  }
+  return unexecuted.length > 0 ? 1 : 0;
 });
