@@ -1,13 +1,12 @@
 // The deep-imports codemod's shapes: where a package file sits, what a front door must gain, and the plan for
 // one deep specifier.
 import type { Node, SourceFile } from "ts-morph";
+import type { PackageFileReach } from "../../floor/code-facts/module-reach-contract.ts";
 import type { RelocateNote } from "./relocate.ts";
 
-/** Where a package source file sits: its package name segment and its path under `src/`. */
-export interface PackageSource {
-  readonly pkg: string;
+/** Where a package source file sits: the floor's package file plus the repo-relative `src/` root it lives under. */
+export interface PackageSource extends PackageFileReach {
   readonly srcRoot: string;
-  readonly relative: string;
 }
 
 /** One re-export a front door must gain for a migrated import to keep naming the same declaration. */

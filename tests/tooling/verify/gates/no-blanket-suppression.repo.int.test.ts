@@ -7,9 +7,8 @@
 // arm over the actual repo reports ZERO findings across a non-zero denominator — the post-migration receipt
 // in test form, so it keeps proving. Every fixture is a throwaway git repo under the scratch fixture, never
 // the real tree (`__g_` stays the gate harness's).
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { join } from "node:path";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
@@ -56,9 +55,7 @@ function runGate(root: string, suppliedProject?: Project): Run {
 }
 
 function plant(root: string, rel: string, content: string): void {
-  const abs = join(root, rel);
-  mkdirSync(dirname(abs), { recursive: true });
-  writeFileSync(abs, content);
+  plantFile(root, rel, content);
 }
 
 function git(root: string, args: readonly string[]): void {

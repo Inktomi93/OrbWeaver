@@ -148,7 +148,8 @@ function normalizeCel(value: unknown): CelValue {
     return value.map(normalizeCel);
   }
   if (value !== null && typeof value === "object") {
-    const out: Record<string, CelValue> = {};
+    // Null prototype: map keys are data, and a `__proto__` key copied into `{}` would re-parent the result instead.
+    const out: Record<string, CelValue> = { __proto__: null };
     for (const [key, v] of Object.entries(value)) {
       out[key] = normalizeCel(v);
     }

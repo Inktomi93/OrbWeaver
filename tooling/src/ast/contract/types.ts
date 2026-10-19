@@ -88,7 +88,7 @@ export interface NearFieldDiff {
   readonly pct: number;
   readonly sharedCount: number;
   readonly totalFields: number;
-  readonly renamed: readonly { readonly from: string; readonly to: string; readonly type: string }[];
+  readonly renamed: readonly { readonly from: string; readonly to: string }[];
   readonly domainOnly: readonly string[];
   readonly contractsOnly: readonly string[];
 }

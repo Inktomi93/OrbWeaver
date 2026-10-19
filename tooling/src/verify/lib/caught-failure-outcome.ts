@@ -5,6 +5,7 @@
 // named security event). Both clusters are pure value/call classifiers with no statement-block walk.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { memberLiteralValues } from "../../floor/code-facts/member-type-reads.ts";
 import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -22,7 +23,7 @@ import {
   resolvedFunction,
   staticStringValue,
 } from "./caught-failure-core.ts";
-import { failureNever, rawFailureDeclarations } from "./caught-failure-read.ts";
+import { FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, failureNever, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 // ── the error-as-data outcome vocabulary ────────────────────────────────────────────────────────────────
 // A returned VALUE owns a caught failure only when it is failure-VALUED. These are the two-sided halves: an
@@ -201,13 +202,8 @@ function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): bo
   const type = reads === undefined ? node.getType() : undefined;
   const propertyValues = (name: string): readonly unknown[] => {
     if (reads !== undefined) {
-      const selector = { ...nodeTypeSelector(node), steps: [{ kind: "property" as const, name, at: node }] };
-      if (reads.types.select(selector) === null) {
-        return [];
-      }
-      const unions = reads.types.unions(selector);
       // A member with no literal value (a `number` status, an optional key's `undefined`) must fail `every`.
-      return (unions.length === 0 ? [selector] : unions).map((part) => reads.types.literalValue(part));
+      return memberLiteralValues(reads.types, node, name);
     }
     if (type === undefined) {
       throw new Error("native caught-failure property Type is absent");
@@ -219,12 +215,12 @@ function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): bo
     const propertyType = symbol.getTypeAtLocation(node);
     return (propertyType.isUnion() ? propertyType.getUnionTypes() : [propertyType]).map((part) => part.getLiteralValue());
   };
-  const ok = propertyValues("ok");
+  const ok = propertyValues(FAILURE_OUTCOME_OK_MEMBER);
   if (ok.length > 0 && ok.every((value) => value === false)) {
     return true;
   }
   const failureKinds = new Set(["error", "failed", "failure", "invalid", "rejected", "refused", "unparseable", "unproven", "unreachable", "threw", "denied"]);
-  for (const name of ["kind", "status", "step", "verdict"]) {
+  for (const name of FAILURE_OUTCOME_DISCRIMINANTS) {
     const values = propertyValues(name);
     if (values.length > 0 && values.every((value) => typeof value === "string" && failureKinds.has(value))) {
       return true;

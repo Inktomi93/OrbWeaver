@@ -22,9 +22,7 @@
 // arms that cannot be built from an overlay — an overlay entry is text, so it is never a symlink, and it cannot
 // make a directory EXIST while staying empty — so they plant a real tree under the `scratch` `mkdtemp` root and
 // pass an empty overlay.
-import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantDir, plantFile, plantLink, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
@@ -150,8 +148,7 @@ function evaluateRefusal(policyId: string, fragment: string): Record<string, unk
  *  pass an EMPTY overlay, which is why this helper exists beside `pass`. */
 function plant(root: string, files: Readonly<Record<string, string>>): void {
   for (const [path, text] of Object.entries(files)) {
-    mkdirSync(join(root, dirname(path)), { recursive: true });
-    writeFileSync(join(root, path), text);
+    plantFile(root, path, text);
   }
 }
 
@@ -255,7 +252,7 @@ test("test-layout: the SAME tree planted on disk with no symlink reaches a verdi
 
 test("test-layout: a SYMLINK on the walked TEST path refuses `unresolved` on the package declaration", ({ scratch }) => {
   plant(scratch, LAYOUT_TREE);
-  symlinkSync("example.ct.tsx", join(scratch, "tests/ui/primitives/linked.ct.tsx"));
+  plantLink(scratch, "tests/ui/primitives/linked.ct.tsx", "example.ct.tsx");
   const result = pass(testLayout, scratch, {});
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-layout", "mirror-index:package-test is unresolved"));
@@ -264,7 +261,7 @@ test("test-layout: a SYMLINK on the walked TEST path refuses `unresolved` on the
 
 test("test-layout: a SYMLINK under tooling/src refuses `unresolved` on the SECOND declaration, package-test staying ready", ({ scratch }) => {
   plant(scratch, LAYOUT_TREE);
-  symlinkSync("cli.ts", join(scratch, "tooling/src/snapx/linked.ts"));
+  plantLink(scratch, "tooling/src/snapx/linked.ts", "cli.ts");
   const result = pass(testLayout, scratch, {});
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-layout", "mirror-index:tooling-test is unresolved"));
@@ -471,7 +468,7 @@ test("test-reach: an absent test tree REFUSES rather than accusing every source 
 /** `empty` on the package family needs a `tests/` tree that EXISTS and is empty, which no overlay can build. The
  *  green twin differs by the one planted member, so nothing else about the substrate explains the flip. */
 test("test-reach: a tests/ tree that EXISTS and is empty refuses `empty` rather than accusing the corpus", ({ scratch }) => {
-  mkdirSync(join(scratch, "tests"), { recursive: true });
+  plantDir(scratch, "tests");
   const result = pass(testReach, scratch, { [VERB]: VERB_SOURCE });
 
   expect(refusalShape(result)).toEqual(populationRefusal("test-reach", "resource declaration mirror-index:package-test is empty"));

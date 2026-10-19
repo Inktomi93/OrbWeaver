@@ -4,6 +4,7 @@
 // RETURNS the aborted outcome — an abort is an outcome, not an exception), and the pre-start belt refusals
 // (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
+import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
@@ -748,6 +749,47 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
       return w;
     });
     expect(warning).toMatchObject({ type: "warning", chatId, code: "memory_build_failed" });
+  });
+
+  test("a failing warning emit neither fails the turn nor leaves an unhandled rejection", async () => {
+    const chatId = await seedChat(db, "memfailemit");
+    await seedUser(db, castId<Handle>("host"));
+    const char = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+    const events: ChatBusEvent[] = [];
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", record);
+    try {
+      const ctx = makeChatContext(db, { runChatTurn: OK_TURN });
+      const engine = createTurnEngine(ctx, {
+        emit: (event: DurableChatBusEvent): Promise<void> => {
+          events.push(event);
+          return event.type === "warning" ? Promise.reject(new Error("warning emit exploded")) : Promise.resolve();
+        },
+        holder: "replica-1",
+        lockTtlMs: 60_000,
+        generateSegments: async () => ({ written: 0, skipped: 0 }),
+        generateDigests: () => {
+          throw new Error("digest build exploded");
+        },
+        loadWitnessHorizons,
+        recallMemory,
+        runCompaction: stubRunCompaction,
+      });
+
+      const outcome = await engine.runTurn(prepOf(chatId));
+      expect(outcome.aborted).toBe(false);
+      await vi.waitFor(() => {
+        expect(events.some((e) => e.type === "warning")).toBe(true);
+      });
+      await sleep(50);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+    }
   });
 
   // No summarize connection: digests are paused (the Model roles Utility-model row says so), not failing. The

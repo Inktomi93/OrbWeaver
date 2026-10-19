@@ -549,9 +549,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "structure:drizzle-kit",
     "structure:agent-config",
     "structure:full",
-    // #817: the committed single-writer ledgers (the caught-failure census and its siblings)
-    // vs a fresh derivation. Their freshness checks were vitest suites, so `pnpm check` stayed green while
-    // main sat red on the next whole node run.
+    // #817: the committed single-writer ledgers vs a fresh derivation.
     "ledgers:fresh",
     "release:showcase-versions",
     // Every literal knip.ts negation names a tracked file; knip's own hints never report a dead negation.

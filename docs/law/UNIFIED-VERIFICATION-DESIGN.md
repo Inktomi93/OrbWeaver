@@ -409,14 +409,13 @@ Change `ctWorkers` and every dependent ceiling moves with it. The runner still p
   `drizzle-kit/api` (no stack, no db file) — it is the SAME comparator
   `tests/tooling/verify/ops/db-baseline-parity.int.test.ts` calls (one home, two callers).
 - **`ledgers:fresh`** (`tooling/src/verify/ops/ledgers-fresh.ts`) — every
-  committed SINGLE-WRITER output vs a fresh derivation of itself: the caught-failure census
-  (`tooling/src/verify/gates/caught-failure-ownership.population.json`, keyed by `siteId`, so a line move
-  is not drift), the snap-flags index, the type-configs, and the active-gates index. It runs the SAME
+  committed SINGLE-WRITER output vs a fresh derivation of itself: the snap-flags index, the type-configs,
+  the theme CSS, and the active-gates index. It runs the SAME
   derivations the regenerators run (one home each; GATE-AUTHORING §4.8's single-writer door keeps the
   WRITE) and writes nothing, printing the exact differing rows and the repair action last, so the fix
   survives into `failureExcerpt`. Generated outputs name their baseline writer; authored parity rows name
-  the hand correction instead. WHOLE-ONLY BY ABSENCE: no `scopedArgv`, so a scoped tier DEFERS it — a
-  census derived from a scoped fileset is a census of a different tree and would call every row it did not
+  the hand correction instead. WHOLE-ONLY BY ABSENCE: no `scopedArgv`, so a scoped tier DEFERS it — an
+  output derived from a scoped fileset is an output of a different tree and would call every row it did not
   walk stale. An EMPTY derivation is exit 2 (blindness), never a clean ledger. The `--check` case is also
   reachable per-ledger: `cli.ts baseline <kind> --check`.
 - **`structure:drizzle-kit`** (`pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its

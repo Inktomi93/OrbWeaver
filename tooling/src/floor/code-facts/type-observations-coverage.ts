@@ -1,6 +1,7 @@
 // Coverage checks prove the fixed raw-question profile, never Zod ownership or output parity.
 import { SyntaxKind } from "ts-morph";
 import { MAX_RECEIVER_HOPS } from "./type-member-origin-core.ts";
+import { assertQuestionNominations } from "./type-observation-nominations.ts";
 import type { NativeObservedNode, TypeObservationQuestion, TypeObservationValues } from "./type-observations-contract.ts";
 import { hasCompleteTypePropertyDemand } from "./type-observations-contract.ts";
 import { assertScalarTypeSelectionCoverage } from "./type-projection-contract.ts";
@@ -203,25 +204,7 @@ function assertTypeArgumentIdentity<Anchor>(
 }
 function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = facts.demand.questions ?? [];
-  if (
-    questions.some((q) =>
-      q.kind === "value-profiles"
-        ? q.valueFacets === undefined
-        : q.kind !== "ct-contributions" &&
-          q.kind !== "ct-mounting" &&
-          q.kind !== "browser-contracts" &&
-          q.kind !== "definition-closure" &&
-          q.kind !== "declaration-closure" &&
-          q.kind !== "const-initializers" &&
-          q.kind !== "drizzle-predicate-inputs" &&
-          q.kind !== "selected-property-graph" &&
-          q.kind !== "callable-body-values" &&
-          q.kind !== "symbol-closure" &&
-          q.valueFacets !== undefined,
-    )
-  ) {
-    throw new Error("native value facets have no closed nomination");
-  }
+  assertQuestionNominations(questions);
   for (const q of questions) {
     if (q.valueFacets !== undefined) {
       uniqueRawKeys(q.valueFacets);
@@ -430,7 +413,7 @@ function assertObservationDemand<Anchor>(facts: TypeObservationValues<Anchor>, k
   }
   const selected = facts.selections;
   if (selected === null) {
-    if (facts.types.length > 0 || facts.nodes.length > 0) {
+    if (facts.types.length > 0) {
       throw new Error("native type observation selectors are missing");
     }
   } else {
@@ -477,7 +460,6 @@ function assertBaseIndices<Anchor>(facts: TypeObservationValues<Anchor>, indices
     }
   }
   for (const entry of facts.nodes) {
-    presentType(entry.type);
     symbol(entry.symbol);
     if (entry.contextual.kind === "value") {
       presentType(entry.contextual.value);
@@ -558,13 +540,6 @@ function assertTypeObservationRows<Anchor>(facts: TypeObservationValues<Anchor>,
   unique(facts.localTargets.map((entry) => key(entry.node)));
   unique(facts.computedNames.map((entry) => String(entry.selector)));
   unique(facts.dependencies.map((entry) => `${entry.type}:${key(entry.owner)}:${key(entry.at)}`));
-  const plan = facts.selections?.plan;
-  for (const entry of facts.nodes) {
-    const selector = plan?.selectors[entry.type];
-    if (selector?.base.kind !== "node" || key(selector.base.node) !== key(entry.node) || selector.steps.length > 0 || selector.displayAt !== null) {
-      throw new Error("native type node selector identity is foreign");
-    }
-  }
 }
 
 function assertContextualSlots<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {

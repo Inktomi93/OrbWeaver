@@ -3,7 +3,15 @@ import process from "node:process";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
 import { defineConfig, devices } from "@playwright/test";
-import { BROWSER_PROJECTS, DEV_TARGET_ALLOWED, E2E_REPORT_PREFIX, SINGLE_USER, selectedModeProjects } from "./tests/e2e/support/modes.ts";
+import {
+  BROWSER_PROJECTS,
+  DEV_TARGET_ALLOWED,
+  E2E_REPORT_PREFIX,
+  OIDC_MODE,
+  oidcIssuerTls,
+  SINGLE_USER,
+  selectedModeProjects,
+} from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
 // Playwright, never vitest (browser-mode hangs — docs/law/Spine-Testing.md §7). Separate runner, NOT in `pnpm
@@ -16,7 +24,8 @@ import { BROWSER_PROJECTS, DEV_TARGET_ALLOWED, E2E_REPORT_PREFIX, SINGLE_USER, s
 //   • single-user — the DEFAULT lane (ports 8796/5181, no login; the pre-existing e2e specs run here unchanged).
 //   • local       — cookie/BFF sessions (ports 8799/5183); global-setup seeds a member for the multi-human specs.
 //   • forward-header — SSO trusted-proxy signed-JWT (ports 8798/5182); the actor mints the JWT in-test.
-//   • oidc         — DEFERRED (no mock IdP yet); see modes.ts.
+//   • oidc         — the app as an OIDC client of an HTTPS mock issuer (ports 8795/5184, issuer 8794); its specs
+//                    run on the SERVER origin, which serves a client the webServer builds first. See modes.ts.
 // A spec targets its mode by the Playwright PROJECT name (a project-scoped `test.describe` / the runner's
 // `--project=<name>`); the default `pnpm e2e` runs every project.
 //
@@ -64,9 +73,16 @@ const projects = BROWSER_PROJECTS.map(({ name, mode, device, chatStyle }) => ({
 // runner that starves the cold vite transforms past the warm-up budget. Boot only the selected modes. Read
 // from argv because only the runner process starts webServers; workers re-load this file without the flag.
 const bootedModes = selectedModeProjects(process.argv);
+// The oidc server child trusts the issuer through NODE_EXTRA_CA_CERTS, read once at its boot: mint before it starts.
+if (bootedModes.includes(OIDC_MODE)) {
+  oidcIssuerTls();
+}
 
+const STACK_UP = "node tooling/src/stack/cli.ts up-fg";
 const webServers = bootedModes.map((mode) => ({
-  command: "node tooling/src/stack/cli.ts up-fg",
+  // A mode whose spec origin is the server builds the client it serves before the stack boots.
+  command:
+    mode.servedClient === undefined ? STACK_UP : `pnpm --filter @orb/client exec vite build --configLoader native --outDir ${mode.servedClient} && ${STACK_UP}`,
   url: mode.baseUrl,
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
   timeout: budget(180_000),

@@ -1,6 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, removePlanted, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { FixtureGitHistoryFoundation } from "@orb/tooling/floor/git/git-fixture";
 import { captureFixtureGitHistoryFoundation, configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Project } from "ts-morph";
@@ -18,8 +16,7 @@ const BASE = {
 };
 
 function write(root: string, path: string, text = "export {};\n"): void {
-  mkdirSync(join(root, dirname(path)), { recursive: true });
-  writeFileSync(join(root, path), text);
+  plantFile(root, path, text);
 }
 
 function commit(root: string): void {
@@ -55,7 +52,7 @@ for (const operation of ["add", "replacement", "return"] as const) {
     const foundation = found(scratch);
     let path = ADDED;
     if (operation !== "add") {
-      rmSync(join(scratch, RETAINED));
+      removePlanted(scratch, RETAINED);
     }
     if (operation === "return") {
       commit(scratch);
@@ -72,7 +69,7 @@ for (const operation of ["delete", "edit"] as const) {
   test(`legacy filename admission allows retained-file ${operation}`, ({ scratch }) => {
     const foundation = found(scratch);
     if (operation === "delete") {
-      rmSync(join(scratch, RETAINED));
+      removePlanted(scratch, RETAINED);
     } else {
       write(scratch, RETAINED, "export const original = false;\n");
     }
@@ -92,7 +89,7 @@ for (const admission of ["staged", "committed", "index-only", "overlay"] as cons
     if (admission === "committed") {
       commit(scratch);
     } else if (admission === "index-only") {
-      rmSync(join(scratch, ADDED));
+      removePlanted(scratch, ADDED);
     }
     const result = runPolicyPass({
       policies: [gate],
@@ -112,7 +109,7 @@ test("committing an addition then deleting it does not erase the invalid transit
   const foundation = found(scratch);
   write(scratch, ADDED);
   commit(scratch);
-  rmSync(join(scratch, ADDED));
+  removePlanted(scratch, ADDED);
   commit(scratch);
   const result = pass(scratch, [ADDED], foundation);
   expect(result.toolErrors).toEqual([]);
@@ -121,7 +118,7 @@ test("committing an addition then deleting it does not erase the invalid transit
 
 test("a whole population permits deletion without lowering a count constant", ({ scratch }) => {
   const foundation = found(scratch);
-  rmSync(join(scratch, RETAINED));
+  removePlanted(scratch, RETAINED);
   commit(scratch);
   const result = runPolicyPass({
     policies: [gate],
@@ -140,7 +137,7 @@ for (const failure of ["missing", "shallow", "unreachable"] as const) {
   test(`legacy history ${failure} refuses the owner rather than granting admission`, ({ scratch }) => {
     const foundation = found(scratch);
     if (failure === "shallow") {
-      writeFileSync(join(scratch, ".git/shallow"), `${foundation.commit}\n`);
+      plantFile(scratch, ".git/shallow", `${foundation.commit}\n`);
     } else if (failure === "unreachable") {
       execFixtureGit(scratch, ["checkout", "--orphan", "unrelated"]);
       write(scratch, "unrelated.ts");
@@ -165,7 +162,7 @@ test("a merge cannot restore a filename deleted by a founded parent", ({ scratch
   const foundation = found(scratch);
   const original = execFixtureGit(scratch, ["branch", "--show-current"]).trim();
   execFixtureGit(scratch, ["checkout", "-b", "deleting"]);
-  rmSync(join(scratch, RETAINED));
+  removePlanted(scratch, RETAINED);
   commit(scratch);
   execFixtureGit(scratch, ["checkout", original]);
   write(scratch, "unrelated.ts");
@@ -204,7 +201,7 @@ test("application qualification judges historical resource additions even when t
   const foundation = found(scratch);
   write(scratch, ADDED);
   commit(scratch);
-  rmSync(join(scratch, ADDED));
+  removePlanted(scratch, ADDED);
   commit(scratch);
   const result = runPolicyPass({
     policies: [gate],

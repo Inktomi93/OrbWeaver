@@ -1,7 +1,7 @@
 // Delivered selectors answer only one closed capture; scalar identity never grants another world's meaning.
 import type { Node, SourceFile } from "ts-morph";
+import { closureFrontier } from "./bounded-closure.ts";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
-import { constInitializerNominations } from "./type-observation-questions.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
 import {
   assertCompletePropertyCoverage,
@@ -9,6 +9,12 @@ import {
   assertRawParameterCoverage,
   assertTypeArgumentCoverage,
 } from "./type-observations-coverage.ts";
+import {
+  assertCallableBodyUsage,
+  assertConstInitializerRelationships,
+  assertDetailCoverage,
+  assertGraphQuestionUsage,
+} from "./type-observations-replay-usage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
@@ -24,9 +30,12 @@ export function readTypeObservations(
   const typeKeys = new Map<number, object>();
   const symbolKeys = facts.symbols.map(() => ({}));
   const nodes = new Map(facts.nodes.map((entry) => [entry.node, entry]));
+  const { reach, at: closureAt, past: closurePast, query: queried, selectorMiss } = closureFrontier((node) => nodes.has(node), facts.assertNode);
   const exports = new Map(facts.exports.map((entry) => [entry.source, entry]));
   const returns = new Map(facts.callReturns.map((entry) => [entry.node, entry]));
   const signatures = new Map(facts.signatures.map((entry) => [entry.call, entry]));
+  const unionRows = new Map(facts.unions.map((entry) => [entry.selector, entry]));
+  const definitionRows = new Map((facts.definitions ?? []).map((entry) => [entry.node, entry]));
   const locals = new Map(facts.localTargets.map((entry) => [entry.node, entry]));
   const typeRef = (index: number): ObservedReference<"type"> => ({ kind: "type", scope, index });
   const symbolRef = (index: number): ObservedReference<"symbol"> => ({ kind: "symbol", scope, index });
@@ -54,26 +63,38 @@ export function readTypeObservations(
     }
     return value;
   };
+  // A selector the plan never asked because its base was walked without Type details is past the bound,
+  // including when the capture asked no Type question at all.
+  const selectedOrPast = (selector: NativeTypeSelector): number => {
+    assertLive();
+    try {
+      if (selectedIndex === undefined) {
+        throw new Error("native type observation cohort has no registered selectors");
+      }
+      return selectedIndex(selector);
+    } catch (error) {
+      if (selector.base.kind === "schema-column") {
+        throw error;
+      }
+      return selectorMiss(selector.base.node, error);
+    }
+  };
   const indexOf = (selector: NativeTypeSelector): number => {
     if (selector.base.kind !== "schema-column") {
-      facts.assertNode(selector.base.node);
+      queried(selector.base.node);
     }
     for (const step of selector.steps) {
       if (step.kind === "property" || step.kind === "signature-parameter") {
-        facts.assertNode(step.at);
+        queried(step.at);
       }
     }
     if (selector.displayAt !== null) {
       facts.assertNode(selector.displayAt);
     }
-    selections();
-    if (selectedIndex === undefined) {
-      throw new Error("native type observation cohort has no registered selectors");
-    }
-    return selectedIndex(selector);
+    return selectedOrPast(selector);
   };
   const nodeOf = (node: Node): NativeTypeObservations["nodes"][number] => {
-    facts.assertNode(node);
+    queried(node);
     const value = nodes.get(node);
     if (value === undefined) {
       throw new Error(`native symbol/node observation was not captured: ${node.getKindName()} ${node.getSourceFile().getFilePath()}:${node.getStart()}`);
@@ -89,8 +110,10 @@ export function readTypeObservations(
     return value;
   };
   const reader: TypeObservationReader = {
+    closureFrontier: closureAt,
+    closurePast,
     callableBody: (node) => {
-      facts.assertNode(node);
+      queried(node);
       const row = facts.callableBodies?.find((entry) => entry.node === node);
       if (row === undefined) {
         throw new Error("native callable body question was not captured");
@@ -125,7 +148,7 @@ export function readTypeObservations(
       return { array: row.array, readonlyArray: row.readonlyArray, element: row.value === null ? null : selectorAt(row.value) };
     },
     predicateInputs: (node) => {
-      facts.assertNode(node);
+      queried(node);
       const row = facts.predicateInputs?.find((entry) => entry.node === node);
       if (row === undefined) {
         throw new Error("native predicate-input fact was not captured");
@@ -174,7 +197,7 @@ export function readTypeObservations(
       return value.map(selectorAt);
     },
     functionExport: (node) => {
-      facts.assertNode(node);
+      queried(node);
       const row = facts.functionExports?.find((entry) => entry.node === node);
       if (row === undefined) {
         throw new Error("native function export was not captured");
@@ -232,7 +255,7 @@ export function readTypeObservations(
       return value === null ? null : symbolRef(value);
     },
     localTarget: (node) => {
-      facts.assertNode(node);
+      queried(node);
       const row = locals.get(node);
       if (row === undefined) {
         throw new Error("native local export target was not captured");
@@ -241,7 +264,7 @@ export function readTypeObservations(
     },
     properties: (selector, at) => {
       const index = indexOf(selector);
-      facts.assertNode(at);
+      queried(at);
       const row = facts.properties.find((entry) => entry.selector === index && entry.at === at);
       if (row === undefined) {
         throw new Error("native property-Type question was not captured");
@@ -250,7 +273,7 @@ export function readTypeObservations(
     },
     unions: (selector) => {
       const index = indexOf(selector);
-      const row = facts.unions.find((entry) => entry.selector === index);
+      const row = unionRows.get(index);
       if (row === undefined) {
         throw new Error("native union-slot question was not captured");
       }
@@ -280,7 +303,7 @@ export function readTypeObservations(
       return row.declarations;
     },
     callReturns: (node) => {
-      facts.assertNode(node);
+      queried(node);
       const row = returns.get(node);
       if (row === undefined) {
         throw new Error("native callable return slots were not captured");
@@ -288,7 +311,7 @@ export function readTypeObservations(
       return row.values.map(selectorAt);
     },
     signature: (call) => {
-      facts.assertNode(call);
+      queried(call);
       const row = signatures.get(call);
       if (row === undefined || row.fact.kind === "unrequested") {
         throw new Error("native signature question was not captured");
@@ -297,8 +320,8 @@ export function readTypeObservations(
     },
     depends: (selector, owner, at) => {
       const index = indexOf(selector);
-      facts.assertNode(owner);
-      facts.assertNode(at);
+      queried(owner);
+      queried(at);
       const row = facts.dependencies.find((entry) => entry.type === index && entry.owner === owner && entry.at === at);
       if (row === undefined) {
         throw new Error("native generic-dependence question was not captured");
@@ -328,8 +351,8 @@ export function readTypeObservations(
       return row.values;
     },
     definitions: (node) => {
-      facts.assertNode(node);
-      const row = facts.definitions?.find((entry) => entry.node === node);
+      queried(node);
+      const row = definitionRows.get(node);
       if (row === undefined) {
         throw new Error("native definition-node question was not captured");
       }
@@ -337,7 +360,7 @@ export function readTypeObservations(
       return row.values;
     },
     callParameters: (call) => {
-      facts.assertNode(call);
+      queried(call);
       const row = facts.callParameters?.find((entry) => entry.call === call);
       if (row === undefined) {
         throw new Error("native instantiated parameter question was not captured");
@@ -346,7 +369,7 @@ export function readTypeObservations(
     },
     signatureParameters: (selector, at) => {
       const index = indexOf(selector);
-      facts.assertNode(at);
+      queried(at);
       const row = facts.signatureParameters?.find((entry) => entry.selector === index && entry.at === at);
       if (row === undefined) {
         throw new Error("native signature parameter table was not captured");
@@ -371,8 +394,9 @@ export function readTypeObservations(
       return value;
     },
   };
+  const captureOwner = { references, module, node: targetNode, ...reach };
   if (facts.definitions === undefined) {
-    observeAuthoredTypeSlots(facts.demand, reader, undefined, { references, module, node: targetNode });
+    observeAuthoredTypeSlots(facts.demand, reader, undefined, captureOwner);
   } else {
     const usedDefinitions = new Set<Node>();
     const displays = new Set<number>();
@@ -448,7 +472,7 @@ export function readTypeObservations(
         }
         values.set(node, requested);
       },
-      { references, module, node: targetNode },
+      captureOwner,
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
     assertConstInitializerRelationships(facts, reader);
@@ -488,67 +512,4 @@ export function readTypeObservations(
     (node) => node.getKind(),
   );
   return reader;
-}
-
-function assertCallableBodyUsage(facts: NativeTypeObservations, used: ReadonlySet<Node>): void {
-  if ((facts.callableBodies ?? []).some((row) => !used.has(row.node))) {
-    throw new Error("native callable body question is foreign");
-  }
-}
-
-function assertDetailCoverage(
-  facts: NativeTypeObservations,
-  displays: ReadonlySet<number>,
-  literals: ReadonlySet<number>,
-  argumentsUsed: ReadonlySet<number>,
-): void {
-  if (
-    facts.types.some(
-      (row, index) =>
-        row !== null &&
-        ((row.defaultDisplay !== undefined) !== displays.has(index) ||
-          (row.literalValue !== undefined) !== literals.has(index) ||
-          (row.typeArguments !== undefined) !== argumentsUsed.has(index) ||
-          (row.typeArgumentCount !== undefined) !== argumentsUsed.has(index)),
-    )
-  ) {
-    throw new Error("native Type detail coverage is missing or foreign");
-  }
-}
-
-function assertConstInitializerRelationships(facts: NativeTypeObservations, reader: TypeObservationReader): void {
-  const initializerPaths = constInitializerNominations(
-    (facts.demand.questions ?? []).filter((question) => question.kind === "const-initializers").flatMap((question) => question.nodes),
-    reader,
-  );
-  const capturedPaths = facts.constInitializers ?? [];
-  if (
-    initializerPaths.length !== capturedPaths.length ||
-    initializerPaths.some((path, index) => {
-      const captured = capturedPaths[index];
-      return (
-        captured === undefined ||
-        captured.node !== path.node ||
-        captured.values.length !== path.values.length ||
-        path.values.some((value, at) => captured.values[at] !== value)
-      );
-    })
-  ) {
-    throw new Error("native const initializer relationships are missing or foreign");
-  }
-}
-
-function assertGraphQuestionUsage(
-  facts: NativeTypeObservations,
-  intersections: ReadonlySet<number>,
-  constraints: ReadonlySet<number>,
-  declarations: ReadonlySet<string>,
-): void {
-  if (
-    (facts.intersections ?? []).some((row) => !intersections.has(row.selector)) ||
-    (facts.constraints ?? []).some((row) => !constraints.has(row.selector)) ||
-    (facts.signatureDeclarations ?? []).some((row) => !declarations.has(JSON.stringify([row.selector, row.kind])))
-  ) {
-    throw new Error("native Type graph question coverage is foreign");
-  }
 }

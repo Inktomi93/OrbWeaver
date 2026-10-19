@@ -18,8 +18,6 @@ export type {
   RenderSite,
   SurfaceManifest,
 } from "./contract/baseui.ts";
-export type { CaughtFailureJudgment, CaughtFailurePopulation, CaughtFailureRow, CaughtFailureTotals, CaughtFailureVerdict } from "./contract/caught-failure.ts";
-export { CAUGHT_FAILURE_VERDICTS } from "./contract/caught-failure.ts";
 export { PRODUCT_STYLESHEETS, STYLELINT_CONFIG_PATH } from "./contract/css-family.ts";
 export type { LiveAdmission } from "./contract/debt.ts";
 export type { GateFact, GateFactContext, GateFactHooks, GateFactValue } from "./contract/fact.ts";
@@ -170,12 +168,6 @@ export { runEslint, runScopedEslint } from "./ops/eslint.ts";
 export { runGateContract } from "./ops/gate-contract.ts";
 export { deriveActiveGatesIndex, deriveActiveGatesIndexMarkdown, generateActiveGatesIndex } from "./ops/gen/active-gates-index.ts";
 export { generateBaseuiSurface } from "./ops/gen/baseui-surface.ts";
-export {
-  deriveCaughtFailurePopulation,
-  deriveCaughtFailureSites,
-  generateCaughtFailurePopulation,
-  POPULATION_REL,
-} from "./ops/gen/caught-failure-population.ts";
 export { generateProseBaseline } from "./ops/gen/prose.ts";
 export { deriveSnapFlagsIndexMarkdown, generateSnapFlagsIndex } from "./ops/gen/snap-flags-index.ts";
 export { deriveTypeConfigFiles, generateTypeConfigs } from "./ops/gen/type-configs.ts";
@@ -183,7 +175,6 @@ export { runGitTextSafety } from "./ops/git-text-safety.ts";
 export { runInstrumentAffected, selectAffectedInstrumentTests } from "./ops/instrument-affected.ts";
 export { runKnipNegativeLiveness } from "./ops/knip-negative-liveness.ts";
 export {
-  censusDrift,
   LEDGER_CHECKS,
   ledgerFreshness,
   ledgerReport,

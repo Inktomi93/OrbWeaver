@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
+import { VERB_COVERAGE_DIR, VERB_COVERAGE_SCOPE } from "@orb/tooling/floor/testing/verb-coverage";
 import { z } from "zod";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -96,7 +97,14 @@ for (const [runner, count, childExit, expectedExit] of [
       .parse(JSON.parse(readFileSync(join(repoRoot, "reports/ci-shard.json"), "utf8")));
     const files = Array.isArray(plan.selected) ? plan.selected : [];
     const expected = {
-      node: ["test:node", ...files],
+      node: [
+        "test:node",
+        ...files,
+        "--coverage.enabled",
+        `--coverage.include=${VERB_COVERAGE_SCOPE}`,
+        "--coverage.reporter=json",
+        `--coverage.reportsDirectory=${VERB_COVERAGE_DIR}`,
+      ],
       ct: ["test:ct", ...files.map((file) => `${RegExp.escape(file)}$`), "--config=playwright-ct.product.config.ts", "--retries=2"],
       e2e: ["e2e", `--project=${String(plan.selected)}`],
     };

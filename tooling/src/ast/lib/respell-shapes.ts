@@ -2,11 +2,10 @@
 
 import type { Node, Project } from "ts-morph";
 import type { AssignabilityChecker, AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
-import { declarationTypesAgree, readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
-import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
-import { directDerivationTargetKeys, typeQueryDerivationKeys } from "../../floor/code-facts/shape-derivation.ts";
+import { readAssignabilityChecker } from "../../floor/code-facts/assignability.ts";
+import { shapesIdentical } from "../../floor/code-facts/shape-copy.ts";
+import { shapeDerivesFrom } from "../../floor/code-facts/shape-derivation.ts";
 import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
-import type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
@@ -17,13 +16,13 @@ import { ownExports } from "./scope.ts";
 /** How many properties a shape needs before an exact structural match means anything. */
 export const RESPELL_PROPERTY_FLOOR = 3;
 
-export type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
-
 export interface ShapeEntry {
   readonly name: string;
   readonly decl: Node;
   readonly signature: string;
-  readonly fields: readonly FieldPair[];
+  readonly names: ReadonlySet<string>;
+  /** Field names in discovery order. */
+  readonly fields: readonly string[];
 }
 
 /** The tool error for a TypeScript build without the assignability primitive. */
@@ -50,12 +49,17 @@ function refuseDeclarationComparison(kind: AssignabilityRefusalKind): never {
   return exitToolError(DECLARATION_REFUSALS[kind]);
 }
 
-/** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
- *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
- *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
- *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
-export function mutuallyAssignable(checker: AssignabilityChecker | undefined, a: Node, b: Node): boolean {
-  return declarationTypesAgree({ ...(checker === undefined ? {} : { checker }), refuse: refuseDeclarationComparison }, a, b);
+const RESPELL_PAIR_VERDICTS = ["derived", "identical", "distinct"] as const;
+type RespellPairVerdict = (typeof RESPELL_PAIR_VERDICTS)[number];
+
+/** The exact tier's pair verdict, shared by `--near` so it excludes exactly what this tier reports or exempts.
+ *  Identity is the floor comparer's: the same field names and mutual assignability, never alias-sensitive type text. */
+export function exactTierResolves(checker: AssignabilityChecker | undefined, domainShape: ShapeEntry, twin: ShapeEntry): RespellPairVerdict {
+  if (shapeDerivesFrom(domainShape.decl, twin.decl)) {
+    return "derived";
+  }
+  const context = { ...(checker === undefined ? {} : { checker }), refuse: refuseDeclarationComparison };
+  return shapesIdentical(context, { decl: domainShape.decl, fields: domainShape.names }, { decl: twin.decl, fields: twin.names }) ? "identical" : "distinct";
 }
 
 /** Every exported declaration of the files under `prefix` that HAS a shape signature. */
@@ -68,16 +72,9 @@ export function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[]
     }
     for (const { name, decl } of ownExports(sf)) {
       const discovered = readShapeFields(decl, "respell");
-      const fields =
-        discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR
-          ? discovered.map((property) => ({ name: property.name, type: property.type }))
-          : undefined;
-      if (fields !== undefined) {
-        const signature = fields
-          .map((field) => field.name)
-          .sort((left, right) => left.localeCompare(right))
-          .join("|");
-        out.push({ name, decl, signature, fields });
+      if (discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR) {
+        const signature = [...discovered].sort((left, right) => left.localeCompare(right)).join("|");
+        out.push({ name, decl, signature, names: new Set(discovered), fields: discovered });
       }
     }
   }
@@ -98,10 +95,6 @@ export function domainsWithContracts(project: SourceCorpus, arg: string): string
   return [...found].sort();
 }
 
-function overlaps(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
-  return [...left].some((key) => right.has(key));
-}
-
 /** ONE domain's structural twins, excluding aliases with the same direct target or resolved generic
  *  `typeof` provenance because those already derive from the shared declaration. */
 export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChecker | undefined, domain: string): Hit[] {
@@ -115,14 +108,8 @@ export function respellHitsFor(project: SourceCorpus, checker: AssignabilityChec
   }
   const hits: Hit[] = [];
   for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
-    const derivedFrom = directDerivationTargetKeys(domainShape.decl);
-    const domainOrigins = typeQueryDerivationKeys(domainShape.decl);
     for (const twin of bySignature.get(domainShape.signature) ?? []) {
-      if (
-        derivedFrom.has(inventoryDeclarationKey(twin.decl)) ||
-        overlaps(domainOrigins, typeQueryDerivationKeys(twin.decl)) ||
-        !mutuallyAssignable(checker, domainShape.decl, twin.decl)
-      ) {
+      if (exactTierResolves(checker, domainShape, twin) !== "identical") {
         continue;
       }
       const hit = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");

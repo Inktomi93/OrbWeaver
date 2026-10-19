@@ -3,11 +3,13 @@
 // front door across modules, widening the door with the re-exports it lacks. Dry-run by default; re-runnable.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
-import type { Node, Project, SourceFile } from "ts-morph";
+import type { Project, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { UsageError } from "../../floor/cli/run-tool.ts";
 import { moduleClosure } from "../../floor/code-facts/module-reach.ts";
+import { modulePositionSpecifier } from "../../floor/code-facts/module-specifier.ts";
 import { inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import { readAuthoredRepositoryPathnames } from "../../floor/compiler/authored-repository.ts";
 import type { DeepImportsResult, DoorExport, DoorReader, PackageSource } from "../contract/deep-imports.ts";
@@ -63,20 +65,26 @@ interface FileRespell {
   readonly respelled: number;
 }
 
+/** Every floor module position in the file (the package-deep-import gate's reader), declarations first. */
+function modulePositions(sourceFile: SourceFile): readonly Node[] {
+  const positions = sourceFile.getDescendants().filter((node) => node.isKind(SyntaxKind.CallExpression) || node.isKind(SyntaxKind.ImportType));
+  return [...sourceFile.getImportDeclarations(), ...sourceFile.getExportDeclarations(), ...positions];
+}
+
 /** One package file's deep specifiers, re-spelled in place; untouched files return no text. */
 function respellFile(sourceFile: SourceFile, from: PackageSource, world: SpecifierWorld, reader: DoorReader): FileRespell {
-  const path = `${from.srcRoot}/${from.relative}`;
+  const path = `${from.srcRoot}/${from.path}`;
   const edits: Edit[] = [];
   const exports: DoorExport[] = [];
   const notes: RelocateNote[] = [];
-  for (const declaration of [...sourceFile.getImportDeclarations(), ...sourceFile.getExportDeclarations()]) {
-    const literal = declaration.getModuleSpecifier();
-    const spec = declaration.getModuleSpecifierValue();
-    if (literal === undefined || spec === undefined || !isDeepParent(spec)) {
+  for (const owner of modulePositions(sourceFile)) {
+    const literal = modulePositionSpecifier(owner);
+    if (!(Node.isStringLiteral(literal) && isDeepParent(literal.getLiteralValue()))) {
       continue;
     }
+    const spec = literal.getLiteralValue();
     const entity = literalEntity(posix.normalize(posix.join(posix.dirname(path), spec)), world);
-    const plan = entity === undefined ? ({ kind: "refuse", reason: "names nothing tracked" } as const) : planDeepImport(declaration, from, entity.path, reader);
+    const plan = entity === undefined ? ({ kind: "refuse", reason: "names nothing tracked" } as const) : planDeepImport(owner, from, entity.path, reader);
     if (plan.kind === "refuse") {
       notes.push(refusalNote(path, literal.getStartLineNumber(), spec, plan.reason));
       continue;

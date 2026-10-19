@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(142 registered gates)
+(134 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -75,16 +75,13 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `bus-payload-allowlist-health` | — | hard/error | @contracts | a bus-event wire shape could not be… |
 | `bus-producer-coverage` | — | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
-| `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
 | `caught-failure-ownership` | — | ordinary/error | @product,@tooling | UNPROVEN OWNERSHIP for a caught… |
-| `caught-failure-ownership-health` | caught-failure-ownership | hard/error | @product,@tooling | the committed caught-failure census… |
 | `chat-viewer-plane-canon-reads` | — | ordinary/error | @server\* | a VIEWER-PLANE chat verb (matrix… |
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
 | `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
 | `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-structural-copy` | — | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
-| `contract-verb-presence` | — | reviewed-grant/error | @server,@tests,@legacy-tests\* | a \*Service interface declares a verb… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
 | `css-family-ownership-health` | css-hook-provenance | hard/error | none | the six-home CSS census is BLIND, or… |
@@ -101,13 +98,11 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
-| `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
 | `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
 | `duplicate-action-doors` | — | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
-| `entry-synthetic-role-is-user` | — | hard/error | @server,@inference\* | a hardcoded role: "user" inside a… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
 | `json-column-read-parsed` | open-json-column-key-parity | ordinary/error | @server\* | typed JSON column read by cast — the… |
@@ -135,7 +130,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
-| `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
 | `open-json-column-key-parity` | — | reviewed-grant/error | @db,@server\* | an OPEN JSON column (mode:"json" +… |
 | `over-art-plate-arm` | — | ordinary/error | none | over-art plate law (UI-Theming-and-Con… |
 | `own-tables-only` | drizzle-schema | hard/error | @server\* | a domain touches its OWN tables… |
@@ -147,7 +141,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
 | `persistence-no-in-memory-state` | — | ordinary/error | @authored\* | an ambient Map/Set/WeakMap/WeakSet is… |
 | `platform-spellings` | — | ordinary/error | @product,@tests | a superseded pre-node-26 spelling —… |
-| `policy-fixture-substrate` | policy-soundness | hard/error | @tests\* | a family test filesystem mutation has… |
 | `policy-legacy-imports` | policy-soundness | hard/error | @tooling\* | a FINAL policy module imports the… |
 | `policy-proof-expectations` | policy-soundness | hard/error | @tooling\* | a mustFlag proof row is… |
 | `policy-refusal-coverage` | policy-soundness | hard/error | @tooling,@tests\* | a FINAL policy declares facts or… |
@@ -195,7 +188,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
-| `turn-identity` | — | ordinary/error | @server\* | the chat engine is Principal-BLIND… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
 | `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |

@@ -10,15 +10,11 @@ import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-fac
 import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
 import { nodeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as census } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
-import { gate as ownershipHealth } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
-import { gate as traced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
-import { deriveRootSpanOpeners, TRACING_MODULE, untracedDispatchSite } from "../../../../tooling/src/verify/lib/detached-work.ts";
+import { CAUGHT_FAILURE_CLOSURE_HOPS, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { deriveCaughtFailureSites } from "../../../../tooling/src/verify/ops/gen/caught-failure-population.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
@@ -61,7 +57,7 @@ test(
           profile: TYPE_OBSERVATION_PROFILE,
           sources: [source],
           nodes: [],
-          questions: [{ kind: "reference-closure", nodes: [name], properties: ["then", "ok", "kind", "status", "step", "verdict"] }],
+          questions: [{ kind: "reference-closure", nodes: [name], presenceMembers: [PROMISE_LIKE_MEMBER], closureHops: CAUGHT_FAILURE_CLOSURE_HOPS }],
         },
         (node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() }),
       ),
@@ -123,44 +119,7 @@ test(
   scaledBudget(120_000),
 );
 
-const POLICIES = [ownership, ownershipHealth, census, traced];
-
-test(
-  "native census derivation retains the central waiver's exact site, coordinates and continued reason",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    writeFileSync(
-      join(scratch, DETACHED),
-      [
-        "declare function background(): Promise<void>;export function launch(): void {",
-        "// @orb-waive caught-failure-ownership(background): teardown has no user result.",
-        "// Ends when teardown gains a retryable result.",
-        "void background().catch(() => undefined);}",
-      ].join("\n"),
-    );
-    const sites = deriveCaughtFailureSites(scratch);
-    const site = sites.find((row) => row.path === DETACHED);
-    expect(site).toMatchObject({
-      siteId: `${DETACHED}::launch::background::1`,
-      verdict: "deliberate-absorb",
-      reason: "teardown has no user result. Ends when teardown gains a retryable result.",
-    });
-    const context = projectCtx(scratch);
-    const result = runPolicyPass({
-      root: scratch,
-      project: context.project,
-      ...nativeTypeFactOptions(context),
-      knownPolicies: POLICIES,
-      policies: [ownership],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.waivedFindings).toMatchObject([{ finding: { file: DETACHED, line: site?.line, column: site?.column, token: site?.position } }]);
-  },
-  scaledBudget(120_000),
-);
+const POLICIES = [ownership];
 
 test(
   "the complete failure and tracing proof population retains every verdict and refusal",
@@ -192,13 +151,8 @@ function fixture(root: string, repoRoot: string): void {
     [SERVER]: ENTRY,
     [CLIENT]: ENTRY,
     [DETACHED]: "declare function background(): Promise<void>;export function launch(): void {void background().catch(() => undefined);}",
-    [TRACING_MODULE]: `import {OPENER} from "#trace-key";
-declare const tracer: {startActiveSpan(name: string, options: {root: true}, fn: () => Promise<void>): Promise<void>};
-function detached(name: string, fn: () => Promise<void>): Promise<void> {return tracer[OPENER](name, {root: true}, fn);}
-export {detached as superviseDetached};`,
     "packages/contracts/src/meaning-node.ts": 'export declare function terminal(error: unknown): never;export declare const LINK: "catch";',
     "packages/contracts/src/meaning-browser.ts": 'export declare function terminal(error: unknown): void;export declare const LINK: "finally";',
-    "packages/contracts/src/trace-key.ts": 'export declare const OPENER: "startActiveSpan";',
   };
   for (const [path, text] of Object.entries(files)) {
     put(path, text);
@@ -209,7 +163,6 @@ export {detached as superviseDetached};`,
       type: "module",
       imports: {
         "#meaning": { browser: "./packages/contracts/src/meaning-browser.ts", default: "./packages/contracts/src/meaning-node.ts" },
-        "#trace-key": "./packages/contracts/src/trace-key.ts",
       },
     }),
   );
@@ -218,7 +171,7 @@ export {detached as superviseDetached};`,
     "packages/server/tsconfig.json",
     JSON.stringify({
       compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] },
-      files: ["src/probe.ts", "src/domain/probe/detach.ts", "src/foundation/observability/tracing.ts"],
+      files: ["src/probe.ts", "src/domain/probe/detach.ts"],
     }),
   );
   put(
@@ -227,7 +180,7 @@ export {detached as superviseDetached};`,
   );
   put(
     "packages/contracts/tsconfig.json",
-    JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] }, files: ["src/meaning-node.ts", "src/meaning-browser.ts", "src/trace-key.ts"] }),
+    JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] }, files: ["src/meaning-node.ts", "src/meaning-browser.ts"] }),
   );
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: COMPILER_OPTIONS, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of POLICIES) {
@@ -236,16 +189,6 @@ export {detached as superviseDetached};`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
-  put(
-    "tooling/src/verify/gates/caught-failure-ownership.population.json",
-    JSON.stringify({
-      rows: [`${SERVER}::cases::p::1`, `${CLIENT}::cases::error::1`, `${DETACHED}::launch::background::1`].map((siteId) => ({
-        siteId,
-        verdict: "unproven",
-        reason: null,
-      })),
-    }),
-  );
   execFixtureGit(root, ["init", "-q"]);
 }
 
@@ -266,25 +209,12 @@ function nativeFailureBaseline(context: ReturnType<typeof projectCtx>, scratch: 
     throw new Error("native rejection calls are missing");
   }
   expect(promiseAbsorberSite(link)?.anchor?.token).toBe(browser ? undefined : "p");
-  expect(untracedDispatchSite(link.getFirstAncestorByKindOrThrow(SyntaxKind.ExpressionStatement), new Set())?.anchor?.token).toBe(browser ? undefined : "p");
   expect(promiseAbsorberSite(propagated)).toBeUndefined();
 }
 
 function nativeBaseline(context: ReturnType<typeof projectCtx>, scratch: string): void {
   nativeFailureBaseline(context, scratch, SERVER, false);
   nativeFailureBaseline(context, scratch, CLIENT, true);
-  const tracing = context.nativeSourceView?.(join(scratch, TRACING_MODULE));
-  const detached = context.nativeSourceView?.(join(scratch, DETACHED));
-  if (tracing === undefined || detached === undefined) {
-    throw new Error("actual native tracing sources are missing");
-  }
-  const openers = deriveRootSpanOpeners([tracing.sourceFile]);
-  expect([...openers]).toEqual(["detached"]);
-  const statement = detached.sourceFile.getDescendantsOfKind(SyntaxKind.ExpressionStatement)[0];
-  if (statement === undefined) {
-    throw new Error("native detached statement is missing");
-  }
-  expect(untracedDispatchSite(statement, openers)?.anchor?.token).toBe("background");
 }
 
 test(
@@ -357,18 +287,6 @@ test(
         { file: CLIENT, token: "error" },
         { file: DETACHED, token: "background" },
         { file: SERVER, token: "p" },
-      ]);
-      expect.soft(result.policies.find(({ id }) => id === traced.id)?.findings).toMatchObject([
-        { file: DETACHED, token: "background" },
-        { file: SERVER, token: "p" },
-      ]);
-      for (const id of [ownershipHealth.id, census.id]) {
-        expect.soft(result.policies.find((policy) => policy.id === id)?.findings).toEqual([]);
-      }
-      expect(deriveCaughtFailureSites(scratch).map(({ siteId, verdict, reason }) => ({ siteId, verdict, reason }))).toEqual([
-        { siteId: `${CLIENT}::cases::error::1`, verdict: "unproven", reason: null },
-        { siteId: `${DETACHED}::launch::background::1`, verdict: "unproven", reason: null },
-        { siteId: `${SERVER}::cases::p::1`, verdict: "unproven", reason: null },
       ]);
     } finally {
       useContext.mockRestore();

@@ -4,11 +4,14 @@
 // Determinism: time is pinned through the injected `now` seam (testing §3) — the window-boundary cases pin
 // the clock instead of racing the wall clock (the 2026-06-11 flake this seam exists for).
 
+import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { rateLimitBuckets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { createRateLimiter } from "#server/transport/rate-limit.ts";
 
@@ -106,5 +109,30 @@ describe("rate-limit: createRateLimiter", () => {
     // The sweep is fire-and-forget beside the verdict; a following read on the same connection runs after it.
     const keys = (await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets)).map((row) => row.key.split(":").slice(0, 2).join(":")).sort();
     expect(keys).toEqual(["authed:u3", "public-ip:9.9.9.9"]);
+  });
+
+  test("a failing sweep never fails the consume and leaves no unhandled rejection", async () => {
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", record);
+    try {
+      const db = await freshDb();
+      let clock = T0;
+      const limiter = createRateLimiter(databaseHandle(db), { scope: "authed", points: 10, windowMs: WINDOW_MS, now: () => clock });
+      await limiter.consume("u1");
+      await db.run(sql`CREATE TRIGGER sweep_blocked BEFORE DELETE ON rate_limit_buckets BEGIN SELECT RAISE(ABORT, 'sweep exploded'); END`);
+
+      clock += WINDOW_MS * 2;
+      await expect(limiter.consume("u2")).resolves.toBeUndefined();
+      await sleep(50);
+      expect(unhandled).toEqual([]);
+      // The expired row survives because its sweep failed; the live verdict row is there.
+      const keys = (await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets)).map((row) => row.key.split(":").slice(0, 2).join(":")).sort();
+      expect(keys).toEqual(["authed:u1", "authed:u2"]);
+    } finally {
+      process.off("unhandledRejection", record);
+    }
   });
 });
