@@ -167,8 +167,8 @@ export const inventoryRecordTables = {
   },
   shapeField: {
     name: "inventory_shape_field",
-    columns: "owner,mode,ordinal,name,type",
-    definition: `${PARTITION},owner INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('copy','respell')),${ORDINAL},name TEXT NOT NULL,type TEXT NOT NULL,PRIMARY KEY(partition,owner,mode,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_shape(partition,ordinal)`,
+    columns: "owner,mode,ordinal,name",
+    definition: `${PARTITION},owner INTEGER NOT NULL,mode TEXT NOT NULL CHECK(mode IN ('copy','respell')),${ORDINAL},name TEXT NOT NULL,PRIMARY KEY(partition,owner,mode,ordinal),FOREIGN KEY(partition,owner) REFERENCES inventory_shape(partition,ordinal)`,
   },
   shapeOrigin: {
     name: "inventory_shape_origin",
@@ -623,7 +623,7 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     emit("shape", ordinal, spanId(shape.node), Number(shape.copy !== null), Number(shape.respell !== null));
     for (const mode of ["copy", "respell"] as const) {
       shape[mode]?.forEach((field, index) => {
-        emit("shapeField", ordinal, mode, index, inventoryString(field.name), inventoryString(field.type));
+        emit("shapeField", ordinal, mode, index, inventoryString(field));
       });
     }
     for (const kind of ["direct", "queries"] as const) {

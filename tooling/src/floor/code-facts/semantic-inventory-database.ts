@@ -11,7 +11,8 @@ import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInv
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 15;
+const STORAGE_SCHEMA_VERSION = 16;
+const REFERENCE_NAME_SCHEMA_VERSION = 15;
 const RUNTIME_SCHEMA_VERSION = 14;
 const REFERENCE_SCHEMA_VERSION = 13;
 const SOURCE_INDEX_SCHEMA_VERSION = 12;
@@ -76,6 +77,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== SOURCE_INDEX_SCHEMA_VERSION &&
     version !== REFERENCE_SCHEMA_VERSION &&
     version !== RUNTIME_SCHEMA_VERSION &&
+    version !== REFERENCE_NAME_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -171,6 +173,7 @@ function initializeStorageSchema(db: DatabaseSync): void {
     upgradeReferenceStorage(db, version);
     upgradeRuntimeStorage(db, version);
     upgradeReferenceNameStorage(db, version);
+    upgradeShapeFieldStorage(db, version);
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
@@ -204,10 +207,19 @@ function upgradeReferenceStorage(db: DatabaseSync, version: number): void {
 }
 
 function upgradeReferenceNameStorage(db: DatabaseSync, version: number): void {
-  if (version < STORAGE_SCHEMA_VERSION) {
+  if (version < REFERENCE_NAME_SCHEMA_VERSION) {
     db.exec(`CREATE TABLE IF NOT EXISTS ${inventoryRecordTables.referenceName.name}(${inventoryRecordTables.referenceName.definition}) STRICT;`);
     // Name lookups replay a declaration's rows; the declaration side is reached through inventory_reference_origin.
     db.exec("CREATE INDEX IF NOT EXISTS inventory_reference_name_lookup ON inventory_reference_name(partition,name);");
+  }
+}
+
+// Field rows are a rebuildable cache of the current format only; older generations are unreachable by format,
+// so the rows are dropped with the printed-type column instead of being copied.
+function upgradeShapeFieldStorage(db: DatabaseSync, version: number): void {
+  if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+    db.exec(`DROP TABLE IF EXISTS ${inventoryRecordTables.shapeField.name};`);
+    db.exec(`CREATE TABLE ${inventoryRecordTables.shapeField.name}(${inventoryRecordTables.shapeField.definition}) STRICT;`);
   }
 }
 

@@ -225,8 +225,8 @@ test(
       fields: ["a", "b", "c", "d", "e"],
       exact: ["Derived  ≡  @orb/contracts/chat::Mapped", "Exact  ≡  @orb/contracts/chat::Wire", "Exact  ≡  @orb/contracts/chat::Mapped"],
       near: [
-        { domainName: "Drift", contractsName: "Wire", renamed: [{ from: "renamed", to: "e", type: "number" }] },
-        { domainName: "Drift", contractsName: "Mapped", renamed: [{ from: "renamed", to: "e", type: "number" }] },
+        { domainName: "Drift", contractsName: "Wire", renamed: [{ from: "renamed", to: "e" }] },
+        { domainName: "Drift", contractsName: "Mapped", renamed: [{ from: "renamed", to: "e" }] },
       ],
       checkerReads: 0,
       stale: expect.stringContaining("source/epoch"),

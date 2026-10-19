@@ -19,10 +19,10 @@ import { ComponentTypeHomeComparisonError } from "./component-type-home-contract
 import { referenceResolutionServices, resolveStableExpression } from "./reference-fact.ts";
 import { resolveCallableValueDeclaration, resolveCallableValueOrigin } from "./reference-fact-call.ts";
 import { declarationBindingKeys, inventoryDeclarationKey, inventoryExports } from "./semantic-inventory-reader.ts";
-import { agreeingCount, createShapeFieldAgreement, indexByField, sharedFieldCounts } from "./shape-copy.ts";
+import { compareCopySource, createShapeFieldAgreement, indexByField, sharedFieldCounts } from "./shape-copy.ts";
 import type { ShapeCopyComparison, ShapeCopySource } from "./shape-copy-contract.ts";
 import { exportedShapeDeclarations } from "./shape-declaration.ts";
-import { directDerivationTargetKeys, nativeGenericReferenceContributes } from "./shape-derivation.ts";
+import { directDerivationTargetKeys, nativeGenericReferenceContributes, shapeDerivesFrom } from "./shape-derivation.ts";
 import { readShapeFields } from "./shape-facts.ts";
 import { ownDataFieldNames } from "./shape-fields.ts";
 import { packageTypeHome } from "./type-home.ts";
@@ -482,15 +482,13 @@ function lowerData(input: ComponentTypeHomeInput): ComponentLowerDataEvidence {
   const { declaration } = input;
   const body = Node.isTypeAliasDeclaration(declaration) ? declaration.getTypeNode() : declaration;
   const fields = body !== undefined && (Node.isInterfaceDeclaration(body) || Node.isTypeLiteral(body)) ? ownDataFieldNames(body) : new Set<string>();
-  const origins = input.lowerDeclarations.filter((lower) => directDerivationTargetKeys(declaration).has(inventoryDeclarationKey(lower)));
+  const origins = input.lowerDeclarations.filter((lower) => shapeDerivesFrom(declaration, lower));
   if (fields.size === 0 && origins.length > 0) {
     return { kind: "derived", origins };
   }
   const sources: ShapeCopySource[] = input.lowerDeclarations.flatMap((decl) => {
     const properties = readShapeFields(decl, "copy");
-    return properties === undefined
-      ? []
-      : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties.map((property) => property.name)) }];
+    return properties === undefined ? [] : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties) }];
   });
   const agree = createShapeFieldAgreement(
     () => declaration.getProject().getTypeChecker(),
@@ -498,12 +496,9 @@ function lowerData(input: ComponentTypeHomeInput): ComponentLowerDataEvidence {
       throw new ComponentTypeHomeComparisonError(`Component lower-data comparison refused: ${kind}`);
     },
   );
-  const comparisons: ShapeCopyComparison[] = [...sharedFieldCounts(fields, indexByField(sources))].map(([contract, shared]) => ({
-    contract,
-    shared,
-    agreeing: agreeingCount({ decl: declaration, fields }, contract, agree),
-    exact: shared === fields.size && shared === contract.fields.size,
-  }));
+  const comparisons: ShapeCopyComparison[] = [...sharedFieldCounts(fields, indexByField(sources)).keys()].map((contract) =>
+    compareCopySource({ decl: declaration, fields }, contract, agree),
+  );
   return { kind: "unqualified", reason: "Field nonmatches or an incomplete lower-owner set do not prove lower-data ownership.", comparisons };
 }
 
