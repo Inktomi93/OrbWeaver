@@ -24,8 +24,8 @@ import { detectModelFamily } from "#inference/capability/families.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { StateRoundPlans } from "#server/domain/rpg/index.ts";
-import { structuredShapes } from "#server/domain/rpg/index.ts";
 import { fallbackStateRound, primaryStateRound } from "#server/domain/rpg/substrate/readonly-axis.ts";
+import { structuredShapes } from "#server/domain/rpg/tools/rounds/structured.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { ANTHROPIC_STATE_ROUND_400S } from "./_structured-state-round-recordings.ts";
 

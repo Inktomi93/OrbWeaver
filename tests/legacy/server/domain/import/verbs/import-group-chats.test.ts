@@ -11,7 +11,9 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { CollectedGroup, ImportContext, ImportGroupsInput } from "#server/domain/import/index.ts";
-import { createImportService, importFileHash, parseStGroupFile } from "#server/domain/import/index.ts";
+import { createImportService } from "#server/domain/import/index.ts";
+import { importFileHash } from "#server/domain/import/substrate/card.ts";
+import { parseStGroupFile } from "#server/domain/import/substrate/group.ts";
 import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
 
 const OWNER = castId<UserId>("usr_owner");

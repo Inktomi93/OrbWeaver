@@ -11,9 +11,10 @@ import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "#server/domain/plugin/index.ts";
+import { buildPluginStorage } from "#server/domain/plugin/index.ts";
 import { getKv } from "#server/domain/plugin/persistence/plugin-kv.ts";
 import { insertPlugin } from "#server/domain/plugin/persistence/plugins.ts";
+import { PLUGIN_KV_MAX_KEYS } from "#server/domain/plugin/substrate/storage.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1000;

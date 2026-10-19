@@ -18,7 +18,8 @@ import { PLUGIN_TOAST_COOLDOWN_SECONDS, PLUGIN_TOAST_MAX_CHARS, PLUGIN_UI_OUTBOX
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { createPluginUiOutbox, resolveUiOutcome } from "#server/domain/plugin/index.ts";
+import { createPluginUiOutbox } from "#server/domain/plugin/index.ts";
+import { resolveUiOutcome } from "#server/domain/plugin/substrate/ui-outbox.ts";
 
 // TypeIDs are MINTED, never hand-written literals (the branded suffix is validated at runtime).
 const PLUGIN = { id: mintTypeId(ID_PREFIX.plugin), name: "Oracle Deck", slug: "oracle-deck" };

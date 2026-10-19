@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { createRpgFlushBarrier } from "#server/domain/rpg/index.ts";
+import { createRpgFlushBarrier } from "#server/domain/rpg/flush-barrier.ts";
 
 const CHAT: ChatId = castId<ChatId>("chat_barrier_1");
 const OWNER: UserId = castId<UserId>("user_owner");

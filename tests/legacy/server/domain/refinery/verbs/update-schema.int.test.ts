@@ -7,7 +7,7 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { SCHEMA_STALE_PATCH_REASON } from "#server/domain/refinery/index.ts";
+import { SCHEMA_STALE_PATCH_REASON } from "#server/domain/refinery/substrate/schema-library.ts";
 import { makeRefineryHarness, principal, seedUser, validScoreSchema } from "../_support.ts";
 
 const SCORE_CORE_REFUSAL = /overallScore/u;

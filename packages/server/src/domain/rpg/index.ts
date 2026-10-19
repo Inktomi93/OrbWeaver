@@ -7,7 +7,7 @@
 // NOT re-declared here — their home is `@orb/contracts/rpg` (§7.4). The staging store + its factory come from
 // the feature-root `staging.ts` (W1a); this door re-exports the store for compose to mint the singleton.
 
-export { createRpgEventBus, publishRpgEvent, subscribeRpgEvents } from "./bus.ts";
+export { createRpgEventBus, subscribeRpgEvents } from "./bus.ts";
 export { createRpgChatOps } from "./chat-ops/index.ts";
 export type { RpgEventBus } from "./contract/bus.ts";
 // The cheap-mode tools' two OUTWARD-crossing shapes (`tools/rounds/` names both). Re-homed to the
@@ -43,8 +43,6 @@ export type {
   RpgStateDelta,
 } from "./contract/service.ts";
 export type { RpgTraceRecorder, RpgTraceSink } from "./contract/trace.ts";
-// The per-chat flush barrier (the race fix): the compose mints it as a singleton, the gather awaits it.
-export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // The GM-voice rooms of a preset, the rpg fact preset's backward-bindings rule reads through compose.
 export { listGmPresetChatIds } from "./persistence/games.ts";
 export { createExportRpgGame, createImportRpgGame } from "./persistence/portability-write.ts";
@@ -62,9 +60,8 @@ export { buildResolveStateDelivery, buildResolveStateRoundFit } from "./tools/ro
 export { buildFoldedTurnBuilder, buildFoldTurnToolCalls } from "./tools/rounds/folded.ts";
 export { createRpgRoundObservers } from "./tools/rounds/observers.ts";
 export { buildRunPopulateExtraction } from "./tools/rounds/populate.ts";
-export { buildPromoteToCharacter, rpgPromotionProvenance } from "./tools/rounds/promotion.ts";
+export { buildPromoteToCharacter } from "./tools/rounds/promotion.ts";
 export { buildRunResyncExtraction } from "./tools/rounds/resync.ts";
-export { structuredShapes } from "./tools/rounds/structured.ts";
 export { buildRunToolRound } from "./tools/rounds/tool-round.ts";
 // The recorder RUNTIME (the bounded ring). Built only when tracing is on; unwired, the sink is `undefined`
 // and every emit site short-circuits, so an untraced turn is byte-identical.

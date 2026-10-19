@@ -13,7 +13,8 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { createRefineryWorkloadContributions, createScoreSweep } from "#server/domain/refinery/index.ts";
+import { createRefineryWorkloadContributions } from "#server/domain/refinery/index.ts";
+import { createScoreSweep } from "#server/domain/refinery/verbs/score-sweep.ts";
 import { makeRefineryHarness, principal, refineryWorkloadDepsOf, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
 /** The workload engine's `report` — a sink here, plus the messages the assertions read. */

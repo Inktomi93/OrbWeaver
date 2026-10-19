@@ -6,7 +6,15 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { describe } from "vitest";
-import { getGroupConfig, getRoomOverrides, getToolRecurseLimit, parseChatMetadata, TOOL_RECURSE_LIMIT_DEFAULT } from "#server/domain/chat/contract/metadata.ts";
+import {
+  getGroupConfig,
+  getRoomOverrides,
+  parseChatMetadata,
+  resolveToolRecurseLimit,
+  TOOL_RECURSE_LIMIT_DEFAULT,
+} from "#server/domain/chat/contract/metadata.ts";
+
+const recurseLimitOf = (raw: unknown): number => resolveToolRecurseLimit(parseChatMetadata(raw).toolRecurseLimit);
 
 describe("parseChatMetadata — fault isolation", () => {
   test("a malformed sub-blob heals to absent WITHOUT nuking its siblings", () => {
@@ -55,13 +63,13 @@ describe("getGroupConfig / getRoomOverrides — default fallbacks", () => {
   });
 });
 
-describe("getToolRecurseLimit", () => {
+describe("resolveToolRecurseLimit over parseChatMetadata", () => {
   test("an absent/corrupt limit falls back to the seed default (5)", () => {
-    expect(getToolRecurseLimit({})).toBe(TOOL_RECURSE_LIMIT_DEFAULT);
-    expect(getToolRecurseLimit({ toolRecurseLimit: 999 })).toBe(TOOL_RECURSE_LIMIT_DEFAULT); // out of 1..20 range → catch(undefined)
+    expect(recurseLimitOf({})).toBe(TOOL_RECURSE_LIMIT_DEFAULT);
+    expect(recurseLimitOf({ toolRecurseLimit: 999 })).toBe(TOOL_RECURSE_LIMIT_DEFAULT); // out of 1..20 range → catch(undefined)
   });
 
   test("a valid in-range limit is honored", () => {
-    expect(getToolRecurseLimit({ toolRecurseLimit: 10 })).toBe(10);
+    expect(recurseLimitOf({ toolRecurseLimit: 10 })).toBe(10);
   });
 });

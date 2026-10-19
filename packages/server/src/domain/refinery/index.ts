@@ -54,8 +54,5 @@ export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSc
 export type { RefineryAssemblyContext as RefineryContext, RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { isScoreSweepReady } from "./substrate/refine-prompt.ts";
-export { SCHEMA_NAME_TAKEN_REASON, SCHEMA_STALE_PATCH_REASON } from "./substrate/schema-library.ts";
 export { createPlanSchema, createResolveStructuredBinding } from "./verbs/schema-plan.ts";
-export { createScoreSweep } from "./verbs/score-sweep.ts";
-export { MANUAL_REWRITE_OUT_OF_SCOPE_REASON } from "./verbs/submit-manual-rewrite.ts";
 export { createRefineryWorkloadContributions } from "./workload-contributions.ts";

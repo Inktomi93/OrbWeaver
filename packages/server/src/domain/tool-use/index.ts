@@ -17,7 +17,7 @@ export type {
   ToolHandlerResult,
   ToolSource,
 } from "./contract/params.ts";
-export { TOOL_NAME_RE, TOOL_SOURCES } from "./contract/params.ts";
+export { TOOL_SOURCES } from "./contract/params.ts";
 export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results.ts";
 export type { ToolUseService } from "./contract/service.ts";
 export { createToolUseService } from "./service.ts";

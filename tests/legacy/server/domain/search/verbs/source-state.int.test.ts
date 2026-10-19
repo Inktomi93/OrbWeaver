@@ -5,7 +5,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { createSourceState } from "#server/domain/search/index.ts";
+import { createSourceState } from "#server/domain/search/verbs/source-state.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { seedChatSegment, vec } from "../_support.ts";
 

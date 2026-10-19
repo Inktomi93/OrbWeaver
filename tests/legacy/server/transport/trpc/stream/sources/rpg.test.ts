@@ -28,7 +28,7 @@ import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { publishRpgEvent } from "#server/domain/rpg/index.ts";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 import { consumeServerReady } from "../_support.ts";
 

@@ -45,7 +45,7 @@ import { beforeEach, describe } from "vitest";
 import { deleteAssetRowIfUnreferenced } from "#server/domain/assets/persistence/asset-refs.ts";
 import { createChatBus } from "#server/domain/chat/bus.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
-import { getToolRecurseLimit } from "#server/domain/chat/contract/metadata.ts";
+import { parseChatMetadata, resolveToolRecurseLimit } from "#server/domain/chat/contract/metadata.ts";
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
@@ -619,7 +619,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
     const result = await participants.setToolRecurseLimit({ principal: principal(host), chatId, limit: 12 });
     expect(result).toBe(12);
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    expect(getToolRecurseLimit(row?.metadata)).toBe(12);
+    expect(resolveToolRecurseLimit(parseChatMetadata(row?.metadata).toolRecurseLimit)).toBe(12);
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
 

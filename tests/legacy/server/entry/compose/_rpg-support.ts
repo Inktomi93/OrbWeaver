@@ -25,10 +25,10 @@ import { makeResolved } from "../../../inference/_support.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 export type { RpgTurnContext } from "#server/domain/chat/index.ts";
-export { rpgPromotionProvenance } from "#server/domain/rpg/index.ts";
 export { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 export { findTurnToolCallsByVariant } from "#server/domain/rpg/persistence/turn-tool-calls.ts";
 export { defaultSnapshotState } from "#server/domain/rpg/substrate/default-state.ts";
+export { rpgPromotionProvenance } from "#server/domain/rpg/tools/rounds/promotion.ts";
 export { buildRpg } from "#server/entry/compose/rpg.ts";
 
 export const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_compose_1");

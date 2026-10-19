@@ -9,7 +9,8 @@ import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { createImportService, ImportCardError, importFileHash } from "#server/domain/import/index.ts";
+import { createImportService, ImportCardError } from "#server/domain/import/index.ts";
+import { importFileHash } from "#server/domain/import/substrate/card.ts";
 import { makeHarness } from "../_support.ts";
 
 const V3_CARD = {

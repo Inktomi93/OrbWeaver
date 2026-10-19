@@ -11,7 +11,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { CollectedPreset, ImportContext, ImportProfileDeps } from "#server/domain/import/index.ts";
-import { createImportService, stPresetFromJson } from "#server/domain/import/index.ts";
+import { createImportService } from "#server/domain/import/index.ts";
+import { stPresetFromJson } from "#server/domain/import/substrate/preset.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 

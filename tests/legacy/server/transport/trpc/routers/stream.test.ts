@@ -27,7 +27,7 @@ import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/tran
 import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import { publishRpgEvent } from "#server/domain/rpg/index.ts";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import type { WorkloadRowAnyKind } from "#server/domain/workloads/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 import { consumeServerReady } from "../stream/_support.ts";

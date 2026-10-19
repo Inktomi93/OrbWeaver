@@ -20,7 +20,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createExportService } from "#server/domain/export/index.ts";
-import { parseCardPng } from "#server/domain/import/index.ts";
+import { parseCardPng } from "#server/domain/import/substrate/card.ts";
 import { createLinkCarriedBooks } from "#server/domain/world-info/index.ts";
 import {
   AVATAR_PNG,
