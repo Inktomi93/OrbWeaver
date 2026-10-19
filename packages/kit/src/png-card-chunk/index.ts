@@ -210,9 +210,8 @@ function decodeBase64Utf8(value: Uint8Array): string | null {
   if (bytes === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): documented — this module's shared fail-soft
-  // null contract, consumed by every reader of decodeBase64Utf8 as "no value here". Ends if a caller
-  // stops treating the null return as absent.
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "undecodable candidate" result; readCardChunk skips it for the next
+  // candidate and returns null when none decode, which parseCardPng (import substrate) passes on as "no card". Ends if readCardChunk stops reading the null.
   try {
     return bytesToUtf8(bytes);
   } catch {
@@ -355,9 +354,8 @@ function concatChunks(parts: Uint8Array[]): Uint8Array {
  *  string when it doesn't parse as an object. */
 function stripSpecKeys(cardJson: string): string {
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): documented — falls back to the original string
-  // when it doesn't parse as an object, consumed by writeCardChunk's V2 chunk write. Ends if the fallback
-  // stops being applied.
+  // @orb-waive caught-failure-ownership(catch): text that is not JSON is returned unchanged, so writeCardChunk stores the same
+  // text in both chunks and the card import parser refuses it when read back; the only production caller passes JSON.stringify output. Ends if the unchanged return is dropped.
   try {
     parsed = JSON.parse(cardJson);
   } catch {
@@ -402,19 +400,17 @@ async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
   // Deliberately un-awaited: awaiting the write before draining the reader can deadlock on backpressure,
   // and on a corrupt stream BOTH sides reject — swallowing here leaves the reader as the one error path
   // (an unhandled rejection would take the process down).
-  // @orb-waive caught-failure-ownership(writer.write): documented above — the reader is the sole
-  // error path; a write rejection would also surface on the reader's read(). Ends if the reader stops
-  // being the consumed error path.
+  // @orb-waive caught-failure-ownership(writer.write): a stream error rejects both sides, so the same error reaches the awaited
+  // reader.read() below and its catch returns null. Ends if the read loop stops being awaited inside that try.
   void writer.write(compressed).catch(swallow);
-  // @orb-waive caught-failure-ownership(writer.close): same reasoning as the write above — the
-  // reader is the sole error path. Ends if the reader stops being the consumed error path.
+  // @orb-waive caught-failure-ownership(writer.close): a corrupt stream rejects close() and reader.read() with the same error, and
+  // the awaited read below catches it. Ends if the read loop stops being awaited inside that try.
   void writer.close().catch(swallow);
 
   const reader = stream.readable.getReader();
   const parts: Uint8Array[] = [];
-  // @orb-waive caught-failure-ownership(catch): documented — corrupt zlib payload returns
-  // null per this module's fail-soft read contract (see the function doc). Ends if the caller stops
-  // treating null as "not a valid card".
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "corrupt zlib payload" result; readCompressedTextValue maps it to
+  // null and readCardChunk skips that candidate. Ends if readCompressedTextValue stops reading the null.
   try {
     for (;;) {
       const { done, value } = await reader.read();

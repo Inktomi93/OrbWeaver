@@ -377,9 +377,8 @@ export function createIdSource(generate?: RawIdGenerator): IdSource {
  *  is the worked example, and is what actually fixed the case #641 mis-cited as this seam's evidence. */
 export function typeIdSchema<P extends string>(prefix: P): z.ZodType<TypeIdOf<P>, string> {
   return z.string().transform((value, ctx): TypeIdOf<P> => {
-    // @orb-waive caught-failure-ownership(catch): zod transform pattern — fromString's throw is
-    // caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform.
-    // Ends if the transform stops routing the caught failure through ctx.addIssue.
+    // @orb-waive caught-failure-ownership(catch): the failure is recorded as a zod issue (ctx.addIssue with a fixed message)
+    // and z.NEVER, so the parse fails and the caller gets the ZodError. Ends if the catch stops calling ctx.addIssue.
     try {
       // fromString validates shape AND prefix; throws on mismatch/malformed.
       return fromString(value, prefix) as string as TypeIdOf<P>;
