@@ -1,8 +1,8 @@
-// Field overlap facts shared by placement and copy policies; consumers own admission, thresholds and refusal policy.
+// The one shape comparer for copy, placement and respell consumers; they own field discovery, leniency, thresholds and refusal voice.
 import type { TypeChecker } from "ts-morph";
-import type { RefuseAssignability } from "./assignability.ts";
-import { fieldTypesAgree, readAssignabilityChecker } from "./assignability.ts";
-import type { ShapeCopyCandidate, ShapeCopySource, ShapeFieldAgreement } from "./shape-copy-contract.ts";
+import type { AgreementContext, RefuseAssignability } from "./assignability.ts";
+import { declarationTypesAgree, fieldTypesAgree, readAssignabilityChecker } from "./assignability.ts";
+import type { ShapeCopyCandidate, ShapeCopyComparison, ShapeCopySource, ShapeFieldAgreement, ShapeFieldComparison } from "./shape-copy-contract.ts";
 import { storedShapeAgreement } from "./shape-facts.ts";
 
 /** Preserve native lenient field agreement without choosing a copy policy or swallowing a refusal. */
@@ -46,7 +46,29 @@ export function sharedFieldCounts(fields: ReadonlySet<string>, index: ReadonlyMa
   return tally;
 }
 
-/** How many of the candidate's fields the contract carries with the same type. */
-export function agreeingCount(candidate: ShapeCopyCandidate, contract: ShapeCopySource, agree: ShapeFieldAgreement): number {
-  return [...candidate.fields].filter((field) => contract.fields.has(field) && agree(candidate.decl, contract.decl, field)).length;
+/** Left field names the right side carries, in left order; a name-only bound that asks the checker nothing. */
+export function sharedFieldNames(left: ReadonlySet<string>, right: ReadonlySet<string>): readonly string[] {
+  return [...left].filter((field) => right.has(field));
+}
+
+/** Compare one pair: the agreement runs once per shared name, in left order, and never on an unshared name. */
+export function compareShapeFields(left: ShapeCopyCandidate, right: ShapeCopyCandidate, agree: ShapeFieldAgreement): ShapeFieldComparison {
+  const shared = sharedFieldNames(left.fields, right.fields);
+  const agreeing = shared.filter((field) => agree(left.decl, right.decl, field));
+  return { shared, agreeing, exact: shared.length === left.fields.size && shared.length === right.fields.size };
+}
+
+/** The pair comparison in the copy consumers' report shape. */
+export function compareCopySource(candidate: ShapeCopyCandidate, contract: ShapeCopySource, agree: ShapeFieldAgreement): ShapeCopyComparison {
+  const { shared, agreeing, exact } = compareShapeFields(candidate, contract, agree);
+  return { contract, shared: shared.length, agreeing: agreeing.length, exact };
+}
+
+/** Exact identity: the same field names and mutually assignable declarations in every owning native program. */
+export function shapesIdentical(context: AgreementContext, left: ShapeCopyCandidate, right: ShapeCopyCandidate): boolean {
+  return (
+    sharedFieldNames(left.fields, right.fields).length === left.fields.size &&
+    left.fields.size === right.fields.size &&
+    declarationTypesAgree(context, left.decl, right.decl)
+  );
 }

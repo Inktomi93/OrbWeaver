@@ -6,7 +6,7 @@
 import type { InterfaceDeclaration, Node, TypeAliasDeclaration, TypeChecker, TypeLiteralNode } from "ts-morph";
 import { Node as N } from "ts-morph";
 import type { AssignabilityRefusalKind } from "../../floor/code-facts/assignability.ts";
-import { agreeingCount, createShapeFieldAgreement, sharedFieldCounts } from "../../floor/code-facts/shape-copy.ts";
+import { compareCopySource, createShapeFieldAgreement, sharedFieldCounts } from "../../floor/code-facts/shape-copy.ts";
 import type { ShapeCopyCandidate, ShapeCopyComparison, ShapeCopySource, ShapeFieldAgreement } from "../../floor/code-facts/shape-copy-contract.ts";
 import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
 import { ownDataFieldNames } from "../../floor/code-facts/shape-fields.ts";
@@ -59,11 +59,10 @@ export function bestCopyMatch(
     if (shared !== candidate.fields.size) {
       continue;
     }
-    const agreeing = agreeingCount(candidate, contract, agree);
-    if (agreeing < TYPE_AGREEMENT_FLOOR * shared) {
+    const match = compareCopySource(candidate, contract, agree);
+    if (match.agreeing < TYPE_AGREEMENT_FLOOR * match.shared) {
       continue;
     }
-    const match = { contract, shared, agreeing, exact: shared === contract.fields.size };
     if (best === undefined || rank(match) > rank(best)) {
       best = match;
     }

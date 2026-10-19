@@ -100,6 +100,15 @@ export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
   return keys;
 }
 
+/** The one pair derivation judgment: `decl` names `target` directly, or both share one `typeof` provenance. */
+export function shapeDerivesFrom(decl: MorphNode, target: MorphNode): boolean {
+  if (directDerivationTargetKeys(decl).has(inventoryDeclarationKey(target))) {
+    return true;
+  }
+  const origins = typeQueryDerivationKeys(decl);
+  return [...typeQueryDerivationKeys(target)].some((key) => origins.has(key));
+}
+
 const NATIVE_GENERIC_UTILITIES = [
   { name: "Exclude", arity: 2, secondArgument: "removed" },
   { name: "Extract", arity: 2, secondArgument: "retained" },

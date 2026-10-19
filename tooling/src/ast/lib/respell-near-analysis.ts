@@ -3,15 +3,14 @@
 import { Node } from "ts-morph";
 import type { AssignabilityChecker, AssignabilityRefusalKind, FieldIdentity, RefuseAssignability } from "../../floor/code-facts/assignability.ts";
 import { fieldTypesAgree } from "../../floor/code-facts/assignability.ts";
-import { inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
-import { directDerivationTargetKeys } from "../../floor/code-facts/shape-derivation.ts";
+import { compareShapeFields, sharedFieldNames } from "../../floor/code-facts/shape-copy.ts";
 import { shapeFactsOf } from "../../floor/code-facts/shape-facts.ts";
 import { collectingShapeQueries } from "../../floor/code-facts/shape-inventory-scope.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { exitToolError } from "./ledger.ts";
 import type { FieldPair, ShapeEntry } from "./respell-shapes.ts";
-import { mutuallyAssignable, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
+import { exactTierResolves, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
 
 export const RESPELL_NEAR_PROPERTY_FLOOR = 4;
 const PCT_SCALE = 100;
@@ -41,28 +40,20 @@ function semanticallyEqualFieldType(checker: AssignabilityChecker | undefined, l
   return fieldTypesAgree({ ...(checker === undefined ? {} : { checker }), refuse }, leftField, rightField);
 }
 
-function nameOnlyJaccardPct(domainFields: readonly FieldPair[], contractsFields: readonly FieldPair[]): number {
-  const contractsNames = new Set(contractsFields.map((field) => field.name));
-  const sharedCount = domainFields.filter((field) => contractsNames.has(field.name)).length;
-  return (sharedCount / (domainFields.length + contractsFields.length - sharedCount)) * PCT_SCALE;
+function nameOnlyJaccardPct(domainShape: ShapeEntry, contractsShape: ShapeEntry): number {
+  const sharedCount = sharedFieldNames(domainShape.names, contractsShape.names).length;
+  return (sharedCount / (domainShape.names.size + contractsShape.names.size - sharedCount)) * PCT_SCALE;
 }
 
 function nearAdmissionOf(checker: AssignabilityChecker | undefined, domainShape: ShapeEntry, contractsShape: ShapeEntry): NearAdmission {
-  const { fields: domainFields, decl: domainDecl } = domainShape;
-  const { fields: contractsFields, decl: contractsDecl } = contractsShape;
-  const sharedNames = new Set(
-    domainFields
-      .filter((domainField) => {
-        const contractsField = contractsFields.find((candidate) => candidate.name === domainField.name);
-        return (
-          contractsField !== undefined &&
-          semanticallyEqualFieldType(checker, { decl: domainDecl, name: domainField.name }, { decl: contractsDecl, name: contractsField.name })
-        );
-      })
-      .map((field) => field.name),
+  const comparison = compareShapeFields(
+    { decl: domainShape.decl, fields: domainShape.names },
+    { decl: contractsShape.decl, fields: contractsShape.names },
+    (domainDecl, contractsDecl, name) => semanticallyEqualFieldType(checker, { decl: domainDecl, name }, { decl: contractsDecl, name }),
   );
+  const sharedNames = new Set(comparison.agreeing);
   const sharedCount = sharedNames.size;
-  const totalFields = domainFields.length + contractsFields.length - sharedCount;
+  const totalFields = domainShape.names.size + contractsShape.names.size - sharedCount;
   const pct = totalFields === 0 ? 0 : (sharedCount / totalFields) * PCT_SCALE;
   return { pct, sharedCount, totalFields, sharedNames };
 }
@@ -102,29 +93,25 @@ interface NearPairScope {
   readonly checker: AssignabilityChecker | undefined;
   readonly domain: string;
   readonly thresholdPct: number;
-  readonly derivedFrom: ReadonlySet<string>;
   readonly domainShape: ShapeEntry;
   readonly twin: ShapeEntry;
 }
 
 function nearCandidateForPair(scope: NearPairScope): NearPairCandidate | undefined {
-  const { checker, domain, thresholdPct, derivedFrom, domainShape, twin } = scope;
+  const { checker, domain, thresholdPct, domainShape, twin } = scope;
   let candidate: NearPairCandidate | undefined;
-  const belowNameBound = nameOnlyJaccardPct(domainShape.fields, twin.fields) < thresholdPct;
-  if (!(derivedFrom.has(inventoryDeclarationKey(twin.decl)) || belowNameBound)) {
-    const exact = twin.signature === domainShape.signature && mutuallyAssignable(checker, domainShape.decl, twin.decl);
-    if (!exact) {
-      const admission = nearAdmissionOf(checker, domainShape, twin);
-      if (admission.pct >= thresholdPct || collectingShapeQueries(shapeFactsOf(domainShape.decl))) {
-        candidate = {
-          domain,
-          domainName: domainShape.name,
-          domainDecl: domainShape.decl,
-          contractsName: twin.name,
-          contractsDecl: twin.decl,
-          diff: nearFieldDiffOf(checker, domainShape, twin, admission),
-        };
-      }
+  // The name-only bound asks the checker nothing, so it runs before the exact tier's verdict.
+  if (nameOnlyJaccardPct(domainShape, twin) >= thresholdPct && exactTierResolves(checker, domainShape, twin) === "distinct") {
+    const admission = nearAdmissionOf(checker, domainShape, twin);
+    if (admission.pct >= thresholdPct || collectingShapeQueries(shapeFactsOf(domainShape.decl))) {
+      candidate = {
+        domain,
+        domainName: domainShape.name,
+        domainDecl: domainShape.decl,
+        contractsName: twin.name,
+        contractsDecl: twin.decl,
+        diff: nearFieldDiffOf(checker, domainShape, twin, admission),
+      };
     }
   }
   return candidate;
@@ -146,9 +133,8 @@ export function respellNearCandidatesFor(
     if (domainShape.fields.length < RESPELL_NEAR_PROPERTY_FLOOR) {
       continue;
     }
-    const derivedFrom = directDerivationTargetKeys(domainShape.decl);
     for (const twin of contractsShapes) {
-      const candidate = nearCandidateForPair({ checker, domain, thresholdPct, derivedFrom, domainShape, twin });
+      const candidate = nearCandidateForPair({ checker, domain, thresholdPct, domainShape, twin });
       if (candidate !== undefined) {
         out.push(candidate);
       }
