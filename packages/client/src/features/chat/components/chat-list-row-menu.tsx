@@ -62,8 +62,7 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
     setRenameOpen(false);
   };
   const confirmDelete = (): void => {
-    // @orb-waive caught-failure-ownership(actions.remove): useDeleteChat carries
-    // errorToast: "Couldn't delete the chat." — the toast is the surface. Ends if useDeleteChat drops errorToast.
+    // @orb-waive caught-failure-ownership(actions.remove): `actions.remove` is `useDeleteChat`'s mutateAsync (hooks/use-chat-row-mutations.ts), whose errorToast "Couldn't delete the chat." is the surface; the user stays on the chat. Ends if useDeleteChat drops errorToast or `remove` stops being that mutateAsync.
     actions.remove({ chatId }).then(
       (): void => onDeleted?.(chatId),
       () => undefined, // The mutation's errorToast owns failure; stay on the chat.

@@ -261,7 +261,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters }
         {characterIds.length > 0 ? (
           <MenuItem
             onClick={(): void => {
-              // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries errorToast "Couldn't start the chat."; this launcher stays in the current room on failure. Ends if useStartChat drops errorToast.
+              // @orb-waive caught-failure-ownership(startChat): `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface; this launcher stays in the current room. Ends if useStartChat drops errorToast.
               startChat({ characterIds }).catch(() => undefined);
             }}
           >

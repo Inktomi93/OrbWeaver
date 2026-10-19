@@ -51,8 +51,7 @@ export function HomeQuickPicksTileBody(): ReactElement {
   // anchor, and the room surface's own mount hook takes it from there.
   const { startChat } = useStartChat();
   const startChatWith = (characterId: CharacterId): void => {
-    // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
-    // errorToast: "Couldn't start the chat." — the toast is the surface. Ends if useStartChat drops errorToast.
+    // @orb-waive caught-failure-ownership(startChat): `startChat` rejects from `useStartChat`'s mutateAsync (data/use-start-chat.ts), whose errorToast "Couldn't start the chat." is the surface. Ends if useStartChat drops errorToast.
     startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: QUICK_PICKS_LIMIT }));

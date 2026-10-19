@@ -337,9 +337,7 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
       const restore = perFire(input);
       // No navigation and no commit: the composer stays mounted, so the fill goes through the caller's own
       // onChange, called with the GROWING accumulation on each delta (progressive fill).
-      // @orb-waive caught-failure-ownership(streamImpersonation): the .catch below explicitly
-      // toasts via notifyImpersonateFailure before restoring the typed steer — the failure is surfaced, not
-      // swallowed. Ends if the toast call is ever removed from the handler.
+      // @orb-waive caught-failure-ownership(streamImpersonation): the .catch handler calls `notifyImpersonateFailure` (lib/guided-failure-notices.ts), which raises `notify.error` with the failure lead and detail before the steer is restored. Ends if that call leaves the handler or the helper stops toasting.
       streamImpersonation(chatId, guided, onDrafted).catch((error: unknown) => {
         // The D57 input-restore is NOT an error surface (it silently re-types the steer, and does nothing at
         // all when the composer was empty) — impersonate rides a subscription, so it has no `meta.errorToast`

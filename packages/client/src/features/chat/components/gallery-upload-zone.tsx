@@ -74,13 +74,13 @@ export function GalleryUploadZone({ characterId, characterName, inputRef }: Gall
   /** Upload then add one file: the refusal that stopped it, or `null` when it joined the gallery. */
   const landOne = async (file: File): Promise<{ readonly step: keyof Shortfall; readonly reason: string | null } | null> => {
     let assetId: Awaited<ReturnType<typeof upload>>["assetId"];
-    // @orb-waive caught-failure-ownership(error): a refused upload is named on the dropzone's error line (`notUploaded`), with the server's reason when it gave one. Ends if that line stops rendering.
+    // @orb-waive caught-failure-ownership(error): the refusal returns `step: "notUploaded"`, which `receive` collects into `setShortfall` and `shortfallLine` renders on the dropzone's `error` prop, with the server's reason when `UploadRefusedError` carries one. Ends if that line stops rendering.
     try {
       assetId = (await upload(file, "gallery")).assetId;
     } catch (error) {
       return { step: "notUploaded", reason: error instanceof UploadRefusedError ? error.reason : null };
     }
-    // @orb-waive caught-failure-ownership(catch): a failed add is named on the dropzone's error line (`notAdded`); the mutation carries no toast. Ends if that line stops rendering.
+    // @orb-waive caught-failure-ownership(catch): a failed add returns `step: "notAdded"`, which `receive` collects into `setShortfall` and `shortfallLine` renders on the dropzone's `error` prop; `useAddToGallery` carries no errorToast by design. Ends if that line stops rendering.
     try {
       await add.mutateAsync({ assetId, subjectCharacterId: characterId });
     } catch {
