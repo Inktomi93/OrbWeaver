@@ -154,9 +154,7 @@ export function toView(contributions: WorkloadContributions, row: WorkloadDecode
   const base = toRowBase(row);
   const result = workloadResultSchemaOf(row.kind).nullable().parse(row.result);
   let params: Record<string, unknown>;
-  // @orb-waive caught-failure-ownership(catch): documented above — a params-schema failure
-  // surfaces as a visible POISON row (`params: null, poison: true`) rather than vanishing from list/get,
-  // never silently dropped.
+  // @orb-waive caught-failure-ownership(catch): owned by the poison flag: the catch returns the row with poison true, and the Jobs list reads it (workload-row.tsx renders the Unreadable badge). Ends if no consumer reads poison.
   try {
     params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {

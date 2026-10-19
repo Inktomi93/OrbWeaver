@@ -800,7 +800,7 @@ async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<
  *  the schema answers it as an invalid request like any other miss. */
 async function readSignupRequest(c: Context): Promise<unknown> {
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
+  // @orb-waive caught-failure-ownership(catch): owned by the strict schema refusal: raw stays undefined, so both callers' safeParse refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
   try {
     raw = await c.req.json();
   } catch {
@@ -1333,7 +1333,7 @@ async function admitPendingConfirm(
     return c.json({ error: "already_signed_in" satisfies PendingJoinErrorCode }, CONFLICT);
   }
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable body is the caller's error, answered with the same `invalid_request` code as a schema miss. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
+  // @orb-waive caught-failure-ownership(catch): owned by the strict schema refusal: raw stays undefined, so the safeParse right below refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
   try {
     raw = await c.req.json();
   } catch {
