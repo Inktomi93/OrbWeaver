@@ -8,15 +8,13 @@
 import type { CallExpression, Node as MorphNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { readCallReturns } from "./call-returns.ts";
+import type { DrizzleWriteRootVerb } from "./drizzle-vocabulary.ts";
+import { DRIZZLE_WRITE_ROOT_VERBS } from "./drizzle-vocabulary.ts";
 import type { CalledMember, DrizzleWriteChain, DrizzleWriteRoot } from "./drizzle-write-chain-contract.ts";
 import { readMemberReference, resolveStableExpression } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact, ReferenceUnresolvedReason, UnresolvedReferenceFact } from "./reference-fact-contract.ts";
 
-/** The two Drizzle verbs that CHOOSE a table for a write. `delete` is excluded on purpose: it names a table
- *  but writes no columns, so a column-invariant caller has nothing to judge there. */
-export const DRIZZLE_WRITE_ROOT_VERBS = ["update", "insert"] as const;
-export type DrizzleWriteRootVerb = (typeof DRIZZLE_WRITE_ROOT_VERBS)[number];
 const WRITE_VERBS: ReadonlySet<string> = new Set(DRIZZLE_WRITE_ROOT_VERBS);
 
 const DRIZZLE_PACKAGE_INFIX = "/drizzle-orm/";

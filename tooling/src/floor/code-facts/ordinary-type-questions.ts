@@ -2,6 +2,7 @@
 // selector refuses at read time, so a narrowing here is only sound when it follows a reader's own condition.
 import type { CallExpression, Node as MorphNode, Type } from "ts-morph";
 import { Node, VariableDeclarationKind } from "ts-morph";
+import { DRIZZLE_ROW_MODELS } from "./drizzle-vocabulary.ts";
 import { unwrapExpression } from "./expression-value.ts";
 import { ORDINARY_ARRAY_REMAPS, ORDINARY_NORMALIZER_MEMBER } from "./ordinary-observations-contract.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
@@ -200,7 +201,7 @@ function schemaTypeQuestions(schema: SchemaModel | undefined, calls: readonly Ca
   const { add } = questions;
   const typed: TypedColumn[] = [];
   for (const table of schema?.tables ?? []) {
-    for (const name of ["$inferSelect", "$inferInsert"]) {
+    for (const name of DRIZZLE_ROW_MODELS) {
       add({ base: { kind: "node", node: table.declaration }, steps: [{ kind: "property", name, at: table.declaration }], displayAt: null });
     }
     for (const column of table.columns) {

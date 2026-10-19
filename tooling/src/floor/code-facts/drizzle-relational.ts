@@ -7,6 +7,7 @@ import type { ReadAnchor } from "./drizzle-query-contract.ts";
 import { runtimeDrizzleOrigin } from "./drizzle-sql-native.ts";
 import { columnType } from "./drizzle-sql-origin.ts";
 import { CONTAINED_OPERATORS, sqlCarrierUseStable } from "./drizzle-sql-stability.ts";
+import { DRIZZLE_WHERE_VERB } from "./drizzle-vocabulary.ts";
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { unwrapExpression } from "./expression-value.ts";
 import { inspectReferenceWrites, staticMemberAccess } from "./reference-fact.ts";
@@ -67,7 +68,7 @@ export function readRelationalPredicateBindings(
   program: CallReturnProgram,
 ): ReadonlyMap<MorphNode, MorphNode> | undefined {
   const member = readCalledMember(anchor.call);
-  const callback = anchor.config === undefined ? undefined : readRelationalConfigProperty(unwrapExpression(anchor.config), "where");
+  const callback = anchor.config === undefined ? undefined : readRelationalConfigProperty(unwrapExpression(anchor.config), DRIZZLE_WHERE_VERB);
   const selected = tables.filter((candidate) => candidate.identity.declarationName === anchor.table.getText());
   const table = selected[0];
   if (

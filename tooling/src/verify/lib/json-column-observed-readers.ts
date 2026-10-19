@@ -5,6 +5,8 @@ import type { DrizzleOriginReaders } from "../../floor/code-facts/drizzle-origin
 import { isObservedModelType } from "../../floor/code-facts/drizzle-row.ts";
 import type { RowReadServices } from "../../floor/code-facts/drizzle-row-contract.ts";
 import { DrizzleRowOriginRefusal } from "../../floor/code-facts/drizzle-row-origin.ts";
+import type { DrizzleRowModel } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { DRIZZLE_INSERT_ROW_MODEL, DRIZZLE_SELECT_ROW_MODEL, DRIZZLE_UPDATE_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { ReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import type { SchemaProjectedModel, SchemaProjectedTable } from "../../floor/code-facts/schema-projection-contract.ts";
@@ -135,15 +137,15 @@ export function jsonColumnObservedReaders(evidence: NativeInvocationEvidence, sc
     }
     return value;
   };
-  const modelIds = (name: "$inferSelect" | "$inferInsert"): ReadonlySet<number> =>
+  const modelIds = (name: DrizzleRowModel): ReadonlySet<number> =>
     new Set(
       schema.tables.flatMap((table) => {
         const type = selected({ base: { kind: "node", node: table.declaration }, steps: [{ kind: "property", name, at: table.declaration }], displayAt: null });
         return type === null ? [] : [type.identity];
       }),
     );
-  const selectModels = (): ReadonlySet<number> => modelIds("$inferSelect");
-  const insertModels = (): ReadonlySet<number> => modelIds("$inferInsert");
+  const selectModels = (): ReadonlySet<number> => modelIds(DRIZZLE_SELECT_ROW_MODEL);
+  const insertModels = (): ReadonlySet<number> => modelIds(DRIZZLE_INSERT_ROW_MODEL);
   const rowReaders: RowReadServices = {
     model: (node, path) =>
       isObservedModelType(
@@ -234,7 +236,7 @@ export function jsonColumnObservedReaders(evidence: NativeInvocationEvidence, sc
     member,
     table: tableOf,
     roots: (node, verb) => {
-      const entry = nodeOf(node).roots.find((candidate) => candidate.verb === (verb ?? "update"));
+      const entry = nodeOf(node).roots.find((candidate) => candidate.verb === (verb ?? DRIZZLE_UPDATE_VERB));
       if (entry === undefined) {
         throw new Error("native ordinary write-root demand is unavailable");
       }

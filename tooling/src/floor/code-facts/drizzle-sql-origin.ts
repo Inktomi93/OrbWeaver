@@ -7,11 +7,12 @@ import { readPredicateArgument } from "./drizzle-predicate-argument.ts";
 import type { SqlReadContext } from "./drizzle-sql-contract.ts";
 import { runtimeDrizzleOrigin, sqlDialect } from "./drizzle-sql-native.ts";
 import { drizzleExportOf } from "./drizzle-table-ref.ts";
+import { DRIZZLE_SQL_EXPORT } from "./drizzle-vocabulary.ts";
 import { inspectReferenceWrites, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
 import { invokedMemberThroughAliases, unprovenReferenceUse } from "./reference-fact-writes.ts";
-import { exactDrizzleExport, terminalCall } from "./schema-value.ts";
+import { exactDrizzleExport, SQLITE_TABLE, terminalCall } from "./schema-value.ts";
 import { readStaticAuthoredScalar } from "./static-authored-value.ts";
 import { resolveTypeIdentityChain } from "./type-member-origin.ts";
 import { readAuthoredValueSources, readReturnedValue } from "./value-carrier.ts";
@@ -76,7 +77,7 @@ export function nativeTableFragment(node: MorphNode, bindings: ReadonlyMap<Morph
   }
   const call = terminal.value;
   const args = call.getArguments();
-  const isTable = exactDrizzleExport(call, "sqliteTable").kind === "resolved";
+  const isTable = exactDrizzleExport(call, SQLITE_TABLE).kind === "resolved";
   const alias = ["alias", "aliasedTable"].some((exported) => callsDrizzleOperator(call, exported));
   if (!(isTable || alias)) {
     return;
@@ -118,7 +119,7 @@ export function sqlValue(type: Type, active: ReadonlySet<object> = new Set()): b
 /** An imported native sql member with the installed callable declaration. */
 export function sqlMethod(call: import("ts-morph").CallExpression, name: string): boolean {
   const member = staticMemberAccess(call.getExpression());
-  return member?.name === name && drizzleExportOf(member.receiver) === "sql" && runtimeDrizzleOrigin(call.getExpression());
+  return member?.name === name && drizzleExportOf(member.receiver) === DRIZZLE_SQL_EXPORT && runtimeDrizzleOrigin(call.getExpression());
 }
 
 /** Default-library map identity with no known receiver write or mutating invocation. */

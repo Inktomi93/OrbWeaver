@@ -4,6 +4,7 @@ import { readAnchorOf } from "./drizzle-query.ts";
 import type { DrizzleBuilderChain } from "./drizzle-query-contract.ts";
 import type { DrizzleProjectedColumn, DrizzleSelection } from "./drizzle-select-contract.ts";
 import { resolveDrizzleTableRefs } from "./drizzle-table-ref.ts";
+import { DRIZZLE_FROM_VERB, DRIZZLE_SELECT_VERBS, DRIZZLE_SINGLE_ROW_VERB, DRIZZLE_WITH_VERB } from "./drizzle-vocabulary.ts";
 import { readMemberReference, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -14,7 +15,7 @@ import { terminalCall } from "./schema-value.ts";
 import { resolved, unresolved } from "./type-member-origin-core.ts";
 
 const SCHEMA_PACKAGE = "@orb/db";
-const SELECT_VERBS: ReadonlySet<string> = new Set(["select", "selectDistinct"]);
+const SELECT_VERBS: ReadonlySet<string> = new Set(DRIZZLE_SELECT_VERBS);
 
 function builderParent(cur: Node): Node | undefined {
   // Execution remains consumer-owned; members above await read its delivered value, not the original builder.
@@ -56,19 +57,19 @@ export function readDrizzleSelection(node: Node): DrizzleSelection | undefined {
   let source: Node | undefined;
   let selection: DrizzleSelection | undefined;
   const calls: import("ts-morph").CallExpression[] = [];
-  const output = Node.isCallExpression(current) && staticMemberAccess(current.getExpression())?.name === "get" ? "row" : "rows";
+  const output = Node.isCallExpression(current) && staticMemberAccess(current.getExpression())?.name === DRIZZLE_SINGLE_ROW_VERB ? "row" : "rows";
   while (Node.isCallExpression(current)) {
     const member = staticMemberAccess(current.getExpression());
     if (member === undefined) {
       return;
     }
     calls.push(current);
-    if (member.name === "from") {
+    if (member.name === DRIZZLE_FROM_VERB) {
       source = current.getArguments()[0];
     }
     if (SELECT_VERBS.has(member.name)) {
       const head = terminalCall(member.receiver);
-      if (head.kind === "resolved" && staticMemberAccess(head.value.getExpression())?.name === "with") {
+      if (head.kind === "resolved" && staticMemberAccess(head.value.getExpression())?.name === DRIZZLE_WITH_VERB) {
         calls.push(head.value);
       }
       const sqlOperands = calls.flatMap((call) => (SELECT_VERBS.has(staticMemberAccess(call.getExpression())?.name ?? "") ? [] : call.getArguments()));

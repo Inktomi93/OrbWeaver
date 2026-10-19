@@ -8,6 +8,7 @@ import type { SqlFragmentsReader } from "./drizzle-sql-contract.ts";
 import { AGGREGATE_OPERATORS, runtimeDrizzleOrigin, sqlDialect } from "./drizzle-sql-native.ts";
 import { sqlMethod, sqlValue } from "./drizzle-sql-origin.ts";
 import { sqlBindingStable } from "./drizzle-sql-stability.ts";
+import { DRIZZLE_ALIAS_VERB, DRIZZLE_SQL_RAW_MEMBER } from "./drizzle-vocabulary.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget } from "./reference-fact-alias.ts";
 import { unprovenReferenceUse } from "./reference-fact-writes.ts";
@@ -108,7 +109,7 @@ function aggregateFragments(call: CallExpression, sqlOperandFragments: SqlFragme
 function aliasedFragments(call: CallExpression, sqlOperandFragments: SqlFragmentsReader): readonly string[] | undefined {
   const args = call.getArguments();
   const member = staticMemberAccess(call.getExpression());
-  if (member?.name !== "as" || !runtimeDrizzleOrigin(call.getExpression()) || !sqlValue(member.receiver.getType())) {
+  if (member?.name !== DRIZZLE_ALIAS_VERB || !runtimeDrizzleOrigin(call.getExpression()) || !sqlValue(member.receiver.getType())) {
     return;
   }
   const receiver = sqlOperandFragments(member.receiver);
@@ -130,7 +131,7 @@ export function readNativeSqlConstructor(
   if (sqlMethod(call, "identifier")) {
     return identifierFragments(call, bindings);
   }
-  if (sqlMethod(call, "raw")) {
+  if (sqlMethod(call, DRIZZLE_SQL_RAW_MEMBER)) {
     return rawFragments(call);
   }
   if (sqlMethod(call, "join")) {

@@ -6,6 +6,7 @@
 import type { CallExpression, ElementAccessExpression, PropertyAccessExpression, TaggedTemplateExpression, Node as TsNode } from "ts-morph";
 import { Node } from "ts-morph";
 import { sqlTemplateText } from "../../floor/code-facts/drizzle-sql.ts";
+import { isAuthoredSqlTemplate } from "../../floor/code-facts/drizzle-sql-observations.ts";
 import type { SqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
 import { SQL_VIRTUAL_TABLE, sqlAliasBindings } from "../../floor/code-facts/sql-alias-bindings.ts";
 import type { NativeValueObservationReaders } from "../../floor/code-facts/value-observation-contract.ts";
@@ -125,7 +126,7 @@ interface SqlPath {
  *  a SQL-side merge is a real producer of that key). */
 export function collectSqlReads(templates: readonly TaggedTemplateExpression[], schema: Schema, out: ReaderHit[], vocabs: Map<string, Vocab>): void {
   for (const tt of templates) {
-    if (tt.getTag().getText() !== "sql") {
+    if (!isAuthoredSqlTemplate(tt)) {
       continue;
     }
     const text = sqlTemplateText(tt);

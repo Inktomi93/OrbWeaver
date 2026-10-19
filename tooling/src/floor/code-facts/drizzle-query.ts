@@ -3,17 +3,17 @@
 import type { CallExpression, Node } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "./drizzle-column-reads.ts";
-import { RELATIONAL_VERBS, relationalWhereCallback } from "./drizzle-operators.ts";
+import { relationalWhereCallback } from "./drizzle-operators.ts";
 import type { DrizzleValueSources, ReadAnchor, RelationalWhere } from "./drizzle-query-contract.ts";
+import { DRIZZLE_FROM_VERB, DRIZZLE_JOIN_VERBS, DRIZZLE_RELATIONAL_ROOT, DRIZZLE_RELATIONAL_VERBS } from "./drizzle-vocabulary.ts";
 import { unwrapExpression as unwrapValueExpression } from "./expression-value.ts";
 import { resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { unwrapTarget as unwrapExpression } from "./reference-fact-alias.ts";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
 import { resolved } from "./type-member-origin-core.ts";
 
-const FROM_VERB = "from";
-const RELATIONAL_ROOT = "query";
-const JOIN_VERBS: ReadonlySet<string> = new Set(["innerJoin", "leftJoin", "rightJoin", "fullJoin", "crossJoin"]);
+const JOIN_VERBS: ReadonlySet<string> = new Set(DRIZZLE_JOIN_VERBS);
+const RELATIONAL_VERBS: ReadonlySet<string> = new Set(DRIZZLE_RELATIONAL_VERBS);
 
 /** The table a `.from(T)` or a join call binds into a read, however the member is spelled; undefined for every
  *  other call. This is the syntactic candidate only: the caller confirms the verb by its declaration. */
@@ -29,7 +29,7 @@ export function readAnchorOf(node: Node): ReadAnchor | undefined {
   if (verb === undefined || table === undefined) {
     return;
   }
-  if (verb === FROM_VERB) {
+  if (verb === DRIZZLE_FROM_VERB) {
     return { kind: "from", call: node, table };
   }
   return JOIN_VERBS.has(verb) ? { kind: "join", call: node, table, on } : undefined;
@@ -47,7 +47,7 @@ function relationalAnchorOf(call: CallExpression): ReadAnchor | undefined {
   }
   const table = value === undefined ? undefined : staticMemberAccess(unwrapExpression(value));
   const root = table === undefined ? undefined : staticMemberAccess(unwrapExpression(table.receiver));
-  return table !== undefined && root?.name === RELATIONAL_ROOT
+  return table !== undefined && root?.name === DRIZZLE_RELATIONAL_ROOT
     ? { kind: "relational", call, table: table.nameNode, config: call.getArguments()[0] }
     : undefined;
 }

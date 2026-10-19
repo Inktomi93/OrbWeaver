@@ -9,6 +9,7 @@ import type { CallExpression } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { DrizzleWrite } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
 import { drizzleWriteOf, writeKeysOf } from "../../../../tooling/src/floor/code-facts/drizzle-columns.ts";
+import { DRIZZLE_UPSERT_VERB } from "../../../../tooling/src/floor/code-facts/drizzle-vocabulary.ts";
 
 const PRELUDE = 'import type { Db } from "drizzle-orm";\nimport { plugins } from "./schema.ts";\ndeclare const db: Db;\n';
 
@@ -48,6 +49,18 @@ test("an upsert reads the columns of its `set` config", () => {
   expect(writes.map((write) => [write.method, writeKeysOf(write).names])).toEqual([
     ["onConflictDoUpdate", ["enabled"]],
     ["values", ["name"]],
+  ]);
+});
+
+test("a parenthesized upsert config still names its `set` columns; a config that is no object literal names none", () => {
+  const writes = writesIn(
+    "db.insert(plugins).values({ name: 'x' }).onConflictDoUpdate(({ target: plugins, set: { enabled: false } }));\n" +
+      "declare const config: { target: unknown; set: object };\ndb.insert(plugins).values({ name: 'y' }).onConflictDoUpdate(config);\n",
+  );
+
+  expect(writes.filter((write) => write.method === DRIZZLE_UPSERT_VERB).map((write) => writeKeysOf(write))).toEqual([
+    { names: ["enabled"], opaque: false },
+    { names: [], opaque: true },
   ]);
 });
 

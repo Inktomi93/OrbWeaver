@@ -117,6 +117,3 @@ export function retypeIdAnnotations(ctx: CodemodContext, opts: RetypeIdAnnotatio
   }
   return composePlans(`retype {${opts.names.join(", ")}}: string → ${opts.brand} (${keywords.length} site(s) across ${files.size} file(s))`, plans);
 }
-
-/** The table identifier an object literal is being `insert(...).values()` /
- *  `update(...).set()` into — `undefined` if the property isn't in such a call. */

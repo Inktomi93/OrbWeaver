@@ -5,6 +5,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { DrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence-contract.ts";
+import { DRIZZLE_MUTATION_VERBS } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { readMemberReferenceWithName, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -29,7 +30,7 @@ const STORE_BLOB_HOME: SealedHome = {
   exportedNames: new Set(["storeBlob"]),
 };
 const OPERATION = "asset-write-site";
-const WRITE_METHODS = new Set(["insert", "update", "delete"]);
+const WRITE_METHODS: ReadonlySet<string> = new Set(DRIZZLE_MUTATION_VERBS);
 const MESSAGE =
   "an assets-table write or storeBlob use exists outside the reviewed CAS-coherence sites; every asset write must remain explicit and singular (D21). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX = "route the write through the existing domain/assets storeBlob seam, then review the exact calling module if it is a legitimate CAS-coherence site.";
