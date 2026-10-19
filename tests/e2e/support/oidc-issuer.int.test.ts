@@ -1,9 +1,10 @@
 // The e2e OIDC issuer satisfies the real openid-client code grant, trusted only through the server child's own
 // NODE_EXTRA_CA_CERTS, and it refuses a replayed code and a client that does not trust its certificate.
-import type { ExecFileException } from "node:child_process";
+import type { ExecException } from "node:child_process";
 import { execFile } from "node:child_process";
 import { execPath } from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { OS_ASSIGNED_PORT } from "@orb/tooling/floor/host/ports";
 import { z } from "zod";
 import { ensureIssuerTls, stageIssuerIdentity, startOidcIssuer } from "./oidc-issuer.ts";
 
@@ -41,7 +42,7 @@ interface GrantRun {
 }
 
 /** The child's exit code; a kill or a spawn failure has none. */
-function exitStatus(error: ExecFileException | null): number | null {
+function exitStatus(error: ExecException | null): number | null {
   if (error === null) {
     return 0;
   }
@@ -63,7 +64,7 @@ test("the real openid-client grant completes against the issuer and its code is 
   repoRoot,
 }) => {
   const tls = ensureIssuerTls(scratch);
-  await using issuer = await startOidcIssuer({ port: 0, tls, ...CLIENT });
+  await using issuer = await startOidcIssuer({ port: OS_ASSIGNED_PORT, tls, ...CLIENT });
   await stageIssuerIdentity(issuer.url, IDENTITY, tls.cert);
 
   const trusted = await grant(repoRoot, issuer.url, [`NODE_EXTRA_CA_CERTS=${tls.certPath}`]);

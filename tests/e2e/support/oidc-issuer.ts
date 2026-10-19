@@ -254,7 +254,7 @@ export async function startOidcIssuer(options: {
           return;
       }
     })();
-    void handled?.catch((error: unknown) => json(response, HTTP.badRequest, { error: String(error) }));
+    handled?.catch((error: unknown) => json(response, HTTP.badRequest, { error: String(error) }));
   });
   await new Promise<void>((resolve) => server.listen(options.port, LOOPBACK, resolve));
   const address = server.address();
