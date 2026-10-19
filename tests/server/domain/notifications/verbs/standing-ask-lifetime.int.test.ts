@@ -206,10 +206,12 @@ test("raw plugin ZIP identity derives from supplied time and still enters native
 
 const CHILD_TIMEZONE_ENV = "TZ";
 
-async function archiveInTimezone(manifest: PluginManifest, mtime: number, timezone: string): Promise<string> {
+// One child per timezone builds every mtime: a child pays the whole testkit module load, so a child per (mtime, timezone) pair quadrupled it.
+async function archivesInTimezone(manifest: PluginManifest, mtimes: readonly number[], timezone: string): Promise<readonly string[]> {
   await using lifetime = new AsyncDisposableStack();
   const source = `import { makePluginBundle } from "@orb/testkit/node/factories/plugin.ts";
-process.stdout.write(Buffer.from(makePluginBundle(${JSON.stringify(manifest)}, ${JSON.stringify(NOTIFICATION_GUEST_SOURCE)}, ${String(mtime)})).toString("base64"));`;
+const archives = ${JSON.stringify(mtimes)}.map((mtime) => Buffer.from(makePluginBundle(${JSON.stringify(manifest)}, ${JSON.stringify(NOTIFICATION_GUEST_SOURCE)}, mtime)).toString("base64"));
+process.stdout.write(JSON.stringify(archives));`;
   const child = spawn(process.execPath, ["--input-type=module", "--eval", source], {
     env: { [CHILD_TIMEZONE_ENV]: timezone },
     stdio: ["ignore", "pipe", "pipe"],
@@ -239,7 +241,7 @@ process.stdout.write(Buffer.from(makePluginBundle(${JSON.stringify(manifest)}, $
   if (code !== 0) {
     throw new Error(`native ZIP child failed: ${diagnostic}`);
   }
-  return bytes;
+  return JSON.parse(bytes) as string[];
 }
 
 test("the same raw plugin input has exact native ZIP bytes across UTC and Boise including a DST-boundary epoch", async ({
@@ -248,11 +250,13 @@ test("the same raw plugin input has exact native ZIP bytes across UTC and Boise 
   clock,
 }) => {
   const pending = await pendingConsent(harness, actors.alice);
-  for (const mtime of [clock.now(), Date.UTC(2025, 2, 9, 9, 30)]) {
-    const utc = await archiveInTimezone(pending.plugin.manifest, mtime, "UTC");
-    const boise = await archiveInTimezone(pending.plugin.manifest, mtime, "America/Boise");
-    expect(boise).toBe(utc);
-  }
+  const mtimes = [clock.now(), Date.UTC(2025, 2, 9, 9, 30)];
+  const [utc, boise] = await Promise.all([
+    archivesInTimezone(pending.plugin.manifest, mtimes, "UTC"),
+    archivesInTimezone(pending.plugin.manifest, mtimes, "America/Boise"),
+  ]);
+  expect(utc).toHaveLength(mtimes.length);
+  expect(boise).toEqual(utc);
 });
 
 test("raw plugin UTC mtime admits signed32 endpoints and refuses unrepresentable seconds instead of wrapping", async ({

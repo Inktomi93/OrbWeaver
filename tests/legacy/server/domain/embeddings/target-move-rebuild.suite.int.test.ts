@@ -38,7 +38,6 @@ import type { ConnectionHarness, HarnessOptions } from "../connection/_support.t
 import { BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";
 
-
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 const ENCODER = "jinaai/jina-clip-v2";
 const NARROW_ENCODER = "nomic-embed-text";

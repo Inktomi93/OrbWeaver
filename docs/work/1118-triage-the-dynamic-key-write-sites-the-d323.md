@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a6adcf445a5debd8e
 ---
 
 # Triage the dynamic-key write sites the D323 prototype census reports

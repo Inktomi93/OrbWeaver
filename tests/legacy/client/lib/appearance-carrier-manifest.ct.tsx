@@ -1,4 +1,3 @@
-
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -30,10 +29,12 @@ function readCarrierSnapshot(page: Page): Promise<Partial<AppearanceCarrierSnaps
       const payload = JSON.parse(element.textContent ?? "{}") as Record<string, unknown>;
       return {
         found: true,
-        value: observable.signal.split(".").reduce<unknown>(
-          (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
-          payload,
-        ),
+        value: observable.signal
+          .split(".")
+          .reduce<unknown>(
+            (current, part) => (typeof current === "object" && current !== null ? (current as Record<string, unknown>)[part] : undefined),
+            payload,
+          ),
       };
     };
     const snapshot: Partial<AppearanceCarrierSnapshot> = {};

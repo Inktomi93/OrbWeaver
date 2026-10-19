@@ -3,6 +3,7 @@ import { setImmediate } from "node:timers/promises";
 import { queryObjects } from "node:v8";
 import { ANY_HOST, createScopedEgress } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { budget } from "@orb/tooling/floor/host/load-budget";
 
 test("unresolved write-time endpoint admission remains public without attempting a physical request", async () => {
   const failure = new Error("controlled NXDOMAIN");
@@ -43,65 +44,72 @@ test("configured and arbitrary URL execution still reject DNS failure before the
   expect(rawCalls).toBe(0);
 });
 
-test.each([false, true])("caller abort after Request GC=%s cancels the locked physical response and closes its unfinished socket", async (collectRequest) => {
-  await using lifetime = new AsyncDisposableStack();
-  let responseClosed = false;
-  let socketClosed = false;
-  let responseFinished = false;
-  const server = createServer((incoming, outgoing) => {
-    incoming.socket.once("close", () => {
-      socketClosed = true;
+// The GC=true case has no observable to stop on, so it pays all 12 heap walks: measured 7.8 s on a loaded 24-core box, ~0.6 s per walk.
+const FORCED_GC_BASE_MS = 20_000;
+
+test.each([false, true])(
+  "caller abort after Request GC=%s cancels the locked physical response and closes its unfinished socket",
+  { timeout: budget(FORCED_GC_BASE_MS) },
+  async (collectRequest) => {
+    await using lifetime = new AsyncDisposableStack();
+    let responseClosed = false;
+    let socketClosed = false;
+    let responseFinished = false;
+    const server = createServer((incoming, outgoing) => {
+      incoming.socket.once("close", () => {
+        socketClosed = true;
+      });
+      outgoing.once("close", () => {
+        responseClosed = true;
+        responseFinished = outgoing.writableFinished;
+      });
+      outgoing.writeHead(200, { "content-type": "text/plain" });
+      outgoing.write("held physical bytes");
     });
-    outgoing.once("close", () => {
-      responseClosed = true;
-      responseFinished = outgoing.writableFinished;
+    lifetime.defer(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
     });
-    outgoing.writeHead(200, { "content-type": "text/plain" });
-    outgoing.write("held physical bytes");
-  });
-  lifetime.defer(async () => {
-    server.closeAllConnections();
-    await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
-  });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
-  if (address === null || typeof address === "string") {
-    throw new Error("native egress control requires a physical loopback listener");
-  }
-  await using egress = createScopedEgress();
-  egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
-  const stop = new AbortController();
-  const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
-  const reader = response.body?.getReader();
-  if (reader === undefined) {
-    throw new Error("native egress control requires a response body");
-  }
-  try {
-    expect(new TextDecoder().decode((await reader.read()).value)).toBe("held physical bytes");
-    if (collectRequest) {
-      for (let turn = 0; turn < 12; turn += 1) {
-        await setImmediate();
-        queryObjects(Request, { format: "count" });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("native egress control requires a physical loopback listener");
+    }
+    await using egress = createScopedEgress();
+    egress.publishPrivateEndpointAllowlist([`127.0.0.1:${address.port}`]);
+    const stop = new AbortController();
+    const response = await egress.configuredEndpointFetch(`http://127.0.0.1:${address.port}/held`, { signal: stop.signal });
+    const reader = response.body?.getReader();
+    if (reader === undefined) {
+      throw new Error("native egress control requires a response body");
+    }
+    try {
+      expect(new TextDecoder().decode((await reader.read()).value)).toBe("held physical bytes");
+      if (collectRequest) {
+        for (let turn = 0; turn < 12; turn += 1) {
+          await setImmediate();
+          queryObjects(Request, { format: "count" });
+        }
+      }
+      let rejected = false;
+      const reading = reader.read().catch((error: unknown) => {
+        rejected = true;
+        return error;
+      });
+      stop.abort();
+      await expect.poll(() => ({ responseClosed, socketClosed, rejected })).toEqual({ responseClosed: true, socketClosed: true, rejected: true });
+      expect(responseFinished).toBe(false);
+      expect(await reading).toBe(stop.signal.reason);
+    } finally {
+      stop.abort();
+      try {
+        await egress[Symbol.asyncDispose]();
+      } finally {
+        reader.releaseLock();
       }
     }
-    let rejected = false;
-    const reading = reader.read().catch((error: unknown) => {
-      rejected = true;
-      return error;
-    });
-    stop.abort();
-    await expect.poll(() => ({ responseClosed, socketClosed, rejected })).toEqual({ responseClosed: true, socketClosed: true, rejected: true });
-    expect(responseFinished).toBe(false);
-    expect(await reading).toBe(stop.signal.reason);
-  } finally {
-    stop.abort();
-    try {
-      await egress[Symbol.asyncDispose]();
-    } finally {
-      reader.releaseLock();
-    }
-  }
-});
+  },
+);
 
 test.each(["EOF", "error", "cancel"] as const)(
   "configured Request ownership releases after physical body %s while its context remains live",
@@ -173,7 +181,8 @@ test.each(["EOF", "error", "cancel"] as const)(
       );
       expect(ended).toBe(terminal !== "error");
       await expect.poll(() => physicallyClosed).toBe(true);
-      for (let turn = 0; turn < 12; turn += 1) {
+      // Each queryObjects walks the whole heap; stop at the first turn that collects the Request.
+      for (let turn = 0; turn < 12 && normalized?.deref() !== undefined; turn += 1) {
         await setImmediate();
         queryObjects(Request, { format: "count" });
       }

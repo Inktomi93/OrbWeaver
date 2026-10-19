@@ -23,7 +23,6 @@
 // `tests/legacy/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
 // that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
-
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, BLUR_SURFACES, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -3221,8 +3220,7 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await waitForShellFlipToSettle(page);
 
-  const readTotal = (): Promise<number> =>
-    page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
+  const readTotal = (): Promise<number> => page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
   // A short poll remains for the observer's OWN dispatch latency (PerformanceObserver callbacks fire on a
   // microtask after the frame that produced the entry, not synchronously with `finished`), never for the
   // motion itself.

@@ -1,4 +1,3 @@
-
 // PROSE-1 §10 contract suite for `@orb/contracts/prose` — the resolution machinery, the versioned-defaults
 // mechanism, and the default-identity discipline that makes every migration stage a no-op until a host types
 // something. These are the tests that make an unbumped default revision, a duplicated slot and a

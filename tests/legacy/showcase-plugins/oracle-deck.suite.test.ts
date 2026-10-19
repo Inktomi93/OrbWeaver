@@ -1,4 +1,3 @@
-
 import type { PluginToast, PluginToastLevel } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

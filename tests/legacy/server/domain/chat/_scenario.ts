@@ -51,8 +51,7 @@ function connectionOf(): Resolved<"chat"> {
 }
 
 /** A minimal live card for a roster member (name only — the shape the assembly reads). */
-const cardOf = (name: string): CharacterCard =>
-  ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
+const cardOf = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 /** A deterministic PRNG (Park-Miller LCG) — D46 (never `Math.random`). */
 function seededPrng(seed = 1): () => number {

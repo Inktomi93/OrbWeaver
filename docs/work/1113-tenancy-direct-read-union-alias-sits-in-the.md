@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P3
+lane: wt/agent-a6adcf445a5debd8e
 ---
 
 # tenancy-direct-read union alias sits in the bulk suppression file

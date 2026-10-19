@@ -1,4 +1,3 @@
-
 // CT: the ECharts seal wrapper. Covers what's genuinely
 // DOM-observable: the native aria accessible-name wiring and free container resize (size-sensor's
 // ResizeObserver). The reduced-motion merge logic is pure data transformation — proven by

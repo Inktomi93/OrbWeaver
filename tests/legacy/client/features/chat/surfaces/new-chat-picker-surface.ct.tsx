@@ -5,7 +5,6 @@
 // SERVER (owner ruling 2026-08-13) — this picker used to be ONE `limit: 100` page filtered by cmdk, so a
 // character past the hundredth card could not be found here at all while she sat in the library.
 
-
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import { makeChatDetail, makeChatId, makeStartChatResult } from "@orb/testkit/node/factories/chat-view.ts";

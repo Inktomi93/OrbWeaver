@@ -48,18 +48,14 @@ async function openHome(page: Page): Promise<void> {
 test.describe("committed corpus room launches", () => {
   test.skip(SELECTED_CORPUS_FIXTURE === undefined, "Requires the committed corpus");
 
-  test("a user who owns a persona never sees the first-run gate", { tag: "@smoke" }, async ({ page, baseURL, isMobile }) => {
-    const host = ownerActor(baseURL ?? "");
-    const seeds = (await host.trpc.settings.getUserSettings.query()).config.seeds;
-    const current = (await host.trpc.persona.list.query()).find((persona) => persona.id === seeds.currentPersonaId);
-    if (current === undefined) {
-      throw new Error("Corpus owner has no current persona");
-    }
+  test("a user who owns a persona never sees the first-run gate", { tag: "@smoke" }, async ({ page, isMobile }) => {
     await openHome(page);
     await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
-    // The gate renders only once persona.list and the settings seeds settle; the desktop rail-foot name resolves from
-    // those same reads, so it is the barrier that makes the absence below mean something. A phone has only the You tab.
-    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: `Playing as ${current.name}` })).toBeVisible();
+    // The gate renders only once persona.list and the settings seeds settle, and the desktop rail-foot name resolves from
+    // those same reads, so it is the barrier that makes the absence below mean something. Which persona it names depends on
+    // what earlier specs left (the default outranks the last played), so the barrier is the resolved form, not a name.
+    // A phone has only the You tab.
+    await expect(page.getByRole("button", isMobile ? { name: "You", exact: true } : { name: /^Playing as .+$/u })).toBeVisible();
     await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
   });
 

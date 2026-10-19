@@ -135,6 +135,7 @@
     "./node/select-native-sources.test.ts": "./node/select-native-sources.test.ts",
     "./node/select-native-sources.ts": "./node/select-native-sources.ts",
     "./node/set-number.ts": "./node/set-number.ts",
+    "./node/showcase-bundle.ts": "./node/showcase-bundle.ts",
     "./node/showcase-guest.ts": "./node/showcase-guest.ts",
     "./node/snap-out.ts": "./node/snap-out.ts",
     "./node/stale-planner-stats.ts": "./node/stale-planner-stats.ts",

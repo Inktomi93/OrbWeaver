@@ -1,4 +1,3 @@
-
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";

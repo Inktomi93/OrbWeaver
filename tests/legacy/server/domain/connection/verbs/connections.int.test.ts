@@ -6,7 +6,6 @@
 // FIELD-WISE patch (an absent key is NOT overwritten), and the embed-space trigger's exact condition.
 // @subject packages/server/src/domain/connection/verbs/connections.ts
 
-
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";

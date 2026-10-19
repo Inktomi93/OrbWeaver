@@ -32,7 +32,7 @@ Tests-DOM publication at `7394d01aaf` revalidates inputs and releases workers. S
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 
-Immutable router publication, observed emission and the output-watch correction are integrated. The client product typecheck consumes a fresh observed declaration view with native roots, options and references preserved. Currentness, cleanup and application controls pass review; the maintained full-client command passes. Source-based application eligibility stays distinct from projected child closure. Evidence: `reports/review/965-consumed-client-typecheck.md`. Complete router conformance and controlled closure evidence remain valid. Other compiler, lint, editor, semantic and transaction owners, origin qualification and warm reuse remain open.
+Immutable router publication and observed emission are integrated; the client typecheck consumes a fresh observed declaration view and the full-client command passes. Evidence: `reports/review/965-consumed-client-typecheck.md`. Other compiler, lint, editor, semantic and transaction owners, origin qualification and warm reuse remain open.
 
 The profiled TS7 prototype is slower, larger and fails reference parity. TS7 work remains parked. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
@@ -43,3 +43,5 @@ Maintained tests-DOM projection is declined: real CT support retains the server 
 Selected citation policies complete without tool errors; authority debt remains. Evidence: `reports/review/965-citation-resource-current-acceptance.md`.
 
 AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.
+
+CI run 39279178336: lint:eslint took about 38 minutes on the hosted runner and the static job was cancelled.

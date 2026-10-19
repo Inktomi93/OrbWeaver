@@ -1,4 +1,3 @@
-
 // CT: the sortable seal (@dnd-kit/react). The load-bearing assertions are the ones the work order
 // flagged as unverified-by-docs: keyboard reorder end-to-end (focus → Space → arrow → Space) and
 // the aria-live announcement — both turn out to be on BY DEFAULT (the `Accessibility` +

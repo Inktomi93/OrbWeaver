@@ -89,11 +89,7 @@ function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
   const applied: string[] = [];
   let failed = false;
   let starts = 0;
-  const apply = (
-    chatId: string,
-    step: string,
-    result?: unknown,
-  ): Promise<unknown> => {
+  const apply = (chatId: string, step: string, result?: unknown): Promise<unknown> => {
     if (!failed && step === failAt) {
       failed = true;
       return Promise.reject(new Error(`injected failure at ${step}`));

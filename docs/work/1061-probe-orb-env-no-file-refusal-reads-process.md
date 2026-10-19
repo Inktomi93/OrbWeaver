@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-18
+status: doing
+updated: 2026-10-19
 priority: P3
 area: tooling
+lane: wt/agent-a6adcf445a5debd8e
 plan: test-foundation
 ---
 

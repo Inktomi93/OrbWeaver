@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: blocked
+status: doing
 updated: 2026-10-19
 priority: P2
-blocked: on 953
+lane: wt/agent-acb14f15173490df8
 ---
 
 # byte-check-cast and compose-wiring-only are blind to a respelling of their own mustFlag fixture

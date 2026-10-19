@@ -1,4 +1,3 @@
-
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { characterEmbeddings, embedGenerationTargets } from "@orb/db";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
