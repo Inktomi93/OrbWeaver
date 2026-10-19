@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Extend native `orb/type-home-direct-export` to tooling. A tool's result shapes, config schemas and exit data live in its `contract/` (Core-Tooling-Law tool layout). A helper's option or result shape stays beside the function whose signature uses it, by the D324 precedent. Add each tooling home to §7.4 and repair every exported interface or alias outside them.
+Custom `no-inline-types` already judges tooling aliases and schemas against the tool `contract/` home (Core-Tooling-Law §2.5), and `tooling-slot-template` judges the tool layout. Exported tooling interfaces in `ops/` and `lib/` have no judge. Move tooling placement to native `orb/type-home-direct-export` covering aliases, interfaces and schemas; a helper's option or result shape stays beside the function whose signature uses it, by the D324 precedent. Subtract tooling from the custom population in the same change.
 
 ## Why
 
