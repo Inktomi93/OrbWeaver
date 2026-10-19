@@ -111,7 +111,6 @@ export function groupName(record: LeaderRecord): string {
 }
 
 function signalPid(pid: number, signal: NodeJS.Signals): void {
-  // @orb-waive caught-failure-ownership(error): ESRCH means the holder exited between the table read and the signal, the desired end state; every other failure is rethrown. Ends if callers require proof the signal landed.
   try {
     process.kill(pid, signal);
   } catch (error) {

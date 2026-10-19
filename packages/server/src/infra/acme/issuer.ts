@@ -104,7 +104,6 @@ export function createAcmeIssuer(deps: AcmeIssuerDeps): AcmeIssuer {
   return {
     createAccountKey: async (): Promise<string> => (await acmeCrypto.createPrivateEcdsaKey()).toString("utf-8"),
     issue: async (request): Promise<IssueOutcome> => {
-      // @orb-waive caught-failure-ownership(err): propagated as the returned failed outcome, whose code and detail the certificate controller turns into the status and log line. Ends if `issue` starts throwing to its caller.
       try {
         return await order(deps, request);
       } catch (err) {

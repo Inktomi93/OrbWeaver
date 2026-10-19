@@ -75,7 +75,6 @@ function processGroupAlive(pgid: number): boolean {
 function signalFailedSpawn(deps: FailedSpawnDeps, pgid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     deps.signalGroup(pgid, signal);
-    // @orb-waive caught-failure-ownership(error): ESRCH means the exact just-spawned process group is already gone, which satisfies this cleanup step. Ends if any non-ESRCH failure stops being rethrown.
   } catch (error) {
     if (!processErrorHasCode(error, "ESRCH")) {
       throw error;

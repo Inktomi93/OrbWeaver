@@ -212,7 +212,6 @@ function errnoIs(error: unknown, code: string): boolean {
 }
 
 function signalPid(pid: number, signal: NodeJS.Signals): void {
-  // @orb-waive caught-failure-ownership(error): ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed.
   try {
     process.kill(pid, signal);
   } catch (error) {

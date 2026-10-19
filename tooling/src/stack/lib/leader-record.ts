@@ -138,7 +138,6 @@ export function writeLeaderRecord(runDir: string, record: LeaderRecord): void {
 
 /** Delete the record; an already-absent file is the same end state. */
 export function removeLeaderRecord(runDir: string): void {
-  // @orb-waive caught-failure-ownership(error): ENOENT is the idempotent end state of a removal; every other unlink failure is rethrown. Ends if removal gains a separate operator result.
   try {
     unlinkSync(leaderRecordPath(runDir));
   } catch (error) {
