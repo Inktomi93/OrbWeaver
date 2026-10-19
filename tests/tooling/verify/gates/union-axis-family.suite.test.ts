@@ -1,10 +1,10 @@
-// The standing family floor for `union-axis` — the #1584 conversion of the legacy `no-inline-union-redecl`
-// descriptor into ONE ordinary policy reading `lib/union-axis.ts`. What a declared proof row structurally
-// cannot express lives here:
+// The standing family floor for `union-axis`: the ordinary `no-inline-union-redecl` policy reading
+// `lib/union-axis.ts`. Its alias arm is native lint (`orb/no-inline-union-alias`). What a declared proof row
+// structurally cannot express lives here:
 //
 //   §4.2 — the ordinary identity arm, ALL THREE assertions (`effectiveFindings []`, `waivedFindings 1`,
-//          `authorityAlarms []`), once per ARM, because the two arms anchor differently: arm A on the
-//          ALIAS NAME, arm B on the inline SET's own source text. A `mustPass` row asserts only the first.
+//          `authorityAlarms []`): the report anchors on the inline SET's own source text. A `mustPass` row
+//          asserts only the first.
 //   §4.5 — the policy is `entire-population` and that is the whole reason the field exists here: arm B
 //          matches a re-spell in one package against a tuple homed in ANOTHER, so a request admitting only
 //          the re-speller would "prove" the axis has no home and report nothing. A proper subset must
@@ -22,13 +22,12 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unionRedecl } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/union-axis-family";
-const FAMILY: readonly GatePolicy[] = [unionAlias, unionRedecl];
+const FAMILY: readonly GatePolicy[] = [unionRedecl];
 const HOME = "packages/contracts/src/axis-home.ts";
 const RESPELL = "packages/server/src/axis-respell.ts";
 
@@ -57,36 +56,6 @@ test("the union-axis policy preserves its founding fixtures", () => {
 });
 
 // ─── §4.2 ORDINARY IDENTITY, ONE ARM EACH ───────────────────────────────────────────────────────────────
-test("an arm-A waiver binds to the exact policy and the ALIAS NAME the report supplies", () => {
-  const waived = passOf({
-    "packages/contracts/src/alias.ts":
-      "// @orb-waive no-inline-union-alias(Mode): the proof's stand-in reason; ends when this fixture stops flagging.\nexport type Mode = 'a' | 'b' | 'c';\n",
-  });
-  expect(waived.authority.authorityAlarms).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-});
-
-// ─── THE STAGED-COMMIT DOOR ─────────────────────────────────────────────────────────────────────────────
-// `verify --static --changed staged` hands the dispatcher only the paths the commit touches. The alias arm
-// judges each alias alone, so it must RUN there; the re-spell arm needs the whole tree and must defer.
-test("a staged inline union alias is judged by the alias policy, not deferred", () => {
-  const alias = "packages/contracts/src/staged-alias.ts";
-  const staged = passOf({ [alias]: "export type VerdictKind = 'a' | 'b' | 'c';\n", [HOME]: "export const AXIS = ['x', 'y', 'z'] as const;\n" }, [alias]);
-
-  expect(staged.toolErrors).toEqual([]);
-  expect(staged.policies.find(({ id }) => id === "no-inline-union-alias")?.owner.status).not.toBe("not-applicable");
-  expect(staged.authority.effectiveFindings).toMatchObject([{ policyId: "no-inline-union-alias", file: alias }]);
-});
-
-test("a staged 2-member alias stays clean", () => {
-  const alias = "packages/contracts/src/staged-pair.ts";
-  const staged = passOf({ [alias]: "export type Pair = 'a' | 'b';\n" }, [alias]);
-
-  expect(staged.toolErrors).toEqual([]);
-  expect(staged.authority.effectiveFindings).toEqual([]);
-});
-
 test("an arm-B waiver binds to the inline SET's own source text, spacing included", () => {
   const waived = passOf({
     [HOME]: "export const AXIS = ['a', 'b', 'c'] as const;\n",

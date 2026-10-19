@@ -33,8 +33,8 @@
 import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
 import { PLUGINS_INSTALL_SUBCATEGORY, PLUGINS_INSTALLED_SUBCATEGORY } from "./plugins-nav.ts";
 
-/** The section's placeholder (title, description) — DISTINCT from every sibling's by the
- *  `placeholder-copy-registry` gate, and it doubles as the home-tile gloss, so it says what the section IS
+/** The section's placeholder (title, description) — DISTINCT from every sibling's by
+ *  `tests/client/compose/authed-composition.dom.test.ts`, and it doubles as the home-tile gloss, so it says what the section IS
  *  rather than pointing at a pane the tile has no left rail for. */
 export const EXTENSIONS_PLACEHOLDER = {
   title: EXTENSIONS_SECTION_LABEL,

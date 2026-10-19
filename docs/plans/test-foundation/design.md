@@ -149,7 +149,7 @@ Gate families fold onto the shared readers:
 
 - Type homes: Spine-TypeScript section 7.4 owns the canonical home table. Native restrictions, typed owner data and tests replace placement proxies under D321. KEEP relational analysis stays shared. Preserve service-presence and ledger-field claims until their successors qualify. Component APIs stay beside components; lower-owned data stays derived.
 - JSON columns: json-column-read-parsed, json-column-write-parity and open-json-column-key-parity become one JSON-column fact with three judgements.
-- Copies: contract-structural-copy, contract-derives-not-respells, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
+- Copies: contract-structural-copy, the contract-derives-native test, test-hand-shape and test-production-clone become one copy family over the shape reader, judged by population.
 
 Item 965 measures supported commands on a standard hosted runner. Preserve shared facts; D328 replaces general proof obligations with explicit bounded contracts.
 

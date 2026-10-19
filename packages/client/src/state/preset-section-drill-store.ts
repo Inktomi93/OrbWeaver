@@ -16,7 +16,7 @@
 // EXPLICIT re-stamp that only the code which knows a fork happened can perform.
 //
 // A NON-selection state store minting the raw `createGatedStore` door — the shape G27
-// (`selection-store-via-factory`) explicitly sanctions, and the same reason `preset-editor-view-store.ts`
+// (`orb/selection-store-via-factory`) explicitly sanctions, and the same reason `preset-editor-view-store.ts`
 // gives: this is not a primary+secondary DRILL over an entity list, it is a `(preset, section)` position,
 // which the drill factory does not model. It is deliberately NOT named `*-selection-store.ts`, because the
 // section SELECTION (what the CONTEXT readout echoes) is a different axis living in

@@ -21,8 +21,8 @@ import process from "node:process";
 import { livingChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/chromium-processes.ts";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import { vi } from "vitest";
-import type { DesignAuditRuleId } from "../../../tooling/src/ui-audit/index.ts";
 import { scaledBudget } from "../_load-budget.ts";
 
 const CLI_TIMEOUT_MS = scaledBudget(90_000);
@@ -50,12 +50,6 @@ const REACHED_RE = /reached=[1-9]/u;
 function findingRows(stdout: string, rule: string): readonly string[] {
   const row = new RegExp(`^P[0-3]\\s+${rule}\\s`, "u");
   return stdout.split("\n").filter((line) => row.test(line));
-}
-
-interface AuditRuleProof {
-  readonly rule: DesignAuditRuleId;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
 }
 
 function auditRuleTest(

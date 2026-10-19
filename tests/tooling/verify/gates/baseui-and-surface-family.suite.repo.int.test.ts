@@ -1,12 +1,9 @@
 // Retained portal/surface policy authority controls and the shared installed-surface reader.
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { beforeEach, describe, vi } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as surfaceA11yFocus } from "../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { installedPackageRootOf, installedSurfaceFrom } from "../../../../tooling/src/verify/lib/baseui-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -24,7 +21,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [surfaceA11yFocus, surfaceInAContainer] as const;
+const POLICIES = [surfaceInAContainer] as const;
 const POLICY_IDS = new Set(POLICIES.map((policy) => policy.id));
 
 function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
@@ -46,7 +43,7 @@ function pass(policy: GatePolicy, root: string, files: Readonly<Record<string, s
   });
 }
 
-test("every converted policy in both families keeps its two-sided proofs", () => {
+test("the retained surface policy keeps its two-sided proofs", () => {
   expect(verifyPolicyProofs([...POLICIES])).toEqual([]);
 });
 
@@ -71,13 +68,6 @@ interface IdentityCase {
 
 const IDENTITY_CASES: readonly IdentityCase[] = [
   {
-    policy: surfaceA11yFocus,
-    path: "packages/client/src/features/x/surfaces/pane.tsx",
-    position: "Pane",
-    deadPosition: "Other",
-    body: (marker) => `${marker}export const Pane = () => <div>content</div>;\n`,
-  },
-  {
     policy: surfaceInAContainer,
     path: "packages/client/src/features/x/surfaces/pane.tsx",
     position: "Pane",
@@ -85,17 +75,6 @@ const IDENTITY_CASES: readonly IdentityCase[] = [
     body: (marker) => `${marker}export const Pane = () => <div><ul><li>row</li></ul></div>;\n`,
   },
 ];
-
-/** The family's SHARED-ANCHOR claim, ASSERTED rather than described: `surface-a11y-focus` and
- *  `surface-in-a-container` must report the SAME position for one surface, which is what lets an author waive
- *  both from two adjacent lines instead of hunting two different coordinates. Both identity arms above prove
- *  each position binds; this proves they are the same position. */
-test("the two surface policies report the SAME position for one surface", () => {
-  const focus = IDENTITY_CASES.find((item) => item.policy === surfaceA11yFocus);
-  const container = IDENTITY_CASES.find((item) => item.policy === surfaceInAContainer);
-  expect(focus?.path).toBe(container?.path);
-  expect(focus?.position).toBe(container?.position);
-});
 
 describe("§4.2 identity arms — the reported position IS the waiver position, and it discriminates", () => {
   for (const item of IDENTITY_CASES) {
@@ -119,21 +98,6 @@ describe("§4.2 identity arms — the reported position IS the waiver position, 
       expect(result.authority.authorityAlarms.map((alarm) => alarm.message).join("\n")).toContain("dead position");
     });
   }
-});
-
-// ── §4.5 REFUSALS ───────────────────────────────────────────────────────────────────────────────────
-
-describe("§4.5 — an empty source population refuses instead of passing", () => {
-  test("an EMPTY population refuses — this IS the retired `surface-a11y-focus` blindness tripwire", ({ scratch }) => {
-    // Legacy carried a hand-rolled arm (`featuresSeen && surfacesSeen === 0` reporting at a DIRECTORY path)
-    // against `surfaces/` being renamed out from under a directory-name-keyed scan. Under this contract the
-    // same failure is the runtime's: a declared population that admits nothing is a refusal, not a pass.
-    const result = pass(surfaceA11yFocus, scratch, { "packages/client/src/data/not-a-surface.ts": "export const x = 1;\n" });
-
-    expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.toolErrors.map((error) => error.phase)).toEqual(["population"]);
-    expect(result.authority.withheldPolicyIds).toContain(surfaceA11yFocus.id);
-  });
 });
 
 describe("§4.5 — the installed-surface READER's own blindness, which no proof row can reach", () => {
@@ -173,8 +137,8 @@ describe("§4.5 — the installed-surface READER's own blindness, which no proof
 
 // ── §4.6 THE REAL-TREE DRIVE ────────────────────────────────────────────────────────────────────────
 
-describe("the real tree — marker translation, and the conversion differential", () => {
-  test("every live marker across both families binds its exact policy, source and token", ({ repoRoot }) => {
+describe("the real tree — marker binding", () => {
+  test("no live marker is waived or alarmed for the retained surface policy", ({ repoRoot }) => {
     const context = projectCtx(repoRoot);
     const result = runPolicyPass({
       knownPolicies: [...POLICIES],
@@ -189,24 +153,7 @@ describe("the real tree — marker translation, and the conversion differential"
     expect(result.toolErrors).toEqual([]);
     // Exact identities catch a lost binding and an unintended new waiver without a stale aggregate count.
     expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.authority.waivedFindings.map(({ finding }) => `${finding.policyId}:${finding.file}:${finding.token}`).toSorted()).toEqual([
-      "surface-a11y-focus:packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx:NewChatPicker",
-      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx:CorpusArtifactSurface",
-      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx:CorpusHomeSurface",
-      "surface-a11y-focus:packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx:CorpusMomentSurface",
-      "surface-a11y-focus:packages/client/src/features/tag/surfaces/tag-member-surface.tsx:TagMemberSurface",
-    ]);
+    expect(result.authority.waivedFindings).toEqual([]);
     expect(result.authority.authorityAlarms.filter((alarm) => POLICY_IDS.has(alarm.policyId))).toEqual([]);
-  });
-
-  test("the original surface waivers retain their authored positions and have no legacy marker", ({ repoRoot }) => {
-    const sites = [
-      "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
-      "packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx",
-    ];
-    const texts = sites.map((rel) => readFileSync(join(repoRoot, rel), "utf8"));
-
-    expect(texts.map((text) => text.split("\n").filter((line) => line.trimStart().startsWith("// @orb-waive surface-a11y-focus(")).length)).toEqual([1, 1]);
-    expect(texts.map((text) => text.split("\n").filter((line) => line.trimStart().startsWith("// @surface-focus-elsewhere")).length)).toEqual([0, 0]);
   });
 });

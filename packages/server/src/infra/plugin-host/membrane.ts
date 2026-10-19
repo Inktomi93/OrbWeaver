@@ -81,7 +81,6 @@ import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 
-// @orb-waive no-inline-package-interface(InFlightCounter): baselined when the gate landed; burn-down item 952.
 /** The per-instance concurrent-host-call counter (back-pressure). Lives on the Sandbox (one per context) and is
  *  NEVER reset — it counts host-fn IMPLEMENTATIONS that have STARTED and not yet SETTLED, which is the only
  *  reading under which "≤32 concurrent host calls" is a bound on WORK rather than on promises.
@@ -108,7 +107,6 @@ export interface InFlightCounter {
   readonly settlements?: Set<Promise<void>>;
 }
 
-// @orb-waive no-inline-package-interface(MembraneRuntime): baselined when the gate landed; burn-down item 952.
 /** What the Sandbox exposes to the membrane: the granted capability set, the op bridge, the live
  *  invocation-chat accessor + its host-minted opaque token, the per-instance in-flight counter, and the tool
  *  collector (the resident-handler runtime — the Sandbox keeps the guest handler handle, the membrane hands it

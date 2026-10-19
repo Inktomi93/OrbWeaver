@@ -51,13 +51,11 @@ function isInlineServable(mime: string): boolean {
   return INLINE_MEDIA_PREFIXES.some((prefix) => base.startsWith(prefix));
 }
 
-// @orb-waive no-inline-package-interface(BlobCasPort): baselined when the gate landed; burn-down item 952.
 /** The `infra/storage` CAS slice the blob route reads originals from (per-user keyed). */
 export interface BlobCasPort {
   readonly read: (ownerId: UserId, hash: string) => Promise<Uint8Array>;
 }
 
-// @orb-waive no-inline-package-interface(BlobDeps): baselined when the gate landed; burn-down item 952.
 export interface BlobDeps {
   readonly assets: BlobAssetsPort;
   readonly cas: BlobCasPort;

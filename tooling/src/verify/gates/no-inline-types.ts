@@ -10,10 +10,8 @@
 // arm for: "current test/spec population exclusions remain population algebra where they define the
 // policy's subject". A NEW home would be a change to §7.4, never a row someone adds to a table here.
 //
-// THE INTERFACE ARM LIVES IN ITS OWN POLICY. Legacy judged an exported `interface` only inside
-// `packages/server/src/domain/**` while judging type aliases everywhere — two different populations under
-// one descriptor, which the final contract cannot express (one `population` per policy). It is
-// `no-inline-domain-interface`, same family, same authority; neither arm was widened or narrowed.
+// THE INTERFACE ARM LIVES IN NATIVE LINT: exported interfaces are judged by `orb/type-home-direct-export` and the ESLint rows
+// `orb/no-inline-domain-interface` and `orb/no-inline-package-interface`, never by this policy.
 //
 // IDENTITY, NOT SPELLING, on the schema arm: the legacy reader compared the callee's TEXT to `z.object` /
 // `z.enum` / `z.discriminatedUnion`, so `import * as zod from "zod"`, `import { object } from "zod"` and
@@ -52,8 +50,7 @@
 // not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
 // neither side reaches outside the harness corpus, not that the legacy filter discriminates.
 //
-// FAMILY `no-inline-types` — a two-member SPLIT family with `no-inline-domain-interface`, split by POPULATION.
-// Both halves share reporting in `lib/type-home-policy.ts`; recognition lives in the floor shape reader.
+// FAMILY `no-inline-types`, with `no-inline-wire-interface`: shared reporting is `lib/type-home-policy.ts`; recognition lives in the floor shape reader.
 
 import { SyntaxKind } from "ts-morph";
 import { UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";

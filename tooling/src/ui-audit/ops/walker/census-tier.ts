@@ -1,7 +1,7 @@
 // ui-audit in-page walker — segment: DENSITY TIER RESOLUTION (packages/ui/src/styles/tiers.css).
 //
 // THE QUESTION IS NOT "is this value legal" (source-side gates — no-raw-spacing-in-features,
-// no-arbitrary-tw-values, css-length-tokens, no-off-token-inline-style — already prove the AUTHORED
+// no-arbitrary-tw-values, css-length-tokens, orb/no-off-token-inline-style — already prove the AUTHORED
 // value is a token). It is "did the RESOLVED pixel match the tier the surface declared". That gap is
 // runtime-only: an inline style, a broken `--orb-tier-*` custom-property chain, or a pane that forgot
 // its `<Surface>` wrapper are all invisible to a source-side scan and were each responsible for a real

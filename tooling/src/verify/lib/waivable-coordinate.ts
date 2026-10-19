@@ -2,8 +2,8 @@
 //
 // WHY THIS MODULE EXISTS AT ALL. §12.5: "Gate modules receive neither grant tables nor marker parsers."
 // `lib/ordinary-waiver.ts` is the marker ENGINE — `acquireMarkers`, `matchBatch`, `reconcileMatch`, the
-// carrier walk — and after #2107 three gates imported it for one pure string helper
-// (`no-raw-color-in-css`, `no-tailwind-dark-variant`, `rest-transform-grid`), which handed each of them the
+// carrier walk — and after #2107 gates imported it for one pure string helper
+// (`no-raw-color-in-css`, `rest-transform-grid`), which handed each of them the
 // parser's whole export surface. That is the red the forge's `policy-legacy-imports` arm names.
 //
 // WHY THE GRAMMAR MOVED TOO, RATHER THAN THE HELPER ALONE (the fork, ruled 2026-09-12). Leaving

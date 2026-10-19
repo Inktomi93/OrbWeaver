@@ -412,7 +412,7 @@ test("the FINE pointer keeps the transcript's dense line — the floor is COARSE
   await expect.poll(() => trigger.evaluate((el: HTMLElement) => Math.round(el.getBoundingClientRect().height))).toBeLessThan(await touchFloorPx(page));
 
   // …and the RULING that makes that dense line legitimate is RENDERED, not just commented (#1381). The
-  // `@orb-waive sub-floor-disclosure` marker above the JSX is a source fact the design-audit walker cannot read, which is
+  // `orb/sub-floor-disclosure` home in eslint.config.js is a source fact the design-audit walker cannot read, which is
   // why two independent cold audits of /chats filed this row as a P1 hours apart. The attribute is what
   // the walker reads: `checks-a11y.ts` excludes the candidate at FINE pointer with the named reason
   // `ruledSubFloor` and counts it in the population row. If this attribute is ever dropped, the ruling

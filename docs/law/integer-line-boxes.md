@@ -209,7 +209,7 @@ Four checks:
   root is an integer; `leading.none` must be exactly the number 1. A fractional authored leading is
   RED at `pnpm check`.
 - **Pairing census:** ride the neutral static-class walker
-  (`tooling/src/verify/lib/static-class-expression.ts`, the `no-tailwind-dark-variant` consumption
+  (`tooling/src/verify/lib/static-class-expression.ts`, the `css-length-tokens` consumption
   pattern) over `packages/ui/src` + `packages/client/src`. Per resolved candidate, after top-level
   variant-prefix stripping: (a) any leading utility outside the token vocabulary — Tailwind's
   unitless `leading-(none…loose)` core scale (except our own `leading-none`), numeric
@@ -398,5 +398,5 @@ DPR value, and pinned permanently in `tests/tooling/ui-audit/lib/checks-grid.tes
   (three rule ids) · `lib/checks-grid.ts` · `lib/collect.ts` (the `rung-4` accounting,
   `authoredDecisionKey`) ·
   `lib/evidence.ts`'s `RELATIONAL_SAMPLE_FAMILIES` mapped-type record.
-- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the `design-audit-rule-proof`
+- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the
   fires/silent rows for all three rules, plus the DPR matrix).

@@ -86,7 +86,7 @@ neo enforced the UI boundaries with lint. orbweaver makes them **resolver physic
 
 A workspace package = the "one home"; the *package* IS the registry (shadcn's external registry mechanism is not used; components are hand-authored over Base UI).
 
-**The code is the doc.** Tree + per-primitive structure: `packages/ui/src` (`primitives/` · `layout/` · `charts/` · `markdown/` · `stream/` · `content/` · `code-editor/` · `diff/` · `tokens/` · `lib/` · `styles/`). Public surface: the **explicit `exports` map** in `packages/ui/package.json` — one subpath per group, deliberately **no root barrel** (a flat `@orb/ui` import would defeat tree-shaking and blur the seal boundaries). Deps (the sealed satellites) live only in that package.json; structure is gate-enforced (`tooling/src/verify/gates/ui-primitive-structure.ts`, §13.7). Per-primitive file contract + authoring rules: §13.7–§13.8.
+**The code is the doc.** Tree + per-primitive structure: `packages/ui/src` (`primitives/` · `layout/` · `charts/` · `markdown/` · `stream/` · `content/` · `code-editor/` · `diff/` · `tokens/` · `lib/` · `styles/`). Public surface: the **explicit `exports` map** in `packages/ui/package.json` — one subpath per group, deliberately **no root barrel** (a flat `@orb/ui` import would defeat tree-shaking and blur the seal boundaries). Deps (the sealed satellites) live only in that package.json; structure is enforced by `orb/ui-*` lint and the primitive topology test (§13.7). Per-primitive file contract + authoring rules: §13.7–§13.8.
 
 The law that survives any file-level churn:
 
@@ -124,7 +124,7 @@ packages/client/
     forms/              # Node-safe models, draft/store helpers and save-status seams — #forms
       editor/           # browser editor composition — #forms/editor — §13.1/§13.4
         use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
-    state/              # ALL gated Zustand stores, FLAT (gate `state-files`: one create/file, ≤10 fields, no exported set/getState)
+    state/              # ALL gated Zustand stores, FLAT (lint rule `orb/state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
                         #   the decision table is client-architecture-state-and-gates.md §12 (the old blanket
                         #   "reads ONLY via trpc.*" is superseded — it is wrong for ephemeral state)
@@ -334,7 +334,7 @@ Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §
 9. **Chrome is quiet; content is loud.** Micro-caps muted section labels; mono data accents; the accent color on ≤10% of any viewport. If a screenshot's loudest element is chrome, the hierarchy is inverted.
 10. **Same action, same home** — this rule is the ONE HOME of the more-than-one-door IA class. One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry). The structural half: one tRPC mutation invoked from more than one component inside a SINGLE rail section is the same verb wearing N doors on a plane the user sees whole — `duplicate-action-doors` reds it, and a deliberately-multi-door set is an exact reviewed grant naming that door set. Cite THIS rule for the class; `client-architecture-state-and-gates.md` §13 is the event/sync spine, not this rule's home.
 
-**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId` — gate `placeholder-copy-registry`). The Weave glyph appears at most ONCE per screen (DESIGN.md restraint rule), only in empty states / loading / corpus.
+**Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId`, asserted over the real registry). The Weave glyph appears at most ONCE per screen (DESIGN.md restraint rule), only in empty states / loading / corpus.
 
 ### 4a. React 19 / 19.2 — platform leverage (use these, skip those)
 

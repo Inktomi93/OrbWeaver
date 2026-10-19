@@ -163,7 +163,8 @@ function named(declarations: readonly ShapeDeclaration[]): ShapeIdentity {
 }
 
 /** Where a declaration's shape comes from: written by hand, derived from something else, or not decidable by this walk. */
-type Lineage = "hand" | "derived" | "unknown";
+const LINEAGES = ["hand", "derived", "unknown"] as const;
+type Lineage = (typeof LINEAGES)[number];
 
 function combine(parts: readonly Lineage[]): Lineage {
   if (parts.includes("unknown")) {

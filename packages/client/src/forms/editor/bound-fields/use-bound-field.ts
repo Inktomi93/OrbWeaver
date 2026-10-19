@@ -3,7 +3,7 @@
 // `<Field>` prop bundle (label/description/hint/error/disabled/name). This hook is the ONE home for that
 // wiring so a bound field shrinks to its control; `field-error.ts` already homed the error policy the same
 // way. Consumed by EVERY bound field — the raw `useFieldContext(` door is sealed to this ONE home
-// (G28 `bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
+// (G28 `orb/bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
 //
 // THE ONE DELIBERATE DEVIATION FROM THE BASE UI HANDBOOK (https://base-ui.com/react/handbook/forms, "TanStack
 // Form → Integrate components"). The handbook maps `invalid={!field.state.meta.isValid}` straight onto
@@ -50,7 +50,7 @@ interface BoundField<T> {
  * Read the bound field context + assemble its `<Field>` props (touch-gated error included).
  *
  * THE CONFIG-ROW ANNOTATION (#932/#927) is merged HERE, and here only, because this is the one home for
- * the `<Field>` prop bundle (the `bound-field-via-hook` gate seals the raw `useFieldContext(` door): a
+ * the `<Field>` prop bundle (the `orb/bound-field-via-hook` lint rule seals the raw `useFieldContext(` door): a
  * `SettingRow` publishes its leaf's registry gloss + teacher door, and every bound field inside one picks
  * it up without its section author threading prose it does not own. Outside a `SettingRow` the read is
  * `null` and every field renders byte-identically to before.

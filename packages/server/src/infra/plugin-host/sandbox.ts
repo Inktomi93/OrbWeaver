@@ -57,7 +57,6 @@ function endedInstanceOutcome(): EvalOutcome {
   return { ok: false, error: { name: PLUGIN_INVOCATION_ENDED, message: "plugin host: this instance was torn down by an ENDED invocation" }, logs: [] };
 }
 
-// @orb-waive no-inline-package-interface(SandboxMembrane): baselined when the gate landed; burn-down item 952.
 /** The membrane wiring an instance boots with: the granted capability set + the authority-agnostic op bridge
  *  (the DOMAIN built + gated it). Absent ⇒ the determinism-floor-only realm. */
 export interface SandboxMembrane {
@@ -71,7 +70,6 @@ export interface SandboxMembrane {
   readonly netEgress?: PluginNetEgress;
 }
 
-// @orb-waive no-inline-package-interface(GuestError): baselined when the gate landed; burn-down item 952.
 /** A guest error projected to plain data (never a live handle across the boundary). `line` is the guest
  *  source line the engine attributed the error to, lifted from `stack` (`plugin-guest.js:LINE:COL`) —
  *  present for a compile-time `SyntaxError` (QuickJS always stamps one there) and absent when the dump
@@ -100,7 +98,6 @@ function extractGuestLine(dumped: object): number | undefined {
   return Number.isFinite(line) ? line : undefined;
 }
 
-// @orb-waive no-inline-package-interface(EvalOutcome): baselined when the gate landed; burn-down item 952.
 /** The result of one guest invocation — errors-as-data, logs drained, no live handles escape. */
 export interface EvalOutcome {
   readonly ok: boolean;

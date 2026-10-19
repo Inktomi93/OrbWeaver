@@ -7,13 +7,13 @@
 // control — a green that cannot fail is not a fence.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 import type { HoverContrastInput, HoverScanInput } from "../../../tooling/src/ui-audit/contract/samples-hover.ts";
 import type {
   AccentBorderInput,
   ActionDoorInput,
   Backdrop,
-  DesignAuditRuleId,
   Finding,
   IconTileInput,
   RawSamples,
@@ -75,12 +75,6 @@ const BLACK: Rgb = { r: 0, g: 0, b: 0 };
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 const LIGHT_GRAY: Rgb = { r: 210, g: 210, b: 210 };
 const FLAT_WHITE: Backdrop = { kind: "flat", color: WHITE };
-
-interface AuditRuleProof {
-  readonly rule: DesignAuditRuleId;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
-}
 
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
@@ -573,7 +567,7 @@ test("the withholding is keyed on the FLAG, not on the number — the same box f
   expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18 }, false)?.severity).toBe("P1");
 });
 
-// #1381: the priced sub-floor ruling lived only in a source comment (the `@orb-waive sub-floor-disclosure` waiver, then spelled `@sub-floor-ok`), which no DOM
+// #1381: the priced sub-floor ruling lived only in a source comment (the `orb/sub-floor-disclosure` home, once spelled `@sub-floor-ok`), which no DOM
 // walker can read, so two independent cold audits of /chats filed the same P1 hours apart. The control
 // now DECLARES it (`data-target-floor="sub-floor-ok"`), and the rule honours the declaration at FINE
 // pointer only — the arm below where it must NOT is the whole reason this is a ruling and not a mute.

@@ -178,7 +178,6 @@ export function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMet
  *  a second spelling would make this app instance unassignable to half its own registrars. */
 type AppEnv = PrincipalEnv;
 
-// @orb-waive no-inline-package-interface(AppDeps): baselined when the gate landed; burn-down item 952.
 /**
  * Everything `createApp` needs, all built upstream by `lifecycle.ts`.
  */

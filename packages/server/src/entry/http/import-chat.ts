@@ -36,7 +36,6 @@ const IMPORT_FAILED = "import failed";
  *  framework-fixed `Variables` key). */
 type ImportApp = Parameters<typeof registerImportBundle>[0];
 
-// @orb-waive no-inline-package-interface(ImportChatDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportChatDeps {
   /** The composed registry — its `chat` descriptor IS the import path (resolved once at registration). */
   readonly registry: PortabilityRegistry;

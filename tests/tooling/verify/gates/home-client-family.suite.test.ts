@@ -1,33 +1,16 @@
 // Conformance entry for CLIENT-side policies whose exceptions are sanctioned HOMES. Every
 // proof runs through the production dispatcher on an isolated population; the pins below cover what a proof
-// cannot express — a receipt REFUSAL (a tool error, not a finding) and the central grant liveness these
-// policies' whole authority rests on.
+// cannot express — a receipt REFUSAL (a tool error, not a finding).
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as boundFieldViaHook } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
-import { gate as chatStreamWritesInBusOnly } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
-
 import { gate as noEffectOnSharedSelection } from "../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
-
-import { gate as registryContextViaMint } from "../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../tooling/src/verify/gates/render-error-via-battery.ts";
-import { gate as selectionStoreViaFactory } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
-import { gate as themeOverrideOnlyViaScope } from "../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-const FAMILY: readonly GatePolicy[] = [
-  boundFieldViaHook,
-  chatStreamWritesInBusOnly,
-
-  noEffectOnSharedSelection,
-  registryContextViaMint,
-  renderErrorViaBattery,
-  selectionStoreViaFactory,
-  themeOverrideOnlyViaScope,
-];
+const FAMILY: readonly GatePolicy[] = [noEffectOnSharedSelection, renderErrorViaBattery];
 
 test("the sanctioned-home client policies keep their founding, permission, respelling and counterfactual fixtures", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);
@@ -43,11 +26,7 @@ function projectOf(files: Readonly<Record<string, string>>): Project {
   return project;
 }
 
-function passOf(
-  policy: GatePolicy,
-  files: Readonly<Record<string, string>>,
-  grants: Parameters<typeof runPolicyPass>[0]["reviewedGrants"] = [],
-): ReturnType<typeof runPolicyPass> {
+function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): ReturnType<typeof runPolicyPass> {
   const project = projectOf(files);
   return runPolicyPass({
     knownPolicies: [policy],
@@ -55,7 +34,7 @@ function passOf(
     root: ROOT,
     project,
     nativeTypeFacts: () => isolatedTypeFacts(project),
-    reviewedGrants: grants,
+    reviewedGrants: [],
     failOnWarnings: false,
   });
 }
@@ -111,35 +90,6 @@ test("every relative import in every proof of this family resolves inside the pr
 // the legacy rename tripwires and the §4.6 blindness arm, which conformance cannot express because a
 // refusal is a TOOL ERROR rather than a finding.
 // ---------------------------------------------------------------------------------------------------
-test("bound-field-via-hook REFUSES when the form-context home no longer exports the hook", () => {
-  const renamed = passOf(boundFieldViaHook, {
-    "packages/client/src/forms/editor/contexts.ts": "export const fieldContext = null;\n",
-    "packages/client/src/forms/editor/bound-fields/x-field.tsx": "export const f = null;\n",
-  });
-
-  expect(renamed.toolErrors).toMatchObject([{ policyId: "bound-field-via-hook", phase: "receipt" }]);
-  expect(renamed.authority.withheldPolicyIds).toEqual(["bound-field-via-hook"]);
-  expect(renamed.authority.effectiveFindings).toEqual([]);
-});
-
-test("chat-stream-writes-in-bus-only REFUSES when the write api's home is gone", () => {
-  const gone = passOf(chatStreamWritesInBusOnly, {
-    "packages/client/src/features/chat/x.ts": "const chatStream = {\n  push(): void {},\n};\nexport const s = chatStream.push;\n",
-  });
-
-  expect(gone.toolErrors).toMatchObject([{ policyId: "chat-stream-writes-in-bus-only", phase: "receipt" }]);
-  expect(gone.authority.withheldPolicyIds).toEqual(["chat-stream-writes-in-bus-only"]);
-});
-
-test("selection-store-via-factory REFUSES when the raw store door is gone", () => {
-  const gone = passOf(selectionStoreViaFactory, {
-    "packages/client/src/state/x-selection-store.ts": 'export const useX = createGatedStore("x", () => ({}));\n',
-  });
-
-  expect(gone.toolErrors).toMatchObject([{ policyId: "selection-store-via-factory", phase: "receipt" }]);
-  expect(gone.authority.effectiveFindings).toEqual([]);
-});
-
 test("render-error-via-battery REFUSES when either the boundary or the battery home is gone", () => {
   const gone = passOf(renderErrorViaBattery, {
     "packages/client/src/components/query-boundary.tsx": "export declare function QueryBoundary(props: { renderError?: unknown }): unknown;\n",
@@ -149,14 +99,6 @@ test("render-error-via-battery REFUSES when either the boundary or the battery h
 
   expect(gone.toolErrors).toMatchObject([{ policyId: "render-error-via-battery", phase: "receipt" }]);
   expect(gone.authority.withheldPolicyIds).toEqual(["render-error-via-battery"]);
-});
-
-test("registry-context-via-mint REFUSES when the registry vocabulary's home is gone", () => {
-  const gone = passOf(registryContextViaMint, {
-    "packages/client/src/state/g.ts": "export const C = null;\n",
-  });
-
-  expect(gone.toolErrors).toMatchObject([{ policyId: "registry-context-via-mint", phase: "receipt" }]);
 });
 
 test("no-effect-on-shared-selection REFUSES when a pointer in its vocabulary no longer exists", () => {
@@ -169,66 +111,4 @@ test("no-effect-on-shared-selection REFUSES when a pointer in its vocabulary no 
   // refuses exactly as a zero would. The legacy regex simply stopped matching them.
   expect(renamed.toolErrors).toMatchObject([{ policyId: "no-effect-on-shared-selection", phase: "receipt" }]);
   expect(renamed.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "shared-selection pointers", members: 1, unresolved: 6 }]);
-});
-
-// ---------------------------------------------------------------------------------------------------
-// GRANT LIVENESS. These policies' authority IS the central table, so the two verdicts that make a row
-// honest are pinned here on a real policy rather than assumed.
-// ---------------------------------------------------------------------------------------------------
-const BUS_GRANT = {
-  id: "chat-stream-writes-in-bus-only:proof",
-  policyId: "chat-stream-writes-in-bus-only",
-  subject: "packages/client/src/data/bus/chat-bus-writes.ts",
-  operation: "chat-stream-write-handle",
-  why: "the proof's stand-in for the real bus applier row",
-  endsWhen: "the pin no longer exercises the applier",
-};
-const STREAM_HOME = { "packages/client/src/state/chat-stream.ts": "export const chatStream = {\n  push(): void {},\n};\n" };
-
-test("a grant row licenses its exact subject/operation and is consumed EXACTLY ONCE, even with two occurrences", () => {
-  const granted = passOf(
-    chatStreamWritesInBusOnly,
-    {
-      ...STREAM_HOME,
-      "packages/client/src/data/bus/chat-bus-writes.ts":
-        'import { chatStream } from "../../state/chat-stream.ts";\nimport * as state from "../../state/chat-stream.ts";\nexport const a = (): void => chatStream.push();\nexport const b = (): void => state.chatStream.push();\n',
-    },
-    [BUS_GRANT],
-  );
-
-  expect(granted.authority.effectiveFindings).toEqual([]);
-  expect(granted.authority.grantedFindings).toHaveLength(1);
-  // The dedupe is what makes this ONE: two occurrences of the same licensed act under one row would be
-  // OVER-BROAD, and an over-broad row licenses NOTHING.
-  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: BUS_GRANT.id, count: 1 }]);
-  expect(granted.authority.authorityAlarms).toEqual([]);
-});
-
-test("a grant row that matches nothing after a complete run is STALE", () => {
-  const stale = passOf(
-    chatStreamWritesInBusOnly,
-    {
-      ...STREAM_HOME,
-      "packages/client/src/data/bus/chat-bus-writes.ts": "export const a = (): void => undefined;\n",
-    },
-    [BUS_GRANT],
-  );
-
-  expect(stale.authority.effectiveFindings).toEqual([]);
-  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: BUS_GRANT.id }]);
-});
-
-test("a grant row keyed on the WRONG operation licenses nothing", () => {
-  const mismatched = passOf(
-    chatStreamWritesInBusOnly,
-    {
-      ...STREAM_HOME,
-      "packages/client/src/data/bus/chat-bus-writes.ts":
-        'import { chatStream } from "../../state/chat-stream.ts";\nexport const a = (): void => chatStream.push();\n',
-    },
-    [{ ...BUS_GRANT, operation: "chat-stream-read" }],
-  );
-
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant" }]);
 });

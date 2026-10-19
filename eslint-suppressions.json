@@ -83,5 +83,10 @@
     "max-lines": {
       "count": 1
     }
+  },
+  "tooling/src/verify/lib/tenancy-direct-read.ts": {
+    "orb/no-inline-union-alias": {
+      "count": 1
+    }
   }
 }

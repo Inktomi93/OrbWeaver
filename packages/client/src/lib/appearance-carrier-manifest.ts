@@ -30,18 +30,40 @@ export interface AppearanceConsumerBinding {
   readonly symbol: string;
 }
 
-interface AppearanceCarrierRow<K extends keyof AppearanceSettings> {
-  readonly owner: AppearanceEditorOwner;
-  readonly carriers: readonly AppearanceCarrierPlane[];
+/** The portal obligation each carrier plane owes. A row's `portal` is the one its FIRST carrier implies. */
+const PORTAL_BY_CARRIER = {
+  "root-html": "must-reach-portals",
+  "theme-scope": "shared-theme-scope-sibling",
+  "shell-grid": "grid-only",
+  "background-layer": "outside-theme-scope",
+  "message-props": "prop-threaded",
+  "source-catalog": "none",
+} as const satisfies Readonly<Record<AppearanceCarrierPlane, AppearancePortalObligation>>;
+
+/** At least one carrier, and a portal obligation that agrees with the first one. */
+type CarrierPortalPairing = {
+  readonly [Plane in AppearanceCarrierPlane]: {
+    readonly carriers: readonly [Plane, ...AppearanceCarrierPlane[]];
+    readonly portal: (typeof PORTAL_BY_CARRIER)[Plane];
+  };
+}[AppearanceCarrierPlane];
+
+/** The editor owners whose key list names `K`, so a row cannot claim an owner that does not own its key. */
+type OwnerOf<K extends keyof AppearanceSettings> = {
+  readonly [Owner in AppearanceEditorOwner]: K extends (typeof APPEARANCE_OWNER_KEYS)[Owner][number] ? Owner : never;
+}[AppearanceEditorOwner];
+
+type AppearanceCarrierRow<K extends keyof AppearanceSettings> = CarrierPortalPairing & {
+  readonly owner: OwnerOf<K>;
   readonly consumer: AppearanceConsumerBinding;
   readonly lifecycle: AppearanceLifecycle;
-  readonly portal: AppearancePortalObligation;
   readonly requiredDistinctArms?: readonly [AppearanceSettings[K], AppearanceSettings[K]];
   readonly dependsOn?: readonly (keyof AppearanceSettings)[];
   readonly incompatibleWith?: readonly (keyof AppearanceSettings)[];
-}
+};
 
-type AppearanceCarrierManifest = { readonly [K in keyof AppearanceSettings]: AppearanceCarrierRow<K> };
+// `-?` keeps an optional schema leaf required here; the homomorphic map would carry its `?` and let a row go missing.
+type AppearanceCarrierManifest = { readonly [K in keyof AppearanceSettings]-?: AppearanceCarrierRow<K> };
 
 const APP_SHELL = { file: "packages/client/src/features/app-shell/surfaces/app-shell.tsx", symbol: "AppShell" } as const;
 const BACKGROUND_SOURCE = { file: "packages/client/src/features/app-shell/lib/resolve-theme-background.ts", symbol: "appearanceBackgroundSource" } as const;
@@ -110,9 +132,10 @@ const READING_PARAGRAPH_SPACING_ARMS = [READING_PARAGRAPH_SPACING_NONE, READING_
 const READING_SCALE_ARMS = [READING_SCALE_SMALL, READING_SCALE_LARGE] as const;
 
 /**
- * The 41-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key a type error;
- * the appearance-carrier-contract gate independently reconciles this map with the Zod leaves, editor
- * tuples, and named live consumer declarations so a cast or an uncompiled tooling path cannot hide drift.
+ * The 41-key contract. `satisfies AppearanceCarrierManifest` makes a missing/stale schema key, a row whose
+ * owner does not list its key, an empty carrier list, and a carrier/portal mismatch type errors;
+ * `tests/client/lib/appearance-carrier-manifest.test.ts` reconciles the same map with the Zod leaves,
+ * editor tuples, and named live consumer declarations so a cast cannot hide drift.
  */
 export const APPEARANCE_CARRIER_MANIFEST = {
   chatWidthPct: { owner: "sizing", ...GRID, requiredDistinctArms: CHAT_WIDTH_ARMS },

@@ -19,7 +19,6 @@ import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.
 
 const COHORT = [routes, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
-const COMPANIONS = new Map<GatePolicy, string>([[sections, "placeholder-copy-registry"]]);
 
 beforeEach(async () => {
   const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
@@ -69,15 +68,11 @@ function fixture(root: string, repoRoot: string, policy: GatePolicy): readonly s
   if (policy === sections) {
     write(SECTION_SHADOW, "type SectionDefinition={readonly shadow:true};const local:SectionDefinition={shadow:true};export const marker=local;");
   }
-  const companion = COMPANIONS.get(policy);
-  const modules = companion === undefined ? [policy.id] : [policy.id, companion];
-  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: modules.map((id) => `src/verify/gates/${id}.ts`) }));
-  for (const id of modules) {
-    write(
-      `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
-    );
-  }
+  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: [`src/verify/gates/${policy.id}.ts`] }));
+  write(
+    `tooling/src/verify/gates/${policy.id}.ts`,
+    `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${policy.id}.ts`, import.meta.url).href)};`,
+  );
   execFixtureGit(root, ["init", "-q"]);
   return files;
 }

@@ -100,7 +100,6 @@ function assetHints(distDir: string): string[] {
   return [...hints];
 }
 
-// @orb-waive no-inline-package-interface(SpaDeps): baselined when the gate landed; burn-down item 952.
 export interface SpaDeps {
   /** The built client bundle root (contains index.html); absolute or cwd-relative. */
   readonly distDir: string;

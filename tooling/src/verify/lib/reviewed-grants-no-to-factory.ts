@@ -155,29 +155,4 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     endsWhen:
       "this slot paints a text run, or the thumb stops declaring its own fill; the grounds table then judges it correctly and the row is no longer needed.",
   },
-  {
-    id: "selection-store-via-factory:create-drill-selection-store",
-    policyId: "selection-store-via-factory",
-    subject: "packages/client/src/state/create-drill-selection-store.ts",
-    operation: "raw-gated-store-mint",
-    why: "the drill FACTORY itself composes the raw `createGatedStore` door on purpose — that composition IS the seal every per-section selection store mints through.",
-    endsWhen:
-      "the factory stops composing the door, or moves — either stales this row, where the legacy `/create-` FILENAME pattern would have exempted any future file with that prefix for free.",
-  },
-  {
-    id: "selection-store-via-factory:create-kinded-selection-store",
-    policyId: "selection-store-via-factory",
-    subject: "packages/client/src/state/create-kinded-selection-store.ts",
-    operation: "raw-gated-store-mint",
-    why: "the kinded-selection factory, the same composition one shape over, named as its OWN row so a THIRD factory is judged rather than auto-exempt.",
-    endsWhen: "the kinded factory stops composing the door, or moves.",
-  },
-  {
-    id: "selection-store-via-factory:message-selection-store",
-    policyId: "selection-store-via-factory",
-    subject: "packages/client/src/state/message-selection-store.ts",
-    operation: "raw-gated-store-mint",
-    why: "the ONE `*-selection-store.ts` that is not a single-id drill: message selection is a bulk multi-select (presence in a Set keyed by message id), a shape the drill factory does not model.",
-    endsWhen: "the drill factory models bulk selection and this store migrates onto it.",
-  },
 ];

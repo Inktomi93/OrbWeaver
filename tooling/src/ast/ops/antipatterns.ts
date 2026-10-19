@@ -24,19 +24,11 @@ refuseDirectInvocation(import.meta.url, "pnpm ast antipatterns");
 export const ANTIPATTERN_CLASSES = [
   {
     name: "contract-copy",
-    gates: [
-      "contract-structural-copy",
-      "contract-derives-not-respells",
-      "no-inline-wire-interface",
-      "no-inline-domain-interface",
-      "no-inline-package-interface",
-      "no-inline-types",
-      "test-hand-shape",
-    ],
+    gates: ["contract-structural-copy", "no-inline-wire-interface", "no-inline-types", "test-hand-shape"],
   },
   { name: "copied-logic", gates: ["test-production-clone"] },
   { name: "unparsed-boundary", gates: ["json-column-read-parsed", "wire-json-parsed-at-consumer", "trpc-input-declarations", "zod-output-twin-parity"] },
-  { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl"] },
+  { name: "respelled-constant", gates: ["no-inline-union-redecl"] },
   { name: "cast", gates: ["no-loose-id-cast"] },
   { name: "hand-forged-id", gates: ["no-raw-id", "no-fake-disabled-id"] },
   { name: "impossible-fixture", gates: ["no-opaque-test-fixture", "test-determinism"] },

@@ -24,6 +24,7 @@ import {
   validateAppearancePatch,
 } from "@orb/tooling/floor/appearance/appearance-flags";
 import type { BrowserContext, Route } from "@playwright/test";
+import { APPEARANCE_CARRIER_MANIFEST } from "#client/lib/appearance-carrier-manifest.ts";
 import { installSettingsShim } from "../../../../tooling/src/floor/appearance/appearance.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 
@@ -66,6 +67,14 @@ test("the pre-navigation hint projects only the manifest's first-frame Appearanc
     density: "compact",
   });
   expect(appearanceBootHintPatch({ chatWidthPct: 90 })).toEqual({});
+});
+
+test("the pre-navigation hint projects exactly the manifest's prepaint rows plus density", () => {
+  const projected = Object.keys(APPEARANCE_CARRIER_MANIFEST).filter((key) => Object.keys(appearanceBootHintPatch({ [key]: 1 })).length > 0);
+  const carried = Object.entries(APPEARANCE_CARRIER_MANIFEST)
+    .filter(([key, row]) => row.lifecycle === "prepaint-and-hydrated" || key === "density")
+    .map(([key]) => key);
+  expect(projected.toSorted()).toEqual(carried.toSorted());
 });
 
 test("the batched response element is picked by the procedure's position in the URL path", () => {

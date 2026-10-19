@@ -74,7 +74,6 @@ const destinationFormSchema = z.string().transform((value, ctx) => {
 
 const IMAGE_MIME_PREFIX = "image/";
 
-// @orb-waive no-inline-package-interface(UploadDeps): baselined when the gate landed; burn-down item 952.
 export interface UploadDeps {
   /** Serves the asset-upload `store` and the import avatar-store (`ImportAssetPort`). */
   readonly assets: UploadAssetsPort & ImportAssetPort;

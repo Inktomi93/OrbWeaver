@@ -16,6 +16,51 @@ import {
   vitestLegacyTypecheckGroupName,
   vitestTypecheckGroupName,
 } from "@orb/tooling/floor/testing/test-kinds";
+import { vitestConfig } from "../../../../vitest.config.ts";
+
+interface ProjectShape {
+  readonly test?: { readonly include?: readonly string[]; readonly typecheck?: { readonly include?: readonly string[] } };
+}
+
+/** The three entry points the repo ships: `vitest.config.ts` (full), `vitest.runtime.config.ts` (runtime only, what
+ *  `test:scoped` and the CI node shards run) and `vitest.product.config.ts` (application only). */
+const CONFIG_VARIANTS = [
+  ["vitest.config.ts", vitestConfig()],
+  ["vitest.runtime.config.ts", vitestConfig(true)],
+  ["vitest.product.config.ts", vitestConfig(false, true)],
+] as const;
+
+/** Every positive include glob that selects a suffix Vitest cannot execute. A negated glob only excludes. */
+function playwrightSuffixIncludes(projects: readonly ProjectShape[], suffixes: readonly string[]): string[] {
+  return projects
+    .flatMap(({ test: config }) => [...(config?.include ?? []), ...(config?.typecheck?.include ?? [])])
+    .filter((glob) => !glob.startsWith("!") && suffixes.some((suffix) => glob.includes(suffix)));
+}
+
+const PLAYWRIGHT_SUFFIXES = TEST_KIND_DEFINITIONS.filter(({ family }) => runtimeForTestFamily(family).startsWith("playwright")).map(({ suffix }) => suffix);
+
+test.each(CONFIG_VARIANTS)("no Vitest project include in %s selects a Playwright component or e2e suffix", (_file, config) => {
+  // The two founding suffixes stay a floor so the derived set cannot narrow unnoticed.
+  expect(PLAYWRIGHT_SUFFIXES).toEqual(expect.arrayContaining([".ct.tsx", ".suite.ct.tsx", ".spec.ts"]));
+  const projects = config.test?.projects ?? [];
+  expect(projects.length).toBeGreaterThan(0);
+  // A string path or a factory carries includes this check cannot read; refuse it instead of passing it unseen.
+  expect(projects.filter((project) => typeof project !== "object" || project === null)).toEqual([]);
+  // Every runtime project sets `extends: true`, and Vitest concatenates the root's include arrays into each child,
+  // so a root-level glob reaches every project. The root is judged as one more project.
+  expect(playwrightSuffixIncludes([config, ...(projects as readonly ProjectShape[])], PLAYWRIGHT_SUFFIXES)).toEqual([]);
+});
+
+test("the Playwright-suffix include check rejects a browser glob and keeps node-runner and DOM-subject globs", () => {
+  const withInclude = (...include: string[]): ProjectShape[] => [{ test: { include } }];
+  expect(playwrightSuffixIncludes(withInclude("tests/**/*.ct.tsx"), PLAYWRIGHT_SUFFIXES)).toEqual(["tests/**/*.ct.tsx"]);
+  expect(playwrightSuffixIncludes(withInclude("tests/e2e/**/*.spec.ts"), PLAYWRIGHT_SUFFIXES)).toEqual(["tests/e2e/**/*.spec.ts"]);
+  expect(playwrightSuffixIncludes([{ test: { typecheck: { include: ["tests/**/*.suite.ct.tsx"] } } }], PLAYWRIGHT_SUFFIXES)).toEqual([
+    "tests/**/*.suite.ct.tsx",
+  ]);
+  expect(playwrightSuffixIncludes(withInclude("tests/**/*.test.ts", "tests/**/*.int.test.ts"), PLAYWRIGHT_SUFFIXES)).toEqual([]);
+  expect(playwrightSuffixIncludes(withInclude("tests/**/*.dom.test.ts", "tests/**/*.test-d.ts", "!tests/**/*.ct.tsx"), PLAYWRIGHT_SUFFIXES)).toEqual([]);
+});
 
 test("native timing capability follows registered runtime kinds, not compiler world", () => {
   for (const kind of TEST_KIND_DEFINITIONS) {

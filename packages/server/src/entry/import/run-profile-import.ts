@@ -11,7 +11,6 @@ import type { ImportTagPort } from "#domain/tag";
 import { createImportedCardTag } from "#domain/tag";
 import type { ImportWorldInfoPort } from "#domain/world-info";
 
-// @orb-waive no-inline-package-interface(ProfileImportDeps): baselined when the gate landed; burn-down item 952.
 export interface ProfileImportDeps {
   readonly principal: Principal;
   readonly character: ImportCharacterPort;
@@ -28,7 +27,6 @@ export interface ProfileImportDeps {
 /** What the #1598 RESTORE door needs: the same card-import wiring, plus the ONE card file whose embedded
  *  lorebook the owner is asking to re-assert. `worldInfo` is REQUIRED here (unlike the batch import, whose
  *  card-only arm legitimately skips embedded books) — a restore with no lorebook write op could only refuse. */
-// @orb-waive no-inline-package-interface(CardLorebookRestoreDeps): baselined when the gate landed; burn-down item 952.
 export interface CardLorebookRestoreDeps extends Omit<ProfileImportDeps, "files" | "worldInfo"> {
   readonly worldInfo: ImportWorldInfoPort;
   readonly file: ImportFile;

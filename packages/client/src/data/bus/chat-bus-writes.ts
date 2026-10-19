@@ -1,5 +1,5 @@
 // The two chatStream WRITE call sites outside the reducer itself — both owned here so `#state`'s
-// chatStream import stays inside data/bus/ (gate `chat-stream-writes-in-bus-only`, UI-Gates §11.1).
+// chatStream import stays inside data/bus/ (lint rule `orb/chat-stream-writes-in-bus-only`, UI-Gates §11.1).
 // `useChatBusDeps` assembles the composition root's ChatBusDeps (stream + the central invalidate);
 // `markTurnStopping` is the composer's Stop-button optimistic transition — see chat-stream.ts's
 // "write ownership" note: every chatStream action but markStopping is bus-only, and this wrapper is

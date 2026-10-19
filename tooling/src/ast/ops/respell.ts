@@ -163,7 +163,7 @@ export function cmdRespell(input: SourceCorpus, arg: string, flags: Flags): void
   const hits = domains.flatMap((domain) => respellHitsFor(project, checker, domain));
   narrate(
     flags,
-    `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,
+    `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED in the \`contract-derives-native\` test.)`,
   );
   emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
   if (flags.near !== null) {

@@ -1,7 +1,7 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { PopulationExpr } from "../../../../tooling/src/verify/contract/population.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "../../../../tooling/src/verify/contract/population.ts";
-import { gate as syntaxPolicy } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
+import { gate as syntaxPolicy } from "../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { assertGatePolicyDescriptor } from "../../../../tooling/src/verify/lib/policy-validation.ts";
 import { assertPopulationExpr, compilePopulation, populationIncludes, resolvePopulation } from "../../../../tooling/src/verify/lib/population-resolver.ts";
 

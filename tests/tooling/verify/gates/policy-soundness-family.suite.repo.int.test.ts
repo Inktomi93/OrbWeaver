@@ -65,7 +65,7 @@ const REGISTERS_RE = /^export const gate(?::| =)/mu;
  *  named-import shape measured at landing. It does NOT recognize local/nested type aliases; the independent
  *  paired dispatch control below holds those forms. The live equality deliberately fails on an accusation
  *  outside this narrow opinion so new corpus cases require source classification, not a copied expected count.
- *  The binding LIST is read whole — while `contract-derives-not-respells` still carried an ALLOWLIST its door
+ *  The binding LIST is read whole — while a gate still carried an ALLOWLIST its door
  *  imported the table beside four other names, and a single-binding regex called that module clean while the
  *  arm accused it. That table is now central reviewed grants (#2176 Phase F) and the corpus may hold no such
  *  importer at all, which is why the live equality below is derived from source rather than a pinned count. */

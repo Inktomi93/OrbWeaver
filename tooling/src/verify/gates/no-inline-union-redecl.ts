@@ -3,14 +3,14 @@
 // string-literal SET — a union in a property/return/argument position, or a `z.enum([...])` array — whose
 // members EXACTLY equal a canonical tuple homed somewhere the re-speller can import from. A genuine one-off
 // enum with no canonical tuple (NODE_ENV) is not flagged, which is why arm B is an exact-set match and not a
-// heuristic. Arm A (the inline type ALIAS of ≥3 members) judges each alias alone and lives in
-// `no-inline-union-alias`, which runs over a staged selection; this arm cannot, see `execution` below.
+// heuristic. Arm A (the inline type ALIAS of ≥3 members) judges each alias alone and is the ESLint rule
+// `orb/no-inline-union-alias`; this arm needs the whole tree, see `execution` below.
 // The history below was written when both arms were one policy.
 //
-// ── FAMILY: `union-axis`, reading `lib/union-axis.ts` ────────────────────────────────────────────────────
+// ── SINGLETON FAMILY, reading `lib/union-axis.ts` ────────────────────────────────────────────────────
 // The axis-identity layer (as-const unwrapping through `satisfies`, the `Interface["prop"]` co-declaration
 // resolution, the two member floors, the package-cake reach fence) is in that reader; this module owns the
-// INTENT — what reports, what it says, and where the waiver anchors. `no-inline-union-alias` is the sibling.
+// INTENT — what reports, what it says, and where the waiver anchors. `orb/no-inline-union-alias` is the sibling.
 //
 // ── THE RULED THREE-WAY ARITY WAS AMENDED TO ONE POLICY (#1584 §12.6, orchestrator ruling 2026-09-12) ───
 // §12.6 ruled this module into "ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard
@@ -142,7 +142,7 @@ function reportAnchored(
 
 export const gate = defineGate({
   id: "no-inline-union-redecl",
-  family: "union-axis",
+  family: "no-inline-union-redecl",
   authority: "ordinary",
   severity: "error",
   population: { in: ["@authored"], notUnder: ["tooling/src/verify/gates/**"] },
@@ -284,7 +284,7 @@ export const gate = defineGate({
         "packages/contracts/src/alias-home.ts": "export const ALIAS_AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/alias-respell.ts": "export type Reuse = 'a' | 'b' | 'c';\n",
       },
-      why: "ONE SITE, ONE POLICY: an inline alias whose members ALSO match a homed tuple is `no-inline-union-alias`'s subject and this arm must not claim it as well. Delete `axisRespellCandidate`'s type-alias-parent skip and this row reds, leaving the declaration with two findings and two different waiver markers",
+      why: "ONE SITE, ONE POLICY: an inline alias whose members ALSO match a homed tuple is `orb/no-inline-union-alias`'s subject and this arm must not claim it as well. Delete `axisRespellCandidate`'s type-alias-parent skip and this row reds, leaving the declaration with two findings and two different waiver markers",
     },
     {
       mode: "types",

@@ -4,7 +4,6 @@ export const PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS = 25;
 export const PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS = 500;
 export const PLUGIN_BROKER_STARTUP_TIMEOUT_MS = 10_000;
 
-// @orb-waive no-inline-package-interface(BrokerHeartbeatState): baselined when the gate landed; burn-down item 952.
 export interface BrokerHeartbeatState {
   readonly startedAt: number;
   readonly lastHeartbeatAt?: number;

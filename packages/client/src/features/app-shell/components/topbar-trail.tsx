@@ -68,7 +68,7 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
  * `false` from `useVisible` ⇒ render NOTHING (no gap — preserves the notification bell's no-flash rule).
  *
  * THE MODAL ARM'S PRESENTATION IS THE ⌘K CHIP, and that is a DECLARED LIMIT worth reading before adding a
- * second trail modal: `topbar.trail` is a REPEATABLE placement (modal-registry-completeness §4). The glyph
+ * second trail modal: `topbar.trail` is a REPEATABLE placement (only `mobile-tab` is a singleton). The glyph
  * and the tooltip label come from the entry, but the accessible name and the shortcut hint are the command
  * palette's own. A second `topbar.trail` modal is the moment that copy becomes trigger DATA; it is not data
  * today because it would be a shape with one producer and no second value to carry.

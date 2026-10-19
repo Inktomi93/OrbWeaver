@@ -9,10 +9,7 @@ import { ModuleKind, ModuleResolutionKind, Project, ScriptTarget, SyntaxKind } f
 import { assignabilityChecker, respellHitsFor, shapesUnder } from "../../../../tooling/src/ast/lib/respell-shapes.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as derives } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as copies } from "../../../../tooling/src/verify/gates/contract-structural-copy.ts";
-import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
-import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as handShapes } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
@@ -245,7 +242,7 @@ export interface Divergent { a: string; b: number; meta: { tags: number[] }; }
 test(
   "migrated shape policy consumers retain their catch, near-miss and refusal rows",
   () => {
-    expect(verifyPolicyProofs([copies, derives, handShapes, inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces, zodIssues])).toEqual([]);
+    expect(verifyPolicyProofs([copies, handShapes, inlineTypes, wireInterfaces, zodIssues])).toEqual([]);
   },
   scaledBudget(120_000),
 );

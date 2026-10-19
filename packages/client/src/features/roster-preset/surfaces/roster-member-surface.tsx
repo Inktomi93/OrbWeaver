@@ -85,7 +85,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
   const { presetOf } = useRulePresetCatalogue(true);
   const update = useUpdateRosterPreset({ trpc, invalidation });
   const start = useStartRoster();
-  // Focus lands on the surface wrapper at mount (surface-a11y-focus — the tag-member-surface idiom).
+  // Focus lands on the surface wrapper at mount (orb/surface-a11y-focus — the tag-member-surface idiom).
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   // Draft fields keyed by the loaded row; the mounted editor's Save is the one write affordance.

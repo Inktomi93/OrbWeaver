@@ -38,8 +38,8 @@
 // needed to justify a widening that never happened. Each member header carries the sets and controls.
 // CURRENT 2026-09-21: shipped showcase/default-content packages now belong to `@authored`; the historical
 // showcase narrowing above is closed by classification, and the family remains green on the widened tree.
-// The other two members — `no-effect-on-shared-selection` and `registry-context-via-mint` — each had a real
-// legacy `scanRoot`, so each states its own port in its own header rather than sharing this one.
+// The other member, `no-effect-on-shared-selection`, had a real
+// legacy `scanRoot`, so it states its own port in its own header rather than sharing this one.
 
 import { literalMemberAccess, resolveModuleMemberOrigin, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { ModuleMemberOrigin, ReferenceFact } from "@orb/tooling/floor/code-facts/reference-fact-contract";

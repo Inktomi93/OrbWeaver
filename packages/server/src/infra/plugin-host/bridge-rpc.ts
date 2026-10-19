@@ -10,7 +10,6 @@ import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/proc
 
 type AsyncCall = (operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness) => Promise<unknown>;
 
-// @orb-waive no-inline-package-interface(BridgeTarget): baselined when the gate landed; burn-down item 952.
 /** The app-side objects a broker bridge call may reach: the domain's bridge and the binding's own egress. */
 export interface BridgeTarget {
   readonly bridge: PluginBridge;
@@ -22,7 +21,6 @@ const ARG_SECOND = 1;
 const ARG_THIRD = 2;
 const THREE_ARGUMENTS = 3;
 
-// @orb-waive no-inline-package-interface(BridgeAuthority): baselined when the gate landed; burn-down item 952.
 export interface BridgeAuthority {
   readonly grants: ReadonlySet<PluginCapability>;
   readonly chat: InvocationChat | null;
@@ -490,7 +488,6 @@ export async function dispatchBridgeCall(
   }
 }
 
-// @orb-waive no-inline-package-interface(SyncDispatchContext): baselined when the gate landed; burn-down item 952.
 export interface SyncDispatchContext {
   readonly seams: PluginHostSeamDeps;
   readonly invokeArgs: ReadonlyMap<string, (chatHandle: string | null) => string>;

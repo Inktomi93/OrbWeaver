@@ -16,7 +16,8 @@ const TOOL_SLOT_DIRS: ReadonlySet<string> = new Set(["contract", "ops", "lib"]);
 // The row is keyed per tool: a second stray directory under any tool, including verify, is still a violation.
 const CORPUS_SLOTS: Readonly<Record<string, string>> = { verify: "gates" };
 
-type Rule = "loose-file" | "no-index" | "no-cli" | "not-a-slot" | "stray-root-file" | "loose-floor-module" | "nested-floor-folder" | "stale-corpus-row";
+const RULES = ["loose-file", "no-index", "no-cli", "not-a-slot", "stray-root-file", "loose-floor-module", "nested-floor-folder", "stale-corpus-row"] as const;
+type Rule = (typeof RULES)[number];
 
 interface Violation {
   readonly rule: Rule;

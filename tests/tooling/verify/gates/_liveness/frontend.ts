@@ -17,14 +17,10 @@ import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/ga
 import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
-import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
-import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
 import { gate as seedThemeInkContrast } from "../../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 import { gate as spacingTierHomeHealth } from "../../../../../tooling/src/verify/gates/spacing-tier-home-health.ts";
-import { gate as subFloorDisclosure } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure.ts";
-import { gate as themeOverrideOnlyViaScope } from "../../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { gate as typographyTierHomeHealth } from "../../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
 
 const FEATURE = "packages/client/src/features/chat/components";
@@ -79,16 +75,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "A line box off the integer-px grid",
   },
   {
-    policy: noOffTokenInlineStyle,
-    overlays: [add(`${FEATURE}/liveness-inline-style.tsx`, 'export const G = <div style={{ borderRadius: "8px" }} />;\n')],
-    messageIncludes: "off-token raw-literal inline style",
-  },
-  {
-    policy: noTailwindDarkVariant,
-    overlays: [add("packages/ui/src/liveness-dark.tsx", 'const CARD = "dark:bg-card";\nexport const G = <div className={CARD} />;\n')],
-    messageIncludes: "dark: utility",
-  },
-  {
     policy: recededInkIntegrity,
     overlays: [
       add(
@@ -114,16 +100,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     // A sanctioned home that resolves to no file: the markdown tier home leaves the corpus.
     overlays: [{ kind: "remove", path: MARKDOWN_HOME }],
     messageIncludes: `"${MARKDOWN_HOME}" resolves to no file`,
-  },
-  {
-    policy: subFloorDisclosure,
-    overlays: [add(`${FEATURE}/liveness-disclosure.tsx`, 'export const G = <CollapsibleTrigger size="text">Advanced</CollapsibleTrigger>;\n')],
-    messageIncludes: "CollapsibleTrigger",
-  },
-  {
-    policy: themeOverrideOnlyViaScope,
-    overlays: [add(`${FEATURE}/liveness-theme-override.tsx`, "export const A = () => <div style={{ '--color-primary': 'red' }} />;\n")],
-    messageIncludes: "`--color-*` design token",
   },
   {
     policy: typographyTierHomeHealth,

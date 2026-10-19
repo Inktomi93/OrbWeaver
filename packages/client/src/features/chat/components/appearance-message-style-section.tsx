@@ -12,7 +12,7 @@
 // patches commute — SET-SEAMS §2.2.)
 //
 // Homed in components/ (NOT surfaces/): a FRAGMENT mounted inside the appearance pane, which owns
-// containment + focus (the world-info/library section precedent; the feature layout test + surface-a11y-focus do
+// containment + focus (the world-info/library section precedent; the feature layout test + orb/surface-a11y-focus do
 // not apply).
 
 import type { AppearanceSettings } from "@orb/contracts/settings";

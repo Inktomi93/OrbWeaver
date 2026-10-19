@@ -13,8 +13,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as agentBridgeLock } from "../../../../../tooling/src/verify/gates/agent-bridge-lock.ts";
-import { gate as appearanceCarrierContract } from "../../../../../tooling/src/verify/gates/appearance-carrier-contract.ts";
-import { gate as appearanceCarrierHealth } from "../../../../../tooling/src/verify/gates/appearance-carrier-health.ts";
 import { gate as assetsSingleWriter } from "../../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as boundedListLimit } from "../../../../../tooling/src/verify/gates/bounded-list-limit.ts";
 
@@ -30,13 +28,10 @@ import { gate as cssLengthTokensGrants } from "../../../../../tooling/src/verify
 import { gate as cssLengthTokensHealth } from "../../../../../tooling/src/verify/gates/css-length-tokens-health.ts";
 import { gate as cssVarDefined } from "../../../../../tooling/src/verify/gates/css-var-defined.ts";
 import { gate as cssVarDefinedGrants } from "../../../../../tooling/src/verify/gates/css-var-defined-grants.ts";
-import { gate as designAuditRuleProof } from "../../../../../tooling/src/verify/gates/design-audit-rule-proof.ts";
 import { gate as domainFreshnessPlane } from "../../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
 import { gate as jsonColumnWriteParity } from "../../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as knobWireCoverage } from "../../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
-import { gate as messageKindPolicyCoverage } from "../../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 
-const MANIFEST = "packages/client/src/lib/appearance-carrier-manifest.ts";
 const CONTRACTS = "packages/contracts/src";
 const DOMAIN = "packages/server/src/domain/character";
 const SHELL_SHEET = "packages/client/src/features/app-shell/surfaces/shell.css";
@@ -62,22 +57,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: agentBridgeLock,
     overlays: [add("packages/client/src/lib/liveness-rogue.ts", 'window["__orb"] = globalThis.__orb;\n')],
     messageIncludes: "outside the sanctioned bridge door",
-  },
-  {
-    policy: appearanceCarrierContract,
-    // The manifest keeps one key and declares no carrier for it.
-    overlays: [
-      neutralise(
-        MANIFEST,
-        'export const APPEARANCE_OWNER_KEYS = { sizing: ["width"] };\nexport const APPEARANCE_CARRIER_MANIFEST = { width: { owner: "sizing", carriers: [] } };\n',
-      ),
-    ],
-    messageIncludes: "has no executable carrier declaration",
-  },
-  {
-    policy: appearanceCarrierHealth,
-    overlays: [neutralise(MANIFEST, "export const APPEARANCE_OWNER_KEYS = { sizing: [] };\nexport const APPEARANCE_CARRIER_MANIFEST = {};\n")],
-    messageIncludes: "schema↔manifest",
   },
   {
     policy: assetsSingleWriter,
@@ -198,17 +177,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "no statically proved value source",
   },
   {
-    policy: designAuditRuleProof,
-    // The registry loses every rule the real proofs bind.
-    overlays: [
-      neutralise(
-        "tooling/src/ui-audit/contract/rules.ts",
-        'export const DESIGN_AUDIT_RULES = [{ id: "liveness-rule", family: "decor", severity: ["P3"] }] as const;\n',
-      ),
-    ],
-    messageIncludes: "stale design-audit proof id not present in the registry",
-  },
-  {
     policy: domainFreshnessPlane,
     overlays: [
       add(
@@ -233,17 +201,5 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       edit(`${CONTRACTS}/settings/index.ts`, "export interface EffectiveAppConfig {\n", "export interface EffectiveAppConfig {\n  livenessGhost: number;\n"),
     ],
     messageIncludes: "livenessGhost",
-  },
-  {
-    policy: messageKindPolicyCoverage,
-    // An axis on the real MessageKindPolicy that no production code reads.
-    overlays: [
-      edit(
-        `${CONTRACTS}/chat/participants.ts`,
-        "export interface MessageKindPolicy {\n",
-        'export interface MessageKindPolicy {\n  readonly livenessAxis: "a" | "b";\n',
-      ),
-    ],
-    messageIncludes: "livenessAxis",
   },
 ];

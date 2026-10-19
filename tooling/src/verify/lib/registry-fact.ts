@@ -198,7 +198,7 @@ function sameDeclaration(left: RegistryTypeDeclaration, right: RegistryTypeDecla
  *  WHAT COUNTS AS UNRESOLVED: only the registry TYPE. An identified definition whose authored object the
  *  value reader cannot follow (a builder call, a mutated local) is RESOLVED DATA, not a missing subject —
  *  it arrives as an `unresolved` ReferenceFact on `object`, and every consumer judges that fail-closed and
- *  REPORTS it (`modal-registry-completeness` "Unreadable definition"). Scoring it as a receipt `unresolved`
+ *  REPORTS it as an unreadable definition. Scoring it as a receipt `unresolved`
  *  made the provider refuse over exactly the population the policy was built to accuse, so the fail-closed
  *  arms could never fire (three `mustFlag` rows, #1953). Every consumer's own receipt already declares this
  *  same census — `members: <view>.definitions.length, unresolved: 0`. */

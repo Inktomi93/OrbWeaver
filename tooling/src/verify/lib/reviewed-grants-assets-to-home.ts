@@ -1,4 +1,4 @@
-// Reviewed grants: assets-single-writer, biome-grant-liveness, bound-field-via-hook....
+// Reviewed grants: assets-single-writer, biome-grant-liveness, content-part-seam....
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
@@ -81,24 +81,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     operation: "asset-write-site",
     why: "This assets-domain module is an audited CAS-coherence writer or storeBlob caller in the D21 single-writer boundary.",
     endsWhen: "the module stops writing assets or calling storeBlob, or the CAS boundary moves to a different exact module.",
-  },
-  {
-    id: "bound-field-via-hook:use-bound-field",
-    policyId: "bound-field-via-hook",
-    subject: "packages/client/src/forms/editor/bound-fields/use-bound-field.ts",
-    operation: "raw-field-context-read",
-    why: "`useBoundField` IS the one home for the bound-field wiring: it reads the raw form context once, normalizes the touch-gated error, and assembles the `<Field>` prop bundle every bound field then shares. The seal cannot be built without the read it seals.",
-    endsWhen:
-      "the bound-field bundle is assembled from something other than the raw `useFieldContext` — at which point this file stops making the read and the row goes stale on its own.",
-  },
-  {
-    id: "chat-stream-writes-in-bus-only:chat-bus-writes",
-    policyId: "chat-stream-writes-in-bus-only",
-    subject: "packages/client/src/data/bus/chat-bus-writes.ts",
-    operation: "chat-stream-write-handle",
-    why: "this file IS the bus applier (UI-Gates-and-Lessons.md §11.1): `applyChatBusEvent` turns bus events into turn-slot writes, so it is the one writer the rule exists to make singular.",
-    endsWhen:
-      "turn slots are written by the stream store itself rather than applied from bus events, or the applier moves — either way this row stops being consumed.",
   },
   // THE THREE BOUNDED DIRECT-SKIN RECIPES (#2181, #1584). They replace `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`
   // — three hand-spelled COUNTS in `lib/css-family-census.ts` that §12.5 bans and that the §5b audit measured

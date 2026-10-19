@@ -1,4 +1,4 @@
-// Closed vocabulary for every verdict ui-audit can emit. The proof gate reads this table directly;
+// Closed vocabulary for every verdict ui-audit can emit. The proof coverage test reads this table directly;
 // behavior code derives Finding.rule from it, so a detector cannot mint an unproved rule id.
 
 export const DESIGN_AUDIT_SEVERITIES = ["P0", "P1", "P2", "P3"] as const;

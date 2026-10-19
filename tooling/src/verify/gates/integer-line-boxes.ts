@@ -266,7 +266,7 @@ function consumesBracket(state: ParseState, char: string): boolean {
 }
 
 /** The BASE utility of one class token: variant prefixes stripped at top-level colons only (colons inside
- *  arbitrary selectors/functions are data — the no-tailwind-dark-variant splitter shape), `!` trimmed. */
+ *  arbitrary selectors/functions are data — the Tailwind variant-splitter shape), `!` trimmed. */
 function baseUtility(token: string): string {
   const state: ParseState = { stack: [], quote: "", escaped: false };
   let start = 0;

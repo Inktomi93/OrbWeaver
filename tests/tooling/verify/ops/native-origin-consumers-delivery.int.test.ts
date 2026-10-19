@@ -6,11 +6,7 @@ import { ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { beforeEach, vi } from "vitest";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as bound } from "../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
-import { gate as stream } from "../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
 import { gate as query } from "../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as assembly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
-import { gate as selection } from "../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
 import { gate as artifacts } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { gate as browser } from "../../../../tooling/src/verify/gates/tooling-browser-door.ts";
 import { gate as child } from "../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
@@ -31,7 +27,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [projectDoor, browser, selection, query];
+const POLICIES = [projectDoor, browser, query];
 const NODE = "tests/tooling/native/node.test.ts";
 const BROWSER = "tests/tooling/native/browser.dom.test.ts";
 const STORE = "packages/client/src/state/x-selection-store.ts";
@@ -189,7 +185,6 @@ test(
         [
           { id: projectDoor.id, sites: [{ file: LOADER, token: "new Loader" }] },
           { id: browser.id, sites: [{ file: LOADER, token: "engine.launch" }] },
-          { id: selection.id, sites: [] },
           { id: query.id, sites: [{ file: READS, token: "chat.stale" }] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
@@ -203,13 +198,13 @@ test(
 test(
   "migrated origin and query policies retain every declared verdict and authority witness",
   () => {
-    expect(verifyPolicyProofs([...POLICIES, bound, stream, assembly, child, artifacts])).toEqual([]);
+    expect(verifyPolicyProofs([...POLICIES, child, artifacts])).toEqual([]);
   },
   scaledBudget(180_000),
 );
 
 test(
-  "native home consumers preserve separate receipts, canonical cross-world identities and grant operations with poisoned syntax",
+  "native home consumers preserve separate receipts and grant operations with poisoned syntax",
   ({ scratch, repoRoot }) => {
     const { write, compilerOptions } = fixture(scratch, repoRoot);
     const runner = "tooling/src/floor/cli/run-tool.ts";
@@ -218,13 +213,6 @@ test(
     const artifact = "tooling/src/floor/artifacts/artifact-out.ts";
     const cliSource = "tooling/src/example/cli.ts";
     const opsSource = "tooling/src/example/ops/guarded.ts";
-    const fieldHome = "packages/client/src/forms/editor/contexts.ts";
-    const field = "packages/client/src/forms/editor/bound-fields/x-field.ts";
-    const streamHome = "packages/client/src/state/chat-stream.ts";
-    const nodeHandle = "packages/server/src/domain/chat/handle.ts";
-    const browserHandle = "packages/client/src/data/handle.ts";
-    const registry = "packages/client/src/lib/registry.ts";
-    const assemblySource = "packages/client/src/features/x/assembly.ts";
     write(runner, "export function runTool(run:()=>void):void{run();}\n");
     write(guard, "export function refuseDirectInvocation():void{}\n");
     write(proc, "export function spawnFullPrioritySync():void{}\nexport function spawnFullPriorityChild():void{}\n");
@@ -240,37 +228,6 @@ test(
       opsSource,
       'import {refuseDirectInvocation as guard} from "../../floor/cli/entrypoint.ts";\nimport {spawnFullPriorityChild as spawn} from "../../floor/process/proc.ts";\nimport {artifactFile as file} from "../../floor/artifacts/artifact-out.ts";\nguard();\nspawn();\nfile();\n',
     );
-    write(fieldHome, "export function useFieldContext():number{return 1;}\n");
-    write(field, 'import {useFieldContext} from "../contexts.ts";\nexport const value=useFieldContext();\n');
-    write(streamHome, "export const chatStream={push():void{}};\n");
-    write("foreign-stream.ts", "export const chatStream={push():void{}};\n");
-    write(nodeHandle, 'import {chatStream as handle} from "#stream";\nexport const value=handle;\n');
-    write(browserHandle, 'import {chatStream as handle} from "#stream";\nexport const value=handle;\n');
-    write(registry, "export function createRegistry():void{}\nexport function createContributorRegistry():void{}\n");
-    write(assemblySource, 'import {createRegistry as assemble} from "../../lib/registry.ts";\nassemble();\n');
-    write(
-      "package.json",
-      JSON.stringify({
-        name: "native-origin-fixture",
-        type: "module",
-        imports: {
-          "#fixture": { browser: "./browser-door.ts", default: "./node-door.ts" },
-          "#mint": { browser: "./foreign.ts", default: `./${HOME}` },
-          "#stream": { browser: "./foreign-stream.ts", default: `./${streamHome}` },
-        },
-      }),
-    );
-    write(
-      "tsconfig.json",
-      JSON.stringify({ compilerOptions, files: [NODE, "node-door.ts", "browser-door.ts", "foreign.ts", "foreign-stream.ts", nodeHandle] }),
-    );
-    write(
-      "tsconfig.tests-dom.json",
-      JSON.stringify({
-        compilerOptions: { ...compilerOptions, customConditions: ["browser"] },
-        files: [BROWSER, STORE, HOME, SEAM, SIBLING, READS, fieldHome, field, streamHome, browserHandle, registry, assemblySource],
-      }),
-    );
     write(
       "tooling/tsconfig.json",
       JSON.stringify({
@@ -284,7 +241,7 @@ test(
     );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const policies = [bound, stream, assembly, child, artifacts];
+    const policies = [child, artifacts];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -301,9 +258,6 @@ test(
       result.policies.map(({ id, findings }) => ({ id, sites: findings.map(({ file, token, operation }) => ({ file, token, operation: operation ?? null })) })),
     ).toEqual(
       [
-        { id: bound.id, sites: [{ file: field, token: "useFieldContext", operation: "raw-field-context-read" }] },
-        { id: stream.id, sites: [{ file: nodeHandle, token: "chatStream", operation: "chat-stream-write-handle" }] },
-        { id: assembly.id, sites: [{ file: assemblySource, token: "assemble", operation: null }] },
         { id: child.id, sites: [{ file: opsSource, token: "spawn", operation: "full-priority-spawn" }] },
         { id: artifacts.id, sites: [] },
       ].toSorted((left, right) => left.id.localeCompare(right.id)),

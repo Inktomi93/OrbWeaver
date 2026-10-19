@@ -9,16 +9,12 @@
 // and never in this file for the real structure run to find.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as chatStreamWritesInBusOnly } from "../../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
 import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
-
-import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 
-const CHAT = "packages/client/src/features/chat";
 const CHARACTER_PERSISTENCE = "packages/server/src/domain/character/persistence";
 // The text token, assembled so it does not appear whole in this file.
 const BLANKET_SUPPRESSION = ["biome", "-ignore-all"].join("");
@@ -28,13 +24,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: chatStreamWritesInBusOnly,
-    overlays: [
-      add(`${CHAT}/components/liveness-turn.tsx`, 'import { chatStream } from "../../../state/chat-stream.ts";\nexport const livenessPush = chatStream;\n'),
-    ],
-    messageIncludes: "outside data/bus/",
-  },
   {
     policy: noAwaitDbInLoop,
     overlays: [
@@ -56,11 +45,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: BLANKET_SUPPRESSION,
   },
 
-  {
-    policy: noInlineUnionAlias,
-    overlays: [add("packages/contracts/src/liveness-mode.ts", "export type LivenessMode = 'a' | 'b' | 'c';\n")],
-    messageIncludes: "TYPE ALIAS",
-  },
   {
     policy: noInlineUnionRedecl,
     overlays: [

@@ -29,8 +29,8 @@
 //
 // BOOT PATH: the app replays fontScale/reducedMotion before createRoot and seeds density into React's first
 // ThemeScope commit from `orb:appearance-boot`. Intercepting the query alone would therefore measure a
-// stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation; the
-// appearance-carrier-contract gate keeps this copied browser boundary set-equal to the live manifest.
+// stale first frame. `installSettingsShim` seeds exactly those carried axes before navigation;
+// `appearance.test.ts` keeps this copied browser boundary set-equal to the live manifest.
 import type { BrowserContext, Route } from "@playwright/test";
 import { isPlainObject } from "../browser/page-validate.ts";
 import { warn } from "../cli/log.ts";

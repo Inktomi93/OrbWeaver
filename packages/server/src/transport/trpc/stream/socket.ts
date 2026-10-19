@@ -80,7 +80,6 @@ function roomFailure(err: unknown): { readonly code: StreamErrorCode; readonly m
   return code === undefined ? { code: "INTERNAL_SERVER_ERROR", message: ROOM_FAULT_MESSAGE } : { code, message: mapped.message };
 }
 
-// @orb-waive no-inline-package-interface(RunSocketArgs): baselined when the gate landed; burn-down item 952.
 export interface RunSocketArgs {
   readonly liveBuses: LiveBuses;
   readonly registry: SocketRegistry;

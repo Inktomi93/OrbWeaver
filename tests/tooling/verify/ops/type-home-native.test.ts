@@ -9,8 +9,6 @@ import {
 import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
-import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
-import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -192,7 +190,7 @@ test("the existing custom placement owners do not duplicate the pilot's native a
   ]) {
     project.createSourceFile(`${root}/${path}`, path === file ? source : "export const anchor = 1;");
   }
-  const policies = [inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces];
+  const policies = [inlineTypes, wireInterfaces];
   const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
@@ -218,7 +216,7 @@ test("inference native placement owns every authored plane while generated decla
     project.createSourceFile(`${root}/${path}`, source);
     expect(await nativeFindings(eslint, path, source, [["node_modules/zod/index.d.ts", ZOD_OBJECT]]), path).toHaveLength(count);
   }
-  const policies = [inlineTypes, packageInterfaces];
+  const policies = [inlineTypes];
   const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
   const tokens = result.authority.effectiveFindings.map(({ token }) => {
@@ -227,7 +225,7 @@ test("inference native placement owns every authored plane while generated decla
     }
     return token;
   });
-  expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["Generated", "GeneratedAlias"]);
+  expect(tokens.toSorted((left, right) => left.localeCompare(right))).toEqual(["GeneratedAlias"]);
 });
 
 test("server domains and D324 tiers own direct and listed exports without admitting neighboring packages", async ({ repoRoot }) => {
@@ -323,11 +321,11 @@ test("server native placement owns listed and schema planes while preserving gen
       expect(await nativeFindings(eslint, path, source, [["node_modules/zod/index.d.ts", ZOD_OBJECT]]), path).toHaveLength(count);
     }
   }
-  const policies = [inlineTypes, domainInterfaces, packageInterfaces];
+  const policies = [inlineTypes];
   const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);
   expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
-    roots.flatMap(() => ["Generated", "GeneratedAlias"]).toSorted((left, right) => left.localeCompare(right)),
+    roots.flatMap(() => ["GeneratedAlias"]).toSorted((left, right) => left.localeCompare(right)),
   );
 });

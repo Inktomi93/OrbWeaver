@@ -68,7 +68,6 @@ const OWNER_ONLY_DIR = 0o700;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 const TRAILING_SLASH = /\/$/;
-// @orb-waive no-inline-package-interface(ImportTreeDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly persona: Pick<PersonaService, "reviewImport">;

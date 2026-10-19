@@ -13,17 +13,13 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
 import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
-import { gate as modalBodyNotPlaceholder } from "../../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
-import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
-import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
@@ -74,28 +70,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "O5 strict",
   },
   {
-    policy: modalBodyNotPlaceholder,
-    // A co-located modal whose function body renders the placeholder — the DECLARED-PLANNED arm is the only
-    // legal unbuilt modal.
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-modal.tsx`,
-        'import type { ModalDefinition } from "#state";\nimport { SectionPlaceholder } from "../../app-shell/components/section-placeholder.tsx";\nexport const livenessModal: ModalDefinition = { id: "liveness", body: () => <SectionPlaceholder /> };\n',
-      ),
-    ],
-    messageIncludes: "Placeholder body",
-  },
-  {
-    policy: modalRegistryCompleteness,
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-not-a-modal-file.ts`,
-        'import type { ModalDefinition } from "#state";\nexport const livenessModal: ModalDefinition = { id: "liveness-stray-modal", body: { planned: "liveness" } };\n',
-      ),
-    ],
-    messageIncludes: "Not co-located",
-  },
-  {
     policy: noFakeDisabledId,
     // The empty-string branded id, minted through the real kit door the client already uses.
     overlays: [add(`${CHAT_LIB}/liveness-fake-id.ts`, 'import { castId } from "@orb/kit/ids";\nexport const disabled = castId("");\n')],
@@ -116,17 +90,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: persistenceBoundary,
     overlays: [add(`${CHAT_LIB}/liveness-storage.ts`, 'export const read = (): string | null => localStorage.getItem("k");\n')],
     messageIncludes: "outside the persistence doors",
-  },
-  {
-    policy: placeholderCopyRegistry,
-    // A co-located section repeating the real `chats` section's placeholder copy word for word.
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-section.tsx`,
-        'import type { SectionDefinition } from "#state";\nexport const livenessSection: SectionDefinition = { id: "liveness", placeholder: { title: "Chats", description: "Your conversations live here — pick a thread from your chats, or start a new one." } };\n',
-      ),
-    ],
-    messageIncludes: "Duplicate copy",
   },
   {
     policy: queryBoundaryReservationHealth,
@@ -152,16 +115,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "zero reachable invalidation rows",
-  },
-  {
-    policy: registryContextViaMint,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-registry-context.ts",
-        'import { createContext } from "react";\nimport type { Registry } from "#lib";\nexport const C = createContext<Registry<string, number> | null>(null);\n',
-      ),
-    ],
-    messageIncludes: "createRegistryContext",
   },
   {
     policy: renderErrorViaBattery,

@@ -37,7 +37,7 @@ updated: 2026-10-17
 | a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context in this case (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
 | a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by your feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a body that stamps an independently minted anchor | G4 + tsc |
 | a tab on the chat context panel from ANOTHER feature | a `ContextTabDef` contributor with a `when` predicate, registered in `main.tsx` (§6c) | importing `#features/chat`; editing the chat panel | G8 + `client-features-no-cross` |
-| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in a shell-owned modal-slot map + a route override; a parallel modal trigger map | `modal-registry-completeness` + G2 |
+| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in a shell-owned modal-slot map + a route override; a parallel modal trigger map | `orb/modal-definition-home` + G2 |
 | an entity list row | `@orb/ui/list-row` or `#components` `LibraryRow` | a hand-rolled interactive row | G6 |
 | a browse/list over a PAGINATED collection | `createCollectionSurface` | hand-wired `useInfiniteQuery` + list | G9 (seal) |
 | a small bounded list (one-shot fetch) | `useSuspenseQuery` + `LibrarySurfaceShell`/`LibraryListLayout` | `createCollectionSurface` ceremony; a bespoke shell | R1 |
@@ -53,7 +53,7 @@ updated: 2026-10-17
 | observing production readiness and dev tooling state | `lib/app-ready-signal.ts` for the lean production signal; `lib/agent-bridge.ts` for the DEV-only observer surface | importing the dev instrumentation graph from production or importing features to introspect them | §12 row 11 |
 | styling ANYTHING | follow §4's paint law: token value → `tv()` skin → primitive layout; a shell-frame mechanism is the bounded exception, so STOP and flag it for shell-tier ownership | raw values; a new `.css` file; `className` on a `<div>` | ESLint keystone + token gates + G14 |
 | a shared domain-aware composite (2+ features need it) | `components/` (tier 2) | copy-paste per feature; stuffing it into `@orb/ui` | R2 + `ui-cake` |
-| a new client store | one of the 3 doors (`createGatedStore`/`createPersistedStore`/`createEntityDraftStore`) in `state/` | bare zustand `create()`; fields on an existing store past the cap | `state-files` + persist gates (LIVE) |
+| a new client store | one of the 3 doors (`createGatedStore`/`createPersistedStore`/`createEntityDraftStore`) in `state/` | bare zustand `create()`; fields on an existing store past the cap | `orb/state-files` + persist gates (LIVE) |
 
 ## 3. The five-tier reuse ladder (the canonical client layering)
 
@@ -177,8 +177,8 @@ the cascade contract and requires an explicit law change.
 derives `color-scheme` from the palette's measured black-vs-white contrast through `surfacePolarity`, so
 custom themes and native controls resolve the same polarity without enumerating theme names. A `dark:`
 variant keyed to named `[data-theme]` values cannot see a custom theme's derived polarity and is therefore a
-defect, not a second supported path. Native ESLint rejects direct JSX class strings starting with `dark:`.
-`no-tailwind-dark-variant` judges the remaining variant chains, imported values and composer provenance through the shared static-class substrate.
+defect, not a second supported path. Native ESLint (`orb/no-tailwind-dark-variant`) rejects any authored string in `@ui` or `@client` that spells
+a top-level `dark:` variant, so a class list is caught where it is written.
 
 ### 4.7 Enforcement
 
@@ -300,7 +300,7 @@ them:
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
 7. **Mobile fate** — `RailEntry.mobile` is required by the `state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a G2 parallel map forming.
-9. **Placeholder copy** — `placeholder-copy-registry` requires a distinct (title, description) per section.
+9. **Placeholder copy** — the real-registry test requires a distinct (title, description) per section.
 10. **The rail prose** — `UI-Architecture-and-Layout.md` §4.1's section list.
 
 A membership change that moves a surface between the rail and Settings does this surgery twice: once here, once on the `CONFIG_GROUP_IDS` twin.
@@ -372,10 +372,10 @@ the feature-provided `railFoot`, which owns the account trigger itself. (b) `bod
 declared-planned case `(() => ReactElement) | { planned: string }`, mirroring `SectionDefinition`.
 Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.
 
-`modal-registry-completeness` mirrors G1: co-location, uniqueness, planned-case honesty, the
-singleton-placement case (one modal per `avatar`/`topbar-command`/`mobile-tab`), and the anti-god-map case.
-`modal-body-not-placeholder` reds a function-case `body` rendering a placeholder component instead of
-`{planned}`. G2's ModalSlotId case (§16) keeps a parallel modal map from re-forming.
+`orb/modal-definition-home` and `orb/modal-definition-literal` mirror G1's co-location;
+`tests/client/compose/authed-composition.dom.test.ts` holds uniqueness, planned-case honesty, the one `mobile-tab`
+placement and surface reachability; `orb/modal-route-registry-map` is the anti-god-map case.
+`orb/modal-body-not-placeholder` reds a modal home importing `SectionPlaceholder`. G2's ModalSlotId case (§16) keeps a parallel modal map from re-forming.
 
 ## 7. The composition root — `main.tsx` (the registration door) + thin routes
 

@@ -210,11 +210,10 @@ and curve stay on the element's own classes. Two sites, and they are the whole e
 
 Anything else that reaches for JS to move pixels is a defect, not a third member: read those
 two files before writing a third, and if the delta can be spelled in CSS, the answer is the
-shell's shape. This list is enforced, not prose-only: the `no-unruled-flip-inversion` policy reds
-a transform write flushed by a forced layout read anywhere in `@ui`/`@client`, and the one member
-that writes a transform is an exact row in
-`tooling/src/verify/lib/reviewed-grants-no-unruled-flip-inversion.ts`. Amend this list and that
-table together, in one edit. Reduced motion needs no special case in either — the globals.css
+shell's shape. This list is enforced, not prose-only: the native `orb/no-unruled-flip-inversion` lint
+rule reds a transform write flushed by a forced layout read anywhere in `@ui`/`@client`, and the one
+member that writes a transform is that rule's `homes` entry in `eslint.config.js`, which allows exactly one pair in its file and reports itself stale at none. Amend this list and
+that entry together, in one edit. Reduced motion needs no special case in either — the globals.css
 floor (`transition-property: none !important`) makes the inverse land instead of animate.
 
 ## 2. Motion taxonomy + where-to-place-it playbook

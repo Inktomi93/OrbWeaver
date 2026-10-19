@@ -5,7 +5,7 @@
 // label, the `aria-describedby` wiring and the label-adjacent `HintTrigger` slot (#927) — and the two are
 // separated by the call site's `form.AppField` render prop, which is the section author's code and must
 // not have to thread prose it does not own. So the row PUBLISHES and `useBoundField` (the ONE home for the
-// `<Field>` prop bundle, sealed by the `bound-field-via-hook` gate) CONSUMES. Exactly one bound field per
+// `<Field>` prop bundle, sealed by the `orb/bound-field-via-hook` gate) CONSUMES. Exactly one bound field per
 // row may consume it, which is why `SettingRow` re-provides `null` around any secondary content it hosts.
 //
 // HOMED IN `#state`, not `#components`: `forms/` may reach `state/` and `lib/` and nothing else

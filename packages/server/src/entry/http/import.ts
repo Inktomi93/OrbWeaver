@@ -35,7 +35,6 @@ const BUNDLE_ROUTE = "/api/import/bundle";
 /** Staging dirs are per-uploader, so they are created rwx for the app user only. */
 const OWNER_ONLY_DIR = 0o700;
 
-// @orb-waive no-inline-package-interface(ImportBundleDeps): baselined when the gate landed; burn-down item 952.
 export interface ImportBundleDeps {
   readonly workloads: Pick<WorkloadService, "start">;
   readonly stagingDir?: string;

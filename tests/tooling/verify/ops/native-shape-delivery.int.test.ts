@@ -33,17 +33,10 @@ test(
     write("packages/contracts/tsconfig.json", JSON.stringify({ compilerOptions: node, files: ["src/row.ts"] }));
     write("packages/server/tsconfig.json", JSON.stringify({ compilerOptions: node, files: ["src/domain/chat/copy.ts"] }));
     write("tsconfig.tests-dom.json", JSON.stringify({ compilerOptions: { ...common, lib: ["es2022", "dom"], types: [] }, files: [contract, candidate] }));
-    write(
-      "tooling/tsconfig.json",
-      JSON.stringify({ compilerOptions: node, files: ["src/verify/gates/contract-structural-copy.ts", "src/verify/gates/contract-derives-not-respells.ts"] }),
-    );
+    write("tooling/tsconfig.json", JSON.stringify({ compilerOptions: node, files: ["src/verify/gates/contract-structural-copy.ts"] }));
     write(
       "tooling/src/verify/gates/contract-structural-copy.ts",
       `export {gate} from ${JSON.stringify(new URL("../../../../tooling/src/verify/gates/contract-structural-copy.ts", import.meta.url).href)};`,
-    );
-    write(
-      "tooling/src/verify/gates/contract-derives-not-respells.ts",
-      `export {gate} from ${JSON.stringify(new URL("../../../../tooling/src/verify/gates/contract-derives-not-respells.ts", import.meta.url).href)};`,
     );
     execFixtureGit(scratch, ["init", "-q"]);
     expect(await nativeVerifyFixture(scratch, "structure", ["--check=contract-structural-copy"], { forbidSyntax: true })).toBe(2);

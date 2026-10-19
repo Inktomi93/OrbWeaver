@@ -6,9 +6,12 @@ import type { UserCredentialId } from "@orb/kit/ids";
 const FORBIDDEN_WORDS = ["secret", "token", "apikey", "password", "credential", "key"] as const;
 type ForbiddenWord = (typeof FORBIDDEN_WORDS)[number];
 type Scalar = string | number | boolean | bigint | symbol | null | undefined | void;
-type EconomicsField = "tokensIn" | "tokensOut" | "cacheReadTokens" | "cacheWriteTokens";
-type ViewEvent = "messageCommitted" | "messageEdited" | "messageHidden" | "variantSelected" | "reasoningEdited" | "reasoningCleared";
-type MaintenanceKind = "assets-backfill" | "assets-gc" | "import-st";
+const ECONOMICS_FIELDS = ["tokensIn", "tokensOut", "cacheReadTokens", "cacheWriteTokens"] as const;
+const VIEW_EVENTS = ["messageCommitted", "messageEdited", "messageHidden", "variantSelected", "reasoningEdited", "reasoningCleared"] as const;
+const MAINTENANCE_KINDS = ["assets-backfill", "assets-gc", "import-st"] as const;
+export type EconomicsField = (typeof ECONOMICS_FIELDS)[number];
+type ViewEvent = (typeof VIEW_EVENTS)[number];
+type MaintenanceKind = (typeof MAINTENANCE_KINDS)[number];
 type FieldPath<P extends string, K extends string | number> = P extends "" ? `${K}` : `${P}.${K}`;
 
 // Empty objects inhabit index key spaces; Required distinguishes optional finite properties.
