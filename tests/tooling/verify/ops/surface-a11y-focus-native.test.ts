@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ruleMessages } from "./native-rule-probe.ts";
 
+const SURFACE_A11Y_FOCUS_NATIVE_BASE_MS = 60_000;
 const FOCUS = "orb/surface-a11y-focus";
 const SURFACE = "packages/client/src/features/x/surfaces/pane.tsx";
 const TAG_HOME = "packages/client/src/features/tag/surfaces/tag-member-surface.tsx";
@@ -72,12 +74,12 @@ for (const [name, source, path, count] of [
     0,
   ],
 ] as const) {
-  test(`native surface a11y focus ${name}`, { timeout: 60_000 }, async ({ repoRoot }) => {
+  test(`native surface a11y focus ${name}`, { timeout: scaledBudget(SURFACE_A11Y_FOCUS_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
     expect(await ruleMessages(repoRoot, FOCUS, source, path)).toHaveLength(count);
   });
 }
 
-test("native surface a11y focus reports at the exported component name", { timeout: 60_000 }, async ({ repoRoot }) => {
+test("native surface a11y focus reports at the exported component name", { timeout: scaledBudget(SURFACE_A11Y_FOCUS_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
   const [found] = await ruleMessages(repoRoot, FOCUS, `// header\n${BARE}`, SURFACE);
   expect([found?.line, found?.column]).toEqual([2, 14]);
 });

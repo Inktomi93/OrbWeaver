@@ -170,8 +170,8 @@ export function useShellContentPrimacyObserver(sentinelRef: RefObject<HTMLElemen
       }
     };
     document.fonts.addEventListener("loadingdone", onFontsLoaded);
-    // CSS Font Loading: `FontFaceSet.ready` is only ever fulfilled, never rejected.
-    void document.fonts.ready.then(onFontsLoaded);
+    // `FontFaceSet.ready` is only ever fulfilled; `.catch` owns a throw from the callback.
+    document.fonts.ready.then(onFontsLoaded).catch(globalThis.reportError);
     return (): void => {
       mounted = false;
       document.fonts.removeEventListener("loadingdone", onFontsLoaded);
