@@ -265,9 +265,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
         if (IS_DEV) {
           busDupCheck(filterKeyName(filter));
         }
-        // @orb-waive caught-failure-ownership(deps.queryClient.invalidateQueries): refetch failures surface on the queries' own error state; consume the aggregate Promise here.
+        // Without `throwOnError` the aggregate promise never rejects; a failed refetch lands on the query's own error state and the QueryCache `onError`.
         // eslint-disable-next-line orb/client-cache-surgery-only-in-data, orb/no-inline-invalidate-outside-seam -- This event-to-filter seam issues the central invalidation call; remove when the query client consumes the event mapping directly.
-        deps.queryClient.invalidateQueries(filter).catch(() => undefined);
+        void deps.queryClient.invalidateQueries(filter);
       }
     });
   };

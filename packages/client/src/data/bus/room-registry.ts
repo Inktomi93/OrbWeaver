@@ -172,7 +172,7 @@ export function createRoomRegistry(): RoomRegistry {
     // previous attempt was in flight. What goes on the wire is what the dedupe records.
     const wanted = lowestSinceSeq(entry);
     entry.announced = wanted;
-    // @orb-waive caught-failure-ownership(wire.attach): the rejection drives the retry ladder, which eventually reports via reportAnnounceFailure to every subscriber's onError. Ends if retryAnnounce stops chaining to reportAnnounceFailure.
+    // @orb-waive caught-failure-ownership(wire.attach): the handler calls retryAnnounce, which re-attempts on the backoff ladder and, once it is spent, calls reportAnnounceFailure, which calls every subscriber's onError. Ends if retryAnnounce stops reaching reportAnnounceFailure.
     void wire.attach(entry.ref, wanted).catch(() => retryAnnounce(entry, attempt));
   }
 

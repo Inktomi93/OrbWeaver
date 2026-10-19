@@ -192,7 +192,7 @@ export class PostEventSource extends EventTarget {
     };
     this.#attempt = attempt;
     this.#cancelReconnect = null;
-    // @orb-waive caught-failure-ownership(this.#connect): transport failures are owned by the bounded reconnect policy; one-shot/exhausted streams emit a terminal error consumed by the existing failure UI. Ends if #scheduleReconnect stops publishing those failures.
+    // @orb-waive caught-failure-ownership(this.#connect): both arms call #scheduleReconnect, which dispatches an `error` event on each retry and `#fail`'s StreamFailureEvent once retries are spent or reconnect is off; tRPC's subscription link reads that error. Ends if #scheduleReconnect stops dispatching them.
     this.#connect(attempt).then(
       () => this.#scheduleReconnect(attempt),
       () => this.#scheduleReconnect(attempt),
@@ -354,7 +354,7 @@ export class PostEventSource extends EventTarget {
   }
 
   #connectedPayload(payload: string): string | null {
-    // @orb-waive caught-failure-ownership(catch): malformed connected metadata is a terminal wire refusal, surfaced by #fail to the existing subscription error UI. Ends if that terminal error is removed.
+    // @orb-waive caught-failure-ownership(catch): the catch calls `#fail`, which closes the source and dispatches a StreamFailureEvent that tRPC's subscription link reads as the stream's error. Ends if the catch stops calling #fail.
     try {
       const options = jsonValueSchema.parse(JSON.parse(payload));
       if (typeof options !== "object" || !options || Array.isArray(options)) {
