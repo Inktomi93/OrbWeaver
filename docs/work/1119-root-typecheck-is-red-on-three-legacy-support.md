@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a2116416a43c64c6e
 ---
 
 # Root typecheck is red on three legacy support harnesses
