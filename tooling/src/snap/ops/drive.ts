@@ -42,7 +42,7 @@ async function everReadAnything(page: Page): Promise<boolean | null> {
 
 async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
   const flag = page.locator("html[data-app-ready]");
-  // @orb-waive caught-failure-ownership(waitFor): failure IS the return value — converts to attached=false, which becomes the "absent" readiness arm fed into UNSETTLED_REASON and reported as navError below. Ends if that reporting chain is removed.
+  // @orb-waive caught-failure-ownership(waitFor): a failed wait converts to attached=false and appReadiness returns absent; navigate maps absent to UNSETTLED_REASON and returns it as navError, which capture.ts stores in outcome.navError for verdict.ts and report.ts. Ends if absent stops mapping to a navError.
   const attached = await flag
     .waitFor({ state: "attached", timeout: timeoutMs })
     .then(() => true)
