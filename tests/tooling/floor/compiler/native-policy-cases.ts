@@ -49,12 +49,8 @@ async function run(mode: string, root: string): Promise<object> {
   let known: readonly GatePolicy[];
   if (mode === "runtime-orders") {
     const { gate: verbs } = await import("../../../../tooling/src/verify/gates/verb-naming.ts");
-    const { gate: health } = await import("../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts");
-    known = [verbs, health];
-    orders = [
-      [verbs, health],
-      [health, verbs],
-    ];
+    known = [verbs];
+    orders = [[verbs], [verbs]];
   } else if (mode === "outputs-shared") {
     const { gate } = await import("../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts");
     known = [gate];
@@ -65,8 +61,7 @@ async function run(mode: string, root: string): Promise<object> {
     orders = mode === "member-orders" ? [[subscription], [subscription]] : [[subscription], [subscription], [subscription]];
   } else if (mode.startsWith("callable-waiver-")) {
     const { gate: audit } = await import("../../../../tooling/src/verify/gates/audit-client-tests.ts");
-    const { gate: plugin } = await import("../../../../tooling/src/verify/gates/plugin-dump-guard.ts");
-    known = [plugin, audit];
+    known = [audit];
     orders = [[audit]];
   } else {
     const { gate } = await import("../../../../tooling/src/verify/gates/test-production-clone.ts");

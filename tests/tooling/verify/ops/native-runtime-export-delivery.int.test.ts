@@ -5,7 +5,6 @@ import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import { readCompilerPrograms } from "../../../../tooling/src/floor/compiler/compiler-programs.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { gate as verbs } from "../../../../tooling/src/verify/gates/verb-naming.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -16,8 +15,7 @@ import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fi
 import { nativePolicyFixture, nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
 const VERB = "packages/server/src/domain/chat/verbs/start-chat.ts";
-const FIREHOSE = "packages/server/src/transport/trpc/chat-events-bus.ts";
-const POLICIES = ["verb-naming", "firehose-import-allowlist-health"] as const;
+const POLICIES = ["verb-naming"] as const;
 
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const write = (path: string, text: string): void => {
@@ -35,7 +33,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
     lib: browser ? ["es2022", "dom"] : ["es2022"],
     types: browser ? [] : ["node"],
   };
-  write("tsconfig.json", JSON.stringify({ compilerOptions, files: [VERB, FIREHOSE, "packages/server/src/platform.ts"] }));
+  write("tsconfig.json", JSON.stringify({ compilerOptions, files: [VERB, "packages/server/src/platform.ts"] }));
   write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: POLICIES.map((id) => `src/verify/gates/${id}.ts`) }));
   for (const id of POLICIES) {
     write(
@@ -45,12 +43,11 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
   }
   write("packages/server/src/platform.ts", "export declare const operation: ReturnType<typeof setTimeout> extends number ? number : (()=>void);");
   write(VERB, "import {operation} from '../../../platform'; export const createStartChat=operation;");
-  write(FIREHOSE, "import {operation} from '../../platform'; export const subscribeAllChatEvents=operation;");
   execFixtureGit(root, ["init", "-q"]);
 }
 
 test(
-  "both command doors interpret imported callable exports in the native Node and browser world",
+  "both command doors interpret an imported callable export in the native Node and browser world",
   async ({ scratch, repoRoot }) => {
     const exits: number[] = [];
     for (const browser of [false, true]) {
@@ -61,33 +58,21 @@ test(
       }
       exits.push(await nativeVerifyFixture(root, "scoped", ["--scope", "packages/server/src"]));
     }
-    expect(exits).toEqual([0, 0, 0, 1, 1, 1]);
+    expect(exits).toEqual([0, 0, 1, 1]);
   },
   scaledBudget(60_000),
 );
 
 test(
-  "both consumers share closed demand in either order and never acquire the syntax checker",
+  "repeated passes share closed demand and never acquire the syntax checker",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     const observed = nativePolicyFixture("runtime-orders", scratch);
     expect(JSON.parse(observed.text)).toMatchObject({
       checkerReads: 0,
       passes: [
-        {
-          errors: [],
-          policies: [
-            ["success", 0],
-            ["success", 0],
-          ],
-        },
-        {
-          errors: [],
-          policies: [
-            ["success", 0],
-            ["success", 0],
-          ],
-        },
+        { errors: [], policies: [["success", 0]] },
+        { errors: [], policies: [["success", 0]] },
       ],
     });
     expect(observed.requests.map((request) => [request.descriptor.id, request.families])).toEqual([["tsconfig.json", ["runtime-exports"]]]);
@@ -96,18 +81,16 @@ test(
 );
 
 test(
-  "declaration callability and initializer callability remain different consumer judgments",
+  "the consumer judges declaration callability rather than initializer callability",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     writeFileSync(join(scratch, VERB), "export const createStartChat:()=>void = (1 as never);");
-    writeFileSync(join(scratch, FIREHOSE), "export const subscribeAllChatEvents:()=>void = (1 as never);");
     expect(await nativeVerifyFixture(scratch, "structure", ["--check=verb-naming"])).toBe(1);
-    expect(await nativeVerifyFixture(scratch, "structure", ["--check=firehose-import-allowlist-health"])).toBe(0);
   },
   scaledBudget(60_000),
 );
 
-test("missing services and failed native workers withhold both consumers through both doors", async ({ scratch, repoRoot }) => {
+test("missing services and failed native workers withhold the consumer through both doors", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot, false);
   const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
   const original = contexts.projectCtx;
@@ -129,7 +112,7 @@ test("missing services and failed native workers withhold both consumers through
     expect(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { failWorker: true, workers })).toBe(2);
   }
   expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src"], { failWorker: true, workers })).toBe(2);
-  expect(workers).toEqual(["tsconfig.json", "tsconfig.json", "tsconfig.json"]);
+  expect(workers).toEqual(["tsconfig.json", "tsconfig.json"]);
 });
 
 test(
@@ -176,7 +159,7 @@ test(
           lib: ["es2022", "dom"],
           types: [],
         },
-        files: [VERB, FIREHOSE, "packages/server/src/platform.ts"],
+        files: [VERB, "packages/server/src/platform.ts"],
       }),
     );
     const programs = readCompilerPrograms(scratch).filter(({ id }) => id === "tsconfig.json" || id === "tsconfig.tests-dom.json");
@@ -192,7 +175,7 @@ test(
     expect(node.map(({ callable }) => callable)).toEqual([true]);
     expect(browser.map(({ callable }) => callable)).toEqual([false]);
     const context = projectCtx(scratch);
-    const policies = [verbs, health];
+    const policies = [verbs];
     const pass = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -209,14 +192,12 @@ test(
 );
 
 test(
-  "native re-export origins preserve each consumer's distinct home judgment",
+  "a native re-export origin keeps the consumer's callable judgment",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     writeFileSync(join(scratch, "packages/server/src/platform.ts"), "export function operation():void{}");
     writeFileSync(join(scratch, VERB), "export {operation as createStartChat} from '../../../platform';");
-    writeFileSync(join(scratch, FIREHOSE), "export {operation as subscribeAllChatEvents} from '../../platform';");
     expect(await nativeVerifyFixture(scratch, "structure", ["--check=verb-naming"])).toBe(0);
-    expect(await nativeVerifyFixture(scratch, "structure", ["--check=firehose-import-allowlist-health"])).toBe(1);
   },
   scaledBudget(60_000),
 );

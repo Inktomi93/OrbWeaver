@@ -7,7 +7,6 @@ import { resolveTypeMemberOrigin } from "../../../../tooling/src/floor/code-fact
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as membership } from "../../../../tooling/src/verify/gates/membership-write-fan.ts";
-import { gate as plugin } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -26,11 +25,10 @@ beforeEach(async () => {
   };
 });
 
-const MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
 const WRITE = "packages/server/src/domain/databank/persistence/scope.ts";
 const SERVICE = "packages/server/src/domain/databank/contract/service.ts";
 const SCHEMA = "packages/db/src/schema/databank.ts";
-const POLICIES = [plugin, membership];
+const POLICIES = [membership];
 // A second tenancy-scope member keeps the loaded family from being a singleton named for another policy.
 const TENANCY_COMPANION = "owner-scoped-writes";
 
@@ -50,10 +48,7 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
     lib: browser ? ["es2022", "dom"] : ["es2022"],
     types: browser ? [] : ["node"],
   };
-  write(
-    "tsconfig.json",
-    JSON.stringify({ compilerOptions, files: [MEMBRANE, WRITE, SERVICE, SCHEMA, "packages/server/src/domain/databank/contract/alias.ts"] }),
-  );
+  write("tsconfig.json", JSON.stringify({ compilerOptions, files: [WRITE, SERVICE, SCHEMA, "packages/server/src/domain/databank/contract/alias.ts"] }));
   write(
     "tooling/tsconfig.json",
     JSON.stringify({ compilerOptions, files: [...POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`), `src/verify/gates/${TENANCY_COMPANION}.ts`] }),
@@ -64,19 +59,6 @@ function fixture(root: string, repoRoot: string, browser: boolean): void {
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
-  write(
-    MEMBRANE,
-    `import type {QuickJSContext,QuickJSHandle} from 'quickjs-emscripten-core';
-interface Foreign {dump(handle:QuickJSHandle):object}
-type Selected=ReturnType<typeof setTimeout> extends number ? QuickJSContext : Foreign;
-function handleSafeToDump(ctx:QuickJSContext,handle:QuickJSHandle):boolean{return ctx.alive && handle.alive;}
-export function tryDumpGuestValue(ctx:QuickJSContext,handle:QuickJSHandle):object {
-  if(!handleSafeToDump(ctx,handle)){return {};}
-  return ctx.dump(handle);
-}
-export function bypass(ctx:Selected,handle:QuickJSHandle):object{return ctx['dump'](handle);}
-`,
-  );
   write(SERVICE, "export interface DatabankOps {readonly fanDatabankRoomsForDocument:(documentId:string)=>Promise<void>}");
   write("packages/server/src/domain/databank/contract/alias.ts", "export type {DatabankOps as RoomOps} from './service';");
   write(SCHEMA, "import {sqliteTable,text} from 'drizzle-orm/sqlite-core'; export const chatDocuments=sqliteTable('chat_documents',{chatId:text('chat_id')});");
@@ -101,41 +83,33 @@ export async function write():Promise<void>{
 }
 
 test(
-  "native command doors distinguish installed QuickJS and canonical DatabankOps from same-spelled foreign members",
+  "native command doors distinguish canonical DatabankOps from same-spelled foreign members",
   async ({ scratch, repoRoot }) => {
     const exits: number[] = [];
     for (const browser of [false, true]) {
       const root = join(scratch, browser ? "browser" : "node");
       fixture(root, repoRoot, browser);
       const native = createSemanticWorkspace({ root }).program("tsconfig.json");
-      for (const [path, expression, home] of [
-        [MEMBRANE, "ctx['dump']", "/node_modules/quickjs-emscripten-core/"],
-        [WRITE, "ctx['fanDatabankRoomsForDocument']", `/${SERVICE}`],
-      ] as const) {
-        const source = native?.sourceFile(path);
-        if (source === undefined) {
-          throw new Error("native consumer fixture source is missing");
-        }
-        expect(source.getPreEmitDiagnostics()).toEqual([]);
-        const call = source.getDescendantsOfKind(SyntaxKind.CallExpression).find((node) => node.getExpression().getText() === expression);
-        if (call === undefined) {
-          throw new Error("native consumer fixture call is missing");
-        }
-        const origin = resolveTypeMemberOrigin(call.getExpression());
-        expect(origin.kind).toBe("resolved");
-        expect(origin.kind === "resolved" && origin.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes(home))).toBe(
-          browser,
-        );
+      const source = native?.sourceFile(WRITE);
+      if (source === undefined) {
+        throw new Error("native consumer fixture source is missing");
       }
-      for (const [policy, scope] of [
-        [plugin, "packages/server/src/infra/plugin-host"],
-        [membership, "packages/server/src/domain"],
-      ] as const) {
-        exits.push(await nativeVerifyFixture(root, "structure", [`--check=${policy.id}`], { forbidSyntax: true }));
-        exits.push(await nativeVerifyFixture(root, "scoped", ["--scope", scope], { forbidSyntax: true }));
+      expect(source.getPreEmitDiagnostics()).toEqual([]);
+      const call = source
+        .getDescendantsOfKind(SyntaxKind.CallExpression)
+        .find((node) => node.getExpression().getText() === "ctx['fanDatabankRoomsForDocument']");
+      if (call === undefined) {
+        throw new Error("native consumer fixture call is missing");
       }
+      const origin = resolveTypeMemberOrigin(call.getExpression());
+      expect(origin.kind).toBe("resolved");
+      expect(
+        origin.kind === "resolved" && origin.value.declarations.every((declaration) => declaration.getSourceFile().getFilePath().includes(`/${SERVICE}`)),
+      ).toBe(browser);
+      exits.push(await nativeVerifyFixture(root, "structure", [`--check=${membership.id}`], { forbidSyntax: true }));
+      exits.push(await nativeVerifyFixture(root, "scoped", ["--scope", "packages/server/src/domain"], { forbidSyntax: true }));
     }
-    expect(exits).toEqual([0, 0, 1, 1, 1, 1, 0, 0]);
+    expect(exits).toEqual([1, 1, 0, 0]);
   },
   scaledBudget(60_000),
 );
@@ -148,7 +122,7 @@ test(
   scaledBudget(60_000),
 );
 
-test("both native consumers refuse absent native services through both command doors", async ({ scratch, repoRoot }) => {
+test("the native consumer refuses absent native services through both command doors", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot, true);
   const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
   const original = contexts.projectCtx;
@@ -158,8 +132,6 @@ test("both native consumers refuse absent native services through both command d
     return context;
   });
   try {
-    expect(await runStructure(scratch, [`--check=${plugin.id}`])).toBe(2);
-    expect(await runScopedCli(scratch, ["--scope", "packages/server/src/infra/plugin-host"])).toBe(2);
     expect(await runStructure(scratch, [`--check=${membership.id}`])).toBe(2);
     expect(await runScopedCli(scratch, ["--scope", "packages/server/src/domain"])).toBe(2);
   } finally {
@@ -205,7 +177,7 @@ test(
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot, false);
     const context = projectCtx(scratch);
-    const receivers = [MEMBRANE, WRITE].flatMap((path) =>
+    const receivers = [WRITE].flatMap((path) =>
       context.project
         .getSourceFileOrThrow(join(scratch, path))
         .getDescendantsOfKind(SyntaxKind.Identifier)

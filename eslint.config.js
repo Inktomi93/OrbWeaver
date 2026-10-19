@@ -5000,6 +5000,39 @@ const brandNamePositionRule = {
 
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
+// D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
+// WASM runtime for every plugin in the process. The membrane names `dump` only inside its one top-level
+// helper, and inside it only in a statement after `if (!handleSafeToDump(...)) { return }`, the module's own
+// iterative depth/node guard. Every `dump` spelling is judged, including a string key bound elsewhere in the
+// module. The int test over the real snippet path proves the guard's effect: same handle, every refusal exits.
+const PLUGIN_MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
+const PLUGIN_DUMP_HELPER = "Program > FunctionDeclaration[id.name='tryDumpGuestValue']";
+// esquery 1.7 mis-parses a chained `:has(> A > B)`, so the exit test nests one `:has` per level.
+const PLUGIN_DUMP_GUARD_EXIT =
+  "IfStatement[test.operator='!'][test.argument.type='CallExpression'][test.argument.callee.name='handleSafeToDump']" +
+  ":has(> BlockStatement.consequent:has(> :matches(ReturnStatement, ThrowStatement)))";
+const PLUGIN_DUMP_SPELLINGS = [
+  "MemberExpression[property.name='dump']",
+  "Property[key.name='dump']",
+  ":matches(Literal[value='dump'], TemplateElement[value.cooked='dump'])",
+];
+const PLUGIN_DUMP_MESSAGE =
+  "A QuickJS membrane `dump` outside `tryDumpGuestValue` can materialize guest-controlled recursive structure without the iterative handle depth/node guard; the walk runs on the HOST stack, so an overflow corrupts the shared WASM runtime for every plugin in the process (D46). Route guest values through `tryDumpGuestValue`.";
+const PLUGIN_DUMP_ORDER_MESSAGE =
+  "Inside `tryDumpGuestValue`, `dump` may appear only after `if (!handleSafeToDump(ctx, handle)) { return ... }`: a guard after the materialization cannot stop the host-stack walk that already ran (D46).";
+const PLUGIN_DUMP_SELECTORS = [
+  ...PLUGIN_DUMP_SPELLINGS.map((spelling) => ({ selector: `${spelling}:not(${PLUGIN_DUMP_HELPER} *)`, message: PLUGIN_DUMP_MESSAGE })),
+  ...PLUGIN_DUMP_SPELLINGS.flatMap((spelling) => [
+    { selector: `${PLUGIN_DUMP_HELPER} > BlockStatement > :not(${PLUGIN_DUMP_GUARD_EXIT} ~ *) ${spelling}`, message: PLUGIN_DUMP_ORDER_MESSAGE },
+    // A parameter default or destructure runs before the body, so the guard cannot precede it.
+    { selector: `${PLUGIN_DUMP_HELPER} > :not(BlockStatement) ${spelling}`, message: PLUGIN_DUMP_ORDER_MESSAGE },
+  ]),
+  {
+    selector: ":matches(ImportSpecifier, ImportDefaultSpecifier, ImportNamespaceSpecifier)[local.name='handleSafeToDump']",
+    message: "`handleSafeToDump` is the membrane's own iterative guard; an imported same-named function is not that walk (D46).",
+  },
+];
+
 const restrictionPlugin = {
   rules: {
     "tooling-cli-entry": toolingEntryRule(false),
@@ -5046,6 +5079,7 @@ const restrictionPlugin = {
     "zustand-selector-derived": storeDerivedRule,
     "baseui-derives-not-respells": baseUiDerivesRule(false),
     "baseui-derives-not-respells-health": baseUiDerivesRule(true),
+    "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
     "baseui-state-data-attributes": baseUiStateRule,
     "context-definition-shape": contextDefinitionRule,
     "no-mutating-register-api": registerApiRule,
@@ -5911,6 +5945,7 @@ export const hardConfig = [
     },
   },
   { files: RETIRED_GATE_MARKER_FILES, rules: { "no-warning-comments": ["error", RETIRED_GATE_MARKER] } },
+  { files: [PLUGIN_MEMBRANE], plugins: { orb: restrictionPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
   {
     files: SOURCE_TYPE_SUPPRESSION_GLOBS,
     ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,

@@ -149,9 +149,8 @@ test("an alias cycle and an import cycle each TERMINATE with an explicit `cycle`
 });
 
 test("a bodyless declaration is a RESOLVED identity, not a refusal", () => {
-  // `plugin-dump-guard`'s ordering arm asks whether a call names the membrane's own guard; one of its
-  // proof rows declares that guard `declare function`. An identity question must still be answerable when
-  // there is no body to read, so `body: undefined` is a field and not a verdict.
+  // An identity question must still be answerable when the callee is a `declare function` with no body
+  // to read, so `body: undefined` is a field and not a verdict.
   const value = resolvedOf({ "use.ts": "declare function f(): string;\nexport const out = f();\n" });
 
   expect(value.declaration.getKind()).toBe(SyntaxKind.FunctionDeclaration);
