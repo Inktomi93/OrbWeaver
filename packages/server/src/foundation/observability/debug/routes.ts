@@ -149,8 +149,7 @@ const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
-  // @orb-waive caught-failure-ownership(catch): a malformed body is a 400 the caller sees, and
-  // the null flows straight into the schema's own failure path. Ends if the null stops being validated.
+  // @orb-waive caught-failure-ownership(catch): owned by the POST handler, which feeds this null to `bugReportInput.safeParse` and answers 400 `invalid bug report` to the caller (`z.object` refuses null). Ends if the null stops reaching that safeParse or its 400.
   try {
     return await c.req.json();
   } catch {

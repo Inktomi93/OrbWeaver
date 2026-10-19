@@ -35,17 +35,9 @@ export function decode32Bytes(raw: string): Buffer | null {
       return hex;
     }
   }
-  // base64: Buffer.from is lenient (truncates short inputs), so the byte-length check is the real gate.
-  // @orb-waive caught-failure-ownership(catch): a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator and the file header states the contract (degrade to a DISABLED box, never throw at boot). Ends if decode gains a failure the caller must report separately.
-  try {
-    const b64 = Buffer.from(trimmed, "base64");
-    if (b64.length === CREDENTIALS_KEY_BYTES) {
-      return b64;
-    }
-  } catch {
-    // fall through to null
-  }
-  return null;
+  // base64: Buffer.from is lenient (truncates short inputs) and never throws, so the byte-length check is the real gate.
+  const b64 = Buffer.from(trimmed, "base64");
+  return b64.length === CREDENTIALS_KEY_BYTES ? b64 : null;
 }
 
 // Whether an explicit env value wins over the keyfile. ONE predicate per secret, shared by its resolver and by
@@ -80,7 +72,7 @@ function readKeyfile(keyPath: string): Buffer | null {
   return key;
 }
 
-// @orb-waive caught-failure-ownership(err): the key is already linked into place with its bytes fsynced, so a directory that cannot be fsynced (a FUSE or network mount answers ENOTSUP) costs only crash durability of the new entry; failing the boot over it would refuse a key that is on disk. Reported on stderr. Ends if the entry fsync becomes required for correctness.
+// @orb-waive caught-failure-ownership(err): owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under NODE_ENV=test). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid.
 function fsyncDirectory(dir: string): void {
   try {
     const fd = openSync(dir, "r");
@@ -132,7 +124,7 @@ function publishKeyfile(keyPath: string, key: Buffer): boolean {
  *  key that won the path. `generate` is the entropy source, injectable so a test can interleave a second
  *  creator between the absence check and the publish. */
 export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES)): Buffer | null {
-  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault.
+  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     // lstat, not exists: a dangling symlink is an entry, and it must fail closed rather than read as absent.
     if (lstatSync(keyPath, { throwIfNoEntry: false }) === undefined) {
@@ -152,7 +144,7 @@ export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = ()
 // Read a keyfile that is known to exist. The same fail-closed contract as `loadOrCreateKeyfile`'s read arm:
 // a corrupt, unreadable or dangling entry is null and is never touched.
 function readExistingKeyfile(keyPath: string): Buffer | null {
-  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — an unreadable keyfile returns null so no caller ever re-keys over the only recovery copy; the fault is reported on stderr and the caller degrades or refuses (`entry/lifecycle.ts`). Ends if every caller moves to refusing startup on a crypto fault.
+  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     return readKeyfile(keyPath);
   } catch (err) {
