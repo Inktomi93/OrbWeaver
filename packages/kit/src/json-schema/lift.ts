@@ -71,6 +71,7 @@ export class JsonSchemaLiftError extends Error {
  *  refusal (`construct: "max-depth-exceeded"`) BEFORE the stack blows, never an implicit RangeError. */
 export const MAX_LIFT_DEPTH = 32;
 
+const PROTO_PROPERTY = "__proto__";
 const STRING_TYPE = "string";
 const NUMBER_TYPE = "number";
 const INTEGER_TYPE = "integer";
@@ -300,6 +301,10 @@ function liftObject(node: Record<string, unknown>, path: string, depth: number):
 
   const shape: Record<string, RuntimeGeneratedSchema> = {};
   for (const [key, propNode] of Object.entries(properties)) {
+    // Assigning this name into the shape would re-parent it, so the validator would silently lose the property.
+    if (key === PROTO_PROPERTY) {
+      throw new JsonSchemaLiftError("a property named __proto__", `${path}/properties/${key}`);
+    }
     if (!isPlainObject(propNode)) {
       throw new JsonSchemaLiftError("property (not an object schema)", `${path}/properties/${key}`);
     }

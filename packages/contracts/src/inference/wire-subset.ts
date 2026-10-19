@@ -553,7 +553,9 @@ function requiredRecursiveRefPaths(walk: Walk): readonly string[] {
 // One node's keyword pass: drop what this wire cannot express, report what it must refuse, recurse into the rest,
 // and relay the dropped bounds into the node's description.
 function scrubKeywords(node: Record<string, unknown>, walk: Walk, position: WalkPosition): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
+  // Null prototype here and in walkNameMap: schema keys and property names are authored data, and a `__proto__`
+  // key copied into `{}` would re-parent the node instead of staying a key.
+  const out: Record<string, unknown> = { __proto__: null };
   const stripped = new Map<string, unknown>();
   noteNode(node, walk, position);
   for (const [key, value] of Object.entries(node)) {
@@ -636,7 +638,7 @@ function walkNameMap(
   if (!isPlainObject(node)) {
     return walkNode(node, walk, position);
   }
-  const out: Record<string, unknown> = {};
+  const out: Record<string, unknown> = { __proto__: null };
   for (const [name, schema] of Object.entries(node)) {
     const definition = DEF_MAP_KEYWORDS.has(key);
     const location = pointerChild(position.location, name);

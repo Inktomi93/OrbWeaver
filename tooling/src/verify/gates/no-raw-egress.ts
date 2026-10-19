@@ -31,8 +31,11 @@
 // were all invisible. The subject is the ambient global, resolved through `resolveGlobalMemberOrigin`
 // and the shared ambient-path reader — which also means the RECEIVER's identity cannot be cast away.
 //
-// FAIL-CLOSURE IS SCOPED TO THE CANDIDATE SET: only a reference NAMED `fetch` is ever resolved, and only
-// a bare reference or one read off an ambient-global root is a subject. A member read off any other
+// FAIL-CLOSURE IS SCOPED TO THE CANDIDATE SET: only a reference NAMED `fetch`, or a computed member whose key
+// a binding supplies, is resolved, and only a bare reference or one read off an ambient-global root is a subject. A key the
+// native reader resolves is judged by its name; an unresolvable key read off the ambient global is refused as
+// unreadable, because it could be `fetch`. DECLARED LIMIT: a keyed read is nominated only off a spelled
+// `globalThis`/`self`/`window` receiver, so `const g = globalThis; g[KEY]` is not judged. A member read off any other
 // receiver (`ports.fetch(url)`, `client.fetch(url)`) is NOT A SUBJECT — an injected port is the testable
 // shape this law wants, not the hole — and that is a different answer from "unproven innocence".
 //
@@ -41,9 +44,9 @@
 // DECLARED LIMIT (its own mustPass row): the analysis program is DOM-less, so a bare `fetch(url)` and
 // `window.fetch(url)` cannot be resolved PRECISELY; they land on the fail-closed unreadable finding, are
 // still reported, and each carries its own row.
-import type { Node as MorphNode } from "ts-morph";
+import type { ElementAccessExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { computedNameNeedsBindings, literalMemberAccess, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeOriginPass } from "../lib/native-origin.ts";
@@ -64,7 +67,7 @@ const MESSAGE =
   "egress is licensed one FILE at a time by an exact reviewed grant, never by a directory. See " +
   "D61 (B5a).";
 const UNREADABLE =
-  "this reference is spelled like the ambient `fetch` but the shared readers cannot place its binding, so whether it is the network api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
+  "this reference may be the ambient `fetch`, but the shared readers cannot place its binding or read its computed key, so whether it is the network api cannot be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin and the key a const literal; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "call `safeFetch` from infra/network with an explicit allowedHosts set (or the declared ANY_HOST escape); a NEW credentialed/loopback egress home needs an exact reviewed grant, never a directory zone.";
 
@@ -101,6 +104,37 @@ function isForeignMemberRead(node: MorphNode, services: GlobalOriginServices): b
 }
 
 type EgressVerdict = "raw" | "other" | "unreadable";
+
+/** A computed member off a spelled global receiver whose key a binding supplies (`globalThis[KEY]`): its name is
+ *  known only after the native read. The receiver is matched by spelling so the native read stays on these few. */
+function keyedCandidate(node: MorphNode): node is ElementAccessExpression {
+  if (!Node.isElementAccessExpression(node)) {
+    return false;
+  }
+  const key = node.getArgumentExpression();
+  const receiver = referenceResolutionServices.unwrapExpression(node.getExpression());
+  return key !== undefined && computedNameNeedsBindings(key) && Node.isIdentifier(receiver) && GLOBAL_RECEIVERS.has(receiver.getText());
+}
+
+/** Judge a keyed candidate by the name its key resolves to; an unresolvable key off the ambient global fails closed. */
+function classifyKeyed(node: ElementAccessExpression, services: GlobalOriginServices): EgressVerdict {
+  const key = node.getArgumentExpressionOrThrow();
+  const name = services.readComputedName(key);
+  if (name.kind === "resolved") {
+    return name.value === FETCH ? classify(node, services) : "other";
+  }
+  const receiver = services.globalOrigin(referenceResolutionServices.unwrapExpression(node.getExpression()));
+  return receiver.kind === "resolved" && receiver.value.memberPath.length === 0 && GLOBAL_RECEIVERS.has(receiver.value.globalName) ? "unreadable" : "other";
+}
+
+/** Where a finding points: the spelled `fetch`, or for a keyed read the key that names it. */
+function findingAnchor(node: MorphNode): { readonly token: string; readonly offset: number } {
+  if (keyedCandidate(node)) {
+    const key = node.getArgumentExpressionOrThrow();
+    return { token: key.getText(), offset: key.getStart() - node.getStart() };
+  }
+  return { token: FETCH, offset: Math.max(node.getText().lastIndexOf(FETCH), 0) };
+}
 
 function classify(node: MorphNode, services: GlobalOriginServices): EgressVerdict {
   if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [FETCH], services)) {
@@ -145,7 +179,7 @@ export const gate = defineGate({
         {
           kinds: [SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node): void => {
-            if (!fetchCandidate(node) || isCapabilityProbe(node) || !isExpressionReference(node)) {
+            if (!(fetchCandidate(node) || keyedCandidate(node)) || isCapabilityProbe(node) || !isExpressionReference(node)) {
               return;
             }
             reads.push(node);
@@ -156,7 +190,8 @@ export const gate = defineGate({
       prepare: origins.prepare,
       evaluate: (): void => {
         for (const node of reads) {
-          const verdict = classify(node, origins.at(node));
+          const services = origins.at(node);
+          const verdict = keyedCandidate(node) ? classifyKeyed(node, services) : classify(node, services);
           if (verdict === "other") {
             continue;
           }
@@ -165,8 +200,7 @@ export const gate = defineGate({
             subject: ctx.relativePath(node.getSourceFile()),
             operation: OPERATION,
             unreadable: verdict === "unreadable",
-            token: FETCH,
-            offset: Math.max(node.getText().lastIndexOf(FETCH), 0),
+            ...findingAnchor(node),
           });
         }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
@@ -212,6 +246,24 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/domain/hub/verbs/const-key.ts":
+          'const KEY = "fetch";\nexport const load = async (): Promise<unknown> => await globalThis[KEY]("https://x");\n',
+      },
+      expect: { count: 1, messageIncludes: "raw `fetch` in server source" },
+      why: "A CONST-BOUND KEY spells the same member as the quoted key; the key reader resolves the binding, so the precise verdict answers",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/verbs/written-key.ts":
+          'let key = "other";\nkey = "fetch";\nexport const load = async (): Promise<unknown> => await globalThis[key]("https://x");\n',
+      },
+      expect: { count: 1, messageIncludes: "cannot be established" },
+      why: "A REASSIGNED KEY on the ambient global names no one member, so the read is refused as unreadable rather than passed as some other member",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/domain/hub/verbs/alias.ts":
           'const call = globalThis.fetch;\nexport const load = async (): Promise<unknown> => await call("https://x");\n',
       },
@@ -252,6 +304,14 @@ export const gate = defineGate({
           'export const load = async (ports: { fetch: (url: string) => Promise<unknown> }): Promise<unknown> => await ports.fetch("https://x");\n',
       },
       why: "AN INJECTED PORT IS NOT A SUBJECT: a member read whose root is not an ambient global is the testable shape this law wants. Fail-closure belongs to the bare/ambient arm, and applying it here would accuse every `deps.fetch` in the tree",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/hub/verbs/keys.ts":
+          'const OTHER = "queueMicrotask";\nexport const tick = (): void => globalThis[OTHER](() => undefined);\nexport const pick = (ports: Record<string, () => void>, name: string): void => ports[name]?.();\n',
+      },
+      why: "A CONST KEY naming another member, and a dynamic key on a local object, are not the api: only an ambient-global read whose key is unreadable fails closed",
     },
     {
       mode: "types",
