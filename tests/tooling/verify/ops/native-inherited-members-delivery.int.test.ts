@@ -9,7 +9,6 @@ import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as verbs } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { gate as knobs } from "../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
-import { gate as axes } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -26,28 +25,23 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [verbs, knobs, axes];
+const POLICIES = [verbs, knobs];
 const SERVICE = "packages/server/src/domain/hub/contract/service.ts";
 const SETTINGS = "packages/contracts/src/settings/index.ts";
-const HOME = "packages/contracts/src/chat/participants.ts";
 const CLIENT = "packages/client/src/native-inherited.ts";
 const SOURCES = {
   "packages/server/src/domain/hub/contract/node.ts": "export interface ServiceBase {nodeVerb():void}",
   "packages/server/src/domain/hub/contract/browser.ts": "export interface ServiceBase {browserVerb():void}",
   [SERVICE]: 'import type {ServiceBase} from "#native-service-base"; export interface HubService extends ServiceBase {local():void}',
   [SETTINGS]: 'import type {ConfigBase} from "#native-base"; export interface EffectiveAppConfig extends ConfigBase {localConfig:number}',
-  [HOME]:
-    'import type {PolicyBase} from "#native-base"; export interface MessageKindPolicy extends PolicyBase {prompt:"yes"|"no"} export const MESSAGE_KIND_POLICY={standard:{prompt:"yes",sharedAxis:"yes",nodeAxis:"yes",browserAxis:"yes"}};',
   "packages/server/src/domain/hub/read.ts":
-    'import type {EffectiveAppConfig} from "../../../../contracts/src/settings/index.ts"; import{MESSAGE_KIND_POLICY}from"../../../../contracts/src/chat/participants.ts";declare const config:EffectiveAppConfig;export const used=config.localConfig;export const p=MESSAGE_KIND_POLICY.standard.prompt;export const s=MESSAGE_KIND_POLICY.standard.sharedAxis;',
+    'import type {EffectiveAppConfig} from "../../../../contracts/src/settings/index.ts"; declare const config:EffectiveAppConfig;export const used=config.localConfig;',
   "tests/server/domain/hub/inherited.test.ts":
     'declare function createHubService():import("../../../../packages/server/src/domain/hub/contract/service.ts").HubService;createHubService().local();',
   [CLIENT]:
-    'export type{HubService}from"../../server/src/domain/hub/contract/service.ts";export type{EffectiveAppConfig}from"../../contracts/src/settings/index.ts";export type{MessageKindPolicy}from"../../contracts/src/chat/participants.ts";',
-  "packages/contracts/src/native/node.ts":
-    'export interface ConfigBase {nodeConfig:number} export interface PolicyBase {nodeAxis:"yes"|"no"} export interface PolicyBase {sharedAxis:"yes"|"no"}',
-  "packages/contracts/src/native/browser.ts":
-    'export interface ConfigBase {browserConfig:number} export interface PolicyBase {browserAxis:"yes"|"no"} export interface PolicyBase {sharedAxis:"yes"|"no"}',
+    'export type{HubService}from"../../server/src/domain/hub/contract/service.ts";export type{EffectiveAppConfig}from"../../contracts/src/settings/index.ts";',
+  "packages/contracts/src/native/node.ts": "export interface ConfigBase {nodeConfig:number}",
+  "packages/contracts/src/native/browser.ts": "export interface ConfigBase {browserConfig:number}",
 };
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -139,7 +133,7 @@ test(
       ["tsconfig.json", "node"],
       ["tsconfig.tests-dom.json", "browser"],
     ] as const) {
-      const source = workspace.program(config)?.sourceFile(HOME);
+      const source = workspace.program(config)?.sourceFile(SERVICE);
       if (source === undefined) {
         throw new Error("native inherited fixture owner missing");
       }
@@ -159,10 +153,9 @@ test(
       const expected = [
         [verbs.id, `${prefix}Verb`],
         [knobs.id, `${prefix}Config`],
-        [axes.id, `${prefix}Axis`],
       ];
       if (config === "tsconfig.tests-dom.json") {
-        expected.push([verbs.id, "local"], [knobs.id, "localConfig"], [axes.id, "prompt"], [axes.id, "sharedAxis"]);
+        expected.push([verbs.id, "local"], [knobs.id, "localConfig"]);
       }
       expect(
         result.authority.effectiveFindings.map(({ policyId, token }) => [policyId, token]).toSorted((left, right) => left.join().localeCompare(right.join())),
@@ -171,12 +164,6 @@ test(
         kind: "population",
         source: "service-verbs[interfaces=1;local=1;inherited=1]",
         members: 2,
-        unresolved: 0,
-      });
-      expect(result.policies.find(({ id }) => id === axes.id)?.receipts).toContainEqual({
-        kind: "population",
-        source: "MessageKindPolicy axis",
-        members: 3,
         unresolved: 0,
       });
     }

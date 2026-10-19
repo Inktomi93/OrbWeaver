@@ -85,6 +85,8 @@ export const TYPE_TEST_SUFFIXES: readonly TestKindDefinition["suffix"][] = Objec
 export const BROWSER_TEST_SUFFIXES: readonly TestKindDefinition["suffix"][] = Object.freeze(
   TEST_KIND_DEFINITIONS.filter(({ compilerWorld }) => compilerWorld === "browser").map(({ suffix }) => suffix),
 );
+// Vitest cannot execute Playwright component or e2e files: importing one under vitest hangs the worker in
+// browser-mode negotiation, so those two families are pinned to their Playwright runners by type.
 const RUNTIME_BY_FAMILY = {
   unit: "vitest",
   integration: "vitest",
@@ -92,7 +94,7 @@ const RUNTIME_BY_FAMILY = {
   type: "vitest-typecheck",
   component: "playwright-ct",
   e2e: "playwright-e2e",
-} as const satisfies Readonly<Record<TestFamily, string>>;
+} as const satisfies Readonly<Record<TestFamily, string>> & { readonly component: "playwright-ct"; readonly e2e: "playwright-e2e" };
 
 export type TestRuntime = (typeof RUNTIME_BY_FAMILY)[TestFamily];
 

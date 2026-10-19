@@ -7,6 +7,7 @@
 // SUCCESS condition, never a failure, and the threshold is never loosened to manufacture a finding.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import { describe } from "vitest";
 import type { ImageDistortionInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import type { BuriedRasterInput } from "../../../../tooling/src/ui-audit/contract/samples-media.ts";
@@ -27,16 +28,10 @@ function raster(over: Partial<BuriedRasterInput> = {}): BuriedRasterInput {
   return { ...base, ...over };
 }
 
-// ── design-audit-rule-proof denominator (tooling/src/verify/gates/design-audit-rule-proof.ts) ──────
-// The gate reads its two rows from a TOP-LEVEL `auditRuleTest(...)` call, bound to this file's own
-// local helper (the same shape index.test.ts's registers) — see the gate's header for why the binding
-// must be structural, not a describe-nested test.
-interface AuditRuleProof {
-  readonly rule: string;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
-}
-
+// ── design-audit proof denominator (tests/tooling/ui-audit/contract/rules.int.test.ts) ──────────────
+// The coverage test reads its two rows from a TOP-LEVEL `auditRuleTest(...)` call, bound to this file's own
+// local helper (the same shape index.test.ts's registers) — the binding is structural,
+// not a describe-nested test.
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);

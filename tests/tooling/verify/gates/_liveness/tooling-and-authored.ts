@@ -11,7 +11,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
-import { gate as playwrightLaneOutsideFastCheck } from "../../../../../tooling/src/verify/gates/playwright-lane-outside-fast-check.ts";
 import { gate as toolingArgvFrontDoor } from "../../../../../tooling/src/verify/gates/tooling-argv-front-door.ts";
 import { gate as toolingArtifactPathHome } from "../../../../../tooling/src/verify/gates/tooling-artifact-path-home.ts";
 import { gate as toolingArtifactRunSlot } from "../../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
@@ -41,19 +40,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noRawId,
     overlays: [add("packages/contracts/src/liveness-raw-id.ts", 'import { z } from "zod";\nexport const livenessSchema = z.object({ userId: z.string() });\n')],
     messageIncludes: "raw string",
-  },
-  {
-    policy: playwrightLaneOutsideFastCheck,
-    // The runner table assigns the component family to vitest — the lane a browser suffix must never ride.
-    overlays: [
-      {
-        kind: "neutralise",
-        path: "tooling/src/floor/testing/test-kinds.ts",
-        source:
-          'const RUNTIME_BY_FAMILY = {\n  unit: "vitest",\n  integration: "vitest",\n  contract: "vitest",\n  type: "vitest-typecheck",\n  component: "vitest",\n  e2e: "playwright-e2e",\n} as const;\n',
-      },
-    ],
-    messageIncludes: "component",
   },
   {
     policy: toolingArgvFrontDoor,

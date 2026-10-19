@@ -186,4 +186,4 @@ translucent stop, as `image-indeterminate` (hand-verify) rather than trusting al
 | rule | reason |
 | - | - |
 | `text-occlusion` | a large stacked-heuristic port with its own fixture corpus, not ported; overlap is covered today by `--expect-no-overflow`, `clipped-overflow`, `text-overflow`, and the driven review |
-| `cramped-padding` (both variants) | neither variant shipped; a rule that is genuinely wanted gets its own build and its own `design-audit-rule-proof` pair, not a table cell |
+| `cramped-padding` (both variants) | neither variant shipped; a rule that is genuinely wanted gets its own build and its own firing and silence proof pair, not a table cell |

@@ -17,6 +17,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
 
 /** The live F12 geometry, authored the way the tree authors it: a `<style>` block, because a pseudo
@@ -28,12 +29,6 @@ const FIXTURE_CSS = `.bar-host { position: relative; border: 1px solid #555; bor
 .ring-host::after { content: ""; position: absolute; inset: 0; border-radius: 10px; background: linear-gradient(180deg, oklch(0.72 0.175 52 / 0.45), oklch(0.99 0.005 60 / 0.03)) }`;
 
 const ACCENT_RULES = ["side-tab", "border-accent-on-rounded"] as const;
-
-interface AuditRuleProof {
-  readonly rule: string;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
-}
 
 interface ToolContext {
   readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;

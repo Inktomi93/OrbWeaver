@@ -14,6 +14,7 @@
 // epsilon is float-noise slack, never a threshold to loosen until something fires.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import { describe } from "vitest";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, GRID_EXEMPTIONS } from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
@@ -65,15 +66,9 @@ function restTransform(over: Partial<OffGridTransformInput> = {}): OffGridTransf
   return { ...base, ...over };
 }
 
-// ── design-audit-rule-proof denominator (tooling/src/verify/gates/design-audit-rule-proof.ts) ──────
-// The gate reads its rows from a TOP-LEVEL `auditRuleTest(...)` call bound to this file's own local
-// helper — see the gate's header for why the binding must be structural, not a describe-nested test.
-interface AuditRuleProof {
-  readonly rule: string;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
-}
-
+// ── design-audit proof denominator (tests/tooling/ui-audit/contract/rules.int.test.ts) ──────────────
+// The coverage test reads its rows from a TOP-LEVEL `auditRuleTest(...)` call bound to this file's own local
+// helper — the binding is structural, not a describe-nested test.
 function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
     expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);

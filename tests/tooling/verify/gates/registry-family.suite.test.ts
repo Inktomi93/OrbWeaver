@@ -1,6 +1,5 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -9,7 +8,7 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 const ROOT = "/registry-family";
 
 test("registry definition policies keep their founding and nearest-legal fixtures", () => {
-  expect(verifyPolicyProofs([messageKindPolicyCoverage, sectionFactoryContributionBundle, warningCodeCoverage])).toEqual([]);
+  expect(verifyPolicyProofs([sectionFactoryContributionBundle, warningCodeCoverage])).toEqual([]);
   // The family's founding + nearest-legal fixtures are many isolated typed passes; the default per-test
   // budget is sized for a single pass, not for a family's whole conformance battery.
 }, 120_000);

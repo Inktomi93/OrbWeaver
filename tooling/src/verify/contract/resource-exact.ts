@@ -19,8 +19,8 @@
 /** Closed exact-file identities. A gate may not supply a path; adding an id is a contract edit with a
  *  named consumer. */
 export const EXACT_RESOURCE_PATHS = {
-  /** ROOT runner configs, which no authored tree contains: `playwright-lane-outside-fast-check` reads the
-   *  vitest config. The CT config has no gate reader left; the exact-file resource tests use it as their second id. */
+  /** ROOT runner configs, which no authored tree contains. Neither id has a gate reader left; the exact-file
+   *  resource tests are their consumers. */
   "vitest-config": "vitest.config.ts",
   "playwright-ct-config": "playwright-ct.config.ts",
 } as const;

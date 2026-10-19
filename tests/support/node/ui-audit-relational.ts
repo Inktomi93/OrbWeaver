@@ -1,5 +1,14 @@
+import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { expect } from "./fixtures.ts";
+
+/** One proof a `auditRuleTest` registration attaches to a rule: the registry id is a type, so a stale or
+ *  misspelled id fails the compiler before the coverage test runs. */
+export interface AuditRuleProof {
+  readonly rule: DesignAuditRuleId;
+  readonly kind: "fires" | "silent";
+  readonly reason: string;
+}
 
 export const RELATIONAL_CLI_TIMEOUT_MS = 90_000;
 vi.setConfig({ testTimeout: RELATIONAL_CLI_TIMEOUT_MS, hookTimeout: RELATIONAL_CLI_TIMEOUT_MS });

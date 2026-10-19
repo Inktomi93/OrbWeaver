@@ -18,13 +18,8 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { CliResult, RunCliOpts } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { AuditRuleProof } from "@orb/testkit/node/ui-audit-relational.ts";
 import { AUDIT_ARGV, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node/ui-audit-relational.ts";
-
-interface AuditRuleProof {
-  readonly rule: string;
-  readonly kind: "fires" | "silent";
-  readonly reason: string;
-}
 
 interface ToolContext {
   readonly runCli: (tool: string, args: readonly string[], opts?: RunCliOpts) => Promise<CliResult>;

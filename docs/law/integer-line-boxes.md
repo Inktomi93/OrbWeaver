@@ -398,5 +398,5 @@ DPR value, and pinned permanently in `tests/tooling/ui-audit/lib/checks-grid.tes
   (three rule ids) · `lib/checks-grid.ts` · `lib/collect.ts` (the `rung-4` accounting,
   `authoredDecisionKey`) ·
   `lib/evidence.ts`'s `RELATIONAL_SAMPLE_FAMILIES` mapped-type record.
-- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the `design-audit-rule-proof`
+- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the
   fires/silent rows for all three rules, plus the DPR matrix).

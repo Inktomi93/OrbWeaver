@@ -7,7 +7,7 @@ import { vi } from "vitest";
 import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassInput, PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
-import { gate as messageKindCoverage } from "../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
+import { gate as knobWireCoverage } from "../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-hand-shape.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
@@ -333,7 +333,7 @@ test(
       expect(pass(repoRoot).toolErrors).toEqual([]);
       expect(asked).toContain("shape-constituents");
       asked.length = 0;
-      expect(verifyPolicyProofs([messageKindCoverage])).toEqual([]);
+      expect(verifyPolicyProofs([knobWireCoverage])).toEqual([]);
       expect(asked.length).toBeGreaterThan(0);
       expect(asked).not.toContain("shape-constituents");
     } finally {
