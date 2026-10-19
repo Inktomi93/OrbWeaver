@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-19
 priority: P3
+lane: wt/agent-acb14f15173490df8
 ---
 
 # gate-runtime-standardization names the deleted policy-family-readers rule
