@@ -1116,7 +1116,6 @@ const TURN_IDENTITY_RESTRICTIONS = [
 ];
 
 // D22 member-card clamp, D16/D18 chat member fan, and the injected-op scope boundary (Spine-Identity-and-Auth §2b).
-const SERVER_SRC = "packages/server/src/**/*.{ts,tsx}";
 const MEMBER_CARD_VIEW = "MemberCardView";
 const MEMBER_CARD_CLAMPS = alternation(["clampMemberCard", "resolveCardVisibility"]);
 const INJECTED_OP_RULE = "injected-op-caller-param";
@@ -1187,7 +1186,7 @@ const SERVER_SCOPE_RESTRICTIONS = [
   },
   {
     id: "member-card-clamped-clamp",
-    scope: [SERVER_SRC],
+    scope: SERVER_SRC,
     homes: [
       {
         path: "packages/server/src/domain/chat/substrate/auth/**",
@@ -1203,7 +1202,7 @@ const SERVER_SCOPE_RESTRICTIONS = [
   },
   {
     id: "member-card-clamped-verb",
-    scope: [SERVER_SRC],
+    scope: SERVER_SRC,
     homes: [],
     selectors: [
       {
