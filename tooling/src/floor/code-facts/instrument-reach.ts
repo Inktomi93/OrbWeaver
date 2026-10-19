@@ -96,6 +96,17 @@ function moduleResolver(root: string): (importer: string, specifier: string) => 
   };
 }
 
+/** Every repository module the entries reach through native tooling resolution, type-only edges included. */
+export function toolingModuleClosure(root: string, entries: readonly string[]): readonly string[] {
+  const resolveModule = moduleResolver(root);
+  const targetsOf = (importer: string): readonly string[] =>
+    ts.preProcessFile(readFileSync(join(root, importer), "utf8"), true, true).importedFiles.flatMap(({ fileName }) => {
+      const target = resolveModule(importer, fileName);
+      return target === undefined || target.split("/").includes("node_modules") ? [] : [target];
+    });
+  return [...moduleClosure(entries, targetsOf)].toSorted();
+}
+
 export function isRunnableToolingSpec(path: string): boolean {
   if (!path.startsWith(TOOLING_TESTS_PREFIX)) {
     return false;

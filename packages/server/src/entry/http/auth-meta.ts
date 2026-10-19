@@ -12,7 +12,7 @@ import type { Hono } from "hono";
 import { requestClientScope, requestTransport } from "#infra/auth";
 import { peerIp } from "#infra/network";
 import { userRoleValue } from "#primitives/role-data/decode";
-import type { PrincipalEnv } from "./blob.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 // @orb-waive no-inline-package-interface(AuthMetaDeps): baselined when the gate landed; burn-down item 952.
 export interface AuthMetaDeps {

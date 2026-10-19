@@ -1,5 +1,5 @@
 // Policy: no-inline-domain-interface — exported interface origins outside the domain's contract home.
-// Native syntax owns direct declarations; shared reporting retains the local export-list remainder.
+// Native placement owns authored domain declarations; shared reporting retains generated declarations.
 //
 // Legacy `no-inline-types` judged an exported `interface` only when the file sat under
 // `packages/server/src/domain/**` (`isDomainFeature`), while judging exported type aliases across the
@@ -82,15 +82,9 @@ export const gate = defineGate({
   mustFlag: [
     {
       mode: "source",
-      files: { "packages/server/src/domain/x/verb.ts": "interface Foo {\n  readonly x: string;\n}\nexport type { Foo };\n" },
+      files: { "packages/server/src/domain/x/result.gen.ts": "export interface Foo {\n  readonly x: string;\n}\n" },
       expect: { count: 1, token: "Foo" },
-      why: "a locally export-listed interface retains the custom placement obligation outside contract/",
-    },
-    {
-      mode: "source",
-      files: { "packages/server/src/domain/rpg/tools/apply.ts": "interface Foo {\n  readonly x: string;\n}\nexport type { Foo };\n" },
-      expect: { count: 1, token: "Foo" },
-      why: "a local interface export in a domain tools subsystem still belongs in contract/; native syntax owns direct declarations",
+      why: "a generated domain interface is outside native admission, so this owner retains its placement obligation",
     },
   ],
   mustPass: [
@@ -113,23 +107,25 @@ export const gate = defineGate({
     },
     {
       mode: "source",
-      files: { "packages/server/src/domain/x/verb.ts": "interface Foo {\n  readonly x: string;\n}\nexport const use = (value: Foo): string => value.x;\n" },
+      files: {
+        "packages/server/src/domain/x/local.gen.ts": "interface Foo {\n  readonly x: string;\n}\nexport const use = (value: Foo): string => value.x;\n",
+      },
       why: "an UNEXPORTED interface is file-local and has no second home to collide with",
     },
     {
       mode: "source",
       files: {
         "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
-        "packages/server/src/infra/network/egress.ts": "export interface Foo {\n  readonly x: string;\n}\n",
+        "packages/server/src/primitives/egress.ts": "export interface Foo {\n  readonly x: string;\n}\n",
       },
-      why: "THE POPULATION BOUNDARY the split preserves: infra is not a domain feature, and legacy judged an exported interface ONLY under domain/. Widening it here would have been a silent new accusation on every infra/transport/foundation module",
+      why: "THE POPULATION BOUNDARY the split preserves: primitives are not a domain feature, and legacy judged an exported interface ONLY under domain/. The other server tiers are native placement, so primitives carry this boundary",
     },
     {
       mode: "source",
       files: {
-        "packages/server/src/domain/x/verb.ts":
+        "packages/server/src/domain/x/result.gen.ts":
           "// @orb-waive no-inline-domain-interface(Foo): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
-          "interface Foo {\n  readonly x: string;\n}\nexport type { Foo };\n",
+          "export interface Foo {\n  readonly x: string;\n}\n",
       },
       why: "POSITIONAL IDENTITY: the report anchors on the interface's NAME node, so the position is the shape's own name `Foo` and not the `export`/`interface` keywords the declaration text opens with. Built on the founding mustFlag row — a ONE-finding fixture",
     },

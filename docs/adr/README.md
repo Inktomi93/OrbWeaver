@@ -275,3 +275,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D326 | [Foundation env posture APIs have an owned contract](0326-foundation-env-posture-contract.md) | superseded by [0327-foundation-env-policy-contracts.md](0327-foundation-env-policy-contracts.md) |
 | D327 | [Foundation env policy APIs have an owned contract](0327-foundation-env-policy-contracts.md) | active |
 | D328 | [Bounded analysis and explicit security successors](0328-bounded-analysis-and-explicit-security-successors.md) | active |
+| D329 | [Data-layout and portability registry shapes have exact homes](0329-data-layout-and-portability-registry-type-homes.md) | active |

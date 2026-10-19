@@ -9,13 +9,15 @@
 import type { VariantKind } from "@orb/contracts/assets";
 import { BLOB_ROUTE, variantKindSchema } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
+import type { AssetsService } from "#domain/assets";
 import { getLog } from "#foundation/observability";
-import type { BlobAssetsPort } from "./contract/assets.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
-export type { BlobAssetsPort } from "./contract/assets.ts";
+/** The assets slice this registrar consumes, derived from the service rather than restated. */
+export type BlobAssetsPort = Pick<AssetsService, "getMetadata" | "resolveVariant">;
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
@@ -59,21 +61,6 @@ export interface BlobCasPort {
 export interface BlobDeps {
   readonly assets: BlobAssetsPort;
   readonly cas: BlobCasPort;
-}
-
-// @orb-waive no-inline-package-interface(PrincipalEnv): entry-only registrar environment belongs to the same-file registerBlob signature (D324); native Hono conditional contribution is unproven. Ends when native signature ownership proves that contribution.
-/** The request-context shape EVERY principal-reading route registrar in this directory types its `app`
- *  against — declared once here (the oldest such registrar) rather than re-spelled per route file. It is the
- *  WHOLE set of vars the auth middleware writes, not just the ones this route reads: Hono's env generic is
- *  INVARIANT, so one app instance cannot satisfy two different `Variables` shapes.
- *
- *  `sessionId` (W7a) is the cookie session that admitted the request, `null` on every other admission arm. It
- *  rides BESIDE the principal because D135 keeps the Principal to the role verdict `users` owns; its one
- *  consumer is the tRPC context, where `stream.connect` stamps it on the socket cell so a logout can evict
- *  exactly that device's streams. No route here authorizes on it. */
-export interface PrincipalEnv {
-  // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
-  Variables: { principal: Principal | null; sessionId: SessionId | null };
 }
 
 /** Register `GET /api/blob/:hash` (+ the `?w=` variant) on `app`. */

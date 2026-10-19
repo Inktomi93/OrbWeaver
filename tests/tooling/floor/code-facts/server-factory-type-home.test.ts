@@ -302,7 +302,7 @@ test("parser generic observations retain canonical substitution while refusing f
   }
 });
 
-test("the qualified native population preserves founding tier findings, nonserver direct-only admission and exact line authority", async ({
+test("the qualified native population preserves founding tier findings, nonserver export-list admission and exact line authority", async ({
   scratch,
   repoRoot,
 }) => {
@@ -352,6 +352,7 @@ test("the qualified native population preserves founding tier findings, nonserve
     "FoundationDirect",
     "FoundationList",
     "Frame",
+    "Local",
     "PutResult",
   ]);
   for (const path of [
@@ -412,7 +413,7 @@ test("the qualified native population preserves founding tier findings, nonserve
   ).toThrow("owning TypeScript Program");
 }, 30_000);
 
-test("custom declaration owners delegate only covered server alias/interface populations without consulting the syntax checker", () => {
+test("custom declaration owners delegate the native population, including inference export lists, without consulting the syntax checker", () => {
   const root = "/factory-custom-delegation";
   const project = new Project({ useInMemoryFileSystem: true });
   for (const tier of TIERS) {
@@ -429,10 +430,7 @@ test("custom declaration owners delegate only covered server alias/interface pop
     expect(result.toolErrors).toEqual([]);
     expect(
       result.authority.effectiveFindings.map((finding) => [finding.policyId, finding.token]).toSorted((left, right) => left.join().localeCompare(right.join())),
-    ).toEqual([
-      ["no-inline-package-interface", "Local"],
-      ["no-inline-package-interface", "Retained"],
-    ]);
+    ).toEqual([["no-inline-package-interface", "Retained"]]);
     expect(checker).not.toHaveBeenCalled();
   } finally {
     checker.mockRestore();

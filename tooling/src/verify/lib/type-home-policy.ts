@@ -1,17 +1,13 @@
 // Admitted declaration findings retain their policy identity, authority and authored-name coordinates.
 import { Node } from "ts-morph";
-import {
-  nativeFactoryTypeHomePopulation,
-  nativeTypeHomeDirectExport,
-  serverTypeApiHome,
-  UI_TOKEN_AUTHORING_CONTRACT_HOME,
-} from "../../floor/code-facts/type-home.ts";
+import { nativeTypeHomeAdmission, serverTypeApiHome, UI_TOKEN_AUTHORING_CONTRACT_HOME } from "../../floor/code-facts/type-home.ts";
 import type { TypeHomeDeclarationClaim, TypeHomeDeclarationInput } from "../../floor/code-facts/type-home-contract.ts";
 import { judgeTypeHomeDeclaration } from "../../floor/code-facts/type-home-declaration.ts";
 import type { GatePolicyContext, GatePolicyFindingDetails } from "../contract/policy.ts";
 
+// Native lint owns every plane in its admitted population; concrete transport API homes still owe schema placement.
 function declarationHasSuccessorHome(node: Node, path: string): boolean {
-  return !Node.isVariableStatement(node) && (serverTypeApiHome(path) || nativeFactoryTypeHomePopulation(path));
+  return nativeTypeHomeAdmission(path) || (!Node.isVariableStatement(node) && serverTypeApiHome(path));
 }
 
 /** Unqualified ownership cannot erase a current accusation; only successor equivalence may retire its owner. */
@@ -54,10 +50,7 @@ export function reportTypeHomeDeclaration(
           fix: `Move the declaration to ${UI_TOKEN_AUTHORING_CONTRACT_HOME} and preserve supported type exports through type-only reexports.`,
         }
       : finding;
-  for (const { name, plane } of judgment.shapes) {
-    if (plane === "direct-export" && nativeTypeHomeDirectExport(path)) {
-      continue;
-    }
+  for (const { name } of judgment.shapes) {
     ctx.report.node(name, { token: name.getText(), offset: 0, ...detailsForHome });
   }
 }

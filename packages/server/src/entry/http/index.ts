@@ -22,10 +22,11 @@ export {
   serializeClearedSessionCookies,
   serializeSessionCookie,
 } from "./auth-routes.ts";
-export type { BlobAssetsPort, BlobCasPort, BlobDeps, PrincipalEnv } from "./blob.ts";
+export type { BlobAssetsPort, BlobCasPort, BlobDeps } from "./blob.ts";
 export { registerBlob } from "./blob.ts";
 export type { CardFrameDeps, CardFrameParticipantsPort } from "./card-frame.ts";
 export { registerCardFrame } from "./card-frame.ts";
+export type { PrincipalEnv } from "./contract/request-env.ts";
 export type { ExportDeps } from "./export.ts";
 export { registerExport } from "./export.ts";
 export type { HealthzDeps } from "./healthz.ts";
