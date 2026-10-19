@@ -384,6 +384,23 @@ test("hostile admission directories and slot symlinks are refused without touchi
   expect(readFileSync(target, "utf8")).toBe("preserved\n");
 });
 
+test("a torn slot record the hook clears is announced, never silent", ({ scratch, repoRoot }) => {
+  const checkout = plantCheckout(scratch);
+  const bin = join(scratch, "stub bin");
+  stubPnpm(bin);
+  const runtime = join(scratch, "torn-runtime");
+  const pool = hostPoolDir({ name: "hook", label: "", slots: 1 }, { [HOST_POOL_ROOT_ENV]: runtime });
+  mkdirSync(pool, { recursive: true, mode: 0o700 });
+  // Every slot the hook could take holds a half-written record, so whichever it takes is a cleared torn file.
+  for (let slot = 1; slot <= 16; slot += 1) {
+    writeFileSync(join(pool, `${String(slot)}.lock`), '{"pid": ');
+  }
+  const file = join(checkout.worktree, "tests/client/subject.dom.test.ts");
+  const run = runHook({ hook: join(repoRoot, HOOK_REL), project: checkout.main, cwd: checkout.worktree, file, bin, log: join(scratch, "torn.log"), runtime });
+  expect(run.status).toBe(0);
+  expect(findings(run)).toContain("an unreadable record");
+});
+
 // Eleven complete hook invocations share one fixture here so each planner/tool refusal and the admission
 // non-verdict crosses the real shell boundary. Together they exceeded the generic 5s budget under load (#2308).
 test("planner failure and admission contention are visible non-verdicts", { timeout: scaledBudget(10_000) }, ({ scratch, repoRoot }) => {

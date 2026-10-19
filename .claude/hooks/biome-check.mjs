@@ -308,7 +308,7 @@ async function loadShared() {
 async function runLegs(shared, pool, legs, diag) {
   const leases = [];
   while (leases.length < legs.length) {
-    const lease = shared.tryAcquireHostSlot(pool);
+    const lease = shared.tryAcquireHostSlot(pool, { onNotice: (message) => diag.push(`pool: ${message}\n`) });
     if (lease === null) {
       break;
     }
@@ -494,7 +494,10 @@ async function checkProgram(shared, root, program, edited, diag, typeOut) {
   // Two edits in one checkout must not type-check the same program twice at once: one host slot per
   // (checkout, program), taken without waiting.
   const key = createHash("sha256").update(`${root}\0${program}`).digest("hex").slice(0, 16);
-  const duplicate = shared.tryAcquireHostSlot({ name: `hook-typecheck-${key}`, label: `edit hook ${program} in ${path.basename(root)}`, slots: 1 });
+  const duplicate = shared.tryAcquireHostSlot(
+    { name: `hook-typecheck-${key}`, label: `edit hook ${program} in ${path.basename(root)}`, slots: 1 },
+    { onNotice: (message) => diag.push(`typecheck: ${message}\n`) },
+  );
   if (duplicate === null) {
     diag.push(`typecheck: ${program} is already running for this checkout; it was SKIPPED\n`);
     return;
