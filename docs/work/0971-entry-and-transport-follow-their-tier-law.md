@@ -21,4 +21,4 @@ Each site follows its tier rule; each new dependency-cruiser rule has a planted 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Salvaged uncommitted work from the stopped 971 lane (worktree agent-a94ab45e8b5437f01, HEAD 7ac9a7c2b6): `reports/review/salvage/agent-a94ab45e8b5437f01.patch` and `.untracked.tgz`, which hold packages/contracts/src/inference/structured-retry.ts and packages/server/src/transport/jobs/index.ts. Re-derive on main before reusing it.

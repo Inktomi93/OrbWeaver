@@ -8,7 +8,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as discovery } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membership } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
-import { gate as identity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -25,9 +24,8 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [scrubber, membership, identity, discovery];
+const POLICIES = [scrubber, membership, discovery];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
-const ENGINE = "packages/server/src/domain/chat/engine/subject.ts";
 const DISCOVERY = "packages/server/src/domain/discovery/subject.ts";
 const CLIENT = "packages/client/src/features/subject.tsx";
 
@@ -42,11 +40,9 @@ function fixture(root: string, repoRoot: string): void {
     "packages/kit/src/content/index.ts": "export function createHiddenSpanStreamScrubber():object{return {};}",
     "packages/db/src/schema/tables.ts": "export const users={};export const ownerStats={};",
     "packages/db/src/query/index.ts": "export function fetchOwned():object{return {};}",
-    "packages/contracts/src/identity/index.ts": "export interface Principal {readonly userId:string;}",
     "foreign.ts": "export function createHiddenSpanStreamScrubber():object{return {};}",
     [SERVER]:
       "import {createHiddenSpanStreamScrubber} from '#scrubber';\nimport {users} from '#tables';\nimport {fetchOwned} from '#owned';\nexport const value=[createHiddenSpanStreamScrubber(),users,fetchOwned];\n",
-    [ENGINE]: "import type {Principal as Caller} from '#identity';\nexport const value:Caller={userId:'u'};\n",
     [DISCOVERY]: "import * as schema from '#tables';\nexport const value=schema.ownerStats;\n",
     [CLIENT]: "import * as content from '#scrubber';\ncontent.createHiddenSpanStreamScrubber();\n",
   };
@@ -55,7 +51,7 @@ function fixture(root: string, repoRoot: string): void {
   }
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, jsx: "preserve", types: [] };
   write("tsconfig.json", JSON.stringify({ compilerOptions, files: Object.keys(sources) }));
-  for (const pkg of ["server", "client", "kit", "db", "contracts"]) {
+  for (const pkg of ["server", "client", "kit", "db"]) {
     write(
       `packages/${pkg}/tsconfig.json`,
       JSON.stringify({
@@ -75,7 +71,6 @@ function fixture(root: string, repoRoot: string): void {
         "#scrubber": { browser: "./foreign.ts", default: "./packages/kit/src/content/index.ts" },
         "#tables": "./packages/db/src/schema/tables.ts",
         "#owned": "./packages/db/src/query/index.ts",
-        "#identity": "./packages/contracts/src/identity/index.ts",
       },
     }),
   );
@@ -137,7 +132,6 @@ test(
         [
           { id: scrubber.id, findings: [{ file: SERVER, token: "createHiddenSpanStreamScrubber" }] },
           { id: membership.id, findings: [{ file: SERVER, token: "fetchOwned" }] },
-          { id: identity.id, findings: [{ file: ENGINE, token: "Principal" }] },
           { id: discovery.id, findings: [{ file: DISCOVERY, token: "ownerStats" }] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
@@ -172,15 +166,6 @@ local.fetchOwned();
 `,
     );
     writeFileSync(
-      join(scratch, ENGINE),
-      `import * as types from '#identity';
-const KEY='Principal';
-// @orb-waive turn-identity(KEY): intentional identity fixture; ends with this test.
-types[(KEY)];
-const principal=1;
-`,
-    );
-    writeFileSync(
       join(scratch, DISCOVERY),
       `import * as schema from '#tables';
 const KEY='ownerStats';
@@ -197,7 +182,7 @@ const local={ownerStats:1};local.ownerStats;
     );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const selected = [membership, identity, discovery];
+    const selected = [membership, discovery];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -215,14 +200,12 @@ const local={ownerStats:1};local.ownerStats;
       { line: 8, column: 6, token: "OWNER" },
       { line: 9, column: 7, token: "ownerId" },
     ]);
-    expect(positions(identity.id)).toEqual([{ line: 4, column: 8, token: "KEY" }]);
     expect(positions(discovery.id)).toEqual([
       { line: 5, column: 21, token: "KEY" },
       { line: 6, column: 10, token: "ownerStats" },
       { line: 8, column: 9, token: "STABLE" },
     ]);
     expect(result.authority.waivedFindings.map(({ finding }) => [finding.policyId, finding.token])).toEqual([
-      [identity.id, "KEY"],
       [membership.id, "FETCH"],
       [membership.id, "OWNER"],
       [discovery.id, "KEY"],

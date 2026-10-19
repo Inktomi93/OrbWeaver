@@ -86,7 +86,7 @@ function repoPath(canonicalRoot: string, absolute: string): string | undefined {
   return relativePath(canonicalRoot, canonical).split(sep).join("/");
 }
 
-function moduleResolver(root: string): (importer: string, specifier: string) => string | undefined {
+function moduleResolver(root: string): ModuleResolver {
   const options = compilerOptions(root);
   const canonicalRoot = realpathSync(root);
   const cache = ts.createModuleResolutionCache(root, (path) => path, options);
@@ -96,14 +96,20 @@ function moduleResolver(root: string): (importer: string, specifier: string) => 
   };
 }
 
+type ModuleResolver = (importer: string, specifier: string) => string | undefined;
+
+/** The repository paths one module's static, re-export and literal `import()` specifiers resolve to; type-only edges included. */
+function importedModules(root: string, resolveModule: ModuleResolver, importer: string): readonly string[] {
+  return ts
+    .preProcessFile(readFileSync(join(root, importer), "utf8"), true, true)
+    .importedFiles.flatMap(({ fileName }) => resolveModule(importer, fileName) ?? []);
+}
+
 /** Every repository module the entries reach through native tooling resolution, type-only edges included. */
 export function toolingModuleClosure(root: string, entries: readonly string[]): readonly string[] {
   const resolveModule = moduleResolver(root);
   const targetsOf = (importer: string): readonly string[] =>
-    ts.preProcessFile(readFileSync(join(root, importer), "utf8"), true, true).importedFiles.flatMap(({ fileName }) => {
-      const target = resolveModule(importer, fileName);
-      return target === undefined || target.split("/").includes("node_modules") ? [] : [target];
-    });
+    importedModules(root, resolveModule, importer).filter((target) => !target.split("/").includes("node_modules"));
   return [...moduleClosure(entries, targetsOf)].toSorted();
 }
 
@@ -120,10 +126,8 @@ function reverseImportGraph(root: string, modules: readonly string[]): ReadonlyM
   const importers = new Map<string, string[]>();
   const resolveModule = moduleResolver(root);
   for (const importer of modules) {
-    const preprocessed = ts.preProcessFile(readFileSync(join(root, importer), "utf8"), true, true);
-    for (const imported of preprocessed.importedFiles) {
-      const target = resolveModule(importer, imported.fileName);
-      if (target === undefined || !moduleSet.has(target)) {
+    for (const target of importedModules(root, resolveModule, importer)) {
+      if (!moduleSet.has(target)) {
         continue;
       }
       const existing = importers.get(target);

@@ -1,8 +1,8 @@
 // Same-file merged-export ORIGIN recognition, split out of reference-fact-module.ts to hold the size cap.
-import type { Node as MorphNode } from "ts-morph";
-import { Node } from "ts-morph";
+import type { ElementAccessExpression, ImportDeclaration, Node as MorphNode, PropertyAccessExpression, SourceFile } from "ts-morph";
+import { Node, SyntaxKind } from "ts-morph";
 import type { ModuleMemberOrigin, ReferenceFact } from "./reference-fact-contract.ts";
-import { importDeclarationOf, originFromTarget, projectTarget } from "./reference-fact-module-helpers.ts";
+import { importDeclarationOf, originFromTarget, projectTarget, requiresResolvedSource } from "./reference-fact-module-helpers.ts";
 import { overloadHome } from "./reference-fact-overload.ts";
 import type { ModuleState } from "./reference-fact-state.ts";
 import { declarationOf, resolved } from "./reference-fact-state.ts";
@@ -21,6 +21,9 @@ import { declarationOf, resolved } from "./reference-fact-state.ts";
  *  same-file check below still rejects a cross-file augmentation, so only a genuine same-file
  *  value+namespace/interface merge reaches this arm. */
 export function sameFileMergedExportOrigin(node: MorphNode, target: ModuleState): ReferenceFact<ModuleMemberOrigin> | undefined {
+  if (Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node)) {
+    return memberMergedOrigin(node, target);
+  }
   if (!Node.isIdentifier(node)) {
     return;
   }
@@ -28,23 +31,67 @@ export function sameFileMergedExportOrigin(node: MorphNode, target: ModuleState)
   if (declarationFact.kind === "unresolved" || !Node.isImportSpecifier(declarationFact.value)) {
     return;
   }
-  const importSpecifier = declarationFact.value;
-  const importDeclaration = importDeclarationOf(importSpecifier);
-  const sourceFile = importDeclaration?.getModuleSpecifierSourceFile();
-  if (importDeclaration === undefined || sourceFile === undefined) {
+  const importDeclaration = importDeclarationOf(declarationFact.value);
+  return importDeclaration === undefined ? undefined : mergedExport(importDeclaration, declarationFact.value.getName(), target);
+}
+
+/** `ns.name` reads the export off a namespace import; `receiver.member` extends a merged receiver's path. */
+function memberMergedOrigin(node: PropertyAccessExpression | ElementAccessExpression, target: ModuleState): ReferenceFact<ModuleMemberOrigin> | undefined {
+  const member = literalMemberName(node);
+  if (member === undefined) {
     return;
   }
-  const exportedName = importSpecifier.getName();
-  const symbol = sourceFile.getExportSymbols().find((candidate) => candidate.getName() === exportedName);
-  const valueDeclaration = symbol?.getValueDeclaration();
-  const declarations = symbol?.getDeclarations() ?? [];
+  const receiver = node.getExpression();
+  const declared = Node.isIdentifier(receiver) ? declarationOf(receiver, target) : undefined;
+  if (declared?.kind === "resolved" && Node.isNamespaceImport(declared.value)) {
+    const importDeclaration = importDeclarationOf(declared.value);
+    return importDeclaration === undefined ? undefined : mergedExport(importDeclaration, member, target);
+  }
+  const base = sameFileMergedExportOrigin(receiver, target);
+  return base?.kind === "resolved" ? { ...base, value: { ...base.value, memberPath: [...base.value.memberPath, member] } } : undefined;
+}
+
+/** The member a dotted or literal-bracket read names; a computed key names nothing here. */
+function literalMemberName(node: PropertyAccessExpression | ElementAccessExpression): string | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return node.getName();
+  }
+  const key = node.getArgumentExpression();
+  return Node.isStringLiteral(key) || Node.isNoSubstitutionTemplateLiteral(key) ? key.getLiteralText() : undefined;
+}
+
+/** The merged export `name` of the imported module, found through any chain of name-preserving re-exports. A
+ *  chain that ends at a package door reports that door, so a sibling's `export { sql } from "drizzle-orm"` is
+ *  the package's `sql`, while a sibling's own merge keeps its relative door and stays another module's. */
+function mergedExport(importDeclaration: ImportDeclaration, name: string, target: ModuleState): ReferenceFact<ModuleMemberOrigin> | undefined {
+  return mergedExportIn(importDeclaration.getModuleSpecifierSourceFile(), importDeclaration.getModuleSpecifierValue(), name, target);
+}
+
+function mergedExportIn(file: SourceFile | undefined, door: string, name: string, target: ModuleState): ReferenceFact<ModuleMemberOrigin> | undefined {
+  const symbol = file?.getExportSymbols().find((candidate) => candidate.getName() === name);
+  if (symbol === undefined) {
+    return;
+  }
+  if (symbol.isAlias()) {
+    const specifier = symbol.getDeclarations().find(Node.isExportSpecifier);
+    const hop = specifier?.getFirstAncestorByKind(SyntaxKind.ExportDeclaration);
+    const hopDoor = hop?.getModuleSpecifierValue();
+    return specifier === undefined || hopDoor === undefined
+      ? undefined
+      : mergedExportIn(hop?.getModuleSpecifierSourceFile(), requiresResolvedSource(hopDoor) ? door : hopDoor, specifier.getName(), target);
+  }
+  const valueDeclaration = symbol.getValueDeclaration();
+  const declarations = symbol.getDeclarations();
   const mergeHome = valueDeclaration?.getSourceFile();
-  const isSameFileMerge = mergeHome !== undefined && declarations.length > 1 && declarations.every((declaration) => declaration.getSourceFile() === mergeHome);
-  if (!isSameFileMerge || valueDeclaration === undefined) {
+  if (
+    valueDeclaration === undefined ||
+    mergeHome === undefined ||
+    declarations.length < 2 ||
+    !declarations.every((item) => item.getSourceFile() === mergeHome)
+  ) {
     return;
   }
-  const moduleSpecifier = importDeclaration.getModuleSpecifierValue();
-  return resolved(originFromTarget(moduleSpecifier, exportedName, projectTarget(valueDeclaration, exportedName)), target, valueDeclaration);
+  return resolved(originFromTarget(door, name, projectTarget(valueDeclaration, name)), target, valueDeclaration);
 }
 
 /** Callable values have one function/overload home; namespace metadata does not make another function. */

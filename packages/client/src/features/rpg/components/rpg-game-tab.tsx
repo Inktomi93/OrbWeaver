@@ -354,7 +354,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
           size="sm"
           disabled={busy}
           onClick={(): void => {
-            void onResync();
+            void onResync().catch(globalThis.reportError);
           }}
         >
           <Icon icon={RotateCcw} size="xs" />

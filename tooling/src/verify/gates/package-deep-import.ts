@@ -1,11 +1,10 @@
 // Gate: package-deep-import — a parent-relative import that climbs two or more directories inside a package is
 // banned: a file in the same module spells `#src/<path>`, and another module is entered through its front door
-// (Core-0-Architecture-and-Structure.md §1 principle 2). Arms: same-module · cross-module · re-export · dynamic import().
+// (Core-0-Architecture-and-Structure.md §1 principle 2). Arms: same-module · cross-module · every floor module position.
 // DECLARED LIMITS: one-level `../` stays legal; a relative path that leaves `src/` is not this policy's subject.
-// FAMILY: singleton — its only shared dependency is the floor module map (floor/code-facts/package-module.ts), which no other policy reads.
-import { posix } from "node:path";
-import type { Node as MorphNode } from "ts-morph";
+// FAMILY: singleton — it shares no verify lib reader; floor module positions and the floor module map are its only inputs.
 import { Node, SyntaxKind } from "ts-morph";
+import { modulePositionSpecifier, resolveRelativeImport } from "../../floor/code-facts/module-specifier.ts";
 import { packageModuleOf, SOURCE_SUBPATH_PREFIX } from "../../floor/code-facts/package-module.ts";
 import { defineGate } from "../contract/policy.ts";
 
@@ -21,8 +20,8 @@ const FIX = "replace the specifier with the spelling the finding names; `pnpm co
 /** The spelling a deep specifier owes, or undefined when it leaves the importer's `src/`. */
 function nextSpelling(importer: string, spec: string): string | undefined {
   const from = PACKAGE_SOURCE.exec(importer);
-  const target = posix.normalize(posix.join(posix.dirname(importer), spec));
-  const to = PACKAGE_SOURCE.exec(target);
+  const target = resolveRelativeImport(importer, spec);
+  const to = target === null ? null : PACKAGE_SOURCE.exec(target);
   if (from?.[1] === undefined || from[2] === undefined || from[3] === undefined || to?.[1] !== from[1] || to[3] === undefined) {
     return;
   }
@@ -30,13 +29,6 @@ function nextSpelling(importer: string, spec: string): string | undefined {
   const toModule = packageModuleOf(from[2], to[3]);
   const sameModule = fromModule.key === toModule.key || toModule.kind === "file";
   return sameModule ? `${SOURCE_SUBPATH_PREFIX}${to[3]}` : `${toModule.door} (the ${toModule.key} front door)`;
-}
-
-function deepSpecifier(node: MorphNode): MorphNode | undefined {
-  if (Node.isImportDeclaration(node) || Node.isExportDeclaration(node)) {
-    return node.getModuleSpecifier();
-  }
-  return Node.isCallExpression(node) && node.getExpression().getKind() === SyntaxKind.ImportKeyword ? node.getArguments()[0] : undefined;
 }
 
 export const gate = defineGate({
@@ -54,9 +46,9 @@ export const gate = defineGate({
   create: (ctx) => ({
     visitors: [
       {
-        kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression],
+        kinds: [SyntaxKind.ImportDeclaration, SyntaxKind.ExportDeclaration, SyntaxKind.CallExpression, SyntaxKind.ImportType],
         visit: (node, sourceFile) => {
-          const literal = deepSpecifier(node);
+          const literal = modulePositionSpecifier(node);
           if (literal === undefined || !Node.isStringLiteral(literal) || !literal.getLiteralValue().startsWith(DEEP_PARENT)) {
             return;
           }
@@ -104,6 +96,24 @@ export const gate = defineGate({
       },
       expect: { count: 1, messageIncludes: "Use #src/features/chat/lib/x.ts." },
       why: "a dynamic import() climbs the same way; the call arm",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/chat/verbs/send/run.ts": 'export type A = import("../../substrate/a.ts").A;\n',
+        "packages/server/src/domain/chat/substrate/a.ts": "export type A = number;\n",
+      },
+      expect: { count: 1, token: '"../../substrate/a.ts"', messageIncludes: "Use #src/domain/chat/substrate/a.ts." },
+      why: "an import() in a TYPE position climbs through the same resolver; the floor module-position reader's import-type arm",
+    },
+    {
+      mode: "source",
+      files: {
+        "packages/server/src/domain/chat/verbs/send/run.ts": 'export const a = require("../../substrate/a.ts");\n',
+        "packages/server/src/domain/chat/substrate/a.ts": "export const a = 1;\n",
+      },
+      expect: { count: 1, token: '"../../substrate/a.ts"', messageIncludes: "Use #src/domain/chat/substrate/a.ts." },
+      why: "a require() is a module position too; the floor module-position reader's call arm",
     },
   ],
   mustPass: [

@@ -39,7 +39,7 @@
 // known — `evaluateObjectProperties` takes the name set — and those names come from the CSS census. The
 // provider therefore reads the same closed identity its consumers do, one phase earlier.
 
-import { readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readStaticString, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";
@@ -252,18 +252,7 @@ function recordJsxSpread(
 
 /** The accessed member name in either spelling; the computed arm resolves through the shared reader. */
 function accessedPropertyName(node: Node, native?: StaticClassNativeContext): string | undefined {
-  if (Node.isPropertyAccessExpression(node)) {
-    return node.getName();
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  if (argument === undefined) {
-    return;
-  }
-  const fact = native === undefined ? readStaticString(argument) : requiredInvocationFact(native.evidence.strings, argument);
-  return fact.kind === "unresolved" ? undefined : fact.value;
+  return staticMemberAccess(node, (key) => (native === undefined ? readStaticString(key) : requiredInvocationFact(native.evidence.strings, key)))?.name;
 }
 
 function accessReceiver(node: Node): Node | undefined {

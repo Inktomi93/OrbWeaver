@@ -303,6 +303,9 @@ function writeAllFixtures(): void {
     `${S}/domain/__dc_feat/verbs/__dc_teachcall.ts`,
     `import { teachingContribution } from "../teaching-contribution.ts";\nexport const u = teachingContribution;\n`,
   );
+  // principal-mint-owners (D1/D40): a domain verb reaching the one Principal constructor directly.
+  fx(`${S}/entry/auth/principal-mint.ts`, VAL);
+  fx(`${S}/domain/__dc_feat/verbs/__dc_mint.ts`, `import { t } from "../../../entry/auth/principal-mint.ts";\nexport const u = t;\n`);
 
   // The @orb/inference seal — providers-public-surface-only · infra-strategy-isolation ·
   // credential-firewall-openrouter-not-agent-sdk. RE-POINTED 2026-09-20 with the stanzas themselves: the

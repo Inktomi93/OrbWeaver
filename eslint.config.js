@@ -1342,6 +1342,264 @@ const TURN_IDENTITY_RESTRICTIONS = [
       },
     ],
   },
+  {
+    // Matching the imported name from any source also covers barrels, re-exports and an unresolvable door.
+    id: "turn-identity-principal",
+    scope: ["packages/server/src/domain/chat/engine/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          // A heritage clause names a namespace member as a MemberExpression, which TSQualifiedName does not match.
+          ":matches(ImportSpecifier[imported.name='Principal'], ImportSpecifier[imported.value='Principal'], ExportSpecifier[local.name='Principal'], ExportSpecifier[local.value='Principal'], TSQualifiedName[right.name='Principal'], TSImportType[qualifier.name='Principal'], :matches(TSInterfaceHeritage, TSClassImplements) > MemberExpression[property.name='Principal'])",
+        message: "D19: the chat engine is Principal-blind; resolve the runAsUserId/triggeredBy triple at the verb layer and pass it down.",
+      },
+    ],
+  },
+];
+
+// ── PRINCIPAL CONSTRUCTION (D1/D40)───────────────────────────────────────────────────────────────────────
+// SECURITY: the contracts brand makes a literal, a spread or a `satisfies` check a type error. tsc still accepts an
+// `any` value, an Object.assign intersection and any value asserted past the brand, so these rules refuse those
+// spellings in server and inference code. HARD (`hardConfig` only): no inline directive or bulk suppression excuses
+// one. Each rule exempts registered functions, never a whole file, so a new mint site is a reviewed edit here.
+const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
+const PRINCIPAL_MINT_HOME = "packages/server/src/entry/auth/principal-mint.ts";
+const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
+const HOST_BRIDGE = "packages/server/src/entry/compose/chat.ts";
+const PRINCIPAL_MINT_NAME = "mintPrincipal";
+const PRINCIPAL_CONSTRUCTOR = { path: PRINCIPAL_MINT_HOME, name: PRINCIPAL_MINT_NAME };
+const ROW_MAPPER = { path: AUTH_SEAM, name: "principalFromRow" };
+const HOST_FLOOR = { path: HOST_BRIDGE, name: "hostPrincipal" };
+/** Functions that may return a bare Principal: the constructor, the row mapper (D135) and the host floor (invariant 1). */
+const PRINCIPAL_RETURN_SITES = [PRINCIPAL_CONSTRUCTOR, ROW_MAPPER, HOST_FLOOR];
+/** Functions that may call the constructor: the three request paths of the seam, the row mapper and the host floor. */
+const PRINCIPAL_MINT_CALLERS = [
+  PRINCIPAL_CONSTRUCTOR,
+  { path: AUTH_SEAM, name: "resolveCookiePrincipal" },
+  { path: AUTH_SEAM, name: "resolveHeaderOrFallbackPrincipal" },
+  ROW_MAPPER,
+  HOST_FLOOR,
+];
+const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
+const PRINCIPAL_FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
+const PRINCIPAL_WRAPPERS = new Set([...PRINCIPAL_CASTS, "TSSatisfiesExpression", "TSNonNullExpression"]);
+// The children an expression's value or leading `{` can come from. The walk has no depth bound, so stacking
+// assertions, parentheses or a member read cannot carry a literal past it.
+const PRINCIPAL_VALUE_SOURCES = {
+  TSAsExpression: ["expression"],
+  TSSatisfiesExpression: ["expression"],
+  TSTypeAssertion: ["expression"],
+  TSNonNullExpression: ["expression"],
+  TSInstantiationExpression: ["expression"],
+  ChainExpression: ["expression"],
+  AwaitExpression: ["argument"],
+  AssignmentExpression: ["right"],
+  ConditionalExpression: ["test", "consequent", "alternate"],
+  LogicalExpression: ["left", "right"],
+  BinaryExpression: ["left"],
+  MemberExpression: ["object"],
+  CallExpression: ["callee"],
+  TaggedTemplateExpression: ["tag"],
+};
+const PRINCIPAL_LITERAL_MESSAGE =
+  "D1/D40: an object literal in a Principal position is a hand-built identity; tsc accepts it only when the literal is any-typed or asserted past the brand. Receive the caller's Principal or resolve one through the entry mint.";
+
+const isPrincipalType = (type) =>
+  type?.type === "TSTypeReference" &&
+  ((type.typeName.type === "Identifier" && type.typeName.name === "Principal") ||
+    (type.typeName.type === "TSQualifiedName" && type.typeName.right.name === "Principal"));
+
+/** The declared name of a function: its own id, or the binding, property or method key that holds it. */
+function principalFunctionName(fn) {
+  if (fn.id?.type === "Identifier") {
+    return fn.id.name;
+  }
+  const { parent } = fn;
+  if (parent.type === "VariableDeclarator") {
+    return parent.id.type === "Identifier" ? parent.id.name : null;
+  }
+  const keyed = ["Property", "MethodDefinition", "PropertyDefinition"].includes(parent.type);
+  return keyed && parent.key.type === "Identifier" ? parent.key.name : null;
+}
+
+/** Whether the function nearest `node` (or `node` itself) is one of `sites` in this file. A nested callback is not. */
+function inPrincipalSite(context, node, sites) {
+  const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
+  const fn = PRINCIPAL_FUNCTIONS.has(node.type) ? node : context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type));
+  const name = fn === undefined ? null : principalFunctionName(fn);
+  return sites.some((site) => site.path === path && site.name === name);
+}
+
+/** Every object literal the value of `expression` can be built from, at any depth. */
+function principalLiterals(expression) {
+  if (expression === null || expression === undefined) {
+    return [];
+  }
+  if (expression.type === "ObjectExpression") {
+    return [expression];
+  }
+  if (expression.type === "SequenceExpression") {
+    return [...principalLiterals(expression.expressions[0]), ...principalLiterals(expression.expressions.at(-1))];
+  }
+  return (PRINCIPAL_VALUE_SOURCES[expression.type] ?? []).flatMap((key) => principalLiterals(expression[key]));
+}
+
+const principalAssertionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      // Any Principal inside the asserted type counts: `as Principal[]`, `as Principal | null` and `satisfies` launder alike.
+      [`:matches(TSAsExpression, TSTypeAssertion, TSSatisfiesExpression) > .typeAnnotation:matches(${PRINCIPAL_TYPE_REFERENCE}, :has(${PRINCIPAL_TYPE_REFERENCE}))`](
+        node,
+      ) {
+        if (!inPrincipalSite(context, node, [PRINCIPAL_CONSTRUCTOR])) {
+          context.report({
+            node,
+            message: "D1/D40: an asserted Principal skips the entry mint. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+// tsc accepts an `any` value (JSON.parse, an untyped row) in a Principal return position, so each return site is registered.
+const principalReturnSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSDeclareFunction)"(fn) {
+        const type = fn.returnType?.typeAnnotation;
+        if (isPrincipalType(type) && !(PRINCIPAL_FUNCTIONS.has(fn.type) && inPrincipalSite(context, fn, PRINCIPAL_RETURN_SITES))) {
+          context.report({
+            node: type,
+            message:
+              "D1/D40: a function returning a bare Principal is a mint site. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const principalMintSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      if (!inPrincipalSite(context, node, PRINCIPAL_MINT_CALLERS)) {
+        context.report({
+          node,
+          message: `D1/D40: only the registered entry mint sites (PRINCIPAL_MINT_CALLERS in eslint.config.js) name ${PRINCIPAL_MINT_NAME}. Receive the caller's Principal or resolve one with createHostPrincipalResolver.`,
+        });
+      }
+    };
+    return {
+      [`Identifier[name='${PRINCIPAL_MINT_NAME}']`](node) {
+        // A plain import is the edge dependency-cruiser's principal-mint-owners judges; an alias hides later calls.
+        const plainImport =
+          node.parent.type === "ImportSpecifier" && node.parent.imported.name === PRINCIPAL_MINT_NAME && node.parent.local.name === PRINCIPAL_MINT_NAME;
+        if (!plainImport) {
+          report(node);
+        }
+      },
+      // A computed member or a string import name spells the constructor without an identifier.
+      [`:matches(MemberExpression[computed=true] > Literal.property, ImportSpecifier > Literal.imported, ExportSpecifier > Literal.local)[value='${PRINCIPAL_MINT_NAME}']`]:
+        report,
+      [`MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0][quasis.0.value.cooked='${PRINCIPAL_MINT_NAME}']`]: report,
+    };
+  },
+};
+
+const principalLiteralRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const judge = (type, value) => {
+      if (isPrincipalType(type)) {
+        for (const node of principalLiterals(value)) {
+          context.report({ node, message: PRINCIPAL_LITERAL_MESSAGE });
+        }
+      }
+    };
+    const enclosingReturnType = (node) =>
+      context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type))?.returnType?.typeAnnotation;
+    return {
+      "VariableDeclarator[init]"(node) {
+        judge(node.id.typeAnnotation?.typeAnnotation, node.init);
+      },
+      "AssignmentPattern[right]"(node) {
+        judge(node.left.typeAnnotation?.typeAnnotation, node.right);
+      },
+      // An `accessor` field is its own node type; abstract fields cannot carry an initializer (TS1267).
+      ":matches(PropertyDefinition, AccessorProperty, TSAbstractPropertyDefinition, TSAbstractAccessorProperty)"(node) {
+        judge(node.typeAnnotation?.typeAnnotation, node.value);
+      },
+      "ReturnStatement[argument]"(node) {
+        judge(enclosingReturnType(node), node.argument);
+      },
+      "ArrowFunctionExpression[expression=true]"(node) {
+        judge(node.returnType?.typeAnnotation, node.body);
+      },
+      "CallExpression:matches([callee.property.name='assign'], [callee.property.value='assign'])[callee.object.name='Object']"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: Object.assign returns an intersection, so it can graft a new userId or role onto a minted Principal past the brand. Use an object spread, which the brand type-checks.",
+        });
+      },
+    };
+  },
+};
+
+// At a call such as `actAs({ ...caller, userId } as never)` no Principal annotation exists for principal-literal to read.
+const principalBrandLaunderRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(TSAsExpression, TSTypeAssertion) > TSNeverKeyword.typeAnnotation"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: `never` is assignable to every type, so this assertion would let a hand-built value pass for a Principal past the entry mint. Narrow the value to its real type instead.",
+        });
+      },
+      ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression) > ObjectExpression.expression"(node) {
+        let casts = 0;
+        for (let child = node; PRINCIPAL_WRAPPERS.has(child.parent.type) && child.parent.expression === child; child = child.parent) {
+          casts += PRINCIPAL_CASTS.has(child.parent.type) ? 1 : 0;
+        }
+        if (casts >= 2) {
+          context.report({
+            node,
+            message:
+              "D1/D40: an object literal asserted through a second assertion can pass for any type, the Principal brand included. Build the value with its real type, or receive the caller's Principal.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const PRINCIPAL_RULES = [
+  { id: "principal-assertion", rule: principalAssertionRule },
+  { id: "principal-return-site", rule: principalReturnSiteRule },
+  { id: "principal-mint-site", rule: principalMintSiteRule },
+  { id: "principal-literal", rule: principalLiteralRule },
+  { id: "principal-brand-launder", rule: principalBrandLaunderRule },
+  {
+    id: "principal-synthetic-role",
+    notUnder: ["packages/server/src/entry/**"],
+    rule: restrictionRule({
+      selectors: [
+        {
+          selector:
+            "ObjectExpression:has(> Property:matches([key.name='externalId'], [key.value='externalId'])):has(> Property:matches([key.name='via'], [key.value='via'])) > Property:matches([key.name='role'], [key.value='role'])[value.value='user']",
+          message: 'D1: a Principal-shaped literal with a hardcoded role: "user" belongs only in the entry layer; receive the Principal from the caller.',
+        },
+      ],
+    }),
+  },
 ];
 
 // D22 member-card clamp, D16/D18 chat member fan, and the injected-op scope boundary (Spine-Identity-and-Auth §2b).
@@ -6733,6 +6991,7 @@ const restrictionPlugin = {
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
+    ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -7741,6 +8000,12 @@ export const hardConfig = [
     },
     settings: typedNativeSettings(entry),
     rules: { [entry.ruleId]: "error" },
+  })),
+  ...PRINCIPAL_RULES.map(({ id, notUnder }) => ({
+    files: PRINCIPAL_SCOPE,
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
   })),
   ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
     files: scope,

@@ -16,6 +16,11 @@ const INFRA_AUTHORITY_RULE = "orb/infra-auth-pre-row-imports";
 const FIREHOSE_RULE = "orb/firehose-import-allowlist";
 const PLUGIN_DUMP_RULE = "orb/plugin-dump-guard";
 const MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
+const INFRA_PROBE = "packages/server/src/infra/auth/modes/probe.ts";
+// The identifier-position case lints 52 sources, one config lookup and one native verify each.
+const IDENTIFIER_POSITION_BUDGET_MS = 15_000;
+// The first config resolution loads the whole flat config; pay it at import, not inside the first case's timeout.
+await eslint.calculateConfigForFile(join(ROOT, INFRA_PROBE));
 
 // D162's selector is name-keyed, so the name must stay the real callable firehose on both the transport door
 // and the composition root's live chat bus; a rename or a non-callable twin fails the compiler here.
@@ -42,12 +47,10 @@ async function findings(path: string, source: string, ruleId: string, engine: ES
   return messages.map(({ message }) => message);
 }
 
-test("infra verification rejects every userId identifier position without claiming string-key analysis", async () => {
-  for (const path of [
-    "packages/server/src/infra/auth/modes/probe.ts",
-    "packages/server/src/infra/auth/probe.tsx",
-    "packages/server/src/infra/auth/probe.d.ts",
-  ]) {
+test("infra verification rejects every userId identifier position without claiming string-key analysis", {
+  timeout: scaledBudget(IDENTIFIER_POSITION_BUDGET_MS),
+}, async () => {
+  for (const path of [INFRA_PROBE, "packages/server/src/infra/auth/probe.tsx", "packages/server/src/infra/auth/probe.d.ts"]) {
     for (const source of [
       "export function resolve(userId: string) {}",
       "const { userId: resolved } = identity;",
@@ -116,18 +119,23 @@ test("infra verification cannot import or reexport the canonical post-row author
   );
 });
 
-test("generated verification source retains both infra restrictions without activating unrelated rules", async () => {
+function orbRules(config: { readonly rules: Readonly<Record<string, unknown>> }): readonly string[] {
+  return Object.keys(config.rules)
+    .filter((id) => id.startsWith("orb/"))
+    .toSorted();
+}
+
+test("generated infra verification source adds exactly the two infra restrictions to generated server source", async () => {
+  // Generated sources keep every path-scoped restriction family and its compiler route (eslint.config.js),
+  // so the generated sibling outside infra/auth is the baseline, not an empty rule set.
+  const outside = await eslint.calculateConfigForFile(join(ROOT, "packages/server/src/infra/network/probe.gen.ts"));
   for (const path of ["packages/server/src/infra/auth/probe.gen.ts", "packages/server/src/infra/auth/modes/probe.gen.ts"]) {
     expect(await findings(path, "const userId = value;", INFRA_AUTH_RULE), path).toHaveLength(1);
     expect(await findings(path, 'import type { Principal as Caller } from "@orb/contracts/identity";', INFRA_AUTHORITY_RULE), path).toHaveLength(1);
     const config = await eslint.calculateConfigForFile(join(ROOT, path));
-    expect(
-      Object.keys(config.rules)
-        .filter((id) => id.startsWith("orb/"))
-        .toSorted(),
-    ).toEqual([INFRA_AUTH_RULE, INFRA_AUTHORITY_RULE].toSorted());
+    expect(orbRules(config), path).toEqual([...orbRules(outside), INFRA_AUTH_RULE, INFRA_AUTHORITY_RULE].toSorted());
     expect(config.rules["@typescript-eslint/no-floating-promises"]).toBeUndefined();
-    expect(config.languageOptions.parserOptions).toMatchObject({ project: false, projectService: false });
+    expect(config.languageOptions.parserOptions).toEqual(outside.languageOptions.parserOptions);
   }
   expect(await findings("packages/server/src/infra/network/probe.gen.ts", "const userId = value;", INFRA_AUTH_RULE)).toEqual([]);
 });

@@ -59,9 +59,8 @@ const DEFAULT_SANITIZE_MAX_LEN = 500;
  * known-safe literals — without measurable cost.
  */
 export function sanitizeApiError(raw: string, maxLen: number = DEFAULT_SANITIZE_MAX_LEN): string {
-  // Strip C0 control chars (0x00–0x1F) + DEL (0x7F), preserving newline (0x0A) + tab (0x09).
-  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional — this strips them.
-  let cleaned = raw.replace(/[\x00-\x08\v\f\x0E-\x1F\x7F]/g, "");
+  // Strip C0 control chars (0x00–0x1F) + DEL (0x7F), preserving tab (0x09), newline (0x0A) and carriage return (0x0D).
+  let cleaned = raw.replace(/[[\p{ASCII}&&\p{Cc}]--[\t\n\r]]/gv, "");
   // Replace each HTML/XML tag with a single space so adjacent tag-wrapped tokens don't fuse
   // ("<h1>Foo</h1><p>Bar</p>" → "Foo Bar", not "FooBar"); an upstream HTML error page would otherwise
   // leak a wall of markup into our logs.
