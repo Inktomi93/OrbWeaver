@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-aeb0038906b746d66
 ---
 
 # Delete the caught-failure census and health gates with their census file
