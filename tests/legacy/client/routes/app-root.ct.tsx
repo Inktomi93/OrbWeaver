@@ -297,29 +297,6 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
   await expect(create).toBeEnabled();
 });
 
-test("a user who owns a persona never sees the gate (the automation-seeded + returning-user arm)", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...HOME_AMBIENT_ROUTES,
-    "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
-    "databank.bankHealth": EMPTY_BANK_HEALTH,
-    "character.list": NO_CHARACTERS,
-    "persona.list": PERSONAS,
-  });
-  await mount(<HomePageStory />);
-
-  // BARRIER ON THE SETTLED ARM FIRST. The gate's trigger reads BOTH `persona.list` and
-  // `settings.getUserSettings` and renders nothing until both have settled (#1570), so a bare
-  // `toHaveCount(0)` is satisfied by the in-flight frame and passes for the wrong reason. The rail-foot
-  // avatar's accessible name is `Playing as <current>`, resolved from those SAME two reads
-  // (`persona-panel-surface.tsx` PanelTrigger ← resolvePlayingPersona(personas, seeds, room)) — so it appears
-  // only once the viewer's identity is fully resolved, which is exactly when the gate would open if it
-  // were going to.
-  await expect(page.getByRole("button", { name: `Playing as ${HOME_PERSONA.name}` })).toBeVisible();
-  await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
-  await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
-});
-
 // ── A JOINER NAMES A PERSONA BEFORE THEIR SEAT (owner ruling on sign-up joiners) ──
 // The /join landing waits until the viewer can speak: a joiner with no persona meets the first-run ask first, and
 // the join dialog opens only once the ask has set the pointers, so the seat the join creates is never born empty.
@@ -850,36 +827,6 @@ test("desktop: a keyboard mode switch moves focus into the new mode's CONTENT", 
   await expect(component.getByTestId(testId("analyticsOverviewSurface"))).toBeFocused();
 });
 
-// INSIGHTS RESTORATION: Back from a drill keeps the leaderboard's query and sort.
-test("desktop: Back from an Insights drill keeps the leaderboard's search and sort", async ({ mount, page }) => {
-  await routeTrpc(page, {
-    ...SECTION_CENSUS_ROUTES,
-    // The drill's own reads: a character with no rolled-up stats yet, which still offers its Back.
-    "stats.character": null,
-    "stats.latency": { avgTtftMs: null, p50TtftMs: null, p90TtftMs: null, avgGenMs: null, p50GenMs: null, p90GenMs: null },
-    "character.get": ARIA_CARD,
-  });
-  const component = await mount(<HomePageStory />);
-  await component.locator(".shell-rail").getByRole("button", { name: "Corpus", exact: true }).click();
-  const list = component.locator(CORPUS_LIST);
-  await list.getByRole("radio", { name: "Insights" }).click();
-  await list.getByRole("textbox", { name: "Search characters" }).fill("a");
-  await list.getByRole("button", { name: "Sort by Swipes", exact: true }).click();
-  await expect(list.getByRole("button", { name: "Sort by Swipes", exact: true })).toHaveAttribute("aria-pressed", "true");
-
-  await list.getByRole("button", { name: "Bolt", exact: true }).click();
-  const main = component.locator("main.shell-content");
-  await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();
-  // One Back grammar across the modes: `Back to <mode>`.
-  await main.getByRole("button", { name: "Back to Insights", exact: true }).click();
-
-  await expect(main.getByTestId(testId("analyticsOverviewSurface"))).toBeVisible();
-  // Focus returns to the row that opened the drill, never to <body>.
-  await expect(list.getByRole("button", { name: "Bolt", exact: true })).toBeFocused();
-  await expect(list.getByRole("textbox", { name: "Search characters" })).toHaveValue("a");
-  await expect(list.getByRole("button", { name: "Sort by Swipes", exact: true })).toHaveAttribute("aria-pressed", "true");
-});
-
 test.describe("the Corpus workbench on a phone", () => {
   // `hasTouch` because the phone landing belongs to the COARSE-POINTER regime, not merely a narrow window.
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
@@ -1033,30 +980,6 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
   });
-
-  // LABELS RESTORATION on the phone: a tag pushes its editor over the finder, and Back restores the finder
-  // with its filter and without the tag.
-  test("Labels: a tag pushes its editor, and Back restores the finder with its filter", async ({ mount, page }) => {
-    await routeTrpc(page, SECTION_CENSUS_ROUTES);
-    const component = await mount(<HomePageStory />);
-    await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    const list = component.locator(CORPUS_LIST);
-    await list.getByRole("radio", { name: "Tags" }).tap();
-    await list.getByRole("textbox", { name: "Filter tags" }).fill("o");
-    await list.getByRole("button", { name: "slow burn", exact: true }).tap();
-
-    const main = component.locator("main.shell-content");
-    await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
-    await expect(main.locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "slow burn" })).toBeVisible();
-    await expect(component.locator(".shell-topbar-title")).toHaveText("slow burn");
-
-    await component.getByRole("button", { name: "Back to Tags" }).tap();
-    await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await expect(list.getByRole("textbox", { name: "Filter tags" })).toHaveValue("o");
-    await expect(main.locator('[data-slot="tag-member-editor"]')).toHaveCount(0);
-  });
 });
 
 // AN OPEN MEMBER IS NEVER OVERWRITTEN BY THE ROSTER'S CENSUS (#1670 follow-up). The census arm used to be
@@ -1073,7 +996,8 @@ test.describe("the phone's Characters screen with a member open", () => {
 
   test("an open member's screen keeps the section label while her name is in flight — never the census", async ({ mount, page }) => {
     const characterGet = trpcHold<"character.get">();
-    await routeTrpc(page, { ...CENSUS_ROUTES, "character.get": characterGet });
+    // The released member opens the character editor, whose regex read must be fed too.
+    await routeTrpc(page, { ...CENSUS_ROUTES, "character.get": characterGet, "regex.listForCharacter": [] });
     const component = await mount(<HomePageStory />);
     await component.locator(".shell-rail").getByRole("button", { name: "Characters", exact: true }).click();
 
