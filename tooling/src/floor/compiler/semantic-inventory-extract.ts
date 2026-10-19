@@ -53,6 +53,11 @@ interface InventorySpans {
   readonly node: (node: MorphNode) => InventorySpan;
 }
 
+interface ReferenceProjection {
+  readonly spans: InventorySpans;
+  readonly located: Map<ts.SourceFile, Map<string, InventorySpan>>;
+}
+
 interface InventoryFileSpans {
   readonly path: string;
   readonly spans: Map<string, InventorySpan>;
@@ -962,11 +967,12 @@ function extractReferenceFacts(
   if (occurrences !== undefined && occurrences.length !== declarations.length) {
     throw new Error("native occurrence answers differ from their complete declaration demand");
   }
+  const projection: ReferenceProjection = { spans, located: new Map() };
   for (const [index, declaration] of declarations.entries()) {
     const answer = occurrences?.[index];
     // Indexed and computed answers are already native search output; only a never-computed query searches here.
     const captured = answer === undefined || answer.kind === "native" ? undefined : answer.references;
-    const nativeReferences = nativeReferenceFacts({ pass, program }, declaration.query, spans, captured);
+    const nativeReferences = nativeReferenceFacts({ pass, program }, declaration.query, projection, captured);
     for (const reference of nativeReferences) {
       references.push({ declaration: declaration.declaration, ...reference });
     }
@@ -1013,6 +1019,7 @@ function captureReferenceQueries(
   const referenceQueries: NonNullable<InventoryPartition["referenceQueries"]> = [];
   const byFile = new Map(sources.map((source) => [spans.path(source.getFilePath()), source]));
   const seen = new Set<string>();
+  const projection: ReferenceProjection = { spans, located: new Map() };
   for (const pair of queries) {
     const query = pair.node;
     const key = referenceQueryKey(pair);
@@ -1039,7 +1046,7 @@ function captureReferenceQueries(
     referenceQueries.push({
       root: pair.root,
       query,
-      references: nativeReferenceFacts(owner, { file: target.getSourceFile().getFilePath(), start: target.getStart() }, spans),
+      references: nativeReferenceFacts(owner, { file: target.getSourceFile().getFilePath(), start: target.getStart() }, projection),
     });
     owner.pass.validate(root.getFilePath());
     owner.pass.validate(source.getFilePath());
@@ -1059,7 +1066,7 @@ function captureReferenceQueries(
 function nativeReferenceFacts(
   owner: { readonly pass: ts.ReadonlyReferencePass; readonly program: ts.Program },
   query: ReferenceDeclaration["query"],
-  spans: InventorySpans,
+  projection: ReferenceProjection,
   captured?: readonly ts.ReferencedSymbol[],
 ): Pick<InventoryPartition["references"][number], "reference" | "consumerClass">[] {
   const { pass, program } = owner;
@@ -1074,7 +1081,7 @@ function nativeReferenceFacts(
         if (source === undefined) {
           throw new Error(`native reference source is outside its language-service program: ${reference.fileName}`);
         }
-        references.push({ reference: nativeReferenceSpan(source, reference.textSpan, spans), consumerClass: inventoryConsumerClass(reference.fileName) });
+        references.push({ reference: nativeReferenceSpan(source, reference.textSpan, projection), consumerClass: inventoryConsumerClass(reference.fileName) });
       }
     }
   }
@@ -1089,9 +1096,23 @@ function referenceQueryNode(declaration: MorphNode): MorphNode {
   return name ?? (Node.isExportable(declaration) ? (declaration.getDefaultKeyword() ?? declaration) : declaration);
 }
 
-function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, spans: InventorySpans): InventorySpan {
+// The node descent is pure per (source, span); one location recurs across every declaration whose answer holds it.
+function nativeReferenceSpan(source: ts.SourceFile, span: ts.TextSpan, projection: ReferenceProjection): InventorySpan {
+  const { spans, located } = projection;
+  let bySpan = located.get(source);
+  if (bySpan === undefined) {
+    bySpan = new Map();
+    located.set(source, bySpan);
+  }
+  const key = `${String(span.start)}:${String(span.length)}`;
+  const known = bySpan.get(key);
+  if (known !== undefined) {
+    return known;
+  }
   const best = nativeReferenceNode(source, span);
-  return spans.span(source.fileName, best.getStart(source), best.end, best.kind);
+  const projected = spans.span(source.fileName, best.getStart(source), best.end, best.kind);
+  bySpan.set(key, projected);
+  return projected;
 }
 
 function exportDemandFor(

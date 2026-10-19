@@ -116,6 +116,67 @@ test("native member and module occurrences preserve contextual roots and import 
   }
 });
 
+test("shared member names select their symbol groups and named files without changing any native answer", () => {
+  const project = new Project({
+    useInMemoryFileSystem: true,
+    compilerOptions: { noLib: true, types: [], module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.Preserve },
+  });
+  project.createSourceFile(
+    "/a.ts",
+    `export interface Point {x:number; id:number}
+     export interface Row {id:string; label:string}
+     export interface Item {id:number; row:Row}
+     export type Either = {kind:"a"; id:string} | {kind:"b"; id:string};
+     export const id = 1;
+     export type id = string;
+     export function read(item:Item, either:Either, point:Point){
+       const {id:itemId} = item; const row = {id:item.row.id, label:item.row.label};
+       const x = point.x; const holder = {x}; holder.x;
+       return [itemId, row.id, either.id, holder.x, point.id, id];
+     }`,
+  );
+  project.createSourceFile(
+    "/b.ts",
+    `import {type Row, type Item, id} from "./a"; export {id as renamedId} from "./a";
+     const row:Row = {id:"r", label:"l"}; const items:Item[] = [{id:1, row}];
+     export const ids = [row.id, items[0]?.id, id, row["id"]]; export const typed:import("./a").id = "t";`,
+  );
+  project.createSourceFile(
+    "/c.tsx",
+    `import {renamedId} from "./b"; export function View(props:{id:string}){return props.id;}
+     export const element = <View id="v"/>; const {id} = {id:renamedId}; export const local = id;`,
+  );
+  project.createSourceFile("/unrelated.ts", "export const other = 1;");
+  const nodes = project
+    .getSourceFiles()
+    .flatMap((source) => [SyntaxKind.Identifier, SyntaxKind.StringLiteral].flatMap((kind) => source.getDescendantsOfKind(kind)));
+  const queries = nodes.map((node) => ({ fileName: node.getSourceFile().getFilePath(), position: node.getStart() }));
+  const service = project.getLanguageService().compilerObject;
+  const expected = queries.map((query) => service.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+  const pass = service.createReadonlyReferencePass();
+  try {
+    const answers = pass.findReferencesFromOccurrences(queries);
+    for (const [index, query] of queries.entries()) {
+      const answer = answers[index];
+      const actual =
+        answer === undefined || answer.kind === "native"
+          ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [])
+          : answer.references;
+      expect(actual, `${query.fileName}:${String(query.position)} ${nodes[index]?.getText()}`).toEqual(expected[index]);
+    }
+    const statistics = pass.getOccurrenceStatistics();
+    // Repeated (file, name) lookups judge only the entries their symbols select; unscoped searches skip files without the name.
+    expect(statistics.relationGroups).toBeGreaterThan(0);
+    expect(statistics.relationVisits).toBeLessThan(statistics.relationListed);
+    expect(statistics.nameFiles).toBeGreaterThan(0);
+    expect(statistics.nameFilesSaturated).toBe(0);
+    expect(statistics.nameFileVisits).toBeLessThan(statistics.programFileScans);
+  } finally {
+    pass.dispose();
+    service.dispose();
+  }
+});
+
 test("native contextual member worlds retain their own conditional dependency groups", () => {
   const results = ["browser", "node"].map((world) => {
     const project = new Project({
