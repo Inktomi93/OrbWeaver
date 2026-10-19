@@ -382,23 +382,21 @@ export function RosterPicker(): ReactElement {
           // gets no competing CTA: the description already routes them to the save row below, which is the
           // only action this surface can complete. The NON-host arm keeps it, because there the CTA is
           // honest — saving needs a room you host, and starting one is how you get one.
-          {...(active?.isHost === true
-            ? {}
-            : {
-                action: (
-                  <Button
-                    intent="outline"
-                    size="sm"
-                    onClick={(): void => {
-                      closeModal();
-                      openModal("newChat");
-                    }}
-                  >
-                    <Icon icon={MessagesSquare} size="sm" />
-                    Start a new chat
-                  </Button>
-                ),
-              })}
+          action={
+            active?.isHost === true ? null : (
+              <Button
+                intent="outline"
+                size="sm"
+                onClick={(): void => {
+                  closeModal();
+                  openModal("newChat");
+                }}
+              >
+                <Icon icon={MessagesSquare} size="sm" />
+                Start a new chat
+              </Button>
+            )
+          }
         />
       ) : (
         <Stack gap="row">

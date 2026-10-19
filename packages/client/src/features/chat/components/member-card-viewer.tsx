@@ -108,10 +108,11 @@ function MemberCardBody({
   readonly onManage: () => void;
 }): ReactElement {
   if (isError) {
-    // @orb-waive empty-state-has-action(EmptyState): the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
+    // action={null}: the D22 NOT_FOUND gone-arm ("This card isn't available" — the character left the chat, or access was revoked): there is no next step the viewer could offer, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-cards affordance the gone arm could point at.
     if (isNotFound(error)) {
       return (
         <EmptyState
+          action={null}
           icon={<Icon icon={EyeOff} size="lg" />}
           title="This card isn't available"
           description="This character has left the chat, or you no longer have access to it."

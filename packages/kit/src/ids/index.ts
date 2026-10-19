@@ -312,9 +312,18 @@ export function castId<T extends string>(raw: string): T {
   return raw as T;
 }
 
+type TypeIdPrefix = (typeof ID_PREFIX)[keyof typeof ID_PREFIX];
+type BrandLabel<T> = T extends Branded<infer B> ? B : never;
+/** No extra argument for a prefixless brand. A canonical TypeID brand (any `ID_PREFIX` value, alone or in a
+ *  union) demands one that no caller supplies, so the call fails to compile. */
+type PrefixlessOnly<T> = [Extract<BrandLabel<T>, TypeIdPrefix>] extends [never]
+  ? []
+  : [typeIdBrand: "brandedId validates only nonempty text; use typeIdSchema(ID_PREFIX.<prefix>) for a TypeID"];
+
 /** Zod schema for a non-TypeID branded id at a request boundary: validates non-empty, types output
- *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix. */
-export function brandedId<T extends Branded<string>>(): z.ZodType<T, string> {
+ *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix, and a TypeID
+ *  brand is a compile error here. */
+export function brandedId<T extends Branded<string>>(..._prefixlessOnly: PrefixlessOnly<T>): z.ZodType<T, string> {
   // `z.custom<T>()` supplies only the phantom output face after the string schema has done the real
   // validation. `pipe` preserves the validated string input and the runtime value byte-for-byte.
   return z.string().min(1).pipe(z.custom<T>());

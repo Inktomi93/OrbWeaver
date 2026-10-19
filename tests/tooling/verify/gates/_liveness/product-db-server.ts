@@ -23,7 +23,6 @@ import { gate as platformSpellings } from "../../../../../tooling/src/verify/gat
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as scrubberHome } from "../../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as soleEnvReader } from "../../../../../tooling/src/verify/gates/sole-env-reader.ts";
-import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 
@@ -128,13 +127,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: soleEnvReader,
     overlays: [add(`${DOMAIN}/liveness-env.ts`, "export const livenessEnv = process.env.LIVENESS_VAR;\n")],
     messageIncludes: "process-env-read:LIVENESS_VAR",
-  },
-  {
-    policy: typeidPrefixBoundary,
-    overlays: [
-      add(`${CONTRACTS}/liveness-boundary.ts`, 'import { brandedId, type ChatId } from "@orb/kit/ids";\nexport const livenessChatId = brandedId<ChatId>();\n'),
-    ],
-    messageIncludes: "brandedId",
   },
   {
     policy: zodErrorIssuesHome,

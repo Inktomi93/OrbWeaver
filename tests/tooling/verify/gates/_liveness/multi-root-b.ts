@@ -19,7 +19,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { PRODUCT_STYLESHEETS } from "../../../../../tooling/src/verify/contract/css-family.ts";
 import { gate as cssVarDefinedHealth } from "../../../../../tooling/src/verify/gates/css-var-defined-health.ts";
-import { gate as noHandwrittenWireJsonSchema } from "../../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
 import { gate as noInlinePackageInterface } from "../../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noManualMemo } from "../../../../../tooling/src/verify/gates/no-manual-memo.ts";
@@ -65,11 +64,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ...PRODUCT_STYLESHEETS.map((path): RealCorpusOverlay => ({ kind: "resource", path, source: ".liveness { color: inherit; }\n" })),
     ],
     messageIncludes: "css-var-defined measured zero",
-  },
-  {
-    policy: noHandwrittenWireJsonSchema,
-    overlays: [add(`${DOMAIN}/verbs/liveness-rf.ts`, 'export const livenessFormat = { name: "x", schema: { type: "object", properties: {} } };\n')],
-    messageIncludes: "hand-authored JSON-Schema literal",
   },
   {
     policy: noInlinePackageInterface,

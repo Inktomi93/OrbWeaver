@@ -247,7 +247,7 @@ test("no unread → plain label, empty inbox copy", async ({ mount, page }) => {
   // this replaces read as a failed load and said nothing about what would ever appear here.
   await expect(page.getByText("You're all caught up")).toBeVisible();
   await expect(page.getByText("Invitations, host handoffs and notices from your plugins land here.")).toBeVisible();
-  // THE ACTION IS "Done", not a destination (`empty-state-has-action`, D62 rule-1) — the a11y name pin.
+  // THE ACTION IS "Done", not a destination (D62 rule-1: the EmptyState `action` is required) — the a11y name pin.
   await expect(page.getByRole("button", { name: "Done" })).toBeVisible();
 });
 
@@ -513,7 +513,7 @@ test.describe("the phone's inbox block", () => {
     const inbox = component.getByRole("group", { name: "Notifications" });
     await expect(inbox).toBeVisible();
     await expect(inbox.getByText("You're all caught up")).toBeVisible();
-    // The sheet lens's Done still carries the action (`empty-state-has-action`) — its door is `closeModal()`
+    // The sheet lens's Done still carries the action (EmptyState requires one) — its door is `closeModal()`
     // (the You MODAL, not a popover this lens does not have), not asserted here: the story mounts the bell
     // alone, outside the real `ModalHost` that reacts to that store write.
     await expect(inbox.getByRole("button", { name: "Done" })).toBeVisible();

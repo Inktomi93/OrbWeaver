@@ -33,7 +33,6 @@ export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { InstrumentAffectedSelection } from "./contract/instrument-affected.ts";
-export type { ContractBannedShape } from "./contract/ledger-banned-shapes.ts";
 export { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "./contract/ledger-paths.ts";
 export type { GatePolicy, GatePolicyContext, GatePolicyHooks, GatePolicyProof } from "./contract/policy.ts";
 export { defineGate, GATE_POLICY_EXECUTIONS, GATE_POLICY_PROOF_MODES } from "./contract/policy.ts";
@@ -133,7 +132,6 @@ export {
   slowdownLines,
   slowdowns,
 } from "./lib/history.ts";
-export { bannedMessage, CONTRACT_BANNED_SHAPES, contractBanHome } from "./lib/ledger-banned-shapes.ts";
 export { loadGateCorpus } from "./lib/loader.ts";
 export { markdownTables } from "./lib/markdown-tables.ts";
 export { mutationGateStageAudit, parseMutantProgress, reachedMutationVerdict } from "./lib/mutation-gate-verdict.ts";

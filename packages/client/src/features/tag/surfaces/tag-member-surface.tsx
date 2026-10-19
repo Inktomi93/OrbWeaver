@@ -19,7 +19,7 @@ export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactEle
   const tag = tags.find((row) => row.id === tagId);
   const back = { label: `Back to ${CORPUS_MODE_LABELS.labels}`, onClick: clearLabelSelection };
   if (tag === undefined) {
-    // @orb-waive empty-state-has-action(EmptyState): Back in the preceding drill header exits this deleted member; ends if the surface loses that exit.
+    // action={null}: Back in the preceding drill header exits this deleted member; ends if the surface loses that exit.
     return (
       <Container>
         <Stack gap="block">
@@ -29,7 +29,12 @@ export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactEle
               Loading your new tag…
             </Text>
           ) : (
-            <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />
+            <EmptyState
+              action={null}
+              description="This tag was deleted. Pick another from the list."
+              icon={<Icon icon={Hash} size="lg" />}
+              title="Tag not found"
+            />
           )}
         </Stack>
       </Container>

@@ -21,8 +21,9 @@ export interface EmptyStateProps {
    *  for a list-pane or ribbon state. See `variants.ts`. */
   measure?: "default" | "wide";
   description?: ReactNode;
-  /** Trailing action slot — typically an `@orb/ui/button` `<Button>`. */
-  action?: ReactNode;
+  /** Trailing action slot — typically an `@orb/ui/button` `<Button>`. Required so no empty state strands the user
+   *  by omission (D62 rule 1); `null` states that this surface genuinely has no next step, with the reason beside it. */
+  action: ReactNode;
   className?: string;
 }
 
@@ -74,7 +75,7 @@ export function EmptyState({
           {description}
         </p>
       )}
-      {action === undefined ? null : (
+      {action === undefined || action === null ? null : (
         <div className={slots.action()} data-slot="empty-state-action">
           {action}
         </div>

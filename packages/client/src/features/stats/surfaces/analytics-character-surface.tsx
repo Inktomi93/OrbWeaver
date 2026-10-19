@@ -90,16 +90,14 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
               : "This character has no rolled-up activity. Play a chat with them, then come back."
           }
           // The phone's topbar already carries the one Back.
-          {...(phone
-            ? {}
-            : {
-                action: (
-                  <Button intent="secondary" size="sm" onClick={onBack}>
-                    <Icon icon={ArrowLeft} size="sm" />
-                    {`Back to ${CORPUS_MODE_LABELS.insights}`}
-                  </Button>
-                ),
-              })}
+          action={
+            phone ? null : (
+              <Button intent="secondary" size="sm" onClick={onBack}>
+                <Icon icon={ArrowLeft} size="sm" />
+                {`Back to ${CORPUS_MODE_LABELS.insights}`}
+              </Button>
+            )
+          }
         />
         <Text voice="gloss" role="note">
           {IMPORTED_ACTIVITY_NOTE}

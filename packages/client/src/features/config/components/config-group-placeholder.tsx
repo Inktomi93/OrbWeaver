@@ -24,8 +24,8 @@ export interface ConfigGroupPlaceholderProps {
  *  controls FAILED to render — the reader is left deciding whether the app is broken or they are. The chip
  *  is the missing half: nothing here is switched off, hidden or lost, the surface simply does not exist
  *  yet. Deliberately NOT the EmptyState `action` slot — a status is not a next step, and dropping a
- *  non-CTA into that slot would flip `empty-state-has-action` green over a dead end it still is (this
- *  file's own ALLOWLIST reason: a generic placeholder has no pane-specific next step to offer; the
+ *  non-CTA into that slot would fill the required `action` over a dead end it still is (this
+ *  file passes `action={null}`: a generic placeholder has no pane-specific next step to offer; the
  *  pane's OWN `description` is where a "meanwhile, X lives at Y" pointer belongs). */
 export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceholderProps): ReactElement {
   return (
@@ -34,8 +34,8 @@ export function ConfigGroupPlaceholder({ title, description }: ConfigGroupPlaceh
           root ignores its contents, so shrink-to-fit centering resolved it to width 0. The floor now lives in
           the PRIMITIVE (`empty-state/variants.ts` root `w-full`, gap-audit 2026-08-08 fence #2) so no consumer
           has to remember it; align="center" just centers the Badge below. */}
-      {/* @orb-waive empty-state-has-action(EmptyState): the config-group equivalent of the app-shell section-placeholder — the settings-pane placeholder re-homed by the config revamp (#866 S1), with no group-specific next step to offer. Ends when the placeholder is deleted with the last unbuilt config group. */}
-      <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
+      {/* action={null}: the config-group equivalent of the app-shell section-placeholder — the settings-pane placeholder re-homed by the config revamp (#866 S1), with no group-specific next step to offer. Ends when the placeholder is deleted with the last unbuilt config group. */}
+      <EmptyState action={null} icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
       {/* ONE SPELLING, TWO SURFACES (#925 ruling 2): the LIST row that opens this body wears the same phrase
           from the same home, so the map and the pane cannot drift into two claims about one arm. */}
       <Badge intent="neutral" size="sm">

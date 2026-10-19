@@ -81,7 +81,8 @@ export function LabeledChartFrame({
   if (isEmpty) {
     return (
       <div className={slots.root({ className })} data-slot={slot} ref={ref}>
-        <EmptyState title={label} description={emptyDescription} />
+        {/* action={null}: a chart frame owns no next step; the host's surface carries any. */}
+        <EmptyState action={null} title={label} description={emptyDescription} />
       </div>
     );
   }

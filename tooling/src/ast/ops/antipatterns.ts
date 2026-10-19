@@ -38,7 +38,7 @@ export const ANTIPATTERN_CLASSES = [
   { name: "unparsed-boundary", gates: ["json-column-read-parsed", "wire-json-parsed-at-consumer", "trpc-input-declarations", "zod-output-twin-parity"] },
   { name: "respelled-constant", gates: ["no-inline-union-alias", "no-inline-union-redecl"] },
   { name: "cast", gates: ["no-loose-id-cast"] },
-  { name: "hand-forged-id", gates: ["no-raw-id", "typeid-prefix-boundary", "no-fake-disabled-id"] },
+  { name: "hand-forged-id", gates: ["no-raw-id", "no-fake-disabled-id"] },
   { name: "impossible-fixture", gates: ["no-opaque-test-fixture", "test-determinism"] },
   { name: "mock-of-own-code", gates: ["test-mock-doctrine"] },
   { name: "copied-door-list", gates: ["ct-config-mirror-parity"] },

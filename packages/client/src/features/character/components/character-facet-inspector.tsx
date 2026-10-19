@@ -157,7 +157,7 @@ interface FacetContextNone {
   readonly title: string;
   readonly description: string;
   /** The one thing the pane can still offer — a destination CONTENT does not carry. REQUIRED: an empty
-   *  state with no next step is the dead end `empty-state-has-action` exists to forbid. */
+   *  state with no next step is the dead end D62 rule 1 forbids. */
   readonly action: { readonly label: string; readonly run: () => void };
 }
 type FacetContextArm = { readonly kind: "detail"; readonly render: (props: FacetDetailProps) => ReactElement } | FacetContextNone;

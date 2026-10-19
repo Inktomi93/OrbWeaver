@@ -184,7 +184,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
         // failed load. `titleAs="p"` because the sheet lens already renders a heading above this block and a
         // second one would invent structure the pane does not have.
         //
-        // THE ACTION IS "Done", not a destination (`empty-state-has-action`, D62 rule-1): a caught-up inbox
+        // THE ACTION IS "Done", not a destination (D62 rule-1): a caught-up inbox
         // has nothing further to point at — "Go to chats" would be an arbitrary door this state has no
         // opinion about — so the CTA is the popover's own next step, closing it. The two lenses close through
         // DIFFERENT doors because there are two different chrome pieces to dismiss: the bar lens closes the
