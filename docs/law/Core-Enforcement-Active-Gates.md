@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(140 registered gates)
+(138 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -75,9 +75,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `bus-payload-allowlist-health` | — | hard/error | @contracts | a bus-event wire shape could not be… |
 | `bus-producer-coverage` | — | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
-| `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
 | `caught-failure-ownership` | — | ordinary/error | @product,@tooling | UNPROVEN OWNERSHIP for a caught… |
-| `caught-failure-ownership-health` | caught-failure-ownership | hard/error | @product,@tooling | the committed caught-failure census… |
 | `chat-viewer-plane-canon-reads` | — | ordinary/error | @server\* | a VIEWER-PLANE chat verb (matrix… |
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |

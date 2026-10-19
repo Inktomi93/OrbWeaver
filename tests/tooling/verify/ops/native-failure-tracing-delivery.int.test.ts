@@ -10,14 +10,11 @@ import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-fac
 import { readTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-read.ts";
 import { nodeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as census } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
-import { gate as ownershipHealth } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
 import { CAUGHT_FAILURE_CLOSURE_HOPS, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
-import { deriveCaughtFailureSites } from "../../../../tooling/src/verify/ops/gen/caught-failure-population.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
@@ -122,61 +119,7 @@ test(
   scaledBudget(120_000),
 );
 
-const POLICIES = [ownership, ownershipHealth, census];
-
-test(
-  "native census derivation retains the central waiver's exact site, coordinates and continued reason",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    writeFileSync(
-      join(scratch, DETACHED),
-      [
-        "declare function background(): Promise<void>;export function launch(): void {",
-        "// @orb-waive caught-failure-ownership(background): teardown has no user result.",
-        "// Ends when teardown gains a retryable result.",
-        "void background().catch(() => undefined);}",
-      ].join("\n"),
-    );
-    const sites = deriveCaughtFailureSites(scratch);
-    const site = sites.find((row) => row.path === DETACHED);
-    expect(site).toMatchObject({
-      siteId: `${DETACHED}::launch::background::1`,
-      verdict: "deliberate-absorb",
-      reason: "teardown has no user result. Ends when teardown gains a retryable result.",
-    });
-    const context = projectCtx(scratch);
-    const result = runPolicyPass({
-      root: scratch,
-      project: context.project,
-      ...nativeTypeFactOptions(context),
-      knownPolicies: POLICIES,
-      policies: [ownership],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.waivedFindings).toMatchObject([{ finding: { file: DETACHED, line: site?.line, column: site?.column, token: site?.position } }]);
-  },
-  scaledBudget(120_000),
-);
-
-test(
-  "the census generator refuses a site past the closure bound rather than recording or dropping it",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    writeFileSync(
-      join(scratch, DETACHED),
-      [
-        "declare function work(): void;declare function halt(): never;",
-        "function hop3(): unknown {return halt();}function hop2(): unknown {return hop3();}function hop1(): unknown {return hop2();}",
-        "export function launch(): unknown {try {work();} catch {return hop1();}}",
-      ].join("\n"),
-    );
-    expect(() => deriveCaughtFailureSites(scratch)).toThrow(`${DETACHED} has a site past the bounded native closure`);
-  },
-  scaledBudget(120_000),
-);
+const POLICIES = [ownership];
 
 test(
   "the complete failure and tracing proof population retains every verdict and refusal",
@@ -246,16 +189,6 @@ function fixture(root: string, repoRoot: string): void {
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
-  put(
-    "tooling/src/verify/gates/caught-failure-ownership.population.json",
-    JSON.stringify({
-      rows: [`${SERVER}::cases::p::1`, `${CLIENT}::cases::error::1`, `${DETACHED}::launch::background::1`].map((siteId) => ({
-        siteId,
-        verdict: "unproven",
-        reason: null,
-      })),
-    }),
-  );
   execFixtureGit(root, ["init", "-q"]);
 }
 
@@ -354,14 +287,6 @@ test(
         { file: CLIENT, token: "error" },
         { file: DETACHED, token: "background" },
         { file: SERVER, token: "p" },
-      ]);
-      for (const id of [ownershipHealth.id, census.id]) {
-        expect.soft(result.policies.find((policy) => policy.id === id)?.findings).toEqual([]);
-      }
-      expect(deriveCaughtFailureSites(scratch).map(({ siteId, verdict, reason }) => ({ siteId, verdict, reason }))).toEqual([
-        { siteId: `${CLIENT}::cases::error::1`, verdict: "unproven", reason: null },
-        { siteId: `${DETACHED}::launch::background::1`, verdict: "unproven", reason: null },
-        { siteId: `${SERVER}::cases::p::1`, verdict: "unproven", reason: null },
       ]);
     } finally {
       useContext.mockRestore();

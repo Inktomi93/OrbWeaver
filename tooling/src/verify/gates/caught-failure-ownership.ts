@@ -5,14 +5,7 @@
 //
 // ── FAMILY ──────────────────────────────────────────────────────────────────────────────────────────────
 // `caught-failure-ownership`, on the shared reader `lib/caught-failure.ts`
-// (`catchClauseSite` / `promiseAbsorberSite` / `caughtFailureReviewSites`). That extraction IS the census
-// blocker this conversion answers (the gate conversion census— "must split reusable failure
-// facts"): the reader's consumers are this policy, `ops/gen/caught-failure-population.ts`, which derives the
-// durable review record at tooling/src/verify/gates/caught-failure-ownership.population.json, and the hard
-// sibling `caught-failure-ownership-health`, which joins that record to the tree on `siteId`. One producer,
-// so the artifact and the policies can never disagree about what a site is. The sibling exists because a
-// two-sided join over the whole corpus is `entire-population` and `hard` — neither of which this per-file,
-// waivable policy is (§12.1 splits a module on authority).
+// (`catchClauseSite` / `promiseAbsorberSite` / `caughtFailureReviewSites`); this policy is its only gate consumer.
 //
 // ── ONE POLICY ID, DELIBERATELY — the arms do NOT split ──────────────────────────────────────────────────
 // §12.1 splits a module on AUTHORITY or SEVERITY. All three arms are `ordinary`/`error` and share the
@@ -103,8 +96,7 @@
 // RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488) from explicit package roots to `@product` plus
 // the then-excluded content packages. The 2026-09-21 owner decision classifies both shipped content
 // packages into `@product`, making those explicit refs redundant while keeping the intended corpus. The
-// expression now lives in `lib/caught-failure.ts#CAUGHT_FAILURE_POPULATION` (work item 0009), because the
-// census and its health sibling must walk this exact corpus too.
+// expression now lives in `lib/caught-failure.ts#CAUGHT_FAILURE_POPULATION` (work item 0009).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { withinClosureBound } from "../../floor/code-facts/bounded-closure.ts";

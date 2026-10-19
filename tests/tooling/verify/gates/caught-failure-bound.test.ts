@@ -4,16 +4,12 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, ts } from "ts-morph";
 import type { GatePolicy, GatePolicyProof } from "../../../../tooling/src/verify/contract/policy.ts";
-import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
-import { gate as censusRow } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bound";
-const POPULATION = JSON_RESOURCE_PATHS["caught-failure-population"];
 // The rows this suite owns are the ones whose reason names the bound; a renamed reason fails the count below.
 const PAST_THE_BOUND = "D328 PAST THE BOUND";
 
@@ -30,13 +26,8 @@ function analysisOf(policy: GatePolicy, proof: GatePolicyProof): Analysis {
 // A clean pass's analysis; undefined when the policy reported none, which means it reported no unknown.
 function cleanPassAnalysis(policy: GatePolicy, proof: GatePolicyProof): Analysis | undefined {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true, target: ts.ScriptTarget.ES2022 } });
-  const overlay: Record<string, string> = {};
   for (const [path, text] of Object.entries(proof.files)) {
-    if (path === POPULATION) {
-      overlay[path] = text;
-    } else {
-      project.createSourceFile(`${ROOT}/${path}`, text);
-    }
+    project.createSourceFile(`${ROOT}/${path}`, text);
   }
   const result = runPolicyPass({
     knownPolicies: [policy],
@@ -44,7 +35,6 @@ function cleanPassAnalysis(policy: GatePolicy, proof: GatePolicyProof): Analysis
     root: ROOT,
     project,
     nativeTypeFacts: () => isolatedTypeFacts(project),
-    resourceOptions: { overlay },
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -57,11 +47,7 @@ function pastRows(policy: GatePolicy): readonly GatePolicyProof[] {
   return policy.mustPass.filter((proof) => proof.why.startsWith(PAST_THE_BOUND));
 }
 
-test.each([
-  [ownership, 2],
-  [censusRow, 1],
-  [health, 1],
-] as const)("every past-the-bound row of %s reports an explicit unknown, never a clean pass", (policy, rows) => {
+test.each([[ownership, 2]] as const)("every past-the-bound row of %s reports an explicit unknown, never a clean pass", (policy, rows) => {
   const proofs = pastRows(policy);
   expect(proofs).toHaveLength(rows);
   for (const proof of proofs) {
@@ -75,16 +61,4 @@ test("a handler spelling the rejection reader unwraps is walked and owned, never
   expect(spellings.length).toBeGreaterThan(0);
   const unknowns = Object.fromEntries(spellings.map((proof) => [proof.why, (cleanPassAnalysis(ownership, proof)?.unknown ?? []).map(({ reason }) => reason)]));
   expect(unknowns).toEqual(Object.fromEntries(spellings.map((proof) => [proof.why, []])));
-});
-
-test("each census join names the id it withholds, with the withheld count", () => {
-  const [live] = pastRows(censusRow);
-  const [committed] = pastRows(health);
-  if (live === undefined || committed === undefined) {
-    throw new Error("the census joins lost their past-the-bound rows");
-  }
-  const withheld = (analysis: Analysis): readonly string[] => analysis.unknown.map(({ reason }) => reason).filter((reason) => reason.includes("withholds"));
-  expect(withheld(analysisOf(censusRow, live))).toEqual([expect.stringContaining("withholds 1 of 1 withheld id(s)")]);
-  expect(withheld(analysisOf(censusRow, live))[0]).toContain("absorb::catch::1`");
-  expect(withheld(analysisOf(health, committed))).toEqual([expect.stringContaining("absorb::catch::2`")]);
 });

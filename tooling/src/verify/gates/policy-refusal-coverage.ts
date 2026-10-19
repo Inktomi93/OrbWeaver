@@ -641,7 +641,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_HELPER) }),
-      why: "THE HELPER SHAPE, which is the DOMINANT one across the live family tests (`pass(policy, …)` wrapping the dispatcher, ~half of the ~60 files): the driven set is a PARAMETER, and `resolveStableExpression` cannot resolve a parameter by contract. The walk hops to the declaring function's call sites in the same file. This policy's unreadability direction is inverted from `policy-fixture-substrate`'s — an unresolved read here ACCUSES — so without the hop the family's own doctrine makes it a false-accusation engine over the correct majority",
+      why: "THE HELPER SHAPE, which is the DOMINANT one across the live family tests (`pass(policy, …)` wrapping the dispatcher, ~half of the ~60 files): the driven set is a PARAMETER, and `resolveStableExpression` cannot resolve a parameter by contract. The walk hops to the declaring function's call sites in the same file. This policy's unreadability direction ACCUSES: an unresolved read here is a finding, so without the hop the family's own doctrine makes it a false-accusation engine over the correct majority",
     },
     {
       mode: "types",
