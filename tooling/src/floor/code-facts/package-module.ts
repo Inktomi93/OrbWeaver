@@ -3,8 +3,9 @@
 // modules; any other top-level dir is itself a module. A file directly in a grouping dir or at the package
 // root is a single-file module, entered by its own path.
 
-/** The grouping dirs per workspace package; `*` makes every top-level dir a grouping dir. */
-const GROUPING_DIRS: Readonly<Record<string, readonly string[]>> = {
+/** The grouping dirs per workspace package; `*` makes every top-level dir a grouping dir. The dependency-cruiser
+ *  front-door rule derives its module regexes from this map. */
+export const GROUPING_DIRS: Readonly<Record<string, readonly string[]>> = {
   server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
   inference: ["backends"],
   client: ["features"],

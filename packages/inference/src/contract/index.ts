@@ -38,7 +38,15 @@ export type {
   AgentTurnRequest,
   SessionEntryWriter,
 } from "./agent.ts";
-export type { AgentSdkExecution, AgentSdkLifetime, AgentSdkNativeOptions, AgentSdkQuery, AgentSdkSpawn } from "./agent-sdk-execution.ts";
+export type {
+  AgentSdkExecution,
+  AgentSdkExecutionDeps,
+  AgentSdkLifetime,
+  AgentSdkNativeOptions,
+  AgentSdkQuery,
+  AgentSdkQueryLease,
+  AgentSdkSpawn,
+} from "./agent-sdk-execution.ts";
 export type { BackendRegistry, ProviderBackend, ProviderExecutor, WireCaptureSink } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
@@ -90,6 +98,7 @@ export type {
 export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { assertNever, PROVIDER_ERROR_KINDS, ProviderError, SCHEMA_REJECTED_DETAIL } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
+export { compactionTriggerSchema, compactResultSchema } from "./events.ts";
 export type { GoogleBackend, GoogleBackendDeps, GoogleCall } from "./google.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
 export { agentSdkSessionIdSchema } from "./identity.ts";

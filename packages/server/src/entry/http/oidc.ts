@@ -18,7 +18,7 @@ import {
 } from "#infra/auth";
 import { createBackgroundWork } from "#infra/tasks";
 import { systemTimers } from "#infra/timers";
-import { startOidcGcScheduler } from "#src/transport/jobs/oidc-gc-scheduler.ts";
+import { startOidcGcScheduler } from "#transport/jobs";
 import type { ServicesDeps, ServicesResult } from "../compose/services.ts";
 import type { OidcRoutesDeps } from "./index.ts";
 

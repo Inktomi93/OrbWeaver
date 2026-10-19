@@ -161,7 +161,7 @@ import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/sto
 import type { BackgroundWork } from "#infra/tasks";
 import { createBackgroundWork } from "#infra/tasks";
 import { createScopedTimers } from "#infra/timers";
-import type { ServiceJobs } from "#src/transport/jobs/contract/service-jobs.ts";
+import type { ServiceJobs } from "#transport/jobs";
 import type { LiveBuses, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "#transport/trpc";
 import { createLiveBuses, createPresenceRegistry, createSocketRegistry } from "#transport/trpc";
 import { createHostPrincipalResolver, createMultiHumanCapability } from "../auth/index.ts";

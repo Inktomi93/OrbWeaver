@@ -23,7 +23,8 @@ export interface DoorReader {
   readonly targetFile: (path: string) => SourceFile | undefined;
   readonly doorExports: (door: string) => ReadonlyMap<string, readonly Node[]>;
   /** Importers that keep a narrow leaf import across modules: a front-door barrel would widen a graph another
-   *  check bounds (a plugin worker's, a DOM-free compiler world's). Each carries a reviewed grant. */
+   *  check bounds (a plugin worker's, a DOM-free compiler world's). Each is an exact importer exempt in the
+   *  dependency-cruiser `package-subpath-crossing` rule. */
   readonly narrowImporters: ReadonlySet<string>;
 }
 

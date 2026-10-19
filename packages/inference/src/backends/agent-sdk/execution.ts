@@ -3,8 +3,8 @@
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { errorMessage } from "@orb/kit/error-message";
+import type { AgentSdkExecution, AgentSdkExecutionDeps, AgentSdkQueryLease } from "#contract";
 import { ProviderError } from "#contract";
-import type { AgentSdkExecution, AgentSdkExecutionDeps, AgentSdkQueryLease } from "#src/contract/agent-sdk-execution.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { SdkStderr } from "./stderr.ts";

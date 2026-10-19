@@ -63,7 +63,7 @@ test("budget drift reports through hard authority without withholding its owner"
   expect(result.authority.authorityAlarms).toEqual([]);
   const messages = result.authority.effectiveFindings.map((finding) => finding.message ?? "");
   expect(messages.some((message) => message.includes("IRREDUCIBLE `$1`-backreference patterns"))).toBe(true);
-  expect(messages.some((message) => message.includes("is 99, but the committed budget is 14"))).toBe(true);
+  expect(messages.some((message) => message.includes("is 99, but the committed budget is 15"))).toBe(true);
   expect(result.authority.withheldPolicyIds).toEqual([]);
   expect(result.policies.map(({ id, owner }) => [id, owner.status])).toEqual([[gate.id, "success"]]);
 });
@@ -78,7 +78,7 @@ test("the native root configuration retains the committed backreference budget",
 
   const overAll = selectors.filter((selector) => BACKREF_RE.test(selector.value));
   // The real-tree receipt for the committed number, re-derived rather than trusted.
-  expect(overAll).toHaveLength(14);
+  expect(overAll).toHaveLength(15);
 });
 
 test("the backreference budget preserves its growth, shrink and anchor controls", () => {
