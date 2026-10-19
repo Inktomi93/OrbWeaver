@@ -62,8 +62,8 @@ export function createMirror<T>(args: {
 
   const warmOnce = async (fetch: () => Promise<T>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
     const startedAt = epoch;
-    // @orb-waive caught-failure-ownership(err): owned by the returned `ok: false` warm, whose reason the model-list read
-    // reports and the resolve degrades on, and by the structured warn; held so a burst shares it. Ends if a caller needs a throw.
+    // @orb-waive caught-failure-ownership(err): the failure is warned (`deps.warn` below) and returned as `{ ok: false, reason }`, which the model-list read reports as `listed: false` and the resolve degrades on; `failed` holds it so a burst shares it.
+    // Ends if a caller needs a throw.
     try {
       const readSnapshotFirst = !skipSnapshotOnce;
       skipSnapshotOnce = false;

@@ -148,10 +148,10 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
   const client = createClient({ url: pathToFileURL(path).href });
-  // @orb-waive caught-failure-ownership(catch): the QUESTION this function asks IS "does this
-  // file read as a complete db?" — an unreadable/corrupt/truncated file answers it by throwing, and `false`
-  // is that answer, consumed by `backupBeforeMigrate` (which then deletes the file and re-copies). Ends if
-  // a caller starts needing the reason rather than the verdict.
+  // @orb-waive caught-failure-ownership(catch): this asks "does the file read as a complete db?"; `false` is the answer for
+  // an unreadable file. `backupBeforeMigrate` is the only caller: it removes the debris and retries `VACUUM INTO`,
+  // and that retry's own failure throws with the cause and aborts boot.
+  // Ends if a caller needs the reason rather than the verdict.
   try {
     const result = await client.execute("PRAGMA quick_check");
     return result.rows[0]?.["quick_check"] === "ok";
@@ -678,10 +678,10 @@ export async function resetDevDatabase(db: Db): Promise<void> {
     // `exec` stops at the failing statement and leaves the transaction OPEN; without this the connection
     // would carry a half-applied teardown into whatever the caller does next. Rolling back restores the
     // schema the boot step is about to re-migrate, and the original failure is what propagates.
-    // @orb-waive caught-failure-ownership(client.execute): the rollback is best-effort BY DESIGN —
-    // when no transaction is active (the BEGIN itself failed) `ROLLBACK` errors, and THAT error must not
-    // mask the real one, which is rethrown on the very next line and is the owned failure. Ends if the
-    // rethrow below goes away.
+    // @orb-waive caught-failure-ownership(client.execute): the rollback is best-effort: with no open transaction
+    // (the BEGIN itself failed) `ROLLBACK` errors, and that error must not mask the script failure, which the
+    // `throw err` on the next line propagates to the boot step.
+    // Ends if that rethrow goes away.
     await client.execute("ROLLBACK").catch(() => undefined);
     throw err;
   }
