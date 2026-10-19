@@ -106,7 +106,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D119 | [on an ENGAGED game chat the rpg Waystone takes the context pane's HEAD BAND via the REGION-CLAIM registry (a HEAD-BAND claim since D150 — the column around it is the shell's context bracket in every room); on everything else chat's own band renders](0119-on-an-engaged-game-chat-the-rpg-waystone.md) | active |
 | D120 | [the settings shell is a PURE SKIMMER: every section is a `SettingsSectionContribution` owned by its domain's feature, registered at the door; the shell derives nav/search/render from contributions and owns NOTHING](0120-the-settings-shell-is-a-pure-skimmer-every.md) | active |
 | D121 | [the close-out ruling for the preset and actor-state programs. Seven clauses (A–G); each stands alone](0121-the-close-out-ruling-for-the-preset-and.md) | active |
-| D122 | [Multi-human persona resolution: the room-plane read, membership-gated](0122-multi-human-persona-resolution-the-room-plane-read.md) | active |
+| D122 | [Multi-human persona resolution: the room-plane read, membership-gated](0122-multi-human-persona-resolution-the-room-plane-read.md) | superseded by [0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md](0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md) |
 | D123 | [Theme doors + the card-embeddable appearance partition (TD)](0123-theme-doors-the-card-embeddable-appearance-partition-td.md) | active |
 | D124 | [Hand-written rpg state stays off messages](0124-hand-written-rpg-state-stays-off-messages.md) | active |
 | D125 | [D121-E's order table gains a FIFTH leg: `PROMPT_HISTORY`, the ephemeral prompt-build pass](0125-d121-e-s-order-table-gains-a-fifth.md) | active |

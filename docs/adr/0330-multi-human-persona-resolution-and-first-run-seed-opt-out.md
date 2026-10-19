@@ -2,6 +2,7 @@
 kind: adr
 status: active
 updated: 2026-10-19
+supersedes: docs/adr/0122-multi-human-persona-resolution-the-room-plane-read.md
 ---
 
 # Multi-human persona resolution is membership-gated, and the first-run persona ask can be opted into on an automation stack

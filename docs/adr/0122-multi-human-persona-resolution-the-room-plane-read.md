@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-19
+superseded-by: docs/adr/0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md
 ---
 
 # Multi-human persona resolution: the room-plane read, membership-gated
