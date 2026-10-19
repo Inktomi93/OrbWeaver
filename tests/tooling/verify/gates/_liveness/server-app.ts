@@ -11,7 +11,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
 import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
-import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
@@ -20,7 +19,6 @@ import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/o
 import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
 import { gate as ownerScopedWrites } from "../../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
-import { gate as pluginDumpGuard } from "../../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
@@ -58,11 +56,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       add(`${SERVER}/domain/discovery/persistence/liveness-rollup.ts`, 'import { ownerStats } from "@orb/db";\nexport const livenessRollup = ownerStats;\n'),
     ],
     messageIncludes: "stats rollup tables",
-  },
-  {
-    policy: firehoseImportAllowlistHealth,
-    overlays: [neutralise(`${SERVER}/transport/trpc/chat-events-bus.ts`)],
-    messageIncludes: "no longer declared",
   },
   {
     policy: membershipEnforcer,
@@ -128,19 +121,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "cross-tenant WRITE hole",
-  },
-  {
-    policy: pluginDumpGuard,
-    // The policy judges the ONE membrane module only, so the control is the membrane itself materialising a
-    // guest handle with no iterative pre-walk (the founding bypass). Its `dump` is the installed
-    // quickjs-emscripten-core method, read off the receiver's type.
-    overlays: [
-      neutralise(
-        `${SERVER}/infra/plugin-host/membrane.ts`,
-        'import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";\nexport function attachAsync(ctx: QuickJSContext, handle: QuickJSHandle): unknown {\n  return ctx.dump(handle);\n}\n',
-      ),
-    ],
-    messageIncludes: "iterative handle depth/node guard",
   },
   {
     policy: serdeCoreDefinitionUniqueness,

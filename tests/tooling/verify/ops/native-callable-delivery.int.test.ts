@@ -4,19 +4,16 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as audit } from "../../../../tooling/src/verify/gates/audit-client-tests.ts";
-import { gate as plugin } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { runScopedCli } from "../../../../tooling/src/verify/ops/scoped.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativePolicyFixture, nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
 const NODE_TEST = "tests/server/helper.test.ts";
 const BROWSER_TEST = "tests/client/helper.test.tsx";
-const GUARDS = "packages/server/src/infra/plugin-host/guards.ts";
 const SUPPORT = "tests/support/assertions.ts";
-const POLICIES = [plugin, audit];
+const POLICIES = [audit];
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -26,10 +23,7 @@ function fixture(root: string, repoRoot: string): void {
   write(".gitignore", "node_modules\n.cache\nreports\n");
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true };
-  write(
-    "tsconfig.json",
-    JSON.stringify({ compilerOptions: { ...compilerOptions, lib: ["es2022"], types: ["node"] }, files: [MEMBRANE, NODE_TEST, GUARDS, SUPPORT] }),
-  );
+  write("tsconfig.json", JSON.stringify({ compilerOptions: { ...compilerOptions, lib: ["es2022"], types: ["node"] }, files: [NODE_TEST, SUPPORT] }));
   write(
     "tsconfig.tests-dom.json",
     JSON.stringify({ compilerOptions: { ...compilerOptions, lib: ["es2022", "dom"], types: [] }, files: [BROWSER_TEST, SUPPORT] }),
@@ -41,18 +35,6 @@ function fixture(root: string, repoRoot: string): void {
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
-  write(
-    MEMBRANE,
-    `import type {QuickJSContext,QuickJSHandle} from 'quickjs-emscripten-core';
-declare function handleSafeToDump(ctx:QuickJSContext,handle:QuickJSHandle):boolean;
-const guard=handleSafeToDump;
-export function tryDumpGuestValue(ctx:QuickJSContext,handle:QuickJSHandle):object {
-  if(!guard(ctx,handle)){return {};}
-  return ctx.dump(handle);
-}
-`,
-  );
-  write(GUARDS, "export declare function handleSafeToDump(ctx:object,handle:object):boolean;");
   write(SUPPORT, "declare function expect(value:number):{toBe(value:number):void}; export function expectImported(value:number):void{expect(value).toBe(1);}");
   for (const path of [NODE_TEST, BROWSER_TEST]) {
     write(
@@ -69,26 +51,24 @@ test('asserts through a local alias',()=>{expectAlias(1);});
 }
 
 test(
-  "native callable command doors never read syntax symbols and preserve bodyless guard and local helper identity",
+  "native callable command doors never read syntax symbols and preserve local helper identity",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     const syntaxReads: number[] = [];
     const options = { forbidSyntax: true, syntaxReads };
     const exits: number[] = [];
-    exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${plugin.id}`], options));
-    exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src/infra/plugin-host"], options));
     for (const path of [NODE_TEST, BROWSER_TEST]) {
       exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${audit.id}`, `--file=${path}`], options));
       exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", path], options));
     }
-    expect(exits).toEqual([0, 0, 0, 0, 0, 0]);
-    expect(syntaxReads).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(exits).toEqual([0, 0, 0, 0]);
+    expect(syntaxReads).toEqual([0, 0, 0, 0]);
   },
   scaledBudget(60_000),
 );
 
 test(
-  "native callable delivery preserves all plugin and assertion-helper declared verdicts",
+  "native callable delivery preserves every assertion-helper declared verdict",
   () => {
     expect(verifyPolicyProofs(POLICIES)).toEqual([]);
   },
@@ -96,22 +76,15 @@ test(
 );
 
 test(
-  "native guard imports and imported assertion helpers retain their actual home and selected-file fence",
+  "imported assertion helpers retain their actual home and selected-file fence",
   async ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
-    const membrane = readFileSync(join(scratch, MEMBRANE), "utf8").replace(
-      "declare function handleSafeToDump(ctx:QuickJSContext,handle:QuickJSHandle):boolean;",
-      "import {handleSafeToDump} from './guards';",
-    );
-    writeFileSync(join(scratch, MEMBRANE), membrane);
     for (const path of [NODE_TEST, BROWSER_TEST]) {
       writeFileSync(
         join(scratch, path),
         "import {expectImported as expectAlias} from '../support/assertions'; declare function test(name:string,fn:()=>void):void; test('imported assertion',()=>{expectAlias(1);});",
       );
     }
-    expect(await nativeVerifyFixture(scratch, "structure", [`--check=${plugin.id}`])).toBe(1);
-    expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src/infra/plugin-host"])).toBe(1);
     for (const path of [NODE_TEST, BROWSER_TEST]) {
       expect(await nativeVerifyFixture(scratch, "structure", [`--check=${audit.id}`, `--file=${path}`])).toBe(1);
       expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", path])).toBe(1);

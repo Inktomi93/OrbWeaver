@@ -6,14 +6,12 @@ import { Project } from "ts-morph";
 import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as audit } from "../../../../tooling/src/verify/gates/audit-client-tests.ts";
-import { gate as plugin } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, nativeTypeFactSession, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
 import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
 const NODE_TEST = "tests/server/computed.test.ts";
 const BROWSER_TEST = "tests/client/computed.test.tsx";
 const TEST_SOURCE = `import {MODIFIER} from '#keys';
@@ -35,7 +33,7 @@ function fixture(root: string, repoRoot: string): void {
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true };
   write(
     "tsconfig.json",
-    JSON.stringify({ compilerOptions: { ...compilerOptions, lib: ["es2022"], types: ["node"] }, files: [MEMBRANE, NODE_TEST, "node.ts", "browser.ts"] }),
+    JSON.stringify({ compilerOptions: { ...compilerOptions, lib: ["es2022"], types: ["node"] }, files: [NODE_TEST, "node.ts", "browser.ts"] }),
   );
   write(
     "tsconfig.tests-dom.json",
@@ -47,25 +45,13 @@ function fixture(root: string, repoRoot: string): void {
   );
   write("node.ts", "export const MODIFIER='only';");
   write("browser.ts", "export const MODIFIER='describe';");
-  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: [plugin, audit].map(({ id }) => `src/verify/gates/${id}.ts`) }));
-  for (const { id } of [plugin, audit]) {
+  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: [`src/verify/gates/${audit.id}.ts`] }));
+  for (const { id } of [audit]) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
     );
   }
-  write(
-    MEMBRANE,
-    `import type {QuickJSContext,QuickJSHandle} from 'quickjs-emscripten-core';
-declare function handleSafeToDump(ctx:QuickJSContext,handle:QuickJSHandle):boolean;
-export function tryDumpGuestValue(ctx:QuickJSContext,handle:QuickJSHandle):object {
- if(!handleSafeToDump(ctx,handle)){return {};}
- return ctx.dump(handle);
-}
-const DUMP='dump'; const ALIAS=DUMP;
-export function bypass(dumpReceiver:QuickJSContext,dumpHandle:QuickJSHandle):object{return dumpReceiver[ALIAS](dumpHandle);}
-`,
-  );
   write(NODE_TEST, TEST_SOURCE);
   write(BROWSER_TEST, TEST_SOURCE);
   execFixtureGit(root, ["init", "-q"]);
@@ -85,14 +71,12 @@ test(
     const syntaxReads: number[] = [];
     const workers: string[] = [];
     const observation = { forbidSyntax: true, syntaxReads, workers };
-    exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${plugin.id}`], observation));
-    exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src/infra/plugin-host"], observation));
     for (const path of [NODE_TEST, BROWSER_TEST]) {
       exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${audit.id}`, `--file=${path}`], observation));
       exits.push(await nativeVerifyFixture(scratch, "scoped", ["--scope", path], observation));
     }
-    expect(exits).toEqual([1, 1, 1, 1, 0, 0]);
-    expect(syntaxReads).toEqual([0, 0, 0, 0, 0, 0]);
+    expect(exits).toEqual([1, 1, 0, 0]);
+    expect(syntaxReads).toEqual([0, 0, 0, 0]);
     expect(workers.length).toBeGreaterThan(0);
   },
   scaledBudget(60_000),
@@ -114,18 +98,12 @@ test(
         root: scratch,
         project: context.project,
         ...nativeTypeFactOptions(context),
-        knownPolicies: [plugin, audit],
-        policies: [plugin, audit],
+        knownPolicies: [audit],
+        policies: [audit],
         reviewedGrants: [],
         failOnWarnings: false,
       });
       expect(result.toolErrors).toEqual([]);
-      const membrane = context.project.getSourceFileOrThrow(join(scratch, MEMBRANE));
-      const source = membrane.getFullText();
-      const coordinate = membrane.getLineAndColumnAtPos(source.indexOf("[ALIAS]") + 1);
-      expect(result.policies.find(({ id }) => id === plugin.id)?.findings).toMatchObject([
-        { token: "ALIAS", line: coordinate.line, column: coordinate.column },
-      ]);
       expect(result.policies.find(({ id }) => id === audit.id)?.findings).toMatchObject([{ file: NODE_TEST, token: "test[MODIFIER]" }]);
       expect(result.authority.waivedFindings).toHaveLength(position === "test[MODIFIER]" ? 1 : 0);
       expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === audit.id)).toHaveLength(position === "test[MODIFIER]" ? 0 : 1);
@@ -158,87 +136,3 @@ test("primitive computed spellings need no native acquisition and keep the test 
   expect(result.authority.effectiveFindings).toEqual([]);
   expect(acquire).not.toHaveBeenCalled();
 });
-
-test(
-  "historical native computed dump anchors distinguish earlier receiver spelling and escaped versus plain literal keys",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const original = readFileSync(join(scratch, MEMBRANE), "utf8");
-    for (const [key, token, offset] of [
-      ['["dump"]', "dump", 2],
-      ['["du\\u006dp"]', '"du\\u006dp"', 1],
-      ["[ALIAS]", "ALIAS", 1],
-    ] as const) {
-      const text = original.replace("[ALIAS]", key);
-      writeFileSync(join(scratch, MEMBRANE), text);
-      const context = projectCtx(scratch);
-      const source = context.project.getSourceFileOrThrow(join(scratch, MEMBRANE));
-      const coordinate = source.getLineAndColumnAtPos(text.indexOf("dumpReceiver" + key) + "dumpReceiver".length + offset);
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        knownPolicies: [plugin, audit],
-        policies: [plugin],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.policies[0]?.findings).toMatchObject([{ token, line: coordinate.line, column: coordinate.column }]);
-    }
-  },
-  scaledBudget(60_000),
-);
-
-test(
-  "historical native transparent computed dump anchors retain inner authored positions and reject hard-policy waivers",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const original = readFileSync(join(scratch, MEMBRANE), "utf8");
-    const prefix = original.slice(0, original.indexOf("export function bypass("));
-    const cases = [
-      ['[("dump")]', "dump"],
-      ["[(ALIAS)]", "ALIAS"],
-      ['[("dump" as const)]', "dump"],
-      ['[(ALIAS as "dump")]', "ALIAS"],
-      ['[("dump" satisfies string)]', "dump"],
-      ["[(ALIAS satisfies string)]", "ALIAS"],
-      ["[(ALIAS!)]", "ALIAS"],
-      ["[(\n ALIAS\n)]", "ALIAS"],
-    ] as const;
-    for (const waive of [false, true]) {
-      const text =
-        prefix +
-        cases
-          .map(
-            ([key, token], index) =>
-              `export function bypass${String(index)}(dumpReceiver:QuickJSContext,dumpHandle:QuickJSHandle):object {\n` +
-              (waive ? `// @orb-waive plugin-dump-guard(${token}): wrapper anchor control; ends with this fixture.\n` : "") +
-              `return dumpReceiver${key}(dumpHandle);\n}\n`,
-          )
-          .join("");
-      writeFileSync(join(scratch, MEMBRANE), text);
-      const context = projectCtx(scratch);
-      const source = context.project.getSourceFileOrThrow(join(scratch, MEMBRANE));
-      const expected = cases.map(([key, token]) => ({
-        token,
-        ...source.getLineAndColumnAtPos(text.indexOf(`dumpReceiver${key}`) + "dumpReceiver".length + key.indexOf(token)),
-      }));
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        knownPolicies: [plugin, audit],
-        policies: [plugin],
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.policies[0]?.findings).toMatchObject(expected);
-      expect(result.authority.waivedFindings).toEqual([]);
-      expect(result.authority.effectiveFindings).toHaveLength(cases.length);
-      expect(result.authority.authorityAlarms).toHaveLength(waive ? cases.length : 0);
-    }
-  },
-  scaledBudget(60_000),
-);

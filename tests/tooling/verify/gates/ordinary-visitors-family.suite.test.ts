@@ -14,7 +14,6 @@ import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-i
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
-import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -30,7 +29,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlineWireInterface,
   noRawEgress,
   persistenceBoundary,
-  pluginDumpGuard,
   registryAssemblyAtDoorOnly,
   zodErrorIssuesHome,
 ];
@@ -122,19 +120,9 @@ test(
 
 // ---------------------------------------------------------------------------------------------------
 // RECEIPT REFUSALS. Policies LOCATE a subject and refuse when it is gone — the final form of the
-// legacy blindness arms (`canonicalSeen === 0`, `dumpSites === 0`) and rename tripwires, which conformance
+// legacy blindness arms (`canonicalSeen === 0`) and rename tripwires, which conformance
 // cannot express because a refusal is a TOOL ERROR rather than a finding.
 // ---------------------------------------------------------------------------------------------------
-test("plugin-dump-guard REFUSES when the membrane has no guest-dump site left to judge", () => {
-  const blind = passOf(pluginDumpGuard, {
-    "packages/server/src/infra/plugin-host/membrane.ts": "export const attach = null;\n",
-  });
-
-  expect(blind.toolErrors).toMatchObject([{ policyId: "plugin-dump-guard", phase: "receipt" }]);
-  expect(blind.authority.withheldPolicyIds).toEqual(["plugin-dump-guard"]);
-  expect(blind.authority.effectiveFindings).toEqual([]);
-});
-
 test("registry-assembly-at-door-only REFUSES when the registry home no longer exports both factories", () => {
   const renamed = passOf(registryAssemblyAtDoorOnly, {
     "packages/client/src/lib/registry.ts":
