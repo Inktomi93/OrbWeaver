@@ -83,9 +83,11 @@ import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
   SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  serverFactoryTier,
   serverTypeTier,
   TYPE_HOME_NATIVE_POLICY_ID,
   UI_TOKEN_AUTHORING_CONTRACT_HOME,
+  unjudgedServerFile,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
@@ -124,7 +126,7 @@ import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TO
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
 import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
+import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
@@ -5440,10 +5442,12 @@ const serverFactoryPublicBoundaryRule = {
         }
         return;
       }
+      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
+      // A file this rule does not lint judges nothing itself, so it is walked from every importer, same tier included.
       if (
         !declarations.some((declaration) => {
           const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return serverTypeTier(owner) !== undefined && serverTypeTier(owner) !== serverTypeTier(consumer);
+          return unjudgedServerFile(owner) || (serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer));
         })
       ) {
         return;
@@ -5513,12 +5517,43 @@ const serverFactoryPublicBoundaryRule = {
         inspect(raw.qualifier, node, new Set(), true);
       }
     };
+    const augmentation = (node) => {
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      if (!(serverFactoryTier(consumer) && ts.isSourceFile(raw.parent))) {
+        return;
+      }
+      const boundary = readServerAugmentationBoundary(
+        raw,
+        { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
+        context.cwd,
+      );
+      const seen = new Set();
+      for (const declaration of boundary.trace.declarations) {
+        if (seen.has(declaration)) {
+          continue;
+        }
+        seen.add(declaration);
+        context.report({
+          node,
+          messageId: "crossTierFactoryType",
+          data: {
+            name: declaration.name?.text ?? "default",
+            owner: relative(context.cwd, declaration.getSourceFile().fileName),
+            consumer: `every tier through the ambient augmentation in ${consumer}`,
+          },
+        });
+      }
+      if (boundary.kind === "unresolved") {
+        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
+      }
+    };
     return {
       ImportDeclaration: importDeclaration,
       ExportNamedDeclaration: exportNamedDeclaration,
       ExportAllDeclaration: exportAllDeclaration,
       ImportExpression: importExpression,
       TSImportType: importType,
+      TSModuleDeclaration: augmentation,
     };
   },
 };
