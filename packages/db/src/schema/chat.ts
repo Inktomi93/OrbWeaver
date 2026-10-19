@@ -593,11 +593,12 @@ export const messageVariants = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // message_assets — #67 the STRUCTURAL chat-message ↔ asset link (producer: chat — the send verb writes it,
 // like message_variants). A message body stores its inline images as `asset:<id>` TEXT refs (D51 — content
-// is a STRING, blocks parsed at render); that text is invisible to the asset-reference REGISTRY
-// (`domain/assets/persistence/asset-refs`), which only sees FK-to-`assets.id` COLUMNS. THIS is the FK the
-// registry CAN see: one row per (message, attached asset), so a user-uploaded inline chat image is a
-// RETAINING reference and GC never reaps a blob still shown in a live chat. Keys on the message SLOT (D26 —
-// the attachment belongs to the authored message, not a swipe variant; a user turn has exactly one variant).
+// is a STRING, blocks parsed at render); the asset-reference collector (`domain/assets/persistence/
+// asset-refs`) reads that text as retaining only for the asset's OWNER seated in the room. THIS is the
+// reference that holds for every viewer: one row per (message, attached asset), so a user-uploaded inline
+// chat image is a RETAINING reference whoever sits in the room, and the room render grant reads it. Keys on
+// the message SLOT (D26 — the attachment belongs to the authored message, not a swipe variant; a user turn
+// has exactly one variant).
 // CASCADE on message delete (link dies with its message); CASCADE on asset delete (the link is meaningless
 // without its blob — the body text ref then degrades to literal markdown at render). `assetId` is registered
 // RETAINING in `asset-refs.ts`, so an explicit asset delete is the ONLY way the row goes.
