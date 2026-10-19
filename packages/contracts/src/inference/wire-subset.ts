@@ -444,7 +444,7 @@ export const ARRAY_ITEMS_SEGMENT = "[*]";
 export const MAP_VALUES_SEGMENT = "{*}";
 
 /** Append a property name to a value path: `.name`, or `["name"]` for a name a dotted path cannot hold. */
-export function propertyPath(parent: string, name: string): string {
+function propertyPath(parent: string, name: string): string {
   if (SIMPLE_NAME.test(name)) {
     return parent === "" ? name : `${parent}.${name}`;
   }

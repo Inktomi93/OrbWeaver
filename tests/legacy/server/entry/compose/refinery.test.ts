@@ -13,7 +13,7 @@
 //     it is the SAME function object in both halves (one home for the resolution).
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { SCORE_MAX, SCORE_MIN } from "@orb/contracts/refinery";
+import { SCORE_MAX } from "@orb/contracts/refinery";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
@@ -28,6 +28,7 @@ import { makeCapability, makeGenerationCapability, TEST_OWNER_ID } from "@orb/te
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { z } from "zod";
+import { SCORE_MIN } from "#contracts/refinery/core.ts";
 import { createResolveStructuredBinding } from "#server/domain/refinery/index.ts";
 import type { RefineryComposeDeps } from "#server/entry/compose/refinery.ts";
 import { buildRefinery } from "#server/entry/compose/refinery.ts";

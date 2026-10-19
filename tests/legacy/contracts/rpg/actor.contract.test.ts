@@ -12,7 +12,6 @@ import {
   RPG_ACTOR_OP_FIELDS,
   rpgActorEntrySchema,
   rpgActorIdentitySchema,
-  rpgActorOpSchema,
   rpgActorRefSchema,
   rpgActorVolatileSchema,
   rpgNpcSlug,
@@ -22,6 +21,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CARD_FACE_LIMITS } from "#contracts/card-face/index.ts";
+import { rpgActorOpSchema } from "#contracts/rpg/actor.ts";
 
 test("actor ref parses all three lite arms (character/user/cast)", () => {
   const characterId = mintTypeId(ID_PREFIX.character);

@@ -50,11 +50,9 @@ export {
   RPG_NPC_GUIDE_FIELDS,
   rpgActorEntrySchema,
   rpgActorIdentitySchema,
-  rpgActorOpSchema,
   rpgActorRefSchema,
   rpgActorVolatileSchema,
   rpgInventoryItemSchema,
-  rpgNpcRefSchema,
   rpgNpcSlug,
   rpgPromotedCardDescription,
   rpgRelationshipSchema,
@@ -65,10 +63,8 @@ export {
   RPG_SCENE_LINE_LABEL,
   RPG_WEATHER_TYPES,
   rpgClockTimeSchema,
-  rpgWeatherLabelSchema,
   rpgWeatherSchema,
   rpgWeatherText,
-  rpgWeatherTypeSchema,
   TIME_OF_DAY,
   TIME_OF_DAY_HOURS,
   TIME_OF_DAY_RANGES,
@@ -131,16 +127,9 @@ export {
   RPG_TRACKER_SUBJECTS,
   RPG_TRACKER_WRITES,
   rpgCheckpointTriggerSchema,
-  rpgCyoaChoiceBehaviorSchema,
   rpgGameModeSchema,
   rpgGameStatusSchema,
   rpgJournalTypeSchema,
-  rpgQuestStatusSchema,
-  rpgRelationshipKindSchema,
-  rpgTrackerCarrierClassSchema,
-  rpgTrackerShapeSchema,
-  rpgTrackerSubjectSchema,
-  rpgTrackerWriteSchema,
 } from "./enums.ts";
 export type {
   ExtractionRefs,
@@ -236,7 +225,7 @@ export type { RpgModePolicy } from "./mode.ts";
 export { MODE_POLICY } from "./mode.ts";
 export type { ChatRpgPointer } from "./pointer.ts";
 export { chatRpgPointerSchema, isRpgEngaged } from "./pointer.ts";
-export type { RpgStatAttributeDef, RpgStatProfile, RpgStatResolution } from "./profile.ts";
+export type { RpgStatAttributeDef, RpgStatProfile } from "./profile.ts";
 export {
   attributeGloss,
   attributeReading,
@@ -246,7 +235,6 @@ export {
   RPG_PROFILE_MAX_ATTRIBUTES,
   rpgAttributeModifier,
   rpgSeedTrackers,
-  rpgStatProfileSchema,
 } from "./profile.ts";
 export { RPG_PROSE_SLOTS } from "./prose.ts";
 export {
@@ -273,7 +261,6 @@ export {
   RPG_RULESET_PROFILE,
   RPG_RULESETS,
   rpgGameTemplateSchema,
-  rpgRulesetSchema,
 } from "./ruleset.ts";
 export type { RpgSheet } from "./sheet.ts";
 export { rpgSheetSchema } from "./sheet.ts";
@@ -286,7 +273,6 @@ export {
   rpgActorVolatileLockBase,
   rpgFieldLocksSchema,
   rpgPlotSchema,
-  rpgQuestObjectiveSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
@@ -327,7 +313,6 @@ export {
 export type { RpgFlushOutcome, RpgTraceEvent, RpgTraceRecord } from "./trace.ts";
 export { RPG_FLUSH_OUTCOMES, rpgTraceEventSchema, rpgTraceRecordSchema } from "./trace.ts";
 export type {
-  RpgTrackerAppliesTo,
   RpgTrackerCarrier,
   RpgTrackerCarrierKind,
   RpgTrackerDef,
@@ -336,7 +321,6 @@ export type {
   RpgTrackerWriteGroup,
 } from "./tracker.ts";
 export {
-  actorTrackerWriteKeys,
   buildTrackerWriteGroups,
   carriesTracker,
   gameTrackers,

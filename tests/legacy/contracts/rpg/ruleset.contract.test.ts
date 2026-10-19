@@ -6,8 +6,9 @@
 // must be lossless, including the one that returns to a ruleset with no vocabulary at all.
 
 import type { RpgStatProfile, RpgTrackerDef } from "@orb/contracts/rpg";
-import { applyRulesetVocabulary, RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, RPG_RULESET_DICE, RPG_RULESETS, rpgRulesetSchema } from "@orb/contracts/rpg";
+import { applyRulesetVocabulary, RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, RPG_RULESET_DICE, RPG_RULESETS } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { rpgRulesetSchema } from "#contracts/rpg/ruleset.ts";
 
 /** A host-authored tracker — the thing a switch must never touch. */
 const HOUSE_TRACKER: RpgTrackerDef = {

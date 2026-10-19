@@ -10,7 +10,6 @@ import { assetIdSchema, assetKindSchema, characterIdSchema, galleryItemIdSchema 
 import { CHARACTER_PROVENANCES, characterCardSchema, characterHandleSchema } from "@orb/contracts/character";
 import {
   chatDetailSchema,
-  chatIdentitySchema,
   chatReasoningPartSchema,
   macroFreezeRecordSchema,
   messageKindSchema,
@@ -72,6 +71,7 @@ import { afterAll, beforeAll, vi } from "vitest";
 import { z } from "zod";
 import { cardFaceFields } from "#contracts/card-face/index.ts";
 import { connectionAttributionProvenanceSchema, variantMetadataSchema } from "#contracts/chat/messages.ts";
+import { chatIdentitySchema } from "#contracts/chat/producers.ts";
 
 // A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
 beforeAll(async () => {

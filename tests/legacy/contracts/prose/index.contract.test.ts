@@ -10,15 +10,7 @@
 import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
-import {
-  DEFAULT_COMPACT_INSTRUCTIONS,
-  DEFAULT_FORMAT_STRINGS,
-  DEFAULT_GUIDED_ACTIONS,
-  PRESET_COMPACTION_SLOT_ID,
-  PRESET_FORMAT_SLOT_IDS,
-  PRESET_GUIDED_SLOT_IDS,
-  TEMPLATE_DEFS,
-} from "@orb/contracts/preset";
+import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import {
   composeProse,
@@ -40,6 +32,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { test as toolTest } from "@orb/testkit/node/tool-fixtures.ts";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { generateProseBaseline } from "@orb/tooling/verify";
+import { PRESET_COMPACTION_SLOT_ID, PRESET_GUIDED_SLOT_IDS } from "#contracts/preset/prose.ts";
 
 const FIRST_ID: ProseSlotId = "preset.format.impersonateNudge";
 const BASELINE_REL = "packages/contracts/src/prose/prose-baseline.json";

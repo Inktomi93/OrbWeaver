@@ -7,8 +7,9 @@
 // over the tv() size axis, so RENAMING a size arm would resolve it to `never` and disarm the rule while
 // every call site still compiled — the membership assertions below are what red that.
 
-import type { ButtonProps, IconOnlyButtonSize } from "@orb/ui/button";
+import type { ButtonProps } from "@orb/ui/button";
 import { expectTypeOf, test } from "vitest";
+import type { IconOnlyButtonSize } from "#ui/primitives/button/button.tsx";
 
 test("every icon-only size arm still resolves — the Extract has not gone to never", () => {
   expectTypeOf<"icon">().toExtend<IconOnlyButtonSize>();

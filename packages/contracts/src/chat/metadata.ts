@@ -272,7 +272,7 @@ export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 // — the pre-F6 local re-spell died with `z.any()`, so there is one shape and no drift to guard.
 /** The steer text cap — the house user-prose bound ({@link OVERRIDE_FIELD_MAX}); a steer is a short one-turn
  *  nudge, so this ceiling is only a wire-abuse floor, never a real-usage limit. */
-export const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
+const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
 export const guidedSteerSchema = z.strictObject({
   action: guidedActionKindSchema,
   input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),

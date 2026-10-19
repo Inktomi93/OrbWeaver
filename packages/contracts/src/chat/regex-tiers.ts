@@ -40,7 +40,7 @@ const CHARACTER_TIER_PREFIX = "character:";
 export type RegexTierKey = "global" | "preset" | `character:${CharacterId}` | "chat";
 
 /** The three FIXED tier keys, in run order. The character keys are per-seat and therefore not enumerable. */
-export const FIXED_REGEX_TIER_KEYS = ["global", "preset", "chat"] as const satisfies readonly RegexTierKey[];
+const FIXED_REGEX_TIER_KEYS = ["global", "preset", "chat"] as const satisfies readonly RegexTierKey[];
 
 /** Mint one seated character's tier key. The ONE place the prefix is written. */
 export function characterRegexTierKey(characterId: CharacterId): RegexTierKey {

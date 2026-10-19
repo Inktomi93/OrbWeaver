@@ -146,7 +146,7 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
 // A value outside these bounds fails parse → the field is dropped → the resolver reads the env floor
 // (fail-safe: an absurd override never LOOSENS or breaks the limiter, it falls back to the known-good floor).
 export const RATE_LIMIT_CAP_MIN = 5;
-export const RATE_LIMIT_CAP_MAX = 100_000;
+const RATE_LIMIT_CAP_MAX = 100_000;
 const rateLimitCap = (): z.ZodOptional<z.ZodNumber> => z.int().min(RATE_LIMIT_CAP_MIN).max(RATE_LIMIT_CAP_MAX).optional();
 export const rateLimitsSchema = z.object({
   aiTurn: rateLimitCap(),

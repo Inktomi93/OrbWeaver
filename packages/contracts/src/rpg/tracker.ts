@@ -49,7 +49,7 @@ export const RPG_TRACKER_COLOR_RE =
  *  of an `./actor` import (which imports THIS one for the value plane — the cycle is physics, not taste), and
  *  it stores flat, so a carrier list reads the same as a lock path. */
 export const rpgTrackerAppliesToSchema = z.union([rpgTrackerCarrierClassSchema, z.array(z.string().min(1))]);
-export type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
+type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
 
 /** THE unified tracked-field definition. Lives in `RpgGameConfig.trackers[]` — ONE home for every tracker in
  *  a game, whatever its subject (the old per-actor `sheet.poolDefs` split was exactly the thing that forced

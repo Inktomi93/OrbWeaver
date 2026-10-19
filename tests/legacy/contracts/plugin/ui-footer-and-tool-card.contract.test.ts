@@ -6,11 +6,11 @@ import {
   PLUGIN_NODE_KINDS,
   PLUGIN_SURFACE_ANCHORS,
   PLUGIN_SURFACE_TIERS,
-  PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_NAME_RE,
   pluginSurfaceRegistrationMetaSchema,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { PLUGIN_TOOL_NAME_LOCAL_MAX } from "#contracts/plugin/manifest.ts";
 import { PLUGIN_FOOTER_MAX_DEPTH, PLUGIN_FOOTER_MAX_NODES } from "#contracts/plugin/ui.ts";
 
 // ── The `message-footer` PER-ROW anchor (U6, §5.4) — the three clamps, each at the tier that enforces it ─────

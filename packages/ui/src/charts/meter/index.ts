@@ -20,22 +20,9 @@ export type { TrackBarProps, TrackColor } from "./track-bar.tsx";
 export { TrackBar } from "./track-bar.tsx";
 export type { WaystoneClock, WaystoneProps } from "./waystone.tsx";
 export { Waystone } from "./waystone.tsx";
-export { handAngle, hourAngle } from "./waystone-geometry.ts";
 export type {
   WaystoneParticleLayer,
   WaystonePhase,
   WaystoneWeather,
 } from "./waystone-treatment.ts";
-export {
-  resolveWaystoneTreatment,
-  WAYSTONE_PHASE_SPANS,
-  WAYSTONE_PHASES,
-  WAYSTONE_SKY_STOPS,
-  WAYSTONE_WEATHERS,
-  waystoneBandTint,
-  waystoneCelestialAt,
-  waystonePhaseAtHour,
-  waystoneSkyAt,
-  waystoneStarOpacityAt,
-  waystoneWeatherRecipe,
-} from "./waystone-treatment.ts";
+export { WAYSTONE_PHASES } from "./waystone-treatment.ts";

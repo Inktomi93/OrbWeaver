@@ -100,7 +100,7 @@ export type ForgeFieldType = (typeof FORGE_FIELD_TYPES)[number];
 // @orb-waive no-vanity-alias(REFINERY_FORGE_MAX_FIELDS): baselined when the gate widened; burn-down item 906.
 /** Leaf rows one design may carry. The cap is the belt's per-object property cap read as a whole-document
  *  budget: a design spreads its leaves across nested objects, so this can only ever be tighter. */
-export const REFINERY_FORGE_MAX_FIELDS = REFINERY_SCHEMA_MAX_PROPERTIES;
+const REFINERY_FORGE_MAX_FIELDS = REFINERY_SCHEMA_MAX_PROPERTIES;
 
 /** How deep a `path` may nest, counted in SEGMENTS (`a.b.c` = 3). Each array segment costs TWO JSON-Schema
  *  levels (the array node, then its `items`), so the ceiling below is the belt's depth cap halved — the
@@ -179,7 +179,7 @@ export const forgeDesignEnvelopeSchema = z.object({
 export type ForgeDesignEnvelope = z.infer<typeof forgeDesignEnvelopeSchema>;
 
 /** How many rows one `guided` plan may name — the per-field call fans out one batch item per row. */
-export const REFINERY_FORGE_MAX_PLAN_FIELDS = 16;
+const REFINERY_FORGE_MAX_PLAN_FIELDS = 16;
 
 /** The `guided` arm's FIRST call: paths + intents only. Tiny grammar, all the attention on decomposition. */
 export const forgePlanEnvelopeSchema = z.object({

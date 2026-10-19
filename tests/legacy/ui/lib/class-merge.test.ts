@@ -11,8 +11,9 @@
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
-import { CSS_MERGE_FAMILY_NAMES, CSS_MERGE_TRACE_INPUT_LIMIT, cn, cssMergeTrace, tv } from "@orb/ui/lib";
+import { CSS_MERGE_FAMILY_NAMES, cn, cssMergeTrace, tv } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
+import { CSS_MERGE_TRACE_INPUT_LIMIT } from "#ui/lib/css-merge-trace.ts";
 
 // `text-title` is a custom DTCG type-scale utility (--text-title); `text-muted-foreground` is a real
 // text COLOR. They are different axes and MUST both survive. An unconfigured tailwind-merge puts them

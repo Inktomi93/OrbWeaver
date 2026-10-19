@@ -23,11 +23,11 @@ import type { FillableIcon } from "./fillable.ts";
 /** 12px — pairs with `--text-label`; sub-`sm` indicator marks (checkbox/select/number-field glyphs). */
 export const ICON_XS = 12;
 /** 16px — pairs with `--text-title` (1rem) body-adjacent chrome. */
-export const ICON_SM = 16;
+const ICON_SM = 16;
 /** 20px — pairs with `--text-headline` (1.25rem); the default control icon. */
-export const ICON_MD = 20;
+const ICON_MD = 20;
 /** 24px — pairs with `--text-display` (1.5rem) hero/empty-state glyphs. */
-export const ICON_LG = 24;
+const ICON_LG = 24;
 
 const ICON_SIZES = { xs: ICON_XS, sm: ICON_SM, md: ICON_MD, lg: ICON_LG } as const;
 

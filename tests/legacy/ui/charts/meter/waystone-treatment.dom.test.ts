@@ -13,12 +13,12 @@
 import { TIME_OF_DAY, TIME_OF_DAY_HOURS, TIME_OF_DAY_RANGES } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WaystoneParticleLayer, WaystonePhase, WaystoneWeather } from "@orb/ui/meter";
+import { WAYSTONE_PHASES } from "@orb/ui/meter";
+import { timeOfDayAtHour } from "#contracts/rpg/ambient.ts";
+import { handAngle, hourAngle } from "#ui/charts/meter/waystone-geometry.ts";
 import {
-  handAngle,
-  hourAngle,
   resolveWaystoneTreatment,
   WAYSTONE_PHASE_SPANS,
-  WAYSTONE_PHASES,
   WAYSTONE_SKY_STOPS,
   WAYSTONE_WEATHERS,
   waystoneBandTint,
@@ -27,8 +27,7 @@ import {
   waystoneSkyAt,
   waystoneStarOpacityAt,
   waystoneWeatherRecipe,
-} from "@orb/ui/meter";
-import { timeOfDayAtHour } from "#contracts/rpg/ambient.ts";
+} from "#ui/charts/meter/waystone-treatment.ts";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 /** Every color the matrix emits must be a token or a `color-mix` over tokens (D71). */

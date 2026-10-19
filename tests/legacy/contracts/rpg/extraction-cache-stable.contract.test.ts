@@ -1,9 +1,10 @@
 // @orb/contracts/rpg/extraction — the cache-stable projection keeps the folded tool payload byte-identical.
 
 import type { ExtractionRefs } from "@orb/contracts/rpg";
-import { actorTrackerWriteKeys, buildTrackerWriteGroups, cacheStableExtractionRefs, constrainExtractionSchema, rpgExtractionSchema } from "@orb/contracts/rpg";
+import { buildTrackerWriteGroups, cacheStableExtractionRefs, constrainExtractionSchema, rpgExtractionSchema } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { actorTrackerWriteKeys } from "#contracts/rpg/tracker.ts";
 import { BARE_REFS, carrier, MANA, refEnum, SEALED, TRUST, tracker } from "./_extraction-support.ts";
 
 // ── cacheStableExtractionRefs (F4 — the folded turn's tool payload is prompt-cache-key bytes) ───────────

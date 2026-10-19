@@ -6,14 +6,13 @@
 import {
   NET_HOSTS_MAX,
   PLUGIN_CAPABILITIES,
-  PLUGIN_TOOL_NAME_LOCAL_MAX,
   PLUGIN_TOOL_NAME_RE,
   pluginBundleHashSchema,
   pluginManifestSchema,
   pluginToolWireName,
 } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { PLUGIN_PROVIDERS_MAX, PLUGIN_SLUG_MAX, PLUGIN_TOOL_WIRE_NAME_MAX } from "#contracts/plugin/manifest.ts";
+import { PLUGIN_PROVIDERS_MAX, PLUGIN_SLUG_MAX, PLUGIN_TOOL_NAME_LOCAL_MAX, PLUGIN_TOOL_WIRE_NAME_MAX } from "#contracts/plugin/manifest.ts";
 
 const BASE = {
   id: "my-plugin",

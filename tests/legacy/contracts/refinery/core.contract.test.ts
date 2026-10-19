@@ -1,8 +1,9 @@
 // contracts/refinery/core — the re-homed rubric bounds + verdict vocabulary (the schema-authoring belt's
 // well-known-core inputs). Pins the exact spellings the prompts teach and the loop's stop condition rides.
 
-import { REFINERY_VERDICTS, refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "@orb/contracts/refinery";
+import { REFINERY_VERDICTS, refineryVerdictSchema, SCORE_MAX } from "@orb/contracts/refinery";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { SCORE_MIN } from "#contracts/refinery/core.ts";
 
 test("the rubric bounds are the extension's 1-10 and the verdict spellings are verbatim uppercase", () => {
   expect(SCORE_MIN).toBe(1);

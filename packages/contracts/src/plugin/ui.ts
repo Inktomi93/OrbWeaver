@@ -225,7 +225,7 @@ export const PLUGIN_ROWS_MAX = 64;
 export const PLUGIN_GRID_TILES_MAX = 64;
 /** The stage cap on a `masterDetail` node (U5) — a page arrangement, not a router. Two is the shape the genre
  *  needs (browse → detail); the headroom is for a plugin that splits browse by source. */
-export const PLUGIN_PAGE_STAGES_MAX = 8;
+const PLUGIN_PAGE_STAGES_MAX = 8;
 /** The option cap on a `tabs` node (#799) — an order of magnitude under {@link PLUGIN_ROWS_MAX}, and the
  *  number IS the design: a segmented strip renders every option AT ONCE, so a strip that outgrows a single
  *  row stops being a strip and becomes a menu. A vocabulary bigger than this is a `select` — which the
@@ -1364,7 +1364,7 @@ export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
  *  merely at the `toolName` linkage above. */
 export const PLUGIN_TOOL_NAME_RE = new RegExp(`^[a-z][a-z0-9_]{0,${PLUGIN_TOOL_NAME_LOCAL_MAX - 1}}$`);
 /** The shell label line cap (`host.ui.register`'s `title`). */
-export const PLUGIN_SURFACE_TITLE_MAX = 80;
+const PLUGIN_SURFACE_TITLE_MAX = 80;
 
 /** The SERIALIZABLE part of a `host.ui.register` def — validated host-side at collection (the trust boundary)
  *  AND the exact descriptor `plugin.listSurfaces` projects to the client renderer. The `onAction` handler is NOT
@@ -1498,7 +1498,7 @@ export type PluginCommandArgType = (typeof PLUGIN_COMMAND_ARG_TYPES)[number];
  *  keeps the collected `values` bag and the completion fan small. Over-cap is a REGISTRATION refusal. */
 export const PLUGIN_COMMAND_ARGS_DECLARED_MAX = 16;
 /** How many values an `enum` arg may offer — the `select` option cap ({@link PLUGIN_ROWS_MAX} posture). */
-export const PLUGIN_COMMAND_ENUM_VALUES_MAX = 64;
+const PLUGIN_COMMAND_ENUM_VALUES_MAX = 64;
 /** A declared arg's `name` grammar — the values-bag key AND the `name=value` token a person types, so a bounded
  *  programmatic identifier (the form-field `name` spirit), never arbitrary text. */
 export const PLUGIN_COMMAND_ARG_NAME_RE = /^[a-z][a-z0-9_]{0,40}$/;
