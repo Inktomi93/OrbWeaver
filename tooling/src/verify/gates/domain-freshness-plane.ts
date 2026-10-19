@@ -43,7 +43,7 @@
 // in-memory and rebuilt from canon; tool-use registers into the process registry at plugin activation), and
 // adding a courtesy `none` row for any of them would be ORPHAN-red — which is the ORPHAN arm doing its job.
 // FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`, the
-// same provider `ownerid-registry`, `schema-branding` and `lifecycle-portability` consume. The SEATED axis
+// same provider `schema-branding` and `lifecycle-portability` consume. The SEATED axis
 // derives its FK graph from it; the PLANE axis's write/emit derivation is this policy's own intent over the
 // nodes the one walk delivers, and no sibling asks "does this domain persist", so it names no second reader.
 //
@@ -616,7 +616,7 @@ const BATCH_QUERY_PROOF = {
 export const gate = defineGate({
   id: "domain-freshness-plane",
   // FAMILY `drizzle-schema` — the shared subject reader is `lib/schema-fact.ts`'s `drizzleSchemaFact`, which
-  // the SEATED axis derives its FK graph from, the same provider `ownerid-registry`, `schema-branding` and
+  // the SEATED axis derives its FK graph from, the same provider `schema-branding` and
   // `lifecycle-portability` consume. The PLANE axis's write/emit derivation is this policy's own intent over
   // the nodes the one walk delivers, not a second reader: no sibling asks "does this domain persist".
   family: "drizzle-schema",
@@ -624,7 +624,7 @@ export const gate = defineGate({
   // seating, delete the dead row) — never a comment at a call site. The legacy descriptor was suppressible
   // only because it never said otherwise, and its findings anchored on line 1 of the gate file itself,
   // where a marker would have been meaningless. The two tables are authoritative policy DATA of the same
-  // class as `ownerid-registry`'s 27 ownership classifications, not exception rows (#1922 is the
+  // class as the `TABLE_SCOPING` ownership classifications in `@orb/db/tenancy`, not exception rows (#1922 is the
   // sanctioned-HOME migration and does not reach them).
   authority: "hard",
   severity: "error",

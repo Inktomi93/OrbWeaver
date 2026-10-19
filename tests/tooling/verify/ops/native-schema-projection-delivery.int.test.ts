@@ -9,11 +9,9 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as indexed } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as onDelete } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as softRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
-import { gate as owners } from "../../../../tooling/src/verify/gates/ownerid-registry.ts";
 import { gate as banned } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as branding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as primaryKey } from "../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
-import { gate as scoping } from "../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -21,8 +19,8 @@ import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
 import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const POLICIES = [indexed, onDelete, softRef, owners, banned, branding, primaryKey, scoping];
-const REGISTERED_POLICY_IDS = [...POLICIES.map(({ id }) => id), "membership-write-fan"];
+const POLICIES = [indexed, onDelete, softRef, banned, branding, primaryKey];
+const REGISTERED_POLICY_IDS = POLICIES.map(({ id }) => id);
 const SCHEMA = "packages/db/src/schema/relations.ts";
 const IDS = "packages/kit/src/ids/index.ts";
 const BRAND = 'declare const brand: unique symbol;export type ChatId=string & {readonly [brand]:"chat"};';
@@ -125,11 +123,9 @@ test(
         { id: indexed.id, findings: [{ file: SCHEMA, token: "chatId" }] },
         { id: onDelete.id, findings: [] },
         { id: softRef.id, findings: [] },
-        { id: owners.id, findings: [] },
         { id: banned.id, findings: [] },
         { id: branding.id, findings: Array.from({ length: browser ? 2 : 1 }, () => ({ file: SCHEMA, token: "id" })) },
         { id: primaryKey.id, findings: [] },
-        { id: scoping.id, findings: [] },
       ]);
     }
   },

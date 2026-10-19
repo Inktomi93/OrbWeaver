@@ -220,11 +220,11 @@ This page never duplicates the ownership map; it names where the machine-checked
 
 | Question | The answer's home |
 | - | - |
-| Which tables may stamp an `ownerId` at all? | `tooling/src/verify/gates/ownerid-registry.ts` — `OWNERID_CLASSIFICATIONS`, every row carrying its D23 justification (true producer, parentless per-user aggregate, or sanctioned scope-subject). Two-direction check: a new stamp reds; a stale row reds. |
+| Which tables may stamp an `ownerId` at all? | `packages/db/src/tenancy/index.ts` — `TABLE_SCOPING`, one row per schema table export, typed against that table's columns. An `ownerId` row carries its D23 justification in `stamp` (true producer, parentless per-user aggregate, or sanctioned scope-subject). `tsc` reds a table with no row, a row for a deleted table, a wrong SQL name, and a class the columns contradict. `tests/db/tenancy/index.test.ts` repeats those checks on the live schema and adds the foreign-key counts. |
 | Which domain owns which table? | `tooling/src/verify/gates/own-tables-only.ts` — the map is read off `packages/db/src/schema/<file>.ts` at run time (schema file to same-named domain), total, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign write is unconditionally red; a foreign read belongs in `persistence/` or an injected op. |
 | Who owns a row with no `ownerId`? | §2b — the FK chain to the owning root, gated at the producer verb. Walk the chain before flagging "missing scope". |
 | Who owns a chat? | Nobody (D18). Membership is the scope; host is the transferable role — see §2c. |
-| Which principal classes exist, and which are enforcement-gated? | The principal-flow census and its gate paths (the class-(a) ownership stamp is already gated by `ownerid-registry`; the membership step is behavioral-only — the cross-tenant sweep, `cross-tenant-sweep.suite.int.test.ts`, is the proof, by design). |
+| Which principal classes exist, and which are enforcement-gated? | The principal-flow census and its gate paths (the class-(a) ownership stamp is held by `TABLE_SCOPING` and its schema test; the membership step is behavioral-only — the cross-tenant sweep, `cross-tenant-sweep.suite.int.test.ts`, is the proof, by design). |
 
 ## 2e. By design — the do-not-re-flag register
 

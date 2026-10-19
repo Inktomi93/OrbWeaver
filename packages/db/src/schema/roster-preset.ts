@@ -28,7 +28,7 @@ export const rosterPresets = sqliteTable(
   {
     // TypeID PK (`roster_preset_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
     id: text("id").$type<RosterPresetId>().primaryKey(),
-    // KEEP `ownerId` (D23/D61 — true producer; ownerid-registry carries the row). User delete cascades.
+    // KEEP `ownerId` (D23/D61 — true producer; `TABLE_SCOPING` in `#tenancy` carries the row). User delete cascades.
     ownerId: text("owner_id")
       .$type<UserId>()
       .notNull()

@@ -115,6 +115,7 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
+import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
 import { ID_BRAND_HOME, nativeCanonicalIdBrand } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
@@ -1084,6 +1085,18 @@ const CLIENT_MAP_NATIVE_SETTINGS = {
 };
 const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
 
+// The membership-class table exports, read from the schema-owned registry; the settings value keys the lint cache.
+const MEMBERSHIP_TABLE_EXPORTS = Object.entries(TABLE_SCOPING)
+  .filter(([, row]) => row.scope === "membership")
+  .map(([name]) => name);
+if (MEMBERSHIP_TABLE_EXPORTS.length === 0) {
+  throw new Error("TABLE_SCOPING declares no membership-class table; orb/membership-write-fan would match nothing");
+}
+// Inside domain/chat the stronger membership-fan-guard bans the per-person emit outright.
+const MEMBERSHIP_WRITE_FAN_RESTRICTIONS = [
+  { id: "membership-write-fan", scope: ["packages/server/src/domain/**/*.{ts,tsx}"], notUnder: ["packages/server/src/domain/chat/**"], homes: [] },
+];
+
 const CLIENT_LEXICAL_RESTRICTIONS = [
   { id: "zustand-selector-derived", scope: [CLIENT_SRC], homes: [] },
   {
@@ -1270,6 +1283,7 @@ const RESTRICTIONS = [
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,
+  ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -2478,6 +2492,147 @@ const floorlessControlRule = {
       "Program:exit"() {
         stacks.forEach(judgeStack);
         sizes.forEach(judgeSize);
+      },
+    };
+  },
+};
+
+const MEMBERSHIP_TABLE_MODULE = /^@orb\/db(?:\/schema)?$/u;
+const MEMBERSHIP_WRITE_VERBS = new Set(["insert", "update", "delete"]);
+// The chained calls only a drizzle statement carries; `cache.delete(key)` has the same call shape and none of these.
+const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
+// Both address one human: the user bus, and the durable inbox delivered to one recipient.
+const PER_PERSON_EMITS = new Set(["emitUserEvent", "emitNotification"]);
+const DOCUMENT_ROOM_FAN = "fanDatabankRoomsForDocument";
+
+function staticPropertyName(member) {
+  if (!member.computed && member.property.type === "Identifier") {
+    return member.property.name;
+  }
+  return member.computed && member.property.type === "Literal" && typeof member.property.value === "string" ? member.property.value : undefined;
+}
+
+function unchained(node) {
+  return node.type === "ChainExpression" ? node.expression : node;
+}
+
+/** The callee name of `emitX(…)`, `ctx.emitX(…)`, `ctx?.emitX(…)` and `ctx["emitX"](…)`, with its report anchor. */
+function calleeNameOf(call) {
+  const callee = unchained(call.callee);
+  if (callee.type === "Identifier") {
+    return { name: callee.name, anchor: callee };
+  }
+  if (callee.type === "MemberExpression") {
+    const name = staticPropertyName(callee);
+    return name === undefined ? undefined : { name, anchor: callee.property };
+  }
+}
+
+// Walks `.insert(T).values(…).returning(…)`: the statement is a drizzle write when a chained call is a builder step.
+function followsDrizzleWriteChain(call) {
+  let current = call;
+  for (;;) {
+    const member = current.parent;
+    if (member?.type !== "MemberExpression" || member.object !== current) {
+      return false;
+    }
+    if (DRIZZLE_WRITE_CHAIN.has(staticPropertyName(member))) {
+      return true;
+    }
+    const next = member.parent;
+    if (next?.type !== "CallExpression" || next.callee !== member) {
+      return false;
+    }
+    current = next;
+  }
+}
+
+// The exported name a value import binds; a type-only specifier binds no runtime table.
+function importedValueName(specifier) {
+  return specifier.type === "ImportSpecifier" && specifier.importKind !== "type" ? (specifier.imported.name ?? specifier.imported.value) : undefined;
+}
+
+function isAwaited(call) {
+  const parent = call.parent?.type === "ChainExpression" ? call.parent.parent : call.parent;
+  return parent?.type === "AwaitExpression";
+}
+
+// One finding per file: a membership-class write whose only announcement is a per-person emit. Any other emit,
+// or an awaited document room fan, puts the write on a shared plane and acquits the file.
+const membershipWriteFanRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const tables = new Set(context.settings["orb/membership-tables"] ?? []);
+    if (tables.size === 0) {
+      throw new Error("orb/membership-write-fan needs the orb/membership-tables setting");
+    }
+    const locals = new Set();
+    const namespaces = new Set();
+    let writes = false;
+    let perPerson;
+    let roomFan = false;
+    const isMembershipTable = (node) => {
+      const target = unchained(node);
+      if (target.type === "Identifier") {
+        return locals.has(target.name);
+      }
+      return (
+        target.type === "MemberExpression" &&
+        target.object.type === "Identifier" &&
+        namespaces.has(target.object.name) &&
+        tables.has(staticPropertyName(target))
+      );
+    };
+    return {
+      ImportDeclaration: (node) => {
+        if (node.importKind === "type" || !MEMBERSHIP_TABLE_MODULE.test(String(node.source.value))) {
+          return;
+        }
+        for (const specifier of node.specifiers) {
+          if (specifier.type === "ImportNamespaceSpecifier") {
+            namespaces.add(specifier.local.name);
+          }
+          if (tables.has(importedValueName(specifier))) {
+            locals.add(specifier.local.name);
+          }
+        }
+      },
+      CallExpression: (node) => {
+        const callee = calleeNameOf(node);
+        if (callee === undefined) {
+          return;
+        }
+        if (callee.name === DOCUMENT_ROOM_FAN) {
+          roomFan ||= isAwaited(node);
+          return;
+        }
+        if (callee.name.startsWith("emit")) {
+          if (PER_PERSON_EMITS.has(callee.name)) {
+            perPerson ??= callee.anchor;
+          } else {
+            roomFan = true;
+          }
+          return;
+        }
+        const table = node.arguments[0];
+        if (
+          MEMBERSHIP_WRITE_VERBS.has(callee.name) &&
+          unchained(node.callee).type === "MemberExpression" &&
+          table !== undefined &&
+          isMembershipTable(table) &&
+          followsDrizzleWriteChain(node)
+        ) {
+          writes = true;
+        }
+      },
+      "Program:exit": () => {
+        if (writes && perPerson !== undefined && !roomFan) {
+          context.report({
+            node: perPerson,
+            message:
+              "A membership-class write is announced only to its actor: every other member keeps the pre-write projection. Emit a room fan beside the per-person emit (the chat bus, the domain's injected room-fan op, or roomEntityChanged).",
+          });
+        }
       },
     };
   },
@@ -3862,6 +4017,7 @@ const restrictionPlugin = {
     "scroll-container-positioned": scrollContainerRule,
     "ui-size-via-variant": uiSizeRule,
     "no-floorless-control-in-wrap": floorlessControlRule,
+    "membership-write-fan": membershipWriteFanRule,
     [TEST_PACKAGE_SUBPATH_RULE.slice("orb/".length)]: testPackageSubpathRule,
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
   },
@@ -3900,6 +4056,7 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
       : {}),
     ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
     ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
+    ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });

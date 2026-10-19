@@ -4,7 +4,7 @@
 // whether a POST-FETCH filter relates the fetched row's owner to the caller's. Re-spelled per gate they would
 // drift on exactly the question they exist to enforce (`tooling/src/floor/code-facts/schema-read.ts` is the same call
 // for what a `sqliteTable(...)` DECLARES). The (a)-class table set they cross this with is derived by
-// `gates/table-scoping-class.ts`. Homed here rather than in the gate file because these readers walk BOUNDED
+// `lib/tenancy-scope.ts` from `TABLE_SCOPING` in `@orb/db/tenancy`. Homed here rather than in the gate file because these readers walk BOUNDED
 // node subtrees (`getDescendantsOfKind` on a function body / statement / expression, never a `SourceFile`) —
 // exactly the shape `verify/lib` exists for; the static `gate:contract` census globs only `gates/*.ts` and
 // cannot see past the receiver to tell a bounded node walk from a repository one.

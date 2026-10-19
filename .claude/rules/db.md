@@ -48,6 +48,7 @@ through the app or an immutable copy.
 - A refine on a parse-on-read schema bricks already-stored rows. Put coherence checks at the
   write-producing verb, not the reader's schema.
 - A new table needs more than the schema file: `ASSET_REFS` if it holds an `AssetId`, the
-  table-scoping-class check, the suppression/freshness registries, and a test per verb.
+  `TABLE_SCOPING` row in `packages/db/src/tenancy/index.ts`, the suppression/freshness registries, and a
+  test per verb.
 - A `stats` rollup column stores the raw delta and only accumulates on conflict, so a negative delta on
   a fresh row inserts negative. Never add a non-negative CHECK constraint on a stats counter column.

@@ -6,7 +6,7 @@
 // EACH ARM IS ITS POLICY'S OWN `mustFlag` ROW, TRANSPLANTED ONTO THE REAL TREE: new modules import the real
 // doors (`@orb/kit/ids`, `@orb/contracts/*`, `drizzle-orm/sqlite-core`, the real `chats` table) and new schema
 // files sit beside the real ones in `packages/db/src/schema/`. Several schema policies judge EVERY table, so a
-// schema arm's file also draws `db-structure` / `table-scoping-class` findings; the runner's entanglement check
+// schema arm's file also draws `db-structure` findings; the runner's entanglement check
 // proves those arms alone.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
@@ -26,14 +26,12 @@ import { gate as noUntypedSoftRef } from "../../../../../tooling/src/verify/gate
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { gate as onePrincipalMintPopulation } from "../../../../../tooling/src/verify/gates/one-principal-mint-population.ts";
 import { gate as ownerRoleSplit } from "../../../../../tooling/src/verify/gates/owner-role-split.ts";
-import { gate as owneridRegistry } from "../../../../../tooling/src/verify/gates/ownerid-registry.ts";
 import { gate as platformSpellings } from "../../../../../tooling/src/verify/gates/platform-spellings.ts";
 import { gate as schemaBannedShapes } from "../../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as scrubberHome } from "../../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as soleEnvReader } from "../../../../../tooling/src/verify/gates/sole-env-reader.ts";
 import { gate as tableExplicitPrimaryKey } from "../../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
-import { gate as tableScopingClass } from "../../../../../tooling/src/verify/gates/table-scoping-class.ts";
 import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
@@ -171,16 +169,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: `${DOMAIN}/liveness-role.ts`,
   },
   {
-    policy: owneridRegistry,
-    overlays: [
-      add(
-        `${SCHEMA}/liveness-owner.ts`,
-        `${SQLITE}export const livenessOwned = sqliteTable("liveness_owned", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n`,
-      ),
-    ],
-    messageIncludes: "ownership-stamp classification",
-  },
-  {
     policy: platformSpellings,
     overlays: [
       add(
@@ -232,13 +220,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "has no PRIMARY KEY",
-  },
-  {
-    policy: tableScopingClass,
-    overlays: [
-      add(`${SCHEMA}/liveness-unscoped.ts`, `${SQLITE}export const livenessUnscoped = sqliteTable("liveness_unscoped", { id: text("id").primaryKey() });\n`),
-    ],
-    messageIncludes: "classify it",
   },
   {
     policy: typeidPrefixBoundary,
