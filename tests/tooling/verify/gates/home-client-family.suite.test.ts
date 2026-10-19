@@ -7,11 +7,10 @@ import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
 import { gate as renderErrorViaBattery } from "../../../../tooling/src/verify/gates/render-error-via-battery.ts";
-import { gate as themeOverrideOnlyViaScope } from "../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
-const FAMILY: readonly GatePolicy[] = [noEffectOnSharedSelection, renderErrorViaBattery, themeOverrideOnlyViaScope];
+const FAMILY: readonly GatePolicy[] = [noEffectOnSharedSelection, renderErrorViaBattery];
 
 test("the sanctioned-home client policies keep their founding, permission, respelling and counterfactual fixtures", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);

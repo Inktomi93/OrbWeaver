@@ -177,8 +177,8 @@ the cascade contract and requires an explicit law change.
 derives `color-scheme` from the palette's measured black-vs-white contrast through `surfacePolarity`, so
 custom themes and native controls resolve the same polarity without enumerating theme names. A `dark:`
 variant keyed to named `[data-theme]` values cannot see a custom theme's derived polarity and is therefore a
-defect, not a second supported path. Native ESLint rejects direct JSX class strings starting with `dark:`.
-`no-tailwind-dark-variant` judges the remaining variant chains, imported values and composer provenance through the shared static-class substrate.
+defect, not a second supported path. Native ESLint (`orb/no-tailwind-dark-variant`) rejects any authored string in `@ui` or `@client` that spells
+a top-level `dark:` variant, so a class list is caught where it is written, whatever composes it.
 
 ### 4.7 Enforcement
 

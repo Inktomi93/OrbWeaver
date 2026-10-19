@@ -5,9 +5,9 @@
 // Split from the legacy descriptor (#1950) because this is a whole-tree HARD verdict about ONE
 // file, while the occurrence arm is a per-file ordinary one — one authority per policy.
 //
-// FAMILY `sub-floor-disclosure` — the shared reader is `lib/collapsible-size-vocabulary.ts` (`SUB_FLOOR_ARM`,
-// `FLOOR_ARM`, `COLLAPSIBLE_VARIANTS_HOME`): the arms this policy proves declared are exactly the arms the
-// occurrence policy judges.
+// FAMILY: a declared SINGLETON under its own id — the shared reader is `lib/collapsible-size-vocabulary.ts`
+// (`SUB_FLOOR_ARM`, `FLOOR_ARM`, `COLLAPSIBLE_VARIANTS_HOME`). The occurrence half is the native
+// `orb/sub-floor-disclosure` lint rule, which judges the same `text` arm this policy proves declared.
 //
 // THE POPULATION IS THE HOME, EXACTLY (`under` names the one file): an ABSENT home admits nothing and the
 // runtime refuses at the population phase — louder than the legacy's silent skip — and `entire-population`
@@ -38,12 +38,12 @@ import { COLLAPSIBLE_VARIANTS_HOME, FLOOR_ARM, SUB_FLOOR_ARM } from "../lib/coll
 const ARMS: readonly string[] = [SUB_FLOOR_ARM, FLOOR_ARM];
 
 const MESSAGE =
-  `a collapsible size member is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary sub-floor-disclosure judges ` +
+  `a collapsible size member is no longer declared in ${COLLAPSIBLE_VARIANTS_HOME} — the vocabulary orb/sub-floor-disclosure judges ` +
   "(`text` the sub-floor opt-out, `control` the floor default) rotted; re-derive it in lib/collapsible-size-vocabulary.ts or restore the arm.";
 
 export const gate = defineGate({
   id: "sub-floor-disclosure-health",
-  family: "sub-floor-disclosure",
+  family: "sub-floor-disclosure-health",
   authority: "hard",
   severity: "error",
   population: { in: ["@ui"], under: [COLLAPSIBLE_VARIANTS_HOME] },

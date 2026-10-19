@@ -2,7 +2,7 @@
 // §9-§11 — the crispness doctrine's Laws 2, 3 and 4).
 //
 // THE QUESTION IS NOT "is this value legal" — the source-side gates (integer-line-boxes, rest-transform-grid,
-// no-raw-spacing-in-features, no-arbitrary-tw-values, css-length-tokens, no-off-token-inline-style) already
+// no-raw-spacing-in-features, no-arbitrary-tw-values, css-length-tokens, orb/no-off-token-inline-style) already
 // prove the AUTHORED values are tokens. It is "did the RESOLVED raster land on the device-pixel grid". That
 // gap is runtime-only by construction: a landing is the product of the live root font-size (the continuous
 // `--font-scale` slider), the element's own box, and `devicePixelRatio` — none of which authorship can see.

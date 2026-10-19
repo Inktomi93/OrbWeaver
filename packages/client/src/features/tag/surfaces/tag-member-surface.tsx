@@ -11,7 +11,7 @@ import { useTRPC } from "#data";
 import { CORPUS_MODE_LABELS } from "#lib";
 import { clearLabelSelection, useLabelNameFocus } from "#state";
 
-// @orb-waive surface-a11y-focus(TagMemberSurface): TagEditorBody owns editor arrival focus via useFocusOnMount; tag-member-surface CT pins the Name-field arrival for creation.
+// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): TagEditorBody owns editor arrival focus via useFocusOnMount; tag-member-surface CT pins the Name-field arrival for creation.
 export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactElement {
   const trpc = useTRPC();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());

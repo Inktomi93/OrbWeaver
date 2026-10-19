@@ -16,7 +16,6 @@ import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/ve
 import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
 
 import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
-import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as uiAccnameSurvivesSpread } from "../../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { gate as uiVariantAxesStamped } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
@@ -71,11 +70,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "no longer declared",
-  },
-  {
-    policy: surfaceA11yFocus,
-    overlays: [add(`${CHAT}/surfaces/liveness-focus-surface.tsx`, "export const LivenessFocusSurface = () => <div>content</div>;\n")],
-    messageIncludes: "missing A11y focus restoration",
   },
   {
     policy: surfaceInAContainer,

@@ -36,7 +36,7 @@ test("a narrowed request defers the entire-population tripwire instead of declar
     expect(whole.policies.find(({ id }) => id === policy.id)?.findings).toEqual([]);
 
     // A request narrowed to ONE file must not partially run the tripwire and "discover" the other home
-    // dead — it must DEFER, exactly like `no-tailwind-dark-variant`'s pin for the same `execution` value.
+    // dead — it must DEFER (the planner contract for `execution: entire-population`).
     const narrowed = runPolicyPass({
       knownPolicies: [policy],
       policies: [policy],

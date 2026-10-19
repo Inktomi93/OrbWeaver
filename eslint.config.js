@@ -1592,6 +1592,68 @@ const CLIENT_LEXICAL_NATIVE_SETTINGS = {
     .digest("hex"),
 };
 
+const CLIENT_STYLE_RESTRICTIONS = [
+  { id: "no-off-token-inline-style", scope: rootSources("@client", "@ui"), homes: [] },
+  { id: "theme-override-only-via-scope", scope: rootSources("@client", "@ui"), homes: [] },
+  {
+    id: "no-unruled-flip-inversion",
+    scope: rootSources("@client", "@ui"),
+    homes: [
+      {
+        path: "packages/ui/src/primitives/tabs/tabs.tsx",
+        why: "glideIndicator is the ruled FLIP site: the delta is the difference between two runtime boxes, so no CSS value expresses it (motion-and-animation-guide.md §1.5). A third site is a ruling to amend there first.",
+      },
+    ],
+    // The home owns exactly one ruled pair: a second one in the file is a finding, and the home reports itself stale at none.
+    homedOptions: { allowed: 1 },
+  },
+  {
+    id: "sub-floor-disclosure",
+    scope: rootSources("@client", "@ui"),
+    homes: [
+      {
+        path: "packages/client/src/features/rpg/components/rpg-beat-row.tsx",
+        why: "The trigger's box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.",
+      },
+      {
+        path: "packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx",
+        why: "Recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment, fine stays a 16px line in a dense transcript footer; a control box there is the density cost that ruling priced and declined.",
+      },
+    ],
+    // Each home owns exactly one ruled mount: a homed file reports a second one and reports itself stale at none.
+    homedOptions: { allowed: 1 },
+  },
+  {
+    id: "surface-a11y-focus",
+    scope: ["packages/client/src/features/*/surfaces/**/*.tsx"],
+    notUnder: ["packages/client/src/features/app-shell/**", "packages/client/src/features/topbar/**"],
+    // A homed surface reports itself stale the day it takes arrival focus itself.
+    homedOptions: { homed: true },
+    homes: [
+      {
+        path: "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
+        why: "The picker body owns arrival focus: CharacterPicker's own autoFocusSearch lands the caret in the search combobox, and a useFocusOnMount here parked focus on a dead wrapper and swallowed keystrokes. Ends when this surface stops delegating to CharacterPicker.",
+      },
+      {
+        path: "packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx",
+        why: "CorpusArtifactFrame and CorpusDossierSurface own their Back controls; corpus-artifact-surface.ct.tsx asserts the frame arrival target.",
+      },
+      {
+        path: "packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx",
+        why: "The corpus list pane's omnibox owns this section's arrival focus; this content surface mounts second and must not steal it. Ends when it becomes a section's sole pane.",
+      },
+      {
+        path: "packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx",
+        why: "CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.",
+      },
+      {
+        path: "packages/client/src/features/tag/surfaces/tag-member-surface.tsx",
+        why: "TagEditorBody owns editor arrival focus via useFocusOnMount; the tag-member-surface CT pins the Name-field arrival for creation.",
+      },
+    ],
+  },
+];
+
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -2697,6 +2759,7 @@ const RESTRICTIONS = [
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
   ...CLIENT_SEAL_RESTRICTIONS,
+  ...CLIENT_STYLE_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -2708,17 +2771,7 @@ const RESTRICTIONS = [
       },
     ],
   },
-  {
-    id: "no-tailwind-dark-variant",
-    scope: rootSources("@client", "@ui"),
-    homes: [],
-    selectors: [
-      {
-        selector: "JSXAttribute[name.name='className'] > Literal[value=/^dark:/]",
-        message: "Use a polarity-aware light-dark() token; dark: cannot follow ThemeScope-derived custom-theme polarity.",
-      },
-    ],
-  },
+  { id: "no-tailwind-dark-variant", scope: rootSources("@client", "@ui"), homes: [] },
 
   {
     id: "no-raw-zustand-persist",
@@ -3034,6 +3087,512 @@ function rawTierClassRule(pattern, message) {
     },
   };
 }
+
+const TS_VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
+const unwrapTsValue = (node) => {
+  let current = node;
+  while (TS_VALUE_WRAPPERS.has(current.type)) {
+    current = current.expression;
+  }
+  return current;
+};
+const STATIC_CONST_DEPTH = 8;
+
+const variableNamed = (scope, name) => (scope === null ? undefined : (scope.set.get(name) ?? variableNamed(scope.upper, name)));
+const STABLE_DECLARATION_KINDS = new Set(["const", "let"]);
+/** The initializer of the same-file `const`, or `let` never written after its declaration, an identifier names; a
+ *  reassigned let, parameter, import or destructured binding has none. */
+function constantInitializer(context, identifier) {
+  const variable = variableNamed(context.sourceCode.getScope(identifier), identifier.name);
+  const [definition] = variable?.defs ?? [];
+  const declared =
+    variable?.defs.length === 1 &&
+    definition.type === "Variable" &&
+    STABLE_DECLARATION_KINDS.has(definition.parent.kind) &&
+    definition.node.id.type === "Identifier";
+  const unwritten = declared && variable.references.every((reference) => !reference.isWrite() || reference.init === true);
+  return unwritten && definition.node.init ? definition.node.init : undefined;
+}
+
+const SIGNED = new Map([
+  ["-", (value) => -value],
+  ["+", (value) => value],
+]);
+const joinStatic = (left, right) => (typeof left === "number" && typeof right === "number" ? left + right : `${left}${right}`);
+// Each reader gets the node, a reader for its children and a lookup for the const an identifier names.
+const STATIC_TEXT_READERS = new Map([
+  ["Literal", (expression) => (typeof expression.value === "string" || typeof expression.value === "number" ? expression.value : undefined)],
+  [
+    "TemplateLiteral",
+    (expression, next) => {
+      const parts = expression.expressions.map(next);
+      return parts.includes(undefined) ? undefined : expression.quasis.map((quasi, index) => quasi.value.cooked + String(parts[index] ?? "")).join("");
+    },
+  ],
+  [
+    "UnaryExpression",
+    (expression, next) => {
+      const operand = next(expression.argument);
+      const sign = SIGNED.get(expression.operator);
+      return typeof operand === "number" && sign !== undefined ? sign(operand) : undefined;
+    },
+  ],
+  [
+    "BinaryExpression",
+    (expression, next) => {
+      const left = expression.operator === "+" ? next(expression.left) : undefined;
+      const right = left === undefined ? undefined : next(expression.right);
+      return right === undefined ? undefined : joinStatic(left, right);
+    },
+  ],
+  [
+    "Identifier",
+    (expression, next, initializerOf) => {
+      const initializer = initializerOf(expression);
+      return initializer === undefined ? undefined : next(initializer);
+    },
+  ],
+]);
+/** The string or number an authored expression spells, or undefined. It follows same-file `const` bindings, so a
+ *  name standing for a literal reads as that literal; anything dynamic (props, calls, imports) stays undefined. */
+function staticTextValue(context, node, depth = 0) {
+  const expression = unwrapTsValue(node);
+  const read = STATIC_TEXT_READERS.get(expression.type);
+  const next = (child) => staticTextValue(context, child, depth + 1);
+  const initializerOf = (identifier) => (depth >= STATIC_CONST_DEPTH ? undefined : constantInitializer(context, identifier));
+  return read === undefined ? undefined : read(expression, next, initializerOf);
+}
+
+const spelledName = (value) => (value === undefined ? undefined : String(value));
+// The member name an access spells: `.name`, `["name"]`, or a computed key a same-file const reduces to a literal.
+function accessedName(context, member) {
+  const { property } = member;
+  if (!member.computed) {
+    return property.type === "Identifier" ? property.name : undefined;
+  }
+  return spelledName(staticTextValue(context, property));
+}
+function isStyleMember(context, node) {
+  const member = unwrapTsValue(node);
+  return member.type === "MemberExpression" && accessedName(context, member) === "style";
+}
+// The name an object literal property is written under: a plain or quoted key, or a computed key a same-file const
+// reduces to a literal.
+function staticKeyName(context, property) {
+  const { key } = property;
+  if (property.computed) {
+    return spelledName(staticTextValue(context, key));
+  }
+  return key.type === "Identifier" ? key.name : spelledName(key.value);
+}
+
+// The token vocabulary tokens.json closes: radius, shadow, colour, motion and the box spacing axes, in both the
+// camelCase object-key and the kebab-case setProperty spellings.
+const TOKEN_BACKED_STYLE_PROPS = new Set(
+  [
+    "borderRadius",
+    "boxShadow",
+    "color",
+    "background",
+    "backgroundColor",
+    "transition",
+    "transitionDuration",
+    "transitionTimingFunction",
+    "animation",
+    "gap",
+    "rowGap",
+    "columnGap",
+    "padding",
+    "paddingTop",
+    "paddingRight",
+    "paddingBottom",
+    "paddingLeft",
+    "margin",
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+  ].flatMap((name) => [name, name.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)]),
+);
+const RAW_STYLE_UNIT = /\d(?:\.\d+)?\s*(?:px|rem|em|%|ms|s|vh|vw|vmin|vmax|ch|cqh|cqw|fr|deg)\b/u;
+const RAW_STYLE_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\s*\(/u;
+const RAW_STYLE_EASING = /\b(?:ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier)\b/u;
+const BARE_STYLE_NUMBER = /^-?\d+(?:\.\d+)?$/u;
+// A var(--…) value is on-token; a bare zero is the no-op keyword, not a magic value.
+function isRawStyleValue(value) {
+  const text = value === undefined ? "" : String(value).trim();
+  if (text.includes("var(--")) {
+    return false;
+  }
+  if (BARE_STYLE_NUMBER.test(text)) {
+    return Number(text) !== 0;
+  }
+  return RAW_STYLE_UNIT.test(text) || RAW_STYLE_COLOR.test(text) || RAW_STYLE_EASING.test(text);
+}
+
+const OFF_TOKEN_STYLE_MESSAGE =
+  "A token-backed CSS property (radius, shadow, colour, motion, spacing) is written as a raw literal inline; use a Tailwind token utility or reference a var(--…) token from tokens.json.";
+const styleObjectOf = (container) => {
+  const expression = container.expression.type === "JSXEmptyExpression" ? undefined : unwrapTsValue(container.expression);
+  return expression?.type === "ObjectExpression" ? expression : undefined;
+};
+const offTokenInlineStyleRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const flagWhenRaw = (node, value) => {
+      if (isRawStyleValue(staticTextValue(context, value))) {
+        context.report({ node, message: OFF_TOKEN_STYLE_MESSAGE });
+      }
+    };
+    const tokenBacked = (name) => name !== undefined && TOKEN_BACKED_STYLE_PROPS.has(name);
+    return {
+      "JSXAttribute[name.name='style'] > JSXExpressionContainer": (container) => {
+        for (const property of styleObjectOf(container)?.properties ?? []) {
+          const plain = property.type === "Property" && property.kind === "init" && !property.method;
+          if (plain && tokenBacked(staticKeyName(context, property))) {
+            flagWhenRaw(property, property.value);
+          }
+        }
+      },
+      "AssignmentExpression[operator='='][left.type='MemberExpression']": (assignment) => {
+        if (tokenBacked(accessedName(context, assignment.left)) && isStyleMember(context, assignment.left.object)) {
+          flagWhenRaw(assignment, assignment.right);
+        }
+      },
+      "CallExpression[callee.type='MemberExpression']": (call) => {
+        const [property, value] = call.arguments;
+        const setsStyle = accessedName(context, call.callee) === "setProperty" && isStyleMember(context, call.callee.object);
+        if (setsStyle && value !== undefined && tokenBacked(staticTextValue(context, property))) {
+          flagWhenRaw(call, value);
+        }
+      },
+    };
+  },
+};
+
+const COLOR_TOKEN_PREFIX = "--color-";
+// A computed template key is judged by its static head, so `[`--color-${n}`]` still spells a colour token.
+const keyHead = (context, property) =>
+  property.computed && property.key.type === "TemplateLiteral" ? property.key.quasis[0]?.value.cooked : staticKeyName(context, property);
+// Reads the object a style prop is given: a literal, a same-file const, or a spread of either.
+function overridesColorToken(context, node, depth = 0) {
+  const expression = unwrapTsValue(node);
+  const initializer = expression.type === "Identifier" && depth < STATIC_CONST_DEPTH ? constantInitializer(context, expression) : undefined;
+  if (initializer !== undefined) {
+    return overridesColorToken(context, initializer, depth + 1);
+  }
+  return (
+    expression.type === "ObjectExpression" &&
+    depth < STATIC_CONST_DEPTH &&
+    expression.properties.some((property) => overridesColorKey(context, property, depth))
+  );
+}
+function overridesColorKey(context, property, depth) {
+  if (property.type === "SpreadElement") {
+    return overridesColorToken(context, property.argument, depth + 1);
+  }
+  return property.type === "Property" && (keyHead(context, property) ?? "").startsWith(COLOR_TOKEN_PREFIX);
+}
+const themeOverrideRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "JSXAttribute[name.name='style']": (attribute) => {
+        const container = attribute.value;
+        const read = container?.type === "JSXExpressionContainer" && container.expression.type !== "JSXEmptyExpression";
+        if (read && overridesColorToken(context, container.expression)) {
+          context.report({
+            node: attribute,
+            message:
+              "An inline style prop overrides a --color-* design token; token overrides go through <ThemeScope>, where the value is clamped at the boundary.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const VARIANT_CLOSERS = new Map([
+  ["]", "["],
+  [")", "("],
+  ["}", "{"],
+]);
+// Quotes and escapes are data inside an arbitrary candidate; true when the character was consumed by them.
+function consumesQuoteOrEscape(state, char) {
+  if (state.escaped) {
+    state.escaped = false;
+    return true;
+  }
+  if (char === "\\") {
+    state.escaped = true;
+    return true;
+  }
+  if (state.quote !== "") {
+    state.quote = char === state.quote ? "" : state.quote;
+    return true;
+  }
+  if (char === '"' || char === "'") {
+    state.quote = char;
+    return true;
+  }
+  return false;
+}
+function consumesBracket(state, char) {
+  if (char === "[" || char === "(" || char === "{") {
+    state.open.push(char);
+    return true;
+  }
+  const opener = VARIANT_CLOSERS.get(char);
+  if (opener !== undefined && state.open.at(-1) === opener) {
+    state.open.pop();
+  }
+  return opener !== undefined;
+}
+// Splits a Tailwind candidate on its top-level colons only; a colon inside an arbitrary selector or function is data.
+function topLevelVariantParts(candidate) {
+  const state = { open: [], quote: "", escaped: false };
+  const parts = [];
+  let start = 0;
+  for (let index = 0; index < candidate.length; index += 1) {
+    const char = candidate[index];
+    if (consumesQuoteOrEscape(state, char) || consumesBracket(state, char)) {
+      continue;
+    }
+    if (char === ":" && state.open.length === 0) {
+      parts.push(candidate.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(candidate.slice(start));
+  return parts;
+}
+// A part of the text the rule cannot read (a prop, a call, an import) stands in as this character, so a variant
+// chain split around it is still judged on the characters that are known.
+const UNREAD_TEXT = "\u0000";
+// `dark` is banned as a VARIANT, so the utility position (last part) never counts. A trailing `dark:` is only a
+// runtime prefix when an unread part follows it.
+function spellsDarkVariant(text) {
+  return text
+    .split(/\s+/u)
+    .filter((candidate) => candidate !== "")
+    .some((candidate) =>
+      candidate.split(UNREAD_TEXT).some((piece, index, pieces) => {
+        const parts = topLevelVariantParts(piece);
+        return parts.slice(0, -1).includes("dark") && (parts.at(-1) !== "" || index < pieces.length - 1);
+      }),
+    );
+}
+// Each reader gets the node, a reader for its children and a lookup for the const an identifier names.
+const JOINED_TEXT_READERS = new Map([
+  ["Literal", (expression) => (typeof expression.value === "string" || typeof expression.value === "number" ? String(expression.value) : UNREAD_TEXT)],
+  [
+    "TemplateLiteral",
+    (expression, next) =>
+      expression.quasis.map((quasi, index) => quasi.value.cooked + (expression.expressions[index] ? next(expression.expressions[index]) : "")).join(""),
+  ],
+  ["BinaryExpression", (expression, next) => (expression.operator === "+" ? next(expression.left) + next(expression.right) : UNREAD_TEXT)],
+  [
+    "Identifier",
+    (expression, next, initializerOf) => {
+      const initializer = initializerOf(expression);
+      const text = initializer === undefined ? UNREAD_TEXT : next(initializer);
+      // A name standing for text that is a finding on its own is reported at that declaration, not again at each use.
+      return spellsDarkVariant(text) ? UNREAD_TEXT : text;
+    },
+  ],
+]);
+/** The text a string, template or `+` chain spells with its same-file `const` parts substituted, and the unread
+ *  stand-in for every part it cannot read. */
+function joinedText(context, node, depth = 0) {
+  const expression = unwrapTsValue(node);
+  const read = JOINED_TEXT_READERS.get(expression.type);
+  const next = (child) => joinedText(context, child, depth + 1);
+  const initializerOf = (identifier) => (depth >= STATIC_CONST_DEPTH ? undefined : constantInitializer(context, identifier));
+  return read === undefined ? UNREAD_TEXT : read(expression, next, initializerOf);
+}
+// A text is judged once, at its outermost string, template or `+` chain; the parts inside it are read through it.
+function isOutermostText(node) {
+  let current = node;
+  let parent = current.parent;
+  while (TS_VALUE_WRAPPERS.has(parent.type) && parent.expression === current) {
+    current = parent;
+    parent = current.parent;
+  }
+  const joined = (parent.type === "BinaryExpression" && parent.operator === "+") || (parent.type === "TemplateLiteral" && parent.expressions.includes(current));
+  return !joined;
+}
+const darkVariantRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const judge = (node) => {
+      if (isOutermostText(node) && spellsDarkVariant(joinedText(context, node))) {
+        context.report({ node, message: "Use a polarity-aware light-dark() token; dark: cannot follow ThemeScope-derived custom-theme polarity." });
+      }
+    };
+    return { "Literal[value=type(string)]": judge, TemplateLiteral: judge, "BinaryExpression[operator='+']": judge };
+  },
+};
+
+const FORCED_REFLOW_READS = new Set(["offsetWidth", "offsetHeight", "getBoundingClientRect"]);
+const FUNCTION_NODE_TYPES = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+// A FLIP inversion is an inline transform write followed, in the same function, by a forced-reflow read. Either half
+// alone is ordinary styling or measurement; the pair is the JS-moves-pixels tell. A reasoned home allows exactly the pairs its
+// ruling names (`allowed`), in source order; the rest are findings, and a home with fewer pairs than it allows is stale.
+const flipInversionRule = {
+  meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
+  create(context) {
+    const allowed = context.options[0]?.allowed ?? 0;
+    const writes = [];
+    const reads = [];
+    const functionOf = (node) => context.sourceCode.getAncestors(node).findLast((ancestor) => FUNCTION_NODE_TYPES.has(ancestor.type));
+    return {
+      "MemberExpression[property]": (node) => {
+        const scope = FORCED_REFLOW_READS.has(accessedName(context, node)) ? functionOf(node) : undefined;
+        if (scope !== undefined) {
+          reads.push({ scope, start: node.range[0] });
+        }
+      },
+      "AssignmentExpression[operator='='][left.type='MemberExpression']": (node) => {
+        const scope = accessedName(context, node.left) === "transform" && isStyleMember(context, node.left.object) ? functionOf(node) : undefined;
+        if (scope !== undefined) {
+          writes.push({ scope, start: node.range[0], anchor: node.left.property });
+        }
+      },
+      "Program:exit": (program) => {
+        const pairs = writes.filter((write) => reads.some((read) => read.scope === write.scope && read.start > write.start));
+        for (const write of pairs.slice(allowed)) {
+          context.report({
+            node: write.anchor,
+            message:
+              "A FLIP inversion outside the ruled exception class: an inline transform write flushed by a forced layout read is JS moving pixels. Stamp a data attribute and let CSS own the distance (use-list-track-flip.ts).",
+          });
+        }
+        if (pairs.length < allowed) {
+          context.report({
+            node: program,
+            message:
+              "This file is a reasoned home of orb/no-unruled-flip-inversion but holds fewer FLIP pairs than its ruling names; delete or amend its home on the row in eslint.config.js and the ruling in motion-and-animation-guide.md §1.5.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
+const LIFECYCLE_HOOKS = new Set(["useEffect", "useLayoutEffect"]);
+const FUNCTION_VALUE_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression"]);
+// useFocusOnMount lands arrival focus; a hand-rolled `.focus()` counts only as the direct body of a lifecycle callback,
+// never an event handler.
+function landsArrivalFocus(context, call) {
+  const { callee } = call;
+  if (callee.type === "Identifier") {
+    return callee.name === "useFocusOnMount";
+  }
+  if (callee.type !== "MemberExpression" || callee.computed || callee.property.name !== "focus") {
+    return false;
+  }
+  const callback = context.sourceCode.getAncestors(call).findLast((ancestor) => FUNCTION_VALUE_TYPES.has(ancestor.type));
+  const hook = callback?.parent;
+  return hook?.type === "CallExpression" && hook.arguments[0] === callback && hook.callee.type === "Identifier" && LIFECYCLE_HOOKS.has(hook.callee.name);
+}
+// The names a module exports without declaring them in the export statement: `export { A as B }` and `export default A`.
+function reexportedNames(program) {
+  return new Set(
+    program.body.flatMap((statement) => {
+      if (statement.type === "ExportNamedDeclaration" && statement.source === null) {
+        return statement.specifiers.map((specifier) => specifier.local.name);
+      }
+      return statement.type === "ExportDefaultDeclaration" && statement.declaration.type === "Identifier" ? [statement.declaration.name] : [];
+    }),
+  );
+}
+// The surface's own component name: the first exported function declaration, else the first exported function-valued const.
+function exportedComponentName(program) {
+  const reexported = reexportedNames(program);
+  const entries = program.body.flatMap((statement) => {
+    const wrapped = statement.type === "ExportNamedDeclaration" || statement.type === "ExportDefaultDeclaration";
+    if (!wrapped) {
+      return [{ declaration: statement, exported: false }];
+    }
+    return statement.declaration ? [{ declaration: statement.declaration, exported: true }] : [];
+  });
+  const isExported = (entry, id) => entry.exported || reexported.has(id.name);
+  const declared = entries.find((entry) => entry.declaration.type === "FunctionDeclaration" && entry.declaration.id && isExported(entry, entry.declaration.id));
+  const valued = entries
+    .flatMap((entry) => (entry.declaration.type === "VariableDeclaration" ? entry.declaration.declarations.map((declarator) => ({ entry, declarator })) : []))
+    .find(
+      ({ entry, declarator }) => declarator.id.type === "Identifier" && FUNCTION_VALUE_TYPES.has(declarator.init?.type) && isExported(entry, declarator.id),
+    );
+  return declared?.declaration.id ?? valued?.declarator.id;
+}
+const surfaceA11yFocusRule = {
+  meta: { type: "problem", schema: [{ type: "object", properties: { homed: { type: "boolean" } }, additionalProperties: false }] },
+  create(context) {
+    const homed = context.options[0]?.homed === true;
+    let managesFocus = false;
+    return {
+      "JSXOpeningElement[name.type='JSXIdentifier']": (opening) => {
+        managesFocus = managesFocus || AUTO_FOCUS_PRIMITIVES.has(opening.name.name);
+      },
+      "CallExpression[callee]": (call) => {
+        managesFocus = managesFocus || landsArrivalFocus(context, call);
+      },
+      "Program:exit": (program) => {
+        if (homed) {
+          if (managesFocus) {
+            context.report({
+              node: exportedComponentName(program) ?? program,
+              message:
+                "This surface is a reasoned home of orb/surface-a11y-focus but now takes its own arrival focus; delete its home from the row in eslint.config.js.",
+            });
+          }
+          return;
+        }
+        const name = managesFocus ? undefined : exportedComponentName(program);
+        if (name !== undefined) {
+          context.report({
+            node: name,
+            message:
+              "A surface must take its section's arrival focus: useFocusOnMount, a .focus() in a mount lifecycle, or a focus-trapping root (Popover, Dialog, Tooltip, Dropdown, Sheet). When another pane owns arrival focus, give the file a reasoned home on this row in eslint.config.js (UI-Gates-and-Lessons.md §8).",
+          });
+        }
+      },
+    };
+  },
+};
+// A size="text" CollapsibleTrigger is the sub-floor opt-out. A home allows exactly the mounts its ruling names (`allowed`),
+// in source order; the rest are findings, and a home that mounts fewer than it allows is stale.
+const SUB_FLOOR_TRIGGER =
+  "JSXOpeningElement[name.name='CollapsibleTrigger'] > JSXAttribute[name.name='size']:matches([value.value='text'], [value.expression.value='text'])";
+const subFloorDisclosureRule = {
+  meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
+  create(context) {
+    const allowed = context.options[0]?.allowed ?? 0;
+    const mounts = [];
+    return {
+      [SUB_FLOOR_TRIGGER]: (node) => {
+        mounts.push(node);
+      },
+      "Program:exit": (program) => {
+        for (const node of mounts.slice(allowed)) {
+          context.report({
+            node,
+            message:
+              'A size="text" CollapsibleTrigger is the sub-floor opt-out (no control box, no hit pseudo); take the control default, or give the file a reasoned home on this row in eslint.config.js saying why the disclosure sits in running content.',
+          });
+        }
+        if (mounts.length < allowed) {
+          context.report({
+            node: program,
+            message:
+              'This file is a reasoned home of orb/sub-floor-disclosure but mounts fewer size="text" CollapsibleTriggers than its ruling names; delete or amend its home on the row in eslint.config.js.',
+          });
+        }
+      },
+    };
+  },
+};
 
 const DISPLAY_UTILITIES = new Set([
   "block",
@@ -5771,6 +6330,12 @@ const restrictionPlugin = {
       "Raw typography in a class carrier; use a typography intent token.",
     ),
     "no-hover-display-swap": hoverDisplayRule,
+    "no-off-token-inline-style": offTokenInlineStyleRule,
+    "theme-override-only-via-scope": themeOverrideRule,
+    "no-unruled-flip-inversion": flipInversionRule,
+    "no-tailwind-dark-variant": darkVariantRule,
+    "surface-a11y-focus": surfaceA11yFocusRule,
+    "sub-floor-disclosure": subFloorDisclosureRule,
     "zustand-selector-derived": storeDerivedRule,
     "baseui-derives-not-respells": baseUiDerivesRule(false),
     "baseui-derives-not-respells-health": baseUiDerivesRule(true),
@@ -5817,30 +6382,40 @@ function typedNativeSettings(entry) {
   };
 }
 
-const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS].map(({ id, scope, notNamed = [], notUnder = [], homes, deferred = [] }) => {
-  const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
-  return {
-    files: scope,
-    // A flat-config `ignores` array must not be empty.
-    ...(ignores.length === 0 ? {} : { ignores }),
-    plugins: { orb: restrictionPlugin },
-    ...(BASEUI_RESTRICTIONS.some((entry) => entry.id === id)
-      ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
-      : {}),
-    ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
-    ...(TYPED_NATIVE_POLICIES.some((entry) => entry.id === id)
-      ? {
-          settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id)),
-        }
-      : {}),
-    ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
-    ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
-    ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
-    ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
-    ...(SERVER_ONE_HOME_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: SERVER_ONE_HOME_SETTINGS } : {}),
-    rules: { [`orb/${id}`]: "error" },
-  };
-});
+const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS].flatMap(
+  ({ id, scope, notNamed = [], notUnder = [], homes, deferred = [], homedOptions }) => {
+    const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
+    // A rule with `homedOptions` still runs on its homes, in the mode those options name, so a home cannot go stale unseen.
+    const homed =
+      homedOptions === undefined
+        ? []
+        : [{ files: homes.map(({ path }) => path), plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: ["error", homedOptions] } }];
+    return [
+      {
+        files: scope,
+        // A flat-config `ignores` array must not be empty.
+        ...(ignores.length === 0 ? {} : { ignores }),
+        plugins: { orb: restrictionPlugin },
+        ...(BASEUI_RESTRICTIONS.some((entry) => entry.id === id)
+          ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
+          : {}),
+        ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
+        ...(TYPED_NATIVE_POLICIES.some((entry) => entry.id === id)
+          ? {
+              settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id)),
+            }
+          : {}),
+        ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
+        ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
+        ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
+        ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
+        ...(SERVER_ONE_HOME_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: SERVER_ONE_HOME_SETTINGS } : {}),
+        rules: { [`orb/${id}`]: "error" },
+      },
+      ...homed,
+    ];
+  },
+);
 
 // react-x: React 19 retired these APIs. Its rules take no options. `no-class-component` already passes an error
 // boundary (a class with `getDerivedStateFromError` / `componentDidCatch`), which has no function equivalent.

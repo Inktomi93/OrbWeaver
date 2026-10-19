@@ -5,12 +5,9 @@
 // — §4's realized shape is anchor-wraps-surface. Per-FEATURE match, not per-surface-to-specific-anchor
 // tracing; `message-thread-anchor.tsx` is the first real instance of the cross-file shape.
 //
-// FAMILY `surface-composition` — the shared reader is `lib/surface-composition.ts`
-// (`rendersStructuralRoot` + `rendersLayoutContainer` + `exportedComponentAnchor`), with `surface-a11y-focus`
-// as the other member. This one and `surface-a11y-focus` report the
-// SAME position deliberately: a surface-level verdict has no natural node, and two policies that agree on one
-// coordinate let ONE `@orb-waive` line carry each by id instead of each inventing a position the other cannot
-// see (guide §2.1, the `caught-failure.ts` shared-anchor payoff).
+// FAMILY: a declared SINGLETON under its own id — the shared reader is `lib/surface-composition.ts`
+// (`rendersStructuralRoot` + `rendersLayoutContainer` + `exportedComponentAnchor`). A surface-level verdict has
+// no natural node, so it reports the surface's exported component name (guide §2.1).
 //
 // POPULATION PORT: `@client` under `packages/client/src/features/*/surfaces/**` and
 // `packages/client/src/features/*/anchors/**`, `tsx` only, MINUS the app-shell feature. LEGACY at (pruned from public history):
@@ -87,8 +84,7 @@ const FIX =
   "wrap the surface in an @orb/ui/layout `<Container>` / `<Section container>` — its own, or its feature's " +
   "`anchors/` wrapper (the realized anchor-wraps-surface shape) — never raw container-type. A deliberate " +
   "occurrence waives with `@orb-waive surface-in-a-container(<ExportedComponentName>): <reason + end " +
-  "condition>` on the line above the surface's exported component; the position is the same node " +
-  "`surface-a11y-focus` reports, so one line carries both when both apply.";
+  "condition>` on the line above the surface's exported component.";
 
 interface SurfaceSubject {
   readonly feature: string;
@@ -97,7 +93,7 @@ interface SurfaceSubject {
 
 export const gate = defineGate({
   id: "surface-in-a-container",
-  family: "surface-composition",
+  family: "surface-in-a-container",
   authority: "ordinary",
   severity: "error",
   population: {
@@ -263,7 +259,7 @@ export const gate = defineGate({
         "packages/client/src/features/x/surfaces/waived.tsx":
           "// @orb-waive surface-in-a-container(Waived): the proof's stand-in reason; ends when this fixture stops flagging.\nexport const Waived = () => <div><ul><li>row</li></ul></div>;\n",
       },
-      why: "§4.2 POSITIONAL IDENTITY: the position is the surface's exported component name — the SAME node `surface-a11y-focus` reports, which is the family's whole reason for a shared anchor. The fixture is mustFlag[0] plus the marker line, so exactly ONE occurrence exists for the one marker to consume; the arm ends if that row changes",
+      why: "§4.2 POSITIONAL IDENTITY: the position is the surface's exported component name. The fixture is mustFlag[0] plus the marker line, so exactly ONE occurrence exists for the one marker to consume; the arm ends if that row changes",
     },
   ],
 });

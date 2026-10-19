@@ -25,7 +25,7 @@ const SOURCE_OUTCOME_TEXT: Readonly<Record<CorpusSourceOutcome, string>> = {
   unavailable: "This source has no available transcript anchor.",
 };
 
-// @orb-waive surface-a11y-focus(CorpusMomentSurface): CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.
+// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.
 export function CorpusMomentSurface({ destination }: { readonly destination: Moment }): ReactElement {
   const source = destination.hit.source;
   const title = chatSubtitle(destination.hit.chatTitle, destination.kind === "digest" ? destination.hit.scopedCharacterName : destination.characterName);

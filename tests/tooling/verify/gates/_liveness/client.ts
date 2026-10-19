@@ -6,21 +6,12 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { gate as doors } from "../../../../../tooling/src/verify/gates/duplicate-action-doors.ts";
 import { gate as wireInterface } from "../../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as historyWrites } from "../../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
-import { gate as flip } from "../../../../../tooling/src/verify/gates/no-unruled-flip-inversion.ts";
 import { gate as windowedHealth } from "../../../../../tooling/src/verify/gates/windowed-infinite-query-health.ts";
 
 /** A neutralise overlay that simply removes the watched subject from a file. */
 function blank(path: string): RealCorpusOverlay {
   return { kind: "neutralise", path, source: "export const neutralised = 1;\n" };
 }
-
-/** The ruled FLIP site's own shape, reduced to the three lines that make it a FLIP: write, flush, clear. */
-const GLIDE_SOURCE =
-  "export function glide(node: HTMLElement, dx: number): void {\n" +
-  "  node.style.transform = `translateX(${String(dx)}px)`;\n" +
-  "  node.getBoundingClientRect();\n" +
-  '  node.style.transform = "";\n' +
-  "}\n";
 
 export const CLIENT_ARMS: readonly RealCorpusLivenessArm[] = [
   {
@@ -49,13 +40,6 @@ export const CLIENT_ARMS: readonly RealCorpusLivenessArm[] = [
       blank("packages/client/src/data/create-collection-surface.ts"),
     ],
     messageIncludes: "DERIVED NOTHING",
-  },
-  {
-    policy: flip,
-    // A THIRD FLIP site in the real client tree. §1.5 admits two sites as the whole exception class and the
-    // grant table licenses exactly the one that writes a transform, so a third is an effective finding.
-    overlays: [{ kind: "add", path: "packages/client/src/features/chat/components/flip-live-probe.tsx", source: GLIDE_SOURCE }],
-    messageIncludes: "not a third member",
   },
   {
     policy: doors,

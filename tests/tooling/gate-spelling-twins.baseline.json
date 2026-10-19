@@ -28,7 +28,6 @@
     "test-determinism": ["bracket"],
     "test-fixture-imports": ["namespace"],
     "testid-liveness": ["bracket"],
-    "theme-override-only-via-scope": ["namespace"],
     "windowed-infinite-query": ["bracket"],
     "zustand-selector-derived": ["bracket"]
   }

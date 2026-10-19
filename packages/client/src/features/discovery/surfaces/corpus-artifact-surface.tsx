@@ -24,7 +24,7 @@ import { CorpusMomentSurface } from "./corpus-moment-surface.tsx";
 
 const ASSET_DETAIL_ICON_WIDTH = 192;
 
-// @orb-waive surface-a11y-focus(CorpusArtifactSurface): CorpusArtifactFrame and CorpusDossierSurface own their Back controls; corpus-artifact-surface.ct.tsx asserts the frame arrival target.
+// Arrival focus lives in another pane (a reasoned home of `orb/surface-a11y-focus` in eslint.config.js): CorpusArtifactFrame and CorpusDossierSurface own their Back controls; corpus-artifact-surface.ct.tsx asserts the frame arrival target.
 export function CorpusArtifactSurface({ destination }: { readonly destination: CorpusDestination }): ReactElement {
   switch (destination.kind) {
     case "character":

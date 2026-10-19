@@ -1,26 +1,25 @@
-// Source policies retain inline-style and interaction semantics beyond native Tailwind class validity.
+// The receded-ink source policy retains semantics beyond native Tailwind class validity.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as noOffTokenInlineStyle } from "../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as recededInkIntegrity } from "../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { policyFamilyNames } from "../../../../tooling/src/verify/lib/policy-module.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY: readonly GatePolicy[] = [noOffTokenInlineStyle, recededInkIntegrity];
+const FAMILY: readonly GatePolicy[] = [recededInkIntegrity];
 
 // EVERY row-scaled test here says its own budget. The default is a per-TEST number and this test
-// concentrates both policies' proof sets into ONE test, so growth in the set walks it into a
+// concentrates the policy's proof set into ONE test, so growth in the set walks it into a
 // timeout that reads exactly like an assertion failure.
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(120_000);
 
-test("retained inline-style and ink policies register as valid singleton families", () => {
+test("the retained ink policy registers as a valid singleton family", () => {
   expect(policyFamilyNames(FAMILY)).toEqual(FAMILY.map(({ id }) => id).toSorted());
 });
 
 test(
-  "the off-token/receded-ink policies keep their founding, wrapper, carrier-fence, and false-positive fixtures",
+  "the receded-ink policy keeps its founding, wrapper, carrier-fence, and false-positive fixtures",
   () => {
     expect(verifyPolicyProofs(FAMILY)).toEqual([]);
   },

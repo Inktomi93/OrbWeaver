@@ -96,7 +96,7 @@ The UI enforcement families:
   (`zustand-selector-stability.ts` is the fast narrow-literal check; `zustand-selector-derived.ts` is the
   full-body/second-call-shape comprehensive check), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
-  interactive-role escape hatch), `surface-a11y-focus`, the registry keystones (`modal-registry-completeness` and the native
+  interactive-role escape hatch), `orb/surface-a11y-focus`, the registry keystones (`modal-registry-completeness` and the native
   `orb/section-definition-home` and `orb/chrome-definition-home` rules — the rail derives modal affordances from the
   registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
   client-foundation checks (the `queryKey` selector of `no-restricted-syntax`, `no-inline-invalidate-outside-seam`,

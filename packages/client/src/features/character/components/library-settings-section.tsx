@@ -6,7 +6,7 @@
 // `appearance` anchor without knowing the library exists.
 //
 // Homed in components/ (NOT surfaces/): a FRAGMENT mounted INSIDE the appearance pane surface, which owns
-// containment + focus (the world-info-settings-section precedent; the feature layout test + surface-a11y-focus do
+// containment + focus (the world-info-settings-section precedent; the feature layout test + orb/surface-a11y-focus do
 // not apply). Reads getUserSettings cache-first — the host pane already loaded it, so no extra round-trip.
 
 import { Field } from "@orb/ui/field";
