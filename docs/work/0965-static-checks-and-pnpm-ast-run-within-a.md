@@ -43,3 +43,5 @@ Maintained tests-DOM projection is declined: real CT support retains the server 
 Selected citation policies complete without tool errors; authority debt remains. Evidence: `reports/review/965-citation-resource-current-acceptance.md`.
 
 AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.
+
+CI run 39279178336 (main 97b639a30d): the static job's lint:eslint stage took about 38 minutes on the hosted runner, and the job was cancelled before its remaining stages ran.
