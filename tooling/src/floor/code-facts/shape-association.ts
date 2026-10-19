@@ -1,5 +1,5 @@
 // A direct authored boundary associates declarations; structural resemblance never nominates an owner.
-import type { CallExpression, InterfaceDeclaration, Node as MorphNode, NewExpression, TypeAliasDeclaration } from "ts-morph";
+import type { CallExpression, InterfaceDeclaration, Node as MorphNode, NewExpression, TypeAliasDeclaration, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite, ShapeAssociationUnknown } from "./shape-association-contract.ts";
@@ -41,9 +41,24 @@ function argumentSites(node: CallExpression | NewExpression): readonly ShapeAsso
     .flatMap((value, argument) => (Node.isExpression(value) ? [{ boundary: node, value, target: node, argument, ...constructed }] : []));
 }
 
-/** The base expressions of an interface; they are registered up front because the read walks heritage by symbol. */
-export function interfaceHeritage(node: MorphNode): readonly MorphNode[] {
-  return Node.isInterfaceDeclaration(node) ? node.getExtends().map((base) => base.getExpression()) : [];
+function referenceNodes(name: MorphNode, args: readonly TypeNode[]): readonly MorphNode[] {
+  return [
+    name,
+    ...args.flatMap((argument) => {
+      const inner = annotationName(argument);
+      return Node.isTypeReference(argument) && inner !== undefined ? referenceNodes(inner, argument.getTypeArguments()) : [];
+    }),
+  ];
+}
+
+/** The base references of an interface and of a reference alias, with their type arguments; registered up front because the read walks lineage by symbol. */
+export function baseReferences(node: MorphNode): readonly MorphNode[] {
+  if (Node.isInterfaceDeclaration(node)) {
+    return node.getExtends().flatMap((base) => referenceNodes(base.getExpression(), base.getTypeArguments()));
+  }
+  const body = Node.isTypeAliasDeclaration(node) ? node.getTypeNode() : undefined;
+  const name = body === undefined ? undefined : annotationName(body);
+  return body !== undefined && Node.isTypeReference(body) && name !== undefined ? referenceNodes(name, body.getTypeArguments()) : [];
 }
 
 /** Existing raw questions capture only nominated slots in the importing world's native program. */
@@ -147,22 +162,74 @@ function named(declarations: readonly ShapeDeclaration[]): ShapeIdentity {
   return { kind: "named", declarations: [...new Map(declarations.map((declaration) => [inventoryDeclarationKey(declaration), declaration])).values()] };
 }
 
-// An interface with heritage is a hand copy only when every base is itself a hand shape; a production or library base derives it.
-function isHandDeclaration(node: ShapeDeclaration, read: IdentityRead): boolean {
+/** Where a declaration's shape comes from: written by hand, derived from something else, or not decidable by this walk. */
+type Lineage = "hand" | "derived" | "unknown";
+
+function combine(parts: readonly Lineage[]): Lineage {
+  if (parts.includes("unknown")) {
+    return "unknown";
+  }
+  return parts.length > 0 && parts.every((part) => part === "hand") ? "hand" : "derived";
+}
+
+// A library generic derives its shape from its arguments: a hand or an unclassifiable argument leaves it undecided.
+function argumentsLineage(args: readonly TypeNode[], read: IdentityRead): Lineage {
+  return args.every((argument) => !Node.isTypeReference(argument) || referenceLineage(argument, read) === "derived") ? "derived" : "unknown";
+}
+
+function nameLineage(name: MorphNode, args: readonly TypeNode[], read: IdentityRead): Lineage {
+  const declarations = declarationsOf(read.readers.symbol(name), read.readers);
+  if (declarations.length === 0) {
+    return "unknown";
+  }
+  if (declarations.every(isLibrary)) {
+    return argumentsLineage(args, read);
+  }
+  if (declarations.some(read.isProduction)) {
+    return "derived";
+  }
+  return combine(declarations.map((declaration) => declarationLineage(declaration, read)));
+}
+
+function referenceLineage(reference: TypeNode, read: IdentityRead): Lineage {
+  const name = annotationName(reference);
+  return name === undefined || !Node.isTypeReference(reference) ? "unknown" : nameLineage(name, reference.getTypeArguments(), read);
+}
+
+function declarationLineage(node: MorphNode, read: IdentityRead): Lineage {
+  if (Node.isInterfaceDeclaration(node)) {
+    return shapeLineage(node, read);
+  }
+  if (!Node.isTypeAliasDeclaration(node)) {
+    return "derived";
+  }
+  const body = node.getTypeNode();
+  if (body === undefined) {
+    return "unknown";
+  }
+  if (Node.isTypeLiteral(body)) {
+    return shapeLineage(node, read);
+  }
+  return Node.isTypeReference(body) ? referenceLineage(body, read) : "unknown";
+}
+
+// An interface with heritage is a hand copy only when every base is itself a hand shape; a production base derives it.
+function shapeLineage(node: ShapeDeclaration, read: IdentityRead): Lineage {
   if (!read.isHand(node)) {
-    return false;
+    return "derived";
   }
   if (!Node.isInterfaceDeclaration(node) || node.getExtends().length === 0) {
-    return isHandWrittenShape(node);
+    return isHandWrittenShape(node) ? "hand" : "derived";
   }
-  return node.getExtends().every((base) => {
-    const bases = declarationsOf(read.readers.symbol(base.getExpression()), read.readers).flatMap((declaration) => ownShape(declaration) ?? []);
-    return bases.length > 0 && bases.every((declaration) => isHandDeclaration(declaration, read));
-  });
+  return combine(node.getExtends().map((base) => nameLineage(base.getExpression(), base.getTypeArguments(), read)));
 }
 
 function handsOf(identity: ShapeIdentity, read: IdentityRead): readonly ShapeDeclaration[] {
-  return identity.kind === "named" ? identity.declarations.filter((node) => isHandDeclaration(node, read)) : [];
+  return identity.kind === "named" ? identity.declarations.filter((node) => shapeLineage(node, read) === "hand") : [];
+}
+
+function hasUnclassifiedBase(identity: ShapeIdentity, read: IdentityRead): boolean {
+  return identity.kind === "named" && identity.declarations.some((node) => shapeLineage(node, read) === "unknown");
 }
 
 // A boundary part is decided when it is nothing, or a named shape no production declaration owns.
@@ -224,7 +291,10 @@ function symbolIdentity(constituent: ShapeConstituent, declarations: readonly Mo
   const shapes = declarations.flatMap((node) => ownShape(node) ?? []);
   if (shapes.length > 0) {
     const own = named(shapes);
-    return handsOf(own, read).length > 0 || read.side === "boundary" ? own : contained([own, argumentsOf(constituent, read)], read, false);
+    // A shape with an unclassified base stays named: it is neither a hand nor provably derived.
+    return handsOf(own, read).length > 0 || read.side === "boundary" || hasUnclassifiedBase(own, read)
+      ? own
+      : contained([own, argumentsOf(constituent, read)], read, false);
   }
   return declarationIdentity(declarations, read);
 }
@@ -331,8 +401,10 @@ export function readShapeAssociation(
   isProduction: (node: MorphNode) => boolean,
 ): ShapeAssociationRead {
   const value = constituentIdentity(readShapeConstituent(nodeTypeSelector(site.value), readers), { readers, isHand, isProduction, side: "value" });
-  const hands = handsOf(value, { readers, isHand, isProduction, side: "value" });
-  if (value.kind === "none" || (value.kind === "named" && hands.length === 0)) {
+  const valueRead: IdentityRead = { readers, isHand, isProduction, side: "value" };
+  const hands = handsOf(value, valueRead);
+  const unclassified = hands.length === 0 && hasUnclassifiedBase(value, valueRead);
+  if (value.kind === "none" || (value.kind === "named" && hands.length === 0 && !unclassified)) {
     return UNASSOCIATED;
   }
   if (value.kind === "carried" && value.union) {
@@ -344,11 +416,22 @@ export function readShapeAssociation(
   const read: IdentityRead = { readers, isHand, isProduction, side: "boundary" };
   const boundary = boundaryIdentity(site, read);
   const decided = typeof boundary === "object" && unowned(boundary, read);
-  if (value.kind !== "named") {
-    // A value whose shape is unseen can only matter at a boundary that a production declaration could own.
-    return decided ? UNASSOCIATED : unknown(value.kind === "erased" ? SHAPE_ASSOCIATION_UNKNOWN.erasedValue : SHAPE_ASSOCIATION_UNKNOWN.opaqueValue);
+  // A value whose shape is unseen can only matter at a boundary that a production declaration could own.
+  const unseen = unseenReason(value, unclassified);
+  if (decided) {
+    return UNASSOCIATED;
   }
-  return decided ? UNASSOCIATED : judgeHand(site, hands, boundary, isProduction);
+  return unseen === undefined ? judgeHand(site, hands, boundary, isProduction) : unknown(unseen);
+}
+
+function unseenReason(value: ShapeIdentity, unclassified: boolean): ShapeAssociationUnknown | undefined {
+  if (value.kind === "erased") {
+    return SHAPE_ASSOCIATION_UNKNOWN.erasedValue;
+  }
+  if (value.kind !== "named") {
+    return SHAPE_ASSOCIATION_UNKNOWN.opaqueValue;
+  }
+  return unclassified ? SHAPE_ASSOCIATION_UNKNOWN.unclassifiedBase : undefined;
 }
 
 const UNASSOCIATED: ShapeAssociationRead = { kind: "unassociated" };

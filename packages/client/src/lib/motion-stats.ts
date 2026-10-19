@@ -92,12 +92,7 @@ interface LoafScript {
   readonly sourceCharPosition?: number;
   readonly executionStart?: number;
 }
-interface LoafRecord {
-  readonly startTime: number;
-  readonly duration: number;
-  readonly blockingDuration: number;
-  /** \>0 ⇒ style/layout ran inside this frame (forced reflow / non-compositor animation) — the jank tell. */
-  readonly styleAndLayoutStart: number;
+interface LoafRecord extends LongAnimationFrameTiming {
   readonly scripts: readonly LoafScript[];
   readonly selectEntrance?: SelectEntranceEvidence;
 }

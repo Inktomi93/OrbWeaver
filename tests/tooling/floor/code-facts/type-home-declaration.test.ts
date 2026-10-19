@@ -156,7 +156,7 @@ export function ignoredReturn() { const value: Ignore<Erased> = { kind: "ignored
   }
 });
 
-test("the four adapters preserve exact accusations, authored positions and ordinary waiver consumption", () => {
+test("the custom adapters keep their accusations, authored positions and waiver consumption on judged paths, and the native-admitted server domain draws none", () => {
   const root = "/type-home-declarations";
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of [

@@ -24,6 +24,7 @@ export const SHAPE_ASSOCIATION_UNKNOWN = {
   unannotatedAssignment: "the assignment target has no direct explicit type annotation",
   unresolvedParameter: "the direct call has no resolved parameter for this argument",
   constructedParameter: "the argument crosses a constructor whose parameters this walk does not read",
+  unclassifiedBase: "the direct value is an interface whose base this walk cannot classify as handwritten or derived",
   genericParameter: "the callee declares this parameter as a type parameter whose constraint is not observed",
   unsupportedBoundary: "the boundary has no supported whole named production type",
   manyOwners: "the boundary has multiple canonical production declarations",

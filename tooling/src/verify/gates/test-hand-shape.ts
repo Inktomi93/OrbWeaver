@@ -6,7 +6,7 @@
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
-import { interfaceHeritage, readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
+import { baseReferences, readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
 import type { ShapeAssociation, ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
@@ -95,12 +95,13 @@ export const gate = defineGate({
             SyntaxKind.ReturnStatement,
             SyntaxKind.ArrowFunction,
             SyntaxKind.InterfaceDeclaration,
+            SyntaxKind.TypeAliasDeclaration,
           ],
           visit: (node, sourceFile) => {
             const file = ctx.relativePath(sourceFile);
             if (file.startsWith(TESTS)) {
               sites.push(...shapeAssociationSites(node));
-              heritage.push(...interfaceHeritage(node));
+              heritage.push(...baseReferences(node));
             }
           },
         },

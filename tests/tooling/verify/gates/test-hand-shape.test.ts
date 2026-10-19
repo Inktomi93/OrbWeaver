@@ -13,6 +13,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const questionModule = await import("../../../../tooling/src/floor/code-facts/type-observation-questions.ts");
 const observeRaw = questionModule.observeRawQuestions;
@@ -242,6 +243,36 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
     unknown: [],
   },
   {
+    name: "interface extending an alias of a hand follows the alias",
+    body: "type HA = Hand;\ninterface H2 extends HA {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: ["H2"],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library wrapper of a hand is counted, never derived",
+    body: "interface H2 extends Readonly<Hand> {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: [],
+    unknown: [U.unclassifiedBase],
+  },
+  {
+    name: "interface extending a hand and the production owner stays derived",
+    body: "interface Both extends Hand, Owner {\n  readonly extra: number;\n}\ndeclare const both: Both;\nexport const seen: Owner = both;",
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library class stays derived",
+    body: "interface Failure extends Error {\n  readonly value: string;\n}\ndeclare const failure: Failure;\nexport const seen: Owner = failure;",
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library wrapper of the owner stays derived",
+    body: "interface Wrapped extends Omit<Owner, never> {\n  readonly extra: number;\n}\ndeclare const wrapped: Wrapped;\nexport const seen: Owner = wrapped;",
+    findings: [],
+    unknown: [],
+  },
+  {
     name: "interface extending the production owner stays derived",
     body: "interface Derived extends Owner {\n  readonly extra: number;\n}\ndeclare const derived: Derived;\nexport const seen: Owner = derived;",
     findings: [],
@@ -256,23 +287,27 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
   },
 ];
 
-test("the shape-constituents walk is demanded only by this policy, not by another native-question consumer", ({ repoRoot }) => {
-  const asked: string[] = [];
-  const observe = vi.spyOn(questionModule, "observeRawQuestions").mockImplementation((demand, ...rest) => {
-    asked.push(...(demand.questions ?? []).map((question) => question.kind));
-    return observeRaw(demand, ...rest);
-  });
-  try {
-    expect(pass(repoRoot).toolErrors).toEqual([]);
-    expect(asked).toContain("shape-constituents");
-    asked.length = 0;
-    expect(verifyPolicyProofs([messageKindCoverage])).toEqual([]);
-    expect(asked.length).toBeGreaterThan(0);
-    expect(asked).not.toContain("shape-constituents");
-  } finally {
-    observe.mockRestore();
-  }
-});
+test(
+  "the shape-constituents walk is demanded only by this policy, not by another native-question consumer",
+  ({ repoRoot }) => {
+    const asked: string[] = [];
+    const observe = vi.spyOn(questionModule, "observeRawQuestions").mockImplementation((demand, ...rest) => {
+      asked.push(...(demand.questions ?? []).map((question) => question.kind));
+      return observeRaw(demand, ...rest);
+    });
+    try {
+      expect(pass(repoRoot).toolErrors).toEqual([]);
+      expect(asked).toContain("shape-constituents");
+      asked.length = 0;
+      expect(verifyPolicyProofs([messageKindCoverage])).toEqual([]);
+      expect(asked.length).toBeGreaterThan(0);
+      expect(asked).not.toContain("shape-constituents");
+    } finally {
+      observe.mockRestore();
+    }
+  },
+  scaledBudget(60_000),
+);
 
 for (const { name, body, findings, unknown } of PROBES) {
   test(`probe: ${name}`, ({ repoRoot }) => {

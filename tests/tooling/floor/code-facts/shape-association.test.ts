@@ -2,7 +2,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import {
-  interfaceHeritage,
+  baseReferences,
   readShapeAssociation,
   shapeAssociationQuestions,
   shapeAssociationSites,
@@ -21,7 +21,7 @@ function capture(source: SourceFile, sites: readonly ShapeAssociationSite[]): Re
       profile: TYPE_OBSERVATION_PROFILE,
       sources: [source],
       nodes: [],
-      questions: shapeAssociationQuestions(sites, source.getDescendants().flatMap(interfaceHeritage)),
+      questions: shapeAssociationQuestions(sites, source.getDescendants().flatMap(baseReferences)),
     },
     { anchor: source, admit: () => undefined },
   );
