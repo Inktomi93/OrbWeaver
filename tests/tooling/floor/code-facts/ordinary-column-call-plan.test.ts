@@ -17,7 +17,7 @@ const SCHEMA =
 // `plain` unrelated calls plus one same-field array remap of each member the JSON array-field proof reads.
 function consumer(plain: number): string {
   const calls = Array.from({ length: plain }, (_, index) => `noop(${String(index)});`).join("");
-  return `import{settings}from'./schema.ts';declare function noop(value:number):void;declare const row:typeof settings.$inferSelect;declare function isNumbers(value:unknown):value is number[];export function run(){${calls}row.payload.notes?.filter((note)=>note);const extra=row.payload.extra;if(isNumbers(extra)){extra.filter((n)=>n>0);}return row.payload.tags.map((tag)=>tag);}run();`;
+  return `import{settings}from'./schema.ts';declare function noop(value:number):void;declare const row:typeof settings.$inferSelect;declare function isNumbers(value:unknown):value is number[];export function run(){${calls}row.payload.notes?.filter((note)=>note);const extra=row.payload.extra;if(isNumbers(extra)){extra.filter((n)=>n>0);}(row.payload.extra as unknown as string[]).map((s)=>s.length);const cast=row.payload.extra as unknown as string[];cast.filter((s)=>s.length>0);return row.payload.tags.map((tag)=>tag);}run();`;
 }
 
 function columnCallSelectors(root: string, repoRoot: string, plain: number): readonly NativeTypeSelector[] {
@@ -72,4 +72,8 @@ test("typed-column call questions grow with the calls that can bind a field, not
   expect(fieldsAt(".map((tag)=>tag)")).toEqual(["items.nonnullable", "loose.nonnullable", "notes.nonnullable", "tags.nonnullable"]);
   expect(fieldsAt(".filter((note)=>note)")).toEqual(["loose.nonnullable", "notes.nonnullable", "tags.nonnullable"]);
   expect(fieldsAt(".filter((n)=>n>0)")).toEqual(["extra.nonnullable", "items.nonnullable", "loose.nonnullable", "notes.nonnullable", "tags.nonnullable"]);
+  // An assertion the reader strips severs the receiver Type from the traced field, so every field is planned there.
+  const every = ["enabled", "extra", "items", "label", "loose", "notes", "tags"].map((name) => `${name}.nonnullable`);
+  expect(fieldsAt(".map((s)=>s.length)")).toEqual(every);
+  expect(fieldsAt(".filter((s)=>s.length>0)")).toEqual(every);
 });

@@ -95,6 +95,17 @@ The fix adds condition (2) above. It uses the checker (`Type.isAssignableTo`) wi
 - The verifier's probe (`ArrayLike`, `object`, `{}`, `Iterable<number>` and the `number[]` control) reports no missing questions on the fix.
 - Server read-parsed cohort re-measured under the heavy lock: 2,342,474 selectors (2,342,429 before), 6.75 GB peak, 4:58.
 
+## Verifier correction (third commit)
+
+The re-verify of 6f7819b655 found one more P2. The reader's tracer strips `as`, `satisfies` and parentheses (`expression-value.ts:5-11`) before it follows the receiver to the field, but rule (2) tested the cast Type. With `extra: Iterable<number>`, `(current.extra as unknown as string[]).map(...)` was proved keywise and asked about `extra` at that call, which was not planned.
+
+The fix: when the remap receiver chain holds an assertion the reader strips, every field is planned at that call. That is 1070's behavior, applied only to that call. The chain is walked with the reader's own `unwrapExpression`, through inner remap calls and raw `const` initializers. `resolveStableExpression` unwraps what it returns, so it would hide the cast (`reference-fact.ts:602`).
+
+- Red on 6f7819b655: `ordinary-column-call-plan` failed at the direct-cast `map` (missing `enabled`, `extra`, `label`). Green after. A const-bound cast at `filter` is asserted too.
+- The verifier's probe2 passes 9/9 with no missing questions (the three cast variants, a null-union guard, and the five probe-1 cases).
+- Server read-parsed cohort under the heavy lock: 2,486,866 selectors (2,342,474 before), 8.23 GB peak, 3:07.
+- Residual, not covered: a cast passed through a call argument and remapped on the callee's parameter. The reader's binding trace can carry the field into the parameter, and the parameter's declared Type need not relate to the field. That case still fails closed with "selector not captured". Closing it needs the planner to follow call bindings the way the tracer does.
+
 ## Owed
 
 - A new item for the client caught-failure type-observation plan size (above). `check:ledgers-fresh` stays blocked on it. It is outside this lane's fences: `caught-failure*` files.

@@ -1,7 +1,8 @@
 // Native Type questions for one ordinary cohort. Every question a consumer can read must be planned: a missing
 // selector refuses at read time, so a narrowing here is only sound when it follows a reader's own condition.
 import type { CallExpression, Node as MorphNode, Type } from "ts-morph";
-import { Node } from "ts-morph";
+import { Node, VariableDeclarationKind } from "ts-morph";
+import { unwrapExpression } from "./expression-value.ts";
 import { ORDINARY_ARRAY_REMAPS, ORDINARY_NORMALIZER_MEMBER } from "./ordinary-observations-contract.ts";
 import { staticMemberAccess } from "./reference-fact.ts";
 import type { SchemaColumn, SchemaModel } from "./schema-model-contract.ts";
@@ -76,6 +77,33 @@ interface ColumnCallSite {
   readonly remaps: readonly string[];
   // The narrowed remap receiver Type: a field it traces to was declared as some supertype of it.
   readonly receiver: Type | undefined;
+  // The receiver chain holds an assertion the reader strips, so its Type says nothing about the traced field.
+  readonly cast: boolean;
+}
+// Walk the receiver the way the array-field proof traces it: through stripped wrappers, inner remaps and const bindings.
+function assertedReceiver(node: MorphNode, seen: Set<MorphNode> = new Set()): boolean {
+  if (seen.has(node)) {
+    return false;
+  }
+  seen.add(node);
+  const value = unwrapExpression(node);
+  for (let stripped: MorphNode = value; stripped !== node; ) {
+    stripped = stripped.getParentOrThrow();
+    if (Node.isAsExpression(stripped) || Node.isSatisfiesExpression(stripped)) {
+      return true;
+    }
+  }
+  const member = Node.isCallExpression(value) ? staticMemberAccess(value.getExpression()) : undefined;
+  if (member !== undefined && ORDINARY_ARRAY_REMAPS.has(member.name)) {
+    return assertedReceiver(member.receiver, seen);
+  }
+  // The stable resolver unwraps what it returns, so the raw const initializer is read here to keep its assertion visible.
+  const declaration = Node.isIdentifier(value) ? value.getSymbol()?.getValueDeclaration() : undefined;
+  const initializer =
+    Node.isVariableDeclaration(declaration) && declaration.getVariableStatement()?.getDeclarationKind() === VariableDeclarationKind.Const
+      ? declaration.getInitializer()
+      : undefined;
+  return initializer !== undefined && assertedReceiver(initializer, seen);
 }
 function columnCallSite(call: CallExpression): ColumnCallSite {
   const callee = call.getExpression();
@@ -83,8 +111,10 @@ function columnCallSite(call: CallExpression): ColumnCallSite {
   const computed = Node.isElementAccessExpression(callee);
   const named = member !== undefined && ORDINARY_ARRAY_REMAPS.has(member.name) ? [member.name] : [];
   const receiver = member?.receiver ?? (Node.isElementAccessExpression(callee) ? callee.getExpression() : undefined);
+  const remap = computed || named.length > 0;
   return {
-    receiver: computed || named.length > 0 ? receiver?.getType().getNonNullableType() : undefined,
+    receiver: remap ? receiver?.getType().getNonNullableType() : undefined,
+    cast: remap && receiver !== undefined && assertedReceiver(receiver),
     call,
     // A consumer may resolve a computed key the default reader cannot, so an element access may still name `parse`.
     parser:
@@ -140,7 +170,7 @@ function typedColumn(column: SchemaColumn, whole: number, override: NonNullable<
 function columnCallQuestions(typed: TypedColumn, site: ColumnCallSite, questions: TypeQuestions, narrows: Narrowable): void {
   const { add, relations } = questions;
   const { column, whole, fields, fieldTypes, remapFields } = typed;
-  const { call, parser, remaps, receiver } = site;
+  const { call, parser, remaps, receiver, cast } = site;
   if (parser !== undefined) {
     const output = add({ base: { kind: "node", node: parser }, steps: [{ kind: "property", name: "_output", at: parser }], displayAt: null });
     relations.push({ left: output, right: whole });
@@ -154,8 +184,8 @@ function columnCallQuestions(typed: TypedColumn, site: ColumnCallSite, questions
     }
   }
   // Field-at-call questions are read only at array remaps; planning them for every call overflows the selector Map.
-  const declared = remaps.flatMap((remap) => remapFields.get(remap) ?? []);
-  const narrowed = receiver === undefined ? [] : fieldTypes.filter(({ type }) => narrows(receiver, type)).map(({ name }) => name);
+  const declared = cast ? fields : remaps.flatMap((remap) => remapFields.get(remap) ?? []);
+  const narrowed = receiver === undefined || cast ? [] : fieldTypes.filter(({ type }) => narrows(receiver, type)).map(({ name }) => name);
   for (const name of new Set([...declared, ...narrowed])) {
     const field = add({
       base: { kind: "schema-column", column: column.identity.key },
