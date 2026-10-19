@@ -74,13 +74,17 @@ interface ColumnCallSite {
   readonly parser: MorphNode | undefined;
   // The remap members this call may name; a computed key may still resolve to any of them.
   readonly remaps: readonly string[];
+  // The narrowed remap receiver Type: a field it traces to was declared as some supertype of it.
+  readonly receiver: Type | undefined;
 }
 function columnCallSite(call: CallExpression): ColumnCallSite {
   const callee = call.getExpression();
   const member = staticMemberAccess(callee);
   const computed = Node.isElementAccessExpression(callee);
   const named = member !== undefined && ORDINARY_ARRAY_REMAPS.has(member.name) ? [member.name] : [];
+  const receiver = member?.receiver ?? (Node.isElementAccessExpression(callee) ? callee.getExpression() : undefined);
   return {
+    receiver: computed || named.length > 0 ? receiver?.getType().getNonNullableType() : undefined,
     call,
     // A consumer may resolve a computed key the default reader cannot, so an element access may still name `parse`.
     parser:
@@ -91,8 +95,9 @@ function columnCallSite(call: CallExpression): ColumnCallSite {
   };
 }
 
-// The array-field proof reads a field at a remap only when that field's value is the remap receiver, so the field's
-// Type must carry the remap member in some union arm; an any, unknown or generic field may carry anything.
+// The array-field proof reads a field at a remap only when the receiver traces to that field. A field whose Type carries
+// the member in some union arm, or is any, unknown or generic, may be that receiver as declared; any other field may
+// be it only through narrowing, so the narrowed receiver Type is assignable to the declared field Type.
 function carriesMember(type: Type, name: string): boolean {
   return (type.isUnion() ? type.getUnionTypes() : [type]).some(
     (arm) => arm.isAny() || arm.isUnknown() || arm.isTypeParameter() || arm.getApparentType().getProperty(name) !== undefined,
@@ -102,7 +107,23 @@ interface TypedColumn {
   readonly column: SchemaColumn;
   readonly whole: number;
   readonly fields: readonly string[];
+  readonly fieldTypes: readonly { readonly name: string; readonly type: Type }[];
   readonly remapFields: ReadonlyMap<string, readonly string[]>;
+}
+// Receiver and field Types repeat across sites and columns; one checker relation answers each pair.
+type Narrowable = (receiver: Type, field: Type) => boolean;
+function narrowable(): Narrowable {
+  const known = new Map<object, Map<object, boolean>>();
+  return (receiver, field) => {
+    const row = known.get(receiver.compilerType) ?? new Map<object, boolean>();
+    known.set(receiver.compilerType, row);
+    let value = row.get(field.compilerType);
+    if (value === undefined) {
+      value = receiver.isAssignableTo(field);
+      row.set(field.compilerType, value);
+    }
+    return value;
+  };
 }
 function typedColumn(column: SchemaColumn, whole: number, override: NonNullable<SchemaColumn["typeOverride"]>): TypedColumn {
   const properties = override.type.getProperties();
@@ -111,14 +132,15 @@ function typedColumn(column: SchemaColumn, whole: number, override: NonNullable<
     column,
     whole,
     fields: properties.map((property) => property.getName()),
+    fieldTypes: types,
     remapFields: new Map([...ORDINARY_ARRAY_REMAPS].map((remap) => [remap, types.filter(({ type }) => carriesMember(type, remap)).map(({ name }) => name)])),
   };
 }
 
-function columnCallQuestions(typed: TypedColumn, site: ColumnCallSite, questions: TypeQuestions): void {
+function columnCallQuestions(typed: TypedColumn, site: ColumnCallSite, questions: TypeQuestions, narrows: Narrowable): void {
   const { add, relations } = questions;
-  const { column, whole, fields, remapFields } = typed;
-  const { call, parser, remaps } = site;
+  const { column, whole, fields, fieldTypes, remapFields } = typed;
+  const { call, parser, remaps, receiver } = site;
   if (parser !== undefined) {
     const output = add({ base: { kind: "node", node: parser }, steps: [{ kind: "property", name: "_output", at: parser }], displayAt: null });
     relations.push({ left: output, right: whole });
@@ -132,7 +154,9 @@ function columnCallQuestions(typed: TypedColumn, site: ColumnCallSite, questions
     }
   }
   // Field-at-call questions are read only at array remaps; planning them for every call overflows the selector Map.
-  for (const name of new Set(remaps.flatMap((remap) => remapFields.get(remap) ?? []))) {
+  const declared = remaps.flatMap((remap) => remapFields.get(remap) ?? []);
+  const narrowed = receiver === undefined ? [] : fieldTypes.filter(({ type }) => narrows(receiver, type)).map(({ name }) => name);
+  for (const name of new Set([...declared, ...narrowed])) {
     const field = add({
       base: { kind: "schema-column", column: column.identity.key },
       steps: [{ kind: "property", name, at: call }, { kind: "nonnullable" }],
@@ -163,9 +187,10 @@ function schemaTypeQuestions(schema: SchemaModel | undefined, calls: readonly Ca
     }
   }
   const sites = typed.length === 0 ? [] : calls.map(columnCallSite);
+  const narrows = narrowable();
   for (const column of typed) {
     for (const site of sites) {
-      columnCallQuestions(column, site, questions);
+      columnCallQuestions(column, site, questions, narrows);
     }
   }
 }

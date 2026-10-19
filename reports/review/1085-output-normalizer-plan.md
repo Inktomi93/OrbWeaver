@@ -5,7 +5,7 @@
 The ordinary-cohort planner now plans only the column questions its readers can actually look up.
 
 - Normalizer (`_output`) questions: only at `.parse` calls, the member every normalizer reader gates on.
-- Remap field-at-call questions (the 1070 arm): only for fields whose Type carries the remap member.
+- Remap field-at-call questions (the 1070 arm): only for fields that can be the remap receiver. That is a field whose declared Type carries the member, or a field the narrowed receiver Type is assignable to (see the verifier correction below).
 
 The db and server ordinary cohorts both complete on single-program runs. Neither hits a Map overflow or runs out of heap. The client failure on `check:ledgers-fresh` is a different planner (`captureTypeObservations`, types mode). Neither narrowing touches it, and it still runs out of heap. Its contributors are measured below and owed as a new item.
 
@@ -31,7 +31,7 @@ The remaining matches are codecs and replays (`type-projection-codec.ts`, `ordin
 The answer to the brief's questions:
 
 - **Which calls?** `.parse` calls whose receiver has `_output`. An element-access callee is included too, because a consumer can resolve a computed key the planner's default reader cannot. That matches what 1070 did for remaps.
-- **Which fields?** At a parse call: every property of the column's override Type (`observedNormalization` loops all of them). At a remap: only a field whose Type, in some union arm, has that remap member, or is any, unknown or a type parameter. A remap receiver that traces to the field carries the field's Type.
+- **Which fields?** At a parse call: every property of the column's override Type (`observedNormalization` loops all of them). At a remap, either of two conditions plans the field. (1) Some union arm of the field's declared Type has that remap member, or is any, unknown or a type parameter. (2) The narrowed receiver Type at that call is assignable to the field's declared Type, because a guard narrows a value only to a subtype of its declaration.
 
 ## Fix
 
@@ -83,6 +83,17 @@ At 750,000 selectors the worker heap was 13.8 GB. That is about 18 KB per select
 - Other sizes: symbols 26,013; nodes 64,021; unions 68,452; definitions 33,072.
 
 The driver is the `symbol-closure` question in `tooling/src/verify/lib/caught-failure-native.ts:58-75`. It asks the six `PROPERTIES` at every node of a 64k-node closure, and again on each nested property and union-part step.
+
+## Verifier correction (second commit)
+
+The verifier refuted 562bc8d16f on one P2. The remap test read only the field's declared Type, but the reader asks whenever the receiver traces to the field. A field declared `object`, `{}`, `Iterable<number>` or `ArrayLike<number>` that a user-defined guard narrows to `number[]` was not planned, so a write the parent proved threw "native Type selector was not captured".
+
+The fix adds condition (2) above. It uses the checker (`Type.isAssignableTo`) with the receiver at the call as the array Type. The public checker API has no array-type constructor to test against a generic `any[]`. Results are cached per (receiver, field) Type pair.
+
+- Red on 562bc8d16f: the extended `ordinary-column-call-plan` failed, missing `loose: object` at the `map` call. Green after.
+- The case asserts `extra: Iterable<number>` is planned at a guard-narrowed `filter`, and `object` is planned at every remap. `Bag` is planned too: the checker finds `number[]` assignable to a class whose only member is a compatible `map`.
+- The verifier's probe (`ArrayLike`, `object`, `{}`, `Iterable<number>` and the `number[]` control) reports no missing questions on the fix.
+- Server read-parsed cohort re-measured under the heavy lock: 2,342,474 selectors (2,342,429 before), 6.75 GB peak, 4:58.
 
 ## Owed
 
