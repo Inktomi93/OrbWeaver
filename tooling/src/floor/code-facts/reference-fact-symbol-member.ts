@@ -54,6 +54,10 @@ function stableObject(node: MorphNode, services: SymbolMemberValueServices): Ref
   if (source.kind === "unresolved") {
     return source;
   }
+  // Only an object-literal source can carry a symbol member; its write question is asked of that chain alone.
+  if (!Node.isObjectLiteralExpression(source.value)) {
+    return unresolved("unsupported", node, "the receiver has no actual stable object-literal source");
+  }
   const values = [
     referenceResolutionServices.unwrapExpression(node),
     ...source.trace.declarations.flatMap((declaration) => (Node.isVariableDeclaration(declaration) ? [declaration.getNameNode()] : [])),
@@ -66,7 +70,7 @@ function stableObject(node: MorphNode, services: SymbolMemberValueServices): Ref
       }
     }
   }
-  return Node.isObjectLiteralExpression(source.value) ? source : unresolved("unsupported", node, "the receiver has no actual stable object-literal source");
+  return source;
 }
 
 /** Read an actual object property's value or method declaration under a native unique-symbol key.

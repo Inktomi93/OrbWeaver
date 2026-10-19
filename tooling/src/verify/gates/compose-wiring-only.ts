@@ -95,8 +95,14 @@ const MESSAGE =
 const FIX =
   "move the rule into its owning domain and call it from compose; a cross-domain need is an op typed in the consumer's contract/ and wired here. Only while item 964 drains its baseline: `@orb-waive compose-wiring-only(<the reported token>): <reason naming item 964>` on the reported carrier.";
 
-function unwrapParens(node: MorphNode): MorphNode {
-  return Node.isParenthesizedExpression(node) ? unwrapParens(node.getExpression()) : node;
+// The one transparent-wrapper rule (parentheses, as, satisfies, !): nomination and evaluation read through the same unwrap.
+function unwrap(node: MorphNode): MorphNode {
+  return referenceResolutionServices.unwrapExpression(node);
+}
+
+/** Does `parent` only wrap `child` under the same rule, so a slot reads through it? */
+function transparentWrapper(parent: MorphNode | undefined, child: MorphNode): parent is MorphNode {
+  return parent !== undefined && parent !== child && unwrap(parent) === unwrap(child);
 }
 
 function isUndefined(node: MorphNode): boolean {
@@ -121,7 +127,7 @@ function undefinedTestSubject(condition: MorphNode): { readonly subject: MorphNo
 
 /** The single value an object literal `{ k: v }` (or `{ v }`) carries, or undefined for any other shape. */
 function soleValue(node: MorphNode): MorphNode | undefined {
-  const object = unwrapParens(node);
+  const object = unwrap(node);
   if (!Node.isObjectLiteralExpression(object) || object.getProperties().length !== 1) {
     return;
   }
@@ -133,7 +139,7 @@ function soleValue(node: MorphNode): MorphNode | undefined {
 }
 
 function emptyObject(node: MorphNode): boolean {
-  const object = unwrapParens(node);
+  const object = unwrap(node);
   return Node.isObjectLiteralExpression(object) && object.getProperties().length === 0;
 }
 
@@ -170,7 +176,7 @@ function literalKey(key: MorphNode): boolean {
 
 /** A member call can be computed dispatch or an ambient clamp reached through an alias; its native meaning settles it at evaluate. */
 function typedDecisionCandidate(call: CallExpression): boolean {
-  const callee = unwrapParens(call.getExpression());
+  const callee = unwrap(call.getExpression());
   return Node.isElementAccessExpression(callee) || Node.isPropertyAccessExpression(callee);
 }
 
@@ -180,7 +186,7 @@ function typedDecision(call: CallExpression, reads: ComposeReads): boolean {
 
 /** `ARMS[kind](x)`: a call whose callee is picked by a key that is not a literal decides which code runs. */
 function computedDispatch(call: CallExpression, reads: ComposeReads): boolean {
-  const callee = unwrapParens(call.getExpression());
+  const callee = unwrap(call.getExpression());
   if (!Node.isElementAccessExpression(callee)) {
     return false;
   }
@@ -188,8 +194,9 @@ function computedDispatch(call: CallExpression, reads: ComposeReads): boolean {
   return !(key !== undefined && (literalKey(key) || nativeDisposalKey(key, reads)));
 }
 
+// A literal key names a string member, never a well-known symbol, so it is never nominated.
 function nativeDisposalKey(node: MorphNode | undefined, reads: ComposeReads): boolean {
-  if (node === undefined) {
+  if (node === undefined || literalKey(node)) {
     return false;
   }
   const origin = reads.globalOrigin(node);
@@ -203,7 +210,7 @@ function nativeDisposalKey(node: MorphNode | undefined, reads: ComposeReads): bo
 
 /** `Math.max(a, b)` / `Math.min(a, b)` on the ambient global: a clamp picks between values. */
 function ambientClamp(call: CallExpression, reads: ComposeReads): boolean {
-  const callee = unwrapParens(call.getExpression());
+  const callee = unwrap(call.getExpression());
   if (!(Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee))) {
     return false;
   }
@@ -247,11 +254,11 @@ function enclosingFunction(node: MorphNode): MorphNode | undefined {
   return node.getFirstAncestor((ancestor) => Node.isFunctionLikeDeclaration(ancestor));
 }
 
-/** The call a node sits directly in, skipping parentheses, with the child that occupies the slot. */
+/** The call a node sits directly in, skipping transparent wrappers, with the child that occupies the slot. */
 function directCall(node: MorphNode): { readonly call: CallExpression; readonly slot: MorphNode } | undefined {
   let slot = node;
   let parent = node.getParent();
-  while (Node.isParenthesizedExpression(parent)) {
+  while (transparentWrapper(parent, slot)) {
     slot = parent;
     parent = parent.getParent();
   }
@@ -269,7 +276,7 @@ function declaredInTsLib(call: CallExpression, reads: ComposeReads): boolean {
 
 /** Require the native constructor value, not a stack-shaped annotation or caller-supplied object. */
 function nativeDisposalStack(node: MorphNode, reads: ComposeReads, active: Set<object> = new Set()): boolean {
-  const value = unwrapParens(node);
+  const value = unwrap(node);
   if (active.has(value.compilerNode)) {
     return false;
   }
@@ -309,7 +316,12 @@ function lifetimeSlot(node: MorphNode, reads: ComposeReads): boolean {
 
 /** The sanctioned bucket selector is a pure membership projection over its own immutable literal map. */
 function bucketSelector(call: CallExpression, factory: FunctionDeclaration, reads: ComposeReads): boolean {
-  const target = reads.callable(call.getExpression());
+  const callee = call.getExpression();
+  // The selector is a named function declaration, so only a reference-position callee can denote it.
+  if (!(referencePosition(callee) && (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)))) {
+    return false;
+  }
+  const target = reads.callable(callee);
   if (target.kind !== "resolved" || !Node.isFunctionDeclaration(target.value.declaration)) {
     return false;
   }
@@ -408,7 +420,7 @@ function eagerlyInvoked(fn: MorphNode, reads: ComposeReads): boolean {
   if (site.call.getExpression() === site.slot) {
     return true;
   }
-  const callee = site.call.getExpression();
+  const callee = unwrap(site.call.getExpression());
   return Node.isPropertyAccessExpression(callee) && EAGER_ITERATION.has(callee.getName()) && declaredInTsLib(site.call, reads);
 }
 
@@ -450,7 +462,7 @@ function ownerHome(node: MorphNode): boolean {
 
 /** A disposal-stack receiver's actual binding chain: its writes, its one lexical declaration and that declaration's initializer. */
 function nominateStackReceiver(demand: ComposeReadDemand, receiver: MorphNode): void {
-  const value = unwrapParens(receiver);
+  const value = unwrap(receiver);
   if (Node.isIdentifier(value)) {
     demand.binding(value);
     demand.writes(value);
@@ -469,14 +481,14 @@ function nominateElementAccess(demand: ComposeReadDemand, access: MorphNode): vo
   demand.globalOrigin(key);
   demand.computedName(key);
   demand.stable(access.getExpression());
-  const receiver = referenceResolutionServices.unwrapExpression(access.getExpression());
+  const receiver = unwrap(access.getExpression());
   if (Node.isIdentifier(receiver)) {
     demand.writes(receiver);
   }
 }
 
 function nominateCall(demand: ComposeReadDemand, call: CallExpression): void {
-  const callee = unwrapParens(call.getExpression());
+  const callee = unwrap(call.getExpression());
   if (typedDecisionCandidate(call)) {
     demand.globalOrigin(callee);
   }
@@ -513,7 +525,7 @@ function nominateVariable(demand: ComposeReadDemand, declaration: MorphNode): vo
   if (initializer === undefined) {
     return;
   }
-  const source = referenceResolutionServices.unwrapExpression(initializer);
+  const source = unwrap(initializer);
   if (Node.isIdentifier(name) && (Node.isObjectLiteralExpression(source) || Node.isIdentifier(source))) {
     demand.writes(name);
   }
@@ -633,7 +645,11 @@ function decidesPerCall(decision: MorphNode, classifier: Classifier, canonicalPr
 }
 
 function canonicalReference(node: MorphNode | undefined, home: string, name: string, reads: ComposeReads): boolean {
-  if (node === undefined) {
+  // Only a named type reference or a named value has a module origin; a keyword, literal or computed node has none to ask about.
+  if (
+    node === undefined ||
+    !(Node.isTypeReference(node) || Node.isIdentifier(node) || Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node))
+  ) {
     return false;
   }
   const origin = reads.moduleOrigin(Node.isTypeReference(node) ? node.getTypeName() : node);
@@ -651,7 +667,7 @@ function referencesParameter(node: MorphNode | undefined, parameter: MorphNode, 
   if (node === undefined) {
     return false;
   }
-  const value = unwrapParens(node);
+  const value = unwrap(node);
   if (!Node.isIdentifier(value)) {
     return false;
   }
@@ -838,6 +854,13 @@ function subjectMessage(subject: Subject): string {
 }
 
 const COMPOSE_FILE = "packages/server/src/entry/compose/x.ts";
+/** Each transparent wrapper spelling on a native callee; one unwrap must see through all of them. */
+const DEFER_CALLEES = ["(s.defer as (cb: () => void) => void)", "s.defer!", "(s.defer satisfies (cb: () => void) => void)"] as const;
+const EAGER_CALLEES = [
+  "(sizes.filter as (cb: (size: number) => boolean) => number[])",
+  "sizes.filter!",
+  "(sizes.filter satisfies (cb: (size: number) => boolean) => number[])",
+] as const;
 const PRINCIPAL_TYPE_FILES = {
   [IDS_CONTRACT]:
     'declare const brand: unique symbol;\nexport type UserId = string & { readonly [brand]: "UserId" };\nexport type Handle = string & { readonly [brand]: "Handle" };\nexport type ExternalId = string & { readonly [brand]: "ExternalId" };\nexport declare function castId<T extends string>(raw: string): T;\n',
@@ -1337,6 +1360,12 @@ export const gate = defineGate({
       expect: { count: 1, token: "cap", messageIncludes: "decides per call" },
       why: 'CLAMP, bracket spelling: Math["max"] resolves to the same ambient member as Math.max',
     },
+    {
+      mode: "types",
+      files: { [COMPOSE_FILE]: "export function build() {\n  return { cap: (n: number) => Math.min!(n, 10) };\n}\n" },
+      expect: { count: 1, token: "cap", messageIncludes: "Math.min" },
+      why: "CLAMP through a non-null assertion: the ambient member under a transparent wrapper still picks between runtime values",
+    },
   ],
   mustPass: [
     {
@@ -1519,6 +1548,33 @@ export const gate = defineGate({
           'export function build(load: (id: string) => string) {\n  // @orb-waive compose-wiring-only(read): baselined while item 964 moves compose rules into their domains.\n  return { read: (id: string) => (id.length > 0 ? load(id) : "") };\n}\n',
       },
       why: "the ordinary waiver door at the reported op name, the form the item 964 baseline uses",
+    },
+    ...DEFER_CALLEES.map((callee) => ({
+      mode: "types" as const,
+      files: {
+        [COMPOSE_FILE]: `/// <reference lib="esnext.disposable" />\nexport function build(active: () => boolean) { const s = new AsyncDisposableStack(); ${callee}(() => { if (active()) throw new Error("busy"); }); return s; }`,
+      },
+      why: `a transparent wrapper on the native defer callee (${callee}) keeps the shutdown phase; nomination and evaluation read through one unwrap`,
+    })),
+    ...EAGER_CALLEES.map((callee) => ({
+      mode: "types" as const,
+      files: {
+        [COMPOSE_FILE]: `export function build(sizes: number[]) {\n  const big = ${callee}((size: number) => size > 1);\n  return { op: () => big };\n}\n`,
+      },
+      why: `a transparent wrapper on an eager library callee (${callee}) keeps its callback in the construction phase`,
+    })),
+  ],
+  mustRefuse: [
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/x/owner.ts":
+          '/// <reference lib="esnext.disposable" />\nexport const owner = { [Symbol.asyncDispose]: (): number => (Date.now() > 1 ? 1 : 0) };\n',
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nimport { owner } from "../../domain/x/owner.ts";\nexport function build() { return { op: owner[Symbol.asyncDispose] }; }\n',
+      },
+      expect: { messageIncludes: "native compose demand did not nominate" },
+      why: "a stable member source outside the compose population has no nominated write question; missing native ownership refuses instead of folding into a verdict",
     },
   ],
 });

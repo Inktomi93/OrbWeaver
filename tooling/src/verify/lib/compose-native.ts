@@ -17,31 +17,27 @@ const STRING_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["string"]
 
 type NativeContext = NonNullable<GatePolicyContext["nativeTypes"]>;
 
-function refuse(node: Node, question: string): ReferenceFact<never> {
-  return unresolved("unsupported", node, `native compose demand did not nominate this ${question} question`);
+// An un-nominated question is missing native ownership, never an answer: it refuses the whole policy.
+function unnominated(node: Node, question: string): Error {
+  return new Error(
+    `native compose demand did not nominate the ${question} question at ${node.getSourceFile().getFilePath()}:${String(node.getStartLineNumber())} (${node.getKindName()})`,
+  );
 }
 
 /** One batched native read per family, acquired on first use after seal. */
-function answers<K extends Node, T>(nominated: ReadonlySet<K>, read: (nodes: readonly K[]) => ReadonlyMap<Node, T>): (node: Node) => T | undefined {
+function answers<K extends Node, T>(question: string, nominated: ReadonlySet<K>, read: (nodes: readonly K[]) => ReadonlyMap<Node, T>): (node: Node) => T {
   let cached: ReadonlyMap<Node, T> | undefined;
   const members: ReadonlySet<Node> = nominated;
-  return (node: Node): T | undefined => {
+  return (node: Node): T => {
     if (!members.has(node)) {
-      return;
+      throw unnominated(node, question);
     }
     cached ??= read([...nominated]);
     return requiredInvocationFact(cached, node);
   };
 }
 
-function facet<T>(
-  evidence: NativeInvocationEvidence | undefined,
-  select: (evidence: NativeInvocationEvidence) => ReadonlyMap<Node, T> | undefined,
-  node: Node,
-): T | undefined {
-  if (evidence === undefined) {
-    return;
-  }
+function facet<T>(evidence: NativeInvocationEvidence, select: (evidence: NativeInvocationEvidence) => ReadonlyMap<Node, T> | undefined, node: Node): T {
   const values = select(evidence);
   if (values === undefined) {
     throw new Error("native compose facet was not captured for its requested value");
@@ -73,34 +69,29 @@ export function composeNativeReads(ctx: Pick<GatePolicyContext, "nativeTypes">):
     }
   };
   const read = (): ComposeReads => {
-    const callable = answers(callables, (nodes): ReturnType<NativeContext["callableDeclarations"]> => native.callableDeclarations(nodes));
-    const globalOrigin = answers(globals, (nodes): ReturnType<NativeContext["globalOrigins"]> => native.globalOrigins(nodes));
-    const binding = answers(bindings, (nodes): ReturnType<NativeContext["globalBindings"]> => native.globalBindings(nodes));
-    const calledMember = answers(members, (nodes): ReturnType<NativeContext["callMemberOrigins"]> => native.callMemberOrigins(nodes));
-    const computed = answers(keys, (nodes): ReturnType<NativeContext["computedNames"]> => native.computedNames(nodes));
-    const evidence = (nominated: ReadonlySet<Node>, plan: InventoryInvocationPlan): ((node: Node) => NativeInvocationEvidence | undefined) =>
-      answers(nominated, (nodes): ReturnType<NativeContext["invocationEvidence"]> => native.invocationEvidence(nodes, plan));
-    const module = evidence(modules, MODULE_PLAN);
-    const written = evidence(writes, WRITES_PLAN);
-    const stable = evidence(stables, STABLE_PLAN);
-    const string = evidence(strings, STRING_PLAN);
-    const globalFact = (node: Node): ReturnType<ComposeReads["globalOrigin"]> => globalOrigin(node) ?? refuse(node, "global origin");
+    const callable = answers("callable", callables, (nodes): ReturnType<NativeContext["callableDeclarations"]> => native.callableDeclarations(nodes));
+    const globalOrigin = answers("global origin", globals, (nodes): ReturnType<NativeContext["globalOrigins"]> => native.globalOrigins(nodes));
+    const binding = answers("lexical binding", bindings, (nodes): ReturnType<NativeContext["globalBindings"]> => native.globalBindings(nodes));
+    const calledMember = answers("called member", members, (nodes): ReturnType<NativeContext["callMemberOrigins"]> => native.callMemberOrigins(nodes));
+    const computed = answers("computed name", keys, (nodes): ReturnType<NativeContext["computedNames"]> => native.computedNames(nodes));
+    const evidence = (question: string, nominated: ReadonlySet<Node>, plan: InventoryInvocationPlan): ((node: Node) => NativeInvocationEvidence) =>
+      answers(question, nominated, (nodes): ReturnType<NativeContext["invocationEvidence"]> => native.invocationEvidence(nodes, plan));
+    const module = evidence("module origin", modules, MODULE_PLAN);
+    const written = evidence("reference write", writes, WRITES_PLAN);
+    const stable = evidence("stable source", stables, STABLE_PLAN);
+    const string = evidence("static key", strings, STRING_PLAN);
     const writeFact = (identifier: Identifier): ReturnType<ComposeReads["writes"]> =>
-      facet(written(identifier), (captured) => captured.referenceWrites, identifier) ?? refuse(identifier, "reference write");
+      facet(written(identifier), (captured) => captured.referenceWrites, identifier);
     const readComputedName = (key: Node): ReferenceFact<string> =>
-      computedNameNeedsBindings(key) ? (computed(key) ?? refuse(key, "computed name")) : referenceResolutionServices.readComputedName(key);
+      computedNameNeedsBindings(key) ? computed(key) : referenceResolutionServices.readComputedName(key);
     return {
-      callable: (node): ReturnType<ComposeReads["callable"]> => callable(node) ?? refuse(node, "callable"),
-      globalOrigin: globalFact,
-      moduleOrigin: (node): ReturnType<ComposeReads["moduleOrigin"]> =>
-        facet(module(node), (captured) => captured.modules, node) ?? refuse(node, "module origin"),
-      calledMember: (call): ReturnType<ComposeReads["calledMember"]> => calledMember(call)?.origin ?? refuse(call, "called member"),
+      callable,
+      globalOrigin,
+      moduleOrigin: (node): ReturnType<ComposeReads["moduleOrigin"]> => facet(module(node), (captured) => captured.modules, node),
+      calledMember: (call): ReturnType<ComposeReads["calledMember"]> => calledMember(call).origin,
       member: (node): ReturnType<ComposeReads["member"]> => readMemberReferenceWithName(node, readComputedName),
       binding: (node): ReturnType<ComposeReads["binding"]> => {
         const declarations = binding(node);
-        if (declarations === undefined) {
-          return refuse(node, "lexical binding");
-        }
         const [declaration] = declarations;
         return declarations.length === 1 && declaration !== undefined
           ? resolved(declaration, declaration, [declaration])
@@ -109,10 +100,10 @@ export function composeNativeReads(ctx: Pick<GatePolicyContext, "nativeTypes">):
       writes: writeFact,
       symbolMember: (access): ReturnType<ComposeReads["symbolMember"]> =>
         readSymbolMemberValue(access, {
-          globalOrigin: globalFact,
-          stable: (node) => facet(stable(node), (captured) => captured.stableValues, node) ?? refuse(node, "stable source"),
+          globalOrigin,
+          stable: (node) => facet(stable(node), (captured) => captured.stableValues, node),
           writes: writeFact,
-          staticString: (node) => facet(string(node), (captured) => captured.strings, node) ?? refuse(node, "static key"),
+          staticString: (node) => facet(string(node), (captured) => captured.strings, node),
         }),
     };
   };

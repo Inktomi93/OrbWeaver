@@ -21,7 +21,7 @@ export interface ComposeReadDemand {
   readonly staticString: (node: Node) => void;
 }
 
-/** Sealed answers in the importing native world. A question the walk did not nominate refuses as unsupported. */
+/** Sealed answers in the importing native world. A question the walk did not nominate throws and refuses the policy. */
 export interface ComposeReads {
   readonly callable: (node: Node) => ReferenceFact<CallableDeclaration>;
   readonly globalOrigin: (node: Node) => ReferenceFact<GlobalMemberOrigin>;
