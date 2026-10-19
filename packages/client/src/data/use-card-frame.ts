@@ -90,27 +90,19 @@ export function useCardFrameSrc(request: CardFrameRequest | undefined): string |
     let live = true;
     const pending = minted.get(body) ?? mintCardFrame(body);
     rememberBounded(minted, body, pending, MINTED_CACHE_CAP);
-    // @orb-waive caught-failure-ownership(pending): mintCardFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintCardFrame stops swallowing its own failures.
-    pending.then(
-      (url) => {
-        // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintCardFrame` collapses a
-        // 401, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
-        // promise would serve one bad second to those exact bytes for the rest of the tab's life. Evicted
-        // OUTSIDE the `live` gate — an unmounted card must not leave the poison behind for its neighbours.
-        if (url === undefined) {
-          forgetIfCurrent(minted, body, pending);
-        }
-        if (live) {
-          setResolved({ body, url });
-        }
-      },
-      () => {
+    // `pending` never rejects: `mintCardFrame` collapses every failure to `undefined`.
+    void pending.then((url) => {
+      // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintCardFrame` collapses a
+      // 401, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
+      // promise would serve one bad second to those exact bytes for the rest of the tab's life. Evicted
+      // OUTSIDE the `live` gate — an unmounted card must not leave the poison behind for its neighbours.
+      if (url === undefined) {
         forgetIfCurrent(minted, body, pending);
-        if (live) {
-          setResolved({ body, url: undefined });
-        }
-      },
-    );
+      }
+      if (live) {
+        setResolved({ body, url });
+      }
+    });
     return (): void => {
       live = false;
     };

@@ -40,7 +40,7 @@ export async function uploadAsset(file: File, kind: AssetKind): Promise<StoredAs
     headers: { [CSRF_HEADER]: "1" },
   });
   if (REFUSAL_STATUSES.has(response.status)) {
-    // @orb-waive caught-failure-ownership(json): a refusal body that is not JSON falls through to `throwHttpError` below, which throws with the status. Ends if that fallthrough is removed.
+    // @orb-waive caught-failure-ownership(json): a non-JSON refusal body leaves `refusal.success` false, and 413/415 are never `response.ok`, so `await throwHttpError("uploadAsset", response)` at upload-asset.ts:55 always throws with the status. Ends if that throw stops being reachable for REFUSAL_STATUSES.
     const refusal = assetUploadRefusalSchema.safeParse(
       await response
         .clone()

@@ -78,7 +78,7 @@ export function useSessionRecovery(): SessionRecoveryState {
         ownsCompletion = false;
       };
     }
-    // @orb-waive caught-failure-ownership(bindDurableLocalToUser): rejection records failedBind; AppRoot renders Retry while durable writes remain gated. Ends if AppRoot stops owning failedBind.
+    // @orb-waive caught-failure-ownership(bindDurableLocalToUser): the catch calls `setFailedBind`, which makes `bindFailed` true and the hook return `{ status: "error", retry }`; AppRootSessionBoundary (routes/app-root-session-boundary/boundary.tsx:8) renders QueryErrorState with that retry. Ends if the error status stops rendering.
     void bindDurableLocalToUser(userId)
       .then(() => {
         if (ownsCompletion && durableLocalReadyFor(userId)) {
