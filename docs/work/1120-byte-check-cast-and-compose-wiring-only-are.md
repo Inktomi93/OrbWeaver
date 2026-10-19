@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: blocked
+status: open
 updated: 2026-10-19
 priority: P2
-blocked: on 953
 ---
 
 # byte-check-cast and compose-wiring-only are blind to a respelling of their own mustFlag fixture
