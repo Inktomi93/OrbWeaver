@@ -97,7 +97,9 @@ for (const [label, paths] of [
   ["added, deleted and renamed manifests", [ADDED, DELETED, OLD, RENAMED]],
   ["manifest directories", DIRECTORIES],
 ] as const) {
-  test(`scoped metadata dispatch reselects unchanged entry subjects for ${label}`, { timeout: scaledBudget(30_000) }, async ({ plantedTree, repoRoot }) => {
+  // The directory row lints the named directory before the metadata families: measured 10s before that pass, 25-37s with it.
+  const budget = label === "manifest directories" ? 60_000 : 30_000;
+  test(`scoped metadata dispatch reselects unchanged entry subjects for ${label}`, { timeout: scaledBudget(budget) }, async ({ plantedTree, repoRoot }) => {
     const root = await manifestTree([plantedTree, repoRoot]);
     changeManifests(root);
     for (const path of paths) {

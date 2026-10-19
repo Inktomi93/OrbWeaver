@@ -75,12 +75,26 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     return population;
   };
   const completed = new Map<string, EslintCompletedProfiles>();
-  const sources = paths.filter((path) => !isNativeInput(path) || (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))));
+  const sources = paths.filter((path) => !isNativeInput(path) || (CODE_FILE.test(path) && existsSync(resolve(root, path))));
   // The named targets lint first and alone; dependency-wide findings follow under their own banner.
-  const named = sources.length === 0 ? EXIT.clean : await lintNamedSources(root, sources, observe, completed);
-  // A named tool error still runs the metadata families: their refusal names the missing compiler owner.
-  return Math.max(named, await recheckScopedNativeMetadata(root, paths, observe, completed));
+  // A named failure still lets the metadata families run: their refusal names the cause (a missing compiler owner or
+  // manifest) more precisely. The named failure is rethrown afterwards, never dropped.
+  let named: number = EXIT.clean;
+  let namedFailure: unknown;
+  try {
+    named = sources.length === 0 ? EXIT.clean : await lintNamedSources(root, sources, observe, completed);
+  } catch (error) {
+    namedFailure = error;
+    named = EXIT.toolError;
+  }
+  const verdict = Math.max(named, await recheckScopedNativeMetadata(root, paths, observe, completed));
+  if (namedFailure !== undefined) {
+    throw namedFailure;
+  }
+  return verdict;
 }
+
+const CODE_FILE = /\.[cm]?[jt]sx?$/u;
 
 function isNativeInput(path: string): boolean {
   return (
@@ -105,7 +119,10 @@ async function lintNamedSources(
   // A named source that no config admits has no verdict; a native input is judged by its own metadata family instead.
   const unlinted = sources.filter(
     (path) =>
-      !isNativeInput(path) && statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true && !admitted.some((entry) => entry.path === path),
+      !isNativeInput(path) &&
+      CODE_FILE.test(path) &&
+      statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true &&
+      !admitted.some((entry) => entry.path === path),
   );
   if (unlinted.length > 0) {
     process.stderr.write(`[eslint] eslint.config.js admits no rules for named file(s), so no verdict exists: ${unlinted.join(", ")}\n`);

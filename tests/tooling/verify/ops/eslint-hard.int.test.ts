@@ -74,26 +74,34 @@ test.for(RUNNER_MODES)("the real %s runner retains the native stale ordinary bul
   expect(readdirSync(join(root, CACHE_DIR)).filter((name) => name.startsWith("argv-"))).toEqual([]);
 });
 
-test("the scoped run refuses a named file that no config admits instead of reporting it clean", async ({ plantedTree, repoRoot }) => {
-  const root = await rootFor(plantedTree, repoRoot, "alert('named');\n");
-  writeFileSync(join(root, "named.ts"), "alert('named');\n");
-  expect(await runScopedEslint(root, [SOURCE])).toBe(1);
-  expect(await runScopedEslint(root, ["named.ts"])).toBe(2);
-});
+test(
+  "the scoped run refuses a named file that no config admits instead of reporting it clean",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "alert('named');\n");
+    writeFileSync(join(root, "named.ts"), "alert('named');\n");
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+    expect(await runScopedEslint(root, ["named.ts"])).toBe(2);
+  },
+  scaledBudget(30_000),
+);
 
-test("a patched rule module drops the cached clean verdict for an unchanged named file", async ({ plantedTree, repoRoot }) => {
-  const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
-  const rule = (reports: boolean): string =>
-    `export default { rules: { named: { create: (context) => ({ Program: (node) => { if (${String(reports)}) context.report({ node, message: "planted" }); } }) } } };`;
-  writeFileSync(join(root, "plugin.js"), rule(false));
-  writeFileSync(
-    join(root, "eslint.config.js"),
-    `import plugin from "./plugin.js"; export default [{ files: ["**/*.js"], plugins: { orb: plugin }, rules: { "orb/named": "error" } }];`,
-  );
-  expect(await runScopedEslint(root, [SOURCE])).toBe(0);
-  writeFileSync(join(root, "plugin.js"), rule(true));
-  expect(await runScopedEslint(root, [SOURCE])).toBe(1);
-});
+test(
+  "a patched rule module drops the cached clean verdict for an unchanged named file",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+    const rule = (reports: boolean): string =>
+      `export default { rules: { named: { create: (context) => ({ Program: (node) => { if (${String(reports)}) context.report({ node, message: "planted" }); } }) } } };`;
+    writeFileSync(join(root, "plugin.js"), rule(false));
+    writeFileSync(
+      join(root, "eslint.config.js"),
+      `import plugin from "./plugin.js"; export default [{ files: ["**/*.js"], plugins: { orb: plugin }, rules: { "orb/named": "error" } }];`,
+    );
+    expect(await runScopedEslint(root, [SOURCE])).toBe(0);
+    writeFileSync(join(root, "plugin.js"), rule(true));
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
 
 test("the hard child ignores unrelated directives without breaking an actual ordinary exception", async ({ plantedTree, repoRoot }) => {
   const root = await rootFor(plantedTree, repoRoot, ORDINARY_PERMISSION);

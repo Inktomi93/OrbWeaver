@@ -145,7 +145,8 @@ test("public boundary implementation and provider signatures invalidate warm nat
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
     seen.length = 0;
     put(scratch, "packages/ui/src/unrelated.ts", "export const unrelated=2;");
-    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(0);
+    // No config in the server-only fixture admits a UI file, so the named target is refused rather than reported clean.
+    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(2);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(false);
     expect(contexts).toEqual(contexts.map(() => ({ root: scratch, configs: ["tsconfig.json"] })));
     expect(contexts.length).toBeGreaterThan(0);
@@ -173,18 +174,19 @@ test("unrelated UI edits retain required HARD admission without selecting server
   });
   try {
     put(scratch, "packages/ui/src/unrelated.ts", "export const unrelated=2;");
-    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(0);
+    // The server-only fixture config admits no UI file, so the named target has no verdict: the door refuses it loudly.
+    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(2);
     const [ordinaryConfig, hardConfig] = ["eslint.config.js", "eslint-hard.config.js"] as const;
     const discovered = discovery.mock.calls.map(([, , patterns], index) => ({ config: populations.mock.calls[index]?.[1], patterns }));
     const configured = admissions.mock.calls.map(([, config, paths]) => ({ config, serverConsumer: paths.includes(CONSUMER) }));
     expect(discovered).toEqual([
-      { config: ordinaryConfig, patterns: ["."] },
       { config: ordinaryConfig, patterns: ["packages/ui/src/unrelated.ts"] },
+      { config: ordinaryConfig, patterns: ["."] },
     ]);
     expect(configured).toEqual([
+      { config: ordinaryConfig, serverConsumer: false },
       { config: ordinaryConfig, serverConsumer: true },
       { config: hardConfig, serverConsumer: true },
-      { config: ordinaryConfig, serverConsumer: false },
     ]);
     expect(shards.some((args) => args.includes(CONSUMER))).toBe(false);
     process.stderr.write(`${JSON.stringify({ event: "native-unrelated-ui-admission", discovered, configured, serverConsumerShard: false })}\n`);

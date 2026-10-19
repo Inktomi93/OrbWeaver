@@ -15,6 +15,7 @@ import { TYPED_NATIVE_POLICIES } from "../../../../tooling/src/verify/lib/typed-
 import { readEslintFileAdmissions } from "../../../../tooling/src/verify/ops/config-snapshot.ts";
 import { runScopedEslint } from "../../../../tooling/src/verify/ops/eslint.ts";
 import { partitionEslintFiles } from "../../../../tooling/src/verify/ops/eslint-profile.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { nativeFabricationPlugin } from "./_fixtures/native-fabrication-candidate.ts";
 
 const SUBJECT = "packages/server/src/domain/chat/contract/fixture.ts";
@@ -118,53 +119,57 @@ test("HARD keeps maintained TSX Node and iso subjects Program-free", async ({ re
   );
 });
 
-test("a canonical brand edit reselects actual typed consumers, invalidates warm cache and leaves unrelated edits scoped", async ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot);
-  const proc = await import("../../../../tooling/src/floor/process/proc.ts");
-  const run = proc.runNicedSync;
-  const exec = proc.execNicedSync;
-  const argumentsSeen: string[][] = [];
-  const discoveries: string[][] = [];
-  const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
-    const path = args[2];
-    if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
-      argumentsSeen.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
+test(
+  "a canonical brand edit reselects actual typed consumers, invalidates warm cache and leaves unrelated edits scoped",
+  async ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const proc = await import("../../../../tooling/src/floor/process/proc.ts");
+    const run = proc.runNicedSync;
+    const exec = proc.execNicedSync;
+    const argumentsSeen: string[][] = [];
+    const discoveries: string[][] = [];
+    const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
+      const path = args[2];
+      if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
+        argumentsSeen.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
+      }
+      return run(executable, args, options);
+    });
+    const discovery = vi.spyOn(proc, "execNicedSync").mockImplementation((executable, args, options) => {
+      if (executable === "pnpm" && args[3] === "eslint-discovery") {
+        discoveries.push(args.slice(4));
+      }
+      return exec(executable, args, options);
+    });
+    try {
+      expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(0);
+      expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
+      expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
+      expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
+      expect(argumentsSeen.some((args) => args.some((value) => value.includes("metadata-typed-tsconfig.json")))).toBe(true);
+      argumentsSeen.length = 0;
+      discoveries.length = 0;
+      writeFileSync(join(scratch, ID_BRAND_HOME), `${BRAND_SOURCE}export type SessionId=Branded<"session">;`);
+      expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(1);
+      expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
+      expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
+      expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
+      argumentsSeen.length = 0;
+      discoveries.length = 0;
+      expect(await runScopedEslint(scratch, ["unrelated.js"])).toBe(0);
+      expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(false);
+      expect(argumentsSeen.some((args) => args.includes("unrelated.js"))).toBe(true);
+      expect(discoveries).toEqual([["unrelated.js"]]);
+      const dispatcher = "tooling/src/verify/ops/eslint-profile.ts";
+      rmSync(join(scratch, dispatcher));
+      await expect(runScopedEslint(scratch, [dispatcher])).rejects.toThrow("ENOENT");
+    } finally {
+      discovery.mockRestore();
+      child.mockRestore();
     }
-    return run(executable, args, options);
-  });
-  const discovery = vi.spyOn(proc, "execNicedSync").mockImplementation((executable, args, options) => {
-    if (executable === "pnpm" && args[3] === "eslint-discovery") {
-      discoveries.push(args.slice(4));
-    }
-    return exec(executable, args, options);
-  });
-  try {
-    expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(0);
-    expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
-    expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
-    expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
-    expect(argumentsSeen.some((args) => args.some((value) => value.includes("metadata-typed-tsconfig.json")))).toBe(true);
-    argumentsSeen.length = 0;
-    discoveries.length = 0;
-    writeFileSync(join(scratch, ID_BRAND_HOME), `${BRAND_SOURCE}export type SessionId=Branded<"session">;`);
-    expect(await runScopedEslint(scratch, [ID_BRAND_HOME])).toBe(1);
-    expect(discoveries.filter((patterns) => patterns.length === 1 && patterns[0] === ".")).toHaveLength(1);
-    expect(argumentsSeen.filter((args) => args.includes(ID_BRAND_HOME))).toHaveLength(1);
-    expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(true);
-    argumentsSeen.length = 0;
-    discoveries.length = 0;
-    expect(await runScopedEslint(scratch, ["unrelated.js"])).toBe(0);
-    expect(argumentsSeen.some((args) => args.includes(SUBJECT))).toBe(false);
-    expect(argumentsSeen.some((args) => args.includes("unrelated.js"))).toBe(true);
-    expect(discoveries).toEqual([["unrelated.js"]]);
-    const dispatcher = "tooling/src/verify/ops/eslint-profile.ts";
-    rmSync(join(scratch, dispatcher));
-    await expect(runScopedEslint(scratch, [dispatcher])).rejects.toThrow("ENOENT");
-  } finally {
-    discovery.mockRestore();
-    child.mockRestore();
-  }
-}, 60_000);
+  },
+  scaledBudget(120_000),
+); // measured 54-56s before the named pass, 63-76s with it, under load 18-25
 
 test("stock value assertions reselect unchanged consumers and recompute per-owner cache generations after provider and rule-code changes", async ({
   scratch,
@@ -390,44 +395,43 @@ test("inherited compiler config bytes invalidate warm typed results and config a
   }
 }, 60_000);
 
-test("overlapping production typed blocks preserve each dependency digest through flat composition and warm-cache reselection", async ({
-  scratch,
-  repoRoot,
-}) => {
-  fixture(scratch, repoRoot);
-  const home = "packages/client/src/state/create-gated-store.ts";
-  const subject = "packages/client/src/selector.ts";
-  const store = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "zustand-selector-stability");
-  if (store === undefined) {
-    throw new Error("canonical store metadata missing");
-  }
-  for (const path of store.inputs) {
-    if (path === home || path === "eslint.config.js" || path === "package.json") {
-      continue;
+test(
+  "overlapping production typed blocks preserve each dependency digest through flat composition and warm-cache reselection",
+  async ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    const home = "packages/client/src/state/create-gated-store.ts";
+    const subject = "packages/client/src/selector.ts";
+    const store = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "zustand-selector-stability");
+    if (store === undefined) {
+      throw new Error("canonical store metadata missing");
     }
-    mkdirSync(dirname(join(scratch, path)), { recursive: true });
-    writeFileSync(join(scratch, path), readFileSync(join(repoRoot, path)));
-  }
-  mkdirSync(dirname(join(scratch, home)), { recursive: true });
-  const base = "export type GatedStoreHook<T>={<U>(selector:(state:T)=>U):U};";
-  writeFileSync(join(scratch, home), `${base}export type UserHook<T>=(selector:(state:T)=>unknown)=>unknown;`);
-  const source =
-    'import type {UserHook} from "./state/create-gated-store.ts";declare const read:UserHook<{value:string}>;export const value=read(state=>({value:state.value}));';
-  writeFileSync(join(scratch, subject), source);
-  writeFileSync(
-    join(scratch, "packages/client/tsconfig.json"),
-    JSON.stringify({
-      compilerOptions: { noLib: true, types: [], strict: true, module: "ESNext", moduleResolution: "Bundler" },
-      files: ["../kit/src/ids/index.ts", "src/state/create-gated-store.ts", "src/selector.ts"],
-    }),
-  );
-  writeFileSync(
-    join(scratch, "packages/kit/tsconfig.json"),
-    JSON.stringify({ compilerOptions: { noLib: true, types: [], strict: true, module: "ESNext", moduleResolution: "Bundler" }, files: ["src/ids/index.ts"] }),
-  );
-  writeFileSync(
-    join(scratch, "eslint.config.js"),
-    `import base from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};
+    for (const path of store.inputs) {
+      if (path === home || path === "eslint.config.js" || path === "package.json") {
+        continue;
+      }
+      mkdirSync(dirname(join(scratch, path)), { recursive: true });
+      writeFileSync(join(scratch, path), readFileSync(join(repoRoot, path)));
+    }
+    mkdirSync(dirname(join(scratch, home)), { recursive: true });
+    const base = "export type GatedStoreHook<T>={<U>(selector:(state:T)=>U):U};";
+    writeFileSync(join(scratch, home), `${base}export type UserHook<T>=(selector:(state:T)=>unknown)=>unknown;`);
+    const source =
+      'import type {UserHook} from "./state/create-gated-store.ts";declare const read:UserHook<{value:string}>;export const value=read(state=>({value:state.value}));';
+    writeFileSync(join(scratch, subject), source);
+    writeFileSync(
+      join(scratch, "packages/client/tsconfig.json"),
+      JSON.stringify({
+        compilerOptions: { noLib: true, types: [], strict: true, module: "ESNext", moduleResolution: "Bundler" },
+        files: ["../kit/src/ids/index.ts", "src/state/create-gated-store.ts", "src/selector.ts"],
+      }),
+    );
+    writeFileSync(
+      join(scratch, "packages/kit/tsconfig.json"),
+      JSON.stringify({ compilerOptions: { noLib: true, types: [], strict: true, module: "ESNext", moduleResolution: "Bundler" }, files: ["src/ids/index.ts"] }),
+    );
+    writeFileSync(
+      join(scratch, "eslint.config.js"),
+      `import base from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};
 import {TYPED_NATIVE_POLICIES,typedNativeInputPaths} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/verify/lib/typed-native-inputs.ts")).href)};
 import {readAuthoredRepositoryInventory} from ${JSON.stringify(pathToFileURL(join(repoRoot, "tooling/src/floor/compiler/authored-repository.ts")).href)};
 import tseslint from "typescript-eslint";
@@ -445,43 +449,45 @@ const blocks=base.filter(block=>Object.keys(block.rules??{}).some(rule=>selected
 });
 if(blocks.length!==2)throw new Error("expected the two actual production typed blocks");
 export default [{ignores:["node_modules/**",".cache/**","reports/**","tooling/**","scripts/**"]},{files:["packages/**/*.ts"],languageOptions:{parser:tseslint.parser,parserOptions:{projectService:true,tsconfigRootDir:root}}},...blocks];`,
-  );
-  execFixtureGit(scratch, ["add", "."]);
-  const proc = await import("../../../../tooling/src/floor/process/proc.ts");
-  const effective = (): Readonly<Record<string, unknown>> => {
-    const printed = proc.runNicedSync(process.execPath, ["scripts/eslint.ts", "--concurrency", "off", "--print-config", subject], { cwd: scratch });
-    if (printed.status !== 0) {
-      throw new Error(`effective native config refused: ${printed.stderr}`);
+    );
+    execFixtureGit(scratch, ["add", "."]);
+    const proc = await import("../../../../tooling/src/floor/process/proc.ts");
+    const effective = (): Readonly<Record<string, unknown>> => {
+      const printed = proc.runNicedSync(process.execPath, ["scripts/eslint.ts", "--concurrency", "off", "--print-config", subject], { cwd: scratch });
+      if (printed.status !== 0) {
+        throw new Error(`effective native config refused: ${printed.stderr}`);
+      }
+      return z.object({ settings: z.record(z.string(), z.unknown()) }).parse(JSON.parse(printed.stdout)).settings;
+    };
+    const run = proc.runNicedSync;
+    const selectedPaths: string[][] = [];
+    const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
+      const path = args[2];
+      if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
+        selectedPaths.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
+      }
+      return run(executable, args, options);
+    });
+    try {
+      expect(await runScopedEslint(scratch, [home])).toBe(0);
+      const before = effective();
+      selectedPaths.length = 0;
+      writeFileSync(join(scratch, home), `${base}export type UserHook<T>=GatedStoreHook<T>;`);
+      expect(await runScopedEslint(scratch, [home])).toBe(1);
+      expect(selectedPaths.some((args) => args.includes(subject))).toBe(true);
+      expect(readFileSync(join(scratch, subject), "utf8")).toBe(source);
+      const after = effective();
+      for (const settings of [before, after]) {
+        expect(settings).toMatchObject({
+          "orb/typed-native-inputs/zustand-selector-stability": expect.any(String),
+          "orb/typed-native-inputs/brand-in-name-position": expect.any(String),
+        });
+      }
+      expect(after["orb/typed-native-inputs/zustand-selector-stability"]).not.toBe(before["orb/typed-native-inputs/zustand-selector-stability"]);
+      expect(after["orb/typed-native-inputs/brand-in-name-position"]).toBe(before["orb/typed-native-inputs/brand-in-name-position"]);
+    } finally {
+      child.mockRestore();
     }
-    return z.object({ settings: z.record(z.string(), z.unknown()) }).parse(JSON.parse(printed.stdout)).settings;
-  };
-  const run = proc.runNicedSync;
-  const selectedPaths: string[][] = [];
-  const child = vi.spyOn(proc, "runNicedSync").mockImplementation((executable, args, options) => {
-    const path = args[2];
-    if (args[0] === "scripts/eslint.ts" && args[1] === "--args-file" && path !== undefined) {
-      selectedPaths.push(z.array(z.string()).parse(JSON.parse(readFileSync(path, "utf8"))));
-    }
-    return run(executable, args, options);
-  });
-  try {
-    expect(await runScopedEslint(scratch, [home])).toBe(0);
-    const before = effective();
-    selectedPaths.length = 0;
-    writeFileSync(join(scratch, home), `${base}export type UserHook<T>=GatedStoreHook<T>;`);
-    expect(await runScopedEslint(scratch, [home])).toBe(1);
-    expect(selectedPaths.some((args) => args.includes(subject))).toBe(true);
-    expect(readFileSync(join(scratch, subject), "utf8")).toBe(source);
-    const after = effective();
-    for (const settings of [before, after]) {
-      expect(settings).toMatchObject({
-        "orb/typed-native-inputs/zustand-selector-stability": expect.any(String),
-        "orb/typed-native-inputs/brand-in-name-position": expect.any(String),
-      });
-    }
-    expect(after["orb/typed-native-inputs/zustand-selector-stability"]).not.toBe(before["orb/typed-native-inputs/zustand-selector-stability"]);
-    expect(after["orb/typed-native-inputs/brand-in-name-position"]).toBe(before["orb/typed-native-inputs/brand-in-name-position"]);
-  } finally {
-    child.mockRestore();
-  }
-}, 60_000);
+  },
+  scaledBudget(120_000),
+); // measured 54-56s before the named pass, 63-76s with it, under load 18-25
