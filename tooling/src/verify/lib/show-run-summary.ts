@@ -53,7 +53,7 @@ function stageBlock(root: string, s: StageResult, limit: number, ink: ShowInk): 
     return [header, ink.dim(`  no transcript recorded for this stage — pnpm check:show --stage ${s.name}`)];
   }
   let text: string;
-  // @orb-waive caught-failure-ownership(catch): an unreadable stage log is surfaced as an operator-visible dim line naming the path and the `--stage` door, never swallowed — the whole point of this reader is to say something rather than nothing for a red stage. Ends if the returned lines stop carrying that text.
+  // @orb-waive caught-failure-ownership(catch): the catch returns a dim line naming the unreadable log and the `--stage` door; verifyFailureSummary lists it (show-run-summary.ts:111) and show.ts:248 prints it. Ends if the returned lines stop being printed.
   try {
     text = readFileSync(join(root, s.logFile), "utf-8");
   } catch {
@@ -82,7 +82,7 @@ export function resolveLatestVerifyRun(root: string): VerifyRunResolution {
   if (res.abandoned.length > 0) {
     return { kind: "advisory", lines: pointerAdvisories(res), toolError: true };
   }
-  // @orb-waive caught-failure-ownership(catch): an unparseable verify.json is surfaced as an operator-visible advisory naming the run and the path, never swallowed — the one caller prints it and keeps rendering the structure view beneath it. Ends if the advisory stops reaching the console.
+  // @orb-waive caught-failure-ownership(catch): the catch returns an advisory whose lines show.ts:238 prints in red and whose toolError flag show.ts:240 returns to the caller. Ends if the advisory stops reaching the console.
   try {
     return { kind: "report", report: JSON.parse(readFileSync(res.path, "utf-8")) as VerifyReport, advisories: pointerAdvisories(res) };
   } catch {

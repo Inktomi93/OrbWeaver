@@ -242,7 +242,7 @@ function resolveResourceOwnerPathWalk(
   const paths = new Map<string, readonly string[]>();
   const failures = new Map<string, Error>();
   for (const owner of owners.filter((candidate) => candidate.resources.length > 0).toSorted((left, right) => left.id.localeCompare(right.id))) {
-    // @orb-waive caught-failure-ownership(error): Acquisition failure is retained by owner so pure planning refuses and the structure-bound planner can let the dispatcher emit its canonical incomplete owner row and withheld authority. Ends if the failure map no longer drives both refusal paths.
+    // @orb-waive caught-failure-ownership(error): the catch keeps the owner's Error in `failures`; resolveResourceOwnerPaths rethrows the first (resource-declaration.ts:276) and policy-plan-resources.ts:28 throws unless the dispatcher defers failures to its incomplete owner row (policy-plan-resources.ts:25, returned at :31). Ends if the failure map stops reaching both paths.
     try {
       paths.set(owner.id, resolveResourceDeclarations(invocation.host, owner.resources));
     } catch (error) {

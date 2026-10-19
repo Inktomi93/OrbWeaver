@@ -124,7 +124,7 @@ export function safeSize(path: string): number {
 }
 
 export function readFrom(path: string, offset: number): string {
-  // @orb-waive caught-failure-ownership(catch): an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict.
+  // @orb-waive caught-failure-ownership(catch): an unreadable log reads as an empty tail, which classifyDrainTail answers "pending" (verdicts.ts:44) and prod-down.ts:78 prints as drain=pending. Ends if an empty tail can classify as a clean drain.
   try {
     return readFileSync(path, "utf8").slice(offset);
   } catch {
@@ -133,7 +133,7 @@ export function readFrom(path: string, offset: number): string {
 }
 
 export function tailLog(lines: number): string {
-  // @orb-waive caught-failure-ownership(catch): an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim.
+  // @orb-waive caught-failure-ownership(catch): the "(no log)" sentinel is printed to the operator by prod-up.ts:230, prod-up.ts:245 and prod.ts:43. Ends if missing logs become a clean shutdown claim.
   try {
     return `${readFileSync(LOG_PATH(), "utf8").split(LINE_BREAK_RE).slice(-lines).join("\n")}\n`;
   } catch {

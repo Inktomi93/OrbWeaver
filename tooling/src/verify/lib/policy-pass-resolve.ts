@@ -291,7 +291,7 @@ function factDependencyPaths(policies: readonly GatePolicy[], candidates: readon
     if (byId.has(fact.id)) {
       continue;
     }
-    // @orb-waive caught-failure-ownership(catch): fact population resolution: on failure the fact gets an empty population and the run continues; downstream gates see EMPTY_POPULATION, not silence
+    // @orb-waive caught-failure-ownership(catch): resolveFactRuns repeats this resolution over the same candidates and resources (policy-pass-resolve.ts:416) and its catch calls markFactIncomplete (policy-pass-resolve.ts:446), which pushes a GateFactToolError (policy-pass-types.ts:154) that show-policy.ts:73 prints; the empty dependency list moves no verdict. Ends if resolveFactRuns stops covering the facts this skips.
     try {
       byId.set(fact.id, [...resolvePopulation(fact.population, candidates, fact.analysis).paths, ...resolveResourceDeclarations(resources, fact.resources)]);
     } catch {
@@ -336,7 +336,7 @@ export function resolveRuns(
   );
   const runs = input.policies.map(newRun);
   for (const run of runs) {
-    // @orb-waive caught-failure-ownership(error): policy population resolution: markIncomplete converts error to a structured PolicyToolError; the run reports tool-error status with EMPTY_POPULATION
+    // @orb-waive caught-failure-ownership(error): markIncomplete marks the run owner incomplete and pushes a PolicyToolError (policy-pass-types.ts:134), returned as result.toolErrors (policy-pass.ts:129) and printed by show-policy.ts:76. Ends if markIncomplete stops recording the error.
     try {
       charge(run.timing, "population", () => {
         const declaredResources =
@@ -410,7 +410,7 @@ export function resolveFactRuns({ facts, sourceFiles, resources, control }: Reso
     const run = newFactRun(fact);
     control.values.set(fact, { status: "pending" });
     let excludedLegacySourcePaths: readonly string[] | undefined;
-    // @orb-waive caught-failure-ownership(error): fact population resolution: markFactIncomplete converts error to a structured FactToolError; the run reports tool-error status with EMPTY_POPULATION
+    // @orb-waive caught-failure-ownership(error): markFactIncomplete marks the fact failed and pushes a GateFactToolError into control.errors (policy-pass-types.ts:154), returned as result.factErrors (policy-pass.ts:128) and printed by show-policy.ts:73. Ends if markFactIncomplete stops recording the error.
     try {
       chargeFact(run.timing, "population", () => {
         const resolved = resolvePopulation(fact.population, candidates, fact.analysis);

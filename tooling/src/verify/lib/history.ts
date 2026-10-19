@@ -75,7 +75,7 @@ export function readHistory(root: string): readonly RunHistoryEntry[] {
 
 /** Append `entry`, trimming the file to the retained window. Never throws. */
 export function appendHistory(root: string, entry: RunHistoryEntry): void {
-  // @orb-waive caught-failure-ownership(err): printed via warn() — documented non-critical telemetry per the doc comment above (Never throws); a lost timing record never fails the run itself. Ends if a caller starts treating history writes as load-bearing.
+  // @orb-waive caught-failure-ownership(err): the catch prints through warn (history.ts:90), and the history ledger never fails the run whose verdict lives elsewhere. Ends if a caller starts treating a history write as load-bearing.
   try {
     ensureReportsDir(root);
     const path = reportsPath(root, HISTORY_FILE);

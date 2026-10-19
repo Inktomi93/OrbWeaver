@@ -153,7 +153,7 @@ function unwrapType(typeNode: MorphNode): MorphNode {
  *  loud refusal (the caller refuses on a zero-member vocabulary) rather than an exit-2 tool error: under D16
  *  a wire shape the reader cannot establish IS the violation, not a broken checker. */
 function tupleMembersOrEmpty(decl: VariableDeclaration, moduleSource: (door: ImportDeclaration) => SourceFile | undefined): ReadonlySet<string> {
-  // @orb-waive caught-failure-ownership(catch): the failure IS owned and surfaced — tuple-read THROWS to say "I cannot establish this vocabulary", and the empty set returned here makes `literalUnionMembers` answer undefined, which makes `readIndexedAccess` answer `unprovable`, which REFUSES `unsupported-shape:MappedType` at the member. Converting it to a D16 finding rather than an exit-2 tool error is the ruling in this module's header: an unprovable bus shape is the violation, not a broken checker. Ends if this return value stops feeding a fail-closed refusal.
+  // @orb-waive caught-failure-ownership(catch): tuple-read throws to say it cannot establish the vocabulary; the empty set makes tupleUnionMembers answer undefined (bus-payload-fact-resolve.ts:193), readIndexedAccess answer unprovable (bus-payload-fact-resolve.ts:267) and walkDistributionNode refuse with unsupported-shape (bus-payload-fact.ts:237), so an unprovable bus shape is a finding, not a tool error. Ends if the empty set stops reaching a refusal.
   try {
     return readTupleDeclaration(decl, moduleSource).members;
   } catch {

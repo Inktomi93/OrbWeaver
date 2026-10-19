@@ -45,7 +45,7 @@ const HTTP_OK = 200;
 
 /** `/@fs/<abs>` is vite's own escape hatch for a file outside root. */
 async function fetchServed(absPath: string, vitePort: number): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(catch): probe JSON parse failure returns null and the caller reports the service as unverified. Ends if null can satisfy the served probe.
+  // @orb-waive caught-failure-ownership(catch): a failed or non-200 fetch returns null, which classifyServedTransform words as "unreachable" (verdicts.ts:165); runServedProbe prints it and exits tool-error and `stack status` prints it (dev-status.ts:115). Ends if null can satisfy the served probe.
   try {
     const res = await fetch(`${viteUrl(vitePort)}@fs${absPath}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     return res.status === HTTP_OK ? await res.text() : null;
@@ -55,7 +55,7 @@ async function fetchServed(absPath: string, vitePort: number): Promise<string | 
 }
 
 function readSource(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): probe request failure returns null and the caller reports the service as unreachable. Ends if null can satisfy the served probe.
+  // @orb-waive caught-failure-ownership(catch): an unreadable disk source returns null, which classifyServedTransform words as "unverifiable" (verdicts.ts:161); runServedProbe prints it and exits tool-error and `stack status` prints it (dev-status.ts:115). Ends if null can satisfy the served probe.
   try {
     return readFileSync(path, "utf8");
   } catch {
