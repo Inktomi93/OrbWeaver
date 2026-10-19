@@ -315,10 +315,8 @@ export function castId<T extends string>(raw: string): T {
 type TypeIdPrefix = (typeof ID_PREFIX)[keyof typeof ID_PREFIX];
 type BrandLabel<T> = T extends Branded<infer B> ? B : never;
 /** No extra argument for a prefixless brand. A canonical TypeID brand (any `ID_PREFIX` value, alone or in a
- *  union) demands one that no caller supplies, so the call fails to compile. */
-type PrefixlessOnly<T> = [Extract<BrandLabel<T>, TypeIdPrefix>] extends [never]
-  ? []
-  : [typeIdBrand: "brandedId validates only nonempty text; use typeIdSchema(ID_PREFIX.<prefix>) for a TypeID"];
+ *  union) demands one of type `never`, which no value satisfies, so the call fails to compile. */
+type PrefixlessOnly<T> = [Extract<BrandLabel<T>, TypeIdPrefix>] extends [never] ? [] : [useTypeIdSchemaForTypeIdBrands: never];
 
 /** Zod schema for a non-TypeID branded id at a request boundary: validates non-empty, types output
  *  as the brand. For TypeID ids use {@link typeIdSchema} — it also validates the prefix, and a TypeID

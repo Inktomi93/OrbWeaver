@@ -16,6 +16,7 @@
     "json-column-write-parity": ["bracket"],
     "list-row-adoption": ["bracket"],
     "no-form-reset-in-autosave": ["bracket"],
+    "no-handwritten-wire-json-schema": ["namespace"],
     "no-inline-union-redecl": ["bracket"],
     "no-manual-token-estimate": ["namespace"],
     "no-vanity-alias": ["namespace"],

@@ -26,6 +26,10 @@ test("a canonical TypeID brand is refused, however it is spelled or imported", (
   brand<ChatId>();
   // @ts-expect-error a union carrying one TypeID member
   brandedId<ChatId | UserId>();
+  // @ts-expect-error no argument, whatever its text, satisfies the refusal
+  brandedId<ChatId>("brandedId validates only nonempty text; use typeIdSchema(ID_PREFIX.<prefix>) for a TypeID");
+  // @ts-expect-error an arbitrary string does not either
+  brandedId<TypeIdOf<"chat"> | UserId>("x");
   const forwarded = brandedId;
   // @ts-expect-error a forwarded reference keeps the constraint
   forwarded<ChatId>();
