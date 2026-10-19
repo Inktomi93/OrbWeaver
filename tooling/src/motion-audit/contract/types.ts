@@ -13,6 +13,7 @@
 // time and measures frames DURING the interaction, not after a settle. Coverage of gesture-driven
 // surfaces (drawer swipe, drag-reorder release) therefore requires live manual measurement or a
 // purpose-built gesture-audit instrument — it cannot be bolted onto this tool's reach queue.
+import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 import type { AppearancePatch } from "@orb/tooling/floor/appearance/appearance";
 import type { ThemeRequest } from "@orb/tooling/floor/appearance/theme";
 import type { BrowserEnvironmentEvidence } from "@orb/tooling/floor/browser/browser-environment";
@@ -69,11 +70,7 @@ export interface Args {
 }
 
 // ── The in-page motion snapshot shapes (mirror motion-stats.ts — the probe reads them via __orb) ──
-export interface LoafRecord {
-  readonly startTime: number;
-  readonly duration: number;
-  readonly blockingDuration: number;
-  readonly styleAndLayoutStart: number;
+export interface LoafRecord extends LongAnimationFrameTiming {
   readonly scripts: ReadonlyArray<{
     sourceURL: string;
     duration: number;

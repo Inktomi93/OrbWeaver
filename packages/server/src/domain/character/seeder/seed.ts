@@ -67,10 +67,6 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
 
   async function seedCard(principal: Principal, card: SeedCard): Promise<CardOutcome> {
     let outcome: CardOutcome;
-    // @orb-waive caught-failure-ownership(err): narrow rethrow — only a handle-conflict
-    // (`CHARACTER_HANDLE_CONFLICT`) is swallowed (treated as "already seeded, look it up"); every other
-    // `CharacterOperationError` and any non-domain failure is rethrown below unhandled. Ends if a new caller
-    // needs a third outcome besides created/already-exists.
     try {
       const input = await createCardInput(principal, card);
       const detail = await deps.characters.create({ principal, input });

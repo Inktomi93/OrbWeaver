@@ -1,7 +1,12 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../../../tooling/src/floor/code-facts/shape-association.ts";
+import {
+  baseReferences,
+  readShapeAssociation,
+  shapeAssociationQuestions,
+  shapeAssociationSites,
+} from "../../../../tooling/src/floor/code-facts/shape-association.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
@@ -12,7 +17,12 @@ import { inventoryQueryNode } from "../../../../tooling/src/floor/compiler/drizz
 
 function capture(source: SourceFile, sites: readonly ShapeAssociationSite[]): ReturnType<typeof captureTypeObservations> {
   return captureTypeObservations(
-    { profile: TYPE_OBSERVATION_PROFILE, sources: [source], nodes: [], questions: shapeAssociationQuestions(sites) },
+    {
+      profile: TYPE_OBSERVATION_PROFILE,
+      sources: [source],
+      nodes: [],
+      questions: shapeAssociationQuestions(sites, source.getDescendants().flatMap(baseReferences)),
+    },
     { anchor: source, admit: () => undefined },
   );
 }

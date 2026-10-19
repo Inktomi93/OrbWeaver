@@ -13,6 +13,7 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const questionModule = await import("../../../../tooling/src/floor/code-facts/type-observation-questions.ts");
 const observeRaw = questionModule.observeRawQuestions;
@@ -45,7 +46,12 @@ export function make(factory: () => Owner): void { void factory; }
 export function onRow(callback: (row: Owner) => void): void { void callback; }
 `;
 
-function pass(repoRoot: string, overrides: Partial<PolicyPassInput> = {}, helper = HELPER_SOURCE): PolicyPassResult {
+function pass(
+  repoRoot: string,
+  overrides: Partial<PolicyPassInput> = {},
+  helper = HELPER_SOURCE,
+  siblings: Readonly<Record<string, string>> = {},
+): PolicyPassResult {
   const root = join(repoRoot, ".orb-hand-shape-control");
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
@@ -58,6 +64,9 @@ function pass(repoRoot: string, overrides: Partial<PolicyPassInput> = {}, helper
     },
   });
   project.createSourceFile(join(root, OWNER), OWNER_SOURCE);
+  for (const [path, text] of Object.entries(siblings)) {
+    project.createSourceFile(join(root, path), text);
+  }
   const file = project.createSourceFile(join(root, HELPER), helper);
   expect(project.getPreEmitDiagnostics().filter((diagnostic) => diagnostic.getSourceFile() === file)).toEqual([]);
   return runPolicyPass({
@@ -104,7 +113,13 @@ declare const loose: any;
 const U = SHAPE_ASSOCIATION_UNKNOWN;
 
 // Each probe ends in the sites it judges; `findings` are the flagged hand names and `unknown` the UNKNOWN reasons.
-const PROBES: readonly { readonly name: string; readonly body: string; readonly findings: readonly string[]; readonly unknown: readonly string[] }[] = [
+const PROBES: readonly {
+  readonly name: string;
+  readonly body: string;
+  readonly siblings?: Readonly<Record<string, string>>;
+  readonly findings: readonly string[];
+  readonly unknown: readonly string[];
+}[] = [
   { name: "direct annotation", body: "export const seen: Owner = hand;", findings: ["Hand"], unknown: [] },
   { name: "local alias of a production type", body: "type Page = Owner;\nexport const seen: Page = hand;", findings: ["Hand"], unknown: [] },
   { name: "erased value at a local alias", body: "type Page = Owner;\nexport const seen: Page = loose;", findings: [], unknown: [U.erasedValue] },
@@ -210,6 +225,93 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
     unknown: [],
   },
   { name: "erased argument", body: "take(loose);", findings: [], unknown: [U.erasedValue] },
+  {
+    name: "method call argument at a production parameter",
+    body: "class Svc {\n  m(owner: Owner): void {\n    void owner;\n  }\n}\ndeclare const svc: Svc;\nsvc.m(hand);",
+    findings: ["Hand"],
+    unknown: [],
+  },
+  {
+    name: "constructor argument is counted, never silent",
+    body: "class Svc {\n  constructor(owner: Owner) {\n    void owner;\n  }\n}\nexport const svc = new Svc(hand);",
+    findings: [],
+    unknown: [U.constructedParameter],
+  },
+  {
+    name: "annotated class property initializer",
+    body: "export class Holder {\n  readonly owner: Owner = hand;\n}",
+    findings: ["Hand"],
+    unknown: [],
+  },
+  { name: "annotated parameter default", body: "export function f(owner: Owner = hand): void {\n  void owner;\n}", findings: ["Hand"], unknown: [] },
+  {
+    name: "interface extending a hand follows its heritage",
+    body: "interface H2 extends Hand {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: ["H2"],
+    unknown: [],
+  },
+  {
+    name: "interface chain over a hand follows its heritage",
+    body: "interface H2 extends Hand {\n  readonly extra: number;\n}\ninterface H3 extends H2 {\n  readonly more: number;\n}\ndeclare const h3: H3;\nexport const seen: Owner = h3;",
+    findings: ["H3"],
+    unknown: [],
+  },
+  {
+    name: "interface extending an alias of a hand follows the alias",
+    body: "type HA = Hand;\ninterface H2 extends HA {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: ["H2"],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library wrapper of a hand is counted, never derived",
+    body: "interface H2 extends Readonly<Hand> {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: [],
+    unknown: [U.unclassifiedBase],
+  },
+  {
+    name: "interface extending a hand and the production owner stays derived",
+    body: "interface Both extends Hand, Owner {\n  readonly extra: number;\n}\ndeclare const both: Both;\nexport const seen: Owner = both;",
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library class stays derived",
+    body: "interface Failure extends Error {\n  readonly value: string;\n}\ndeclare const failure: Failure;\nexport const seen: Owner = failure;",
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library wrapper of the owner stays derived",
+    body: "interface Wrapped extends Omit<Owner, never> {\n  readonly extra: number;\n}\ndeclare const wrapped: Wrapped;\nexport const seen: Owner = wrapped;",
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending an alias declared in tooling is judged, not read unregistered",
+    siblings: { "tooling/src/x/contract/types.ts": "export interface TBase {\n  readonly value: string;\n}\nexport type TA = TBase;\n" },
+    body: 'import type { TA } from "../../../tooling/src/x/contract/types";\ninterface D extends TA {\n  readonly extra: number;\n}\ndeclare const x: D;\nexport const seen: Owner = x;',
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending an alias declared in a legacy module is judged, not read unregistered",
+    siblings: { "tests/legacy/support/alias.ts": "export interface LBase {\n  readonly value: string;\n}\nexport type LA = LBase;\n" },
+    body: 'import type { LA } from "../../legacy/support/alias";\ninterface D extends LA {\n  readonly extra: number;\n}\ndeclare const x: D;\nexport const seen: Owner = x;',
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending a library generic over a literal-only alias stays derived",
+    body: 'type Keys = "value";\ninterface P extends Pick<Owner, Keys> {\n  readonly extra: number;\n}\ndeclare const p: P;\nexport const seen: Owner = p;',
+    findings: [],
+    unknown: [],
+  },
+  {
+    name: "interface extending the production owner stays derived",
+    body: "interface Derived extends Owner {\n  readonly extra: number;\n}\ndeclare const derived: Derived;\nexport const seen: Owner = derived;",
+    findings: [],
+    unknown: [],
+  },
   { name: "stated limit: an object literal spread has no declared identity", body: "export const seen: Owner = { ...hand };", findings: [], unknown: [] },
   {
     name: "stated limit: a property-level flow has no declared identity",
@@ -219,27 +321,31 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
   },
 ];
 
-test("the shape-constituents walk is demanded only by this policy, not by another native-question consumer", ({ repoRoot }) => {
-  const asked: string[] = [];
-  const observe = vi.spyOn(questionModule, "observeRawQuestions").mockImplementation((demand, ...rest) => {
-    asked.push(...(demand.questions ?? []).map((question) => question.kind));
-    return observeRaw(demand, ...rest);
-  });
-  try {
-    expect(pass(repoRoot).toolErrors).toEqual([]);
-    expect(asked).toContain("shape-constituents");
-    asked.length = 0;
-    expect(verifyPolicyProofs([messageKindCoverage])).toEqual([]);
-    expect(asked.length).toBeGreaterThan(0);
-    expect(asked).not.toContain("shape-constituents");
-  } finally {
-    observe.mockRestore();
-  }
-});
+test(
+  "the shape-constituents walk is demanded only by this policy, not by another native-question consumer",
+  ({ repoRoot }) => {
+    const asked: string[] = [];
+    const observe = vi.spyOn(questionModule, "observeRawQuestions").mockImplementation((demand, ...rest) => {
+      asked.push(...(demand.questions ?? []).map((question) => question.kind));
+      return observeRaw(demand, ...rest);
+    });
+    try {
+      expect(pass(repoRoot).toolErrors).toEqual([]);
+      expect(asked).toContain("shape-constituents");
+      asked.length = 0;
+      expect(verifyPolicyProofs([messageKindCoverage])).toEqual([]);
+      expect(asked.length).toBeGreaterThan(0);
+      expect(asked).not.toContain("shape-constituents");
+    } finally {
+      observe.mockRestore();
+    }
+  },
+  scaledBudget(60_000),
+);
 
-for (const { name, body, findings, unknown } of PROBES) {
+for (const { name, body, siblings, findings, unknown } of PROBES) {
   test(`probe: ${name}`, ({ repoRoot }) => {
-    const result = pass(repoRoot, {}, `${PROBE_HEAD}${body}\n`);
+    const result = pass(repoRoot, {}, `${PROBE_HEAD}${body}\n`, siblings);
     expect(result.toolErrors).toEqual([]);
     expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(findings);
     expect(result.policies[0]?.analysis?.unknown.map((gap) => gap.reason) ?? []).toEqual(unknown);

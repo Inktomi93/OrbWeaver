@@ -1,6 +1,6 @@
 // Policy: no-inline-types (Spine-TypeScript-and-Patterns.md §7.4) — a shape has ONE home, decided by who
 // needs it. Shared reporting subtracts the native placement population, which owns every plane there, while
-// retaining alias exports and proven zod object/enum/discriminatedUnion schema origins everywhere else.
+// retaining alias exports and proven zod shape-factory schema origins everywhere else.
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`
@@ -19,7 +19,7 @@
 // `z.enum` / `z.discriminatedUnion`, so `import * as zod from "zod"`, `import { object } from "zod"` and
 // `import { z as s }` were all invisible while a same-named method on any project object would have
 // matched had the text lined up. The subject is the module export: a call whose callee resolves through
-// the shared module-origin reader to the `zod` door, terminating in one of the three factories
+// the shared module-origin reader to the `zod` door, terminating in one of the shape factories
 // (`floor/code-facts/shape-declaration.ts`, over the canonical factory package-origin reader).
 //
 // EVERY POPULATION CLAUSE AND EVERY ARM FENCE CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in
@@ -180,6 +180,16 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
+      files: {
+        "node_modules/zod/index.d.ts": "export declare const z: { strictObject: (shape: unknown) => unknown; looseObject: (shape: unknown) => unknown };\n",
+        "packages/client/src/features/x/schema.ts":
+          'import { z } from "zod";\nexport const Strict = z.strictObject({});\nexport const Loose = z.looseObject({});\n',
+      },
+      expect: { count: 2 },
+      why: "the strict and loose object factories declare the same object shape as `z.object`; each is a shape factory the arm must judge",
+    },
+    {
+      mode: "resource",
       files: { "tooling/src/snap/ops/capture.ts": "export type Foo = string;\n" },
       expect: { count: 1, token: "Foo" },
       why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (Core-Tooling-Law.md §2.5)",
@@ -257,7 +267,7 @@ export const gate = defineGate({
         "node_modules/zod/index.d.ts": "export declare const z: { string: () => unknown };\n",
         "packages/client/src/features/x/schema.ts": 'import { z } from "zod";\nexport const Foo = z.string();\n',
       },
-      why: "a zod call that is NOT one of the three shape factories — `z.string()` declares no object shape, and the arm is deliberately narrow",
+      why: "a zod call that is NOT a shape factory — `z.string()` declares no object shape, and the arm is deliberately narrow",
     },
     {
       mode: "resource",

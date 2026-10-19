@@ -50,7 +50,7 @@ export function reportTypeHomeDeclaration(
           fix: `Move the declaration to ${UI_TOKEN_AUTHORING_CONTRACT_HOME} and preserve supported type exports through type-only reexports.`,
         }
       : finding;
-  for (const { name } of judgment.shapes) {
+  for (const name of judgment.names) {
     ctx.report.node(name, { token: name.getText(), offset: 0, ...detailsForHome });
   }
 }

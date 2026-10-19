@@ -1,0 +1,26 @@
+---
+kind: tooling
+status: open
+updated: 2026-10-19
+priority: P2
+area: tooling
+plan: test-foundation
+---
+
+# The caught-failure census covers files changed after its generation
+
+## What
+
+The caught-failure census misses sites in files changed after it was generated; controller.ts has real unproven sites the census never listed.
+
+## Why
+
+A census that misses changed files reports less work than exists.
+
+## Done when
+
+The census is regenerated or keyed to current content, and the missed sites are listed with their owners or verdicts.
+
+## Evidence
+
+Filled at landing: what ran and where its output is.

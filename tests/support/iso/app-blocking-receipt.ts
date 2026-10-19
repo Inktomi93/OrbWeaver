@@ -1,5 +1,6 @@
 // The planted callback must explain one native LoAF and its exact retained-ring record.
 // Keep this contract DOM-free: the browser produces the receipt and Node judges it.
+import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 
 export const APP_BLOCKING_MARKS = {
   checkpoint: "orb:app-blocking:checkpoint",
@@ -8,23 +9,16 @@ export const APP_BLOCKING_MARKS = {
   end: "orb:app-blocking:end",
 } as const;
 
-export interface AppBlockingFrameTiming {
-  readonly startTime: number;
-  readonly duration: number;
-  readonly blockingDuration: number;
-  readonly styleAndLayoutStart: number;
-}
-
 export interface AppBlockingReceipt {
   readonly checkpoint: number | null;
   readonly clicks: readonly { readonly startTime: number; readonly trusted: boolean }[];
   readonly begins: readonly number[];
   readonly ends: readonly number[];
-  readonly rawFrames: readonly AppBlockingFrameTiming[];
+  readonly rawFrames: readonly LongAnimationFrameTiming[];
 }
 
 export interface AppBlockingMatch {
-  readonly rawFrame: AppBlockingFrameTiming;
+  readonly rawFrame: LongAnimationFrameTiming;
   readonly retainedIndex: number;
 }
 
@@ -32,7 +26,7 @@ const ORDINARY_BLOCKING_BUDGET_MS = 50;
 const LOAF_NONBLOCKING_MS = 50;
 
 /** Match execution, native observation and retention without requiring optional script attribution. */
-export function matchAppBlockingFrame(receipt: AppBlockingReceipt, retained: readonly AppBlockingFrameTiming[], trusted: boolean): AppBlockingMatch | string {
+export function matchAppBlockingFrame(receipt: AppBlockingReceipt, retained: readonly LongAnimationFrameTiming[], trusted: boolean): AppBlockingMatch | string {
   const { checkpoint, clicks, begins, ends, rawFrames } = receipt;
   const click = clicks[0];
   if (checkpoint === null || clicks.length !== 1 || click === undefined || click.trusted !== trusted || click.startTime < checkpoint) {

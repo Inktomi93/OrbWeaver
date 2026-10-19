@@ -117,18 +117,12 @@ function refuse<T>(reason: PortableParseFailure): PortableParse<T> {
  *  the OLD non-fatal decoder (`DEC`'s header). */
 function decodeObject(bytes: Uint8Array): PortableParse<Record<string, unknown>> {
   let text: string;
-  // @orb-waive caught-failure-ownership(catch): typed refusal — returns a PortableParse
-  // "invalid-encoding" reason, consumed via portableParseError for the operator-facing message. Ends if the
-  // caller stops rendering the reason.
   try {
     text = DEC.decode(bytes);
   } catch {
     return refuse("invalid-encoding");
   }
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): typed refusal — returns a PortableParse
-  // "not-json" reason, consumed via portableParseError for the operator-facing message. Ends if the
-  // caller stops rendering the reason.
   try {
     raw = JSON.parse(text);
   } catch {
