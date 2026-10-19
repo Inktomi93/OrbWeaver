@@ -117,22 +117,40 @@ const DEFINITION_KINDS = [
 
 const isExported = (node: ts.Node): boolean => ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
 
-/** Exported constants annotated `: type`, and exported functions or arrows returning `: type`. */
+/**
+ * Constants annotated `: type`, and functions or arrows returning `: type`, by the names the module EXPORTS
+ * them under: an `export` modifier, `export { x }` and `export { x as y }` all count.
+ */
 function declaredAs(file: string, type: string): { readonly consts: readonly string[]; readonly factories: readonly string[] } {
   const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
   const isType = (node: ts.TypeNode | undefined): boolean => node !== undefined && ts.isTypeReferenceNode(node) && node.typeName.getText(source) === type;
   const isFactory = (declaration: ts.VariableDeclaration): boolean =>
     declaration.initializer !== undefined && ts.isArrowFunction(declaration.initializer) && isType(declaration.initializer.type);
-  const exportedStatements = source.statements.filter(isExported);
-  const declarations = exportedStatements.filter(ts.isVariableStatement).flatMap((statement) => [...statement.declarationList.declarations]);
+  const specifiers = source.statements
+    .filter(ts.isExportDeclaration)
+    .filter((declaration) => declaration.moduleSpecifier === undefined && declaration.exportClause !== undefined && ts.isNamedExports(declaration.exportClause))
+    .flatMap((declaration) =>
+      declaration.exportClause !== undefined && ts.isNamedExports(declaration.exportClause) ? [...declaration.exportClause.elements] : [],
+    );
+  const exportedAs = (local: string, direct: boolean): readonly string[] => [
+    ...(direct ? [local] : []),
+    ...specifiers.filter((specifier) => (specifier.propertyName ?? specifier.name).text === local).map((specifier) => specifier.name.text),
+  ];
+  const declarations = source.statements
+    .filter(ts.isVariableStatement)
+    .flatMap((statement) => [...statement.declarationList.declarations].map((declaration) => ({ declaration, direct: isExported(statement) })));
   return {
-    consts: declarations.filter((declaration) => isType(declaration.type)).map((declaration) => declaration.name.getText(source)),
+    consts: declarations
+      .filter(({ declaration }) => isType(declaration.type))
+      .flatMap(({ declaration, direct }) => exportedAs(declaration.name.getText(source), direct)),
     factories: [
-      ...exportedStatements
+      ...source.statements
         .filter(ts.isFunctionDeclaration)
         .filter((fn) => isType(fn.type))
-        .map((fn) => fn.name?.text ?? "default"),
-      ...declarations.filter(isFactory).map((declaration) => declaration.name.getText(source)),
+        .flatMap((fn) => exportedAs(fn.name?.text ?? "default", isExported(fn))),
+      ...declarations
+        .filter(({ declaration }) => isFactory(declaration))
+        .flatMap(({ declaration, direct }) => exportedAs(declaration.name.getText(source), direct)),
     ],
   };
 }
