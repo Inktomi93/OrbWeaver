@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 688,
+    "sites": 665,
     "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 686,
+      "deliberate-absorb": 663,
       "unproven": 2
     },
     "byGrammar": {
-      "default": 160,
-      "empty": 347,
+      "default": 158,
+      "empty": 326,
       "promise": 181
     }
   },
@@ -59,11 +59,6 @@
       "siteId": "packages/client/src/components/imported-chats-memory-offer.tsx::ImportedChatsMemoryOffer.build::confirmThen::1",
       "verdict": "deliberate-absorb",
       "reason": "the start mutation's errorToast surfaces a failed run, a conflict renders as the already-running note, and `confirmThen` toasts a failed count. Ends if any of those stops surfacing its own failure."
-    },
-    {
-      "siteId": "packages/client/src/components/imported-chats-memory-offer.tsx::ImportedChatsMemoryOffer.runBuild::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a CONFLICT is owned by the offer's own state (the already-running note); every other failure rethrows to `confirmThen` and the mutation's errorToast. Ends if the conflict arm stops setting that state."
     },
     {
       "siteId": "packages/client/src/components/regex-script-picker.tsx::PickerRow::toggle::1",
@@ -371,11 +366,6 @@
       "reason": "useStartUnderstandingRun carries an errorToast with the server's reason — the surface for every mutation in this chain — and `confirmThen` owns a failed count. Ends if that mutation drops its errorToast."
     },
     {
-      "siteId": "packages/client/src/features/imagery/components/image-detail-body.tsx::ImageDetail.onSetBackground::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the header comment above explains — the mutation carries errorToast: \"Couldn't set the chat background.\", which IS the handling; re-throwing would reach the outer .catch and double-toast. Ends if the mutation drops its errorToast."
-    },
-    {
       "siteId": "packages/client/src/features/imagery/components/image-detail-body.tsx::ImageDetail.onSetBackground::query::1",
       "verdict": "deliberate-absorb",
       "reason": "the resolver failure emits the existing \"Couldn't set the background\" toast; the nested mutation failure owns its separate errorToast. Ends if either failure loses its toast."
@@ -579,11 +569,6 @@
       "siteId": "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx::LinkSsoBody.submit::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "the comment below explains — the sticky mutation error renders below plus the factory's errorToast; the dialog just stays open. Ends if useLinkSsoIdentity drops its errorToast."
-    },
-    {
-      "siteId": "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx::ResetPasswordBody.submit::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the comment below explains — the sticky mutation error renders below plus the factory's errorToast; the dialog just stays open. Ends if useResetPassword drops its errorToast."
     },
     {
       "siteId": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx::BundleWorkloadTracker.reconcile::query::1",
@@ -1296,16 +1281,6 @@
       "reason": "client-input — a non-URL string just means \"no video id here\" (the header's contract: `undefined` collapses to a leak-free `ScrapeFailedError` BAD_REQUEST at the caller). Ends if this stops being an id-extraction probe."
     },
     {
-      "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::askCard::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "narrow rethrow — only a validation failure (`StructuredOutputError`) degrades to `degraded: true` (surfaced to the caller as data); any engine/infra error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate."
-    },
-    {
-      "siteId": "packages/server/src/domain/discovery/verbs/analyze.ts::compareCharactersDeep::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "narrow rethrow — only a validation failure (`StructuredOutputError`) degrades to `narrative.degraded: true` (surfaced to the caller as data); any engine/infra error rethrows below unhandled. Ends if a new caller needs a validation failure to propagate."
-    },
-    {
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::parseOneDistill::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract: `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch; the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause needs to travel past this boundary."
@@ -1406,11 +1381,6 @@
       "reason": "bookkeeping — the failure is recorded into `skippedPresets` (with the lift's own reason), part of the verb's own returned result. Ends if `skippedPresets` stops being read by the caller."
     },
     {
-      "siteId": "packages/server/src/domain/import/verbs/settle-import-memory.ts::createSettleImportMemory::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
-    },
-    {
       "siteId": "packages/server/src/domain/import/workload-contributions.ts::rmContained::lstat::1",
       "verdict": "deliberate-absorb",
       "reason": "both arms of this stat converge on \"remove nothing\" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed."
@@ -1459,11 +1429,6 @@
       "siteId": "packages/server/src/domain/rpg/flush-barrier.ts::createRpgFlushBarrier.register::flush::1",
       "verdict": "deliberate-absorb",
       "reason": "`run`'s OWN error handling owns and logs the failure (comment above); this promise only tracks settlement for the barrier's in-flight bookkeeping. The caller of `register` still receives the real `flush` promise (returned below)."
-    },
-    {
-      "siteId": "packages/server/src/domain/rpg/persistence/portability-write.ts::createImportRpgGame::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "only the ONE known unique/primary-key race (the one-game-per-chat arbiter) is absorbed, and only after a re-read PROVES a winner row exists; every other constraint kind — and an absorbed race with no proven winner — is rethrown below."
     },
     {
       "siteId": "packages/server/src/domain/rpg/snapshot-edit.ts::serializeHandWrite::next::1",
@@ -1766,11 +1731,6 @@
       "reason": "a path this process may not stat answers exactly like an absent one, the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one."
     },
     {
-      "siteId": "packages/server/src/infra/acme/issuer.ts::createAcmeIssuer.issue::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "propagated as the returned failed outcome, whose code and detail the certificate controller turns into the status and log line. Ends if `issue` starts throwing to its caller."
-    },
-    {
       "siteId": "packages/server/src/infra/auth/config.ts::jwksAllowlistFromEnv::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver — no trusted key source means the signed path is refused, and `jwks_rejected(off-allowlist)` is the operator-visible surface. Widening on a bad URL would be the dangerous arm. Ends if the allowlist stops being fail-closed when empty."
@@ -1944,16 +1904,6 @@
       "siteId": "packages/server/src/infra/plugin-host/worker-runtime.ts::<module>::run::1",
       "verdict": "deliberate-absorb",
       "reason": "every command rejection is encoded into the response with the same command id. Ends if the error response stops carrying the rejection."
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::createCas.putBytes::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed."
-    },
-    {
-      "siteId": "packages/server/src/infra/storage/cas.ts::fsyncDir::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the ONLY absorbed arm is `isDirSyncUnsupported` — a filesystem CAPABILITY statement, not a fault — and its owner is the operator, told once per process by the structured warn below (the latch is deliberate: on an unsupporting mount every write hits this, and a per-write line would bury the notice it is trying to deliver). Every other errno RE-THROWS on the line above, so a real I/O or permission fault still rejects the put. Owner ruling 2026-09-19, #2410. Ends if the dir-entry fsync becomes required for correctness rather than crash-durability, or if the notice gains a caller-visible result."
     },
     {
       "siteId": "packages/server/src/infra/storage/variant-cache.ts::createVariantCache.read::Promise.resolve::1",
@@ -2411,16 +2361,6 @@
       "reason": "a failed taskkill means the tree is already gone or never spawned — the desired end state, same as POSIX ESRCH below."
     },
     {
-      "siteId": "tooling/src/floor/process/proc.ts::killPidGroup::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed."
-    },
-    {
-      "siteId": "tooling/src/floor/process/proc.ts::spawnFullPriorityChild.kill::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative."
-    },
-    {
       "siteId": "tooling/src/floor/process/proc.ts::spawnNicedTranscript.finish::settle::1",
       "verdict": "deliberate-absorb",
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
@@ -2429,11 +2369,6 @@
       "siteId": "tooling/src/floor/process/run-marker.ts::aliveBySignal::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as floor/artifacts/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
-    },
-    {
-      "siteId": "tooling/src/floor/process/run-marker.ts::signalPid::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH is the DESIRED end state of a teardown signal (the process left between the scan and the signal); every other signal error rethrows. Ends if a caller starts requiring proof that a specific signal landed."
     },
     {
       "siteId": "tooling/src/floor/testing/scoped-run-paths.ts::isFed::catch::1",
@@ -3091,39 +3026,14 @@
       "reason": "malformed record JSON is a corrupt record, which `leaderVerdict` reports and which never authorizes a signal. Ends if null can authorize a signal."
     },
     {
-      "siteId": "tooling/src/stack/lib/leader-record.ts::removeLeaderRecord::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT is the idempotent end state of a removal; every other unlink failure is rethrown. Ends if removal gains a separate operator result."
-    },
-    {
       "siteId": "tooling/src/stack/lib/prod-record.ts::parseProdRecord::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "malformed pidfile JSON returns null and identity classification refuses any unproven live process. Ends if null can authorize a signal."
     },
     {
-      "siteId": "tooling/src/stack/lib/spawn-lock.ts::handleHeldSpawnLock::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone is the racing-release state and the following exclusive create decides ownership; other reads throw. Ends if no retry follows."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/spawn-lock.ts::handleHeldSpawnLock::error::2",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone means another launcher won the unlink race; the next exclusive create decides ownership. Ends if no retry follows."
-    },
-    {
-      "siteId": "tooling/src/stack/lib/spawn-lock.ts::releaseSpawnLock::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT is idempotent release; every other unlink failure is rethrown. Ends if release gains an ownership-transfer acknowledgement."
-    },
-    {
       "siteId": "tooling/src/stack/lib/supervisor.ts::superviseStart::openWhenServed::1",
       "verdict": "deliberate-absorb",
       "reason": "the open has no awaiter, because an opener can outlive the server; a rejection is printed to the operator through `notice`, and the server keeps running because a browser is a convenience. Ends if the open gains an awaiter."
-    },
-    {
-      "siteId": "tooling/src/stack/ops/dev-down.ts::signalPid::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH means the holder exited between the table read and the signal, the desired end state; every other failure is rethrown. Ends if callers require proof the signal landed."
     },
     {
       "siteId": "tooling/src/stack/ops/dev-status.ts::effectiveAuthMode::catch::1",
@@ -3141,16 +3051,6 @@
       "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if log content becomes a control verdict."
     },
     {
-      "siteId": "tooling/src/stack/ops/prod-down.ts::doDown::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH alone means the verified pid vanished before SIGTERM; every other signal error is rethrown. Ends if signal classification changes."
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-down.ts::doDown::error::2",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH alone means the verified group vanished before SIGKILL; every other signal error is rethrown. Ends if signal classification changes."
-    },
-    {
       "siteId": "tooling/src/stack/ops/prod-state.ts::probeDebugPosture::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "credential-free debug probe failure returns unknown posture, which prevents token-bearing identity claims. Ends if unknown can authorize control."
@@ -3161,29 +3061,14 @@
       "reason": "health fetch failure is the explicit unhealthy observation consumed by identity classification. Ends if unhealthy can authorize ownership."
     },
     {
-      "siteId": "tooling/src/stack/ops/prod-support.ts::debugToken::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit."
-    },
-    {
       "siteId": "tooling/src/stack/ops/prod-support.ts::readFrom::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional log tail returns empty and status still reports the log path. Ends if log content becomes a control verdict."
     },
     {
-      "siteId": "tooling/src/stack/ops/prod-support.ts::removePidfile::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result."
-    },
-    {
       "siteId": "tooling/src/stack/ops/prod-support.ts::tailLog::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "an unreadable optional log renders the explicit no-log sentinel to the operator. Ends if missing logs become a clean shutdown claim."
-    },
-    {
-      "siteId": "tooling/src/stack/ops/prod-up.ts::signalFailedSpawn::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ESRCH means the exact just-spawned process group is already gone, which satisfies this cleanup step. Ends if any non-ESRCH failure stops being rethrown."
     },
     {
       "siteId": "tooling/src/stack/ops/served-probe.ts::fetchServed::catch::1",

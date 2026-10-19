@@ -116,7 +116,6 @@ function isDirSyncUnsupported(error: unknown): boolean {
 // bug. Nothing reads it back, so there is nothing for durable state to hold.
 let dirSyncUnsupportedAnnounced = false;
 
-// @orb-waive caught-failure-ownership(error): the ONLY absorbed arm is `isDirSyncUnsupported` — a filesystem CAPABILITY statement, not a fault — and its owner is the operator, told once per process by the structured warn below (the latch is deliberate: on an unsupporting mount every write hits this, and a per-write line would bury the notice it is trying to deliver). Every other errno RE-THROWS on the line above, so a real I/O or permission fault still rejects the put. Owner ruling 2026-09-19, #2410. Ends if the dir-entry fsync becomes required for correctness rather than crash-durability, or if the notice gains a caller-visible result.
 async function fsyncDir(dir: string): Promise<void> {
   try {
     await using handle = await open(dir, "r");
@@ -212,7 +211,6 @@ export function createCas(rootDir: string): Cas {
       if (await exists(ownerId, hash)) {
         // Dedup hit — bump mtime so GC's grace window protects this put too. ENOENT means a concurrent GC
         // just removed it — fall through and write fresh.
-        // @orb-waive caught-failure-ownership(err): only ENOENT is absorbed (a concurrent GC removed the dedup target → fall through and write fresh); every other utimes error is re-thrown, so a permission/I/O fault never silently passes. Ends if the non-ENOENT re-throw is removed.
         try {
           const seconds = now / MS_PER_SECOND;
           await utimes(dest, seconds, seconds);

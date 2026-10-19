@@ -87,7 +87,6 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals): v
     }
     return;
   }
-  // @orb-waive caught-failure-ownership(error): ESRCH is the desired teardown end state; every other signal error is rethrown. Ends if callers require proof that the signal landed.
   try {
     process.kill(-pid, signal);
   } catch (error) {
@@ -270,7 +269,6 @@ export function spawnFullPriorityChild(cmd: string, args: readonly string[], opt
       if (child.exitCode !== null || child.signalCode !== null) {
         return;
       }
-      // @orb-waive caught-failure-ownership(error): ESRCH or an observed child exit makes kill idempotent; every still-live signal failure rethrows. Ends if child exit fields stop being authoritative.
       try {
         child.kill(signal);
       } catch (error) {

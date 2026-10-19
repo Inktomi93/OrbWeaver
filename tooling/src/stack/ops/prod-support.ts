@@ -78,7 +78,6 @@ export function buildClient(): boolean {
  *  token lives, never what it is (a credential echoed into a terminal is a credential leaked). */
 export function debugToken(): string {
   const path = TOKEN_PATH();
-  // @orb-waive caught-failure-ownership(error): ENOENT alone permits minting a first debug token; every existing-token read failure is rethrown. Ends if token rotation becomes explicit.
   try {
     const existing = readFileSync(path, "utf8").trim();
     if (existing.length > 0) {
@@ -111,7 +110,6 @@ export function uptimeText(startedAt: string): string {
 }
 
 export function removePidfile(): void {
-  // @orb-waive caught-failure-ownership(error): ENOENT alone is idempotent pidfile cleanup; every other unlink failure is rethrown. Ends if cleanup gains a separate operator result.
   try {
     unlinkSync(PIDFILE());
   } catch (error) {

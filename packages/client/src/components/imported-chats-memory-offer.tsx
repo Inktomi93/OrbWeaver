@@ -63,9 +63,6 @@ export function ImportedChatsMemoryOffer({ scope, onStarted, nested }: ImportedC
   const note = settled?.key === key ? settled.note : null;
   const input = { kind: "memory-backfill", params: { importWindow: scope } } as const;
   const runBuild = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(error): a CONFLICT is owned by the offer's own state (the already-running
-    // note); every other failure rethrows to `confirmThen` and the mutation's errorToast. Ends if the conflict arm
-    // stops setting that state.
     try {
       await start.mutateAsync({ input, mode: "singular" });
       setSettled({ key, note: STARTED_NOTE });

@@ -450,3 +450,82 @@ tree under the fixed reader. That is owed with the cheap rerun (item 1070).
 - The repo integration test and a census regeneration check on the merged tree (primary).
 - controller.ts:53/:54: two unproven sites missing from the census; a Phase 2 rejudge.
 - The boolean read route above, and the vocabulary ruling once 1731 names failure members.
+
+## Rerun on the merged reader
+
+Main at 88d59254c7 includes the refutation fix and items 1070 and 1051 part 1. The 94 no-verdict candidate files were rerun as single files, 2 in parallel. Each run had its own setsid session, a 900 s stop and the MemAvailable gate. Walls ran from 40 s to 905 s, and the largest tree peak was 19.5 GB. Results: `reports/cb-1049-mine/runs/rerun-results.jsonl` and `rerun-verdicts.json`.
+
+56 files reached a verdict, with 0 effective findings and 23 stale-waiver alarms. Each alarm was removed with its marker and its population row. Every alarmed path and token had exactly as many rows as markers. HEAD arms were read with the pre-1049 reader in memory, over the committed text.
+
+| Owner kind | Marker (pre-deletion line) | HEAD arm |
+| - | - | - |
+| sole-operation default (imported errorToast mutation) | packages/client/src/features/imagery/components/image-detail-body.tsx:71 | default |
+| guarded rethrow | packages/client/src/components/imported-chats-memory-offer.tsx:66 | empty |
+| sole-operation default (imported errorToast mutation) | packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx:55 | default |
+| typed refusal | packages/server/src/infra/acme/issuer.ts:107 | empty |
+| guarded rethrow | packages/server/src/infra/storage/cas.ts:119 | empty |
+| guarded rethrow | packages/server/src/infra/storage/cas.ts:215 | empty |
+| guarded rethrow | packages/server/src/domain/discovery/verbs/analyze.ts:131 | empty |
+| guarded rethrow | packages/server/src/domain/discovery/verbs/analyze.ts:73 | empty |
+| guarded rethrow | packages/server/src/domain/import/verbs/settle-import-memory.ts:23 | empty |
+| guarded rethrow | packages/server/src/domain/rpg/persistence/portability-write.ts:228 | empty |
+| guarded rethrow | tooling/src/stack/lib/leader-record.ts:141 | empty |
+| guarded rethrow | tooling/src/stack/lib/spawn-lock.ts:108 | empty |
+| guarded rethrow | tooling/src/stack/lib/spawn-lock.ts:121 | empty |
+| guarded rethrow | tooling/src/stack/lib/spawn-lock.ts:90 | empty |
+| guarded rethrow | tooling/src/stack/ops/dev-down.ts:114 | empty |
+| guarded rethrow | tooling/src/stack/ops/prod-down.ts:52 | empty |
+| guarded rethrow | tooling/src/stack/ops/prod-down.ts:68 | empty |
+| guarded rethrow | tooling/src/stack/ops/prod-support.ts:114 | empty |
+| guarded rethrow | tooling/src/stack/ops/prod-support.ts:81 | empty |
+| guarded rethrow | tooling/src/stack/ops/prod-up.ts:78 | empty |
+| guarded rethrow | tooling/src/floor/process/proc.ts:273 | empty |
+| guarded rethrow | tooling/src/floor/process/proc.ts:90 | empty |
+| guarded rethrow | tooling/src/floor/process/run-marker.ts:215 | empty |
+
+By kind: guarded rethrow 20, sole-operation default 2, typed refusal 1. Population totals: sites 688 to 665, `deliberate-absorb` 686 to 663, `default` 160 to 158, `empty` 347 to 326.
+
+Post-deletion pass over the 16 changed files (`runs/postdel2-results.jsonl`): 16 verdicts, 0 findings, 0 alarms.
+
+These 38 files still have no verdict. They keep their markers.
+
+| File | Reason |
+| - | - |
+| packages/client/src/features/chat/components/chat-documents-section.tsx | stopped |
+| packages/client/src/features/chat/components/gallery-upload-zone.tsx | stopped |
+| packages/client/src/features/credentials/components/add-connection-dialog.tsx | heap abort |
+| packages/client/src/features/credentials/components/first-model-setup.tsx | heap abort |
+| packages/client/src/features/notifications/components/notification-inbox-row.tsx | heap abort |
+| packages/client/src/features/persona/components/persona-list.tsx | heap abort |
+| packages/client/src/features/plugin/components/plugin-distribute-section.tsx | heap abort |
+| packages/client/src/features/plugin/components/plugin-row-leaves.tsx | stopped |
+| packages/client/src/features/plugin/components/plugin-row.tsx | stopped |
+| packages/client/src/features/plugin/components/plugin-surface-renderer.tsx | stopped |
+| packages/client/src/features/rpg/components/rpg-game-tab.tsx | heap abort |
+| packages/client/src/features/tag/components/labels-suggestions.tsx | heap abort |
+| packages/server/src/domain/chat/engine/engine.ts | stopped |
+| packages/server/src/domain/rpg/tools/rounds/tool-round.ts | stopped |
+| packages/server/src/domain/workloads/engine/runner.ts | stopped |
+| packages/server/src/entry/index.ts | stopped |
+| packages/server/src/infra/crypto/key.ts | stopped |
+| packages/server/src/infra/plugin-host/membrane.ts | stopped |
+| packages/server/src/infra/plugin-host/process-runtime.ts | stopped |
+| tooling/src/floor/browser/browser.ts | stopped |
+| tooling/src/snap/ops/arms/assert.ts | stopped |
+| tooling/src/snap/ops/arms/cascade.ts | stopped |
+| tooling/src/snap/ops/arms/eval.ts | stopped |
+| tooling/src/snap/ops/arms/heap.ts | stopped |
+| tooling/src/snap/ops/arms/lighthouse.ts | stopped |
+| tooling/src/snap/ops/arms/map.ts | stopped |
+| tooling/src/snap/ops/arms/profile.ts | stopped |
+| tooling/src/snap/ops/drive-actions.ts | exit 2 |
+| tooling/src/snap/ops/design-audit-walk.ts | stopped |
+| tooling/src/snap/ops/guards.ts | stopped |
+| tooling/src/snap/ops/matrix.ts | stopped |
+| tooling/src/snap/ops/session-client.ts | stopped |
+| tooling/src/snap/ops/session-daemon-request.ts | stopped |
+| tooling/src/snap/ops/session-registry.ts | stopped |
+| tooling/src/snap/ops/stage-holders.ts | stopped |
+| tooling/src/verify/lib/policy-repo-inventory.ts | stopped |
+| tooling/src/verify/lib/resource-declaration.ts | stopped |
+| tooling/src/verify/ops/resource-config.ts | stopped |
