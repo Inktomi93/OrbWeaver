@@ -24,6 +24,9 @@
 // human is not there to answer: `autoSeedEnabled` (wired at compose to `E2E_HARNESS=on || DEV_SEED=on`, the
 // two stamps that mean "this stack was started by automation").
 //
+// An automation stack can still leave chosen accounts out of the auto-create arm (`E2E_FIRST_RUN_ASK_HANDLES`), so an
+// e2e spec can meet the real ask; the policy takes the principal for that reason and can only subtract.
+//
 // ONE conditional covers BOTH trigger sites (boot-owner + the per-user first authed request) because both
 // route through `ensureSeeded` — and it must, or the deployment owner (a real first sign-in too) would be the
 // one user who never sees the ask.
@@ -103,7 +106,7 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
       // The real-stack arm: no create, no latch, no settings read at all (the FIRST-RUN ASK owns this user).
       // Checked per call, not once at build: the knob is a stack posture, and reading it here keeps the
       // seeder honest under a test that flips it between runs.
-      if (!deps.autoSeedEnabled()) {
+      if (!deps.autoSeedEnabled(principal)) {
         return Promise.resolve();
       }
       if (settled.has(principal.userId)) {

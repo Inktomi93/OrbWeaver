@@ -14,16 +14,16 @@ Scope: CTs that mount a route, the app root or the app shell and drive it over s
 
 | Class | Sites |
 | - | - |
-| Moved to e2e (leg 1: 3, leg 2: 3, leg 3: 3) | 9 |
+| Moved to e2e (leg 1: 3, leg 2: 3, leg 3: 3, leg 5: 1) | 10 |
 | Flow, move later | 0 |
-| Stays CT | 263 |
+| Stays CT | 262 |
 | Total | 272 |
 
 Per file:
 
 | File | Sites | Moved | Move later | Stays |
 | - | - | - | - | - |
-| `routes/app-root.ct.tsx` | 33 | 7 | 0 | 26 |
+| `routes/app-root.ct.tsx` | 33 | 8 | 0 | 25 |
 | `routes/router.ct.tsx` | 5 | 1 | 0 | 4 |
 | `routes/route-pending.ct.tsx` | 3 | 0 | 0 | 3 |
 | `routes/stuck-splash.suite.ct.tsx` | 3 | 0 | 0 | 3 |
@@ -54,7 +54,7 @@ Real differences from the CT cases:
 | - | - | - |
 | app-root 211 fresh state lands on Home | stay | Its teaching empty states ("Create your first character", "Add your first document") need an empty library the corpus does not have |
 | app-root 504 owner persona never sees the gate | moved | Corpus owner has a current persona |
-| app-root 551 joiner with no persona names one first | stay | Real flow in local mode: invite, signup, first-run ask, join dialog. Needs the local project (`corpus-local-*` cells), which this leg may not run |
+| app-root 551 joiner with no persona names one first | moved (leg 5, item 1083) | `corpus-joiner.local.spec.ts`, once the harness stack could leave the account out of the persona auto-create |
 | app-root 591 control: joiner who speaks gets the join dialog | moved (leg 3) | `corpus-joiner.local.spec.ts` |
 | router 66 `/analytics` alias heals before the auth redirect | moved (leg 3) | Signed-out flow. Target: a local-project spec using a cookie-less `browser.newContext()`; single-user never signs out |
 | router 116 OIDC pending join Not now | stay | Needs the OIDC project, which `tests/e2e/support/modes.ts` documents as absent. Target: that project when it exists |
@@ -102,7 +102,7 @@ Differences from the CT cases:
 
 Stays, with evidence:
 
-- app-root 551 (a joiner with no persona meets the first-run ask): not reachable on an automation stack by owner ruling. `domain/persona/seeder/default.ts` keeps its auto-create arm on exactly where `E2E_HARNESS=on` (header, owner ruling of 2026-08-03), so a persona is re-created on the next request after every delete. Observed in the local cell: `persona.list` returned a seeded "Traveler" after the test had deleted the account's personas and nulled both seed pointers. A real stack asks; an e2e stack never does. The case stays in CT as hard-state.
+- app-root 551 (a joiner with no persona meets the first-run ask) stayed in CT in leg 3 and moved in leg 5 below. It was not reachable on an automation stack by owner ruling. `domain/persona/seeder/default.ts` keeps its auto-create arm on exactly where `E2E_HARNESS=on` (header, owner ruling of 2026-08-03), so a persona is re-created on the next request after every delete. Observed in the local cell: `persona.list` returned a seeded "Traveler" after the test had deleted the account's personas and nulled both seed pointers. A real stack asks; an e2e stack never does. The case stays in CT as hard-state.
 - router 116 (OIDC pending join): not built. An OIDC e2e project needs, at minimum:
   1. an HTTPS mock issuer, because `entry/http/oidc.ts` calls `discovery()` without `allowInsecureRequests`, so an `http://127.0.0.1` issuer is refused by the real client;
   2. a certificate the server child trusts (a generated CA through the child's environment) and a loopback entry in the egress and private-endpoint allowlists;
@@ -123,3 +123,22 @@ Both ran on `corpus-desktop-bubble` and `corpus-phone-bubble`; both plants were 
 
 - Library launch (`picking a character in the library creates the chat and lands in it`): an early `return` before `startChat` in `chatWith` (`character-library-surface.tsx`), so the Chat door neither creates nor lands. Red on both cells: `waitForResponse` for `chat.startChat` timed out.
 - Persona gate absence (`a user who owns a persona never sees the first-run gate`): the gate's stand-down condition in `first-run-persona-dialog.tsx` forced false from the third document load of a tab, so a set-up viewer meets the gate over the app. Red on both cells, at the settle barrier on line 62: the open gate modal hides the rail and the You tab, so the barrier fails before the `toHaveCount(0)` line is reached. The load-count condition exists because a plain "always open" gate also breaks the harness warm-up and the page fixture's own setup, which run before the case.
+
+## Leg 5 (item 1083): the first-run ask on an e2e stack
+
+Moved: `app-root.ct.tsx` "a joiner with no persona names one in the first-run ask before the join dialog opens" to `tests/e2e/corpus-joiner.local.spec.ts` (same title, local project, desktop and phone). The CT case and its helpers (`arriveWithInvite`, the invite token and preview constants, `settingsWithSeeds`, two imports) are deleted. The earlier "stays" ruling for this case is superseded by the owner ruling recorded in item 1083.
+
+The opt-out:
+
+- Server: `E2E_FIRST_RUN_ASK_HANDLES`, an optional comma list in `foundation/env/index.ts`. `isAutomatedPersonaSeedEnabled(handle)` is now `!asksFirstRun && (E2E_HARNESS=on || DEV_SEED=on)`, so the list can only subtract from an automation arm that is already on; no value turns the auto-seed on, and a stack with neither stamp is unchanged. The seeder policy takes the principal (`autoSeedEnabled(principal)`) so the compose wiring can pass the handle.
+- Harness: `tests/e2e/support/modes.ts` names the accounts once. `firstRunAskHandle(projectName)` derives the handle per local cell, `FIRST_RUN_ASK_HANDLES` lists every local cell's handle, and the local project's `webServerEnv` sends them as `E2E_FIRST_RUN_ASK_HANDLES`. Every other account on every stack keeps the seeded persona.
+- The first attempt subtracted only from `E2E_HARNESS`. The e2e stack boots through the dev stack tool, which also pins `DEV_SEED=on`, so the policy still returned true for the listed handle and a persona was created on the first page load (confirmed with a stack trace in the seeder). That is why the opt-out subtracts from both stamps.
+
+Evidence:
+
+- Red, seed on: with the account not on the list, or with the opt-out subtracting only from `E2E_HARNESS`, the case failed on both local cells at "waiting for `first-run-persona-dialog`": the page opened the join dialog because a "Traveler" persona had been created on load.
+- Green: with the opt-out, the case and its control passed on `corpus-local-desktop-bubble` and `corpus-local-phone-bubble` (4 passed).
+- Planted defect: an early return that stops the gate rendering for an empty library turned the case red on both cells; restored.
+- Node: `tests/server/domain/persona/seeder/default.int.test.ts` gained "an automation stack leaves the first-run ask intact for exactly the accounts the policy declines". With the seeder calling the policy without the principal it failed (TypeError reading the principal), and it passes with the principal passed; the file's four tests pass.
+- CT: `pnpm test:ct --legacy tests/legacy/client/routes/app-root.ct.tsx`: 41 passed, 0 failed. The two roster-census cases that failed on the leg 3 tree pass again, so that failure came from main and has cleared.
+- Not run: the other local and single-user cells; the legacy `seed-default-persona.int.test.ts` fails on a database-wiring harness error ("database wiring handle is not registered") before reaching any seeder code, so it gives no verdict here.

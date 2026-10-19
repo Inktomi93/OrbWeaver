@@ -9,7 +9,7 @@ export interface DefaultPersonaSeederDeps {
    *  records nothing — not even the latch — so the zero-personas first-run trigger genuinely holds and the
    *  user names their own `{{user}}`. REQUIRED (never defaulted): a composer that has not decided which kind
    *  of stack it is wiring must not silently get the automation arm. */
-  readonly autoSeedEnabled: () => boolean;
+  readonly autoSeedEnabled: (principal: Principal) => boolean;
   readonly createPersona: (args: Parameters<PersonaService["create"]>[0]) => Promise<Pick<Awaited<ReturnType<PersonaService["create"]>>, "id">>;
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;

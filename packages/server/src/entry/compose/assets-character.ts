@@ -234,7 +234,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
 
   // Mirror of characterSeeder, for the default `{{user}}` persona.
   const personaSeeder = createDefaultPersonaSeeder({
-    autoSeedEnabled: isAutomatedPersonaSeedEnabled,
+    autoSeedEnabled: (principal) => isAutomatedPersonaSeedEnabled(principal.handle),
     createPersona: (params) => deps.getPersona().create(params),
     ...seedAvatars.persona,
     ...createPersonaSeedLatch({ settings, getPersona: deps.getPersona }),

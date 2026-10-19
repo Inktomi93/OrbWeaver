@@ -43,6 +43,23 @@ test("a real-stack seed performs no persona or latch write; automation creates t
   expect(config.onboarding.defaultPersonaSeeded).toBe(true);
 });
 
+test("an automation stack leaves the first-run ask intact for exactly the accounts the policy declines", async ({ harness, db, services }) => {
+  const asker = await principal(harness, (await seedUser(db)).id);
+  const other = await principal(harness, (await seedUser(db)).id);
+  const seeder = createDefaultPersonaSeeder({
+    autoSeedEnabled: (who) => who.userId !== asker.userId,
+    createPersona: (args) => services.persona.create(args),
+    storeAvatar: () => Promise.resolve(null),
+    findSeededDefault: createFindSeededDefault((args) => services.persona.list(args)),
+    ...createPersonaSeedSettings(services.settings),
+  });
+  await seeder.ensureSeeded(asker);
+  await seeder.ensureSeeded(other);
+  expect(await services.persona.list({ principal: asker })).toEqual([]);
+  expect((await services.settings.getUserSettings({ principal: asker })).config.onboarding.defaultPersonaSeeded).toBe(false);
+  expect(await services.persona.list({ principal: other })).toHaveLength(1);
+});
+
 test("a lost persona latch heals only its own artifact and independently preserves the user's explicit pick", async ({ harness, db, services }) => {
   const user = await seedUser(db);
   const stranger = await seedUser(db);

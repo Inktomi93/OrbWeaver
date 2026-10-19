@@ -2,8 +2,9 @@
 // redesign, owner ruling 2026-08-03). The unit arms live at `tests/legacy/server/entry/boot/seed-default-persona`
 // (both postures, injected); what only this seam can prove is WHICH posture the composition root wires.
 //
-// The rule: auto-create is ON only for a stack automation started (`E2E_HARNESS=on || DEV_SEED=on` — the two
-// stamps a human-started stack does not carry), and OFF everywhere else so a REAL first sign-in reaches the
+// The rule (D330): auto-create is ON only for a stack automation started (`E2E_HARNESS=on || DEV_SEED=on` — the two
+// stamps a human-started stack does not carry), minus any account `E2E_FIRST_RUN_ASK_HANDLES` names, and OFF
+// everywhere else so a REAL first sign-in reaches the
 // zero-personas first-run ask (D107's ruled trigger; the client's `FirstRunPersonaDialog`). Before this, the
 // per-request hook minted "Traveler" on the first authed request, so the shipped forced dialog was dead by
 // construction — its trigger could never hold.
