@@ -9,7 +9,7 @@ priority: P2
 
 ## What
 
-The 1049 phase 3 audit found caught-failure-ownership findings that are reader gaps, not defects. Among them: frameworkOwns and underlyingWorkCall stop at Promise.all, and the isFailureOutcome CallExpression branch returns before preservesFailureValue. Records and proposed mustPass rows are in claude-b's 1049p3 output (gfp.json) and the per-shard reports under reports/review/1049-p3/. Sequence after 1098, which owns the caught-failure readers.
+The 1049 phase 3 audit found caught-failure-ownership findings that are reader gaps, not defects. Among them: frameworkOwns and underlyingWorkCall stop at Promise.all, and the isFailureOutcome CallExpression branch returns before preservesFailureValue. Records and proposed mustPass rows are in reports/review/1049-p3/gfp.json and the per-shard reports under reports/review/1049-p3/. Sequence after 1098, which owns the caught-failure readers.
 
 ## Why
 

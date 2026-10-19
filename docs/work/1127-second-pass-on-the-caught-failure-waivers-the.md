@@ -9,7 +9,7 @@ priority: P3
 
 ## What
 
-The 1049 phase 3 audit left a set of caught-failure-ownership waivers marked UNSURE: still waived, owner not proven. The list is unsure.txt (shard and site) in claude-b's 1049p3 output. Run after the reader-gap item lands, since some may resolve once the readers see them.
+The 1049 phase 3 audit left a set of caught-failure-ownership waivers marked UNSURE: still waived, owner not proven. The list is reports/review/1049-p3/unsure.txt (shard and site). Run after the reader-gap item lands, since some may resolve once the readers see them.
 
 ## Why
 
