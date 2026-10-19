@@ -8,7 +8,7 @@ import { WeaveVeil, WebWeave } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { bakeWeaveGlow } from "#ui/art/web-weave/web-weave-glow.ts";
-import { capturePixelFacts } from "./web-weave-glow-probe.ts";
+import { capturePixelFacts } from "./web-weave-glow.fixtures.ts";
 
 export interface WeaveBoxProps extends WebWeaveProps {
   readonly width?: number;

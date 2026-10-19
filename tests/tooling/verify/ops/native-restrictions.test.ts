@@ -5,6 +5,7 @@ import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
 import { gate as computedFormDependencies } from "../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "../../../..");
 const eslint = new ESLint({ cwd: ROOT });
@@ -35,7 +36,8 @@ async function findings(path: string, source: string, ruleIds: readonly string[]
   return messages.map(({ message }) => message);
 }
 
-test("native prototype policy rejects native extensions and prototype replacement capabilities", async () => {
+// The first calculateConfigForFile in this file loads the whole flat config, which dominates the file's wall time.
+test("native prototype policy rejects native extensions and prototype replacement capabilities", { timeout: scaledBudget(15_000) }, async () => {
   for (const path of ["packages/server/src/probe.ts", "packages/client/src/probe.tsx", "tooling/src/probe.ts", "tests/tooling/probe.ts", "scripts/probe.ts"]) {
     for (const source of [
       "Object.prototype.extra = 1;",
@@ -213,15 +215,21 @@ test("caller identity rejects local, property, destructuring and JSX identifiers
   }
 });
 
-test("generated outputs retain migrated restrictions without activating other rules or typed parsing", async () => {
+// Generated outputs keep the migrated restrictions, the size cap and the native `orb/*` policies, which are
+// typed and so parse through the project service; every other rule family stays off them.
+test("generated outputs retain migrated restrictions and native policies without activating unrelated rules", async () => {
   for (const path of ["packages/ui/src/tokens/index.ts", "packages/ui/src/tokens/themes.gen.ts"]) {
     expect(
       await findings(path, 'const callerUserId = 1; useEffect(() => {}, [form.store]); import { useMutation } from "@tanstack/react-query";'),
     ).toHaveLength(3);
     expect(await findings(path, "Widget.defaultProps;")).toEqual([]);
     const config = await eslint.calculateConfigForFile(join(ROOT, path));
-    expect(Object.keys(config.rules)).toEqual(["no-restricted-syntax"]);
-    expect(config.languageOptions.parserOptions).toMatchObject({ project: false, projectService: false });
+    expect(config.rules["no-restricted-syntax"], path).toBeDefined();
+    expect(
+      Object.keys(config.rules).filter((id) => !(id === "no-restricted-syntax" || id === "max-lines" || id.startsWith("orb/"))),
+      path,
+    ).toEqual([]);
+    expect(config.languageOptions.parserOptions, path).toMatchObject({ project: false, projectService: true });
   }
 });
 
