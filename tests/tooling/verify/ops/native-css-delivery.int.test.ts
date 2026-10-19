@@ -422,15 +422,21 @@ test(
       const plan = { mode: "types" as const, facets: [], arguments: [], typeObservations: mapTypeObservationDemand(demand, span) };
       const captured = captureInvocationEvidence(source, plan, undefined, demand);
       const wire = encodeInvocationEvidence(source, plan, captured, span);
-      const evidence = replayInvocationEvidence(wire, (value) => inventoryQueryNode(carrier.getSourceFile(value.file), value), {
-        globals: new Map(),
-        declarations: () => {
-          throw new Error("unrequested conditional CSS binding");
+      const evidence = replayInvocationEvidence(
+        wire,
+        (value) => inventoryQueryNode(carrier.getSourceFile(value.file), value),
+        {
+          globals: new Map(),
+          declarations: () => {
+            throw new Error("unrequested conditional CSS binding");
+          },
+          computedName: () => {
+            throw new Error("unrequested conditional CSS computed name");
+          },
         },
-        computedName: () => {
-          throw new Error("unrequested conditional CSS computed name");
-        },
-      });
+        // The local carrier has no reader lease to release, so it is always live.
+        () => undefined,
+      );
       if (evidence.typeObservations === undefined) {
         throw new Error("conditional CSS type evidence missing");
       }

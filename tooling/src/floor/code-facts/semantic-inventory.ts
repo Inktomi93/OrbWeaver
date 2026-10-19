@@ -161,10 +161,16 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
           .map((partition) => partition.id)
           .toSorted(),
       ) === JSON.stringify(partitions.map((partition) => partition.id).toSorted());
-    const generation = rebuilt || !samePopulation ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
+    const published = rebuilt || !samePopulation;
+    const generation = published ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
     validateInventoryReaderSources(db, partitions);
     shapeReaderContext(options, descriptors, partitions);
-    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+    // Pure reuse ran no worker and published nothing, so the check above is its last input window; its readers
+    // still admit every source epoch on read. Only an extraction or publication needs the later rechecks.
+    const recheckPublication = publicationRecheck(published, () => {
+      assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+    });
+    recheckPublication();
     db.exec("COMMIT");
     writerCommitted = true;
     lease = acquireInventoryReadLease(db, generation, partitions);
@@ -188,7 +194,7 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
       },
     });
     implementation = captureInventoryRuntime([import.meta.url]);
-    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+    recheckPublication();
     assertInventoryRuntimeSealed(implementation);
     implementationRevision = inventoryRuntimeRevision();
     if (overlay === undefined) {
@@ -212,6 +218,10 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
       rmSync(scratch, { recursive: true, force: true });
     }
   }
+}
+
+function publicationRecheck(published: boolean, check: () => void): () => void {
+  return published ? check : (): void => undefined;
 }
 
 function inventoryFailure(error: unknown, writerCommitted: boolean): SemanticInventoryError {

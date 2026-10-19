@@ -328,6 +328,50 @@ test(
 );
 
 test(
+  "a late related-value replay after its anchor is forgotten admits unchanged text and refuses changed text",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    const { descriptor, calls } = controls(scratch);
+    const call = calls.find((node) => node.getText() === "bound()");
+    if (call === undefined) {
+      throw new Error("forgotten-anchor invocation is missing");
+    }
+    using inventory = nativeInventoryFixture({
+      root: scratch,
+      programs: [descriptor],
+      families: ["bindings", "invocation-evidence", "global-origins", "computed-names"],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+    });
+    const evidence = inventory.invocationEvidence(call, descriptor.id, PLAN);
+    const invoked = evidence.invocation;
+    if (invoked?.kind !== "resolved" || invoked.value.arguments.kind !== "resolved") {
+      throw new Error("forgotten-anchor bound argument is missing");
+    }
+    const argument = invoked.value.arguments.value[0];
+    if (argument === undefined) {
+      throw new Error("forgotten-anchor argument is missing");
+    }
+    const text = (node: MorphNode): string => node.getText();
+    const declared = evidence.declarations(argument).map(text);
+    call.forget();
+    expect(call.wasForgotten()).toBe(true);
+    expect(evidence.declarations(argument).map(text)).toEqual(declared);
+    const owner = argument.getSourceFile();
+    const at = span(argument);
+    owner.insertText(owner.getEnd(), "\nexport const changed=1;\n");
+    const fresh = owner.getDescendants().find((node) => node.getStart() === at.start && node.getEnd() === at.end && node.getKind() === at.kind);
+    if (fresh === undefined) {
+      throw new Error("forgotten-anchor argument did not survive the appended edit");
+    }
+    expect(() => evidence.declarations(fresh)).toThrow("replay source/epoch is stale");
+  },
+  scaledBudget(60_000),
+);
+
+test(
   "mixed full and invocation bindings preserve authored output and strict dependency ownership",
   ({ scratch, repoRoot }) => {
     setup(scratch, repoRoot);
