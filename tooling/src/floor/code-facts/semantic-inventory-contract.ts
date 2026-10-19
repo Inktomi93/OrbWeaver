@@ -45,7 +45,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 24;
+export const INVENTORY_FORMAT = 25;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -603,8 +603,8 @@ export const shapePairSchema = z
   );
 export const shapeCatalogSchema = z.object({
   node: spanSchema,
-  copy: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
-  respell: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
+  copy: z.array(z.string()).nullable(),
+  respell: z.array(z.string()).nullable(),
   direct: z.array(z.string()),
   queries: z.array(z.string()),
 });

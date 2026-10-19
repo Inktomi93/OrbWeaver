@@ -1,32 +1,8 @@
-// Reviewed grants: contract-verb-presence, single-stream-transport, sole-env-reader.
+// Reviewed grants: single-stream-transport, sole-env-reader.
 // Split from reviewed-grants.ts — see that file for the central home comment.
 import type { ReviewedGateGrant } from "../contract/gate-authority.ts";
 
 export const REVIEWED_GRANTS_SINGLESTREAMTRANSPORT_SOLEENVREADER: readonly ReviewedGateGrant[] = [
-  {
-    id: "contract-verb-presence:chat-room-overrides",
-    policyId: "contract-verb-presence",
-    subject: "chat.getRoomOverridesForChat",
-    operation: "missing-contract-test",
-    why: "W1i records this wired ChatService verb as the current behavioral-test gap; the grant keeps the missing test visible and exact.",
-    endsWhen: "a domain test invokes getRoomOverridesForChat through the service or its factory, or the verb is removed.",
-  },
-  {
-    id: "contract-verb-presence:discovery-themes",
-    policyId: "contract-verb-presence",
-    subject: "discovery.themes",
-    operation: "missing-contract-test",
-    why: "W1i records this wired DiscoveryService verb as the current behavioral-test gap; the grant keeps the missing test visible and exact.",
-    endsWhen: "a domain test invokes themes through the service or its factory, or the verb is removed.",
-  },
-  {
-    id: "contract-verb-presence:sessions-getOwnerUserId",
-    policyId: "contract-verb-presence",
-    subject: "sessions.getOwnerUserId",
-    operation: "missing-contract-test",
-    why: "an @internal boot-sequence verb (owner-row existence check); exercised through the boot path but has no direct service-level test.",
-    endsWhen: "a domain test invokes getOwnerUserId through the service or its factory, or the verb is removed.",
-  },
   {
     id: "single-stream-transport:chat-impersonate-stream",
     policyId: "single-stream-transport",

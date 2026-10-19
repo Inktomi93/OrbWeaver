@@ -1,46 +1,21 @@
-// The `ledgers:fresh` stage (#817) — the STATIC tripwire for committed single-writer outputs that
-// lag the tree SILENTLY, the founding one being the caught-failure census (every row then carried the
-// `line`/`markerLine` of its site, so ANY merge that inserted lines above one re-staled it; since work item
-// 0009 the committed row is only the judgment keyed by `siteId`, and a line move is no longer drift). The
-// test-baseline manifest was the second and was DELETED with its
-// `monotonic-tests` gate (#2217, owner ruling). The census already had a freshness check — but it
-// was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole node run, and
-// regeneration was an orchestrator barrier ritual that nothing stopped from lagging again (three re-lines
-// in one night, 2026-08-30: the #799 merge shifted `plugin-frame.ts` +5 and re-staled the census twenty
-// minutes after the first regen).
-//
-// It runs the SAME derivations the regenerators run (`deriveCaughtFailurePopulation` and its siblings —
-// one home each, GATE-AUTHORING §4.8's single-writer door keeps the WRITE)
-// and writes nothing. The existing vitest suites stay: they are the behavioural proof (bijection against
-// the gate's live findings, exemption hygiene); this is the tripwire that makes the drift visible at the
-// COMMIT bar instead of at the next `pnpm test`.
+// The `ledgers:fresh` stage (#817) — the STATIC tripwire for committed single-writer outputs that lag the
+// tree SILENTLY. It runs the SAME derivations the regenerators run (one home each, GATE-AUTHORING §4.8's
+// single-writer door keeps the WRITE) and writes nothing, so drift is visible at the COMMIT bar instead of
+// at the next `pnpm test`.
 //
 // WHOLE-PROJECT BY NATURE: the registry's identity trigger runs the complete stage command for a
 // changed selection (#2304). It never passes a narrowed fileset into a derivation; that would compare
-// a census of a different tree and misreport every omitted row as stale.
-//
-// THE SUBJECT WIDENED 2026-09-12 (#2008) AND THE STAGE'S NAME NOW UNDERSELLS IT. The deferred gate roster
-// row is not a single-writer ledger at all: it is a HAND-AUTHORED CLAIM that nothing held two-sided (five
-// rows read "not yet ported" while their gate shipped), which is the same failure shape one substrate over —
-// a claim written against a tree, and then the tree moved. It has no writer: the fix is an authored edit.
-//
-// COST: the cheap derivations take milliseconds; the caught-failure census builds the whole-repo ts-morph
-// project and was ~19s on this box (2026-08-30, 408 sites). That is the price of the derivation itself,
-// not a current measurement or a claim that the retired test-baseline manifest is still read.
+// a different tree and misreport every omitted row as stale.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
-import type { CaughtFailureJudgment, CaughtFailurePopulation } from "../contract/caught-failure.ts";
 import { THEME } from "../contract/css-family.ts";
 import { ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL } from "../contract/ledger-paths.ts";
 import type { LedgerFreshness } from "../contract/scoped.ts";
-import { readApplicationSubjects } from "../lib/application-programs.ts";
-import { populationIncludes } from "../lib/population-resolver.ts";
 import { deriveActiveGatesIndex } from "./gen/active-gates-index.ts";
-import { deriveCaughtFailurePopulation, POPULATION_REL } from "./gen/caught-failure-population.ts";
 import { deriveSnapFlagsIndexMarkdown } from "./gen/snap-flags-index.ts";
 import { deriveThemeCss, THEME_BASELINE, THEME_REGEN } from "./gen/theme-css.ts";
 import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
@@ -48,7 +23,6 @@ import { deriveTypeConfigFiles } from "./gen/type-configs.ts";
 refuseDirectInvocation(import.meta.url, "pnpm check:ledgers-fresh");
 
 const REGEN_ACTIVE_GATES_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline active-gates-index";
-const REGEN_CENSUS = "pnpm exec node tooling/src/verify/cli.ts baseline caught-failure-population";
 const REGEN_SNAP_FLAGS_INDEX = "pnpm exec node tooling/src/verify/cli.ts baseline snap-flags-index";
 const REGEN_TYPE_CONFIGS = "pnpm exec node tooling/src/verify/cli.ts baseline type-configs";
 
@@ -58,70 +32,8 @@ const MAX_DRIFT_LINES = 40;
 
 const MISSING = (regen: string): string => `the committed file does not exist — derive it: ${regen}`;
 
-/** Stable, key-order-independent text for one value — so a row whose JSON key order changed is not
- *  reported as drift, and a row whose CONTENT changed always is. */
-function stable(value: unknown): string {
-  return JSON.stringify(value, (_key, v: unknown) => {
-    if (typeof v !== "object" || v === null || Array.isArray(v)) {
-      return v;
-    }
-    const record = v as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.keys(record)
-        .sort((a, b) => a.localeCompare(b))
-        .map((k) => [k, record[k]]),
-    );
-  });
-}
-
-/** Field-level drift for one census row present on BOTH sides — `verdict "unproven" → "deliberate-absorb"`
- *  names what changed, never a bare "differs". */
-function rowFieldDrift(siteId: string, committed: CaughtFailureJudgment, derived: CaughtFailureJudgment): string[] {
-  const keys = [...new Set([...Object.keys(committed), ...Object.keys(derived)])].sort((a, b) => a.localeCompare(b));
-  const changed = keys
-    .filter((k) => stable((committed as unknown as Record<string, unknown>)[k]) !== stable((derived as unknown as Record<string, unknown>)[k]))
-    .map((k) => `${k} ${stable((committed as unknown as Record<string, unknown>)[k])} → ${stable((derived as unknown as Record<string, unknown>)[k])}`);
-  return changed.length === 0 ? [] : [`changed ${siteId}: ${changed.join(", ")}`];
-}
-
-/** The committed census vs a fresh derivation, row by row (keyed by the move-stable `siteId`). A vanished
- *  site is named by its id: the committed row carries no coordinate to cite, and the id spells the path. */
-export function censusDrift(committed: CaughtFailurePopulation | undefined, derived: CaughtFailurePopulation, compareTotals = true): LedgerFreshness {
-  const base = { ledger: POPULATION_REL, regen: REGEN_CENSUS, derived: derived.rows.length } as const;
-  if (committed === undefined) {
-    return { ...base, drift: [MISSING(REGEN_CENSUS)] };
-  }
-  const committedRows = new Map(committed.rows.map((row) => [row.siteId, row]));
-  const derivedRows = new Map(derived.rows.map((row) => [row.siteId, row]));
-  const drift: string[] = [];
-  for (const [siteId, row] of committedRows) {
-    const fresh = derivedRows.get(siteId);
-    if (fresh === undefined) {
-      drift.push(`gone   ${siteId} — the site is no longer on the tree`);
-      continue;
-    }
-    drift.push(...rowFieldDrift(siteId, row, fresh));
-  }
-  for (const [siteId, row] of derivedRows) {
-    if (!committedRows.has(siteId)) {
-      drift.push(`new    ${siteId} (${row.verdict}) — the census never recorded it`);
-    }
-  }
-  if (compareTotals && stable(committed.totals) !== stable(derived.totals)) {
-    drift.push(`totals ${stable(committed.totals)} → ${stable(derived.totals)}`);
-  }
-  return { ...base, drift: drift.sort((a, b) => a.localeCompare(b)) };
-}
-
-/** Read a committed JSON ledger, or undefined when it does not exist. A PARSE failure is deliberately NOT
- *  caught: a corrupt committed ledger is a tool error (exit 2 via run-tool), never a freshness verdict. */
-function readCommitted<T>(root: string, rel: string): T | undefined {
-  const abs = join(root, rel);
-  return existsSync(abs) ? (JSON.parse(readFileSync(abs, "utf8")) as T) : undefined;
-}
-
 /** The generated snap flag index vs a fresh derivation — a byte-for-byte text ledger (no line/fileset
- *  keying, unlike the two JSON ledgers above), so drift is either "missing" or "the whole file differs". */
+ *  keying), so drift is either "missing" or "the whole file differs". */
 export function snapFlagsIndexDrift(root: string): LedgerFreshness {
   const abs = join(root, SNAP_FLAGS_INDEX_REL);
   const derivedText = deriveSnapFlagsIndexMarkdown();
@@ -188,10 +100,9 @@ export function typeConfigsDrift(root: string): LedgerFreshness {
 /** Every output is derived even when a sibling reports drift. A failed derivation throws to the CLI
  * tool-error boundary; it never supplies a freshness verdict. */
 export async function ledgerFreshness(root: string): Promise<readonly LedgerFreshness[]> {
-  const census = censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root));
   const snapFlagsIndex = snapFlagsIndexDrift(root);
   const typeConfigs = typeConfigsDrift(root);
-  return [census, snapFlagsIndex, typeConfigs, await themeCssDrift(root), await activeGatesIndexDrift(root)];
+  return [snapFlagsIndex, typeConfigs, await themeCssDrift(root), await activeGatesIndexDrift(root)];
 }
 
 /** A derivation that came back EMPTY is blindness, not cleanliness: a broken `scanRoot`, a `git ls-files`
@@ -244,14 +155,7 @@ function verdict(results: readonly LedgerFreshness[]): number {
 /** The `ledgers-fresh` verb — the whole-project stage. Every output, one process, writes nothing. */
 export async function runLedgersFresh(root: string, args: readonly string[] = []): Promise<number> {
   if (args.length === 1 && args[0] === "--application") {
-    const { subjects } = await readApplicationSubjects(root);
-    const selected = new Set(subjects);
-    const includesSubject = (path: string): boolean => selected.has(path) || populationIncludes("@product", path);
-    const committed = readCommitted<CaughtFailurePopulation>(root, POPULATION_REL);
-    const rows =
-      committed === undefined ? undefined : { ...committed, rows: committed.rows.filter(({ siteId }) => includesSubject(siteId.split("::")[0] ?? "")) };
-    const census = censusDrift(rows, deriveCaughtFailurePopulation(root, includesSubject), false);
-    return verdict([census, await themeCssDrift(root)]);
+    return verdict([await themeCssDrift(root)]);
   }
   if (args.length > 0) {
     throw new UsageError("ledgers-fresh accepts only --application");
@@ -263,8 +167,6 @@ export async function runLedgersFresh(root: string, args: readonly string[] = []
  *  One home per ledger, two doors: `baseline <kind>` writes, `baseline <kind> --check` judges. */
 export const LEDGER_CHECKS: Readonly<Record<string, (root: string) => number | Promise<number>>> = {
   "active-gates-index": async (root) => verdict([await activeGatesIndexDrift(root)]),
-  "caught-failure-population": (root) =>
-    verdict([censusDrift(readCommitted<CaughtFailurePopulation>(root, POPULATION_REL), deriveCaughtFailurePopulation(root))]),
   "snap-flags-index": (root) => verdict([snapFlagsIndexDrift(root)]),
   "type-configs": (root) => verdict([typeConfigsDrift(root)]),
   [THEME_BASELINE]: async (root) => verdict([await themeCssDrift(root)]),

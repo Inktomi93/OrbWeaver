@@ -70,23 +70,15 @@ test("native importer ownership catches aliases, reexports, namespace and inferr
       'import type {LocalHandle as Renamed} from "../infra/adapter/factory.ts";export function use(value:Renamed){return value}',
       true,
     ],
-    [
-      "packages/server/src/entry/nested.ts",
-      'import {nested as renamed} from "../transport/bridge.ts";export const value=renamed();',
-      "unreadableFactoryExposure",
-    ],
-    ["packages/server/src/entry/namespace.ts", 'import * as api from "../transport/bridge.ts";export const value=api.nested();', "unreadableFactoryExposure"],
-    [
-      "packages/server/src/entry/callback.ts",
-      'import {callbacks} from "../infra/adapter/factory.ts";export const value=callbacks();',
-      "unreadableFactoryExposure",
-    ],
+    ["packages/server/src/entry/nested.ts", 'import {nested as renamed} from "../transport/bridge.ts";export const value=renamed();', true],
+    ["packages/server/src/entry/namespace.ts", 'import * as api from "../transport/bridge.ts";export const value=api.nested();', true],
+    ["packages/server/src/entry/callback.ts", 'import {callbacks} from "../infra/adapter/factory.ts";export const value=callbacks();', true],
     ["packages/server/src/entry/name.ts", 'import {named} from "../infra/adapter/factory.ts";export const value=named;', true],
     ["packages/server/src/entry/overloaded.ts", 'import {overloaded} from "../infra/adapter/factory.ts";export const value=overloaded;', true],
     ["packages/server/src/entry/union.ts", 'import {union} from "../infra/adapter/factory.ts";export const value=union();', true],
-    ["packages/server/src/entry/awaited.ts", 'import {awaited} from "../infra/adapter/factory.ts";export const value=awaited();', "unreadableFactoryExposure"],
-    ["packages/server/src/entry/export-star.ts", 'export * from "../transport/bridge.ts";', "unreadableFactoryExposure"],
-    ["packages/server/src/entry/export-namespace.ts", 'export * as api from "../transport/bridge.ts";', "unreadableFactoryExposure"],
+    ["packages/server/src/entry/awaited.ts", 'import {awaited} from "../infra/adapter/factory.ts";export const value=awaited();', true],
+    ["packages/server/src/entry/export-star.ts", 'export * from "../transport/bridge.ts";', true],
+    ["packages/server/src/entry/export-namespace.ts", 'export * as api from "../transport/bridge.ts";', true],
     ["packages/server/src/entry/type-import.ts", 'export type Handle=import("../infra/adapter/factory.ts").LocalHandle;', true],
     ["packages/server/src/entry/contract.ts", 'import {create} from "../infra/adapter/contract.ts";export const value=create();', false],
     ["packages/server/src/entry/context.ts", 'import {create} from "../transport/trpc/context.ts";export const value=create();', false],
@@ -106,11 +98,7 @@ test("native importer ownership catches aliases, reexports, namespace and inferr
     ["packages/server/src/entry/structural.ts", 'import {structural} from "../infra/adapter/factory.ts";export const value=structural();', true],
     ["packages/server/src/entry/hidden-alias.ts", 'import {aliasedPrivate} from "../infra/adapter/factory.ts";export const value=aliasedPrivate();', 2],
     ["packages/server/src/entry/private.ts", 'import {privateCreate} from "../infra/adapter/factory.ts";export const value=privateCreate();', true],
-    [
-      "packages/server/src/entry/private-nested.ts",
-      'import {privateNested} from "../infra/adapter/factory.ts";export const value=privateNested();',
-      "unreadableFactoryExposure",
-    ],
+    ["packages/server/src/entry/private-nested.ts", 'import {privateNested} from "../infra/adapter/factory.ts";export const value=privateNested();', true],
     ["packages/server/src/entry/body-only.ts", 'import {bodyOnly} from "../infra/adapter/factory.ts";bodyOnly();', false],
     ["packages/server/src/entry/erased.ts", 'import {erased} from "../infra/adapter/factory.ts";export const value=erased();', 1],
     ["packages/server/src/infra/local.ts", 'import {create} from "./adapter/factory.ts";export const value=create();', false],
@@ -225,11 +213,7 @@ test("isolated private inferred return carriers establish ownership without borr
       );
       expect(messages, name).toHaveLength(count);
       expect(
-        messages.every((message) =>
-          ["root", "nested", "container"].includes(name)
-            ? message.messageId === "unreadableFactoryExposure"
-            : message.messageId === "crossTierFactoryType" && message.message.includes("Factory type PrivateHandle is local"),
-        ),
+        messages.every((message) => message.messageId === "crossTierFactoryType" && message.message.includes("Factory type PrivateHandle is local")),
         name,
       ).toBe(true);
     }

@@ -1,8 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-a1f19683428ee1d4b
+plan: test-foundation
 ---
 
 # Build references in one pass per name, not one search per declaration

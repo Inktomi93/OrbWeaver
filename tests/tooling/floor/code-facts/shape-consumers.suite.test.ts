@@ -205,7 +205,7 @@ export type Joined = { a: string; b: number } & { c: boolean; d: string };
 export type Own = { a: string; b: number; c: boolean; d: string; derived: Parent["inherited"]; run: () => void; method(): void };
 `,
   );
-  expect(shapesUnder(project, "/packages/contracts/src/chat/").map(({ name, fields }) => [name, fields.map((field) => field.name)])).toEqual([
+  expect(shapesUnder(project, "/packages/contracts/src/chat/").map(({ name, fields }) => [name, fields])).toEqual([
     ["Row", ["inherited", "a", "b", "c"]],
     ["Own", ["a", "b", "c", "d", "derived", "run", "method"]],
   ]);

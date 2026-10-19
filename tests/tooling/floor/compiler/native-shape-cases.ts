@@ -82,7 +82,7 @@ async function run(mode: string, root: string): Promise<object> {
       throw new Error("native mapped shape witness missing");
     }
     using _binding = bindShapeInventory([contracts, server], inventory);
-    const fields = readShapeFields(contracts.getTypeAliasOrThrow("Mapped"), "respell")?.map(({ name }) => name);
+    const fields = readShapeFields(contracts.getTypeAliasOrThrow("Mapped"), "respell");
     const exact = respellHitsFor(project, undefined, "chat").map(({ text }) => text);
     const near = respellNearCandidatesFor(project, undefined, "chat", 60).map(({ domainName, contractsName, diff }) => ({
       domainName,

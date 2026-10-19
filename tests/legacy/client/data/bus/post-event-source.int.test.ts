@@ -70,6 +70,7 @@ for (const { mode, ...expected } of CASES) {
       rateLimit: { enforce: () => Promise.resolve() },
       presence: { connect: () => undefined, read: (userId) => ({ userId, online: true, lastSeenAt: null }) },
       sockets: app.sockets,
+      liveBuses: app.liveBuses,
       assets: app.assets,
       cas: createCas(join(importStagingDir, "unhit-cas")),
       character: app.services.character,

@@ -35,6 +35,7 @@ export const TYPE_OBSERVATION_QUESTION_KINDS = [
   "type-constituents",
   "shape-constituents",
   "definition-nodes",
+  "node-symbols",
   "definition-closure",
   "call-parameters",
   "signature-parameters",
@@ -65,6 +66,18 @@ export interface TypeObservationQuestion<Anchor = Node> {
   readonly callableHomes?: readonly { readonly name: string; readonly suffix: string }[] | undefined;
   readonly predicateContext?: { readonly calls: readonly Anchor[]; readonly references: readonly Anchor[] } | undefined;
   readonly properties?: readonly string[] | undefined;
+  /** Closure questions only: members whose literal values are read on each closure call's own Type. */
+  readonly callLiteralMembers?: readonly string[] | undefined;
+  /** Closure questions only: members whose presence is read on each closure value node's receivers. */
+  readonly presenceMembers?: readonly string[] | undefined;
+  /** Closure questions only, and required there: declaration hops walked past the nominated roots (D328). */
+  readonly closureHops?: number | undefined;
+  /** Closure questions only: a hop walks a multi-statement function body only from a handler position (a call
+   *  argument or a bare alias initializer); every other such body is past the bound. */
+  readonly closureHandlerBodiesOnly?: boolean | undefined;
+  /** Closure questions only: Type details are asked only at reader positions (`readerTypedPosition`); a Type
+   *  question about any other walked node is past the bound. */
+  readonly closureTypedPositions?: boolean | undefined;
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
   readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;
@@ -130,10 +143,10 @@ export interface NativeObservedType {
 
 export type ObservedLiteralValue = string | number | boolean | { readonly negative: boolean; readonly base10Value: string };
 
+/** A node's symbol. Its Type is a separate, explicitly requested selector: resolving a symbol never types the node. */
 export interface NativeObservedNode<Anchor = Node> {
   readonly node: Anchor;
   readonly symbol: number | null;
-  readonly type: number;
   readonly contextual: NativeTypeObservation<number>;
 }
 
@@ -217,6 +230,23 @@ export interface TypeObservationCaptureOwner {
   readonly callableDeclaration?: ((node: Node) => ReferenceFact<CallableDeclaration>) | undefined;
   readonly module?: ((node: Node) => ReferenceFact<ModuleMemberOrigin>) | undefined;
   readonly node?: ((span: InventorySpan) => Node) | undefined;
+  /** Receives each declaration a bounded closure reached but did not walk. */
+  readonly closureBound?: ((declaration: Node) => void) | undefined;
+  /** Receives each node a bounded closure walked, and whether its Type details were asked. */
+  readonly closureWalked?: ((node: Node, typed: boolean) => void) | undefined;
+}
+
+/** A Type question about a node that lies past a bounded closure's frontier: an unresolved answer, not a defect. */
+export class ClosureBoundError extends Error {
+  readonly node: Node;
+  readonly declaration: Node;
+  constructor(node: Node, declaration: Node) {
+    super(
+      `native Type question lies past the bounded closure: ${node.getKindName()} ${node.getSourceFile().getFilePath()}:${String(node.getStartLineNumber())}`,
+    );
+    this.node = node;
+    this.declaration = declaration;
+  }
 }
 
 export interface TypeObservationCaptureRequest {
@@ -293,6 +323,11 @@ export interface ObservedArrayElement {
 
 /** Only registered node/selector operations may be answered by a delivered reader. */
 export interface TypeObservationReader {
+  /** The unwalked declaration past a bounded closure that contains `node`, when no answer about it was captured.
+   *  Absent on the live capture reader, which answers every node. */
+  readonly closureFrontier?: (node: Node) => Node | undefined;
+  /** The statement around `node` when a bounded closure was walked and never reached `node`; absent live. */
+  readonly closurePast?: (node: Node) => Node | undefined;
   readonly select: (selector: NativeTypeSelector) => ObservedReference<"type"> | null;
   readonly type: (reference: ObservedReference<"type">) => ObservedTypeData;
   readonly symbol: (node: Node) => ObservedReference<"symbol"> | null;

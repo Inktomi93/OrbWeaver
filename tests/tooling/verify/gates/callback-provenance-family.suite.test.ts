@@ -1,10 +1,9 @@
-// Bounded verdict, authority, import and refusal controls for serialized callbacks and detached work.
+// Bounded verdict, authority, import and refusal controls for serialized callbacks.
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as auditClientTests } from "../../../../tooling/src/verify/gates/audit-client-tests.ts";
-import { gate as detachedWorkTraced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as diagnosticLegibility } from "../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -12,12 +11,7 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 
 const ROOT = "/callback-provenance-family";
 
-const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, auditClientTests, detachedWorkTraced];
-
-const TRACING = "packages/server/src/foundation/observability/tracing.ts";
-const HEALTHY_TRACING =
-  "export function withRequestSpan(id: string, name: string, attrs: A, fn: () => Promise<void>): Promise<void> {\n" +
-  "  return t.startActiveSpan(name, { attributes: attrs, root: true }, fn);\n}\n";
+const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, auditClientTests];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -40,7 +34,7 @@ function passOf(policy: GatePolicy, files: Readonly<Record<string, string>>): Re
   });
 }
 
-test("the callback and detached-work policies pass their production proof runtime", () => {
+test("the callback policies pass their production proof runtime", () => {
   expect(verifyPolicyProofs(FAMILY)).toEqual([]);
 });
 
@@ -114,18 +108,6 @@ test("audit-client-tests: a waiver naming the TEST CALLEE binds to its own findi
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("detached-work-traced: a waiver naming the guarded WORK CHAIN binds to its own finding", () => {
-  const waived = passOf(detachedWorkTraced, {
-    [TRACING]: HEALTHY_TRACING,
-    "packages/server/src/infra/network/waived.ts": `export function tear(res: R): void {\n  // @orb-waive detached-work-traced(res.body.cancel): ${REASON}\n  void res.body.cancel().catch(() => undefined);\n}\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 // ---------------------------------------------------------------------------------------------------
 // AND THE ARMS DISCRIMINATE. For each ordinary policy, the SAME fixture with the marker's position
 // replaced by a name the carrier does not declare must leave the finding EFFECTIVE and raise an alarm
@@ -147,13 +129,6 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
       auditClientTests,
       { "tests/tooling/dead.test.ts": `// @orb-waive audit-client-tests(describe): ${DEAD}\ntest("does nothing", () => {\n  const x = 1;\n  void x;\n});\n` },
     ],
-    [
-      detachedWorkTraced,
-      {
-        [TRACING]: HEALTHY_TRACING,
-        "packages/server/src/infra/network/dead.ts": `export function tear(res: R): void {\n  // @orb-waive detached-work-traced(res.body.destroy): ${DEAD}\n  void res.body.cancel().catch(() => undefined);\n}\n`,
-      },
-    ],
   ];
 
   const unbound = arms
@@ -174,21 +149,6 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every o
 // diagnostic text through runPolicyPass. A declared mustRefuse row owns the refusal verdict; these
 // controls additionally inspect the production error shape.
 // ---------------------------------------------------------------------------------------------------
-test("detached-work-traced: an ABSENT derivation source refuses rather than reporting blindness", () => {
-  const result = passOf(detachedWorkTraced, { "packages/server/src/domain/chat/verbs/turn.ts": "export const fire = 1;\n" });
-
-  expect(result.toolErrors).toEqual([
-    expect.objectContaining({
-      policyId: "detached-work-traced",
-      phase: "evaluate",
-      message: expect.stringContaining("is not in the effective population"),
-    }),
-  ]);
-  // AND IT IS A REFUSAL, NOT A FINDING: a tripwire that reported "zero openers" here would be accusing the
-  // tree of a blindness it merely could not measure — the exact false-positive twin of a silent clean.
-  expect(result.policies[0]?.findings).toEqual([]);
-});
-
 // THE MEASUREMENT THAT RETIRED AN ARM, kept as a pin so the next reader inherits the fact rather than the
 // assumption. `audit-client-tests` shipped a draft out-of-population REFUSAL for a helper whose body lives
 // outside the policy's population. Running it showed the branch UNREACHABLE: an imported identifier's
@@ -214,16 +174,3 @@ test("audit-client-tests: an IMPORTED assertion helper is not followed — the d
   expect(result.policies[0]?.findings).toHaveLength(1);
   expect(result.policies[0]?.findings[0]?.token).toBe("test");
 });
-
-for (const root of ["{}", "{ root: false }"]) {
-  test(`detached-work-traced: a tracing home with ${root} refuses without judging occurrences`, () => {
-    const result = passOf(detachedWorkTraced, {
-      [TRACING]: `export function withRequestSpan(id: string, fn: () => Promise<void>): Promise<void> { return t.startActiveSpan(id, ${root}, fn); }`,
-    });
-    expect(result.toolErrors).toEqual([
-      expect.objectContaining({ policyId: detachedWorkTraced.id, phase: "evaluate", message: expect.stringContaining("derived ZERO root-span openers") }),
-    ]);
-    expect(result.authority.withheldPolicyIds).toEqual([detachedWorkTraced.id]);
-    expect(result.authority.effectiveFindings).toEqual([]);
-  });
-}

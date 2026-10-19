@@ -633,8 +633,6 @@ export interface SetToolRecurseLimitParams extends ChatScopedParams {
 
 export interface GetGroupConfigForChatParams extends ChatScopedParams {}
 
-export interface GetRoomOverridesForChatParams extends ChatScopedParams {}
-
 /** `setSeatKnobs` — the ONE participantId-keyed AI-seat knob write (host-only; D80). Replaces the retired
  *  per-kind forking (`setParticipantDisabled`/`setParticipantTalkativeness`/`setAgentSeatDisabled` — the
  *  pattern that guaranteed skipped arms, e.g. agent talkativeness was unsettable). Targets a PRESENT

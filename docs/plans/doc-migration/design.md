@@ -45,7 +45,7 @@ The work items under `docs/work/` carrying `plan: doc-migration` hold each task'
 | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` (the two legacy style laws fold in and are deleted) | writing-law merge |
 | docs/history/**, docs/architecture/history/**, docs/history/design/\*\* | history collapse |
 | docs/reviews/\*\*, docs/history/reviews/\*\*, `.gitignore` | reviews out |
-| `tooling/src/verify/gates/caught-failure-ownership.population.json`, `tooling/src/verify/gates/caught-failure-ownership.ts`, `tooling/src/verify/ops/gen/caught-failure-population.ts` | population file |
+| `tooling/src/verify/gates/caught-failure-ownership.ts` | population file |
 | the vendored-doc mirrors, the legacy inventory's lane and authority-row files | vendor out (landed, item 10) |
 | docs/design/**, docs/architecture/proposed/**, docs/architecture/proposed/INDEX.md | design triage |
 | the legacy inventory tree and its tool, `tooling/src/verify/lib/registry.ts` (`docs:catalog`), `tooling/src/verify/lib/registry-triggers.ts`, `package.json` | catalog removal (landed, item 12) |

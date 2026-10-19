@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-19
 priority: P1
+plan: test-foundation
 ---
 
 # Bound the json-column-writes native observation set

@@ -210,6 +210,29 @@ jobs:
           path: reports/
           retention-days: 7
 
+  # D321: every domain verb must execute somewhere in the node shards, judged on the V8 coverage they recorded.
+  verb-coverage:
+    needs: [changes, node, node-legacy]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: *media-runner
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: $/.github/actions/setup
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: reports-node-*
+          path: reports/verb-coverage-inputs
+          digest-mismatch: error
+      - run: >-
+          pnpm exec node scripts/ci-verb-coverage.ts
+          reports/verb-coverage-inputs/reports-node-1/verb-coverage/coverage-final.json
+          reports/verb-coverage-inputs/reports-node-legacy-1/verb-coverage/coverage-final.json
+          reports/verb-coverage-inputs/reports-node-legacy-2/verb-coverage/coverage-final.json
+          reports/verb-coverage-inputs/reports-node-legacy-3/verb-coverage/coverage-final.json
+
   ct:
     needs: changes
     if: needs.changes.outputs.code == 'true'
@@ -360,7 +383,7 @@ jobs:
   # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
     if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
-    needs: [changes, static, node, node-legacy, ct, ct-legacy, e2e-smoke, e2e-corpus]
+    needs: [changes, static, node, node-legacy, verb-coverage, ct, ct-legacy, e2e-smoke, e2e-corpus]
     runs-on: ubuntu-slim
     timeout-minutes: 5
     steps:
@@ -378,7 +401,7 @@ jobs:
           echo "$NEEDS" | jq -e '
             .changes.result == "success" and .static.result == "success" and
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
-            (.changes.outputs.code as $code | [.node, .["node-legacy"], .ct, .["ct-legacy"], .["e2e-smoke"], .["e2e-corpus"]]
+            (.changes.outputs.code as $code | [.node, .["node-legacy"], .["verb-coverage"], .ct, .["ct-legacy"], .["e2e-smoke"], .["e2e-corpus"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
           ' > /dev/null || {
             echo "::error title=CI gate::changes.outputs.code=$(echo "$NEEDS" | jq -r '.changes.outputs.code')"
