@@ -1,0 +1,178 @@
+[
+  {
+    "site": "packages/server/src/domain/persona/verbs/resolve-user-publics.ts:21 catch",
+    "claimedOwner": "optional-read-as-absent — a persona/handle display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed read just leaves avatarAssetId at its already-established null",
+    "verifiedOwner": "none. The catch at :28 is empty; deps.loadUserSettings is createLoadUserSettings (settings/verbs/load-user-settings.ts:11) over readUserSettings, which can reject on a db fault, and nothing logs or returns that failure",
+    "toolOutput": "in-memory probe: packages/server/src/domain/persona/verbs/resolve-user-publics.ts:21:7 packages/server/src/domain/persona/verbs/resolve-user-publics.ts:28 catch THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/plugin/activation/activate.ts:171 err",
+    "claimedOwner": "the refusal becomes the returned activation error string; createActivate persists it as plugins.lastError and returns {ok:false,error}",
+    "verifiedOwner": "packages/server/src/domain/plugin/activation/activate.ts:285 - return await activationFailed(providerError,",
+    "toolOutput": "base probe: packages/server/src/domain/plugin/activation/activate.ts:171:5 packages/server/src/domain/plugin/activation/activate.ts:172 err THIS SITE: a catch block (and its finally) that names no owner at all. Post-edit probe: same waived finding, no alarm. activationFailed (activate.ts:197-200) calls logPluginFailure(slug, \"activation-failed\", lastError), setStatus(... status: \"errored\", lastError ...) and returns { ok: false, error }; providerActivationError has one caller (codegraph: createActivate) and the null/string result is a sentinel the reader cannot type as a failure.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name activate.ts:285 and activationFailed (activate.ts:197) as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/plugin/substrate/plugin-macros.ts:104 catch",
+    "claimedOwner": "a throw or rejected invoke was already logged by the resident invoke, and a deadline is logged below",
+    "verifiedOwner": "partial: activate.ts:243 logPluginFailure covers guest throws, but isHostAdmissionRefusal (activate.ts:238) rethrows a DomainConflictError unlogged, and PluginHostBusyError (infra/plugin-host/warm-runtime-pool.ts:79) is one, so a busy host makes the macro render empty with no log",
+    "toolOutput": "in-memory probe: packages/server/src/domain/plugin/substrate/plugin-macros.ts:104:3 packages/server/src/domain/plugin/substrate/plugin-macros.ts:112 catch pe is a constant fallback — the behaviour changed and nobody was told.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/plugin/verbs/transform-for-display.ts:64 catch",
+    "claimedOwner": "the rejection was already logged by the resident's invoke; the caller keeps the row's prior text",
+    "verifiedOwner": "partial: activate.ts:243 logPluginFailure covers guest throws, but the admission refusal path (activate.ts:238, PluginHostBusyError at warm-runtime-pool.ts:79) rethrows unlogged, so applyBounded returns { skip: \"failed\" } and foldFrom (transform-for-display.ts:110) logs only the deadline arm",
+    "toolOutput": "in-memory probe: packages/server/src/domain/plugin/verbs/transform-for-display.ts:64:3 packages/server/src/domain/plugin/verbs/transform-for-display.ts:69 catch THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/refinery/persistence/queries.ts:318 catch",
+    "claimedOwner": "self-heal — healedRun emits the HEAL_EVENT span (observable) and the row reads as absent",
+    "verifiedOwner": "queries.ts:307 addSpanEvent(HEAL_EVENT, ...) is the only trail, and addSpanEvent (foundation/observability/tracing.ts:354) is a no-op without an active span and is not a log line or a returned failure; the lift error itself is not recorded and the run vanishes from the list",
+    "toolOutput": "in-memory probe: packages/server/src/domain/refinery/persistence/queries.ts:318:3 packages/server/src/domain/refinery/persistence/queries.ts:321 catch THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/refinery/substrate/schema-forge.ts:134 catch",
+    "claimedOwner": "bookkeeping — a malformed JSON slice is a DROP the caller counts",
+    "verifiedOwner": "schema-forge.ts:122 addSpanEvent(\"refinery.forge.field-dropped\", ...) counts the drop, but it is a span annotation only; a partial drop reaches the author as a draft with fewer fields and no notice (the draft's dropped list at :228 carries transpile drops, not field-reply drops)",
+    "toolOutput": "in-memory probe: packages/server/src/domain/refinery/substrate/schema-forge.ts:134:3 packages/server/src/domain/refinery/substrate/schema-forge.ts:140 catch pe is a constant fallback — the behaviour changed and nobody was told.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/refinery/verbs/score-sweep.ts:299 catch",
+    "claimedOwner": "null is the FAILED containment the header cites; the caller counts it into failed and the sweep continues",
+    "verifiedOwner": "packages/server/src/domain/refinery/verbs/score-sweep.ts:290 - return { scored, failed: parsed.filter((payload) => payload === null).length };",
+    "toolOutput": "base probe: packages/server/src/domain/refinery/verbs/score-sweep.ts:299:3 packages/server/src/domain/refinery/verbs/score-sweep.ts:304 catch pe is a constant fallback — the behaviour changed and nobody was told. Post-edit probe: same waived finding, no alarm. parseOneScore has one caller (runWave :279); runWave returns the count at :290, stampParsedScores sums it, runScoreSweep returns it as RefineryScoreSweepResult.failed (:164).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name runWave's failed count at score-sweep.ts:290 and RefineryScoreSweepResult.failed as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/chat-ops/gather.ts:54 err",
+    "claimedOwner": "reported via ctx.onFoldBuildFailed (loud, per the function header's R1 doctrine) and returned as the consumed null terminal channel",
+    "verifiedOwner": "packages/server/src/domain/rpg/tools/rounds/observers.ts:45 - { event: \"rpg.extraction.fold_build_failed\", chatId: info.chatId, gameId: info.gameId, err: info.err },",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/chat-ops/gather.ts:54:3 packages/server/src/domain/rpg/chat-ops/gather.ts:60 err pe is a constant fallback — the behaviour changed and nobody was told. Post-edit probe: same waived finding, no alarm. rg onFoldBuildFailed finds one implementation, observers.ts:43-48, a logger.warn carrying err; the injected callback is an opaque dependency to the reader.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the logger.warn at tools/rounds/observers.ts:44 as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/flush-barrier.ts:130 flush",
+    "claimedOwner": "run's OWN error handling owns and logs the failure; the caller of register still receives the real flush promise",
+    "verifiedOwner": "packages/server/src/domain/chat/engine/engine.ts:798 - getLog().warn({ err, chatId: view.chatId, turnId }, \"rpg: post-turn flush failed (reply already committed)\")",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/flush-barrier.ts:130:7 packages/server/src/domain/rpg/flush-barrier.ts:133 flush .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: same waived finding, no alarm. register has one caller (chat-ops/index.ts:100 returns it from onTurnCompleted); engine.ts:796-798 wraps rpg.onTurnCompleted(...) in withRequestSpan(...).catch(err => getLog().warn({ err, ... })).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the caller chain and the engine.ts:798 getLog().warn as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/snapshot-edit.ts:60 previous",
+    "claimedOwner": "a rejected previous link is absorbed only by the ownership-tail chain so a failed waiter releases the next one",
+    "verifiedOwner": "none needed: previous cannot reject. handWriteChains is written once (snapshot-edit.ts:76, value tail); tail = settled.finally(...) at :71; settled = next.then(() => undefined, () => undefined) at :67 swallows every rejection; the finally body (Map get/delete) cannot throw; the fallback is Promise.resolve()",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/snapshot-edit.ts:60:3 packages/server/src/domain/rpg/snapshot-edit.ts:63 previous .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: no finding at the previous.then line; only the :63 next marker remains. ast-grep '$P.then($A, $B)' -l ts over packages/server/src/domain/rpg and settings (149 ts files scanned): 7 matches, the 3 dead-handler sites and the 2 settled swallows; -l tsx: 0 matches, 0 tsx files in those folders. Tests: pnpm test:scoped --legacy tests/legacy/server/domain/rpg/snapshot-edit.test.ts -> 3 passed, including 'a rejected owner releases the next same-game waiter'.",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "-  const next = previous.then(run, run);\n+  const next = previous.then(run);\n(marker removed, one-line reason added: previous is Promise.resolve() or a stored tail, which never rejects)"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/snapshot-edit.ts:64 next",
+    "claimedOwner": "settled only feeds the chain-tail bookkeeping; the caller receives the real rejection through the returned next",
+    "verifiedOwner": "packages/server/src/domain/rpg/snapshot-edit.ts:77 - return next;",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/snapshot-edit.ts:64:3 packages/server/src/domain/rpg/snapshot-edit.ts:67 next .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: packages/server/src/domain/rpg/snapshot-edit.ts:63:3 ... next, waived, no alarm. codegraph: serializeHandWrite has 8 callers (writeHandState, foldTurnWriteIntoHandHead, checkpoint verbs) that all return or await the promise; the unit test asserts failed rejects with 'write failed' while the next waiter resolves.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name return next as the owner and writeHandState as its consumer"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/substrate/delta.ts:537 catch",
+    "claimedOwner": "§2.7.4 D79-heal DEFENSIVE arm — a malformed plane degrades to no lines for that plane only; consumed as the returned empty array",
+    "verifiedOwner": "none. r.run is definePlaneDiff's select+render over ten renderers (delta.ts:520-531); nothing logs the throw, and I did not prove every renderer total over a stored snapshot (REDUNDANT CATCH needs that) or choose a log owner (a design call)",
+    "toolOutput": "in-memory probe: packages/server/src/domain/rpg/substrate/delta.ts:537:3 packages/server/src/domain/rpg/substrate/delta.ts:542 catch pe is a constant fallback — the behaviour changed and nobody was told.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/tools/rounds/round-log.ts:225 catch",
+    "claimedOwner": "client-input — null on non-JSON, and the caller's schema parse then fails to an empty delta",
+    "verifiedOwner": "packages/server/src/domain/rpg/tools/rounds/extraction.ts:95 - { event: \"rpg.extraction.unparseable\", chatId, model: conn.model, api: conn.api, dropped },",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/tools/rounds/round-log.ts:225:3 packages/server/src/domain/rpg/tools/rounds/round-log.ts:230 catch pe is a constant fallback — the behaviour changed and nobody was told. Post-edit probe: same waived finding, no alarm. contracts/rpg/extraction.ts:650-651 salvageExtraction(null) returns dropped: [{ plane: \"root\", ... }]; extraction.ts:88 logs any non-empty drop; the other callers log at populate.ts:155, resync.ts:322 and structured.ts:303.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the root-drop log at rounds/extraction.ts:95 (and the three sibling callers) as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/rpg/tools/rounds/tool-round.ts:83 err",
+    "claimedOwner": "errors-as-data — a CANCEL is read off the signal and returns empty; any other failure is observed by failedToolRoundDelta",
+    "verifiedOwner": "packages/server/src/domain/rpg/tools/rounds/tool-round.ts:29 - logger.warn({ event: \"rpg.toolround.failed\", chatId, model: conn.model, api: conn.api, err }, \"rpg cheap tool round failed\");",
+    "toolOutput": "base probe: packages/server/src/domain/rpg/tools/rounds/tool-round.ts:83:5 packages/server/src/domain/rpg/tools/rounds/tool-round.ts:91 err THIS SITE: a catch block (and its finally) that names no owner at all. Post-edit probe: same waived finding, no alarm. failedToolRoundDelta (:20-31) rethrows GenerationObservationPersistenceError, logs cancel at info, logs everything else at warn with err, and returns failure: roundFailure(err) at :30; the helper is a declared opaque-helper limit of the reader.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the logger.warn at tool-round.ts:29 and the failure field at :30 as the owner, with its end condition"
+  },
+  {
+    "site": "packages/server/src/domain/search/substrate/space.ts:22 catch",
+    "claimedOwner": "same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError",
+    "verifiedOwner": "partial: space.ts:60, :75 and :105 throw SearchError for a null, but resolveEmbeddingConnection (embeddings/verbs/runtime-connection.ts:77-80) deliberately rethrows an implicit resolve failure as the caller's typed refusal, and this catch also swallows that rethrow and any principalOf/db fault, reporting all of them as 'no connection is bound'; nothing logs the real cause",
+    "toolOutput": "in-memory probe: packages/server/src/domain/search/substrate/space.ts:22:3 packages/server/src/domain/search/substrate/space.ts:25 catch pe is a constant fallback — the behaviour changed and nobody was told.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/sessions/verbs/revoke.ts:42 catch",
+    "claimedOwner": "the DOCUMENTED degrade above — the session is already revoked when this runs, so a failed open costs only the end-session redirect",
+    "verifiedOwner": "packages/server/src/domain/sessions/verbs/revoke.ts:46 - getLog().warn({ sessionId }, \"session: stored OIDC id_token could not be opened",
+    "toolOutput": "base probe: packages/server/src/domain/sessions/verbs/revoke.ts:42:3 packages/server/src/domain/sessions/verbs/revoke.ts:45 catch pe is a constant fallback — the behaviour changed and nobody was told. Post-edit probe: same waived finding, no alarm. The reader's isStructuredLog (tooling/src/verify/lib/caught-failure-outcome.ts:259) requires an errorBinding and a context that references it, so a bindingless catch is never credited; the catch is bindingless on purpose (header :35-37: the raw GCM error stays out of the record).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the getLog().warn at revoke.ts:46 as the owner and why the reader cannot credit it"
+  },
+  {
+    "site": "packages/server/src/domain/settings/context.ts:20 prev",
+    "claimedOwner": "propagated — next is what this function returns, so a failed write reaches the caller unmuted",
+    "verifiedOwner": "none needed: prev cannot reject. userWriteChains is written once (context.ts:34, value tail); tail = settled.finally(...) at :29; settled = next.catch(() => undefined) at :28; the finally body cannot throw; the fallback is Promise.resolve()",
+    "toolOutput": "base probe: packages/server/src/domain/settings/context.ts:20:5 packages/server/src/domain/settings/context.ts:23 prev .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: no finding at the prev.then line; only the next marker (context.ts:23) remains. Tests: pnpm test:scoped tests/support/node/factories/sessions.int.test.ts tests/server/infra/network/egress-public-policy.int.test.ts -> 2 files, 12 tests passed through the real composition root. The legacy settings int tests fail on 'global role data was not captured by its owner' inside requireAdmin (admin/guard.ts:32), before the chain code.",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "-    const next = prev.then(run, run);\n+    const next = prev.then(run);\n(marker removed, one-line reason added: prev is Promise.resolve() or a stored tail, which never rejects)"
+  },
+  {
+    "site": "packages/server/src/domain/settings/context.ts:24 next",
+    "claimedOwner": "scaffolding only — settled exists so a failed write cannot poison the chain's next link; the real outcome the caller sees is next",
+    "verifiedOwner": "packages/server/src/domain/settings/context.ts:35 - return next;",
+    "toolOutput": "base probe: packages/server/src/domain/settings/context.ts:24:5 packages/server/src/domain/settings/context.ts:28 next .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: packages/server/src/domain/settings/context.ts:23:5 ... next, waived, no alarm. serializeUserWrite is the SettingsContext.serializeUserWrite op (contract/service.ts:40); codegraph: createSettingsContext is its only producer and the verbs return the promise to their callers.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name return next as the owner"
+  },
+  {
+    "site": "packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts:83 catch",
+    "claimedOwner": "an unreadable row is #471's territory — the same refusal writeUserConfig raises at the user's next write, so skipping it drops no signal; the boot wrapper logs the count",
+    "verifiedOwner": "partial: the unreadable-row case is owned at the user's next write (STORED_CONFIG_UNREADABLE), but the empty catch at :92 also swallows db faults from the assets select and the settings update (:60-72), and the boot wrapper (entry/boot/heal-legacy-background-pins.ts:22-29) logs only the healed count, so a failed heal is invisible while the user's writes keep failing the pin guard",
+    "toolOutput": "in-memory probe: packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts:83:5 packages/server/src/domain/settings/persistence/heal-legacy-background-pins.ts:92 catch THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/settings/verbs/add-external-background.ts:17 catch",
+    "claimedOwner": "safe floor — a display NAME derivation only; any parse/decode failure falls back to the generic \"Background\"",
+    "verifiedOwner": "none. decodeURIComponent (add-external-background.ts:22) throws on a malformed escape, so the catch is reachable; the failure has no consumer, and the gate has no owner form for a pure cosmetic fallback",
+    "toolOutput": "in-memory probe: packages/server/src/domain/settings/verbs/add-external-background.ts:17:3 packages/server/src/domain/settings/verbs/add-external-background.ts:26 catch THIS SITE: a catch block (and its finally) that names no owner at all.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/domain/settings/verbs/app-settings.ts:75 writeChain",
+    "claimedOwner": "propagated — run is what this function returns, so a failed write reaches the caller unmuted",
+    "verifiedOwner": "none needed: writeChain cannot reject. It starts as Promise.resolve() (app-settings.ts:48) and its only assignment is run.catch(() => undefined) at :85",
+    "toolOutput": "base probe: packages/server/src/domain/settings/verbs/app-settings.ts:75:5 packages/server/src/domain/settings/verbs/app-settings.ts:78 writeChain .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: no finding at the writeChain.then line; only the run marker (app-settings.ts:78) remains. Tests: pnpm test:scoped tests/support/node/factories/sessions.int.test.ts (updateAppSettings at :30) and tests/server/infra/network/egress-public-policy.int.test.ts (updateAppSettings at :30, :54, :108) -> 12 tests passed. pnpm typecheck --config packages/server/tsconfig.json -> PASS.",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "-    const run = writeChain.then(\n-      () => updateSerialized(params),\n-      () => updateSerialized(params),\n-    );\n+    const run = writeChain.then(() => updateSerialized(params));\n(marker removed, one-line reason added: writeChain never rejects)"
+  },
+  {
+    "site": "packages/server/src/domain/settings/verbs/app-settings.ts:82 run",
+    "claimedOwner": "scaffolding only — a failed write must not poison the chain's next link; the real outcome the caller sees is run, not writeChain",
+    "verifiedOwner": "packages/server/src/domain/settings/verbs/app-settings.ts:86 - return run;",
+    "toolOutput": "base probe: packages/server/src/domain/settings/verbs/app-settings.ts:82:5 packages/server/src/domain/settings/verbs/app-settings.ts:85 run .md) THIS SITE: a promise rejection handler that discards the failure. Post-edit probe: packages/server/src/domain/settings/verbs/app-settings.ts:78:5 ... run, waived, no alarm. updateAppSettings is the SettingsService verb (contract/service.ts:128) and returns the promise to its transport caller.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name return run as the owner"
+  }
+]

@@ -57,13 +57,12 @@ const handWriteChains = new Map<RpgGameId, Promise<void>>();
  */
 export function serializeHandWrite<T>(gameId: RpgGameId, run: () => Promise<T>): Promise<T> {
   const previous = handWriteChains.get(gameId) ?? Promise.resolve();
-  // @orb-waive caught-failure-ownership(previous): a rejected `previous` link is absorbed only
-  // by the ownership-tail chain (documented above — "A rejected task is absorbed only by the ownership
-  // tail") so a failed waiter releases the next one; the CALLER still gets `run`'s own rejection via `next`.
-  const next = previous.then(run, run);
-  // @orb-waive caught-failure-ownership(next): `settled` only feeds the chain-tail bookkeeping
-  // below (deletes the map entry once this is the live tail); the caller receives the real rejection through
-  // the returned `next`, per the doc comment above ("the caller still receives its rejection").
+  // `previous` is `Promise.resolve()` or a stored `tail`, and `tail` is built from `settled`, which swallows
+  // every rejection, so it never rejects and `run` needs no rejection arm.
+  const next = previous.then(run);
+  // @orb-waive caught-failure-ownership(next): `settled` only feeds the chain-tail bookkeeping below (deletes the
+  // map entry once this is the live tail). The caller owns the rejection: `return next` at the foot of this function
+  // hands it `run`'s own rejection, and `writeHandState` returns that promise to the hand-edit verbs.
   const settled = next.then(
     () => undefined,
     () => undefined,
