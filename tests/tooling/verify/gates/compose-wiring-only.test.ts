@@ -6,6 +6,7 @@ import { Project } from "ts-morph";
 import { gate } from "../../../../tooling/src/verify/gates/compose-wiring-only.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ALL_ARMS } from "./_liveness/runner.ts";
 
 const ROOT = "/compose-wiring-only";
@@ -21,7 +22,7 @@ function drive(source: string): ReturnType<typeof runPolicyPass> {
   return result;
 }
 
-test("every declared row holds through production conformance", { timeout: 30_000 }, () => {
+test("every declared row holds through production conformance", { timeout: scaledBudget(30_000) }, () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
 
@@ -40,7 +41,7 @@ test("the baseline waiver binds at the reported op name and nowhere else", () =>
   expect(deadPosition.authority.authorityAlarms.length).toBeGreaterThan(0);
 });
 
-test("the actual native transport-policy owner is separate from compose-supplied business operations", { timeout: 30_000 }, ({ repoRoot }) => {
+test("the actual native transport-policy owner is separate from compose-supplied business operations", { timeout: scaledBudget(30_000) }, ({ repoRoot }) => {
   const project = new Project({ tsConfigFilePath: join(repoRoot, "packages/server/tsconfig.json"), skipAddingFilesFromTsConfig: true });
   const owner = project.addSourceFileAtPath(join(repoRoot, "packages/server/src/entry/rate-limit-gate.ts"));
   const original = owner.getFullText();
@@ -90,7 +91,9 @@ test("the actual native transport-policy owner is separate from compose-supplied
   project.removeSourceFile(foreign);
 });
 
-test("the real canonical mint is admitted while a reached admission helper beside it remains detectable", { timeout: 120_000 }, ({ repoRoot }) => {
+test("the real canonical mint is admitted while a reached admission helper beside it remains detectable", { timeout: scaledBudget(120_000) }, ({
+  repoRoot,
+}) => {
   const bridge = "return async (userId: UserId): Promise<Principal> => principalFromRow(userId, await sessions.loadUserById(userId));";
   const arm: RealCorpusLivenessArm = {
     policy: gate,

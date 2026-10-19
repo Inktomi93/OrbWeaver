@@ -34,8 +34,6 @@ import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/v
 
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
 import { gate as testidLiveness } from "../../../../../tooling/src/verify/gates/testid-liveness.ts";
-import { gate as toolingClockBudget } from "../../../../../tooling/src/verify/gates/tooling-clock-budget.ts";
-import { gate as toolingPortRegistry } from "../../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { probeGate } from "./tooling-tests.ts";
@@ -157,16 +155,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "A1: nothing on the tree mints",
-  },
-  {
-    policy: toolingClockBudget,
-    overlays: [add("tooling/src/ui-audit/ops/liveness-walk.ts", "export const livenessOpts = { timeout: 30_000 };\n")],
-    messageIncludes: "Clock: `timeout: 30_000`",
-  },
-  {
-    policy: toolingPortRegistry,
-    overlays: [add("tooling/src/stack/ops/liveness-port.ts", "export const livenessPort = 8788;\n")],
-    messageIncludes: "Subject: tooling/src/stack/ops/liveness-port.ts, operation: port-literal",
   },
   {
     policy: uiPrimitivePermissions,

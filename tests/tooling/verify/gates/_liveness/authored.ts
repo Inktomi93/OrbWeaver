@@ -10,7 +10,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatStreamWritesInBusOnly } from "../../../../../tooling/src/verify/gates/chat-stream-writes-in-bus-only.ts";
-import { gate as gateIgnoreInventory } from "../../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
 
@@ -21,8 +20,7 @@ import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gate
 
 const CHAT = "packages/client/src/features/chat";
 const CHARACTER_PERSISTENCE = "packages/server/src/domain/character/persistence";
-// The text tokens, assembled so none appears whole in this file.
-const RETIRED_MARKER = ["@orb-gate", "-ignore"].join("");
+// The text token, assembled so it does not appear whole in this file.
 const BLANKET_SUPPRESSION = ["biome", "-ignore-all"].join("");
 
 function add(path: string, source: string): RealCorpusOverlay {
@@ -36,11 +34,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       add(`${CHAT}/components/liveness-turn.tsx`, 'import { chatStream } from "../../../state/chat-stream.ts";\nexport const livenessPush = chatStream;\n'),
     ],
     messageIncludes: "outside data/bus/",
-  },
-  {
-    policy: gateIgnoreInventory,
-    overlays: [add("packages/ui/src/liveness-marker.ts", `// ${RETIRED_MARKER} no-such-gate: retired marker\nexport const livenessMarked = 1;\n`)],
-    messageIncludes: `a dead \`${RETIRED_MARKER}\` marker`,
   },
   {
     policy: noAwaitDbInLoop,

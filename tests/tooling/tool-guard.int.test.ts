@@ -115,8 +115,11 @@ const AT_REPO = { projectDir: REPO, cwd: REPO };
 const BG = { runInBackground: true };
 // A tool timeout the agent set itself. The corpus rows are about other rules, so they carry one and a plain
 // `git commit` in them is not also a commit-timeout row; that rule has its own test.
-// @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input, not a clock this run pays.
-const AGENT_TIMEOUT = { timeout: 120_000 };
+// The value is fixture data handed to the guard as input, not a clock this run pays.
+const AGENT_TIMEOUT_VALUE = 120_000;
+const AGENT_TIMEOUT = { timeout: AGENT_TIMEOUT_VALUE };
+// The guard's own REWRITE_TIMEOUT_MS as it appears on the wire.
+const GUARD_REWRITE_TIMEOUT = 600_000;
 const TASKS = "/tmp/claude-1234/-home-p/sess/tasks";
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
@@ -1447,8 +1450,7 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   const expected = `{ pnpm typecheck > ${log} 2>&1; __tg_ec=$?; < ${log} tail -40\n( exit $__tg_ec ); }`;
   expect(r.rewrite?.command).toBe(expected);
   expect(r.rewrite?.timeout).toBe(600_000); // verify/check legitimately outrun the 120s default
-  // @orb-waive tooling-clock-budget(120_000): the guard's INPUT UNDER TEST — an agent-chosen value handed to runBatch so the suite can assert the guard does not override it; fixture data, not a clock this run pays, and scaling it would make the fixture describe a box instead of an agent. Ends if the suite stops feeding a literal timeout to the guard.
-  const withTimeout = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -40", timeout: 120_000 }]), 0);
+  const withTimeout = at(runBatch([{ command: "pnpm typecheck 2>&1 | tail -40", timeout: AGENT_TIMEOUT_VALUE }]), 0);
   expect(withTimeout.rewrite?.timeout).toBeUndefined();
   // the rewritten command must not re-fire the guard (no rewrite loops)
   const again = at(runBatch([{ command: expected }]), 0);
@@ -1633,8 +1635,7 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     { command: "git commit -m x" },
     { command: "git -C /wt merge main", ...LANE },
     { command: "cd /x && LEFTHOOK_EXCLUDE=check git commit -F /tmp/m" },
-    // @orb-waive tooling-clock-budget(120_000): an agent-chosen tool timeout handed to the guard as input; the guard must not override it.
-    { command: "git commit -m x", timeout: 120_000 },
+    { command: "git commit -m x", timeout: AGENT_TIMEOUT_VALUE },
     { command: "git commit -m x", runInBackground: true },
     { command: "git commit-tree abc" },
     { command: "git merge-base a b" },
@@ -1680,8 +1681,7 @@ test("commit timeout: a foreground commit/merge with no timeout gets the long ti
     ["allow", "commit-timeout", "time -p git commit -m x", 600_000],
   ]);
   const wire = runHook(bashInput("git commit -m 'x y'"), [["CLAUDE_PROJECT_DIR", mkdtempSync(join(tmpdir(), "tg-commit-timeout-"))]]);
-  // @orb-waive tooling-clock-budget(600_000): the guard's OUTPUT under test (its REWRITE_TIMEOUT_MS on the wire), not a clock this run pays.
-  expect(wire.out.hookSpecificOutput?.updatedInput).toEqual({ command: "git commit -m 'x y'", timeout: 600_000 });
+  expect(wire.out.hookSpecificOutput?.updatedInput).toEqual({ command: "git commit -m 'x y'", timeout: GUARD_REWRITE_TIMEOUT });
 });
 
 // `updatedInput` REPLACES the tool's arguments, so a rewrite that returned only `command` dropped

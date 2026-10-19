@@ -58,8 +58,6 @@ const APPLICATION = Object.freeze({
   "tooling-artifact-path-home": 1,
   "tooling-browser-door": 2,
   "tooling-child-process-door": 8,
-  "tooling-clock-budget": 1,
-  "tooling-port-registry": 1,
   "tooling-process-exit-home": 1,
   "tooling-project-home": 5,
   "two-class-role-authority": 2,
@@ -77,7 +75,6 @@ const IMPLEMENTATION = Object.freeze({
   "tests-raw-package-reach": 3,
   "tooling-argv-front-door": 2,
   "tooling-child-process-door": 1,
-  "tooling-clock-budget": 5,
   "tooling-project-home": 1,
 });
 

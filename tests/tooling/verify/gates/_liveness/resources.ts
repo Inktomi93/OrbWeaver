@@ -23,7 +23,6 @@ import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
-import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
 const PRODUCT_SHEETS = [
@@ -119,10 +118,5 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: testLayout,
     overlays: [source("tests/ui/primitives/liveness-example.test.tsx", "export const livenessExample = 1;\n")],
     messageIncludes: "unregistered test kind",
-  },
-  {
-    policy: toolingRunnerConfigLiterals,
-    overlays: [replace("vitest.config.ts", "testTimeout: budget(5000),", "testTimeout: 5000,")],
-    messageIncludes: "Literal: `testTimeout: 5000`",
   },
 ];

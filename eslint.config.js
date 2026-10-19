@@ -84,6 +84,7 @@ import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import { SERVER_FACTORY_TIER_REFERENCE_POLICY_ID, serverTypeTier, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
+import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "@orb/tooling/floor/host/ports";
 import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
@@ -2084,6 +2085,49 @@ const VERIFY_HARD_RESTRICTIONS = [
   },
 ];
 
+// ── Tooling plumbing literals (Core-Tooling-Law §4.4): ONE port registry, ONE load-budget policy ──────────────
+// A number has no declaration to resolve, so both laws are syntax: a numeric literal and the NAME of its position.
+// The registry values are IMPORTED, so a new reserved row or stage band widens the port law without an edit here.
+// The root runner configs take the same selectors in the HARD profile (`hardConfig`).
+const PORT_POSITION_NAMES = String.raw`/^port$|Port$|_PORT$|^PORT$/`;
+const WALL_CLOCK_OPTION_NAMES = alternation(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
+const keyNamed = (names) => `:matches(Property[computed=false][key.type='Identifier'][key.name=${names}], Property[key.type='Literal'][key.value=${names}])`;
+const REGISTRY_PORT_VALUES = [...new Set([...RESERVED_PORT_NUMBERS, ...STAGE_BAND_PORT_NUMBERS])].map((port) => `[value=${port}]`).join(", ");
+const PORT_LITERAL_SELECTOR = `Literal[value=type(number)]:matches(${REGISTRY_PORT_VALUES}, ${keyNamed(PORT_POSITION_NAMES)} > .value, VariableDeclarator[id.type='Identifier'][id.name=${PORT_POSITION_NAMES}] > .init)`;
+const PORT_LITERAL_MESSAGE =
+  "A TCP port outside the one registry: read the named row from floor/host/ports.ts or allocate a stage band; a new port is a new reserved row there, never a number picked at the call site (Core-Tooling-Law §4.4).";
+// A name carrying BASE is the sanctioned quiet-box declaration; `*_BUDGET_MS` is a verdict threshold, not a clock.
+const WALL_CLOCK_SELECTORS = [
+  `${keyNamed(WALL_CLOCK_OPTION_NAMES)} > Literal.value[value=type(number)]`,
+  "VariableDeclarator[id.type='Identifier'][id.name=/(?:_TIMEOUT_MS|TimeoutMs)$/]:not([id.name=/BASE|Base/]) > Literal.init[value=type(number)]",
+  "CallExpression[callee.type='Identifier'][callee.name='setTimeout'][arguments.1.type='Literal'][arguments.1.value=type(number)][arguments.1.value>=5000]",
+];
+const WALL_CLOCK_MESSAGE =
+  "A fixed wall clock reads as a false red on a contended box: name the quiet-box literal <X>_BASE_MS and derive the ceiling with budget(<X>_BASE_MS) (tooling) or scaledBudget(<X>_BASE_MS) (tests/tooling/_load-budget.ts) (Core-Tooling-Law §4.4).";
+const VENDORED_DEVTOOLS = "tooling/src/snap/lib/devtools-frontend/**";
+const TOOLING_LITERAL_RESTRICTIONS = [
+  {
+    id: "tooling-clock-budget",
+    scope: ["tooling/src/**/*.{ts,tsx}", "tests/tooling/**/*.{ts,tsx}"],
+    notUnder: [VENDORED_DEVTOOLS],
+    homes: [],
+    selectors: WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
+  },
+  {
+    id: "tooling-port-registry",
+    scope: ["tooling/src/**/*.{ts,tsx}", "tests/e2e/support/**/*.{ts,tsx}"],
+    notUnder: [VENDORED_DEVTOOLS],
+    homes: [{ path: "tooling/src/floor/host/ports.ts", why: "the registry is the one module that spells port numbers; every other file reads a named row" }],
+    selectors: [{ selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE }],
+  },
+];
+const RUNNER_CONFIG_FILES = ["vitest.config.ts", "playwright*.config.ts"];
+// The retired `@orb-gate-ignore` grammar suppresses nothing; a comment that opens with it reads like protection it
+// no longer gives. `location: "start"` is the mention fence: prose and string fixtures that quote it stay inert.
+const RETIRED_GATE_MARKER = { terms: ["@orb-gate-ignore"], location: "start" };
+// The node helper executables are `.mjs`; the retired gate's harness corpus loaded them beside the TS sources.
+const RETIRED_GATE_MARKER_FILES = ["packages/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
+
 const RESTRICTIONS = [
   {
     id: "no-test-fabrication",
@@ -2126,6 +2170,7 @@ const RESTRICTIONS = [
   ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
   ...SERVER_ONE_HOME_RESTRICTIONS,
   ...CT_SPEC_RESTRICTIONS,
+  ...TOOLING_LITERAL_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -5778,6 +5823,17 @@ export const hardConfig = [
     languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
     rules: { "orb/ct-poll-intervals-shared": "error" },
   },
+  {
+    files: RUNNER_CONFIG_FILES,
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
+        { selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE },
+      ],
+    },
+  },
+  { files: RETIRED_GATE_MARKER_FILES, rules: { "no-warning-comments": ["error", RETIRED_GATE_MARKER] } },
   {
     files: SOURCE_TYPE_SUPPRESSION_GLOBS,
     ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,

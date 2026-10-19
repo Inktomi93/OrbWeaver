@@ -10,14 +10,14 @@
 // TWO SUBJECTS, TWO SUBSTRATES, AND ARM B WAS BLIND (#2393, 2026-09-18). The header used to claim a
 // population of "the two authored files that own the runner boundary: test-kinds.ts and vitest.config.ts".
 // Only ONE of them is reachable that way: `population: "@tooling"` is `tooling/src/` (contract/population.ts
-// POPULATION_ROOTS), and `vitest.config.ts` is a REPO-ROOT file that no population root contains — the same
-// fact `tooling-runner-config-literals` was built around ("NO population reaches a repo-root file"). So ARM B's
+// POPULATION_ROOTS), and `vitest.config.ts` is a REPO-ROOT file that no population root contains — no
+// population reaches a repo-root file. So ARM B's
 // visitor filtered `relativePath !== "vitest.config.ts"`, a test that could never be false, and the arm
 // judged nothing on the real tree. Its own proof rows are what said so out loud: `mustFlag[2]` and
 // `mustPass[1]` plant `vitest.config.ts` alone and `policy-conformance` refused them with "expression
 // admitted zero paths from 1 candidate(s)" — a declared row the population could not admit.
-// ARM B now reads the config through the `exact-file` resource `vitest-config` (already a closed id with
-// `tooling-runner-config-literals` as its first consumer) and walks the SAME StringLiteral predicate over
+// ARM B now reads the config through the `exact-file` resource `vitest-config` (a closed id in
+// contract/resource-exact.ts) and walks the SAME StringLiteral predicate over
 // `parseStaticSourceText`'s scratch parse of the delivered text, so the judgment is unchanged and only its
 // door moved. `analysis` is therefore `resource`, which makes every proof row `mode: "resource"` — and each
 // row plants BOTH subjects, because `@tooling` admitting zero paths is itself a refusal.
@@ -41,8 +41,7 @@ const MESSAGE =
 
 const FIX = "ensure RUNTIME_BY_FAMILY maps component to playwright-ct and e2e to playwright-e2e, and that no vitest include glob matches a browser suffix";
 
-/** ARM B is blind to a config it cannot parse, and says so rather than reading it as clean — the same
- *  posture `tooling-runner-config-literals` takes over the same file. */
+/** ARM B is blind to a config it cannot parse, and says so rather than reading it as clean. */
 const UNPARSEABLE =
   "vitest.config.ts does not parse, so its include globs cannot be judged — the browser-suffix arm is blind to this file until it parses again";
 

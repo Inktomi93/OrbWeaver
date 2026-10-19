@@ -2,9 +2,8 @@
 import { symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
+import { defineFact, defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
-import { gate as legacyMarkers } from "../../../../tooling/src/verify/gates/gate-ignore-inventory.ts";
 import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -44,16 +43,54 @@ test("application helper reach does not synthesize an instrument lifecycle, whil
   }
 });
 
-test("application suppression residue rejects app markers without judging an unrelated tool marker, while the full fact remains complete", () => {
+const RESIDUE = "residue-token";
+const residueFact = defineFact({
+  id: "application-residue-sites",
+  population: ["@client", "@tooling"],
+  analysis: "syntax",
+  resources: [],
+  create: (ctx) => {
+    const sites: string[] = [];
+    let members = 0;
+    return {
+      visitFile: (sourceFile) => {
+        members += 1;
+        if (sourceFile.getFullText().includes(RESIDUE)) {
+          sites.push(ctx.relativePath(sourceFile));
+        }
+      },
+      finish: () => {
+        ctx.receipt({ kind: "population", source: "application-residue-sites", members });
+        return { sites, members };
+      },
+    };
+  },
+});
+const residueOwner = policy("application-residue", {
+  population: ["@client", "@tooling"],
+  execution: "entire-population",
+  facts: [residueFact],
+  create: (ctx) => ({
+    evaluate: () => {
+      const { sites, members } = ctx.fact(residueFact);
+      ctx.receipt({ kind: "population", source: "application-residue-sites", members });
+      for (const file of sites.filter((candidate) => ctx.includesSubject(candidate))) {
+        ctx.report.file(file, { line: 1, column: 1, token: RESIDUE });
+      }
+    },
+  }),
+});
+
+test("application fact residue rejects app sites without judging an unrelated tool site, while the full fact remains complete", () => {
   const root = "/application-marker-proof";
   const project = new Project({ useInMemoryFileSystem: true });
-  const source = "// @orb-gate-ignore retired: no authority\nexport const value = true;\n";
+  const source = `// ${RESIDUE}\nexport const value = true;\n`;
   const app = project.createSourceFile(`${root}/${APP}`, "export const value = true;\n");
   project.createSourceFile(`${root}/${TOOL}`, source);
   const run = (): ReturnType<typeof runPolicyPass> =>
     runPolicyPass({
-      knownPolicies: [legacyMarkers],
-      policies: [legacyMarkers],
+      knownPolicies: [residueOwner],
+      policies: [residueOwner],
       root,
       project,
       applicationPaths: [APP],
@@ -61,7 +98,7 @@ test("application suppression residue rejects app markers without judging an unr
       failOnWarnings: false,
     });
   const clean = run();
-  expect(policyPassExitCode(clean)).toBe(0);
+  expect(policyPassExitCode(clean), JSON.stringify(clean.toolErrors)).toBe(0);
   expect(clean.facts[0]?.population.effectiveSourcePaths).toEqual([APP, TOOL]);
   app.replaceWithText(source);
   const dirty = run();
